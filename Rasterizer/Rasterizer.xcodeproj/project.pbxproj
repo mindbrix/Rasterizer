@@ -13,6 +13,8 @@
 		E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A521762BCE00F52C25 /* Assets.xcassets */; };
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
+		E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* RasterizerView.mm */; };
+		E920A5B8217632EE00F52C25 /* RasterizerLayer.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B7217632EE00F52C25 /* RasterizerLayer.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +29,10 @@
 		E920A5AA21762BCE00F52C25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E920A5AB21762BCE00F52C25 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
+		E920A5B3217631E600F52C25 /* RasterizerView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerView.h; sourceTree = "<group>"; };
+		E920A5B4217631E600F52C25 /* RasterizerView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerView.mm; sourceTree = "<group>"; };
+		E920A5B6217632EE00F52C25 /* RasterizerLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerLayer.h; sourceTree = "<group>"; };
+		E920A5B7217632EE00F52C25 /* RasterizerLayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RasterizerLayer.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +75,10 @@
 				E920A5AA21762BCE00F52C25 /* Info.plist */,
 				E920A5AB21762BCE00F52C25 /* main.m */,
 				E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */,
+				E920A5B6217632EE00F52C25 /* RasterizerLayer.h */,
+				E920A5B7217632EE00F52C25 /* RasterizerLayer.m */,
+				E920A5B3217631E600F52C25 /* RasterizerView.h */,
+				E920A5B4217631E600F52C25 /* RasterizerView.mm */,
 			);
 			path = Rasterizer;
 			sourceTree = "<group>";
@@ -144,8 +154,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
+				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
+				E920A5B8217632EE00F52C25 /* RasterizerLayer.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
