@@ -44,14 +44,12 @@
 
 - (NSData *)createGridRects:(size_t)count cellSize:(size_t)cellSize {
     NSMutableData *backing = [NSMutableData dataWithLength:count * sizeof(CGRect)];
-    CGRect *rect = (CGRect *)backing.bytes;
+    CGRect *rects = (CGRect *)backing.bytes;
     CGFloat phi = (sqrt(5) - 1) / 2;
     CGFloat wh = CGFloat(cellSize) * phi;
     size_t dimension = ceil(sqrt(CGFloat(count)));
-    for (size_t i = 0; i < count; i++) {
-        size_t column = i % dimension, row = i / dimension;
-        *rect++ = CGRectMake(column * cellSize, row * cellSize, wh, wh);
-    }
+    for (size_t i = 0; i < count; i++)
+        rects[i] = CGRectMake((i % dimension) * cellSize, (i / dimension) * cellSize, wh, wh);
     return [NSData dataWithData:backing];
 }
 
@@ -70,17 +68,11 @@
 #pragma mark - RasterizerLayerDelegate
 
 - (void)writeBitmap:(CGContextRef)ctx forLayer:(CALayer *)layer {
-    void *data = CGBitmapContextGetData(ctx);
-    if (data) {
-        CGContextConcatCTM(ctx, self.CTM);
-        if (self.gridRectsBacking != nil) {
-            size_t count = self.gridRectsBacking.length / sizeof(CGRect);
-            CGRect *rects = (CGRect *)self.gridRectsBacking.bytes;
-            for (size_t i = 0; i < count; i++)
-                CGContextFillRect(ctx, rects[i]);
-        } else
-            CGContextFillRect(ctx, CGRectMake(0, 0, 100, 100));
-    }
+    CGContextConcatCTM(ctx, self.CTM);
+    size_t count = self.gridRectsBacking.length / sizeof(CGRect);
+    CGRect *rects = (CGRect *)self.gridRectsBacking.bytes;
+    for (size_t i = 0; i < count; i++)
+        CGContextFillRect(ctx, rects[i]);
 }
 
 

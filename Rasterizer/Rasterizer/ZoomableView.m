@@ -22,7 +22,6 @@
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    
     self.transform = [VGAffineTransform new];
     return self;
 }
@@ -64,9 +63,11 @@
     [self redraw];
 }
 
+#pragma mark - Properties
+
 - (CGAffineTransform)CTM {
-    CGFloat s = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    CGAffineTransform scale = { s, 0, 0, s, 0, 0 };
+    CGFloat scaleFactor = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+    CGAffineTransform scale = { scaleFactor, 0, 0, scaleFactor, 0, 0 };
     return CGAffineTransformConcat(self.transform.affineTransform, scale);
 }
 
