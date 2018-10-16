@@ -52,6 +52,11 @@
     [self redraw];
 }
 
+- (void)mouseDragged:(NSEvent *)event {
+    [self.transform translateByX:event.deltaX andY:-event.deltaY];
+    [self redraw];
+}
+
 - (void)scrollWheel:(NSEvent *)event {
     BOOL isInverted = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]);
     CGFloat inversion = isInverted ? 1.0f : -1.0f;
