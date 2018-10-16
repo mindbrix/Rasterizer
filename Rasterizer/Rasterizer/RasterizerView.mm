@@ -59,10 +59,7 @@
     void *data = CGBitmapContextGetData(ctx);
     if (data) {
         CGContextConcatCTM(ctx, self.CTM);
-        
-        uint8_t bgraRed[4] = { 0, 0, 255, 255 };
-        size_t size = CGBitmapContextGetHeight(ctx) * CGBitmapContextGetBytesPerRow(ctx);
-        memset_pattern4(data, bgraRed, size);
+        CGContextFillRect(ctx, CGRectMake(0, 0, 100, 100));
     }
 }
 
