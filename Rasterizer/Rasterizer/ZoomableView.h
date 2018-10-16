@@ -1,5 +1,5 @@
 //
-//  RasterizerView.h
+//  ZoomableView.h
 //  Rasterizer
 //
 //  Created by Nigel Barber on 16/10/2018.
@@ -7,8 +7,11 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "ZoomableView.h"
+#import "VGAffineTransform.h"
 
-@interface RasterizerView : ZoomableView
+
+@interface ZoomableView : NSView
+
+@property(nonatomic, readonly) CGAffineTransform CTM;
 
 @end
