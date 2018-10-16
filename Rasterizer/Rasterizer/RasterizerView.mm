@@ -56,7 +56,12 @@
 #pragma mark - RasterizerLayerDelegate
 
 - (void)writeBitmap:(CGContextRef)ctx forLayer:(CALayer *)layer {
-    
+    void *data = CGBitmapContextGetData(ctx);
+    uint8_t bgraRed[4] = { 0, 0, 255, 255 };
+    if (data) {
+        size_t size = CGBitmapContextGetHeight(ctx) * CGBitmapContextGetBytesPerRow(ctx);
+        memset_pattern4(data, bgraRed, size);
+    }
 }
 
 
