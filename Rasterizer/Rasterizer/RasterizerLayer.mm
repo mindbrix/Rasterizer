@@ -1,5 +1,5 @@
 //
-//  RasterizerLayer.m
+//  RasterizerLayer.mm
 //  Rasterizer
 //
 //  Created by Nigel Barber on 16/10/2018.
@@ -7,12 +7,13 @@
 //
 
 #import "RasterizerLayer.h"
+#import <cmath>
 
 @implementation RasterizerLayer
 
 - (void)display {
     if (self.colorSpace != nil && [self.layerDelegate respondsToSelector:@selector(writeBitmap:forLayer:)]) {
-         CGContextRef bitmapContext = CGBitmapContextCreate(NULL, self.bounds.size.width * self.contentsScale, self.bounds.size.height * self.contentsScale, 8, self.bounds.size.width * self.contentsScale * 4, self.colorSpace, kCGImageAlphaPremultipliedFirst| kCGBitmapByteOrder32Little);
+         CGContextRef bitmapContext = CGBitmapContextCreate(NULL, ceil(self.bounds.size.width * self.contentsScale), ceil(self.bounds.size.height * self.contentsScale), 8, ceil(self.bounds.size.width * self.contentsScale) * 4, self.colorSpace, kCGImageAlphaPremultipliedFirst| kCGBitmapByteOrder32Little);
         
         [self.layerDelegate writeBitmap:bitmapContext forLayer:self];
         
