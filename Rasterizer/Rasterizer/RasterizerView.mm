@@ -9,11 +9,12 @@
 #import "RasterizerView.h"
 #import "RasterizerLayer.h"
 
-@interface RasterizerView ()
+@interface RasterizerView () <RasterizerLayerDelegate>
 
 @property(nonatomic) RasterizerLayer *rasterizerLayer;
 
 @end
+
 
 @implementation RasterizerView
 
@@ -24,16 +25,40 @@
     
     [self setWantsLayer:YES];
     [self setLayer:[RasterizerLayer layer]];
-    self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
+    self.rasterizerLayer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+    self.rasterizerLayer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
+    self.rasterizerLayer.layerDelegate = self;
+    self.rasterizerLayer.needsDisplayOnBoundsChange = TRUE;
+    self.rasterizerLayer.bounds = self.bounds;
     return self;
 }
 
 
-- (void)drawRect:(NSRect)dirtyRect {
-    [super drawRect:dirtyRect];
-    
-    // Drawing code here.
+- (void)drawRect:(NSRect)dirtyRect {}
+
+- (void)redraw {
+    self.rasterizerLayer.colorSpace = self.window.colorSpace.CGColorSpace;
+    [self.rasterizerLayer setNeedsDisplay];
 }
+
+#pragma mark - NSResponder
+
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+- (BOOL)becomeFirstResponder {
+    [self redraw];
+    return YES;
+}
+
+
+#pragma mark - RasterizerLayerDelegate
+
+- (void)writeBitmap:(CGContextRef)ctx forLayer:(CALayer *)layer {
+    
+}
+
 
 #pragma mark - Properties
 

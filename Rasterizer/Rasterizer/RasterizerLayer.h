@@ -8,6 +8,12 @@
 
 #import <QuartzCore/QuartzCore.h>
 
-@interface RasterizerLayer : CALayer
+@protocol RasterizerLayerDelegate <NSObject>
+- (void)writeBitmap:(CGContextRef)ctx forLayer:(CALayer *)layer;
+@end
 
+
+@interface RasterizerLayer : CALayer
+@property(assign) CGColorSpaceRef colorSpace;
+@property(weak) id <RasterizerLayerDelegate> layerDelegate;
 @end
