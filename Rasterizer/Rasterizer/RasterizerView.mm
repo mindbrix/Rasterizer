@@ -38,6 +38,7 @@
     
     [self setWantsLayer:YES];
     [self setLayer:[CALayer layer]];
+    self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
     self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
     self.layer.delegate = self;
@@ -92,12 +93,12 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    //    void *data = CGBitmapContextGetData(ctx);
-    //    CGColorSpaceRef colorSpace = CGBitmapContextGetColorSpace(ctx);
-    //    CGBitmapInfo info = CGBitmapContextGetBitmapInfo(ctx);
-    //    uint16_t red[4] = { 65535, 0, 0, 32768 };
-    //    size_t size = CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx);
-    //    memset_pattern8(data, red, size);
+//    void *data = CGBitmapContextGetData(ctx);
+//    CGColorSpaceRef colorSpace = CGBitmapContextGetColorSpace(ctx);
+//    CGBitmapInfo info = CGBitmapContextGetBitmapInfo(ctx);
+//    uint8_t red[4] = { 0, 0, 255, 255 };
+//    size_t size = CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx);
+//    memset_pattern4(data, red, size);
 
     CGContextConcatCTM(ctx, self.CTM);
     size_t count = self.gridRectsBacking.length / sizeof(CGRect);
