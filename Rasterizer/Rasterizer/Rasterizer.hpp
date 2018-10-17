@@ -60,7 +60,7 @@ struct Rasterizer {
     
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
         for (Span& span : spans)
-            memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bpp / 8);
+            memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
     }
     
     static void renderBounds(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
