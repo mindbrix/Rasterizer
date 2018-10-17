@@ -12,6 +12,7 @@
 
 @property(nonatomic) NSData *gridRectsBacking;
 @property(nonatomic) BOOL useRasterizer;
+
 @end
 
 
