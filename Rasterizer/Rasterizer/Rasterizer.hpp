@@ -71,7 +71,7 @@ struct Rasterizer {
         for (size_t i = 0; i < count; i++) {
             Bounds device = bounds[i].transform(ctm);
             Bounds clipped = device.intersected(clipBounds);
-            if (clipped.lx != clipped.ux || clipped.ly != clipped.uy)
+            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy)
                 rasterizeBounds(clipped, spans);
         }
         fillSpans(spans, red, bitmap);
