@@ -11,4 +11,6 @@
 
 @interface RasterizerView : ZoomableView
 
+@property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
+
 @end

@@ -7,7 +7,6 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "VGAffineTransform.h"
 
 
 @interface ZoomableView : NSView

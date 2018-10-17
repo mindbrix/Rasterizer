@@ -7,7 +7,7 @@
 //
 
 #import "ZoomableView.h"
-
+#import "VGAffineTransform.h"
 
 @interface ZoomableView ()
 
@@ -17,6 +17,8 @@
 
 
 @implementation ZoomableView
+
+#pragma mark - NSView
 
 - (nullable instancetype)initWithCoder:(NSCoder *)decoder {
     self = [super initWithCoder:decoder];
@@ -29,7 +31,11 @@
 
 - (void)drawRect:(NSRect)dirtyRect {}
 
+
+#pragma mark - Override
+
 - (void)redraw {}
+
 
 #pragma mark - NSResponder
 
@@ -62,6 +68,7 @@
     [self.transform translateByX:event.deltaX * inversion andY:-event.deltaY * inversion];
     [self redraw];
 }
+
 
 #pragma mark - Properties
 

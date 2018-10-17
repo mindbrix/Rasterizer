@@ -35,6 +35,9 @@
                     <constraint firstAttribute="centerX" secondItem="Hz6-mo-xeY" secondAttribute="centerX" id="OG3-1c-Sd0"/>
                     <constraint firstAttribute="centerY" secondItem="Hz6-mo-xeY" secondAttribute="centerY" id="s6i-b7-llN"/>
                 </constraints>
+                <connections>
+                    <outlet property="rasterizerLabel" destination="Hz6-mo-xeY" id="J0R-Xm-tO6"/>
+                </connections>
             </view>
             <connections>
                 <outlet property="delegate" destination="-2" id="0bl-1N-x8E"/>
