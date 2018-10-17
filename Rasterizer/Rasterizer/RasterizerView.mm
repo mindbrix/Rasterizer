@@ -7,12 +7,10 @@
 //
 
 #import "RasterizerView.h"
-#import "RasterizerLayer.h"
 
 @interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) NSData *gridRectsBacking;
-@property(nonatomic, readonly) RasterizerLayer *rasterizerLayer;
 @property(nonatomic) BOOL useRasterizer;
 @end
 
@@ -39,11 +37,20 @@
         return nil;
     
     [self setWantsLayer:YES];
-    [self setLayer:[RasterizerLayer layer]];
-    self.rasterizerLayer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    self.rasterizerLayer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
-    self.rasterizerLayer.delegate = self;
-    self.rasterizerLayer.bounds = self.bounds;
+    [self setLayer:[CALayer layer]];
+    self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+    self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
+    self.layer.delegate = self;
+    self.layer.bounds = self.bounds;
+    self.layer.opaque = NO;
+    self.layer.needsDisplayOnBoundsChange = YES;
+    self.layer.actions = @{ @"onOrderIn": [NSNull null],
+                      @"onOrderOut": [NSNull null],
+                      @"sublayers": [NSNull null],
+                      @"contents": [NSNull null],
+                      @"backgroundColor": [NSNull null],
+                      @"bounds": [NSNull null] };
+    
     self.gridRectsBacking = [self.class createGridRects:10000 cellSize:24];
     return self;
 }
@@ -54,7 +61,7 @@
 #pragma mark - Drawing
 
 - (void)redraw {
-    [self.rasterizerLayer setNeedsDisplay];
+    [self.layer setNeedsDisplay];
 }
 
 - (void)updateRasterizerLabel {
@@ -102,8 +109,5 @@
 
 #pragma mark - Properties
 
--(RasterizerLayer *)rasterizerLayer {
-    return (RasterizerLayer *)self.layer;
-}
 
 @end
