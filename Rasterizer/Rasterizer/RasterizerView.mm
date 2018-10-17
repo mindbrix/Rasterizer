@@ -7,11 +7,15 @@
 //
 
 #import "RasterizerView.h"
+#import "Rasterizer.hpp"
 #import "AGGRasterizer.hpp"
+
+#pragma clang diagnostic ignored "-Wcomma"
+
 
 @interface RasterizerView () <CALayerDelegate>
 
-@property(nonatomic) NSData *gridRectsBacking;
+@property(nonatomic) NSData *gridBoundsBacking;
 @property(nonatomic) BOOL useRasterizer;
 
 @end
@@ -19,14 +23,17 @@
 
 @implementation RasterizerView
 
-+ (NSData *)createGridRects:(size_t)count cellSize:(size_t)cellSize {
-    NSMutableData *backing = [NSMutableData dataWithLength:count * sizeof(CGRect)];
-    CGRect *rects = (CGRect *)backing.bytes;
++ (NSData *)createGridBounds:(size_t)count cellSize:(size_t)cellSize {
+    NSMutableData *backing = [NSMutableData dataWithLength:count * sizeof(Rasterizer::Bounds)];
+    Rasterizer::Bounds *bounds = (Rasterizer::Bounds *)backing.bytes;
     CGFloat phi = (sqrt(5) - 1) / 2;
     CGFloat wh = CGFloat(cellSize) * phi;
     size_t dimension = ceil(sqrt(CGFloat(count)));
-    for (size_t i = 0; i < count; i++)
-        rects[i] = CGRectMake((i % dimension) * cellSize, (i / dimension) * cellSize, wh, wh);
+    float lx, ly;
+    for (size_t i = 0; i < count; i++) {
+        lx = (i % dimension) * cellSize, ly = (i / dimension) * cellSize;
+        bounds[i] = Rasterizer::Bounds(lx, ly, lx + wh, ly + wh);
+    }
     return [NSData dataWithData:backing];
 }
 
@@ -49,7 +56,7 @@
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     
-    self.gridRectsBacking = [self.class createGridRects:10000 cellSize:24];
+    self.gridBoundsBacking = [self.class createGridBounds:10000 cellSize:24];
     return self;
 }
 
@@ -98,10 +105,10 @@
 //    memset_pattern4(data, red, size);
 
     CGContextConcatCTM(ctx, self.CTM);
-    size_t count = self.gridRectsBacking.length / sizeof(CGRect);
-    CGRect *rects = (CGRect *)self.gridRectsBacking.bytes;
+    size_t count = self.gridBoundsBacking.length / sizeof(Rasterizer::Bounds);
+    Rasterizer::Bounds *bounds = (Rasterizer::Bounds *)self.gridBoundsBacking.bytes;
     for (size_t i = 0; i < count; i++)
-        CGContextFillRect(ctx, rects[i]);
+        CGContextFillRect(ctx, CGRectMake(bounds[i].lx, bounds[i].ly, bounds[i].ux - bounds[i].lx, bounds[i].uy - bounds[i].ly));
 }
 
 

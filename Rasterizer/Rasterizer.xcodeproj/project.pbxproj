@@ -37,6 +37,7 @@
 		E920A5BC21767BD800F52C25 /* ZoomableView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZoomableView.h; sourceTree = "<group>"; };
 		E920A5BD21767BD800F52C25 /* ZoomableView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ZoomableView.m; sourceTree = "<group>"; };
 		E920A65D21775F0A00F52C25 /* AGGRasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AGGRasterizer.hpp; sourceTree = "<group>"; };
+		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +71,7 @@
 			isa = PBXGroup;
 			children = (
 				E920A65D21775F0A00F52C25 /* AGGRasterizer.hpp */,
+				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
 				E920A59D21762BCD00F52C25 /* AppDelegate.m */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
