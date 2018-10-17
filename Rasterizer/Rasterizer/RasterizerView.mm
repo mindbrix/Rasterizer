@@ -13,7 +13,7 @@
 
 @property(nonatomic) NSData *gridRectsBacking;
 @property(nonatomic, readonly) RasterizerLayer *rasterizerLayer;
-
+@property(nonatomic) BOOL useRasterizer;
 @end
 
 
@@ -58,6 +58,9 @@
     [self.rasterizerLayer setNeedsDisplay];
 }
 
+- (void)updateRasterizerLabel {
+    self.rasterizerLabel.stringValue = self.useRasterizer ? @"Rasterizer" : @"Core Graphics";
+}
 
 #pragma mark - NSResponder
 
@@ -66,8 +69,17 @@
 }
 
 - (BOOL)becomeFirstResponder {
+    [self updateRasterizerLabel];
     [self redraw];
     return YES;
+}
+
+#pragma mark - IBOutlet
+
+- (IBAction)toggleRasterizer:(id)sender {
+    self.useRasterizer = !self.useRasterizer;
+    [self updateRasterizerLabel];
+    [self redraw];
 }
 
 
