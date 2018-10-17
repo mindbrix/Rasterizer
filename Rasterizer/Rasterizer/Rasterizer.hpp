@@ -6,6 +6,8 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
+#import <vector>
+
 #pragma clang diagnostic ignored "-Wcomma"
 
 
@@ -15,8 +17,9 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bitmap {
-        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp) {}
-        inline uint8_t *pixelAddress(size_t x, size_t y) {
+        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp)
+        : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp) {}
+        inline uint8_t *pixelAddress(short x, short y) {
             return data + rowBytes * (height - 1 - y) + x * bpp / 8;
         }
         uint8_t *data;
@@ -50,17 +53,18 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
+    struct Span {
+        Span(float x, float y, float w) : x(x), y(y), w(w) {}
+        short x, y, w;
+    };
     
-    static void fillBounds(Bounds bounds, uint8_t *color, Bitmap bitmap) {
-        Bounds ibounds = bounds.integral();
-        for (size_t y = ibounds.ly; y < ibounds.uy; y++) {
-            uint8_t *addr = bitmap.pixelAddress(ibounds.lx, y);
-            size_t size = (ibounds.ux - ibounds.lx) * bitmap.bpp / 8;
-            memset_pattern4(addr, color, size);
-        }
+    static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
+        for (Span& span : spans)
+            memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bpp / 8);
     }
     
     static void renderBounds(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
+        std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         
@@ -68,11 +72,14 @@ struct Rasterizer {
             Bounds device = bounds[i].transform(ctm);
             Bounds clipped = device.intersected(clipBounds);
             if (clipped.lx != clipped.ux || clipped.ly != clipped.uy)
-                fillBounds(clipped, red, bitmap);
+                rasterizeBounds(clipped, spans);
         }
+        fillSpans(spans, red, bitmap);
     }
     
-    static void rasterizeBounds(Bounds *bounds, size_t count) {
-        
+    static void rasterizeBounds(Bounds bounds, std::vector<Span>& spans) {
+        Bounds ibounds = bounds.integral();
+        for (float y = ibounds.ly; y < ibounds.uy; y++)
+            spans.emplace_back(ibounds.lx, y, ibounds.ux - ibounds.lx);
     }
 };
