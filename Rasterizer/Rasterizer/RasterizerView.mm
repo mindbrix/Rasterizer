@@ -9,7 +9,7 @@
 #import "RasterizerView.h"
 #import "RasterizerLayer.h"
 
-@interface RasterizerView () <RasterizerLayerDelegate>
+@interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) NSData *gridRectsBacking;
 @property(nonatomic, readonly) RasterizerLayer *rasterizerLayer;
@@ -42,7 +42,7 @@
     [self setLayer:[RasterizerLayer layer]];
     self.rasterizerLayer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     self.rasterizerLayer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
-    self.rasterizerLayer.layerDelegate = self;
+    self.rasterizerLayer.delegate = self;
     self.rasterizerLayer.bounds = self.bounds;
     self.gridRectsBacking = [self.class createGridRects:10000 cellSize:24];
     return self;
@@ -54,7 +54,6 @@
 #pragma mark - Drawing
 
 - (void)redraw {
-    self.rasterizerLayer.colorSpace = self.window.colorSpace.CGColorSpace;
     [self.rasterizerLayer setNeedsDisplay];
 }
 
@@ -83,9 +82,16 @@
 }
 
 
-#pragma mark - RasterizerLayerDelegate
+#pragma mark - CALayerDelegate
 
-- (void)writeBitmapIntoContext:(CGContextRef)ctx forLayer:(CALayer *)layer {
+- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+    //    void *data = CGBitmapContextGetData(ctx);
+    //    CGColorSpaceRef colorSpace = CGBitmapContextGetColorSpace(ctx);
+    //    CGBitmapInfo info = CGBitmapContextGetBitmapInfo(ctx);
+    //    uint16_t red[4] = { 65535, 0, 0, 32768 };
+    //    size_t size = CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx);
+    //    memset_pattern8(data, red, size);
+
     CGContextConcatCTM(ctx, self.CTM);
     size_t count = self.gridRectsBacking.length / sizeof(CGRect);
     CGRect *rects = (CGRect *)self.gridRectsBacking.bytes;

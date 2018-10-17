@@ -28,7 +28,6 @@
     return self;
 }
 
-
 - (void)drawRect:(NSRect)dirtyRect {}
 
 
@@ -73,9 +72,7 @@
 #pragma mark - Properties
 
 - (CGAffineTransform)CTM {
-    CGFloat scaleFactor = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    CGAffineTransform scale = { scaleFactor, 0, 0, scaleFactor, 0, 0 };
-    return CGAffineTransformConcat(self.transform.affineTransform, scale);
+    return self.transform.affineTransform;
 }
 
 @end

@@ -27,22 +27,4 @@
     return self;
 }
 
-- (void)display {
-    if (self.colorSpace != nil && [self.layerDelegate respondsToSelector:@selector(writeBitmapIntoContext:forLayer:)]) {
-        size_t width = ceil(self.bounds.size.width * self.contentsScale);
-        size_t height = ceil(self.bounds.size.height * self.contentsScale);
-        size_t bpp = 8;
-        size_t components = CGColorSpaceGetNumberOfComponents(self.colorSpace);
-        CGContextRef bitmapContext = CGBitmapContextCreate(NULL, width, height, bpp, width * (components + 1) * bpp / 8, self.colorSpace,
-                                                            kCGImageAlphaPremultipliedFirst| kCGBitmapByteOrder32Little);
-        if (bitmapContext != NULL) {
-            [self.layerDelegate writeBitmapIntoContext:bitmapContext forLayer:self];
-            CGImageRef img = CGBitmapContextCreateImage(bitmapContext);
-            self.contents = (__bridge id)img;
-            CGImageRelease(img);
-            CGContextRelease(bitmapContext);
-        }
-    }
-}
-
 @end
