@@ -46,12 +46,7 @@
     self.layer.bounds = self.bounds;
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
-    self.layer.actions = @{ @"onOrderIn": [NSNull null],
-                      @"onOrderOut": [NSNull null],
-                      @"sublayers": [NSNull null],
-                      @"contents": [NSNull null],
-                      @"backgroundColor": [NSNull null],
-                      @"bounds": [NSNull null] };
+    self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     
     self.gridRectsBacking = [self.class createGridRects:10000 cellSize:24];
     return self;
