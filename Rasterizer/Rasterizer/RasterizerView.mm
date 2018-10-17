@@ -10,8 +10,6 @@
 #import "Rasterizer.hpp"
 #import "AGGRasterizer.hpp"
 
-#pragma clang diagnostic ignored "-Wcomma"
-
 
 @interface RasterizerView () <CALayerDelegate>
 
@@ -55,7 +53,6 @@
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    
     self.gridBoundsBacking = [self.class createGridBounds:10000 cellSize:24];
     return self;
 }
@@ -73,6 +70,7 @@
     self.rasterizerLabel.stringValue = self.useRasterizer ? @"Rasterizer" : @"Core Graphics";
 }
 
+
 #pragma mark - NSResponder
 
 - (BOOL)acceptsFirstResponder {
@@ -84,6 +82,7 @@
     [self redraw];
     return YES;
 }
+
 
 #pragma mark - IBOutlet
 
@@ -97,18 +96,18 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-//    void *data = CGBitmapContextGetData(ctx);
-//    CGColorSpaceRef colorSpace = CGBitmapContextGetColorSpace(ctx);
-//    CGBitmapInfo info = CGBitmapContextGetBitmapInfo(ctx);
-//    uint8_t red[4] = { 0, 0, 255, 255 };
-//    size_t size = CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx);
-//    memset_pattern4(data, red, size);
-
-    CGContextConcatCTM(ctx, self.CTM);
     size_t count = self.gridBoundsBacking.length / sizeof(Rasterizer::Bounds);
     Rasterizer::Bounds *bounds = (Rasterizer::Bounds *)self.gridBoundsBacking.bytes;
-    for (size_t i = 0; i < count; i++)
-        CGContextFillRect(ctx, CGRectMake(bounds[i].lx, bounds[i].ly, bounds[i].ux - bounds[i].lx, bounds[i].uy - bounds[i].ly));
+    CGContextConcatCTM(ctx, self.CTM);
+    CGAffineTransform CTM = CGContextGetCTM(ctx);
+    
+    if (self.useRasterizer) {
+        Rasterizer::renderBounds(bounds, count,
+                                 Rasterizer::AffineTransform(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty),
+                                 Rasterizer::Bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx)));
+    } else
+        for (size_t i = 0; i < count; i++)
+            CGContextFillRect(ctx, CGRectMake(bounds[i].lx, bounds[i].ly, bounds[i].ux - bounds[i].lx, bounds[i].uy - bounds[i].ly));
 }
 
 
