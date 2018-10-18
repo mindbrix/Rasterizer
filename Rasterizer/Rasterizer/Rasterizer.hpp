@@ -103,7 +103,7 @@ struct Rasterizer {
             return;
         float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area;
         dxdy = (x1 - x0) / (y1 - y0);
-        dydx = dxdy == 0 ? 1e12 : 1.0 / dxdy;
+        dydx = dxdy == 0 ? 0 : 1.0 / dxdy;
         ly = y0 < y1 ? y0 : y1;
         uy = y0 > y1 ? y0 : y1;
         for (iy0 = floorf(ly), iy1 = iy0 + 1; iy0 < uy; iy0 = iy1, iy1++) {
@@ -117,14 +117,14 @@ struct Rasterizer {
             Cell *cell = cells + size_t(iy0) * kCellsDimension + size_t(slx);
             for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 < sux; ix0 = ix1, ix1++, cell++) {
                 cx0 = x0 < ix0 ? ix0 : x0 > ix1 ? ix1 : x0;
-                cy0 = (cx0 - x0) * dydx + y0;
+                cy0 = dydx == 0 ? sy0 : (cx0 - x0) * dydx + y0;
                 cx1 = x1 < ix0 ? ix0 : x1 > ix1 ? ix1 : x1;
-                cy1 = (cx1 - x0) * dydx + y0;
+                cy1 = dydx == 0 ? sy1 : (cx1 - x0) * dydx + y0;
                 
                 cover = cy1 - cy0;
                 area = cover * (cx0 - ix0 + cx1 - ix0) * 0.5;
-                cell->cover = cover * USHRT_MAX;
-                cell->area = area * USHRT_MAX;
+                cell->cover += cover * 255.0;
+                cell->area += area * 255.0;
             }
         }
     }
