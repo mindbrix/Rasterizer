@@ -76,6 +76,7 @@ struct Rasterizer {
         uint8_t red[4] = { 0, 0, 255, 255 };
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         for (size_t i = 0; i < count; i++) {
+            assert(clipBounds.lx >= 0);
             Bounds device = bounds[i].transform(ctm).integral();
             Bounds clipped = device.intersected(clipBounds);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
@@ -83,11 +84,13 @@ struct Rasterizer {
                     AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
                     AffineTransform unit = cellCTM.unit(bounds[i].lx, bounds[i].ly, bounds[i].ux, bounds[i].uy);
                     float x0 = unit.tx, y0 = unit.ty, x1 = x0 + unit.a, y1 = y0 + unit.b, x2 = x1 + unit.c, y2 = y1 + unit.d, x3 = x0 + unit.c, y3 = y0 + unit.d;
+                    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+                    x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                     addCellSegment(x0, y0, x1, y1, cells);
                     addCellSegment(x1, y1, x2, y2, cells);
                     addCellSegment(x2, y2, x3, y3, cells);
                     addCellSegment(x3, y3, x0, y0, cells);
-                    
+
                 }
                 rasterizeBoundingBox(clipped, spans);
             }
@@ -98,9 +101,9 @@ struct Rasterizer {
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1;
+        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area;
         dxdy = (x1 - x0) / (y1 - y0);
-        dydx = 1.0 / dxdy;
+        dydx = dxdy == 0 ? 1e12 : 1.0 / dxdy;
         ly = y0 < y1 ? y0 : y1;
         uy = y0 > y1 ? y0 : y1;
         for (iy0 = floorf(ly), iy1 = iy0 + 1; iy0 < uy; iy0 = iy1, iy1++) {
@@ -117,11 +120,16 @@ struct Rasterizer {
                 cy0 = (cx0 - x0) * dydx + y0;
                 cx1 = x1 < ix0 ? ix0 : x1 > ix1 ? ix1 : x1;
                 cy1 = (cx1 - x0) * dydx + y0;
-                cell->cover = 255;
+                
+                cover = cy1 - cy0;
+                area = cover * (cx0 - ix0 + cx1 - ix0) * 0.5;
+                cell->cover = cover * USHRT_MAX;
+                cell->area = area * USHRT_MAX;
             }
         }
     }
     static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
+        assert(bounds.lx >= 0);
         for (float y = bounds.ly; y < bounds.uy; y++)
             spans.emplace_back(bounds.lx, y, bounds.ux - bounds.lx);
     }
