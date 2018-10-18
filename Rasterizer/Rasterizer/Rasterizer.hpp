@@ -96,7 +96,30 @@ struct Rasterizer {
     }
     
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells) {
-        
+        if (y0 == y1)
+            return;
+        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1;
+        dxdy = (x1 - x0) / (y1 - y0);
+        dydx = 1.0 / dxdy;
+        ly = y0 < y1 ? y0 : y1;
+        uy = y0 > y1 ? y0 : y1;
+        for (iy0 = floorf(ly), iy1 = iy0 + 1; iy0 < uy; iy0 = iy1, iy1++) {
+            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
+            sx0 = (sy0 - y0) * dxdy + x0;
+            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
+            sx1 = (sy1 - y0) * dxdy + x0;
+            
+            slx = sx0 < sx1 ? sx0 : sx1;
+            sux = sx0 > sx1 ? sx0 : sx1;
+            Cell *cell = cells + size_t(iy0) * kCellsDimension + size_t(slx);
+            for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 < sux; ix0 = ix1, ix1++, cell++) {
+                cx0 = x0 < ix0 ? ix0 : x0 > ix1 ? ix1 : x0;
+                cy0 = (cx0 - x0) * dydx + y0;
+                cx1 = x1 < ix0 ? ix0 : x1 > ix1 ? ix1 : x1;
+                cy1 = (cx1 - x0) * dydx + y0;
+                cell->cover = 255;
+            }
+        }
     }
     static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
         for (float y = bounds.ly; y < bounds.uy; y++)
