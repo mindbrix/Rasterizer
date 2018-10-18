@@ -56,12 +56,34 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Cell {
-        short area, cover;
+        float area, cover;
     };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
         short x, y, w;
     };
+    
+    static void fillCells(Cell *cells, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
+        float x, y, w, h, cover, area, alpha, px, py;
+        w = device.ux - device.lx, h = device.uy - device.ly;
+        for (y = 0; y < h; y++) {
+            Cell *cell = cells + size_t(y) * kCellsDimension;
+            cover = 0;
+            for (x = 0; x < w; x++, cell++) {
+                cover += cell->cover;
+                area = cell->area;
+                alpha = cover - area;
+                cell->cover = cell->area = 0;
+                
+                if (fabs(alpha) > 1e-3) {
+                    px = x + device.lx, py = y + device.ly;
+                    if (px >= clipped.lx && px < clipped.ux && py >= clipped.ly && py < clipped.uy) {
+                        memset_pattern4(bitmap.pixelAddress(px, py), color, bitmap.bytespp);
+                    }
+                }
+            }
+        }
+    }
     
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
         for (Span& span : spans)
@@ -91,8 +113,9 @@ struct Rasterizer {
                     addCellSegment(x2, y2, x3, y3, cells);
                     addCellSegment(x3, y3, x0, y0, cells);
 
-                }
-                rasterizeBoundingBox(clipped, spans);
+                    fillCells(cells, device, clipped, red, bitmap);
+                } else
+                    rasterizeBoundingBox(clipped, spans);
             }
         }
         fillSpans(spans, red, bitmap);
@@ -115,16 +138,16 @@ struct Rasterizer {
             slx = sx0 < sx1 ? sx0 : sx1;
             sux = sx0 > sx1 ? sx0 : sx1;
             Cell *cell = cells + size_t(iy0) * kCellsDimension + size_t(slx);
-            for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 < sux; ix0 = ix1, ix1++, cell++) {
-                cx0 = x0 < ix0 ? ix0 : x0 > ix1 ? ix1 : x0;
-                cy0 = dydx == 0 ? sy0 : (cx0 - x0) * dydx + y0;
-                cx1 = x1 < ix0 ? ix0 : x1 > ix1 ? ix1 : x1;
-                cy1 = dydx == 0 ? sy1 : (cx1 - x0) * dydx + y0;
+            for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 <= sux; ix0 = ix1, ix1++, cell++) {
+                cx0 = sx0 < ix0 ? ix0 : sx0 > ix1 ? ix1 : sx0;
+                cy0 = dydx == 0 ? sy0 : (cx0 - sx0) * dydx + sy0;
+                cx1 = sx1 < ix0 ? ix0 : sx1 > ix1 ? ix1 : sx1;
+                cy1 = dydx == 0 ? sy1 : (cx1 - sx0) * dydx + sy0;
                 
                 cover = cy1 - cy0;
                 area = cover * (cx0 - ix0 + cx1 - ix0) * 0.5;
-                cell->cover += cover * 255.0;
-                cell->area += area * 255.0;
+                cell->cover += cover;
+                cell->area += area;
             }
         }
     }
