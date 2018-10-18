@@ -13,7 +13,7 @@
 
 @interface RasterizerView () <CALayerDelegate>
 
-@property(nonatomic) NSData *gridBoundsBacking;
+@property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
 
 @end
@@ -21,7 +21,7 @@
 
 @implementation RasterizerView
 
-+ (NSData *)createGridBounds:(size_t)count cellSize:(size_t)cellSize {
++ (NSData *)createGridBoundingBoxes:(size_t)count cellSize:(size_t)cellSize {
     NSMutableData *backing = [NSMutableData dataWithLength:count * sizeof(Rasterizer::Bounds)];
     Rasterizer::Bounds *bounds = (Rasterizer::Bounds *)backing.bytes;
     CGFloat phi = (sqrt(5) - 1) / 2;
@@ -53,7 +53,7 @@
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    self.gridBoundsBacking = [self.class createGridBounds:10000 cellSize:24];
+    self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
     return self;
 }
 
@@ -96,18 +96,18 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    size_t count = self.gridBoundsBacking.length / sizeof(Rasterizer::Bounds);
-    Rasterizer::Bounds *bounds = (Rasterizer::Bounds *)self.gridBoundsBacking.bytes;
+    size_t count = self.gridBoundingBoxesBacking.length / sizeof(Rasterizer::Bounds);
+    Rasterizer::Bounds *boundingBoxes = (Rasterizer::Bounds *)self.gridBoundingBoxesBacking.bytes;
     CGContextConcatCTM(ctx, self.CTM);
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     
     if (self.useRasterizer) {
-        Rasterizer::renderBoundingBoxes(bounds, count,
-                                 Rasterizer::AffineTransform(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty),
-                                 Rasterizer::Bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx)));
+        Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
+        Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
+        Rasterizer::renderBoundingBoxes(boundingBoxes, count, ctm, bitmap);
     } else
         for (size_t i = 0; i < count; i++)
-            CGContextFillRect(ctx, CGRectMake(bounds[i].lx, bounds[i].ly, bounds[i].ux - bounds[i].lx, bounds[i].uy - bounds[i].ly));
+            CGContextFillRect(ctx, CGRectMake(boundingBoxes[i].lx, boundingBoxes[i].ly, boundingBoxes[i].ux - boundingBoxes[i].lx, boundingBoxes[i].uy - boundingBoxes[i].ly));
 }
 
 
