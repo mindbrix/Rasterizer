@@ -12,8 +12,14 @@
 
 
 struct Rasterizer {
+    static const size_t kCellsDimension = 64;
+    
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        inline AffineTransform unit(float lx, float ly, float ux, float uy) {
+            float w = ux - lx, h = uy - ly;
+            return { a * w, b * w, c * h, d * h, lx * a + ly * c + tx, lx * b + ly * d + ty };
+        }
         float a, b, c, d, tx, ty;
     };
     struct Bitmap {
@@ -39,11 +45,7 @@ struct Rasterizer {
             };
         }
         Bounds transform(AffineTransform ctm) {
-            float w, h;
-            w = ux - lx, h = uy - ly;
-            AffineTransform t = { ctm.a * w, ctm.b * w, ctm.c * h, ctm.d * h,
-                lx * ctm.a + ly * ctm.c + ctm.tx, lx * ctm.b + ly * ctm.d + ctm.ty };
-            
+            AffineTransform t = ctm.unit(lx, ly, ux, uy);
             float wa = t.a < 0 ? 1 : 0, wb = t.b < 0 ? 1 : 0, wc = t.c < 0 ? 1 : 0, wd = t.d < 0 ? 1 : 0;
             return {
                 t.tx + wa * t.a + wc * t.c,
@@ -52,6 +54,9 @@ struct Rasterizer {
                 t.ty + (1 - wb) * t.b + (1 - wd) * t.d };
         }
         float lx, ly, ux, uy;
+    };
+    struct Cell {
+        short area, cover;
     };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
@@ -64,21 +69,37 @@ struct Rasterizer {
     }
     
     static void renderBoundingBoxes(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
+        Cell cells[kCellsDimension * kCellsDimension];
+        memset(cells, 0, sizeof(cells));
+        
         std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
-        for (size_t i = 0; i < count; i++)
-            rasterizeBoundingBox(bounds[i], ctm, clipBounds, spans);
+        for (size_t i = 0; i < count; i++) {
+            Bounds device = bounds[i].transform(ctm).integral();
+            Bounds clipped = device.intersected(clipBounds);
+            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+                if (device.ux - device.lx < kCellsDimension && device.uy - device.ly < kCellsDimension) {
+                    AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
+                    AffineTransform unit = cellCTM.unit(bounds[i].lx, bounds[i].ly, bounds[i].ux, bounds[i].uy);
+                    float x0 = unit.tx, y0 = unit.ty, x1 = x0 + unit.a, y1 = y0 + unit.b, x2 = x1 + unit.c, y2 = y1 + unit.d, x3 = x0 + unit.c, y3 = y0 + unit.d;
+                    addCellSegment(x0, y0, x1, y1, cells);
+                    addCellSegment(x1, y1, x2, y2, cells);
+                    addCellSegment(x2, y2, x3, y3, cells);
+                    addCellSegment(x3, y3, x0, y0, cells);
+                    
+                }
+                rasterizeBoundingBox(clipped, spans);
+            }
+        }
         fillSpans(spans, red, bitmap);
     }
     
-    static void rasterizeBoundingBox(Bounds bounds, AffineTransform ctm, Bounds clipBounds, std::vector<Span>& spans) {
-        Bounds device = bounds.transform(ctm);
-        Bounds clipped = device.intersected(clipBounds);
-        if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-            Bounds ibounds = clipped.integral();
-            for (float y = ibounds.ly; y < ibounds.uy; y++)
-                spans.emplace_back(ibounds.lx, y, ibounds.ux - ibounds.lx);
-        }
+    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells) {
+        
+    }
+    static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
+        for (float y = bounds.ly; y < bounds.uy; y++)
+            spans.emplace_back(bounds.lx, y, bounds.ux - bounds.lx);
     }
 };
