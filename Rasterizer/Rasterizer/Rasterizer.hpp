@@ -67,19 +67,18 @@ struct Rasterizer {
         std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
-        
-        for (size_t i = 0; i < count; i++) {
-            Bounds device = bounds[i].transform(ctm);
-            Bounds clipped = device.intersected(clipBounds);
-            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy)
-                rasterizeBoundingBox(clipped, spans);
-        }
+        for (size_t i = 0; i < count; i++)
+            rasterizeBoundingBox(bounds[i], ctm, clipBounds, spans);
         fillSpans(spans, red, bitmap);
     }
     
-    static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
-        Bounds ibounds = bounds.integral();
-        for (float y = ibounds.ly; y < ibounds.uy; y++)
-            spans.emplace_back(ibounds.lx, y, ibounds.ux - ibounds.lx);
+    static void rasterizeBoundingBox(Bounds bounds, AffineTransform ctm, Bounds clipBounds, std::vector<Span>& spans) {
+        Bounds device = bounds.transform(ctm);
+        Bounds clipped = device.intersected(clipBounds);
+        if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+            Bounds ibounds = clipped.integral();
+            for (float y = ibounds.ly; y < ibounds.uy; y++)
+                spans.emplace_back(ibounds.lx, y, ibounds.ux - ibounds.lx);
+        }
     }
 };
