@@ -64,21 +64,22 @@ struct Rasterizer {
     };
     
     static void fillCells(Cell *cells, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
-        float x, y, w, h, cover, area, alpha, px, py;
+        float x, y, w, h, cover, alpha, px, py;
         w = device.ux - device.lx, h = device.uy - device.ly;
         for (y = 0; y < h; y++) {
-            Cell *cell = cells + size_t(y) * kCellsDimension;
-            cover = 0;
-            for (x = 0; x < w; x++, cell++) {
-                cover += cell->cover;
-                area = cell->area;
-                alpha = cover - area;
-                cell->cover = cell->area = 0;
-                
-                if (fabs(alpha) > 1e-3) {
-                    px = x + device.lx, py = y + device.ly;
-                    if (px >= clipped.lx && px < clipped.ux && py >= clipped.ly && py < clipped.uy) {
-                        memset_pattern4(bitmap.pixelAddress(px, py), color, bitmap.bytespp);
+            py = y + device.ly;
+            if (py >= clipped.ly && py < clipped.uy) {
+                Cell *cell = cells + size_t(y) * kCellsDimension;
+                for (cover = 0, x = 0; x < w; x++, cell++) {
+                    cover += cell->cover;
+                    alpha = cover - cell->area;
+                    cell->cover = cell->area = 0;
+                    
+                    if (fabs(alpha) > 1e-3) {
+                        px = x + device.lx, py = y + device.ly;
+                        if (px >= clipped.lx && px < clipped.ux) {
+                            memset_pattern4(bitmap.pixelAddress(px, py), color, bitmap.bytespp);
+                        }
                     }
                 }
             }
