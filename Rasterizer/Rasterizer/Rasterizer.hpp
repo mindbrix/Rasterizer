@@ -63,7 +63,7 @@ struct Rasterizer {
             memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
     }
     
-    static void renderBounds(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
+    static void renderBoundingBoxes(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
         std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
@@ -72,12 +72,12 @@ struct Rasterizer {
             Bounds device = bounds[i].transform(ctm);
             Bounds clipped = device.intersected(clipBounds);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy)
-                rasterizeBounds(clipped, spans);
+                rasterizeBoundingBox(clipped, spans);
         }
         fillSpans(spans, red, bitmap);
     }
     
-    static void rasterizeBounds(Bounds bounds, std::vector<Span>& spans) {
+    static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
         Bounds ibounds = bounds.integral();
         for (float y = ibounds.ly; y < ibounds.uy; y++)
             spans.emplace_back(ibounds.lx, y, ibounds.ux - ibounds.lx);

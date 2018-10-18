@@ -102,7 +102,7 @@
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     
     if (self.useRasterizer) {
-        Rasterizer::renderBounds(bounds, count,
+        Rasterizer::renderBoundingBoxes(bounds, count,
                                  Rasterizer::AffineTransform(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty),
                                  Rasterizer::Bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx)));
     } else
