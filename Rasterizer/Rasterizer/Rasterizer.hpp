@@ -64,14 +64,13 @@ struct Rasterizer {
     };
     
     static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
-        Cell *cell = cells;
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
         float cover, alpha;
         for (y = 0; y < h; y++) {
-            for (cover = 0, x = 0; x < w; x++, cell++, mask++) {
-                cover += cell->cover;
-                alpha = fabsf(cover - cell->area);
-                cell->cover = cell->area = 0;
+            for (cover = 0, x = 0; x < w; x++, cells++, mask++) {
+                cover += cells->cover;
+                alpha = fabsf(cover - cells->area);
+                cells->cover = cells->area = 0;
                 *mask = alpha * 255.5f;
             }
         }
