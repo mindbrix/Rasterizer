@@ -68,17 +68,7 @@ struct Rasterizer {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
         short x, y, w;
     };
-    struct SpanCommand {
-        enum Type : short {
-            kTypeX = 1,
-            kTypeY = 2,
-            kTypeSpan = 3,
-            kTypeCover = 4,
-        };
-        SpanCommand(Type type, short value) : type(type), value(value) {}
-        
-        short type, value;
-    };
+    
     static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
         float cover, alpha;
@@ -119,31 +109,6 @@ struct Rasterizer {
         }
     }
     
-    static void runSpanCommands(std::vector<SpanCommand>& commands, uint32_t color, Bitmap bitmap) {
-        short x = 0, y = 0, w = 0, a = 0;
-        uint32_t *addr = nullptr;
-        for (SpanCommand& command : commands)
-            switch (command.type) {
-                case SpanCommand::kTypeX:
-                    x = command.value;
-                    addr = (uint32_t *)bitmap.pixelAddress(x, y);
-                    break;
-                case SpanCommand::kTypeY:
-                    y = command.value;
-                    break;
-                case SpanCommand::kTypeCover:
-                    a = command.value;
-                    *addr = color;
-                    addr++;
-                    break;
-                case SpanCommand::kTypeSpan:
-                    w = command.value;
-                    memset_pattern4(addr, & color, w * bitmap.bytespp);
-                    addr += w;
-                    break;
-            }
-    }
-    
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
         for (Span& span : spans)
             memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
@@ -152,8 +117,6 @@ struct Rasterizer {
     static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
         Cell *cells = context.cells;
         uint8_t *mask = context.mask;
-        
-        std::vector<SpanCommand> commands;
         
         std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };
@@ -228,13 +191,6 @@ struct Rasterizer {
                 cell->cover += cover;
                 cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
             }
-        }
-    }
-    static void rasterizeBoundingBox(Bounds bounds, std::vector<SpanCommand>& commands) {
-        for (float y = bounds.ly; y < bounds.uy; y++) {
-            commands.emplace_back(SpanCommand::kTypeY, y);
-            commands.emplace_back(SpanCommand::kTypeX, bounds.lx);
-            commands.emplace_back(SpanCommand::kTypeSpan, bounds.ux - bounds.lx);
         }
     }
     
