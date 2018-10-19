@@ -64,8 +64,10 @@ struct Rasterizer {
     };
     
     static void fillCells(Cell *cells, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
-        float x, y, w, h, cover, alpha, px, py;
+        float x, y, w, h, cover, alpha, px, py, r, g, b, a;
         uint32_t pixel = *((uint32_t *)color);
+        uint8_t *addr;
+        r = color[2] / 255.f, g = color[1] / 255.f, b = color[0] / 255.f, a = color[3] / 255.f;
         
         w = device.ux - device.lx, h = device.uy - device.ly;
         for (y = 0; y < h; y++) {
@@ -74,13 +76,19 @@ struct Rasterizer {
                 Cell *cell = cells + size_t(y) * kCellsDimension;
                 for (cover = 0, x = 0; x < w; x++, cell++) {
                     cover += cell->cover;
-                    alpha = cover - cell->area;
+                    alpha = fabsf(cover - cell->area);
                     cell->cover = cell->area = 0;
                     
-                    px = x + device.lx;
-                    if (px >= clipped.lx && px < clipped.ux) {
-                        if (fabs(alpha) > 1e-3)
-                            *((uint32_t *)bitmap.pixelAddress(px, py)) = pixel;
+                    if (alpha > 1e-3) {
+                        px = x + device.lx;
+                        if (px >= clipped.lx && px < clipped.ux) {
+                            addr = bitmap.pixelAddress(px, py);
+                            if (alpha > 0.999)
+                                *((uint32_t *)addr) = pixel;
+                            else {
+                                *addr++ = b * alpha * 255.f, *addr++ = g * alpha * 255.f, *addr++ = r * alpha * 255.f, *addr++ = a * alpha * 255.f;
+                            }
+                        }
                     }
                 }
             }
