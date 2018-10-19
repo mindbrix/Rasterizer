@@ -65,8 +65,7 @@ struct Rasterizer {
     
     static void fillCells(Cell *cells, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
         float x, y, w, h, cover, alpha, px, py, r, g, b, a;
-        uint32_t pixel = *((uint32_t *)color);
-        uint8_t *addr;
+        uint32_t pixel = *((uint32_t *)color), *addr;
         r = color[2] / 255.f, g = color[1] / 255.f, b = color[0] / 255.f, a = color[3] / 255.f;
         
         w = device.ux - device.lx, h = device.uy - device.ly;
@@ -82,11 +81,12 @@ struct Rasterizer {
                     if (alpha > 1e-3) {
                         px = x + device.lx;
                         if (px >= clipped.lx && px < clipped.ux) {
-                            addr = bitmap.pixelAddress(px, py);
+                            addr = (uint32_t *)bitmap.pixelAddress(px, py);
                             if (alpha > 0.999)
-                                *((uint32_t *)addr) = pixel;
+                                *addr = pixel;
                             else {
-                                *addr++ = b * alpha * 255.f, *addr++ = g * alpha * 255.f, *addr++ = r * alpha * 255.f, *addr++ = a * alpha * 255.f;
+                                alpha *= 255.f;
+                                *addr = (uint32_t(b * alpha)) | (uint32_t(g * alpha) << 8) | (uint32_t(r * alpha) << 16) | (uint32_t(a * alpha) << 24);
                             }
                         }
                     }
