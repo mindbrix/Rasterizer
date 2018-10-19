@@ -158,27 +158,30 @@ struct Rasterizer {
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, float dimension) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover;
+        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, ix0, ix1, cx0, cy0, cx1, cy1, cover, tmp, sign;
         dxdy = (x1 - x0) / (y1 - y0);
         dydx = dxdy == 0 ? 0 : 1.0 / dxdy;
         ly = y0 < y1 ? y0 : y1;
         uy = y0 > y1 ? y0 : y1;
+        sign = y0 < y1 ? 1 : -1;
         for (iy0 = floorf(ly), iy1 = iy0 + 1; iy0 < uy; iy0 = iy1, iy1++) {
             sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
             sx0 = (sy0 - y0) * dxdy + x0;
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
             sx1 = (sy1 - y0) * dxdy + x0;
             
-            slx = sx0 < sx1 ? sx0 : sx1;
-            sux = sx0 > sx1 ? sx0 : sx1;
-            Cell *cell = cells + size_t(iy0 * dimension + slx);
-            for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 <= sux; ix0 = ix1, ix1++, cell++) {
-                cx0 = sx0 < ix0 ? ix0 : sx0 > ix1 ? ix1 : sx0;
-                cy0 = dydx == 0 ? sy0 : (cx0 - sx0) * dydx + sy0;
-                cx1 = sx1 < ix0 ? ix0 : sx1 > ix1 ? ix1 : sx1;
+            if (sign < 0)
+                tmp = sy0, sy0 = sy1, sy1 = tmp;
+            if (sx0 > sx1)
+                tmp = sx0, sx0 = sx1, sx1 = tmp;
+            dydx = fabsf(dydx);
+            Cell *cell = cells + size_t(iy0 * dimension + sx0);
+            for (ix0 = floorf(sx0), ix1 = ix0 + 1, cx0 = sx0, cy0 = sy0;
+                 ix0 <= sx1;
+                 ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, cell++) {
+                cx1 = sx1 > ix1 ? ix1 : sx1;
                 cy1 = dydx == 0 ? sy1 : (cx1 - sx0) * dydx + sy0;
-                
-                cover = (cy1 - cy0);
+                cover = (cy1 - cy0) * sign;
                 cell->cover += cover;
                 cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
             }
