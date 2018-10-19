@@ -185,7 +185,6 @@ struct Rasterizer {
         }
     }
     static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
-        assert(bounds.lx >= 0);
         for (float y = bounds.ly; y < bounds.uy; y++)
             spans.emplace_back(bounds.lx, y, bounds.ux - bounds.lx);
     }
