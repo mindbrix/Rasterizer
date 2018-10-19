@@ -16,6 +16,7 @@ struct Rasterizer {
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        
         inline AffineTransform unit(float lx, float ly, float ux, float uy) {
             float w = ux - lx, h = uy - ly;
             return { a * w, b * w, c * h, d * h, lx * a + ly * c + tx, lx * b + ly * d + ty };
@@ -23,19 +24,17 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bitmap {
-        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp)
-        : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
-        inline uint8_t *pixelAddress(short x, short y) {
-            return data + rowBytes * (height - 1 - y) + x * bytespp;
-        }
+        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
+        
+        inline uint8_t *pixelAddress(short x, short y) { return data + rowBytes * (height - 1 - y) + x * bytespp; }
+        
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
     };
     struct Bounds {
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        Bounds integral() {
-            return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
-        }
+        
+        Bounds integral() { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
         Bounds intersected(Bounds other) {
             return {
                 lx < other.lx ? other.lx : lx > other.ux ? other.ux : lx,
@@ -63,32 +62,36 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void fillCells(Cell *cells, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
-        float x, y, w, h, cover, alpha, px, py, r, g, b, a;
+    static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
+        Cell *cell = cells;
+        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
+        float cover, alpha;
+        for (y = 0; y < h; y++) {
+            for (cover = 0, x = 0; x < w; x++, cell++, mask++) {
+                cover += cell->cover;
+                alpha = fabsf(cover - cell->area);
+                cell->cover = cell->area = 0;
+                *mask = alpha * 255.5f;
+            }
+        }
+    }
+    static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
+        float alpha, px, py, r, g, b, a, w, h;
+        w = device.ux - device.lx, h = device.uy - device.ly;
+        uint8_t cover;
         uint32_t pixel = *((uint32_t *)color), *addr;
         r = color[2] / 255.f, g = color[1] / 255.f, b = color[0] / 255.f, a = color[3] / 255.f;
         
-        w = device.ux - device.lx, h = device.uy - device.ly;
-        Cell *cell = cells;
-        for (y = 0; y < h; y++) {
-            py = y + device.ly;
-            if (py >= clipped.ly && py < clipped.uy) {
-                for (cover = 0, x = 0; x < w; x++, cell++) {
-                    cover += cell->cover;
-                    alpha = fabsf(cover - cell->area);
-                    cell->cover = cell->area = 0;
-                    
-                    if (alpha > 1e-3) {
-                        px = x + device.lx;
-                        if (px >= clipped.lx && px < clipped.ux) {
-                            addr = (uint32_t *)bitmap.pixelAddress(px, py);
-                            if (alpha > 0.999)
-                                *addr = pixel;
-                            else {
-                                alpha *= 255.f;
-                                *addr = (uint32_t(b * alpha)) | (uint32_t(g * alpha) << 8) | (uint32_t(r * alpha) << 16) | (uint32_t(a * alpha) << 24);
-                            }
-                        }
+        for (py = clipped.ly; py < clipped.uy; py++) {
+            for (px = clipped.lx; px < clipped.ux; px++) {
+                cover = mask[size_t((py - device.ly) * w + (px - device.lx))];
+                if (cover) {
+                    addr = (uint32_t *)bitmap.pixelAddress(px, py);
+                    if (cover > 254)
+                        *addr = pixel;
+                    else {
+                        alpha = float(cover) ;
+                        *addr = (uint32_t(b * alpha)) | (uint32_t(g * alpha) << 8) | (uint32_t(r * alpha) << 16) | (uint32_t(a * alpha) << 24);
                     }
                 }
             }
@@ -102,6 +105,8 @@ struct Rasterizer {
     
     static void renderBoundingBoxes(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
         Cell cells[kCellsDimension * kCellsDimension];
+        uint8_t mask[kCellsDimension * kCellsDimension];
+        
         memset(cells, 0, sizeof(cells));
         
         std::vector<Span> spans;
@@ -135,7 +140,9 @@ struct Rasterizer {
 //                    addCellSegment(x1, y1, x2, y2, cells, dimension);
 //                    addCellSegment(x2, y2, x3, y3, cells, dimension);
 //                    addCellSegment(x3, y3, x0, y0, cells, dimension);
-                    fillCells(cells, device, clipped, red, bitmap);
+                    
+                    writeCellsMask(cells, device, mask);
+                    fillMask(mask, device, clipped, red, bitmap);
                 } else
                     rasterizeBoundingBox(clipped, spans);
             }
