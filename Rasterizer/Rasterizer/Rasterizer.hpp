@@ -13,7 +13,7 @@
 
 
 struct Rasterizer {
-    static const size_t kCellsDimension = 8;
+    static const size_t kCellsDimension = 64;
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
@@ -110,8 +110,14 @@ struct Rasterizer {
     }
     
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
-        for (Span& span : spans)
-            memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
+        uint8_t *addr;
+        for (Span& span : spans) {
+            addr = bitmap.pixelAddress(span.x, span.y);
+            if (span.w > 0)
+                memset_pattern4(addr, color, span.w * bitmap.bytespp);
+            else
+                memset_pattern4(addr, color, bitmap.bytespp);
+        }
     }
     
     static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
