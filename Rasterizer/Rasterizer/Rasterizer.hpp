@@ -160,7 +160,7 @@ struct Rasterizer {
             return;
         float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, ix0, ix1, cx0, cy0, cx1, cy1, cover, tmp, sign;
         dxdy = (x1 - x0) / (y1 - y0);
-        dydx = dxdy == 0 ? 0 : 1.0 / dxdy;
+        dydx = dxdy == 0 ? 0 : 1.0 / fabsf(dxdy);
         ly = y0 < y1 ? y0 : y1;
         uy = y0 > y1 ? y0 : y1;
         sign = y0 < y1 ? 1 : -1;
@@ -174,7 +174,6 @@ struct Rasterizer {
                 tmp = sy0, sy0 = sy1, sy1 = tmp;
             if (sx0 > sx1)
                 tmp = sx0, sx0 = sx1, sx1 = tmp;
-            dydx = fabsf(dydx);
             Cell *cell = cells + size_t(iy0 * dimension + sx0);
             for (ix0 = floorf(sx0), ix1 = ix0 + 1, cx0 = sx0, cy0 = sy0;
                  ix0 <= sx1;
