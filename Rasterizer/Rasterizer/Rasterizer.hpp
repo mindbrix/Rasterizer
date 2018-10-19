@@ -69,41 +69,6 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void writeCellsSpan(Cell *cells, Bounds device, std::vector<Span>& spans) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
-        uint8_t a;
-        Span span(0, 0, 0);
-        float cover, alpha;
-        for (y = 0; y < h; y++) {
-            for (cover = 0, x = 0; x < w; x++, cells++) {
-                cover += cells->cover;
-                alpha = fabsf(cover - cells->area);
-                cells->cover = cells->area = 0;
-
-                a = alpha * 255.5f;
-                
-                if (a != 255) {
-                    if (span.w) {
-                        spans.emplace_back(span);
-                        span.w = 0;
-                    }
-                }
-                if (a == 255) {
-                    if (span.w)
-                        span.w++;
-                    else
-                        span.x = x + device.lx, span.y = y + device.ly, span.w = 1;
-                } else if (a != 0) {
-                    spans.emplace_back(x + device.lx, y + device.ly, -a);
-                }
-            }
-            if (span.w) {
-                spans.emplace_back(span);
-                span.w = 0;
-            }
-        }
-    }
-    
     static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
         float cover, alpha;
@@ -200,9 +165,7 @@ struct Rasterizer {
 //                    addCellSegment(x1, y1, x2, y2, cells, dimension);
 //                    addCellSegment(x2, y2, x3, y3, cells, dimension);
 //                    addCellSegment(x3, y3, x0, y0, cells, dimension);
-                    
-//                    writeCellsSpan(cells, device, spans);
-                    
+                                        
                     writeCellsMask(cells, device, mask);
                     fillMask(mask, device, clipped, red, bitmap);
                 } else
