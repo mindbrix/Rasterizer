@@ -117,7 +117,7 @@ struct Rasterizer {
                     float x0 = unit.tx, y0 = unit.ty, x1 = x0 + unit.a, y1 = y0 + unit.b, x2 = x1 + unit.c, y2 = y1 + unit.d, x3 = x0 + unit.c, y3 = y0 + unit.d;
                     x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                     x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
-                    size_t dimension = device.ux - device.lx;
+                    float dimension = device.ux - device.lx;
                     addCellSegment(x0, y0, x1, y1, cells, dimension);
                     addCellSegment(x1, y1, x2, y2, cells, dimension);
                     addCellSegment(x2, y2, x3, y3, cells, dimension);
@@ -143,7 +143,7 @@ struct Rasterizer {
         fillSpans(spans, red, bitmap);
     }
     
-    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, size_t dimension) {
+    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, float dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover;
@@ -159,7 +159,7 @@ struct Rasterizer {
             
             slx = sx0 < sx1 ? sx0 : sx1;
             sux = sx0 > sx1 ? sx0 : sx1;
-            Cell *cell = cells + size_t(iy0) * dimension + size_t(slx);
+            Cell *cell = cells + size_t(iy0 * dimension + slx);
             for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 <= sux; ix0 = ix1, ix1++, cell++) {
                 cx0 = sx0 < ix0 ? ix0 : sx0 > ix1 ? ix1 : sx0;
                 cy0 = dydx == 0 ? sy0 : (cx0 - sx0) * dydx + sy0;
