@@ -69,6 +69,41 @@ struct Rasterizer {
         short x, y, w;
     };
     
+    static void writeCellsSpan(Cell *cells, Bounds device, std::vector<Span>& spans) {
+        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
+        uint8_t a;
+        Span span(0, 0, 0);
+        float cover, alpha;
+        for (y = 0; y < h; y++) {
+            for (cover = 0, x = 0; x < w; x++, cells++) {
+                cover += cells->cover;
+                alpha = fabsf(cover - cells->area);
+                cells->cover = cells->area = 0;
+
+                a = alpha * 255.5f;
+                
+                if (a != 255) {
+                    if (span.w) {
+                        spans.emplace_back(span);
+                        span.w = 0;
+                    }
+                }
+                if (a == 255) {
+                    if (span.w)
+                        span.w++;
+                    else
+                        span.x = x + device.lx, span.y = y + device.ly, span.w = 1;
+                } else if (a != 0) {
+                    spans.emplace_back(x + device.lx, y + device.ly, -a);
+                }
+            }
+            if (span.w) {
+                spans.emplace_back(span);
+                span.w = 0;
+            }
+        }
+    }
+    
     static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
         float cover, alpha;
@@ -110,13 +145,23 @@ struct Rasterizer {
     }
     
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
+        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
+        float lx, ux;
         uint8_t *addr;
         for (Span& span : spans) {
-            addr = bitmap.pixelAddress(span.x, span.y);
-            if (span.w > 0)
-                memset_pattern4(addr, color, span.w * bitmap.bytespp);
-            else
-                memset_pattern4(addr, color, bitmap.bytespp);
+            if (span.y >= clipBounds.ly && span.y < clipBounds.uy) {
+                lx = span.x, ux = lx + (span.w > 0 ? span.w : 1);
+                lx = lx < clipBounds.lx ? clipBounds.lx : lx > clipBounds.ux ? clipBounds.ux : lx;
+                ux = ux < clipBounds.lx ? clipBounds.lx : ux > clipBounds.ux ? clipBounds.ux : ux;
+                
+                if (lx != ux) {
+                    addr = bitmap.pixelAddress(lx, span.y);
+                    if (span.w > 0)
+                        memset_pattern4(addr, color, (ux - lx) * bitmap.bytespp);
+                    else
+                        memset_pattern4(addr, color, bitmap.bytespp);
+                }
+            }
         }
     }
     
@@ -156,16 +201,16 @@ struct Rasterizer {
 //                    addCellSegment(x2, y2, x3, y3, cells, dimension);
 //                    addCellSegment(x3, y3, x0, y0, cells, dimension);
                     
+//                    writeCellsSpan(cells, device, spans);
+                    
                     writeCellsMask(cells, device, mask);
                     fillMask(mask, device, clipped, red, bitmap);
                 } else
-//                    rasterizeBoundingBox(clipped, commands);
                     rasterizeBoundingBox(clipped, spans);
             }
         }
-//        runSpanCommands(commands, *((uint32_t *)& red), bitmap);
-        
         fillSpans(spans, red, bitmap);
+        
     }
     
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, float dimension) {
