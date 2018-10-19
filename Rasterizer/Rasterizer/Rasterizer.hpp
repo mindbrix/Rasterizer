@@ -81,7 +81,7 @@ struct Rasterizer {
         w = device.ux - device.lx, h = device.uy - device.ly;
         uint8_t *cover;
         uint32_t pixel = *((uint32_t *)color), *addr;
-        simd_float4 bgra = { float(color[0]), float(color[1]), float(color[2]), float(color[3]) }, multiplied;
+        simd_float4 bgra = { float(color[0]), float(color[1]), float(color[2]), float(color[3]) };
         bgra /= 255.f;
         
        // r = color[2] / 255.f, g = color[1] / 255.f, b = color[0] / 255.f, a = color[3] / 255.f;
@@ -94,8 +94,8 @@ struct Rasterizer {
                     if (*cover > 254)
                         *addr = pixel;
                     else {
-                        multiplied = bgra * float(*cover);
-                        *((simd_uchar4 *)addr) = simd_uchar(multiplied);
+                        *((simd_uchar4 *)addr) = simd_uchar(bgra * float(*cover));
+                        
 //                        alpha = cover;
 //                        *addr = (uint32_t(b * alpha)) | (uint32_t(g * alpha) << 8) | (uint32_t(r * alpha) << 16) | (uint32_t(a * alpha) << 24);
                     }
