@@ -56,7 +56,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Cell {
-        short cover, area;
+        float cover, area;
     };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
@@ -69,13 +69,13 @@ struct Rasterizer {
         r = color[2] / 255.f, g = color[1] / 255.f, b = color[0] / 255.f, a = color[3] / 255.f;
         
         w = device.ux - device.lx, h = device.uy - device.ly;
+        Cell *cell = cells;
         for (y = 0; y < h; y++) {
             py = y + device.ly;
             if (py >= clipped.ly && py < clipped.uy) {
-                Cell *cell = cells + size_t(y) * kCellsDimension;
                 for (cover = 0, x = 0; x < w; x++, cell++) {
-                    cover += float(cell->cover) / 255.f;
-                    alpha = fabsf(cover - float(cell->area) / 255.f);
+                    cover += cell->cover;
+                    alpha = fabsf(cover - cell->area);
                     cell->cover = cell->area = 0;
                     
                     if (alpha > 1e-3) {
@@ -117,11 +117,24 @@ struct Rasterizer {
                     float x0 = unit.tx, y0 = unit.ty, x1 = x0 + unit.a, y1 = y0 + unit.b, x2 = x1 + unit.c, y2 = y1 + unit.d, x3 = x0 + unit.c, y3 = y0 + unit.d;
                     x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                     x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
-                    addCellSegment(x0, y0, x1, y1, cells);
-                    addCellSegment(x1, y1, x2, y2, cells);
-                    addCellSegment(x2, y2, x3, y3, cells);
-                    addCellSegment(x3, y3, x0, y0, cells);
-
+                    size_t dimension = device.ux - device.lx;
+                    addCellSegment(x0, y0, x1, y1, cells, dimension);
+                    addCellSegment(x1, y1, x2, y2, cells, dimension);
+                    addCellSegment(x2, y2, x3, y3, cells, dimension);
+                    addCellSegment(x3, y3, x0, y0, cells, dimension);
+                    
+//                    addCellSegment(x0, y0, x1, y1, cells, dimension);
+//                    addCellSegment(x1, y1, x2, y2, cells, dimension);
+//                    addCellSegment(x2, y2, x3, y3, cells, dimension);
+//                    addCellSegment(x3, y3, x0, y0, cells, dimension);
+//                    addCellSegment(x0, y0, x1, y1, cells, dimension);
+//                    addCellSegment(x1, y1, x2, y2, cells, dimension);
+//                    addCellSegment(x2, y2, x3, y3, cells, dimension);
+//                    addCellSegment(x3, y3, x0, y0, cells, dimension);
+//                    addCellSegment(x0, y0, x1, y1, cells, dimension);
+//                    addCellSegment(x1, y1, x2, y2, cells, dimension);
+//                    addCellSegment(x2, y2, x3, y3, cells, dimension);
+//                    addCellSegment(x3, y3, x0, y0, cells, dimension);
                     fillCells(cells, device, clipped, red, bitmap);
                 } else
                     rasterizeBoundingBox(clipped, spans);
@@ -130,7 +143,7 @@ struct Rasterizer {
         fillSpans(spans, red, bitmap);
     }
     
-    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells) {
+    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, size_t dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover;
@@ -146,14 +159,14 @@ struct Rasterizer {
             
             slx = sx0 < sx1 ? sx0 : sx1;
             sux = sx0 > sx1 ? sx0 : sx1;
-            Cell *cell = cells + size_t(iy0) * kCellsDimension + size_t(slx);
+            Cell *cell = cells + size_t(iy0) * dimension + size_t(slx);
             for (ix0 = floorf(slx), ix1 = ix0 + 1; ix0 <= sux; ix0 = ix1, ix1++, cell++) {
                 cx0 = sx0 < ix0 ? ix0 : sx0 > ix1 ? ix1 : sx0;
                 cy0 = dydx == 0 ? sy0 : (cx0 - sx0) * dydx + sy0;
                 cx1 = sx1 < ix0 ? ix0 : sx1 > ix1 ? ix1 : sx1;
                 cy1 = dydx == 0 ? sy1 : (cx1 - sx0) * dydx + sy0;
                 
-                cover = (cy1 - cy0) * 255.f;
+                cover = (cy1 - cy0);
                 cell->cover += cover;
                 cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
             }
