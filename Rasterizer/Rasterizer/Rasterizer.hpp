@@ -65,12 +65,12 @@ struct Rasterizer {
     
     static void fillCells(Cell *cells, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
         float x, y, w, h, cover, alpha, px, py;
-        Span span(0, 0, 0);
+        uint32_t pixel = *((uint32_t *)color);
+        
         w = device.ux - device.lx, h = device.uy - device.ly;
         for (y = 0; y < h; y++) {
             py = y + device.ly;
             if (py >= clipped.ly && py < clipped.uy) {
-                span.y = py, span.w = 0;
                 Cell *cell = cells + size_t(y) * kCellsDimension;
                 for (cover = 0, x = 0; x < w; x++, cell++) {
                     cover += cell->cover;
@@ -79,20 +79,10 @@ struct Rasterizer {
                     
                     px = x + device.lx;
                     if (px >= clipped.lx && px < clipped.ux) {
-                        if (fabs(alpha) > 1e-3) {
-                            if (span.w == 0)
-                                span.x = px;
-                            span.w++;
-                        } else {
-                            if (span.w != 0) {
-                                memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
-                                span.w = 0;
-                            }
-                        }
+                        if (fabs(alpha) > 1e-3)
+                            *((uint32_t *)bitmap.pixelAddress(px, py)) = pixel;
                     }
                 }
-                if (span.w != 0)
-                    memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
             }
         }
     }
