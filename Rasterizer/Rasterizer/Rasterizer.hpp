@@ -56,7 +56,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Cell {
-        float cover, area;
+        short cover, area;
     };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
@@ -74,8 +74,8 @@ struct Rasterizer {
             if (py >= clipped.ly && py < clipped.uy) {
                 Cell *cell = cells + size_t(y) * kCellsDimension;
                 for (cover = 0, x = 0; x < w; x++, cell++) {
-                    cover += cell->cover;
-                    alpha = fabsf(cover - cell->area);
+                    cover += float(cell->cover) / 255.f;
+                    alpha = fabsf(cover - float(cell->area) / 255.f);
                     cell->cover = cell->area = 0;
                     
                     if (alpha > 1e-3) {
@@ -153,7 +153,7 @@ struct Rasterizer {
                 cx1 = sx1 < ix0 ? ix0 : sx1 > ix1 ? ix1 : sx1;
                 cy1 = dydx == 0 ? sy1 : (cx1 - sx0) * dydx + sy0;
                 
-                cover = cy1 - cy0;
+                cover = (cy1 - cy0) * 255.f;
                 cell->cover += cover;
                 cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
             }
