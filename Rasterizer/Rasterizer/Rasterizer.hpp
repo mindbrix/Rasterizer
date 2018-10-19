@@ -58,6 +58,12 @@ struct Rasterizer {
     struct Cell {
         float cover, area;
     };
+    struct Context {
+        Context() { memset(cells, 0, sizeof(cells)); }
+        
+        Cell cells[kCellsDimension * kCellsDimension];
+        uint8_t mask[kCellsDimension * kCellsDimension];
+    };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
         short x, y, w;
@@ -108,11 +114,9 @@ struct Rasterizer {
             memset_pattern4(bitmap.pixelAddress(span.x, span.y), color, span.w * bitmap.bytespp);
     }
     
-    static void renderBoundingBoxes(Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
-        Cell cells[kCellsDimension * kCellsDimension];
-        uint8_t mask[kCellsDimension * kCellsDimension];
-        
-        memset(cells, 0, sizeof(cells));
+    static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
+        Cell *cells = context.cells;
+        uint8_t *mask = context.mask;
         
         std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };

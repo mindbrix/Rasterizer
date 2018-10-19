@@ -104,7 +104,8 @@
     if (self.useRasterizer) {
         Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
         Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-        Rasterizer::renderBoundingBoxes(boundingBoxes, count, ctm, bitmap);
+        Rasterizer::Context context;
+        Rasterizer::renderBoundingBoxes(context, boundingBoxes, count, ctm, bitmap);
     } else
         for (size_t i = 0; i < count; i++)
             CGContextFillRect(ctx, CGRectMake(boundingBoxes[i].lx, boundingBoxes[i].ly, boundingBoxes[i].ux - boundingBoxes[i].lx, boundingBoxes[i].uy - boundingBoxes[i].ly));
