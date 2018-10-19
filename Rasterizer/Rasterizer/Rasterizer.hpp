@@ -56,7 +56,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Cell {
-        float area, cover;
+        float cover, area;
     };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
@@ -125,7 +125,7 @@ struct Rasterizer {
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area;
+        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, slx, sux, ix0, ix1, cx0, cy0, cx1, cy1, cover;
         dxdy = (x1 - x0) / (y1 - y0);
         dydx = dxdy == 0 ? 0 : 1.0 / dxdy;
         ly = y0 < y1 ? y0 : y1;
@@ -146,9 +146,8 @@ struct Rasterizer {
                 cy1 = dydx == 0 ? sy1 : (cx1 - sx0) * dydx + sy0;
                 
                 cover = cy1 - cy0;
-                area = cover * ((cx0 + cx1) * 0.5 - ix0);
                 cell->cover += cover;
-                cell->area += area;
+                cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
             }
         }
     }
