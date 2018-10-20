@@ -71,7 +71,7 @@ struct Rasterizer {
     
     static void writeMaskRowSSE(Cell *cells, size_t w, uint8_t *mask) {
         __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-        __m128 mul = _mm_set1_ps(255.5f), covers, areas, alpha0, alpha1;
+        __m128 covers, areas, alpha0, alpha1;
         __m128i a16, a8;
         float cover = 0, c0, c1, c2, c3, a0, a1, a2, a3;
         
@@ -82,7 +82,7 @@ struct Rasterizer {
             cover += cells->cover, c3 = cover, a3 = cells->area, cells->area = cells->cover = 0, cells++;
             covers = _mm_set_ps(c3, c2, c1, c0);
             areas = _mm_set_ps(a3, a2, a1, a0);
-            alpha0 = _mm_mul_ps(mul, _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas)));
+            alpha0 = _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas));
             
             cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
             cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
@@ -90,7 +90,7 @@ struct Rasterizer {
             cover += cells->cover, c3 = cover, a3 = cells->area, cells->area = cells->cover = 0, cells++;
             covers = _mm_set_ps(c3, c2, c1, c0);
             areas = _mm_set_ps(a3, a2, a1, a0);
-            alpha1 = _mm_mul_ps(mul, _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas)));
+            alpha1 = _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas));
             
             a16 = _mm_packs_epi32(_mm_cvttps_epi32(alpha0), _mm_cvttps_epi32(alpha1));
             a8 = _mm_packus_epi16(a16, a16);
@@ -100,7 +100,7 @@ struct Rasterizer {
         }
         while (w--) {
             cover += cells->cover;
-            *mask++ = fabsf(cover - cells->area) * 255.5f;
+            *mask++ = fabsf(cover - cells->area);
             cells->area = cells->cover = 0;
             cells++;
         }
@@ -238,7 +238,7 @@ struct Rasterizer {
         dydx = dxdy == 0 ? 0 : 1.0 / fabsf(dxdy);
         ly = y0 < y1 ? y0 : y1;
         uy = y0 > y1 ? y0 : y1;
-        sign = y0 < y1 ? 1 : -1;
+        sign = 255.5f * (y0 < y1 ? 1 : -1);
         for (iy0 = floorf(ly), iy1 = iy0 + 1; iy0 < uy; iy0 = iy1, iy1++) {
             sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
             sx0 = (sy0 - y0) * dxdy + x0;
