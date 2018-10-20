@@ -112,9 +112,13 @@ struct Rasterizer {
             writeMaskRowSSE(cells, w, mask);
     }
     
-    static void copyMask(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
+    static void copyMaskSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
         uint32_t *dst;
-        uint8_t *src, *srcend;
+        uint8_t *src, *srcend, *components;
+        components = (uint8_t *)& bgra;
+        __m128 bgra4 = _mm_div_ps(_mm_set_ps(float(components[3]), float(components[2]), float(components[1]), float(components[0])), _mm_set1_ps(255.f));
+        __m128 multiplied;
+        __m128i a32, a16, a8;
         
         while (h--) {
             for (dst = addr, src = mask, srcend = src + w; src < srcend; src++, dst++) {
@@ -122,7 +126,11 @@ struct Rasterizer {
                     if (*src > 254)
                         *dst = bgra;
                     else {
-                        *dst = 0xFF000080;
+                        multiplied = _mm_mul_ps(bgra4, _mm_set1_ps(float(*src)));
+                        a32 = _mm_cvttps_epi32(multiplied);
+                        a16 = _mm_packs_epi32(a32, a32);
+                        a8 = _mm_packus_epi16(a16, a16);
+                        *dst = _mm_cvtsi128_si32(a8);
                     }
                 }
             }
@@ -132,38 +140,11 @@ struct Rasterizer {
     }
     
     static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
-        float px, py, w, h;//, r, g, b, a, w, h, alpha;
-        w = device.ux - device.lx, h = device.uy - device.ly;
-        uint8_t *cover, *maskaddr;
-        uint32_t bgra = *((uint32_t *)color), *addr;
-        
-        addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
-        maskaddr = mask + size_t(w * (clipped.ly - device.ly) + (clipped.lx - device.lx));
-        copyMask(bgra, addr, bitmap.rowBytes, maskaddr, w, clipped.ux - clipped.lx, clipped.uy - clipped.ly);
-        
-        /*
-        simd_float4 bgra = { float(color[0]), float(color[1]), float(color[2]), float(color[3]) };
-        bgra /= 255.f;
-        
-       // r = color[2] / 255.f, g = color[1] / 255.f, b = color[0] / 255.f, a = color[3] / 255.f;
-        
-        for (py = clipped.ly; py < clipped.uy; py++) {
-            cover = & mask[size_t((py - device.ly) * w + (clipped.lx - device.lx))];
-            addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, py);
-            for (px = clipped.lx; px < clipped.ux; px++, cover++, addr++) {
-                if (*cover) {
-                    if (*cover > 254)
-                        *addr = pixel;
-                    else {
-                        *((simd_uchar4 *)addr) = simd_uchar(bgra * float(*cover));
-                        
-//                        alpha = cover;
-//                        *addr = (uint32_t(b * alpha)) | (uint32_t(g * alpha) << 8) | (uint32_t(r * alpha) << 16) | (uint32_t(a * alpha) << 24);
-                    }
-                }
-            }
-        }
-         */
+        size_t w = device.ux - device.lx;
+        uint32_t bgra = *((uint32_t *)color);
+        uint32_t *addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
+        uint8_t *maskaddr = mask + size_t(w * (clipped.ly - device.ly) + (clipped.lx - device.lx));
+        copyMaskSSE(bgra, addr, bitmap.rowBytes, maskaddr, w, clipped.ux - clipped.lx, clipped.uy - clipped.ly);
     }
     
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
