@@ -117,23 +117,35 @@ struct Rasterizer {
         uint8_t *src, *components;
         components = (uint8_t *)& bgra;
         __m128 bgra4 = _mm_div_ps(_mm_set_ps(float(components[3]), float(components[2]), float(components[1]), float(components[0])), _mm_set1_ps(255.f));
-        __m128 multiplied;
-        __m128i a32, a16, a8;
+        __m128 multiplied, m0, m1, m2, m3;
+        __m128i a32, a16, a16_0, a16_1, a8;
         size_t columns;
         
         while (h--) {
             dst = addr, src = mask, columns = w;
+            while (columns >> 2 && (src[0] || src[1] || src[2] || src[3])) {
+                m0 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[0])));
+                m1 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[1])));
+                m2 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[2])));
+                m3 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[3])));
+                
+                a16_0 = _mm_packs_epi32(_mm_cvttps_epi32(m0), _mm_cvttps_epi32(m1));
+                a16_1 = _mm_packs_epi32(_mm_cvttps_epi32(m2), _mm_cvttps_epi32(m3));
+                a8 = _mm_packus_epi16(a16_0, a16_1);
+                _mm_storeu_si128((__m128i *)dst, a8);
+                
+                columns -= 4, src += 4, dst += 4;
+            }
+            
             while (columns--) {
-                if (*src) {
-                    if (*src > 254)
-                        *dst = bgra;
-                    else {
-                        multiplied = _mm_mul_ps(bgra4, _mm_set1_ps(float(*src)));
-                        a32 = _mm_cvttps_epi32(multiplied);
-                        a16 = _mm_packs_epi32(a32, a32);
-                        a8 = _mm_packus_epi16(a16, a16);
-                        *dst = _mm_cvtsi128_si32(a8);
-                    }
+                if (*src > 254)
+                    *dst = bgra;
+                else if (*src) {
+                    multiplied = _mm_mul_ps(bgra4, _mm_set1_ps(float(*src)));
+                    a32 = _mm_cvttps_epi32(multiplied);
+                    a16 = _mm_packs_epi32(a32, a32);
+                    a8 = _mm_packus_epi16(a16, a16);
+                    *dst = _mm_cvtsi128_si32(a8);
                 }
                 src++, dst++;
             }
