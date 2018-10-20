@@ -61,7 +61,10 @@ struct Rasterizer {
     struct Context {
         Context() { memset(cells, 0, sizeof(cells)); }
         
+        void clearMap() { memset(map, 0, sizeof(map)); }
+        
         Cell cells[kCellsDimension * kCellsDimension];
+        uint8_t map[kCellsDimension * kCellsDimension / 8];
         uint8_t mask[kCellsDimension * kCellsDimension];
     };
     struct Span {
@@ -69,17 +72,57 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y;
-        float cover, alpha;
-        for (y = 0; y < h; y++) {
-            for (cover = 0, x = 0; x < w; x++, cells++, mask++) {
-                cover += cells->cover;
-                alpha = fabsf(cover - cells->area);
-                cells->cover = cells->area = 0;
-                *mask = alpha * 255.5f;
-            }
+    static void writeMaskRowSSE(Cell *cells, size_t w, uint8_t *mask) {
+        __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
+        __m128 mul = _mm_set1_ps(255.f), covers, areas, alphas;
+        __m128i a32, a16, a8;
+        float cover = 0, c0, c1, c2, c3;
+        
+        while (w >> 2) {
+            cover += cells[0].cover, c0 = cover;
+            cover += cells[1].cover, c1 = cover;
+            cover += cells[2].cover, c2 = cover;
+            cover += cells[3].cover, c3 = cover;
+            covers = _mm_set_ps(c3, c2, c1, c0);
+            areas = _mm_set_ps(cells[3].area, cells[2].area, cells[1].area, cells[0].area);
+            memset(cells, 0, sizeof(Cell) * 4);
+            
+            alphas = _mm_mul_ps(mul, _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas)));
+            a32 = _mm_cvttps_epi32(alphas);
+            a16 = _mm_packs_epi32(a32, a32);
+            a8 = _mm_packus_epi16(a16, a16);
+            *((uint32_t *)mask) = _mm_cvtsi128_si32(a8);
+            
+            cells += 4, mask += 4, w -= 4;
         }
+        while (w--) {
+            cover += cells->cover;
+            *mask++ = fabsf(cover - cells->area) * 255.f;
+            cells->area = cells->cover = 0;
+            cells++;
+        }
+    }
+    
+    static void writeCellsMask(Cell *cells, uint8_t *map, Bounds device, uint8_t *mask) {
+        size_t w = device.ux - device.lx, h = device.uy - device.ly, y;
+        for (y = 0; y < h; y++, cells += w, mask += w)
+            writeMaskRowSSE(cells, w, mask);
+        
+//        size_t index = 0, x, y, step = 1;
+//        float cover, alpha;
+//        for (y = 0; y < h; y++) {
+//            for (cover = alpha = 0, x = 0; x < w; x += step, index += step, cells += step, mask += step, step = 1) {
+//                if (0 && index % 8 == 0 && x + 8 < w && map[index / 8] == 0) {
+//                    memset(mask, alpha * 255.5f, 8);
+//                    step = 8;
+//                } else {
+//                    cover += cells->cover;
+//                    alpha = fabsf(cover - cells->area);
+//                    cells->cover = cells->area = 0;
+//                    *mask = alpha * 255.5f;
+//                }
+//            }
+//        }
     }
     static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
         float px, py, w, h;//, r, g, b, a, w, h, alpha;
@@ -133,6 +176,7 @@ struct Rasterizer {
     static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
         Cell *cells = context.cells;
         uint8_t *mask = context.mask;
+        uint8_t *map = context.map;
         
         std::vector<Span> spans;
         uint8_t red[4] = { 0, 0, 255, 255 };
@@ -148,10 +192,11 @@ struct Rasterizer {
                     x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                     x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                     float dimension = device.ux - device.lx;
-                    addCellSegment(x0, y0, x1, y1, cells, dimension);
-                    addCellSegment(x1, y1, x2, y2, cells, dimension);
-                    addCellSegment(x2, y2, x3, y3, cells, dimension);
-                    addCellSegment(x3, y3, x0, y0, cells, dimension);
+                    context.clearMap();
+                    addCellSegment(x0, y0, x1, y1, cells, map, dimension);
+                    addCellSegment(x1, y1, x2, y2, cells, map, dimension);
+                    addCellSegment(x2, y2, x3, y3, cells, map, dimension);
+                    addCellSegment(x3, y3, x0, y0, cells, map, dimension);
                     
 //                    addCellSegment(x0, y0, x1, y1, cells, dimension);
 //                    addCellSegment(x1, y1, x2, y2, cells, dimension);
@@ -166,7 +211,7 @@ struct Rasterizer {
 //                    addCellSegment(x2, y2, x3, y3, cells, dimension);
 //                    addCellSegment(x3, y3, x0, y0, cells, dimension);
                                         
-                    writeCellsMask(cells, device, mask);
+                    writeCellsMask(cells, map, device, mask);
                     fillMask(mask, device, clipped, red, bitmap);
                 } else
                     rasterizeBoundingBox(clipped, spans);
@@ -176,10 +221,11 @@ struct Rasterizer {
         
     }
     
-    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, float dimension) {
+    static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, uint8_t *map, float dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, ix0, ix1, cx0, cy0, cx1, cy1, cover, tmp, sign;
+        size_t index;
         dxdy = (x1 - x0) / (y1 - y0);
         dydx = dxdy == 0 ? 0 : 1.0 / fabsf(dxdy);
         ly = y0 < y1 ? y0 : y1;
@@ -195,15 +241,17 @@ struct Rasterizer {
                 tmp = sy0, sy0 = sy1, sy1 = tmp;
             if (sx0 > sx1)
                 tmp = sx0, sx0 = sx1, sx1 = tmp;
-            Cell *cell = cells + size_t(iy0 * dimension + sx0);
+            index = iy0 * dimension + sx0;
+            Cell *cell = cells + index;
             for (ix0 = floorf(sx0), ix1 = ix0 + 1, cx0 = sx0, cy0 = sy0;
                  ix0 <= sx1;
-                 ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, cell++) {
+                 ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, cell++, index++) {
                 cx1 = sx1 > ix1 ? ix1 : sx1;
                 cy1 = dydx == 0 ? sy1 : (cx1 - sx0) * dydx + sy0;
                 cover = (cy1 - cy0) * sign;
                 cell->cover += cover;
                 cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
+                map[index / 8] = 1;
             }
         }
     }
