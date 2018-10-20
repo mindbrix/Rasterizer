@@ -123,17 +123,18 @@ struct Rasterizer {
         
         while (h--) {
             dst = addr, src = mask, columns = w;
-            while (columns >> 2 && (src[0] || src[1] || src[2] || src[3])) {
-                m0 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[0])));
-                m1 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[1])));
-                m2 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[2])));
-                m3 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[3])));
-                
-                a16_0 = _mm_packs_epi32(_mm_cvttps_epi32(m0), _mm_cvttps_epi32(m1));
-                a16_1 = _mm_packs_epi32(_mm_cvttps_epi32(m2), _mm_cvttps_epi32(m3));
-                a8 = _mm_packus_epi16(a16_0, a16_1);
-                _mm_storeu_si128((__m128i *)dst, a8);
-                
+            while (columns >> 2) {
+                if (src[0] || src[1] || src[2] || src[3]) {
+                    m0 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[0])));
+                    m1 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[1])));
+                    m2 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[2])));
+                    m3 = _mm_mul_ps(bgra4, _mm_set1_ps(float(src[3])));
+                    
+                    a16_0 = _mm_packs_epi32(_mm_cvttps_epi32(m0), _mm_cvttps_epi32(m1));
+                    a16_1 = _mm_packs_epi32(_mm_cvttps_epi32(m2), _mm_cvttps_epi32(m3));
+                    a8 = _mm_packus_epi16(a16_0, a16_1);
+                    _mm_storeu_si128((__m128i *)dst, a8);
+                }
                 columns -= 4, src += 4, dst += 4;
             }
             
