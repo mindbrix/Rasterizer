@@ -71,7 +71,7 @@ struct Rasterizer {
     
     static void writeMaskRowSSE(Cell *cells, size_t w, uint8_t *mask) {
         __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-        __m128 mul = _mm_set1_ps(255.f), covers, areas, alpha0, alpha1;
+        __m128 mul = _mm_set1_ps(255.5f), covers, areas, alpha0, alpha1;
         __m128i a16, a8;
         float cover = 0, c0, c1, c2, c3, a0, a1, a2, a3;
         
@@ -100,7 +100,7 @@ struct Rasterizer {
         }
         while (w--) {
             cover += cells->cover;
-            *mask++ = fabsf(cover - cells->area) * 255.f;
+            *mask++ = fabsf(cover - cells->area) * 255.5f;
             cells->area = cells->cover = 0;
             cells++;
         }
@@ -112,11 +112,36 @@ struct Rasterizer {
             writeMaskRowSSE(cells, w, mask);
     }
     
+    static void copyMask(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
+        uint32_t *dst;
+        uint8_t *src, *srcend;
+        
+        while (h--) {
+            for (dst = addr, src = mask, srcend = src + w; src < srcend; src++, dst++) {
+                if (*src) {
+                    if (*src > 254)
+                        *dst = bgra;
+                    else {
+                        *dst = 0xFF000080;
+                    }
+                }
+            }
+            addr -= rowBytes / 4;
+            mask += maskRowBytes;
+        }
+    }
+    
     static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
         float px, py, w, h;//, r, g, b, a, w, h, alpha;
         w = device.ux - device.lx, h = device.uy - device.ly;
-        uint8_t *cover;
-        uint32_t pixel = *((uint32_t *)color), *addr;
+        uint8_t *cover, *maskaddr;
+        uint32_t bgra = *((uint32_t *)color), *addr;
+        
+        addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
+        maskaddr = mask + size_t(w * (clipped.ly - device.ly) + (clipped.lx - device.lx));
+        copyMask(bgra, addr, bitmap.rowBytes, maskaddr, w, clipped.ux - clipped.lx, clipped.uy - clipped.ly);
+        
+        /*
         simd_float4 bgra = { float(color[0]), float(color[1]), float(color[2]), float(color[3]) };
         bgra /= 255.f;
         
@@ -138,6 +163,7 @@ struct Rasterizer {
                 }
             }
         }
+         */
     }
     
     static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
