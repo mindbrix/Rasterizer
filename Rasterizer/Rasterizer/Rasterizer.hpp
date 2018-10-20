@@ -245,7 +245,7 @@ struct Rasterizer {
              iy0 < y1;
              iy0 = iy1, iy1++, sy0 = sy1) {
             sx0 = (sy0 - y0) * dxdy + x0;
-            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
+            sy1 = y1 > iy1 ? iy1 : y1;
             sx1 = (sy1 - y0) * dxdy + x0;
             
             if (sx0 > sx1)
