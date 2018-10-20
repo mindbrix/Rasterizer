@@ -56,7 +56,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Cell {
-        float cover, area;
+        short cover, area;
     };
     struct Context {
         Context() { memset(cells, 0, sizeof(cells)); }
@@ -73,8 +73,8 @@ struct Rasterizer {
         __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
         __m128 covers, areas, alpha0, alpha1;
         __m128i a16, a8;
-        float cover = 0, c0, c1, c2, c3, a0, a1, a2, a3;
-        
+        float c0, c1, c2, c3, a0, a1, a2, a3;
+        short cover = 0;
         while (w >> 3) {
             cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
             cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
@@ -100,7 +100,7 @@ struct Rasterizer {
         }
         while (w--) {
             cover += cells->cover;
-            *mask++ = fabsf(cover - cells->area);
+            *mask++ = abs(cover - cells->area);
             cells->area = cells->cover = 0;
             cells++;
         }
