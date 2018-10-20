@@ -233,20 +233,21 @@ struct Rasterizer {
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, float dimension) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, ly, uy, iy0, iy1, sx0, sy0, sx1, sy1, ix0, ix1, cx0, cy0, cx1, cy1, cover, tmp, sign;
+        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, ix0, ix1, cx0, cy0, cx1, cy1, cover, tmp, sign;
+        sign = 255.5f * (y0 < y1 ? 1 : -1);
+        if (sign < 0)
+            tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
+        
         dxdy = (x1 - x0) / (y1 - y0);
         dydx = dxdy == 0 ? 0 : 1.0 / fabsf(dxdy);
-        ly = y0 < y1 ? y0 : y1;
-        uy = y0 > y1 ? y0 : y1;
-        sign = 255.5f * (y0 < y1 ? 1 : -1);
-        for (iy0 = floorf(ly), iy1 = iy0 + 1; iy0 < uy; iy0 = iy1, iy1++) {
-            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
+        
+        for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0;
+             iy0 < y1;
+             iy0 = iy1, iy1++, sy0 = sy1) {
             sx0 = (sy0 - y0) * dxdy + x0;
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
             sx1 = (sy1 - y0) * dxdy + x0;
             
-            if (sign < 0)
-                tmp = sy0, sy0 = sy1, sy1 = tmp;
             if (sx0 > sx1)
                 tmp = sx0, sx0 = sx1, sx1 = tmp;
             Cell *cell = cells + size_t(iy0 * dimension + sx0);
