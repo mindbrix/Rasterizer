@@ -73,31 +73,30 @@ struct Rasterizer {
         __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
         __m128 mul = _mm_set1_ps(255.f), covers, areas, alpha0, alpha1;
         __m128i a16, a8;
-        float cover = 0, c0, c1, c2, c3;
+        float cover = 0, c0, c1, c2, c3, a0, a1, a2, a3;
         
         while (w >> 3) {
-            cover += cells[0].cover, c0 = cover;
-            cover += cells[1].cover, c1 = cover;
-            cover += cells[2].cover, c2 = cover;
-            cover += cells[3].cover, c3 = cover;
+            cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
+            cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
+            cover += cells->cover, c2 = cover, a2 = cells->area, cells->area = cells->cover = 0, cells++;
+            cover += cells->cover, c3 = cover, a3 = cells->area, cells->area = cells->cover = 0, cells++;
             covers = _mm_set_ps(c3, c2, c1, c0);
-            areas = _mm_set_ps(cells[3].area, cells[2].area, cells[1].area, cells[0].area);
+            areas = _mm_set_ps(a3, a2, a1, a0);
             alpha0 = _mm_mul_ps(mul, _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas)));
             
-            cover += cells[4].cover, c0 = cover;
-            cover += cells[5].cover, c1 = cover;
-            cover += cells[6].cover, c2 = cover;
-            cover += cells[7].cover, c3 = cover;
+            cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
+            cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
+            cover += cells->cover, c2 = cover, a2 = cells->area, cells->area = cells->cover = 0, cells++;
+            cover += cells->cover, c3 = cover, a3 = cells->area, cells->area = cells->cover = 0, cells++;
             covers = _mm_set_ps(c3, c2, c1, c0);
-            areas = _mm_set_ps(cells[7].area, cells[6].area, cells[5].area, cells[4].area);
+            areas = _mm_set_ps(a3, a2, a1, a0);
             alpha1 = _mm_mul_ps(mul, _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas)));
             
-            memset(cells, 0, sizeof(Cell) * 8);
             a16 = _mm_packs_epi32(_mm_cvttps_epi32(alpha0), _mm_cvttps_epi32(alpha1));
             a8 = _mm_packus_epi16(a16, a16);
             *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
             
-            cells += 8, mask += 8, w -= 8;
+            mask += 8, w -= 8;
         }
         while (w--) {
             cover += cells->cover;
