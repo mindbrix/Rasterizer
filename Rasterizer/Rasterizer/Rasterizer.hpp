@@ -114,14 +114,16 @@ struct Rasterizer {
     
     static void copyMaskSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
         uint32_t *dst;
-        uint8_t *src, *srcend, *components;
+        uint8_t *src, *components;
         components = (uint8_t *)& bgra;
         __m128 bgra4 = _mm_div_ps(_mm_set_ps(float(components[3]), float(components[2]), float(components[1]), float(components[0])), _mm_set1_ps(255.f));
         __m128 multiplied;
         __m128i a32, a16, a8;
+        size_t columns;
         
         while (h--) {
-            for (dst = addr, src = mask, srcend = src + w; src < srcend; src++, dst++) {
+            dst = addr, src = mask, columns = w;
+            while (columns--) {
                 if (*src) {
                     if (*src > 254)
                         *dst = bgra;
@@ -133,6 +135,7 @@ struct Rasterizer {
                         *dst = _mm_cvtsi128_si32(a8);
                     }
                 }
+                src++, dst++;
             }
             addr -= rowBytes / 4;
             mask += maskRowBytes;
