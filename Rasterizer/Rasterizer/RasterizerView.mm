@@ -91,6 +91,7 @@
     [self.class writePolygons:_polygons toPath:test];
     std::vector<std::vector<float>> testPolygons;
     [self.class writePath:test toPolygons:testPolygons];
+    assert(testPolygons == _polygons);
     return self;
 }
 
