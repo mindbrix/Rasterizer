@@ -56,7 +56,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Cell {
-        short cover, area;
+        short delta;
     };
     struct Context {
         Context() { memset(cells, 0, sizeof(cells)); }
@@ -70,11 +70,18 @@ struct Rasterizer {
     };
     
     static void writeMaskRowSSE(Cell *cells, size_t w, uint8_t *mask) {
-        __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-        __m128 covers, areas, alpha0, alpha1;
-        __m128i a16, a8;
-        float c0, c1, c2, c3, a0, a1, a2, a3;
+//        __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
+//        __m128 covers, areas, alpha0, alpha1;
+//        __m128i a16, a8;
+//        float c0, c1, c2, c3, a0, a1, a2, a3;
         short cover = 0;
+        while (w--) {
+            cover += cells->delta;
+            *mask++ = abs(cover);
+            cells->delta = 0;
+            cells++;
+        }
+        /*
         while (w >> 3) {
             cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
             cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
@@ -104,6 +111,7 @@ struct Rasterizer {
             cells->area = cells->cover = 0;
             cells++;
         }
+         */
     }
     
     static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
@@ -232,7 +240,7 @@ struct Rasterizer {
     static void addCellSegment(float x0, float y0, float x1, float y1, Cell *cells, float dimension) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, tmp, sign;
+        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
@@ -251,16 +259,21 @@ struct Rasterizer {
                 tmp = lx, lx = ux, ux = tmp;
             
             Cell *cell = cells + size_t(iy0 * dimension + lx);
-            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0;
+            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0;
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, cell++) {
                 cx1 = ux > ix1 ? ix1 : ux;
                 cy1 = dydx == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
                 
                 cover = (cy1 - cy0) * sign;
-                cell->cover += cover;
-                cell->area += cover * ((cx0 + cx1) * 0.5f - ix0);
+                area = cover * ((cx0 + cx1) * 0.5f - ix0);
+                total += cover;
+                alpha = total - area;
+                cell->delta += alpha - last;
+                last = alpha;
             }
+            if (ix0 < dimension)
+                cell->delta += total - last;
         }
     }
     
