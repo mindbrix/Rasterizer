@@ -158,11 +158,10 @@ struct Rasterizer {
         }
     }
     
-    static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint8_t *color, AffineTransform ctm, Bitmap bitmap) {
+    static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint32_t bgra, AffineTransform ctm, Bitmap bitmap) {
         float *deltas = context.deltas;
         uint8_t *mask = context.mask;
         std::vector<Span> spans;
-        uint32_t bgra = *((uint32_t *)color);
         
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         Bounds device = bounds.transform(ctm).integral();

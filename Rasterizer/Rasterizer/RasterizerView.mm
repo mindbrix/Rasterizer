@@ -161,13 +161,14 @@
     
     if (self.useRasterizer) {
         uint8_t black[4] = { 0, 0, 0, 255 };
+        uint32_t bgra = *((uint32_t *)black);
         
         Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
         Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
         Rasterizer::Context context;
         for (size_t i = 0; i < count; i++) {
             Rasterizer::Bounds bounds = boundingBoxes[i];
-            Rasterizer::renderPolygons(context, polygonBounds, _polygons, black, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
+            Rasterizer::renderPolygons(context, polygonBounds, _polygons, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
         }
     } else
         for (size_t i = 0; i < count; i++) {
