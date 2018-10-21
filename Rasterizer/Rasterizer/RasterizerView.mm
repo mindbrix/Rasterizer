@@ -16,7 +16,7 @@
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
 @property(nonatomic) std::vector<std::vector<float>> polygons;
-@property(nonatomic) CGPathRef ellipse;
+@property(nonatomic) CGMutablePathRef ellipse;
 
 @end
 
@@ -85,12 +85,14 @@
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
     CGFloat phi = (sqrt(5) - 1) / 2;
     CGRect rect = { 0, 0, 24 * phi, 24 * phi };
-    self.ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
-    [self.class writePath:self.ellipse toPolygons:_polygons];
-    CGMutablePathRef test = CGPathCreateMutable();
-    [self.class writePolygons:_polygons toPath:test];
+    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
+    [self.class writePath:ellipse toPolygons:_polygons];
+    CGPathRelease(ellipse);
+    
+    _ellipse = CGPathCreateMutable();
+    [self.class writePolygons:_polygons toPath:_ellipse];
     std::vector<std::vector<float>> testPolygons;
-    [self.class writePath:test toPolygons:testPolygons];
+    [self.class writePath:_ellipse toPolygons:testPolygons];
     assert(testPolygons == _polygons);
     return self;
 }
@@ -143,12 +145,11 @@
     CGContextConcatCTM(ctx, self.CTM);
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     CGRect pathBounds = CGPathGetBoundingBox(self.ellipse);
+    Rasterizer::Bounds polygonBounds(float(pathBounds.origin.x), float(pathBounds.origin.y), float(pathBounds.origin.x + pathBounds.size.width), float(pathBounds.origin.y + pathBounds.size.height));
     
     if (self.useRasterizer) {
         uint8_t red[4] = { 0, 0, 255, 255 };
         
-        Rasterizer::Bounds polygonBounds(float(pathBounds.origin.x), float(pathBounds.origin.y), float(pathBounds.origin.x + pathBounds.size.width), float(pathBounds.origin.y + pathBounds.size.height));
-
         Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
         ctm = ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, 0, 0));
         Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
@@ -157,11 +158,16 @@
             Rasterizer::Bounds bounds = boundingBoxes[i];
             Rasterizer::renderPolygons(context, polygonBounds, _polygons, red, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
         }
-        
-//        Rasterizer::renderBoundingBoxes(context, boundingBoxes, count, ctm, bitmap);
     } else
-        for (size_t i = 0; i < count; i++)
-            CGContextFillRect(ctx, CGRectMake(boundingBoxes[i].lx, boundingBoxes[i].ly, boundingBoxes[i].ux - boundingBoxes[i].lx, boundingBoxes[i].uy - boundingBoxes[i].ly));
+        for (size_t i = 0; i < count; i++) {
+            Rasterizer::Bounds bounds = boundingBoxes[i];
+            CGContextSaveGState(ctx);
+            CGContextTranslateCTM(ctx, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly);
+            CGContextAddPath(ctx, _ellipse);
+            CGContextFillPath(ctx);
+            CGContextRestoreGState(ctx);
+        }
+    
 }
 
 
