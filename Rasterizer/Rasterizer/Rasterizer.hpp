@@ -159,7 +159,7 @@ struct Rasterizer {
         }
     }
     
-    static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint8_t *red, AffineTransform ctm, Bitmap bitmap) {
+    static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint8_t *color, AffineTransform ctm, Bitmap bitmap) {
         float *deltas = context.deltas;
         uint8_t *mask = context.mask;
         std::vector<Span> spans;
@@ -175,11 +175,11 @@ struct Rasterizer {
                     addPolygon(& polygon[0], polygon.size() / 2, cellCTM, deltas, dimension);
                 
                 writeCellsMask(deltas, device, mask);
-                fillMask(mask, device, clipped, red, bitmap);
+                fillMask(mask, device, clipped, color, bitmap);
             } else
                 rasterizeBoundingBox(clipped, spans);
         }
-        fillSpans(spans, red, bitmap);
+        fillSpans(spans, color, bitmap);
     }
     
     static void addPolygon(float *points, size_t npoints, AffineTransform ctm, float *deltas, float dimension) {
