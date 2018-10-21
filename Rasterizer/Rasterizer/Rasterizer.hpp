@@ -73,26 +73,8 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
+    static void writeMaskRow(float *deltas, size_t w, uint8_t *mask) {
         float cover = 0;
-//        short cover = 0, *src, *dst, covers[8];
-//        __m128i cover8, a8;
-//        while (w >> 3) {
-//            src = & deltas[0], dst = covers;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover += *src, *src++ = 0, *dst++ = cover;
-//            cover8 = _mm_abs_epi16(_mm_loadu_si128((__m128i *)covers));
-//            a8 = _mm_packus_epi16(cover8, cover8);
-//            *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
-//            mask += 8, w -= 8, deltas += 8;
-//            cover = abs(cover) < 10 ? 0 : cover;
-//        }
         while (w--) {
             cover += *deltas, *deltas++ = 0;
             *mask++ = fabsf(cover);
@@ -102,7 +84,7 @@ struct Rasterizer {
     static void writeCellsMask(float *deltas, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly;
         for (size_t y = 0; y < h; y++, deltas += w, mask += w)
-            writeMaskRowSSE(deltas, w, mask);
+            writeMaskRow(deltas, w, mask);
     }
     
     static void copyMaskSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
