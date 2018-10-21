@@ -56,9 +56,9 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Context {
-        Context() { memset(cells, 0, sizeof(cells)); }
+        Context() { memset(deltas, 0, sizeof(deltas)); }
         
-        short cells[kCellsDimension * kCellsDimension];
+        short deltas[kCellsDimension * kCellsDimension];
         uint8_t mask[kCellsDimension * kCellsDimension];
     };
     struct Span {
@@ -66,11 +66,11 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void writeMaskRowSSE(short *cells, size_t w, uint8_t *mask) {
+    static void writeMaskRowSSE(short *deltas, size_t w, uint8_t *mask) {
         short cover = 0, *src, *dst, covers[8];
         __m128i cover8, a8;
         while (w >> 3) {
-            src = & cells[0], dst = covers;
+            src = & deltas[0], dst = covers;
             cover += *src, *src++ = 0, *dst++ = cover;
             cover += *src, *src++ = 0, *dst++ = cover;
             cover += *src, *src++ = 0, *dst++ = cover;
@@ -82,20 +82,18 @@ struct Rasterizer {
             cover8 = _mm_abs_epi16(_mm_loadu_si128((__m128i *)covers));
             a8 = _mm_packus_epi16(cover8, cover8);
             *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
-            mask += 8, w -= 8, cells += 8;
+            mask += 8, w -= 8, deltas += 8;
         }
         while (w--) {
-            cover += *cells;
+            cover += *deltas, *deltas++ = 0;
             *mask++ = abs(cover);
-            *cells = 0;
-            cells++;
         }
     }
     
-    static void writeCellsMask(short *cells, Bounds device, uint8_t *mask) {
+    static void writeCellsMask(short *deltas, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly;
-        for (size_t y = 0; y < h; y++, cells += w, mask += w)
-            writeMaskRowSSE(cells, w, mask);
+        for (size_t y = 0; y < h; y++, deltas += w, mask += w)
+            writeMaskRowSSE(deltas, w, mask);
     }
     
     static void copyMaskSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
@@ -171,7 +169,7 @@ struct Rasterizer {
     }
     
     static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
-        short *cells = context.cells;
+        short *deltas = context.deltas;
         uint8_t *mask = context.mask;
         
         std::vector<Span> spans;
@@ -188,10 +186,10 @@ struct Rasterizer {
                     x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                     x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                     float dimension = device.ux - device.lx;
-                    addCellSegment(x0, y0, x1, y1, cells, dimension);
-                    addCellSegment(x1, y1, x2, y2, cells, dimension);
-                    addCellSegment(x2, y2, x3, y3, cells, dimension);
-                    addCellSegment(x3, y3, x0, y0, cells, dimension);
+                    addCellSegment(x0, y0, x1, y1, deltas, dimension);
+                    addCellSegment(x1, y1, x2, y2, deltas, dimension);
+                    addCellSegment(x2, y2, x3, y3, deltas, dimension);
+                    addCellSegment(x3, y3, x0, y0, deltas, dimension);
                     
 //                    addCellSegment(x0, y0, x1, y1, cells, dimension);
 //                    addCellSegment(x1, y1, x2, y2, cells, dimension);
@@ -206,7 +204,7 @@ struct Rasterizer {
 //                    addCellSegment(x2, y2, x3, y3, cells, dimension);
 //                    addCellSegment(x3, y3, x0, y0, cells, dimension);
                                         
-                    writeCellsMask(cells, device, mask);
+                    writeCellsMask(deltas, device, mask);
                     fillMask(mask, device, clipped, red, bitmap);
                 } else
                     rasterizeBoundingBox(clipped, spans);
@@ -215,7 +213,7 @@ struct Rasterizer {
         fillSpans(spans, red, bitmap);
     }
     
-    static void addCellSegment(float x0, float y0, float x1, float y1, short *cells, float dimension) {
+    static void addCellSegment(float x0, float y0, float x1, float y1, short *deltas, float dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
@@ -236,10 +234,10 @@ struct Rasterizer {
             if (lx > ux)
                 tmp = lx, lx = ux, ux = tmp;
             
-            short *cell = cells + size_t(iy0 * dimension + lx);
+            short *delta = deltas + size_t(iy0 * dimension + lx);
             for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0;
                  ix0 <= ux;
-                 ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, cell++) {
+                 ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
                 cy1 = dydx == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
                 
@@ -247,11 +245,11 @@ struct Rasterizer {
                 area = cover * ((cx0 + cx1) * 0.5f - ix0);
                 total += cover;
                 alpha = total - area;
-                *cell += alpha - last;
+                *delta += alpha - last;
                 last = alpha;
             }
             if (ix0 < dimension)
-                *cell += total - last;
+                *delta += total - last;
         }
     }
     
