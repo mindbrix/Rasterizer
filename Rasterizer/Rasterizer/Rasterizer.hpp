@@ -65,7 +65,7 @@ struct Rasterizer {
     struct Context {
         Context() { memset(deltas, 0, sizeof(deltas)); }
         
-        short deltas[kCellsDimension * kCellsDimension];
+        float deltas[kCellsDimension * kCellsDimension];
         uint8_t mask[kCellsDimension * kCellsDimension];
     };
     struct Span {
@@ -73,8 +73,9 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void writeMaskRowSSE(short *deltas, size_t w, uint8_t *mask) {
-        short cover = 0, *src, *dst, covers[8];
+    static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
+        float cover = 0;
+//        short cover = 0, *src, *dst, covers[8];
 //        __m128i cover8, a8;
 //        while (w >> 3) {
 //            src = & deltas[0], dst = covers;
@@ -93,14 +94,12 @@ struct Rasterizer {
 //            cover = abs(cover) < 10 ? 0 : cover;
 //        }
         while (w--) {
-//            if (*deltas == 0 && abs(cover) < 40)
-//                cover = 0;
             cover += *deltas, *deltas++ = 0;
-            *mask++ = MIN(255, abs(cover));
+            *mask++ = fabsf(cover);
         }
     }
     
-    static void writeCellsMask(short *deltas, Bounds device, uint8_t *mask) {
+    static void writeCellsMask(float *deltas, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly;
         for (size_t y = 0; y < h; y++, deltas += w, mask += w)
             writeMaskRowSSE(deltas, w, mask);
@@ -179,7 +178,7 @@ struct Rasterizer {
     }
     
     static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint8_t *red, AffineTransform ctm, Bitmap bitmap) {
-        short *deltas = context.deltas;
+        float *deltas = context.deltas;
         uint8_t *mask = context.mask;
         
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
@@ -199,7 +198,7 @@ struct Rasterizer {
     }
     
     static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
-        short *deltas = context.deltas;
+        float *deltas = context.deltas;
         uint8_t *mask = context.mask;
         
         std::vector<Span> spans;
@@ -227,7 +226,7 @@ struct Rasterizer {
         fillSpans(spans, red, bitmap);
     }
     
-    static void addPolygon(float *points, size_t npoints, AffineTransform ctm, short *deltas, float dimension) {
+    static void addPolygon(float *points, size_t npoints, AffineTransform ctm, float *deltas, float dimension) {
         float x0, y0, x1, y1, *p;
         size_t i;
         
@@ -240,10 +239,10 @@ struct Rasterizer {
         }
     }
     
-    static inline void addCellSegment(float x0, float y0, float x1, float y1, short *deltas, float dimension) {
+    static inline void addCellSegment(float x0, float y0, float x1, float y1, float *deltas, float dimension) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, d, error, last, tmp, sign;
+        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
@@ -261,8 +260,8 @@ struct Rasterizer {
             if (lx > ux)
                 tmp = lx, lx = ux, ux = tmp;
             
-            short *delta = deltas + size_t(iy0 * dimension + lx);
-            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = error = 0;
+            float *delta = deltas + size_t(iy0 * dimension + lx);
+            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0;
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
@@ -272,13 +271,11 @@ struct Rasterizer {
                 area = cover * ((cx0 + cx1) * 0.5f - ix0);
                 total += cover;
                 alpha = total - area;
-                d = alpha - last;
-                error += d - short(d);
-                *delta += d;
+                *delta += alpha - last;
                 last = alpha;
             }
             if (ix0 < dimension)
-                *delta += total - last + error;
+                *delta += total - last;
         }
     }
     
