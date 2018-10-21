@@ -83,17 +83,28 @@
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
-    CGFloat phi = (sqrt(5) - 1) / 2;
-    CGRect rect = { 0, 0, 24 * phi, 24 * phi };
-    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
-    [self.class writePath:ellipse toPolygons:_polygons];
-    CGPathRelease(ellipse);
+    
+    CGFloat dimension = 24;
+    CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
+    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
+    CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
+    [self.class writePath:glyphPath toPolygons:_polygons];
+    
+//    CGFloat phi = (sqrt(5) - 1) / 2;
+//    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
+//    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
+//    [self.class writePath:ellipse toPolygons:_polygons];
+//    CGPathRelease(ellipse);
     
     _ellipse = CGPathCreateMutable();
     [self.class writePolygons:_polygons toPath:_ellipse];
     std::vector<std::vector<float>> testPolygons;
     [self.class writePath:_ellipse toPolygons:testPolygons];
     assert(testPolygons == _polygons);
+    
+    CFRelease(cgFont);
+    CFRelease(ctFont);
+    CFRelease(glyphPath);
     return self;
 }
 
