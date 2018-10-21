@@ -70,24 +70,22 @@ struct Rasterizer {
     };
     
     static void writeMaskRowSSE(Cell *cells, size_t w, uint8_t *mask) {
-//        __m128 alpha, SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-//        __m128i a32, a16, a8;
-        short c0, c1, c2, c3;
-        short cover = 0;
-        while (w >> 2) {
-            cover += cells->delta, c0 = cover, cells->delta = 0, cells++;
-            cover += cells->delta, c1 = cover, cells->delta = 0, cells++;
-            cover += cells->delta, c2 = cover, cells->delta = 0, cells++;
-            cover += cells->delta, c3 = cover, cells->delta = 0, cells++;
-            
-            *((uint32_t *)mask) = abs(c0) | (abs(c1) << 8) | (abs(c2) << 16) | (abs(c3) << 24);
-//            alpha = _mm_andnot_ps(SIGNMASK, _mm_set_ps(c3, c2, c1, c0));
-//            a32 = _mm_cvttps_epi32(alpha);
-//            a16 = _mm_packs_epi32(a32, a32);
-//            a8 = _mm_packus_epi16(a16, a16);
-//            *((uint32_t *)mask) = _mm_cvtsi128_si32(a8);
-            
-            mask += 4, w -= 4;
+        short cover = 0, *src, *dst, covers[8];
+        __m128i cover8, a8;
+        while (w >> 3) {
+            src = & cells[0].delta, dst = covers;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover += *src, *src++ = 0, *dst++ = cover;
+            cover8 = _mm_abs_epi16(_mm_loadu_si128((__m128i *)covers));
+            a8 = _mm_packus_epi16(cover8, cover8);
+            *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
+            mask += 8, w -= 8, cells += 8;
         }
         while (w--) {
             cover += cells->delta;
