@@ -180,6 +180,7 @@ struct Rasterizer {
     static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint8_t *red, AffineTransform ctm, Bitmap bitmap) {
         float *deltas = context.deltas;
         uint8_t *mask = context.mask;
+        std::vector<Span> spans;
         
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         Bounds device = bounds.transform(ctm).integral();
@@ -193,35 +194,8 @@ struct Rasterizer {
                 
                 writeCellsMask(deltas, device, mask);
                 fillMask(mask, device, clipped, red, bitmap);
-            }
-        }
-    }
-    
-    static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
-        float *deltas = context.deltas;
-        uint8_t *mask = context.mask;
-        
-        std::vector<Span> spans;
-        uint8_t red[4] = { 0, 0, 255, 255 };
-        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
-        for (size_t i = 0; i < count; i++) {
-            Bounds device = bounds[i].transform(ctm).integral();
-            Bounds clipped = device.intersected(clipBounds);
-            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-                if (device.ux - device.lx < kCellsDimension && device.uy - device.ly < kCellsDimension) {
-                    AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                    AffineTransform unit = cellCTM.unit(bounds[i].lx, bounds[i].ly, bounds[i].ux, bounds[i].uy);
-                    float x0 = unit.tx, y0 = unit.ty, x1 = x0 + unit.a, y1 = y0 + unit.b, x2 = x1 + unit.c, y2 = y1 + unit.d, x3 = x0 + unit.c, y3 = y0 + unit.d;
-                    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
-                    x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
-                    float dimension = device.ux - device.lx;
-                    float points[8] = { x0, y0, x1, y1, x2, y2, x3, y3 };
-                    addPolygon(points, 4, AffineTransform(1, 0, 0, 1, 0, 0), deltas, dimension);
-                    writeCellsMask(deltas, device, mask);
-                    fillMask(mask, device, clipped, red, bitmap);
-                } else
-                    rasterizeBoundingBox(clipped, spans);
-            }
+            } else
+                rasterizeBoundingBox(clipped, spans);
         }
         fillSpans(spans, red, bitmap);
     }
@@ -243,6 +217,7 @@ struct Rasterizer {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
+        size_t stride = size_t(dimension);
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
@@ -250,9 +225,9 @@ struct Rasterizer {
         dxdy = (x1 - x0) / (y1 - y0);
         dydx = dxdy == 0 ? 0 : 1.0 / fabsf(dxdy);
         
-        for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0;
+        for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltas += stride * size_t(iy0);
              iy0 < y1;
-             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1) {
+             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltas += stride) {
             sy1 = y1 > iy1 ? iy1 : y1;
             sx1 = (sy1 - y0) * dxdy + x0;
             
@@ -260,7 +235,7 @@ struct Rasterizer {
             if (lx > ux)
                 tmp = lx, lx = ux, ux = tmp;
             
-            float *delta = deltas + size_t(iy0 * dimension + lx);
+            float *delta = deltas + size_t(lx);
             for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0;
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
