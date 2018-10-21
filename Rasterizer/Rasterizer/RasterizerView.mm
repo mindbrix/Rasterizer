@@ -15,6 +15,7 @@
 
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
+@property(nonatomic) std::vector<float> path;
 
 @end
 
@@ -35,6 +36,36 @@
     return [NSData dataWithData:backing];
 }
 
++ (void)writePath:(CGPathRef)path toFloats:(std::vector<float>&)floats {
+    CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
+        switch (element->type) {
+            case kCGPathElementMoveToPoint:
+                floats.emplace_back(float(element->points[0].x));
+                floats.emplace_back(float(element->points[0].y));
+                break;
+            case kCGPathElementAddLineToPoint:
+                floats.emplace_back(float(element->points[0].x));
+                floats.emplace_back(float(element->points[0].y));
+                break;
+            case kCGPathElementAddQuadCurveToPoint:
+                floats.emplace_back(float(element->points[0].x));
+                floats.emplace_back(float(element->points[0].y));
+                floats.emplace_back(float(element->points[1].x));
+                floats.emplace_back(float(element->points[1].y));
+                break;
+            case kCGPathElementAddCurveToPoint:
+                floats.emplace_back(float(element->points[0].x));
+                floats.emplace_back(float(element->points[0].y));
+                floats.emplace_back(float(element->points[1].x));
+                floats.emplace_back(float(element->points[1].y));
+                floats.emplace_back(float(element->points[2].x));
+                floats.emplace_back(float(element->points[2].y));
+                break;
+            case kCGPathElementCloseSubpath:
+                break;
+        }
+    });
+}
 
 #pragma mark - NSView
 
@@ -54,6 +85,10 @@
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
+    CGFloat phi = (sqrt(5) - 1) / 2;
+    CGRect rect = { 0, 0, 24 * phi, 24 * phi };
+    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
+    [self.class writePath:ellipse toFloats:_path];
     return self;
 }
 
