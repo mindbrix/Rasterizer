@@ -130,15 +130,14 @@ struct Rasterizer {
         }
     }
     
-    static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint8_t *color, Bitmap bitmap) {
+    static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         size_t w = device.ux - device.lx;
-        uint32_t bgra = *((uint32_t *)color);
         uint32_t *addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
         uint8_t *maskaddr = mask + size_t(w * (clipped.ly - device.ly) + (clipped.lx - device.lx));
         copyMaskSSE(bgra, addr, bitmap.rowBytes, maskaddr, w, clipped.ux - clipped.lx, clipped.uy - clipped.ly);
     }
     
-    static void fillSpans(std::vector<Span>& spans, uint8_t *color, Bitmap bitmap) {
+    static void fillSpans(std::vector<Span>& spans, uint32_t color, Bitmap bitmap) {
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         float lx, ux;
         uint8_t *addr;
@@ -151,9 +150,9 @@ struct Rasterizer {
                 if (lx != ux) {
                     addr = bitmap.pixelAddress(lx, span.y);
                     if (span.w > 0)
-                        memset_pattern4(addr, color, (ux - lx) * bitmap.bytespp);
+                        memset_pattern4(addr, & color, (ux - lx) * bitmap.bytespp);
                     else
-                        memset_pattern4(addr, color, bitmap.bytespp);
+                        memset_pattern4(addr, &color, bitmap.bytespp);
                 }
             }
         }
@@ -163,6 +162,7 @@ struct Rasterizer {
         float *deltas = context.deltas;
         uint8_t *mask = context.mask;
         std::vector<Span> spans;
+        uint32_t bgra = *((uint32_t *)color);
         
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         Bounds device = bounds.transform(ctm).integral();
@@ -175,11 +175,11 @@ struct Rasterizer {
                     addPolygon(& polygon[0], polygon.size() / 2, cellCTM, deltas, dimension);
                 
                 writeCellsMask(deltas, device, mask);
-                fillMask(mask, device, clipped, color, bitmap);
+                fillMask(mask, device, clipped, bgra, bitmap);
             } else
                 rasterizeBoundingBox(clipped, spans);
         }
-        fillSpans(spans, color, bitmap);
+        fillSpans(spans, bgra, bitmap);
     }
     
     static void addPolygon(float *points, size_t npoints, AffineTransform ctm, float *deltas, float dimension) {
