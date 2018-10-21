@@ -186,24 +186,8 @@ struct Rasterizer {
                     x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                     x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                     float dimension = device.ux - device.lx;
-                    addCellSegment(x0, y0, x1, y1, deltas, dimension);
-                    addCellSegment(x1, y1, x2, y2, deltas, dimension);
-                    addCellSegment(x2, y2, x3, y3, deltas, dimension);
-                    addCellSegment(x3, y3, x0, y0, deltas, dimension);
-                    
-//                    addCellSegment(x0, y0, x1, y1, cells, dimension);
-//                    addCellSegment(x1, y1, x2, y2, cells, dimension);
-//                    addCellSegment(x2, y2, x3, y3, cells, dimension);
-//                    addCellSegment(x3, y3, x0, y0, cells, dimension);
-//                    addCellSegment(x0, y0, x1, y1, cells, dimension);
-//                    addCellSegment(x1, y1, x2, y2, cells, dimension);
-//                    addCellSegment(x2, y2, x3, y3, cells, dimension);
-//                    addCellSegment(x3, y3, x0, y0, cells, dimension);
-//                    addCellSegment(x0, y0, x1, y1, cells, dimension);
-//                    addCellSegment(x1, y1, x2, y2, cells, dimension);
-//                    addCellSegment(x2, y2, x3, y3, cells, dimension);
-//                    addCellSegment(x3, y3, x0, y0, cells, dimension);
-                                        
+                    float points[8] = { x0, y0, x1, y1, x2, y2, x3, y3 };
+                    addPolygon(points, 4, deltas, dimension);
                     writeCellsMask(deltas, device, mask);
                     fillMask(mask, device, clipped, red, bitmap);
                 } else
@@ -213,7 +197,16 @@ struct Rasterizer {
         fillSpans(spans, red, bitmap);
     }
     
-    static void addCellSegment(float x0, float y0, float x1, float y1, short *deltas, float dimension) {
+    static void addPolygon(float *points, size_t npoints, short *deltas, float dimension) {
+        float x0, y0, x1, y1;
+        x0 = points[npoints * 2 - 2], y0 = points[npoints * 2 - 1];
+        for (size_t i = 0; i < npoints; i++, x0 = x1, y0 = y1) {
+            x1 = points[i * 2], y1 = points[i * 2 + 1];
+            addCellSegment(x0, y0, x1, y1, deltas, dimension);
+        }
+    }
+    
+    static inline void addCellSegment(float x0, float y0, float x1, float y1, short *deltas, float dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
