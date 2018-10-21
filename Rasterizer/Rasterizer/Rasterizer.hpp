@@ -205,7 +205,7 @@ struct Rasterizer {
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
         
         dxdy = (x1 - x0) / (y1 - y0);
-        dydx = dxdy == 0 ? 0 : 1.0 / fabsf(dxdy);
+        dydx = 1.f / fabsf(dxdy);
         
         for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltas += stride * size_t(iy0);
              iy0 < y1;
@@ -222,7 +222,7 @@ struct Rasterizer {
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
-                cy1 = dydx == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
+                cy1 = dxdy == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
                 
                 cover = (cy1 - cy0) * sign;
                 area = (ix1 - (cx0 + cx1) * 0.5f);
