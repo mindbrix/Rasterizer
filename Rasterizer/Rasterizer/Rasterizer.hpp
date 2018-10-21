@@ -75,25 +75,28 @@ struct Rasterizer {
     
     static void writeMaskRowSSE(short *deltas, size_t w, uint8_t *mask) {
         short cover = 0, *src, *dst, covers[8];
-        __m128i cover8, a8;
-        while (w >> 3) {
-            src = & deltas[0], dst = covers;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover += *src, *src++ = 0, *dst++ = cover;
-            cover8 = _mm_abs_epi16(_mm_loadu_si128((__m128i *)covers));
-            a8 = _mm_packus_epi16(cover8, cover8);
-            *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
-            mask += 8, w -= 8, deltas += 8;
-        }
+//        __m128i cover8, a8;
+//        while (w >> 3) {
+//            src = & deltas[0], dst = covers;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover += *src, *src++ = 0, *dst++ = cover;
+//            cover8 = _mm_abs_epi16(_mm_loadu_si128((__m128i *)covers));
+//            a8 = _mm_packus_epi16(cover8, cover8);
+//            *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
+//            mask += 8, w -= 8, deltas += 8;
+//            cover = abs(cover) < 10 ? 0 : cover;
+//        }
         while (w--) {
+//            if (*deltas == 0 && abs(cover) < 40)
+//                cover = 0;
             cover += *deltas, *deltas++ = 0;
-            *mask++ = abs(cover);
+            *mask++ = MIN(255, abs(cover));
         }
     }
     
@@ -240,7 +243,7 @@ struct Rasterizer {
     static inline void addCellSegment(float x0, float y0, float x1, float y1, short *deltas, float dimension) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
+        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, d, error, last, tmp, sign;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
@@ -259,7 +262,7 @@ struct Rasterizer {
                 tmp = lx, lx = ux, ux = tmp;
             
             short *delta = deltas + size_t(iy0 * dimension + lx);
-            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0;
+            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = error = 0;
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
@@ -269,11 +272,13 @@ struct Rasterizer {
                 area = cover * ((cx0 + cx1) * 0.5f - ix0);
                 total += cover;
                 alpha = total - area;
-                *delta += alpha - last;
+                d = alpha - last;
+                error += d - short(d);
+                *delta += d;
                 last = alpha;
             }
             if (ix0 < dimension)
-                *delta += total - last;
+                *delta += total - last + error;
         }
     }
     
