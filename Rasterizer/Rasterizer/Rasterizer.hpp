@@ -13,7 +13,7 @@
 
 
 struct Rasterizer {
-    static const size_t kCellsDimension = 64;
+    static const size_t kCellsDimension = 256;
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
@@ -186,7 +186,7 @@ struct Rasterizer {
         float x0, y0, x1, y1, *p;
         size_t i;
         
-        p =  & points[npoints * 2 - 2];
+        p = & points[npoints * 2 - 2];
         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
         
         for (p = points, i = 0; i < npoints; i++, p += 2, x0 = x1, y0 = y1) {
