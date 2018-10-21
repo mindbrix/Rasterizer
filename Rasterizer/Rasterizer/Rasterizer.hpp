@@ -175,6 +175,26 @@ struct Rasterizer {
         }
     }
     
+    static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint8_t *red, AffineTransform ctm, Bitmap bitmap) {
+        short *deltas = context.deltas;
+        uint8_t *mask = context.mask;
+        
+        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
+        Bounds device = bounds.transform(ctm).integral();
+        Bounds clipped = device.intersected(clipBounds);
+        if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+            if (device.ux - device.lx < kCellsDimension && device.uy - device.ly < kCellsDimension) {
+                AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
+                float dimension = device.ux - device.lx;
+                for (std::vector<float>& polygon : polygons)
+                    addPolygon(& polygon[0], polygon.size() / 2, cellCTM, deltas, dimension);
+                
+                writeCellsMask(deltas, device, mask);
+                fillMask(mask, device, clipped, red, bitmap);
+            }
+        }
+    }
+    
     static void renderBoundingBoxes(Context& context, Bounds *bounds, size_t count, AffineTransform ctm, Bitmap bitmap) {
         short *deltas = context.deltas;
         uint8_t *mask = context.mask;
@@ -194,7 +214,7 @@ struct Rasterizer {
                     x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2, x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                     float dimension = device.ux - device.lx;
                     float points[8] = { x0, y0, x1, y1, x2, y2, x3, y3 };
-                    addPolygon(points, 4, deltas, dimension);
+                    addPolygon(points, 4, AffineTransform(1, 0, 0, 1, 0, 0), deltas, dimension);
                     writeCellsMask(deltas, device, mask);
                     fillMask(mask, device, clipped, red, bitmap);
                 } else
@@ -204,11 +224,15 @@ struct Rasterizer {
         fillSpans(spans, red, bitmap);
     }
     
-    static void addPolygon(float *points, size_t npoints, short *deltas, float dimension) {
-        float x0, y0, x1, y1;
-        x0 = points[npoints * 2 - 2], y0 = points[npoints * 2 - 1];
-        for (size_t i = 0; i < npoints; i++, x0 = x1, y0 = y1) {
-            x1 = points[i * 2], y1 = points[i * 2 + 1];
+    static void addPolygon(float *points, size_t npoints, AffineTransform ctm, short *deltas, float dimension) {
+        float x0, y0, x1, y1, *p;
+        size_t i;
+        
+        p =  & points[npoints * 2 - 2];
+        x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+        
+        for (p = points, i = 0; i < npoints; i++, p += 2, x0 = x1, y0 = y1) {
+            x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
             addCellSegment(x0, y0, x1, y1, deltas, dimension);
         }
     }
