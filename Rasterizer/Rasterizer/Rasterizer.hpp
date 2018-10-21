@@ -70,48 +70,31 @@ struct Rasterizer {
     };
     
     static void writeMaskRowSSE(Cell *cells, size_t w, uint8_t *mask) {
-//        __m128 SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-//        __m128 covers, areas, alpha0, alpha1;
-//        __m128i a16, a8;
-//        float c0, c1, c2, c3, a0, a1, a2, a3;
+//        __m128 alpha, SIGNMASK = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
+//        __m128i a32, a16, a8;
+        short c0, c1, c2, c3;
         short cover = 0;
+        while (w >> 2) {
+            cover += cells->delta, c0 = cover, cells->delta = 0, cells++;
+            cover += cells->delta, c1 = cover, cells->delta = 0, cells++;
+            cover += cells->delta, c2 = cover, cells->delta = 0, cells++;
+            cover += cells->delta, c3 = cover, cells->delta = 0, cells++;
+            
+            *((uint32_t *)mask) = abs(c0) | (abs(c1) << 8) | (abs(c2) << 16) | (abs(c3) << 24);
+//            alpha = _mm_andnot_ps(SIGNMASK, _mm_set_ps(c3, c2, c1, c0));
+//            a32 = _mm_cvttps_epi32(alpha);
+//            a16 = _mm_packs_epi32(a32, a32);
+//            a8 = _mm_packus_epi16(a16, a16);
+//            *((uint32_t *)mask) = _mm_cvtsi128_si32(a8);
+            
+            mask += 4, w -= 4;
+        }
         while (w--) {
             cover += cells->delta;
             *mask++ = abs(cover);
             cells->delta = 0;
             cells++;
         }
-        /*
-        while (w >> 3) {
-            cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
-            cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
-            cover += cells->cover, c2 = cover, a2 = cells->area, cells->area = cells->cover = 0, cells++;
-            cover += cells->cover, c3 = cover, a3 = cells->area, cells->area = cells->cover = 0, cells++;
-            covers = _mm_set_ps(c3, c2, c1, c0);
-            areas = _mm_set_ps(a3, a2, a1, a0);
-            alpha0 = _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas));
-            
-            cover += cells->cover, c0 = cover, a0 = cells->area, cells->area = cells->cover = 0, cells++;
-            cover += cells->cover, c1 = cover, a1 = cells->area, cells->area = cells->cover = 0, cells++;
-            cover += cells->cover, c2 = cover, a2 = cells->area, cells->area = cells->cover = 0, cells++;
-            cover += cells->cover, c3 = cover, a3 = cells->area, cells->area = cells->cover = 0, cells++;
-            covers = _mm_set_ps(c3, c2, c1, c0);
-            areas = _mm_set_ps(a3, a2, a1, a0);
-            alpha1 = _mm_andnot_ps(SIGNMASK, _mm_sub_ps(covers, areas));
-            
-            a16 = _mm_packs_epi32(_mm_cvttps_epi32(alpha0), _mm_cvttps_epi32(alpha1));
-            a8 = _mm_packus_epi16(a16, a16);
-            *((uint64_t *)mask) = _mm_cvtsi128_si64(a8);
-            
-            mask += 8, w -= 8;
-        }
-        while (w--) {
-            cover += cells->cover;
-            *mask++ = abs(cover - cells->area);
-            cells->area = cells->cover = 0;
-            cells++;
-        }
-         */
     }
     
     static void writeCellsMask(Cell *cells, Bounds device, uint8_t *mask) {
