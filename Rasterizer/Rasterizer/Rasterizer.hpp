@@ -243,9 +243,9 @@ struct Rasterizer {
                 cy1 = dydx == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
                 
                 cover = (cy1 - cy0) * sign;
-                area = cover * ((cx0 + cx1) * 0.5f - ix0);
+                area = (ix1 - (cx0 + cx1) * 0.5f);
+                alpha = total + cover * area;
                 total += cover;
-                alpha = total - area;
                 *delta += alpha - last;
                 last = alpha;
             }
