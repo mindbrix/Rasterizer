@@ -57,6 +57,14 @@
     });
 }
 
++ (void)writePolygons:(std::vector<std::vector<float>>&)polygons toPath:(CGMutablePathRef)path {
+    for (std::vector<float>& polygon : polygons) {
+        CGPathMoveToPoint(path, NULL, polygon[0], polygon[1]);
+        for (size_t i = 2; i < polygon.size(); i += 2)
+            CGPathAddLineToPoint(path, NULL, polygon[i], polygon[i + 1]);
+    }
+}
+
 #pragma mark - NSView
 
 - (nullable instancetype)initWithCoder:(NSCoder *)decoder {
@@ -79,6 +87,10 @@
     CGRect rect = { 0, 0, 24 * phi, 24 * phi };
     self.ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
     [self.class writePath:self.ellipse toPolygons:_polygons];
+    CGMutablePathRef test = CGPathCreateMutable();
+    [self.class writePolygons:_polygons toPath:test];
+    std::vector<std::vector<float>> testPolygons;
+    [self.class writePath:test toPolygons:testPolygons];
     return self;
 }
 
