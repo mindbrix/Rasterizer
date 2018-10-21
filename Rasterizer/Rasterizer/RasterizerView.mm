@@ -15,7 +15,8 @@
 
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
-@property(nonatomic) std::vector<float> path;
+@property(nonatomic) std::vector<std::vector<float>> polygons;
+@property(nonatomic) CGPathRef ellipse;
 
 @end
 
@@ -36,33 +37,22 @@
     return [NSData dataWithData:backing];
 }
 
-+ (void)writePath:(CGPathRef)path toFloats:(std::vector<float>&)floats {
++ (void)writePath:(CGPathRef)path toPolygons:(std::vector<std::vector<float>>&)polygons {
     CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
-        switch (element->type) {
-            case kCGPathElementMoveToPoint:
-                floats.emplace_back(float(element->points[0].x));
-                floats.emplace_back(float(element->points[0].y));
-                break;
-            case kCGPathElementAddLineToPoint:
-                floats.emplace_back(float(element->points[0].x));
-                floats.emplace_back(float(element->points[0].y));
-                break;
-            case kCGPathElementAddQuadCurveToPoint:
-                floats.emplace_back(float(element->points[0].x));
-                floats.emplace_back(float(element->points[0].y));
-                floats.emplace_back(float(element->points[1].x));
-                floats.emplace_back(float(element->points[1].y));
-                break;
-            case kCGPathElementAddCurveToPoint:
-                floats.emplace_back(float(element->points[0].x));
-                floats.emplace_back(float(element->points[0].y));
-                floats.emplace_back(float(element->points[1].x));
-                floats.emplace_back(float(element->points[1].y));
-                floats.emplace_back(float(element->points[2].x));
-                floats.emplace_back(float(element->points[2].y));
-                break;
-            case kCGPathElementCloseSubpath:
-                break;
+        if (element->type == kCGPathElementMoveToPoint)
+            polygons.emplace_back();
+        
+        if (element->type != kCGPathElementCloseSubpath) {
+            polygons.back().emplace_back(float(element->points[0].x));
+            polygons.back().emplace_back(float(element->points[0].y));
+        }
+        if (element->type > kCGPathElementAddLineToPoint) {
+            polygons.back().emplace_back(float(element->points[1].x));
+            polygons.back().emplace_back(float(element->points[1].y));
+        }
+        if (element->type == kCGPathElementAddCurveToPoint) {
+            polygons.back().emplace_back(float(element->points[2].x));
+            polygons.back().emplace_back(float(element->points[2].y));
         }
     });
 }
@@ -87,9 +77,13 @@
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
     CGFloat phi = (sqrt(5) - 1) / 2;
     CGRect rect = { 0, 0, 24 * phi, 24 * phi };
-    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
-    [self.class writePath:ellipse toFloats:_path];
+    self.ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
+    [self.class writePath:self.ellipse toPolygons:_polygons];
     return self;
+}
+
+- (void)dealloc {
+    CGPathRelease(_ellipse);
 }
 
 - (void)drawRect:(NSRect)dirtyRect {}
