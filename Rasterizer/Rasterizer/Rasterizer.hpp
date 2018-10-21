@@ -18,6 +18,13 @@ struct Rasterizer {
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
         
+        inline AffineTransform concat(AffineTransform t) {
+            return {
+                t.a * a + t.b * c,            t.a * b + t.b * d,
+                t.c * a + t.d * c,            t.c * b + t.d * d,
+                t.tx * a + t.ty * c + tx,     t.tx * b + t.ty * d + ty
+            };
+        }
         inline AffineTransform unit(float lx, float ly, float ux, float uy) {
             float w = ux - lx, h = uy - ly;
             return { a * w, b * w, c * h, d * h, lx * a + ly * c + tx, lx * b + ly * d + ty };
