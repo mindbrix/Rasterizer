@@ -38,21 +38,41 @@
 }
 
 + (void)writePath:(CGPathRef)path toPolygons:(std::vector<std::vector<float>>&)polygons {
+    __block CGFloat x0, y0, x1, y1, x2, y2, x3, y3;
     CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
-        if (element->type == kCGPathElementMoveToPoint)
-            polygons.emplace_back();
-        
-        if (element->type != kCGPathElementCloseSubpath) {
-            polygons.back().emplace_back(float(element->points[0].x));
-            polygons.back().emplace_back(float(element->points[0].y));
-        }
-        if (element->type > kCGPathElementAddLineToPoint) {
-            polygons.back().emplace_back(float(element->points[1].x));
-            polygons.back().emplace_back(float(element->points[1].y));
-        }
-        if (element->type == kCGPathElementAddCurveToPoint) {
-            polygons.back().emplace_back(float(element->points[2].x));
-            polygons.back().emplace_back(float(element->points[2].y));
+        switch (element->type) {
+            case kCGPathElementMoveToPoint:
+                polygons.emplace_back();
+                polygons.back().emplace_back(float(element->points[0].x));
+                polygons.back().emplace_back(float(element->points[0].y));
+                break;
+            case kCGPathElementAddLineToPoint:
+                polygons.back().emplace_back(float(element->points[0].x));
+                polygons.back().emplace_back(float(element->points[0].y));
+                break;
+            case kCGPathElementAddQuadCurveToPoint:
+                x0 = *((& polygons.back().back()) - 1), y0 = *((& polygons.back().back()) - 0);
+                x1 = element->points[0].x, y1 = element->points[0].y;
+                x2 = element->points[1].x, y2 = element->points[1].y;
+                polygons.back().emplace_back(float(x0 * 0.25 + x1 * 0.5 + x2 * 0.25));
+                polygons.back().emplace_back(float(y0 * 0.25 + y1 * 0.5 + y2 * 0.25));
+                polygons.back().emplace_back(float(x2));
+                polygons.back().emplace_back(float(y2));
+                break;
+            case kCGPathElementAddCurveToPoint:
+                x0 = *((& polygons.back().back()) - 1), y0 = *((& polygons.back().back()) - 0);
+                x1 = element->points[0].x, y1 = element->points[0].y;
+                x2 = element->points[1].x, y2 = element->points[1].y;
+                x3 = element->points[2].x, y3 = element->points[2].y;
+                polygons.back().emplace_back(float(x0));
+                polygons.back().emplace_back(float(y0));
+                polygons.back().emplace_back(float(x1));
+                polygons.back().emplace_back(float(y1));
+                polygons.back().emplace_back(float(x2));
+                polygons.back().emplace_back(float(y2));
+                break;
+            case kCGPathElementCloseSubpath:
+                break;
         }
     });
 }
