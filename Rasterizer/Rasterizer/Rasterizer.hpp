@@ -248,7 +248,8 @@ struct Rasterizer {
     }
     
     static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, x, y, a, *p;
+        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p;
         x0 = y0 = sx = sy = FLT_MAX;
         for (Path::Atom& atom : path.atoms) {
             size_t index = 0;
@@ -280,9 +281,9 @@ struct Rasterizer {
                         if (a < 0.1)
                             writeSegmentDeltas(x0, y0, x2, y2, deltas, dimension);
                         else {
-                            x = (x0 + x2) * 0.25 + x1 * 0.5, y = (y0 + y2) * 0.25 + y1 * 0.5;
-                            writeSegmentDeltas(x0, y0, x, y, deltas, dimension);
-                            writeSegmentDeltas(x, y, x2, y2, deltas, dimension);
+                            px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
+                            writeSegmentDeltas(x0, y0, px0, py0, deltas, dimension);
+                            writeSegmentDeltas(px0, py0, x2, y2, deltas, dimension);
                         }
                         x0 = x2, y0 = y2;
                         index += 2;
@@ -294,9 +295,11 @@ struct Rasterizer {
                         x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                         x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
-                        writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
-                        writeSegmentDeltas(x1, y1, x2, y2, deltas, dimension);
-                        writeSegmentDeltas(x2, y2, x3, y3, deltas, dimension);
+                        px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
+                        px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
+                        writeSegmentDeltas(x0, y0, px0, py0, deltas, dimension);
+                        writeSegmentDeltas(px0, py0, px1, py1, deltas, dimension);
+                        writeSegmentDeltas(px1, py1, x3, y3, deltas, dimension);
                         x0 = x3, y0 = y3;
                         index += 3;
                         break;
