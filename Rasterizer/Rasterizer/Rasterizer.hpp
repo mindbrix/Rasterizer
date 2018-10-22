@@ -247,27 +247,6 @@ struct Rasterizer {
         fillSpans(spans, bgra, bitmap);
     }
     
-    static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint32_t bgra, AffineTransform ctm, Bitmap bitmap) {
-        std::vector<Span> spans;
-        
-        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
-        Bounds device = bounds.transform(ctm).integral();
-        Bounds clipped = device.intersected(clipBounds);
-        if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-            if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
-                AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                float dimension = device.ux - device.lx;
-                for (std::vector<float>& polygon : polygons)
-                    addPolygon(& polygon[0], polygon.size() / 2, cellCTM, context.deltas, dimension);
-                
-                writeCellsMask(context.deltas, device, context.mask);
-                fillMask(context.mask, device, clipped, bgra, bitmap);
-            } else
-                rasterizeBoundingBox(clipped, spans);
-        }
-        fillSpans(spans, bgra, bitmap);
-    }
-    
     static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
         x0 = y0 = sx = sy = FLT_MAX;
@@ -324,20 +303,6 @@ struct Rasterizer {
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
             writeSegmentDeltas(x0, y0, sx, sy, deltas, dimension);
-    }
-    
-    static void addPolygon(float *points, size_t npoints, AffineTransform ctm, float *deltas, float dimension) {
-        float x0, y0, x1, y1, *p;
-        size_t i;
-        
-        p = & points[npoints * 2 - 2];
-        x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-        x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0;
-        for (p = points, i = 0; i < npoints; i++, p += 2, x0 = x1, y0 = y1) {
-            x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-            x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
-            writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
-        }
     }
     
     static inline void writeSegmentDeltas(float x0, float y0, float x1, float y1, float *deltas, float dimension) {

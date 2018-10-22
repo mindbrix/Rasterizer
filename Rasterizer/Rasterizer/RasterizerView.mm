@@ -16,7 +16,6 @@
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
 @property(nonatomic) Rasterizer::Path path;
-@property(nonatomic) std::vector<std::vector<float>> polygons;
 @property(nonatomic) CGMutablePathRef ellipse;
 
 @end
@@ -135,13 +134,6 @@
     });
 }
 
-+ (void)writePolygons:(std::vector<std::vector<float>>&)polygons toPath:(CGMutablePathRef)path {
-    for (std::vector<float>& polygon : polygons) {
-        CGPathMoveToPoint(path, NULL, polygon[0], polygon[1]);
-        for (size_t i = 2; i < polygon.size(); i += 2)
-            CGPathAddLineToPoint(path, NULL, polygon[i], polygon[i + 1]);
-    }
-}
 
 #pragma mark - NSView
 
@@ -170,26 +162,13 @@
     CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
-//    [self.class writePath:glyphPath toPolygons:_polygons];
     
     [self.class writeCGPath:glyphPath toPath:_path];
-    
     _ellipse = CGPathCreateMutable();
     [self.class writePath:_path toCGPath:_ellipse];
     Rasterizer::Path testPath;
     [self.class writeCGPath:_ellipse toPath:testPath];
     assert(_path.atoms.size() == testPath.atoms.size());
-    
-    
-    
-
-    [self.class writePath:rectPath toPolygons:_polygons];
-    
-//    _ellipse = CGPathCreateMutable();
-//    [self.class writePolygons:_polygons toPath:_ellipse];
-//    std::vector<std::vector<float>> testPolygons;
-//    [self.class writePath:_ellipse toPolygons:testPolygons];
-//    assert(testPolygons == _polygons);
     
     CGPathRelease(ellipsePath);
     CGPathRelease(rectPath);
@@ -260,7 +239,6 @@
         for (size_t i = 0; i < count; i++) {
             Rasterizer::Bounds bounds = boundingBoxes[i];
             Rasterizer::renderPath(context, polygonBounds, _path, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
-//            Rasterizer::renderPolygons(context, polygonBounds, _polygons, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
         }
     } else
         for (size_t i = 0; i < count; i++) {
