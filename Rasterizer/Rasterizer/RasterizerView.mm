@@ -37,7 +37,7 @@
     return [NSData dataWithData:backing];
 }
 
-+ (void)writePath:(CGPathRef)path toPath:(Rasterizer::Path &)p {
++ (void)writeCGPath:(CGPathRef)path toPath:(Rasterizer::Path &)p {
     CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
         switch (element->type) {
             case kCGPathElementMoveToPoint:
@@ -50,13 +50,47 @@
                 p.quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
                 break;
             case kCGPathElementAddCurveToPoint:
-                p.cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[3].y));
+                p.cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
                 break;
             case kCGPathElementCloseSubpath:
                 p.close();
                 break;
         }
     });
+}
+
++ (void)writePath:(Rasterizer::Path &)p toCGPath:(CGMutablePathRef)path {
+    for (Rasterizer::Path::Atom& atom : p.atoms) {
+        size_t index = 0;
+        auto type = 0xF & atom.types[0];
+        float *points;
+        while (type) {
+            points = atom.points + index * 2;
+            switch (type) {
+                case Rasterizer::Path::Atom::kMove:
+                    CGPathMoveToPoint(path, NULL, points[0], points[1]);
+                    index++;
+                    break;
+                case Rasterizer::Path::Atom::kLine:
+                    CGPathAddLineToPoint(path, NULL, points[0], points[1]);
+                    index++;
+                    break;
+                case Rasterizer::Path::Atom::kQuadratic:
+                    CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[1], points[2]);
+                    index += 2;
+                    break;
+                case Rasterizer::Path::Atom::kCubic:
+                    CGPathAddCurveToPoint(path, NULL, points[0], points[1], points[2], points[3], points[4], points[5]);
+                    index += 3;
+                    break;
+                case Rasterizer::Path::Atom::kClose:
+                    CGPathCloseSubpath(path);
+                    index++;
+                    break;
+            }
+            type = 0xF & (atom.types[index / 2] >> (index & 1 ? 4 : 0));
+        }
+    }
 }
 
 + (void)writePath:(CGPathRef)path toPolygons:(std::vector<std::vector<float>>&)polygons {
@@ -128,26 +162,36 @@
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
     
     CGFloat dimension = 24;
+    CGFloat phi = (sqrt(5) - 1) / 2;
+    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
+    CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
+    CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
     CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
 //    [self.class writePath:glyphPath toPolygons:_polygons];
     Rasterizer::Path p;
-    [self.class writePath:glyphPath toPath:p];
-    
-    CGFloat phi = (sqrt(5) - 1) / 2;
-    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
-    CGPathRef ellipse = CGPathCreateWithRect(rect, NULL);
-//    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
-    [self.class writePath:ellipse toPolygons:_polygons];
-    CGPathRelease(ellipse);
+    [self.class writeCGPath:ellipsePath toPath:p];
     
     _ellipse = CGPathCreateMutable();
-    [self.class writePolygons:_polygons toPath:_ellipse];
-    std::vector<std::vector<float>> testPolygons;
-    [self.class writePath:_ellipse toPolygons:testPolygons];
-    assert(testPolygons == _polygons);
+    [self.class writePath:p toCGPath:_ellipse];
+    Rasterizer::Path testPath;
+    [self.class writeCGPath:_ellipse toPath:testPath];
+    assert(p.atoms.size() == testPath.atoms.size());
     
+    
+    
+
+    [self.class writePath:rectPath toPolygons:_polygons];
+    
+//    _ellipse = CGPathCreateMutable();
+//    [self.class writePolygons:_polygons toPath:_ellipse];
+//    std::vector<std::vector<float>> testPolygons;
+//    [self.class writePath:_ellipse toPolygons:testPolygons];
+//    assert(testPolygons == _polygons);
+    
+    CGPathRelease(ellipsePath);
+    CGPathRelease(rectPath);
     CFRelease(cgFont);
     CFRelease(ctFont);
     CFRelease(glyphPath);
