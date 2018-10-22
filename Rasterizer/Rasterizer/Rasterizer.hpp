@@ -249,7 +249,7 @@ struct Rasterizer {
     
     static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t;
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
         x0 = y0 = sx = sy = FLT_MAX;
         for (Path::Atom& atom : path.atoms) {
@@ -278,7 +278,8 @@ struct Rasterizer {
                         x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                         x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
-                        a = fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
+                        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
+                        a = ax * ax + ay * ay;
                         if (a < 0.1)
                             writeSegmentDeltas(x0, y0, x2, y2, deltas, dimension);
                         else if (a < 8) {
@@ -306,11 +307,30 @@ struct Rasterizer {
                         x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                         x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
-                        px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
-                        px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-                        writeSegmentDeltas(x0, y0, px0, py0, deltas, dimension);
-                        writeSegmentDeltas(px0, py0, px1, py1, deltas, dimension);
-                        writeSegmentDeltas(px1, py1, x3, y3, deltas, dimension);
+                        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
+                        a = ax * ax + ay * ay;
+                        ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
+                        a += ax * ax + ay * ay;
+                        if (a < 0.1)
+                            writeSegmentDeltas(x0, y0, x3, y3, deltas, dimension);
+                        else if (a < 16) {
+                            px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
+                            px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
+                            writeSegmentDeltas(x0, y0, px0, py0, deltas, dimension);
+                            writeSegmentDeltas(px0, py0, px1, py1, deltas, dimension);
+                            writeSegmentDeltas(px1, py1, x3, y3, deltas, dimension);
+                        } else {
+                            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
+                            px0 = x0, py0 = y0;
+                            while (--count) {
+                                t += dt, s = 1.f - t;
+                                px1 = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
+                                py1 = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
+                                writeSegmentDeltas(px0, py0, px1, py1, deltas, dimension);
+                                px0 = px1, py0 = py1;
+                            }
+                            writeSegmentDeltas(px0, py0, x3, y3, deltas, dimension);
+                        }
                         x0 = x3, y0 = y3;
                         index += 3;
                         break;
