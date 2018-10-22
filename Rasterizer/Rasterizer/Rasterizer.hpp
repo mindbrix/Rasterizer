@@ -165,7 +165,7 @@ struct Rasterizer {
         Bounds device = bounds.transform(ctm).integral();
         Bounds clipped = device.intersected(clipBounds);
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-            if (device.ux - device.lx < kCellsDimension && device.uy - device.ly < kCellsDimension) {
+            if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
                 AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
                 float dimension = device.ux - device.lx;
                 for (std::vector<float>& polygon : polygons)
