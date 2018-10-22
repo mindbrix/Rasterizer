@@ -228,6 +228,25 @@ struct Rasterizer {
         }
     }
     
+    static void renderPath(Context& context, Bounds bounds, Path& path, uint32_t bgra, AffineTransform ctm, Bitmap bitmap) {
+        std::vector<Span> spans;
+        
+        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
+        Bounds device = bounds.transform(ctm).integral();
+        Bounds clipped = device.intersected(clipBounds);
+        if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+            if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
+                AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
+                float dimension = device.ux - device.lx;
+                addPath(path, cellCTM, context.deltas, dimension);
+                writeCellsMask(context.deltas, device, context.mask);
+                fillMask(context.mask, device, clipped, bgra, bitmap);
+            } else
+                rasterizeBoundingBox(clipped, spans);
+        }
+        fillSpans(spans, bgra, bitmap);
+    }
+    
     static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint32_t bgra, AffineTransform ctm, Bitmap bitmap) {
         std::vector<Span> spans;
         
@@ -247,6 +266,64 @@ struct Rasterizer {
                 rasterizeBoundingBox(clipped, spans);
         }
         fillSpans(spans, bgra, bitmap);
+    }
+    
+    static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
+        x0 = y0 = sx = sy = FLT_MAX;
+        for (Rasterizer::Path::Atom& atom : path.atoms) {
+            size_t index = 0;
+            auto type = 0xF & atom.types[0];
+            while (type) {
+                p = atom.points + index * 2;
+                switch (type) {
+                    case Rasterizer::Path::Atom::kMove:
+                        if (sx != FLT_MAX && (sx != x0 || sy != y0))
+                            writeSegmentDeltas(x0, y0, sx, sy, deltas, dimension);
+                        
+                        x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
+                        index++;
+                        break;
+                    case Rasterizer::Path::Atom::kLine:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+                        writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
+                        x0 = x1, y0 = y1;
+                        index++;
+                        break;
+                    case Rasterizer::Path::Atom::kQuadratic:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
+                        writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
+                        writeSegmentDeltas(x1, y1, x2, y2, deltas, dimension);
+                        x0 = x2, y0 = y2;
+                        index += 2;
+                        break;
+                    case Rasterizer::Path::Atom::kCubic:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
+                        x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
+                        x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
+                        writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
+                        writeSegmentDeltas(x1, y1, x2, y2, deltas, dimension);
+                        writeSegmentDeltas(x2, y2, x3, y3, deltas, dimension);
+                        x0 = x3, y0 = y3;
+                        index += 3;
+                        break;
+                    case Rasterizer::Path::Atom::kClose:
+                        index++;
+                        break;
+                }
+                type = 0xF & (atom.types[index / 2] >> (index & 1 ? 4 : 0));
+            }
+        }
+        if (sx != FLT_MAX && (sx != x0 || sy != y0))
+            writeSegmentDeltas(x0, y0, sx, sy, deltas, dimension);
     }
     
     static void addPolygon(float *points, size_t npoints, AffineTransform ctm, float *deltas, float dimension) {

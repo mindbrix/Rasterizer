@@ -15,6 +15,7 @@
 
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
+@property(nonatomic) Rasterizer::Path path;
 @property(nonatomic) std::vector<std::vector<float>> polygons;
 @property(nonatomic) CGMutablePathRef ellipse;
 
@@ -170,14 +171,14 @@
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
 //    [self.class writePath:glyphPath toPolygons:_polygons];
-    Rasterizer::Path p;
-    [self.class writeCGPath:glyphPath toPath:p];
+    
+    [self.class writeCGPath:glyphPath toPath:_path];
     
     _ellipse = CGPathCreateMutable();
-    [self.class writePath:p toCGPath:_ellipse];
+    [self.class writePath:_path toCGPath:_ellipse];
     Rasterizer::Path testPath;
     [self.class writeCGPath:_ellipse toPath:testPath];
-    assert(p.atoms.size() == testPath.atoms.size());
+    assert(_path.atoms.size() == testPath.atoms.size());
     
     
     
@@ -258,7 +259,8 @@
         Rasterizer::Context context;
         for (size_t i = 0; i < count; i++) {
             Rasterizer::Bounds bounds = boundingBoxes[i];
-            Rasterizer::renderPolygons(context, polygonBounds, _polygons, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
+            Rasterizer::renderPath(context, polygonBounds, _path, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
+//            Rasterizer::renderPolygons(context, polygonBounds, _polygons, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
         }
     } else
         for (size_t i = 0; i < count; i++) {
