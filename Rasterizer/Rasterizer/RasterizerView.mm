@@ -76,7 +76,7 @@
                     index++;
                     break;
                 case Rasterizer::Path::Atom::kQuadratic:
-                    CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[1], points[2]);
+                    CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[2], points[3]);
                     index += 2;
                     break;
                 case Rasterizer::Path::Atom::kCubic:
@@ -171,7 +171,7 @@
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
 //    [self.class writePath:glyphPath toPolygons:_polygons];
     Rasterizer::Path p;
-    [self.class writeCGPath:ellipsePath toPath:p];
+    [self.class writeCGPath:glyphPath toPath:p];
     
     _ellipse = CGPathCreateMutable();
     [self.class writePath:p toCGPath:_ellipse];
