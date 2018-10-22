@@ -221,7 +221,8 @@ struct Rasterizer {
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
-                cy1 = dxdy == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
+                cy1 = (cx1 - lx) * dydx + sy0;
+                cy1 = cy1 > sy1 ? sy1 : cy1;
                 
                 cover = (cy1 - cy0) * sign;
                 area = (ix1 - (cx0 + cx1) * 0.5f);
