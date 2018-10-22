@@ -248,15 +248,15 @@ struct Rasterizer {
     }
     
     static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, x, y, a, *p;
         x0 = y0 = sx = sy = FLT_MAX;
-        for (Rasterizer::Path::Atom& atom : path.atoms) {
+        for (Path::Atom& atom : path.atoms) {
             size_t index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
                 p = atom.points + index * 2;
                 switch (type) {
-                    case Rasterizer::Path::Atom::kMove:
+                    case Path::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0))
                             writeSegmentDeltas(x0, y0, sx, sy, deltas, dimension);
                         
@@ -264,24 +264,30 @@ struct Rasterizer {
                         sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
                         index++;
                         break;
-                    case Rasterizer::Path::Atom::kLine:
+                    case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
-                    case Rasterizer::Path::Atom::kQuadratic:
+                    case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                         x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
-                        writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
-                        writeSegmentDeltas(x1, y1, x2, y2, deltas, dimension);
+                        a = fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
+                        if (a < 0.1)
+                            writeSegmentDeltas(x0, y0, x2, y2, deltas, dimension);
+                        else {
+                            x = (x0 + x2) * 0.25 + x1 * 0.5, y = (y0 + y2) * 0.25 + y1 * 0.5;
+                            writeSegmentDeltas(x0, y0, x, y, deltas, dimension);
+                            writeSegmentDeltas(x, y, x2, y2, deltas, dimension);
+                        }
                         x0 = x2, y0 = y2;
                         index += 2;
                         break;
-                    case Rasterizer::Path::Atom::kCubic:
+                    case Path::Atom::kCubic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
@@ -294,7 +300,7 @@ struct Rasterizer {
                         x0 = x3, y0 = y3;
                         index += 3;
                         break;
-                    case Rasterizer::Path::Atom::kClose:
+                    case Path::Atom::kClose:
                         index++;
                         break;
                 }
