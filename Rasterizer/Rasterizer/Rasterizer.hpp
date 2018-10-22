@@ -187,9 +187,10 @@ struct Rasterizer {
         
         p = & points[npoints * 2 - 2];
         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-        
+        x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0;
         for (p = points, i = 0; i < npoints; i++, p += 2, x0 = x1, y0 = y1) {
             x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+            x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
             addCellSegment(x0, y0, x1, y1, deltas, dimension);
         }
     }
@@ -221,7 +222,7 @@ struct Rasterizer {
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
-                cy1 = (cx1 - lx) * dydx + sy0;
+                cy1 = dxdy == 0 ? sy1 : (cx1 - lx) * dydx + sy0;
                 cy1 = cy1 > sy1 ? sy1 : cy1;
                 
                 cover = (cy1 - cy0) * sign;
