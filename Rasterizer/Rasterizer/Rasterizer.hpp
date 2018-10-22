@@ -73,8 +73,31 @@ struct Rasterizer {
         short x, y, w;
     };
     
-    static void writeMaskRow(float *deltas, size_t w, uint8_t *mask) {
+    static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
         float cover = 0;
+        
+        __m128 offset = _mm_setzero_ps();
+        __m128 sign_mask = _mm_set1_ps(-0.);
+        __m128i msk = _mm_set1_epi32(0x0c080400);
+        while (w >> 2) {
+            __m128 x = _mm_loadu_ps(deltas);
+            x = _mm_add_ps(x, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(x), 4)));
+            x = _mm_add_ps(x, _mm_shuffle_ps(_mm_setzero_ps(), x, 0x40));
+            x = _mm_add_ps(x, offset);
+            
+            __m128 y = _mm_andnot_ps(sign_mask, x);
+            y = _mm_min_ps(y, _mm_set1_ps(255.0));
+            
+            __m128i z = _mm_cvttps_epi32(y);
+            z = _mm_shuffle_epi8(z, msk);
+            
+            _mm_store_ss((float *)mask, _mm_castsi128_ps(z));
+            offset = _mm_shuffle_ps(x, x, 0xFF);
+            
+            w -= 4, mask += 4;
+            *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
+            _mm_store_ss(& cover, offset);
+        }
         while (w--) {
             cover += *deltas, *deltas++ = 0;
             *mask++ = MIN(255, fabsf(cover));
@@ -84,7 +107,7 @@ struct Rasterizer {
     static void writeCellsMask(float *deltas, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly;
         for (size_t y = 0; y < h; y++, deltas += w, mask += w)
-            writeMaskRow(deltas, w, mask);
+            writeMaskRowSSE(deltas, w, mask);
     }
     
     static void copyMaskSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
