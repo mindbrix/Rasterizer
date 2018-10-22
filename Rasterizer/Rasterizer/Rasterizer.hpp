@@ -249,10 +249,11 @@ struct Rasterizer {
     
     static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p;
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t;
+        size_t index, count;
         x0 = y0 = sx = sy = FLT_MAX;
         for (Path::Atom& atom : path.atoms) {
-            size_t index = 0;
+            index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
                 p = atom.points + index * 2;
@@ -280,9 +281,19 @@ struct Rasterizer {
                         a = fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
                         if (a < 0.1)
                             writeSegmentDeltas(x0, y0, x2, y2, deltas, dimension);
-                        else {
+                        else if (a < 10) {
                             px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
                             writeSegmentDeltas(x0, y0, px0, py0, deltas, dimension);
+                            writeSegmentDeltas(px0, py0, x2, y2, deltas, dimension);
+                        } else {
+                            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
+                            px0 = x0, py0 = y0;
+                            while (--count) {
+                                t += dt, s = 1.f - t;
+                                px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                                writeSegmentDeltas(px0, py0, px1, py1, deltas, dimension);
+                                px0 = px1, py0 = py1;
+                            }
                             writeSegmentDeltas(px0, py0, x2, y2, deltas, dimension);
                         }
                         x0 = x2, y0 = y2;
@@ -314,7 +325,7 @@ struct Rasterizer {
             writeSegmentDeltas(x0, y0, sx, sy, deltas, dimension);
     }
     
-    static inline void writeSegmentDeltas(float x0, float y0, float x1, float y1, float *deltas, float dimension) {
+    static void writeSegmentDeltas(float x0, float y0, float x1, float y1, float *deltas, float dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
