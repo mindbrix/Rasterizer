@@ -159,8 +159,6 @@ struct Rasterizer {
     }
     
     static void renderPolygons(Context& context, Bounds bounds, std::vector<std::vector<float>>& polygons, uint32_t bgra, AffineTransform ctm, Bitmap bitmap) {
-        float *deltas = context.deltas;
-        uint8_t *mask = context.mask;
         std::vector<Span> spans;
         
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
@@ -171,10 +169,10 @@ struct Rasterizer {
                 AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
                 float dimension = device.ux - device.lx;
                 for (std::vector<float>& polygon : polygons)
-                    addPolygon(& polygon[0], polygon.size() / 2, cellCTM, deltas, dimension);
+                    addPolygon(& polygon[0], polygon.size() / 2, cellCTM, context.deltas, dimension);
                 
-                writeCellsMask(deltas, device, mask);
-                fillMask(mask, device, clipped, bgra, bitmap);
+                writeCellsMask(context.deltas, device, context.mask);
+                fillMask(context.mask, device, clipped, bgra, bitmap);
             } else
                 rasterizeBoundingBox(clipped, spans);
         }
@@ -191,11 +189,11 @@ struct Rasterizer {
         for (p = points, i = 0; i < npoints; i++, p += 2, x0 = x1, y0 = y1) {
             x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
             x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
-            addCellSegment(x0, y0, x1, y1, deltas, dimension);
+            writeSegmentDeltas(x0, y0, x1, y1, deltas, dimension);
         }
     }
     
-    static inline void addCellSegment(float x0, float y0, float x1, float y1, float *deltas, float dimension) {
+    static inline void writeSegmentDeltas(float x0, float y0, float x1, float y1, float *deltas, float dimension) {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
