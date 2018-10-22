@@ -70,6 +70,7 @@ struct Rasterizer {
     };
     struct Path {
         struct Atom {
+            static const size_t kCapacity = 16;
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose };
             Atom() {
                 memset(types, kNull, sizeof(types));
@@ -77,11 +78,10 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Path() : index(0) {
-            atoms.emplace_back();
-        }
+        Path() : index(Atom::kCapacity) {}
+        
         float *alloc(Atom::Type type, size_t size) {
-            if (index + size > 16) {
+            if (index + size > Atom::kCapacity) {
                 index = 0;
                 atoms.emplace_back();
             }
