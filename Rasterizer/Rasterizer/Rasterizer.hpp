@@ -70,7 +70,7 @@ struct Rasterizer {
     };
     struct Path {
         struct Atom {
-            static const size_t kCapacity = 16;
+            static const size_t kCapacity = 15;
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose };
             Atom() {
                 memset(types, kNull, sizeof(types));
@@ -85,7 +85,7 @@ struct Rasterizer {
                 index = 0;
                 atoms.emplace_back();
             }
-            atoms.back().types[index / 2] |= type << (index & 1 ? 4 : 0);
+            atoms.back().types[index / 2] |= (uint8_t(type) << (index & 1 ? 4 : 0));
             float *points = atoms.back().points + index * 2;
             index += size;
             return points;
@@ -99,12 +99,12 @@ struct Rasterizer {
             *points++ = x, *points++ = y;
         }
         void quadTo(float cx, float cy, float x, float y) {
-            float *points = alloc(Atom::kMove, 2);
+            float *points = alloc(Atom::kQuadratic, 2);
             *points++ = cx, *points++ = cy;
             *points++ = x, *points++ = y;
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
-            float *points = alloc(Atom::kMove, 3);
+            float *points = alloc(Atom::kCubic, 3);
             *points++ = cx0, *points++ = cy0;
             *points++ = cx1, *points++ = cy1;
             *points++ = x, *points++ = y;
