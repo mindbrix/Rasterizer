@@ -143,8 +143,8 @@ struct Rasterizer {
             
             w -= 4, mask += 4;
             *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
-            _mm_store_ss(& cover, offset);
         }
+        _mm_store_ss(& cover, offset);
         while (w--) {
             cover += *deltas, *deltas++ = 0;
             *mask++ = MIN(255, fabsf(cover));
