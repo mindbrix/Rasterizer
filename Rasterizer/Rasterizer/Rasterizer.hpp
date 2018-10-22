@@ -281,7 +281,7 @@ struct Rasterizer {
                         a = fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
                         if (a < 0.1)
                             writeSegmentDeltas(x0, y0, x2, y2, deltas, dimension);
-                        else if (a < 10) {
+                        else if (a < 8) {
                             px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
                             writeSegmentDeltas(x0, y0, px0, py0, deltas, dimension);
                             writeSegmentDeltas(px0, py0, x2, y2, deltas, dimension);
