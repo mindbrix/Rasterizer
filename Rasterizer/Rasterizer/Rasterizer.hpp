@@ -95,7 +95,7 @@ struct Rasterizer {
             *points++ = x, *points++ = y;
         }
         void lineTo(float x, float y) {
-            float *points = alloc(Atom::kMove, 1);
+            float *points = alloc(Atom::kLine, 1);
             *points++ = x, *points++ = y;
         }
         void quadTo(float cx, float cy, float x, float y) {
