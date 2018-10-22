@@ -60,10 +60,10 @@
 }
 
 + (void)writePath:(Rasterizer::Path &)p toCGPath:(CGMutablePathRef)path {
+    float *points;
     for (Rasterizer::Path::Atom& atom : p.atoms) {
         size_t index = 0;
         auto type = 0xF & atom.types[0];
-        float *points;
         while (type) {
             points = atom.points + index * 2;
             switch (type) {
@@ -93,48 +93,6 @@
     }
 }
 
-+ (void)writePath:(CGPathRef)path toPolygons:(std::vector<std::vector<float>>&)polygons {
-    __block CGFloat x0, y0, x1, y1, x2, y2, x3, y3, w0, w1, w2, w3;
-    w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-    CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
-        switch (element->type) {
-            case kCGPathElementMoveToPoint:
-                polygons.emplace_back();
-                polygons.back().emplace_back(float(element->points[0].x));
-                polygons.back().emplace_back(float(element->points[0].y));
-                break;
-            case kCGPathElementAddLineToPoint:
-                polygons.back().emplace_back(float(element->points[0].x));
-                polygons.back().emplace_back(float(element->points[0].y));
-                break;
-            case kCGPathElementAddQuadCurveToPoint:
-                x0 = *((& polygons.back().back()) - 1), y0 = *((& polygons.back().back()) - 0);
-                x1 = element->points[0].x, y1 = element->points[0].y;
-                x2 = element->points[1].x, y2 = element->points[1].y;
-                polygons.back().emplace_back(float(x0 * 0.25 + x1 * 0.5 + x2 * 0.25));
-                polygons.back().emplace_back(float(y0 * 0.25 + y1 * 0.5 + y2 * 0.25));
-                polygons.back().emplace_back(float(x2));
-                polygons.back().emplace_back(float(y2));
-                break;
-            case kCGPathElementAddCurveToPoint:
-                x0 = *((& polygons.back().back()) - 1), y0 = *((& polygons.back().back()) - 0);
-                x1 = element->points[0].x, y1 = element->points[0].y;
-                x2 = element->points[1].x, y2 = element->points[1].y;
-                x3 = element->points[2].x, y3 = element->points[2].y;
-                polygons.back().emplace_back(float(x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3));
-                polygons.back().emplace_back(float(y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3));
-                polygons.back().emplace_back(float(x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0));
-                polygons.back().emplace_back(float(y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0));
-                polygons.back().emplace_back(float(x3));
-                polygons.back().emplace_back(float(y3));
-                break;
-            case kCGPathElementCloseSubpath:
-                break;
-        }
-    });
-}
-
-
 #pragma mark - NSView
 
 - (nullable instancetype)initWithCoder:(NSCoder *)decoder {
@@ -163,7 +121,7 @@
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
     
-    [self.class writeCGPath:glyphPath toPath:_path];
+    [self.class writeCGPath:ellipsePath toPath:_path];
     _ellipse = CGPathCreateMutable();
     [self.class writePath:_path toCGPath:_ellipse];
     Rasterizer::Path testPath;
@@ -249,7 +207,6 @@
             CGContextFillPath(ctx);
             CGContextRestoreGState(ctx);
         }
-    
 }
 
 
