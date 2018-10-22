@@ -77,7 +77,7 @@ struct Rasterizer {
         float cover = 0;
         while (w--) {
             cover += *deltas, *deltas++ = 0;
-            *mask++ = fabsf(cover);
+            *mask++ = MIN(255, fabsf(cover));
         }
     }
     
