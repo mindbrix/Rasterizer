@@ -38,7 +38,8 @@
 }
 
 + (void)writePath:(CGPathRef)path toPolygons:(std::vector<std::vector<float>>&)polygons {
-    __block CGFloat x0, y0, x1, y1, x2, y2, x3, y3;
+    __block CGFloat x0, y0, x1, y1, x2, y2, x3, y3, w0, w1, w2, w3;
+    w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
     CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
         switch (element->type) {
             case kCGPathElementMoveToPoint:
@@ -64,12 +65,12 @@
                 x1 = element->points[0].x, y1 = element->points[0].y;
                 x2 = element->points[1].x, y2 = element->points[1].y;
                 x3 = element->points[2].x, y3 = element->points[2].y;
-                polygons.back().emplace_back(float(x0));
-                polygons.back().emplace_back(float(y0));
-                polygons.back().emplace_back(float(x1));
-                polygons.back().emplace_back(float(y1));
-                polygons.back().emplace_back(float(x2));
-                polygons.back().emplace_back(float(y2));
+                polygons.back().emplace_back(float(x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3));
+                polygons.back().emplace_back(float(y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3));
+                polygons.back().emplace_back(float(x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0));
+                polygons.back().emplace_back(float(y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0));
+                polygons.back().emplace_back(float(x3));
+                polygons.back().emplace_back(float(y3));
                 break;
             case kCGPathElementCloseSubpath:
                 break;
@@ -105,16 +106,16 @@
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
     
     CGFloat dimension = 24;
-    CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
-    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
-    CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
-    [self.class writePath:glyphPath toPolygons:_polygons];
+//    CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
+//    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
+//    CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
+//    [self.class writePath:glyphPath toPolygons:_polygons];
     
-//    CGFloat phi = (sqrt(5) - 1) / 2;
-//    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
-//    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
-//    [self.class writePath:ellipse toPolygons:_polygons];
-//    CGPathRelease(ellipse);
+    CGFloat phi = (sqrt(5) - 1) / 2;
+    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
+    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
+    [self.class writePath:ellipse toPolygons:_polygons];
+    CGPathRelease(ellipse);
     
     _ellipse = CGPathCreateMutable();
     [self.class writePolygons:_polygons toPath:_ellipse];
@@ -122,9 +123,9 @@
     [self.class writePath:_ellipse toPolygons:testPolygons];
     assert(testPolygons == _polygons);
     
-    CFRelease(cgFont);
-    CFRelease(ctFont);
-    CFRelease(glyphPath);
+//    CFRelease(cgFont);
+//    CFRelease(ctFont);
+//    CFRelease(glyphPath);
     return self;
 }
 
