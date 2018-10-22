@@ -16,6 +16,9 @@
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
 @property(nonatomic) Rasterizer::Path path;
+@property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
+@property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
+@property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
 @property(nonatomic) CGMutablePathRef ellipse;
 
 @end
@@ -118,7 +121,20 @@
     CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
     CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
     CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
-    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
+    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension * phi, NULL, NULL);
+    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
+    for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
+        CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
+        if (path) {
+            _glyphCGPaths.emplace_back(path);
+            _glyphPaths.emplace_back();
+            [self.class writeCGPath:path toPath:_glyphPaths.back()];
+            
+            CGRect glyphBounds = CGPathGetBoundingBox(path);
+            Rasterizer::Bounds bounds(float(glyphBounds.origin.x), float(glyphBounds.origin.y), float(glyphBounds.origin.x + glyphBounds.size.width), float(glyphBounds.origin.y + glyphBounds.size.height));
+            _glyphBounds.emplace_back(bounds);
+        }
+    }
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
     
     [self.class writeCGPath:ellipsePath toPath:_path];
@@ -137,6 +153,8 @@
 }
 
 - (void)dealloc {
+    for (CGPathRef path : _glyphCGPaths)
+        CFRelease(path);
     CGPathRelease(_ellipse);
 }
 
@@ -194,19 +212,36 @@
         Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
         Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
         Rasterizer::Context context;
-        for (size_t i = 0; i < count; i++) {
+        for (size_t i = 0; i < _glyphPaths.size(); i++) {
+            Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             Rasterizer::Bounds bounds = boundingBoxes[i];
-            Rasterizer::renderPath(context, polygonBounds, _path, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
+            Rasterizer::renderPath(context, glyphBounds, _glyphPaths[i], bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)), bitmap);
         }
-    } else
-        for (size_t i = 0; i < count; i++) {
+        
+//        for (size_t i = 0; i < count; i++) {
+//            Rasterizer::Bounds bounds = boundingBoxes[i];
+//            Rasterizer::renderPath(context, polygonBounds, _path, bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly)), bitmap);
+//        }
+    } else {
+        for (size_t i = 0; i < _glyphPaths.size(); i++) {
+            Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             Rasterizer::Bounds bounds = boundingBoxes[i];
             CGContextSaveGState(ctx);
-            CGContextTranslateCTM(ctx, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly);
-            CGContextAddPath(ctx, _ellipse);
+            CGContextTranslateCTM(ctx, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly);
+            CGContextAddPath(ctx, _glyphCGPaths[i]);
             CGContextFillPath(ctx);
             CGContextRestoreGState(ctx);
         }
+        
+//        for (size_t i = 0; i < count; i++) {
+//            Rasterizer::Bounds bounds = boundingBoxes[i];
+//            CGContextSaveGState(ctx);
+//            CGContextTranslateCTM(ctx, bounds.lx - polygonBounds.lx, bounds.ly - polygonBounds.ly);
+//            CGContextAddPath(ctx, _ellipse);
+//            CGContextFillPath(ctx);
+//            CGContextRestoreGState(ctx);
+//        }
+    }
 }
 
 
