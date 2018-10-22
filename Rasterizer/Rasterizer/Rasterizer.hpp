@@ -68,6 +68,53 @@ struct Rasterizer {
         float deltas[kCellsDimension * kCellsDimension];
         uint8_t mask[kCellsDimension * kCellsDimension];
     };
+    struct Path {
+        struct Atom {
+            enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose };
+            Atom() {
+                memset(types, kNull, sizeof(types));
+            }
+            float       points[30];
+            uint8_t     types[8];
+        };
+        Path() : index(0) {
+            atoms.emplace_back();
+        }
+        float *alloc(Atom::Type type, size_t size) {
+            if (index + size > 16) {
+                index = 0;
+                atoms.emplace_back();
+            }
+            atoms.back().types[index / 2] |= type << (index & 1 ? 4 : 0);
+            float *points = atoms.back().points + index * 2;
+            index += size;
+            return points;
+        }
+        void moveTo(float x, float y) {
+            float *points = alloc(Atom::kMove, 1);
+            *points++ = x, *points++ = y;
+        }
+        void lineTo(float x, float y) {
+            float *points = alloc(Atom::kMove, 1);
+            *points++ = x, *points++ = y;
+        }
+        void quadTo(float cx, float cy, float x, float y) {
+            float *points = alloc(Atom::kMove, 2);
+            *points++ = cx, *points++ = cy;
+            *points++ = x, *points++ = y;
+        }
+        void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
+            float *points = alloc(Atom::kMove, 3);
+            *points++ = cx0, *points++ = cy0;
+            *points++ = cx1, *points++ = cy1;
+            *points++ = x, *points++ = y;
+        }
+        void close() {
+            alloc(Atom::kClose, 1);
+        }
+        std::vector<Atom> atoms;
+        size_t index;
+    };
     struct Span {
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
         short x, y, w;
