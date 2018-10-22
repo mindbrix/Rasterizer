@@ -7,7 +7,7 @@
 //
 
 #import <vector>
-#import <simd/simd.h>
+#include <immintrin.h>
 
 #pragma clang diagnostic ignored "-Wcomma"
 
