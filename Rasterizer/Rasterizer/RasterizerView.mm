@@ -37,6 +37,28 @@
     return [NSData dataWithData:backing];
 }
 
++ (void)writePath:(CGPathRef)path toPath:(Rasterizer::Path &)p {
+    CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
+        switch (element->type) {
+            case kCGPathElementMoveToPoint:
+                p.moveTo(float(element->points[0].x), float(element->points[0].y));
+                break;
+            case kCGPathElementAddLineToPoint:
+                p.lineTo(float(element->points[0].x), float(element->points[0].y));
+                break;
+            case kCGPathElementAddQuadCurveToPoint:
+                p.quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
+                break;
+            case kCGPathElementAddCurveToPoint:
+                p.cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[3].y));
+                break;
+            case kCGPathElementCloseSubpath:
+                p.close();
+                break;
+        }
+    });
+}
+
 + (void)writePath:(CGPathRef)path toPolygons:(std::vector<std::vector<float>>&)polygons {
     __block CGFloat x0, y0, x1, y1, x2, y2, x3, y3, w0, w1, w2, w3;
     w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
@@ -109,13 +131,16 @@
     CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension, NULL, NULL);
     CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, 27, NULL);
-    [self.class writePath:glyphPath toPolygons:_polygons];
+//    [self.class writePath:glyphPath toPolygons:_polygons];
+    Rasterizer::Path p;
+    [self.class writePath:glyphPath toPath:p];
     
-//    CGFloat phi = (sqrt(5) - 1) / 2;
-//    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
+    CGFloat phi = (sqrt(5) - 1) / 2;
+    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
+    CGPathRef ellipse = CGPathCreateWithRect(rect, NULL);
 //    CGPathRef ellipse = CGPathCreateWithEllipseInRect(rect, NULL);
-//    [self.class writePath:ellipse toPolygons:_polygons];
-//    CGPathRelease(ellipse);
+    [self.class writePath:ellipse toPolygons:_polygons];
+    CGPathRelease(ellipse);
     
     _ellipse = CGPathCreateMutable();
     [self.class writePolygons:_polygons toPath:_ellipse];
