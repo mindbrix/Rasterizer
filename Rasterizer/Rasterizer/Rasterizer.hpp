@@ -268,21 +268,17 @@ struct Rasterizer {
                         
                         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         sx = x0, sy = y0;
-//                        sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
                         index++;
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-//                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         writeSegmentToDeltas(x0, y0, x1, y1, deltas, stride);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
                     case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-//                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-//                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         if (a < 0.1)
@@ -307,11 +303,8 @@ struct Rasterizer {
                         break;
                     case Path::Atom::kCubic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-//                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-//                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-//                        x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
@@ -355,7 +348,7 @@ struct Rasterizer {
         
         if (y0 == y1)
             return;
-        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta, t;
+        float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
@@ -374,16 +367,12 @@ struct Rasterizer {
             if (lx > ux)
                 tmp = lx, lx = ux, ux = tmp;
             
-            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0, delta = deltas + size_t(ix0);
+            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0, delta = deltas + size_t(ix0), dydx = (sy1 - sy0) / (ux - lx);
                  ix0 <= ux;
                  ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
                 cx1 = ux > ix1 ? ix1 : ux;
-                if (ux == lx)
-                    cy1 = sy1;
-                else {
-                    t = (cx1 - lx) / (ux - lx), t = t < 0 ? 0 : t > 1 ? 1 : t;
-                    cy1 = (sy1 - sy0) * t + sy0;
-                }
+                cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+                
                 cover = (cy1 - cy0) * sign;
                 area = (ix1 - (cx0 + cx1) * 0.5f);
                 alpha = total + cover * area;
