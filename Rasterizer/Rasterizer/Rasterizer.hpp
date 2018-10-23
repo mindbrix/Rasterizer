@@ -84,7 +84,7 @@ struct Rasterizer {
             if (index + size > Atom::kCapacity)
                 index = 0, atoms.emplace_back();
             
-            atoms.back().types[index / 2] |= (uint8_t(type) << (index & 1 ? 4 : 0));
+            atoms.back().types[index / 2] |= (uint8_t(type) << ((index & 1) * 4));
             float *points = atoms.back().points + index * 2;
             index += size;
             return points;
@@ -336,7 +336,7 @@ struct Rasterizer {
                         index++;
                         break;
                 }
-                type = 0xF & (atom.types[index / 2] >> (index & 1 ? 4 : 0));
+                type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4));
             }
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))

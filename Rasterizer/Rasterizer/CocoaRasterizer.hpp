@@ -65,7 +65,7 @@ struct CocoaRasterizer {
                         index++;
                         break;
                 }
-                type = 0xF & (atom.types[index / 2] >> (index & 1 ? 4 : 0));
+                type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4));
             }
         }
     }
