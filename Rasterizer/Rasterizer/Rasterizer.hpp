@@ -236,8 +236,7 @@ struct Rasterizer {
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
                 AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                float dimension = device.ux - device.lx;
-                writePathToDeltas(path, cellCTM, context.deltas, dimension);
+                writePathToDeltas(path, cellCTM, context.deltas, device.ux - device.lx);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 fillMask(context.mask, device, clipped, bgra, bitmap);
             } else
@@ -246,7 +245,7 @@ struct Rasterizer {
         fillSpans(spans, bgra, bitmap);
     }
     
-    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, float dimension) {
+    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
@@ -259,7 +258,7 @@ struct Rasterizer {
                 switch (type) {
                     case Path::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-                            writeSegmentToDeltas(x0, y0, sx, sy, deltas, dimension);
+                            writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride);
                         
                         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
@@ -268,7 +267,7 @@ struct Rasterizer {
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
-                        writeSegmentToDeltas(x0, y0, x1, y1, deltas, dimension);
+                        writeSegmentToDeltas(x0, y0, x1, y1, deltas, stride);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
@@ -280,21 +279,21 @@ struct Rasterizer {
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         if (a < 0.1)
-                            writeSegmentToDeltas(x0, y0, x2, y2, deltas, dimension);
+                            writeSegmentToDeltas(x0, y0, x2, y2, deltas, stride);
                         else if (a < 8) {
                             px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
-                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, dimension);
-                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, dimension);
+                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, stride);
+                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, stride);
                         } else {
                             count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
                             px0 = x0, py0 = y0;
                             while (--count) {
                                 t += dt, s = 1.f - t;
                                 px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, dimension);
+                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride);
                                 px0 = px1, py0 = py1;
                             }
-                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, dimension);
+                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, stride);
                         }
                         x0 = x2, y0 = y2;
                         index += 2;
@@ -311,13 +310,13 @@ struct Rasterizer {
                         ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
                         a += ax * ax + ay * ay;
                         if (a < 0.1)
-                            writeSegmentToDeltas(x0, y0, x3, y3, deltas, dimension);
+                            writeSegmentToDeltas(x0, y0, x3, y3, deltas, stride);
                         else if (a < 16) {
                             px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
                             px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, dimension);
-                            writeSegmentToDeltas(px0, py0, px1, py1, deltas, dimension);
-                            writeSegmentToDeltas(px1, py1, x3, y3, deltas, dimension);
+                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, stride);
+                            writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride);
+                            writeSegmentToDeltas(px1, py1, x3, y3, deltas, stride);
                         } else {
                             count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
                             px0 = x0, py0 = y0;
@@ -325,10 +324,10 @@ struct Rasterizer {
                                 t += dt, s = 1.f - t;
                                 px1 = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
                                 py1 = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
-                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, dimension);
+                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride);
                                 px0 = px1, py0 = py1;
                             }
-                            writeSegmentToDeltas(px0, py0, x3, y3, deltas, dimension);
+                            writeSegmentToDeltas(px0, py0, x3, y3, deltas, stride);
                         }
                         x0 = x3, y0 = y3;
                         index += 3;
@@ -341,14 +340,13 @@ struct Rasterizer {
             }
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-            writeSegmentToDeltas(x0, y0, sx, sy, deltas, dimension);
+            writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride);
     }
     
-    static void writeSegmentToDeltas(float x0, float y0, float x1, float y1, float *deltas, float dimension) {
+    static void writeSegmentToDeltas(float x0, float y0, float x1, float y1, float *deltas, size_t stride) {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign;
-        size_t stride = size_t(dimension);
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
@@ -381,7 +379,7 @@ struct Rasterizer {
                 *delta += alpha - last;
                 last = alpha;
             }
-            if (ix0 < dimension)
+            if (ix0 < stride)
                 *delta += total - last;
         }
     }
