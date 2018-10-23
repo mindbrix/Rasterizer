@@ -236,7 +236,13 @@ struct Rasterizer {
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
                 AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                writePathToDeltas(path, deltasCTM, context.deltas, device.ux - device.lx);
+                float scale = sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
+                float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, mx = (bounds.lx + bounds.ux) * 0.5, my = (bounds.ly + bounds.uy) * 0.5, e = 2e-3 / scale;
+                AffineTransform offset(1, 0, 0, 1, mx, my);
+                offset = offset.concat(AffineTransform(w / (w + e), 0, 0, h / (h + e), 0, 0));
+                offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
+                
+                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 fillMask(context.mask, device, clipped, bgra, bitmap);
             } else
@@ -261,21 +267,22 @@ struct Rasterizer {
                             writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride);
                         
                         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
+                        sx = x0, sy = y0;
+//                        sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
                         index++;
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+//                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         writeSegmentToDeltas(x0, y0, x1, y1, deltas, stride);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
                     case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+//                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
+//                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         if (a < 0.1)
@@ -300,11 +307,11 @@ struct Rasterizer {
                         break;
                     case Path::Atom::kCubic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+//                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
+//                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
+//                        x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
@@ -344,6 +351,8 @@ struct Rasterizer {
     }
     
     static void writeSegmentToDeltas(float x0, float y0, float x1, float y1, float *deltas, size_t stride) {
+        assert(x0 >= 0), assert(y0 >= 0), assert(x1 >= 0), assert(y1 >= 0);
+        
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta, t;
