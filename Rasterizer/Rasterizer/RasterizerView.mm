@@ -67,14 +67,13 @@
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension * phi, NULL, NULL);
     CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
     for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
+//        CGPathRef path = CGPathRetain(ellipsePath);
         CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
         if (path) {
             _glyphCGPaths.emplace_back(path);
             _glyphPaths.emplace_back();
             CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
-            CGRect glyphBounds = CGPathGetBoundingBox(path);
-            Rasterizer::Bounds bounds = CocoaRasterizer::boundsFromCGRect(glyphBounds);
-            _glyphBounds.emplace_back(bounds);
+            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetBoundingBox(path)));
         }
     }
     Rasterizer::Path path0, path1;
