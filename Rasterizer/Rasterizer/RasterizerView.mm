@@ -84,7 +84,6 @@
     CocoaRasterizer::writeCGPathToPath(mutablePath, path1);
     assert(path0.atoms.size() == path1.atoms.size());
     CGPathRelease(mutablePath);
-    
     CGPathRelease(ellipsePath);
     CGPathRelease(rectPath);
     CFRelease(cgFont);
@@ -95,7 +94,6 @@
 - (void)dealloc {
     for (CGPathRef path : _glyphCGPaths)
         CFRelease(path);
-    
 }
 
 - (void)drawRect:(NSRect)dirtyRect {}
@@ -167,9 +165,5 @@
         }
     }
 }
-
-
-#pragma mark - Properties
-
 
 @end
