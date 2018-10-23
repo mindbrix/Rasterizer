@@ -15,7 +15,6 @@
 
 @property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
-@property(nonatomic) Rasterizer::Path path;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
