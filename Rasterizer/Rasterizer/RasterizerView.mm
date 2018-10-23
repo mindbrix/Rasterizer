@@ -63,7 +63,7 @@
     CGRect rect = { 0, 0, dimension * phi, dimension * phi };
     CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
     CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
-    CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("Menlo-Regular"));
+    CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("AppleSymbols"));
     CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension * phi, NULL, NULL);
     CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
     for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
