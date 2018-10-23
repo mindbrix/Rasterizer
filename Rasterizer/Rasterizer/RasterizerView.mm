@@ -7,7 +7,7 @@
 //
 
 #import "RasterizerView.h"
-#import "Rasterizer.hpp"
+#import "CocoaRasterizer.hpp"
 #import "AGGRasterizer.hpp"
 
 
@@ -39,61 +39,6 @@
     return [NSData dataWithData:backing];
 }
 
-+ (void)writeCGPath:(CGPathRef)path toPath:(Rasterizer::Path &)p {
-    CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
-        switch (element->type) {
-            case kCGPathElementMoveToPoint:
-                p.moveTo(float(element->points[0].x), float(element->points[0].y));
-                break;
-            case kCGPathElementAddLineToPoint:
-                p.lineTo(float(element->points[0].x), float(element->points[0].y));
-                break;
-            case kCGPathElementAddQuadCurveToPoint:
-                p.quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
-                break;
-            case kCGPathElementAddCurveToPoint:
-                p.cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
-                break;
-            case kCGPathElementCloseSubpath:
-                p.close();
-                break;
-        }
-    });
-}
-
-+ (void)writePath:(Rasterizer::Path &)p toCGPath:(CGMutablePathRef)path {
-    float *points;
-    for (Rasterizer::Path::Atom& atom : p.atoms) {
-        size_t index = 0;
-        auto type = 0xF & atom.types[0];
-        while (type) {
-            points = atom.points + index * 2;
-            switch (type) {
-                case Rasterizer::Path::Atom::kMove:
-                    CGPathMoveToPoint(path, NULL, points[0], points[1]);
-                    index++;
-                    break;
-                case Rasterizer::Path::Atom::kLine:
-                    CGPathAddLineToPoint(path, NULL, points[0], points[1]);
-                    index++;
-                    break;
-                case Rasterizer::Path::Atom::kQuadratic:
-                    CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[2], points[3]);
-                    index += 2;
-                    break;
-                case Rasterizer::Path::Atom::kCubic:
-                    CGPathAddCurveToPoint(path, NULL, points[0], points[1], points[2], points[3], points[4], points[5]);
-                    index += 3;
-                    break;
-                case Rasterizer::Path::Atom::kClose:
-                    CGPathCloseSubpath(path);
-                    index++;
-                    break;
-            }
-            type = 0xF & (atom.types[index / 2] >> (index & 1 ? 4 : 0));
-        }
-    }
-}
 
 #pragma mark - NSView
 
@@ -127,19 +72,17 @@
         if (path) {
             _glyphCGPaths.emplace_back(path);
             _glyphPaths.emplace_back();
-            [self.class writeCGPath:path toPath:_glyphPaths.back()];
-            
+            CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
             CGRect glyphBounds = CGPathGetBoundingBox(path);
-            Rasterizer::Bounds bounds(float(glyphBounds.origin.x), float(glyphBounds.origin.y), float(glyphBounds.origin.x + glyphBounds.size.width), float(glyphBounds.origin.y + glyphBounds.size.height));
+            Rasterizer::Bounds bounds = CocoaRasterizer::boundsFromCGRect(glyphBounds);
             _glyphBounds.emplace_back(bounds);
         }
     }
-
     Rasterizer::Path path0, path1;
-    [self.class writeCGPath:ellipsePath toPath:path0];
+    CocoaRasterizer::writeCGPathToPath(ellipsePath, path0);
     CGMutablePathRef mutablePath = CGPathCreateMutable();
-    [self.class writePath:path0 toCGPath:mutablePath];
-    [self.class writeCGPath:mutablePath toPath:path1];
+    CocoaRasterizer::writePathToCGPath(path0, mutablePath);
+    CocoaRasterizer::writeCGPathToPath(mutablePath, path1);
     assert(path0.atoms.size() == path1.atoms.size());
     CGPathRelease(mutablePath);
     
