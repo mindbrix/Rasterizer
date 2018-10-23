@@ -81,10 +81,9 @@ struct Rasterizer {
         Path() : index(Atom::kCapacity) {}
         
         float *alloc(Atom::Type type, size_t size) {
-            if (index + size > Atom::kCapacity) {
-                index = 0;
-                atoms.emplace_back();
-            }
+            if (index + size > Atom::kCapacity)
+                index = 0, atoms.emplace_back();
+            
             atoms.back().types[index / 2] |= (uint8_t(type) << (index & 1 ? 4 : 0));
             float *points = atoms.back().points + index * 2;
             index += size;
