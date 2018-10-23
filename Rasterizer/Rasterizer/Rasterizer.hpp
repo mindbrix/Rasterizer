@@ -150,7 +150,7 @@ struct Rasterizer {
         }
     }
     
-    static void writeCellsMask(float *deltas, Bounds device, uint8_t *mask) {
+    static void writeDeltasToMask(float *deltas, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly;
         for (size_t y = 0; y < h; y++, deltas += w, mask += w)
             writeMaskRowSSE(deltas, w, mask);
@@ -237,8 +237,8 @@ struct Rasterizer {
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
                 AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
                 float dimension = device.ux - device.lx;
-                addPath(path, cellCTM, context.deltas, dimension);
-                writeCellsMask(context.deltas, device, context.mask);
+                writePathToDeltas(path, cellCTM, context.deltas, dimension);
+                writeDeltasToMask(context.deltas, device, context.mask);
                 fillMask(context.mask, device, clipped, bgra, bitmap);
             } else
                 rasterizeBoundingBox(clipped, spans);
@@ -246,7 +246,7 @@ struct Rasterizer {
         fillSpans(spans, bgra, bitmap);
     }
     
-    static void addPath(Path& path, AffineTransform ctm, float *deltas, float dimension) {
+    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, float dimension) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
