@@ -235,8 +235,8 @@ struct Rasterizer {
         Bounds clipped = device.intersected(clipBounds);
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
-                AffineTransform cellCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                writePathToDeltas(path, cellCTM, context.deltas, device.ux - device.lx);
+                AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
+                writePathToDeltas(path, deltasCTM, context.deltas, device.ux - device.lx);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 fillMask(context.mask, device, clipped, bgra, bitmap);
             } else
