@@ -250,6 +250,7 @@ struct Rasterizer {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
         x0 = y0 = sx = sy = FLT_MAX;
+        ctm.tx += 1e-3, ctm.ty += 1e-3;
         for (Path::Atom& atom : path.atoms) {
             index = 0;
             auto type = 0xF & atom.types[0];
@@ -260,22 +261,21 @@ struct Rasterizer {
                         if (sx != FLT_MAX && (sx != x0 || sy != y0))
                             writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride);
                         
-                        x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        sx = x0 = x0 < 0 ? 0 : x0, sy = y0 = y0 < 0 ? 0 : y0;
+                        sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         index++;
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         writeSegmentToDeltas(x0, y0, x1, y1, deltas, stride);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
                     case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
+                        if (x1 < 0 || y1 < 0) {
+                            x1 = x1;
+                        }
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         if (a < 0.1)
@@ -300,11 +300,8 @@ struct Rasterizer {
                         break;
                     case Path::Atom::kCubic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x1 = x1 < 0 ? 0 : x1, y1 = y1 < 0 ? 0 : y1;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        x2 = x2 < 0 ? 0 : x2, y2 = y2 < 0 ? 0 : y2;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        x3 = x3 < 0 ? 0 : x3, y3 = y3 < 0 ? 0 : y3;
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
