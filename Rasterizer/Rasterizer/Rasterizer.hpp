@@ -344,17 +344,13 @@ struct Rasterizer {
     }
     
     static void writeSegmentToDeltas(float x0, float y0, float x1, float y1, float *deltas, size_t stride) {
-        assert(x0 >= 0), assert(y0 >= 0), assert(x1 >= 0), assert(y1 >= 0);
-        
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-        
         dxdy = (x1 - x0) / (y1 - y0);
-        dydx = 1.f / fabsf(dxdy);
         
         for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltas += stride * size_t(iy0);
              iy0 < y1;
