@@ -31,14 +31,6 @@ struct Rasterizer {
         }
         float a, b, c, d, tx, ty;
     };
-    struct Bitmap {
-        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
-        
-        inline uint32_t *pixelAddress(short x, short y) { return (uint32_t *)(data + rowBytes * (height - 1 - y) + x * bytespp); }
-        
-        uint8_t *data;
-        size_t width, height, rowBytes, bpp, bytespp;
-    };
     struct Bounds {
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         
@@ -61,36 +53,6 @@ struct Rasterizer {
                 t.ty + (1 - wb) * t.b + (1 - wd) * t.d };
         }
         float lx, ly, ux, uy;
-    };
-    struct Scanline {
-        struct Delta {
-            Delta() {}
-            Delta(float x, float y, float delta) : x(x), y(y), delta(delta) {}
-            
-            inline bool operator< (const Delta& other) const { return x < other.x || (x == other.x && y < other.y); }
-            short x, y;
-            float delta;
-        };
-        Scanline() { empty(); }
-        
-        void empty() { delta0 = 0, deltas.resize(0); }
-        
-        float delta0;
-        std::vector<Delta> deltas;
-    };
-    struct Span {
-        Span() {}
-        Span(float x, float y, float w) : x(x), y(y), w(w) {}
-        short x, y, w;
-    };
-    struct Context {
-        Context(Bitmap bitmap) : bitmap(bitmap) { memset(deltas, 0, sizeof(deltas)), scanlines.resize(bitmap.height); }
-        
-        Bitmap bitmap;
-        float deltas[kCellsDimension * kCellsDimension];
-        uint8_t mask[kCellsDimension * kCellsDimension];
-        std::vector<Scanline> scanlines;
-        std::vector<Span> spans;
     };
     struct Path {
         struct Atom {
@@ -137,6 +99,44 @@ struct Rasterizer {
         }
         std::vector<Atom> atoms;
         size_t index;
+    };
+    struct Bitmap {
+        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
+        
+        inline uint32_t *pixelAddress(short x, short y) { return (uint32_t *)(data + rowBytes * (height - 1 - y) + x * bytespp); }
+        
+        uint8_t *data;
+        size_t width, height, rowBytes, bpp, bytespp;
+    };
+    struct Scanline {
+        struct Delta {
+            Delta() {}
+            Delta(float x, float y, float delta) : x(x), y(y), delta(delta) {}
+            
+            inline bool operator< (const Delta& other) const { return x < other.x || (x == other.x && y < other.y); }
+            short x, y;
+            float delta;
+        };
+        Scanline() { empty(); }
+        
+        void empty() { delta0 = 0, deltas.resize(0); }
+        
+        float delta0;
+        std::vector<Delta> deltas;
+    };
+    struct Span {
+        Span() {}
+        Span(float x, float y, float w) : x(x), y(y), w(w) {}
+        short x, y, w;
+    };
+    struct Context {
+        Context(Bitmap bitmap) : bitmap(bitmap) { memset(deltas, 0, sizeof(deltas)), scanlines.resize(bitmap.height); }
+        
+        Bitmap bitmap;
+        float deltas[kCellsDimension * kCellsDimension];
+        uint8_t mask[kCellsDimension * kCellsDimension];
+        std::vector<Scanline> scanlines;
+        std::vector<Span> spans;
     };
     
     static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
