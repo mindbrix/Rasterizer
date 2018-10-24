@@ -146,11 +146,11 @@
         
         Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
         Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-        Rasterizer::Context context;
+        Rasterizer::Context context(bitmap);
         for (size_t i = 0; i < _glyphPaths.size() && i < count; i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             Rasterizer::Bounds bounds = boundingBoxes[i];
-            Rasterizer::renderPath(context, glyphBounds, _glyphPaths[i], bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)), bitmap);
+            Rasterizer::renderPath(context, glyphBounds, _glyphPaths[i], bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)));
         }
     } else {
         for (size_t i = 0; i < _glyphPaths.size() && i < count; i++) {

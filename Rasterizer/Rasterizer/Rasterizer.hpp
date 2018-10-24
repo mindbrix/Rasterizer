@@ -62,11 +62,17 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
+    struct Span {
+        Span(float x, float y, float w) : x(x), y(y), w(w) {}
+        short x, y, w;
+    };
     struct Context {
-        Context() { memset(deltas, 0, sizeof(deltas)); }
+        Context(Bitmap bitmap) : bitmap(bitmap) { memset(deltas, 0, sizeof(deltas)); }
         
+        Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
         uint8_t mask[kCellsDimension * kCellsDimension];
+        std::vector<Span> spans;
     };
     struct Path {
         struct Atom {
@@ -113,10 +119,6 @@ struct Rasterizer {
         }
         std::vector<Atom> atoms;
         size_t index;
-    };
-    struct Span {
-        Span(float x, float y, float w) : x(x), y(y), w(w) {}
-        short x, y, w;
     };
     
     static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
@@ -241,10 +243,8 @@ struct Rasterizer {
         }
     }
     
-    static void renderPath(Context& context, Bounds bounds, Path& path, uint32_t bgra, AffineTransform ctm, Bitmap bitmap) {
-        std::vector<Span> spans;
-        
-        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
+    static void renderPath(Context& context, Bounds bounds, Path& path, uint32_t bgra, AffineTransform ctm) {
+        Bounds clipBounds(0, 0, context.bitmap.width, context.bitmap.height);
         Bounds device = bounds.transform(ctm).integral();
         Bounds clipped = device.intersected(clipBounds);
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
@@ -258,11 +258,11 @@ struct Rasterizer {
                 
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx);
                 writeDeltasToMask(context.deltas, device, context.mask);
-                fillMask(context.mask, device, clipped, bgra, bitmap);
+                fillMask(context.mask, device, clipped, bgra, context.bitmap);
             } else
-                rasterizeBoundingBox(clipped, spans);
+                rasterizeBoundingBox(clipped, context.spans);
         }
-        fillSpans(spans, bgra, bitmap);
+        fillSpans(context.spans, bgra, context.bitmap);
     }
     
     static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride) {
