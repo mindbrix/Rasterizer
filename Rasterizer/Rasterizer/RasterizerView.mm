@@ -150,7 +150,7 @@
         for (size_t i = 0; i < _glyphPaths.size() && i < count; i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             Rasterizer::Bounds bounds = boundingBoxes[i];
-            Rasterizer::writePathToBitmap(context, glyphBounds, _glyphPaths[i], bgra, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)));
+            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)), bgra, context);
         }
     } else {
         for (size_t i = 0; i < _glyphPaths.size() && i < count; i++) {

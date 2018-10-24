@@ -244,7 +244,7 @@ struct Rasterizer {
         }
     }
     
-    static void writePathToBitmap(Context& context, Bounds bounds, Path& path, uint32_t bgra, AffineTransform ctm) {
+    static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
         Bounds clipBounds(0, 0, context.bitmap.width, context.bitmap.height);
         Bounds device = bounds.transform(ctm).integral();
         Bounds clipped = device.intersected(clipBounds);
