@@ -63,6 +63,7 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Span {
+        Span() {}
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
         short x, y, w;
     };
@@ -155,7 +156,7 @@ struct Rasterizer {
             writeMaskRowSSE(deltas, w, mask);
     }
     
-    static void copyMaskSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
+    static void writeMaskRowToBitmapSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
         uint32_t *dst;
         uint8_t *src, *components, *d;
         components = (uint8_t *)& bgra;
@@ -215,14 +216,14 @@ struct Rasterizer {
         }
     }
     
-    static void fillMask(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
+    static void writeMaskToBitmap(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         size_t w = device.ux - device.lx;
         uint32_t *addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
         uint8_t *maskaddr = mask + size_t(w * (clipped.ly - device.ly) + (clipped.lx - device.lx));
-        copyMaskSSE(bgra, addr, bitmap.rowBytes, maskaddr, w, clipped.ux - clipped.lx, clipped.uy - clipped.ly);
+        writeMaskRowToBitmapSSE(bgra, addr, bitmap.rowBytes, maskaddr, w, clipped.ux - clipped.lx, clipped.uy - clipped.ly);
     }
     
-    static void fillSpans(std::vector<Span>& spans, uint32_t color, Bitmap bitmap) {
+    static void writeSpansToBitmap(std::vector<Span>& spans, uint32_t color, Bitmap bitmap) {
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         float lx, ux;
         uint8_t *addr;
@@ -258,11 +259,12 @@ struct Rasterizer {
                 
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx);
                 writeDeltasToMask(context.deltas, device, context.mask);
-                fillMask(context.mask, device, clipped, bgra, context.bitmap);
+                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else
-                rasterizeBoundingBox(clipped, context.spans);
+                writeBoundingBoxToSpans(clipped, context.spans);
         }
-        fillSpans(context.spans, bgra, context.bitmap);
+        writeSpansToBitmap(context.spans, bgra, context.bitmap);
+        context.spans.resize(0);
     }
     
     static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride) {
@@ -395,7 +397,7 @@ struct Rasterizer {
         }
     }
     
-    static void rasterizeBoundingBox(Bounds bounds, std::vector<Span>& spans) {
+    static void writeBoundingBoxToSpans(Bounds bounds, std::vector<Span>& spans) {
         for (float y = bounds.ly; y < bounds.uy; y++)
             spans.emplace_back(bounds.lx, y, bounds.ux - bounds.lx);
     }
