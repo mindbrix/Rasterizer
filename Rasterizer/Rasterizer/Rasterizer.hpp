@@ -170,11 +170,14 @@ struct Rasterizer {
                     a2 = _mm_set1_ps(float(src[2]) * 0.003921568627f);
                     a3 = _mm_set1_ps(float(src[3]) * 0.003921568627f);
                     
-                    d = (uint8_t *) & dst[0], d0 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                    d = (uint8_t *) & dst[1], d1 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                    d = (uint8_t *) & dst[2], d2 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                    d = (uint8_t *) & dst[3], d3 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                    
+                    if (dst[0] == 0 && dst[1] == 0 && dst[2] == 0 && dst[3] == 0)
+                        d0 = d1 = d2 = d3 = _mm_setzero_ps();
+                    else {
+                        d = (uint8_t *) & dst[0], d0 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
+                        d = (uint8_t *) & dst[1], d1 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
+                        d = (uint8_t *) & dst[2], d2 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
+                        d = (uint8_t *) & dst[3], d3 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
+                    }
                     m0 = _mm_add_ps(_mm_mul_ps(bgra4, a0), _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
                     m1 = _mm_add_ps(_mm_mul_ps(bgra4, a1), _mm_mul_ps(d1, _mm_sub_ps(_mm_set1_ps(1.f), a1)));
                     m2 = _mm_add_ps(_mm_mul_ps(bgra4, a2), _mm_mul_ps(d2, _mm_sub_ps(_mm_set1_ps(1.f), a2)));
