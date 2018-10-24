@@ -173,7 +173,7 @@ struct Rasterizer {
             writeMaskRowSSE(deltas, w, mask);
     }
     
-    static void writeMaskRowToBitmapSSE(uint32_t bgra, uint32_t *addr, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
+    static void writeMaskRowToBitmapSSE(uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes, uint8_t *mask, size_t maskRowBytes, size_t w, size_t h) {
         uint32_t *dst;
         uint8_t *src, *components, *d;
         components = (uint8_t *)& bgra;
@@ -183,7 +183,7 @@ struct Rasterizer {
         size_t columns;
         
         while (h--) {
-            dst = addr, src = mask, columns = w;
+            dst = pixelAddress, src = mask, columns = w;
             while (columns >> 2) {
                 if (src[0] || src[1] || src[2] || src[3]) {
                     a0 = _mm_set1_ps(float(src[0]) * 0.003921568627f);
@@ -228,17 +228,17 @@ struct Rasterizer {
                 }
                 src++, dst++;
             }
-            addr -= rowBytes / 4;
+            pixelAddress -= rowBytes / 4;
             mask += maskRowBytes;
         }
     }
     
     static void writeMaskToBitmap(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        uint32_t *addr = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
+        uint32_t *pixelAddress = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
         float maskRowBytes = device.ux - device.lx;
         uint8_t *maskaddr = mask + size_t(maskRowBytes * (clipped.ly - device.ly) + (clipped.lx - device.lx));
         size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        writeMaskRowToBitmapSSE(bgra, addr, bitmap.rowBytes, maskaddr, maskRowBytes, w, h);
+        writeMaskRowToBitmapSSE(bgra, pixelAddress, bitmap.rowBytes, maskaddr, maskRowBytes, w, h);
     }
     
     static void writeSpansToBitmap(std::vector<Span>& spans, uint32_t color, Bitmap bitmap) {
