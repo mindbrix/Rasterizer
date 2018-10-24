@@ -34,7 +34,7 @@ struct Rasterizer {
     struct Bitmap {
         Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
         
-        inline uint8_t *pixelAddress(short x, short y) { return data + rowBytes * (height - 1 - y) + x * bytespp; }
+        inline uint32_t *pixelAddress(short x, short y) { return (uint32_t *)(data + rowBytes * (height - 1 - y) + x * bytespp); }
         
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
@@ -237,14 +237,13 @@ struct Rasterizer {
         size_t maskRowBytes = device.ux - device.lx;
         size_t offset = maskRowBytes * (clipped.ly - device.ly) + (clipped.lx - device.lx);
         size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        uint32_t *pixelAddress = (uint32_t *)bitmap.pixelAddress(clipped.lx, clipped.ly);
-        writeMaskToBitmapSSE(mask + offset, maskRowBytes, w, h, bgra, pixelAddress, bitmap.rowBytes);
+        writeMaskToBitmapSSE(mask + offset, maskRowBytes, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
     }
     
     static void writeSpansToBitmap(std::vector<Span>& spans, uint32_t color, Bitmap bitmap) {
         Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         float lx, ux;
-        uint8_t *addr;
+        uint32_t *pixelAddress;
         for (Span& span : spans) {
             if (span.y >= clipBounds.ly && span.y < clipBounds.uy) {
                 lx = span.x, ux = lx + (span.w > 0 ? span.w : 1);
@@ -252,11 +251,11 @@ struct Rasterizer {
                 ux = ux < clipBounds.lx ? clipBounds.lx : ux > clipBounds.ux ? clipBounds.ux : ux;
                 
                 if (lx != ux) {
-                    addr = bitmap.pixelAddress(lx, span.y);
+                    pixelAddress = bitmap.pixelAddress(lx, span.y);
                     if (span.w > 0)
-                        memset_pattern4(addr, & color, (ux - lx) * bitmap.bytespp);
+                        memset_pattern4(pixelAddress, & color, (ux - lx) * bitmap.bytespp);
                     else
-                        memset_pattern4(addr, &color, bitmap.bytespp);
+                        memset_pattern4(pixelAddress, &color, bitmap.bytespp);
                 }
             }
         }
