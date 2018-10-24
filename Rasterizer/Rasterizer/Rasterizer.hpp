@@ -251,8 +251,8 @@ struct Rasterizer {
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
                 AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                float scale = sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
-                float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, mx = (bounds.lx + bounds.ux) * 0.5, my = (bounds.ly + bounds.uy) * 0.5, e = 2e-3 / scale;
+                float e = 2e-3 / sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
+                float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, mx = (bounds.lx + bounds.ux) * 0.5, my = (bounds.ly + bounds.uy) * 0.5;
                 AffineTransform offset(1, 0, 0, 1, mx, my);
                 offset = offset.concat(AffineTransform(w / (w + e), 0, 0, h / (h + e), 0, 0));
                 offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
