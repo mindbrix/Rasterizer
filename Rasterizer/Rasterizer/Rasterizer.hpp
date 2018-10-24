@@ -32,6 +32,7 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
+        Bounds() {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         
         Bounds integral() { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }

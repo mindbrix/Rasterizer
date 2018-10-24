@@ -18,6 +18,8 @@
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
+@property(nonatomic) CGFloat dimension;
+@property(nonatomic) CGFloat phi;
 
 @end
 
@@ -58,13 +60,14 @@
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
     
-    CGFloat dimension = 24;
-    CGFloat phi = (sqrt(5) - 1) / 2;
-    CGRect rect = { 0, 0, dimension * phi, dimension * phi };
+    self.dimension = 24;
+    self.phi = (sqrt(5) - 1) / 2;
+    CGRect rect = { 0, 0, _dimension * _phi, _dimension * _phi };
     CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
     CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
+    
     CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("AppleSymbols"));
-    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension * phi, NULL, NULL);
+    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension * _phi, NULL, NULL);
     CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
     for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
 //        CGPathRef path = CGPathRetain(ellipsePath);
@@ -97,6 +100,31 @@
 
 - (void)drawRect:(NSRect)dirtyRect {}
 
+
+#pragma mark - NSFontManager
+
+- (void)changeFont:(id)sender {
+    for (CGPathRef path : _glyphCGPaths)
+        CFRelease(path);
+    _glyphCGPaths.resize(0), _glyphPaths.resize(0), _glyphBounds.resize(0);
+    NSFont *oldFont = [NSFont fontWithName:@"Times" size:14];
+    NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:oldFont];
+    CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)newFont.fontName);
+    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension * _phi, NULL, NULL);
+    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
+    for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
+        CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
+        if (path) {
+            _glyphCGPaths.emplace_back(path);
+            _glyphPaths.emplace_back();
+            CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
+            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetBoundingBox(path)));
+        }
+    }
+    CFRelease(cgFont);
+    CFRelease(ctFont);
+    [self redraw];
+}
 
 #pragma mark - Drawing
 
