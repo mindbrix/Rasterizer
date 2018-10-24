@@ -120,7 +120,7 @@ struct Rasterizer {
     };
     
     static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
-        float cover = 0;
+        float cover = 0, alpha;
         
         __m128 offset = _mm_setzero_ps(), sign_mask = _mm_set1_ps(-0.);
         __m128i shuffle_mask = _mm_set1_epi32(0x0c080400);
@@ -142,7 +142,8 @@ struct Rasterizer {
         _mm_store_ss(& cover, offset);
         while (w--) {
             cover += *deltas, *deltas++ = 0;
-            *mask++ = MIN(255, fabsf(cover));
+            alpha = fabsf(cover);
+            *mask++ = alpha < 255.f ? alpha : 255.f;
         }
     }
     
