@@ -173,6 +173,30 @@ struct Rasterizer {
             writeMaskRowSSE(deltas, w, mask);
     }
     
+    static void writeDeltasToSpans(float *deltas, Bounds device, std::vector<Span>& spans) {
+        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, sw;
+        float cover, alpha;
+        uint8_t a;
+        for (y = 0; y < h; y++) {
+            cover = sw = 0;
+            for (x = 0; x < w; x++, deltas++) {
+                cover += *deltas, *deltas = 0;
+                alpha = fabsf(cover);
+                a = alpha < 255.f ? alpha : 255.f;
+                
+                if (a > 254)
+                    sw++;
+                else {
+                    if (sw)
+                        spans.emplace_back(device.lx + x - sw, device.ly + y, sw), sw = 0;
+                    if (a > 0)
+                        spans.emplace_back(device.lx + x, device.ly + y, -a);
+                }
+            }
+            if (sw)
+                spans.emplace_back(device.lx + x - sw, device.ly + y, sw);
+        }
+    }
     static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
         uint32_t *dst;
         uint8_t *src, *components, *d;
@@ -287,8 +311,13 @@ struct Rasterizer {
                 offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
                 
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx);
-                writeDeltasToMask(context.deltas, device, context.mask);
-                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
+                
+                writeDeltasToSpans(context.deltas, device, context.spans);
+                writeSpansToBitmap(context.spans, bgra, context.bitmap);
+                context.spans.resize(0);
+                
+//                writeDeltasToMask(context.deltas, device, context.mask);
+//                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
                 writeBoundingBoxToSpans(clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
