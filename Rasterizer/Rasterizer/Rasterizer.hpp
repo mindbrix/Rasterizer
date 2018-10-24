@@ -62,17 +62,34 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
+    struct Scanline {
+        struct Delta {
+            Delta() {}
+            Delta(float x, float y, float delta) : x(x), y(y), delta(delta) {}
+            
+            inline bool operator< (const Delta& other) const { return x < other.x || (x == other.x && y < other.y); }
+            short x, y;
+            float delta;
+        };
+        Scanline() { empty(); }
+        
+        void empty() { delta0 = 0, deltas.resize(0); }
+        
+        float delta0;
+        std::vector<Delta> deltas;
+    };
     struct Span {
         Span() {}
         Span(float x, float y, float w) : x(x), y(y), w(w) {}
         short x, y, w;
     };
     struct Context {
-        Context(Bitmap bitmap) : bitmap(bitmap) { memset(deltas, 0, sizeof(deltas)); }
+        Context(Bitmap bitmap) : bitmap(bitmap) { memset(deltas, 0, sizeof(deltas)), scanlines.resize(bitmap.height); }
         
         Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
         uint8_t mask[kCellsDimension * kCellsDimension];
+        std::vector<Scanline> scanlines;
         std::vector<Span> spans;
     };
     struct Path {
@@ -260,11 +277,14 @@ struct Rasterizer {
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
-            } else
+            } else {
                 writeBoundingBoxToSpans(clipped, context.spans);
+                writeSpansToBitmap(context.spans, bgra, context.bitmap);
+                context.spans.resize(0);
+                for (Scanline& scanline : context.scanlines)
+                    scanline.empty();
+            }
         }
-        writeSpansToBitmap(context.spans, bgra, context.bitmap);
-        context.spans.resize(0);
     }
     
     static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride) {
