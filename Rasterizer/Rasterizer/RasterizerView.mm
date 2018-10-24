@@ -66,19 +66,8 @@
     CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
     CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
     
-    CGFontRef cgFont = CGFontCreateWithFontName(CFSTR("AppleSymbols"));
-    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension * _phi, NULL, NULL);
-    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
-    for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
-//        CGPathRef path = CGPathRetain(ellipsePath);
-        CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
-        if (path) {
-            _glyphCGPaths.emplace_back(path);
-            _glyphPaths.emplace_back();
-            CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
-            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetBoundingBox(path)));
-        }
-    }
+    [self writeGlyphGrid:@"AppleSymbols"];
+    
     Rasterizer::Path path0, path1;
     CocoaRasterizer::writeCGPathToPath(ellipsePath, path0);
     CGMutablePathRef mutablePath = CGPathCreateMutable();
@@ -88,8 +77,6 @@
     CGPathRelease(mutablePath);
     CGPathRelease(ellipsePath);
     CGPathRelease(rectPath);
-    CFRelease(cgFont);
-    CFRelease(ctFont);
     return self;
 }
 
@@ -104,25 +91,9 @@
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    for (CGPathRef path : _glyphCGPaths)
-        CFRelease(path);
-    _glyphCGPaths.resize(0), _glyphPaths.resize(0), _glyphBounds.resize(0);
     NSFont *oldFont = [NSFont fontWithName:@"Times" size:14];
     NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:oldFont];
-    CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)newFont.fontName);
-    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension * _phi, NULL, NULL);
-    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
-    for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
-        CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
-        if (path) {
-            _glyphCGPaths.emplace_back(path);
-            _glyphPaths.emplace_back();
-            CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
-            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetBoundingBox(path)));
-        }
-    }
-    CFRelease(cgFont);
-    CFRelease(ctFont);
+    [self writeGlyphGrid:newFont.fontName];
     [self redraw];
 }
 
@@ -136,6 +107,25 @@
     self.rasterizerLabel.stringValue = self.useRasterizer ? @"Rasterizer" : @"Core Graphics";
 }
 
+- (void)writeGlyphGrid:(NSString *)fontName {
+    for (CGPathRef path : _glyphCGPaths)
+        CFRelease(path);
+    _glyphCGPaths.resize(0), _glyphPaths.resize(0), _glyphBounds.resize(0);
+    CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
+    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension * _phi, NULL, NULL);
+    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
+    for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
+        CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
+        if (path) {
+            _glyphCGPaths.emplace_back(path);
+            _glyphPaths.emplace_back();
+            CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
+            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetBoundingBox(path)));
+        }
+    }
+    CFRelease(cgFont);
+    CFRelease(ctFont);
+}
 
 #pragma mark - NSResponder
 
