@@ -174,6 +174,9 @@ struct Rasterizer {
             writeMaskRowSSE(deltas, w, mask);
     }
     
+    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, std::vector<Span>& spans) {
+        
+    }
     static void writeDeltasToSpans(float *deltas, Bounds device, std::vector<Span>& spans) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, sw;
         float cover, alpha;
@@ -315,13 +318,19 @@ struct Rasterizer {
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
+                writePathToScanlines(path, ctm, context.scanlines, device, clipped);
+                writeScanlinesToSpans(context.scanlines, clipped, context.spans);
+                for (Scanline& scanline : context.scanlines)
+                    scanline.empty();
+                
                 writeBoundingBoxToSpans(clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
                 context.spans.resize(0);
-                for (Scanline& scanline : context.scanlines)
-                    scanline.empty();
             }
         }
+    }
+    
+    static void writePathToScanlines(Path& path, AffineTransform ctm, std::vector<Scanline>& scanlines, Bounds device, Bounds clipped) {
     }
     
     static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride) {
