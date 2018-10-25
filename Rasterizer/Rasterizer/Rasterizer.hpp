@@ -369,16 +369,16 @@ struct Rasterizer {
                 offset = offset.concat(AffineTransform(w / (w + e), 0, 0, h / (h + e), 0, 0));
                 offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
                 
-                memset(context.deltasMask, 0, sizeof(context.deltasMask));
-                
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask);
                 
-                writeDeltasToSpans(context.deltas, context.deltasMask, device, context.spans);
-                writeSpansToBitmap(context.spans, bgra, context.bitmap);
-                context.spans.resize(0);
-                
-//                writeDeltasToMask(context.deltas, device, context.mask);
-//                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
+                if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension / 64) {
+                    writeDeltasToMask(context.deltas, device, context.mask);
+                    writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
+                } else {
+                    writeDeltasToSpans(context.deltas, context.deltasMask, device, context.spans);
+                    writeSpansToBitmap(context.spans, bgra, context.bitmap);
+                    context.spans.resize(0);
+                }
             } else {
                 writePathToScanlines(path, ctm, context.scanlines, device, clipped);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spans);
