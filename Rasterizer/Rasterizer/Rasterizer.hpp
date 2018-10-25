@@ -135,7 +135,7 @@ struct Rasterizer {
         
         Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
-        uint8_t deltasMask[kCellsDimension * kCellsDimension / 64];
+        uint8_t deltasMask[kCellsDimension * kCellsDimension / 8];
         uint8_t mask[kCellsDimension * kCellsDimension];
         std::vector<Scanline> scanlines;
         std::vector<Span> spans;
@@ -206,57 +206,53 @@ struct Rasterizer {
     }
     
     static void writeDeltasToSpans(float *deltas, uint8_t *deltasMask, Bounds device, std::vector<Span>& spans) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, sw, row;
+        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, step = 1, sw;
         float cover, alpha, *delta;
         uint8_t a, bitmask = 1, *mask = deltasMask;
-        for (row = y = 0; y < h; y++, row += w) {
+        for (i = y = 0; y < h; y++) {
             cover = sw = a = 0;
-            for (x = 0; x < w; x++) {
-                i = row + x;
-                if ((i & 0x3F) == 0) {
-                    if (i > 64 && *mask)
-                        *mask = 0;
-                    bitmask = 1, mask = deltasMask + i / 64;
-                    if (*mask == 0) {
-                        if (a > 254)
-                            sw += 64;
-                        else if (a > 0)
-                            for (j = 0; j < 64; j++)
-                                spans.emplace_back(device.lx + x + j, device.ly + y, -a);
-                        x += 63;
-                        continue;
+            for (x = 0; x < w; x += step, i += step, bitmask = bitmask << 1) {
+                step = 1;
+                if ((i & 0x7) == 0)
+                    bitmask = 1, mask = deltasMask + i / 8;
+                    
+                if (bitmask == 1 && *mask == 0) {
+                    if (a > 254)
+                        sw += 8;
+                    else if (a > 0) {
+                        for (j = 0; j < 8; j++)
+                            spans.emplace_back(device.lx + x + j, device.ly + y, -a);
                     }
-                }
-                if ((i & 0x7) == 0) {
-                    if ((*mask & bitmask) == 0) {
+                    step = x + 8 < w ? 8 : w - x;
+                } else {
+                    if (*mask & bitmask) {
+                        delta = deltas + i;
+                        cover += *delta, *delta = 0;
+                        alpha = fabsf(cover);
+                        a = alpha < 255.f ? alpha : 255.f;
+                        
                         if (a > 254)
-                            sw += 8;
+                            sw++;
+                        else {
+                            if (sw)
+                                spans.emplace_back(device.lx + x - sw, device.ly + y, sw), sw = 0;
+                            if (a > 0)
+                                spans.emplace_back(device.lx + x, device.ly + y, -a);
+                        }
+                        *mask &= ~bitmask;
+                    } else {
+                        if (a > 254)
+                            sw++;
                         else if (a > 0)
-                            for (j = 0; j < 8; j++)
-                                spans.emplace_back(device.lx + x + j, device.ly + y, -a);
-                        x += 7;
-                        bitmask = bitmask << 1;
-                        continue;
+                            spans.emplace_back(device.lx + x, device.ly + y, -a);
                     }
-                }
-                delta = deltas + row + x;
-                cover += *delta, *delta = 0;
-                alpha = fabsf(cover);
-                a = alpha < 255.f ? alpha : 255.f;
-                
-                if (a > 254)
-                    sw++;
-                else {
-                    if (sw)
-                        spans.emplace_back(device.lx + x - sw, device.ly + y, sw), sw = 0;
-                    if (a > 0)
-                        spans.emplace_back(device.lx + x, device.ly + y, -a);
                 }
             }
             if (sw)
                 spans.emplace_back(device.lx + x - sw, device.ly + y, sw);
         }
     }
+    
     static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
         uint32_t *dst;
         uint8_t *src, *components, *d;
@@ -523,12 +519,12 @@ struct Rasterizer {
                 last = alpha;
                 
                 i = delta - deltas;
-                deltasMask[i / 64] |= uint8_t(1) << ((i % 64) / 8);
+                deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
             }
             if (ix0 < stride) {
                 *delta += total - last;
                 i = delta - deltas;
-                deltasMask[i / 64] |= uint8_t(1) << ((i % 64) / 8);
+                deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
             }
         }
     }
