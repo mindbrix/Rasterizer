@@ -125,6 +125,10 @@
 
 #pragma mark - IBOutlet
 
+- (IBAction)resetCTM:(id)sender {
+    self.CTM = CGAffineTransformIdentity;
+}
+
 - (IBAction)toggleRasterizer:(id)sender {
     self.useRasterizer = !self.useRasterizer;
     [self updateRasterizerLabel];

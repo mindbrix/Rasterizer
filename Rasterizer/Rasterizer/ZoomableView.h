@@ -11,6 +11,6 @@
 
 @interface ZoomableView : NSView
 
-@property(nonatomic, readonly) CGAffineTransform CTM;
+@property(nonatomic) CGAffineTransform CTM;
 
 @end

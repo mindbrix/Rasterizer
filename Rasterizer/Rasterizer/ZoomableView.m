@@ -75,4 +75,9 @@
     return self.transform.affineTransform;
 }
 
+- (void)setCTM:(CGAffineTransform)CTM {
+    self.transform = [[VGAffineTransform alloc] initWithTransform:CTM];
+    [self redraw];
+}
+
 @end
