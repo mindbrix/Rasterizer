@@ -139,7 +139,7 @@
     CGContextConcatCTM(ctx, CGAffineTransformMake(1, 0, 0, 1, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     size_t square = ceilf(sqrtf(float(_glyphPaths.size())));
-    float lx, ly, wh = float(_dimension) * _phi;
+    float tx, ty;
     
     if (self.useRasterizer) {
         uint8_t black[4] = { 0, 0, 0, 255 };
@@ -151,17 +151,15 @@
         
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            lx = (i % square) * _dimension, ly = (i / square) * _dimension;
-            Rasterizer::Bounds bounds = Rasterizer::Bounds(lx, ly, lx + wh, ly + wh);
-            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)), bgra, context);
+            tx = (i % square) * _dimension - glyphBounds.lx, ty = (i / square) * _dimension - glyphBounds.ly;
+            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, context);
         }
     } else {
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            lx = (i % square) * _dimension, ly = (i / square) * _dimension;
-            Rasterizer::Bounds bounds = Rasterizer::Bounds(lx, ly, lx + wh, ly + wh);
+            tx = (i % square) * _dimension - glyphBounds.lx, ty = (i / square) * _dimension - glyphBounds.ly;
             CGContextSaveGState(ctx);
-            CGContextTranslateCTM(ctx, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly);
+            CGContextTranslateCTM(ctx, tx, ty);
             CGContextAddPath(ctx, _glyphCGPaths[i]);
             CGContextFillPath(ctx);
             CGContextRestoreGState(ctx);
