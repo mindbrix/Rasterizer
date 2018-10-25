@@ -237,8 +237,9 @@ struct Rasterizer {
                         bitmask = bitmask << 1;
                         continue;
                     }
-                    *mask &= ~bitmask;
                     bitmask = bitmask << 1;
+                    if (bitmask == 0)
+                        *mask = 0;
                 }
                 cover += deltasRow[x], deltasRow[x] = 0;
                 alpha = fabsf(cover);
