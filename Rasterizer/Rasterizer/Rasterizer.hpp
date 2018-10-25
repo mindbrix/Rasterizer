@@ -175,8 +175,35 @@ struct Rasterizer {
     }
     
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, std::vector<Span>& spans) {
-        
+        float x, y, cover, alpha;
+        uint8_t a;
+        for (y = clipped.ly; y < clipped.uy; y++) {
+            Scanline& scanline = scanlines[y];
+            
+            if (scanline.deltas.size() == 0) {
+                if (scanline.delta0)
+                    spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
+            } else {
+                cover = scanline.delta0;
+                x = scanline.deltas[0].x;
+                for (Scanline::Delta& delta : scanline.deltas) {
+                    if (delta.x != x) {
+                        alpha = fabsf(cover);
+                        a = alpha < 255.f ? alpha : 255.f;
+                        
+                        if (a > 254)
+                            spans.emplace_back(x, y, delta.x - x);
+                        else if (a > 0)
+                            spans.emplace_back(x, y, -a);
+                        
+                        x = delta.x;
+                    }
+                    cover += delta.delta;
+                }
+            }
+        }
     }
+    
     static void writeDeltasToSpans(float *deltas, Bounds device, std::vector<Span>& spans) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, sw;
         float cover, alpha;
