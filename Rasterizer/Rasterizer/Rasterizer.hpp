@@ -208,24 +208,25 @@ struct Rasterizer {
     static void writeDeltasToSpans(float *deltas, uint8_t *deltasMask, Bounds device, std::vector<Span>& spans) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, sw;
         float cover, alpha, *deltasRow = deltas;
-        uint8_t a, bitmask, *mask;
+        uint8_t a, bitmask = 1, *mask = deltasMask;
         for (y = 0; y < h; y++, deltasRow += w) {
             cover = sw = a = 0;
             for (x = 0; x < w; x++) {
                 i = y * w + x;
-    
-                if (i % 64 == 0 && deltasMask[i / 64] == 0) {
-                    if (a > 254)
-                        sw += 64;
-                    else if (a > 0)
-                        for (j = 0; j < 64; j++)
-                            spans.emplace_back(device.lx + x + j, device.ly + y, -a);
-                    x += 63;
-                    continue;
+                
+                if ((i & 0x3F) == 0) {
+                    bitmask = 1, mask = deltasMask + i / 64;
+                    if (*mask == 0) {
+                        if (a > 254)
+                            sw += 64;
+                        else if (a > 0)
+                            for (j = 0; j < 64; j++)
+                                spans.emplace_back(device.lx + x + j, device.ly + y, -a);
+                        x += 63;
+                        continue;
+                    }
                 }
-                if (i % 8 == 0) {
-                    bitmask = uint8_t(1) << ((i % 64) / 8);
-                    mask = deltasMask + i / 64;
+                if ((i & 0x7) == 0) {
                     if ((*mask & bitmask) == 0) {
                         if (a > 254)
                             sw += 8;
@@ -233,9 +234,11 @@ struct Rasterizer {
                             for (j = 0; j < 8; j++)
                                 spans.emplace_back(device.lx + x + j, device.ly + y, -a);
                         x += 7;
+                        bitmask = bitmask << 1;
                         continue;
                     }
                     *mask &= ~bitmask;
+                    bitmask = bitmask << 1;
                 }
                 cover += deltasRow[x], deltasRow[x] = 0;
                 alpha = fabsf(cover);
