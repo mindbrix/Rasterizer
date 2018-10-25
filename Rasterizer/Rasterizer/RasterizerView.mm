@@ -138,31 +138,34 @@
     CGContextConcatCTM(ctx, self.CTM);
     CGContextConcatCTM(ctx, CGAffineTransformMake(1, 0, 0, 1, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
+    Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
+    Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
+    Rasterizer::Context context(bitmap);
     size_t square = ceilf(sqrtf(float(_glyphPaths.size())));
     float tx, ty;
     
     if (self.useRasterizer) {
         uint8_t black[4] = { 0, 0, 0, 255 };
         uint32_t bgra = *((uint32_t *)black);
-        
-        Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
-        Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-        Rasterizer::Context context(bitmap);
-        
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             tx = (i % square) * _dimension - glyphBounds.lx, ty = (i / square) * _dimension - glyphBounds.ly;
             Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, context);
         }
     } else {
+        Rasterizer::Bounds clipBounds(0, 0, context.bitmap.width, context.bitmap.height);
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             tx = (i % square) * _dimension - glyphBounds.lx, ty = (i / square) * _dimension - glyphBounds.ly;
-            CGContextSaveGState(ctx);
-            CGContextTranslateCTM(ctx, tx, ty);
-            CGContextAddPath(ctx, _glyphCGPaths[i]);
-            CGContextFillPath(ctx);
-            CGContextRestoreGState(ctx);
+            Rasterizer::Bounds device = glyphBounds.transform(ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty))).integral();
+            Rasterizer::Bounds clipped = device.intersected(clipBounds);
+            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+                CGContextSaveGState(ctx);
+                CGContextTranslateCTM(ctx, tx, ty);
+                CGContextAddPath(ctx, _glyphCGPaths[i]);
+                CGContextFillPath(ctx);
+                CGContextRestoreGState(ctx);
+            }
         }
     }
 }
