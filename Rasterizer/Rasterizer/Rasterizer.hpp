@@ -207,7 +207,7 @@ struct Rasterizer {
     
     static void writeDeltasToSpans(float *deltas, uint8_t *deltasMask, Bounds device, std::vector<Span>& spans) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, sw;
-        float cover, alpha, *deltasRow = deltas;
+        float cover, alpha, *deltasRow = deltas, *delta;
         uint8_t a, bitmask = 1, *mask = deltasMask;
         for (y = 0; y < h; y++, deltasRow += w) {
             cover = sw = a = 0;
@@ -215,6 +215,8 @@ struct Rasterizer {
                 i = y * w + x;
                 
                 if ((i & 0x3F) == 0) {
+                    if (i > 64 && *mask)
+                        *mask = 0;
                     bitmask = 1, mask = deltasMask + i / 64;
                     if (*mask == 0) {
                         if (a > 254)
@@ -237,11 +239,9 @@ struct Rasterizer {
                         bitmask = bitmask << 1;
                         continue;
                     }
-                    bitmask = bitmask << 1;
-                    if (bitmask == 0)
-                        *mask = 0;
                 }
-                cover += deltasRow[x], deltasRow[x] = 0;
+                delta = deltasRow + x;
+                cover += *delta, *delta = 0;
                 alpha = fabsf(cover);
                 a = alpha < 255.f ? alpha : 255.f;
                 
