@@ -13,7 +13,6 @@
 
 @interface RasterizerView () <CALayerDelegate>
 
-@property(nonatomic) NSData *gridBoundingBoxesBacking;
 @property(nonatomic) BOOL useRasterizer;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
@@ -25,21 +24,6 @@
 
 
 @implementation RasterizerView
-
-+ (NSData *)createGridBoundingBoxes:(size_t)count cellSize:(size_t)cellSize {
-    NSMutableData *backing = [NSMutableData dataWithLength:count * sizeof(Rasterizer::Bounds)];
-    Rasterizer::Bounds *bounds = (Rasterizer::Bounds *)backing.bytes;
-    CGFloat phi = (sqrt(5) - 1) / 2;
-    CGFloat wh = CGFloat(cellSize) * phi;
-    size_t dimension = ceil(sqrt(CGFloat(count)));
-    float lx, ly;
-    for (size_t i = 0; i < count; i++) {
-        lx = (i % dimension) * cellSize, ly = (i / dimension) * cellSize;
-        bounds[i] = Rasterizer::Bounds(lx, ly, lx + wh, ly + wh);
-    }
-    return [NSData dataWithData:backing];
-}
-
 
 #pragma mark - NSView
 
@@ -58,10 +42,9 @@
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    self.gridBoundingBoxesBacking = [self.class createGridBoundingBoxes:10000 cellSize:24];
-    
     self.dimension = 24;
     self.phi = (sqrt(5) - 1) / 2;
+    
     CGRect rect = { 0, 0, _dimension * _phi, _dimension * _phi };
     CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
     CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
@@ -152,11 +135,11 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    size_t count = self.gridBoundingBoxesBacking.length / sizeof(Rasterizer::Bounds);
-    Rasterizer::Bounds *boundingBoxes = (Rasterizer::Bounds *)self.gridBoundingBoxesBacking.bytes;
     CGContextConcatCTM(ctx, self.CTM);
     CGContextConcatCTM(ctx, CGAffineTransformMake(1, 0, 0, 1, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
+    size_t square = ceilf(sqrtf(float(_glyphPaths.size())));
+    float lx, ly, wh = float(_dimension) * _phi;
     
     if (self.useRasterizer) {
         uint8_t black[4] = { 0, 0, 0, 255 };
@@ -165,15 +148,18 @@
         Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
         Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
         Rasterizer::Context context(bitmap);
-        for (size_t i = 0; i < _glyphPaths.size() && i < count; i++) {
+        
+        for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            Rasterizer::Bounds bounds = boundingBoxes[i];
+            lx = (i % square) * _dimension, ly = (i / square) * _dimension;
+            Rasterizer::Bounds bounds = Rasterizer::Bounds(lx, ly, lx + wh, ly + wh);
             Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly)), bgra, context);
         }
     } else {
-        for (size_t i = 0; i < _glyphPaths.size() && i < count; i++) {
+        for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            Rasterizer::Bounds bounds = boundingBoxes[i];
+            lx = (i % square) * _dimension, ly = (i / square) * _dimension;
+            Rasterizer::Bounds bounds = Rasterizer::Bounds(lx, ly, lx + wh, ly + wh);
             CGContextSaveGState(ctx);
             CGContextTranslateCTM(ctx, bounds.lx - glyphBounds.lx, bounds.ly - glyphBounds.ly);
             CGContextAddPath(ctx, _glyphCGPaths[i]);
