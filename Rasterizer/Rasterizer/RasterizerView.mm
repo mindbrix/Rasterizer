@@ -77,6 +77,7 @@
     NSFont *oldFont = [NSFont fontWithName:@"Times" size:14];
     NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:oldFont];
     [self writeGlyphGrid:newFont.fontName];
+    [self resetCTM:nil];
     [self redraw];
 }
 
