@@ -212,8 +212,8 @@ struct Rasterizer {
         for (y = 0; y < h; y++, deltasRow += w) {
             cover = sw = a = 0;
             for (x = 0; x < w; x++) {
-                i = deltasRow - deltas + x;
-                
+                i = y * w + x;
+    
                 if (i % 64 == 0 && deltasMask[i / 64] == 0) {
                     if (a > 254)
                         sw += 64;
