@@ -232,13 +232,11 @@ struct Rasterizer {
                         else if (a > 0)
                             for (j = 0; j < 8; j++)
                                 spans.emplace_back(device.lx + x + j, device.ly + y, -a);
-                        
                         x += 7;
                         continue;
                     }
                     *mask &= ~bitmask;
                 }
-            
                 cover += deltasRow[x], deltasRow[x] = 0;
                 alpha = fabsf(cover);
                 a = alpha < 255.f ? alpha : 255.f;
