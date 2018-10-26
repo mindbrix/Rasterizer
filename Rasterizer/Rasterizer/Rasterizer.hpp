@@ -342,9 +342,6 @@ struct Rasterizer {
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
                 context.spans.resize(0);
-//                writeBoundingBoxToSpans(clipped, context.spans);
-//                writeSpansToBitmap(context.spans, bgra, context.bitmap);
-//                context.spans.resize(0);
             }
         }
     }
@@ -485,10 +482,5 @@ struct Rasterizer {
                     *delta += total - last;
             }
         }
-    }
-    
-    static void writeBoundingBoxToSpans(Bounds bounds, std::vector<Span>& spans) {
-        for (float y = bounds.ly; y < bounds.uy; y++)
-            spans.emplace_back(bounds.lx, y, bounds.ux - bounds.lx);
     }
 };
