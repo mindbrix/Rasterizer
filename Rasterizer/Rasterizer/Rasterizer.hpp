@@ -338,7 +338,7 @@ struct Rasterizer {
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else if ((device.uy - device.ly) < context.bitmap.height) {
-                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, &context.scanlines[0]);
+                writePathToDeltas(path, deltasCTM.concat(offset), nullptr, 0, &context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
                 context.spans.resize(0);
