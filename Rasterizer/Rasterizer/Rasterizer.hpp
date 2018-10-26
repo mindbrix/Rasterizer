@@ -136,8 +136,8 @@ struct Rasterizer {
         
         void setBitmap(Bitmap bitmap) {
             this->bitmap = bitmap;
-            scanlines.resize(0);
-            scanlines.resize(bitmap.height);
+            if (scanlines.size() != bitmap.height)
+                scanlines.resize(bitmap.height);
         }
         Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
