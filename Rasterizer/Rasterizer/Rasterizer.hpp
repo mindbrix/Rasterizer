@@ -334,11 +334,11 @@ struct Rasterizer {
             offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
             
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
-                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, nullptr);
+                writePathToDeltasOrScanlines(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, nullptr);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else if ((device.uy - device.ly) < context.bitmap.height) {
-                writePathToDeltas(path, deltasCTM.concat(offset), nullptr, 0, &context.scanlines[0]);
+                writePathToDeltasOrScanlines(path, deltasCTM.concat(offset), nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
                 context.spans.resize(0);
@@ -346,7 +346,7 @@ struct Rasterizer {
         }
     }
     
-    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
