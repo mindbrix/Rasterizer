@@ -188,18 +188,18 @@ struct Rasterizer {
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Span>& spans) {
         float x, y, ix, cover, alpha;
         uint8_t a;
+        Scanline *scanline = & scanlines[clipped.ly - device.ly];
         Scanline::Delta *begin, *end, *delta;
-        for (y = clipped.ly; y < clipped.uy; y++) {
-            Scanline& scanline = scanlines[y - device.ly];
-            begin = & scanline.deltas[0], end = & scanline.deltas[scanline.idx];
+        for (y = clipped.ly; y < clipped.uy; y++, scanline++) {
+            begin = & scanline->deltas[0], end = & scanline->deltas[scanline->idx];
             std::sort(begin, end);
             
-            if (scanline.idx == 0) {
-//                if (scanline.delta0)
-//                    spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
+            if (scanline->idx == 0) {
+                if (scanline->delta0)
+                    spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
             } else {
-                cover = scanline.delta0;
-                x = scanline.deltas[0].x;
+                cover = scanline->delta0;
+                x = scanline->deltas[0].x;
                 for (delta = begin; delta < end; delta++) {
                     if (delta->x != x) {
                         alpha = fabsf(cover);
@@ -216,6 +216,9 @@ struct Rasterizer {
                 }
             }
         }
+        scanline = & scanlines[0];
+        for (y = device.ly; y < device.uy; y++, scanline++)
+            scanline->empty();
     }
     
     static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
@@ -337,8 +340,6 @@ struct Rasterizer {
             } else if ((device.uy - device.ly) < context.bitmap.height) {
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, &context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
-                for (Scanline& scanline : context.scanlines)
-                    scanline.empty();
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
                 context.spans.resize(0);
 //                writeBoundingBoxToSpans(clipped, context.spans);
