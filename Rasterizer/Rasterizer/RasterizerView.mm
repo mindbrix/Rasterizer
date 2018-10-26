@@ -105,7 +105,7 @@
             _glyphCGPaths.emplace_back(path);
             _glyphPaths.emplace_back();
             CocoaRasterizer::writeCGPathToPath(path, _glyphPaths.back());
-            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetBoundingBox(path)));
+            _glyphBounds.emplace_back(CocoaRasterizer::boundsFromCGRect(CGPathGetPathBoundingBox(path)));
         }
     }
     CFRelease(cgFont);
