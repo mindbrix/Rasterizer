@@ -216,8 +216,7 @@ struct Rasterizer {
                 }
             }
         }
-        scanline = & scanlines[0];
-        for (y = device.ly; y < device.uy; y++, scanline++)
+        for (scanline = & scanlines[0], y = device.ly; y < device.uy; y++, scanline++)
             scanline->empty();
     }
     
