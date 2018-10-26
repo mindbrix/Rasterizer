@@ -13,6 +13,7 @@
 
 @interface RasterizerView () <CALayerDelegate>
 
+@property(nonatomic) Rasterizer::Context context;
 @property(nonatomic) BOOL useRasterizer;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
@@ -146,8 +147,7 @@
     CGContextConcatCTM(ctx, CGAffineTransformMake(scale, 0, 0, scale, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
-    Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    Rasterizer::Context context(bitmap);
+    _context.bitmap = Rasterizer::Bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     float tx, ty;
     
     if (self.useRasterizer) {
@@ -156,10 +156,10 @@
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             tx = (i % square) * _dimension - glyphBounds.lx, ty = (i / square) * _dimension - glyphBounds.ly;
-            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, context);
+            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, _context);
         }
     } else {
-        Rasterizer::Bounds clipBounds(0, 0, context.bitmap.width, context.bitmap.height);
+        Rasterizer::Bounds clipBounds(0, 0, _context.bitmap.width, _context.bitmap.height);
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             tx = (i % square) * _dimension - glyphBounds.lx, ty = (i / square) * _dimension - glyphBounds.ly;
