@@ -319,6 +319,7 @@ struct Rasterizer {
                 }
             }
         }
+        spans.resize(0);
     }
     
     static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
@@ -341,7 +342,6 @@ struct Rasterizer {
                 writePathToDeltasOrScanlines(path, deltasCTM.concat(offset), nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
-                context.spans.resize(0);
             }
         }
     }
