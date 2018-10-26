@@ -244,8 +244,7 @@ struct Rasterizer {
                     }
                 }
                 if (written) {
-                    for (x = x0; x < x1; x++) {
-                        delta = deltas + i + x;
+                    for (delta = deltas + i + x0, x = x0; x < x1; x++, delta++) {
                         cover += *delta, *delta = 0;
                         alpha = fabsf(cover);
                         a = alpha < 255.f ? alpha : 255.f;
