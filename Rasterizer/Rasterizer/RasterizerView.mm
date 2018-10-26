@@ -45,22 +45,7 @@
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     self.dimension = 24;
     self.phi = (sqrt(5) - 1) / 2;
-    
-    CGRect rect = { 0, 0, _dimension * _phi, _dimension * _phi };
-    CGPathRef rectPath = CGPathCreateWithRect(rect, NULL);
-    CGPathRef ellipsePath = CGPathCreateWithEllipseInRect(rect, NULL);
-    
     [self writeGlyphGrid:@"AppleSymbols"];
-    
-    Rasterizer::Path path0, path1;
-    CocoaRasterizer::writeCGPathToPath(ellipsePath, path0);
-    CGMutablePathRef mutablePath = CGPathCreateMutable();
-    CocoaRasterizer::writePathToCGPath(path0, mutablePath);
-    CocoaRasterizer::writeCGPathToPath(mutablePath, path1);
-    assert(path0.atoms.size() == path1.atoms.size());
-    CGPathRelease(mutablePath);
-    CGPathRelease(ellipsePath);
-    CGPathRelease(rectPath);
     return self;
 }
 
