@@ -207,27 +207,42 @@ struct Rasterizer {
     }
     
     static void writeDeltasToSpans(float *deltas, uint8_t *deltasMask, Bounds device, std::vector<Span>& spans) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, step = 1, sw;
+        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, sw, x0, x1, idx;
         float cover, alpha, *delta;
         uint8_t a, bitmask = 1, *mask = deltasMask;
-        for (i = y = 0; y < h; y++) {
+        bool written, match;
+        for (i = y = 0; y < h; y++, i += w) {
             cover = sw = a = 0;
-            for (x = 0; x < w; x += step, i += step, bitmask = bitmask << 1) {
-                step = 1;
-                if ((i & 0x7) == 0)
-                    bitmask = 1, mask = deltasMask + i / 8;
-                    
-                if (bitmask == 1 && *mask == 0) {
-                    if (a > 254)
-                        sw += 8;
-                    else if (a > 0) {
-                        for (j = 0; j < 8; j++)
-                            spans.emplace_back(device.lx + x + j, device.ly + y, -a);
+            
+            x1 = 0;
+            do {
+                x0 = x1;
+                idx = i + x0;
+                bitmask = uint8_t(1) << (idx & 0x7);
+                mask = deltasMask + idx / 8;
+                written = *mask & bitmask;
+                if (written)
+                    *mask &= ~bitmask;
+                
+                match = true;
+                while (x1 < w && match) {
+                    x1++;
+                    if (x1 == w)
+                        break;
+                    idx = i + x1;
+                    mask = deltasMask + idx / 8;
+                    if ((idx & 0x7) == 0 && *mask == 0) {
+                        x1 += 7;
+                    } else {
+                        bitmask = uint8_t(1) << (idx & 0x7);
+                        match = bool(*mask & bitmask) == written;
+                        if (written && match)
+                            *mask &= ~bitmask;
                     }
-                    step = x + 8 < w ? 8 : w - x;
-                } else {
-                    if (*mask & bitmask) {
-                        delta = deltas + i;
+                }
+                if (written) {
+                    for (x = x0; x < x1; x++) {
+                        delta = deltas + i + x;
                         cover += *delta, *delta = 0;
                         alpha = fabsf(cover);
                         a = alpha < 255.f ? alpha : 255.f;
@@ -240,17 +255,17 @@ struct Rasterizer {
                             if (a > 0)
                                 spans.emplace_back(device.lx + x, device.ly + y, -a);
                         }
-                        *mask &= ~bitmask;
-                    } else {
-                        if (a > 254)
-                            sw++;
-                        else if (a > 0)
-                            spans.emplace_back(device.lx + x, device.ly + y, -a);
+                    }
+                } else {
+                    if (a > 254)
+                        sw += x1 - x0;
+                    else {
+                        if (a > 0)
+                            for (j = x0; j < x1; j++)
+                                spans.emplace_back(device.lx + j, device.ly + y, -a);
                     }
                 }
-            }
-            if (sw)
-                spans.emplace_back(device.lx + x - sw, device.ly + y, sw);
+            } while (x1 < w);
         }
     }
     
