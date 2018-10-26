@@ -121,9 +121,14 @@ struct Rasterizer {
         };
         Scanline() { empty(); }
         
-        void empty() { delta0 = 0, deltas.resize(0); }
-        
+        void empty() { delta0 = idx = 0; }
+        inline Delta *alloc() {
+            if (idx >= deltas.size())
+                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5);
+            return & deltas[idx++];
+        }
         float delta0;
+        size_t idx;
         std::vector<Delta> deltas;
     };
     struct Span {
@@ -183,30 +188,31 @@ struct Rasterizer {
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Span>& spans) {
         float x, y, ix, cover, alpha;
         uint8_t a;
+        Scanline::Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++) {
             Scanline& scanline = scanlines[y - device.ly];
-            std::sort(scanline.deltas.begin(), scanline.deltas.end());
+            begin = & scanline.deltas[0], end = & scanline.deltas[scanline.idx];
+            std::sort(begin, end);
             
-            if (scanline.deltas.size() == 0) {
+            if (scanline.idx == 0) {
 //                if (scanline.delta0)
 //                    spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
             } else {
                 cover = scanline.delta0;
                 x = scanline.deltas[0].x;
-                for (Scanline::Delta& delta : scanline.deltas) {
-                    if (delta.x != x) {
+                for (delta = begin; delta < end; delta++) {
+                    if (delta->x != x) {
                         alpha = fabsf(cover);
                         a = alpha < 255.f ? alpha : 255.f;
                         
                         if (a > 254)
-                            spans.emplace_back(device.lx + x, y, delta.x - x);
+                            spans.emplace_back(device.lx + x, y, delta->x - x);
                         else if (a > 0)
-                            for (ix = x; ix < delta.x; ix++)
+                            for (ix = x; ix < delta->x; ix++)
                                 spans.emplace_back(device.lx + ix, y, -a);
-                        
-                        x = delta.x;
+                        x = delta->x;
                     }
-                    cover += delta.delta;
+                    cover += delta->delta;
                 }
             }
         }
@@ -469,13 +475,13 @@ struct Rasterizer {
                 alpha = total + cover * area;
                 total += cover;
                 if (scanlines)
-                    scanline->deltas.emplace_back(ix0, iy0, alpha - last);
+                    new (scanline->alloc()) Scanline::Delta(ix0, iy0, alpha - last);
                 else
                     *delta += alpha - last;
                 last = alpha;
             }
             if (scanlines)
-                scanline->deltas.emplace_back(ix0, iy0, total - last);
+                new (scanline->alloc()) Scanline::Delta(ix0, iy0, total - last);
             else {
                 if (ix0 < stride)
                     *delta += total - last;
