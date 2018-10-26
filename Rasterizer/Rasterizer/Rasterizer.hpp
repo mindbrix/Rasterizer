@@ -231,7 +231,10 @@ struct Rasterizer {
                         break;
                     idx = i + x1;
                     mask = deltasMask + idx / 8;
-                    if ((idx & 0x7) == 0 && *mask == 0) {
+                    
+                    if ((idx & 0x1F) == 0 && *((uint32_t *)mask) == 0) {
+                        x1 += 31;
+                    } else if ((idx & 0x7) == 0 && *mask == 0) {
                         x1 += 7;
                     } else {
                         bitmask = uint8_t(1) << (idx & 0x7);
