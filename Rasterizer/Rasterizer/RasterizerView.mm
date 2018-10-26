@@ -60,8 +60,7 @@
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    NSFont *oldFont = [NSFont fontWithName:@"Times" size:14];
-    NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:oldFont];
+    NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
     [self writeGlyphGrid:newFont.fontName];
     [self resetCTM:nil];
     [self redraw];
