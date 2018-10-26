@@ -13,7 +13,7 @@
 
 
 struct Rasterizer {
-    static const size_t kCellsDimension = 1024;
+    static const size_t kCellsDimension = 256;
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
@@ -132,8 +132,13 @@ struct Rasterizer {
         short x, y, w;
     };
     struct Context {
-        Context() { memset(deltas, 0, sizeof(deltas)), memset(deltasMask, 0, sizeof(deltasMask)), scanlines.resize(bitmap.height); }
+        Context() { memset(deltas, 0, sizeof(deltas)), memset(deltasMask, 0, sizeof(deltasMask)); }
         
+        void setBitmap(Bitmap bitmap) {
+            this->bitmap = bitmap;
+            scanlines.resize(0);
+            scanlines.resize(bitmap.height);
+        }
         Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
         uint8_t deltasMask[kCellsDimension * kCellsDimension / 8];
@@ -176,11 +181,12 @@ struct Rasterizer {
             writeMaskRowSSE(deltas, w, mask);
     }
     
-    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, std::vector<Span>& spans) {
+    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Span>& spans) {
         float x, y, cover, alpha;
         uint8_t a;
         for (y = clipped.ly; y < clipped.uy; y++) {
             Scanline& scanline = scanlines[y];
+            std::sort(scanline.deltas.begin(), scanline.deltas.end());
             
             if (scanline.deltas.size() == 0) {
                 if (scanline.delta0)
@@ -194,9 +200,9 @@ struct Rasterizer {
                         a = alpha < 255.f ? alpha : 255.f;
                         
                         if (a > 254)
-                            spans.emplace_back(x, y, delta.x - x);
+                            spans.emplace_back(device.lx + x, y, delta.x - x);
                         else if (a > 0)
-                            spans.emplace_back(x, y, -a);
+                            spans.emplace_back(device.lx + x, y, -a);
                         
                         x = delta.x;
                     }
@@ -376,33 +382,29 @@ struct Rasterizer {
         Bounds device = bounds.transform(ctm).integral();
         Bounds clipped = device.intersected(clipBounds);
         if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+            AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
+            float e = 2e-3 / sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
+            float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, mx = (bounds.lx + bounds.ux) * 0.5, my = (bounds.ly + bounds.uy) * 0.5;
+            AffineTransform offset(1, 0, 0, 1, mx, my);
+            offset = offset.concat(AffineTransform(w / (w + e), 0, 0, h / (h + e), 0, 0));
+            offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
+            
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
-                AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
-                float e = 2e-3 / sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
-                float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, mx = (bounds.lx + bounds.ux) * 0.5, my = (bounds.ly + bounds.uy) * 0.5;
-                AffineTransform offset(1, 0, 0, 1, mx, my);
-                offset = offset.concat(AffineTransform(w / (w + e), 0, 0, h / (h + e), 0, 0));
-                offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
-                
-                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, &context.scanlines[0]);
-                
-                if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension / 64) {
-                    writeDeltasToMask(context.deltas, device, context.mask);
-                    writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
-                } else {
-                    writeDeltasToSpans(context.deltas, context.deltasMask, device, context.spans);
-                    writeSpansToBitmap(context.spans, bgra, context.bitmap);
-                    context.spans.resize(0);
-                }
+                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, nullptr);
+                writeDeltasToMask(context.deltas, device, context.mask);
+                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
-//                writePathToScanlines(path, ctm, context.scanlines, device, clipped);
-//                writeScanlinesToSpans(context.scanlines, clipped, context.spans);
-//                for (Scanline& scanline : context.scanlines)
-//                    scanline.empty();
-                
-                writeBoundingBoxToSpans(clipped, context.spans);
+                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, &context.scanlines[0]);
+                writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
+                for (Scanline& scanline : context.scanlines)
+                    scanline.empty();
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
                 context.spans.resize(0);
+//                writeBoundingBoxToSpans(clipped, context.spans);
+//                writeSpansToBitmap(context.spans, bgra, context.bitmap);
+//                context.spans.resize(0);
+                
+                // writeDeltasToSpans(context.deltas, context.deltasMask, device, context.spans);
             }
         }
     }
@@ -507,14 +509,15 @@ struct Rasterizer {
             return;
         float dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
         size_t i;
+        Scanline *scanline;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
         dxdy = (x1 - x0) / (y1 - y0);
         
-        for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * size_t(iy0);
+        for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * size_t(iy0), scanline = scanlines + size_t(iy0);
              iy0 < y1;
-             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride) {
+             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
             sy1 = y1 > iy1 ? iy1 : y1;
             sx1 = (sy1 - y0) * dxdy + x0;
             sx1 = sx1 < 0 ? 0 : sx1;
@@ -533,16 +536,24 @@ struct Rasterizer {
                 area = (ix1 - (cx0 + cx1) * 0.5f);
                 alpha = total + cover * area;
                 total += cover;
-                *delta += alpha - last;
+                if (scanlines)
+                    scanline->deltas.emplace_back(ix0, iy0, alpha - last);
+                else
+                    *delta += alpha - last;
                 last = alpha;
                 
                 i = delta - deltas;
                 deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
             }
-            if (ix0 < stride) {
-                *delta += total - last;
-                i = delta - deltas;
-                deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
+            if (scanlines)
+                scanline->deltas.emplace_back(ix0, iy0, total - last);
+            else {
+                if (ix0 < stride) {
+                    *delta += total - last;
+                    
+                    i = delta - deltas;
+                    deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
+                }
             }
         }
     }
