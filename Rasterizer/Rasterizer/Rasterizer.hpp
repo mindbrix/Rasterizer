@@ -132,7 +132,7 @@ struct Rasterizer {
         short x, y, w;
     };
     struct Context {
-        Context() { memset(deltas, 0, sizeof(deltas)), memset(deltasMask, 0, sizeof(deltasMask)); }
+        Context() { memset(deltas, 0, sizeof(deltas)); }
         
         void setBitmap(Bitmap bitmap) {
             this->bitmap = bitmap;
@@ -141,7 +141,6 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
-        uint8_t deltasMask[kCellsDimension * kCellsDimension / 8];
         uint8_t mask[kCellsDimension * kCellsDimension];
         std::vector<Scanline> scanlines;
         std::vector<Span> spans;
@@ -209,71 +208,6 @@ struct Rasterizer {
                     cover += delta.delta;
                 }
             }
-        }
-    }
-    
-    static void writeDeltasToSpans(float *deltas, uint8_t *deltasMask, Bounds device, std::vector<Span>& spans) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly, x, y, i, j, sw, x0, x1, idx;
-        float cover, alpha, *delta;
-        uint8_t a, bitmask = 1, *mask = deltasMask;
-        bool written, match;
-        for (i = y = 0; y < h; y++, i += w) {
-            cover = sw = a = 0;
-            
-            x1 = 0;
-            do {
-                x0 = x1;
-                idx = i + x0;
-                bitmask = uint8_t(1) << (idx & 0x7);
-                mask = deltasMask + idx / 8;
-                written = *mask & bitmask;
-                if (written)
-                    *mask &= ~bitmask;
-                
-                match = true;
-                while (x1 < w && match) {
-                    x1++;
-                    if (x1 == w)
-                        break;
-                    idx = i + x1;
-                    mask = deltasMask + idx / 8;
-                    
-                    if ((idx & 0x1F) == 0 && *((uint32_t *)mask) == 0) {
-                        x1 += 31;
-                    } else if ((idx & 0x7) == 0 && *mask == 0) {
-                        x1 += 7;
-                    } else {
-                        bitmask = uint8_t(1) << (idx & 0x7);
-                        match = bool(*mask & bitmask) == written;
-                        if (written && match)
-                            *mask &= ~bitmask;
-                    }
-                }
-                if (written) {
-                    for (delta = deltas + i + x0, x = x0; x < x1; x++, delta++) {
-                        cover += *delta, *delta = 0;
-                        alpha = fabsf(cover);
-                        a = alpha < 255.f ? alpha : 255.f;
-                        
-                        if (a > 254)
-                            sw++;
-                        else {
-                            if (sw)
-                                spans.emplace_back(device.lx + x - sw, device.ly + y, sw), sw = 0;
-                            if (a > 0)
-                                spans.emplace_back(device.lx + x, device.ly + y, -a);
-                        }
-                    }
-                } else {
-                    if (a > 254)
-                        sw += x1 - x0;
-                    else {
-                        if (a > 0)
-                            for (j = x0; j < x1; j++)
-                                spans.emplace_back(device.lx + j, device.ly + y, -a);
-                    }
-                }
-            } while (x1 < w);
         }
     }
     
@@ -390,11 +324,11 @@ struct Rasterizer {
             offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
             
             if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
-                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, nullptr);
+                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, nullptr);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else if ((device.uy - device.ly) < context.bitmap.height) {
-                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, &context.scanlines[0]);
+                writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, &context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 for (Scanline& scanline : context.scanlines)
                     scanline.empty();
@@ -403,8 +337,6 @@ struct Rasterizer {
 //                writeBoundingBoxToSpans(clipped, context.spans);
 //                writeSpansToBitmap(context.spans, bgra, context.bitmap);
 //                context.spans.resize(0);
-                
-                // writeDeltasToSpans(context.deltas, context.deltasMask, device, context.spans);
             }
         }
     }
@@ -412,7 +344,7 @@ struct Rasterizer {
     static void writePathToScanlines(Path& path, AffineTransform ctm, std::vector<Scanline>& scanlines, Bounds device, Bounds clipped) {
     }
     
-    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride, uint8_t *deltasMask, Scanline *scanlines) {
+    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
@@ -425,7 +357,7 @@ struct Rasterizer {
                 switch (type) {
                     case Path::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-                            writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride, scanlines);
                         
                         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         sx = x0, sy = y0;
@@ -433,7 +365,7 @@ struct Rasterizer {
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        writeSegmentToDeltas(x0, y0, x1, y1, deltas, stride, deltasMask, scanlines);
+                        writeSegmentToDeltas(x0, y0, x1, y1, deltas, stride, scanlines);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
@@ -443,21 +375,21 @@ struct Rasterizer {
                         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
                         a = ax * ax + ay * ay;
                         if (a < 0.1)
-                            writeSegmentToDeltas(x0, y0, x2, y2, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(x0, y0, x2, y2, deltas, stride, scanlines);
                         else if (a < 8) {
                             px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
-                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, stride, deltasMask, scanlines);
-                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, stride, scanlines);
+                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, stride, scanlines);
                         } else {
                             count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
                             px0 = x0, py0 = y0;
                             while (--count) {
                                 t += dt, s = 1.f - t;
                                 px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride, deltasMask, scanlines);
+                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride, scanlines);
                                 px0 = px1, py0 = py1;
                             }
-                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(px0, py0, x2, y2, deltas, stride, scanlines);
                         }
                         x0 = x2, y0 = y2;
                         index += 2;
@@ -471,13 +403,13 @@ struct Rasterizer {
                         ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
                         a += ax * ax + ay * ay;
                         if (a < 0.1)
-                            writeSegmentToDeltas(x0, y0, x3, y3, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(x0, y0, x3, y3, deltas, stride, scanlines);
                         else if (a < 16) {
                             px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
                             px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, stride, deltasMask, scanlines);
-                            writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride, deltasMask, scanlines);
-                            writeSegmentToDeltas(px1, py1, x3, y3, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(x0, y0, px0, py0, deltas, stride, scanlines);
+                            writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride, scanlines);
+                            writeSegmentToDeltas(px1, py1, x3, y3, deltas, stride, scanlines);
                         } else {
                             count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
                             px0 = x0, py0 = y0;
@@ -485,10 +417,10 @@ struct Rasterizer {
                                 t += dt, s = 1.f - t;
                                 px1 = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
                                 py1 = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
-                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride, deltasMask, scanlines);
+                                writeSegmentToDeltas(px0, py0, px1, py1, deltas, stride, scanlines);
                                 px0 = px1, py0 = py1;
                             }
-                            writeSegmentToDeltas(px0, py0, x3, y3, deltas, stride, deltasMask, scanlines);
+                            writeSegmentToDeltas(px0, py0, x3, y3, deltas, stride, scanlines);
                         }
                         x0 = x3, y0 = y3;
                         index += 3;
@@ -501,14 +433,13 @@ struct Rasterizer {
             }
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-            writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride, deltasMask, scanlines);
+            writeSegmentToDeltas(x0, y0, sx, sy, deltas, stride, scanlines);
     }
     
-    static void writeSegmentToDeltas(float x0, float y0, float x1, float y1, float *deltas, size_t stride, uint8_t *deltasMask, Scanline *scanlines) {
+    static void writeSegmentToDeltas(float x0, float y0, float x1, float y1, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
         float dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
-        size_t i;
         Scanline *scanline;
         sign = 255.5f * (y0 < y1 ? 1 : -1);
         if (sign < 0)
@@ -541,19 +472,12 @@ struct Rasterizer {
                 else
                     *delta += alpha - last;
                 last = alpha;
-                
-//                i = delta - deltas;
-//                deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
             }
             if (scanlines)
                 scanline->deltas.emplace_back(ix0, iy0, total - last);
             else {
-                if (ix0 < stride) {
+                if (ix0 < stride)
                     *delta += total - last;
-                    
-//                    i = delta - deltas;
-//                    deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
-                }
             }
         }
     }
