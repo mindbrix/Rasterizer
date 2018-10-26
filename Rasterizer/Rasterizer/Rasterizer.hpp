@@ -102,6 +102,7 @@ struct Rasterizer {
         size_t index;
     };
     struct Bitmap {
+        Bitmap() {}
         Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
         
         inline uint32_t *pixelAddress(short x, short y) { return (uint32_t *)(data + rowBytes * (height - 1 - y) + x * bytespp); }
@@ -131,7 +132,7 @@ struct Rasterizer {
         short x, y, w;
     };
     struct Context {
-        Context(Bitmap bitmap) : bitmap(bitmap) { memset(deltas, 0, sizeof(deltas)), memset(deltasMask, 0, sizeof(deltasMask)), scanlines.resize(bitmap.height); }
+        Context() { memset(deltas, 0, sizeof(deltas)), memset(deltasMask, 0, sizeof(deltasMask)), scanlines.resize(bitmap.height); }
         
         Bitmap bitmap;
         float deltas[kCellsDimension * kCellsDimension];
@@ -377,10 +378,10 @@ struct Rasterizer {
                     context.spans.resize(0);
                 }
             } else {
-                writePathToScanlines(path, ctm, context.scanlines, device, clipped);
-                writeScanlinesToSpans(context.scanlines, clipped, context.spans);
-                for (Scanline& scanline : context.scanlines)
-                    scanline.empty();
+//                writePathToScanlines(path, ctm, context.scanlines, device, clipped);
+//                writeScanlinesToSpans(context.scanlines, clipped, context.spans);
+//                for (Scanline& scanline : context.scanlines)
+//                    scanline.empty();
                 
                 writeBoundingBoxToSpans(clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
