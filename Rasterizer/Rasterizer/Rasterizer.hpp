@@ -181,7 +181,7 @@ struct Rasterizer {
     }
     
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Span>& spans) {
-        float x, y, cover, alpha;
+        float x, y, ix, cover, alpha;
         uint8_t a;
         for (y = clipped.ly; y < clipped.uy; y++) {
             Scanline& scanline = scanlines[y - device.ly];
@@ -201,7 +201,8 @@ struct Rasterizer {
                         if (a > 254)
                             spans.emplace_back(device.lx + x, y, delta.x - x);
                         else if (a > 0)
-                            spans.emplace_back(device.lx + x, y, -a);
+                            for (ix = x; ix < delta.x; ix++)
+                                spans.emplace_back(device.lx + ix, y, -a);
                         
                         x = delta.x;
                     }
