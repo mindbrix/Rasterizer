@@ -185,12 +185,12 @@ struct Rasterizer {
         float x, y, cover, alpha;
         uint8_t a;
         for (y = clipped.ly; y < clipped.uy; y++) {
-            Scanline& scanline = scanlines[y];
+            Scanline& scanline = scanlines[y - device.ly];
             std::sort(scanline.deltas.begin(), scanline.deltas.end());
             
             if (scanline.deltas.size() == 0) {
-                if (scanline.delta0)
-                    spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
+//                if (scanline.delta0)
+//                    spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
             } else {
                 cover = scanline.delta0;
                 x = scanline.deltas[0].x;
@@ -393,7 +393,7 @@ struct Rasterizer {
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, nullptr);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
-            } else {
+            } else if ((device.uy - device.ly) < context.bitmap.height) {
                 writePathToDeltas(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, context.deltasMask, &context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 for (Scanline& scanline : context.scanlines)
@@ -542,8 +542,8 @@ struct Rasterizer {
                     *delta += alpha - last;
                 last = alpha;
                 
-                i = delta - deltas;
-                deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
+//                i = delta - deltas;
+//                deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
             }
             if (scanlines)
                 scanline->deltas.emplace_back(ix0, iy0, total - last);
@@ -551,8 +551,8 @@ struct Rasterizer {
                 if (ix0 < stride) {
                     *delta += total - last;
                     
-                    i = delta - deltas;
-                    deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
+//                    i = delta - deltas;
+//                    deltasMask[i / 8] |= uint8_t(1) << (i & 0x7);
                 }
             }
         }
