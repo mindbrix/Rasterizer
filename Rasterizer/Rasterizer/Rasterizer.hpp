@@ -348,9 +348,6 @@ struct Rasterizer {
         }
     }
     
-    static void writePathToScanlines(Path& path, AffineTransform ctm, std::vector<Scanline>& scanlines, Bounds device, Bounds clipped) {
-    }
-    
     static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
