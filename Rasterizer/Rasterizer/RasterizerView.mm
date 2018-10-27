@@ -7,7 +7,7 @@
 //
 
 #import "RasterizerView.h"
-#import "CocoaRasterizer.hpp"
+#import "RasterizerCocoa.hpp"
 #import "AGGRasterizer.hpp"
 
 
