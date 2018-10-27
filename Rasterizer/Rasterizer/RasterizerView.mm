@@ -77,23 +77,7 @@
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
-    for (CGPathRef path : _glyphCGPaths)
-        CFRelease(path);
-    _glyphCGPaths.resize(0), _glyphPaths.resize(0), _glyphBounds.resize(0);
-    CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
-    CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension * _phi, NULL, NULL);
-    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
-    for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
-        CGPathRef path = CTFontCreatePathForGlyph(ctFont, glyph, NULL);
-        if (path) {
-            _glyphCGPaths.emplace_back(path);
-            _glyphPaths.emplace_back();
-            RasterizerCoreGraphics::writeCGPathToPath(path, _glyphPaths.back());
-            _glyphBounds.emplace_back(RasterizerCoreGraphics::boundsFromCGRect(CGPathGetPathBoundingBox(path)));
-        }
-    }
-    CFRelease(cgFont);
-    CFRelease(ctFont);
+    RasterizerCoreGraphics::writeGlyphGrid(fontName, _glyphCGPaths, _dimension * _phi, _glyphPaths, _glyphBounds);
 }
 
 #pragma mark - NSResponder
