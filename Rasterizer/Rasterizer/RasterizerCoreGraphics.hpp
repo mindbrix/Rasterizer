@@ -38,12 +38,12 @@ struct CocoaRasterizer {
         }
         Rasterizer::Path *p;
     };
-    static void StaticCGPathApplier(void *info, const CGPathElement *element) {
+    static void staticCGPathApplier(void *info, const CGPathElement *element) {
         ((CGPathApplier *)info)->apply(element);
     };
     static void writeCGPathToPath(CGPathRef path, Rasterizer::Path &p) {
         CGPathApplier applier(p);
-        CGPathApply(path, & applier, StaticCGPathApplier);
+        CGPathApply(path, & applier, staticCGPathApplier);
     }
     
     static void writePathToCGPath(Rasterizer::Path &p, CGMutablePathRef path) {
