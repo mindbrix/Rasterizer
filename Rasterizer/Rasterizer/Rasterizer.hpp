@@ -399,8 +399,13 @@ struct Rasterizer {
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
+        writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
+        writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
+        writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
+        writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
+        writeClippedSegmentToScanlines(x2, y2, x3, y3, clipBounds, scanlines);
     }
     
     static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
