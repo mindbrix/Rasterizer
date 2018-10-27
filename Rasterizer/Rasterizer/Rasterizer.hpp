@@ -44,6 +44,7 @@ struct Rasterizer {
                 uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy,
             };
         }
+        inline bool isZero() { return lx == ux || ly == uy; }
         Bounds transform(AffineTransform ctm) {
             AffineTransform t = ctm.unit(lx, ly, ux, uy);
             float wa = t.a < 0 ? 1 : 0, wb = t.b < 0 ? 1 : 0, wc = t.c < 0 ? 1 : 0, wd = t.d < 0 ? 1 : 0;
@@ -325,7 +326,7 @@ struct Rasterizer {
         Bounds clipBounds(0, 0, context.bitmap.width, context.bitmap.height);
         Bounds device = bounds.transform(ctm).integral();
         Bounds clipped = device.intersected(clipBounds);
-        if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+        if (!clipped.isZero()) {
             AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
             float e = 2e-3 / sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
             float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, mx = (bounds.lx + bounds.ux) * 0.5, my = (bounds.ly + bounds.uy) * 0.5;
@@ -397,6 +398,14 @@ struct Rasterizer {
     }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
+        float lx, ly, ux, uy;
+        Bounds clipped;
+        lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
+        ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
+        clipBounds.lx = -FLT_MAX;
+        clipped = Bounds(lx, ly, ux, uy ).intersected(clipBounds);
+        if (!clipped.isZero()) {
+        }
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
         writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
