@@ -341,19 +341,77 @@ struct Rasterizer {
                 writePathToDeltasOrScanlines(path, deltasCTM.concat(offset), nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spans);
                 writeSpansToBitmap(context.spans, bgra, context.bitmap);
+            } else {
+                writeClippedPathToScanlines(path, ctm, clipBounds, & context.scanlines[0]);
+                writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spans);
+                writeSpansToBitmap(context.spans, bgra, context.bitmap);
             }
         }
+    }
+    
+    static void writeClippedPathToScanlines(Path& path, AffineTransform ctm, Bounds clipBounds, Scanline *scanlines) {
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
+        size_t index;
+        uint8_t type;
+        x0 = y0 = sx = sy = FLT_MAX;
+        for (Path::Atom& atom : path.atoms) {
+            index = 0;
+            for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
+                p = atom.points + index * 2;
+                switch (type) {
+                    case Path::Atom::kMove:
+                        if (sx != FLT_MAX && (sx != x0 || sy != y0))
+                            writeClippedSegmentToScanlines(x0, y0, sx, sy, clipBounds, scanlines);
+                        sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        index++;
+                        break;
+                    case Path::Atom::kLine:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
+                        x0 = x1, y0 = y1;
+                        index++;
+                        break;
+                    case Path::Atom::kQuadratic:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        writeClippedQuadraticToScanlines(x0, y0, x1, y1, x2, y2, clipBounds, scanlines);
+                        x0 = x2, y0 = y2;
+                        index += 2;
+                        break;
+                    case Path::Atom::kCubic:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
+                        writeClippedCubicToScanlines(x0, y0, x1, y1, x2, y2, x3, y3, clipBounds, scanlines);
+                        x0 = x3, y0 = y3;
+                        index += 3;
+                        break;
+                    case Path::Atom::kClose:
+                        index++;
+                        break;
+                }
+            }
+        }
+        if (sx != FLT_MAX && (sx != x0 || sy != y0))
+            writeClippedSegmentToScanlines(x0, y0, sx, sy, clipBounds, scanlines);
+    }
+    
+    static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
+    }
+    static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
+    }
+    static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
     }
     
     static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, px0, py0, px1, py1, a, *p, dt, s, t, ax, ay;
         size_t index, count;
+        uint8_t type;
         x0 = y0 = sx = sy = FLT_MAX;
         for (Path::Atom& atom : path.atoms) {
             index = 0;
-            auto type = 0xF & atom.types[0];
-            while (type) {
+            for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
                 switch (type) {
                     case Path::Atom::kMove:
@@ -430,7 +488,6 @@ struct Rasterizer {
                         index++;
                         break;
                 }
-                type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4));
             }
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
