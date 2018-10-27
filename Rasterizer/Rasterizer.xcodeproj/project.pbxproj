@@ -16,6 +16,7 @@
 		E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* RasterizerView.mm */; };
 		E920A5BB21767B7900F52C25 /* VGAffineTransform.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B921767B7900F52C25 /* VGAffineTransform.m */; };
 		E920A5BE21767BD800F52C25 /* ZoomableView.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5BD21767BD800F52C25 /* ZoomableView.m */; };
+		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,7 @@
 		E920A65D21775F0A00F52C25 /* AGGRasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AGGRasterizer.hpp; sourceTree = "<group>"; };
 		E946C9D1217F0F8B004582CC /* CocoaRasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CocoaRasterizer.hpp; sourceTree = "<group>"; };
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
+		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +86,7 @@
 				E920A5AA21762BCE00F52C25 /* Info.plist */,
 				E920A5AB21762BCE00F52C25 /* main.m */,
 				E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */,
+				E971DB2C218495AA005AE5E5 /* Rasterizer.icns */,
 				E920A5B3217631E600F52C25 /* RasterizerView.h */,
 				E920A5B4217631E600F52C25 /* RasterizerView.mm */,
 				E920A5BC21767BD800F52C25 /* ZoomableView.h */,
@@ -152,6 +155,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */,
+				E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */,
 				E920A5A421762BCD00F52C25 /* Document.xib in Resources */,
 				E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */,
 			);
