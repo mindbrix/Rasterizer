@@ -27,7 +27,7 @@
                         <rect key="frame" x="337" y="286" width="126" height="29"/>
                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="center" title="Rasterizer" drawsBackground="YES" id="JDq-Ah-v2f">
                             <font key="font" size="24" name="HelveticaNeue-Bold"/>
-                            <color key="textColor" red="1" green="0.14913141730000001" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <color key="textColor" red="0.792156862745098" green="0.0078431372549019607" blue="0.10588235294117647" alpha="1" colorSpace="calibratedRGB"/>
                             <color key="backgroundColor" white="1" alpha="0.80012103873239437" colorSpace="calibratedWhite"/>
                         </textFieldCell>
                     </textField>
