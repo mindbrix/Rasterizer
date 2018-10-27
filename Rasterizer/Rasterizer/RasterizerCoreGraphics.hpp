@@ -1,5 +1,5 @@
 //
-//  CocoaRasterizer.hpp
+//  RasterizerCoreGraphics.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 23/10/2018.
@@ -10,7 +10,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 
-struct CocoaRasterizer {
+struct RasterizerCoreGraphics {
     static Rasterizer::Bounds boundsFromCGRect(CGRect rect) {
         return Rasterizer::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
     }
@@ -38,12 +38,12 @@ struct CocoaRasterizer {
         }
         Rasterizer::Path *p;
     };
-    static void staticCGPathApplier(void *info, const CGPathElement *element) {
+    static void CGPathApplierFunction(void *info, const CGPathElement *element) {
         ((CGPathApplier *)info)->apply(element);
     };
     static void writeCGPathToPath(CGPathRef path, Rasterizer::Path &p) {
         CGPathApplier applier(p);
-        CGPathApply(path, & applier, staticCGPathApplier);
+        CGPathApply(path, & applier, CGPathApplierFunction);
     }
     
     static void writePathToCGPath(Rasterizer::Path &p, CGMutablePathRef path) {
