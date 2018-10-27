@@ -6,8 +6,9 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#import <Cocoa/Cocoa.h>
 #import "Rasterizer.hpp"
+#import <CoreGraphics/CoreGraphics.h>
+
 
 struct CocoaRasterizer {
     static Rasterizer::Bounds boundsFromCGRect(CGRect rect) {
