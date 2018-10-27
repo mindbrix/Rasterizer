@@ -398,13 +398,17 @@ struct Rasterizer {
     }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy;
+        float lx, ly, ux, uy, sx0, sy0, sx1, sy1;
         Bounds clipped;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
         clipBounds.lx = -FLT_MAX;
         clipped = Bounds(lx, ly, ux, uy ).intersected(clipBounds);
         if (!clipped.isZero()) {
+            sy0 = y0 < clipped.ly ? clipped.ly : y0 > clipped.uy ? clipped.uy : y0;
+            sy1 = y1 < clipped.ly ? clipped.ly : y1 > clipped.uy ? clipped.uy : y1;
+            sx0 = (sy0 - y0) / (y1 - y0) * (x1 - x0);
+            sx1 = (sy1 - y0) / (y1 - y0) * (x1 - x0);
         }
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
