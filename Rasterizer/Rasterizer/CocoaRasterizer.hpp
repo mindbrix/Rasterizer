@@ -14,26 +14,35 @@ struct CocoaRasterizer {
         return Rasterizer::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
     }
     
-    static void writeCGPathToPath(CGPathRef path, Rasterizer::Path &p) {
-        CGPathApplyWithBlock(path, ^(const CGPathElement *element) {
+    struct CGPathApplier {
+        CGPathApplier(Rasterizer::Path& path) : p(& path) {}
+        void apply(const CGPathElement *element) {
             switch (element->type) {
                 case kCGPathElementMoveToPoint:
-                    p.moveTo(float(element->points[0].x), float(element->points[0].y));
+                    p->moveTo(float(element->points[0].x), float(element->points[0].y));
                     break;
                 case kCGPathElementAddLineToPoint:
-                    p.lineTo(float(element->points[0].x), float(element->points[0].y));
+                    p->lineTo(float(element->points[0].x), float(element->points[0].y));
                     break;
                 case kCGPathElementAddQuadCurveToPoint:
-                    p.quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
+                    p->quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
                     break;
                 case kCGPathElementAddCurveToPoint:
-                    p.cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
+                    p->cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
                     break;
                 case kCGPathElementCloseSubpath:
-                    p.close();
+                    p->close();
                     break;
             }
-        });
+        }
+        Rasterizer::Path *p;
+    };
+    static void StaticCGPathApplier(void *info, const CGPathElement *element) {
+        ((CGPathApplier *)info)->apply(element);
+    };
+    static void writeCGPathToPath(CGPathRef path, Rasterizer::Path &p) {
+        CGPathApplier applier(p);
+        CGPathApply(path, & applier, StaticCGPathApplier);
     }
     
     static void writePathToCGPath(Rasterizer::Path &p, CGMutablePathRef path) {
