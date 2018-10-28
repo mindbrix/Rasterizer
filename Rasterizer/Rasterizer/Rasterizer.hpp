@@ -524,12 +524,11 @@ struct Rasterizer {
     
     static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float px0, py0, px1, py1, a, dt, s, t, ax, ay;
+        float px0, py0, px1, py1, a, dt, s, t, ax, ay, bx, by, cx, cy;
         size_t count;
-        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
-        a = ax * ax + ay * ay;
-        ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
-        a += ax * ax + ay * ay;
+        cx = 3.0 * (x1 - x0), bx = 3.0 * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+        cy = 3.0 * (y1 - y0), by = 3.0 * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+        a = (ax + bx) * (ax + bx) + (ay + by) * (ay + by);
         if (a < 0.1)
             writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, deltas, stride, scanlines);
         else if (a < 16) {
@@ -539,7 +538,8 @@ struct Rasterizer {
             writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
             writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, deltas, stride, scanlines);
         } else {
-            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
+            count = sqrtf(a) * 0.25f + 2.f;
+            dt = 1.f / count, t = 0, s = 1.f;
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
