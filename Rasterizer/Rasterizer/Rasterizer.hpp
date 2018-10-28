@@ -426,7 +426,7 @@ struct Rasterizer {
     }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, sx0, sy0, sx1, sy1, t0, t1, tmp;
+        float lx, ly, ux, uy, cly, cuy, sx0, sy0, sx1, sy1, t0, t1, tmp, syt0, syt1;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
         cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
@@ -444,21 +444,22 @@ struct Rasterizer {
                 t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0;
                 t1 = (clipBounds.ux - sx0) / (sx1 - sx0);
                 t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
+                if (t0 > t1)
+                    tmp = t0, t0 = t1, t1 = tmp;
+                syt0 = sy0 + t0 * (sy1 - sy0), syt1 = sy0 + t1 * (sy1 - sy0);
                 
                 if (x0 < x1) {
                     if (t0 > 0)
-                        writeDelta0sToScanlines(sy0, sy0 + t0 * (sy1 - sy0), scanlines);
+                        writeDelta0sToScanlines(sy0, syt0, scanlines);
                     if (t1 < 1)
-                        writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0 + t1 * (sy1 - sy0), clipBounds.ux, sy1, nullptr, 0, scanlines);
+                        writeSegmentToDeltasOrScanlines(clipBounds.ux, syt1, clipBounds.ux, sy1, nullptr, 0, scanlines);
                 } else if (x0 > x1) {
-                    if (t0 < 1)
-                        writeDelta0sToScanlines(sy0 + t0 * (sy1 - sy0), sy1, scanlines);
-                    if (t1 > 0)
-                        writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0, clipBounds.ux, sy0 + t1 * (sy1 - sy0), nullptr, 0, scanlines);
+                    if (t1 < 1)
+                        writeDelta0sToScanlines(syt1, sy1, scanlines);
+                    if (t0 > 0)
+                        writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0, clipBounds.ux, syt0, nullptr, 0, scanlines);
                 }
-                if (t0 > t1)
-                    tmp = t0, t0 = t1, t1 = tmp;
-                writeSegmentToDeltasOrScanlines(sx0 + t0 * (sx1 - sx0), sy0 + t0 * (sy1 - sy0), sx0 + t1 * (sx1 - sx0), sy0 + t1 * (sy1 - sy0), nullptr, 0, scanlines);
+                writeSegmentToDeltasOrScanlines(sx0 + t0 * (sx1 - sx0), syt0, sx0 + t1 * (sx1 - sx0), syt1, nullptr, 0, scanlines);
             }
         }
     }
