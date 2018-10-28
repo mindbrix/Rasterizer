@@ -200,7 +200,10 @@ struct Rasterizer {
                     spans.emplace_back(clipped.lx, y, clipped.ux - clipped.lx);
             } else {
                 cover = scanline->delta0;
-                x = scanline->deltas[0].x;
+                alpha = fabsf(cover);
+                a = alpha < 255.f ? alpha : 255.f;
+                
+                x = a ? clipped.lx : scanline->deltas[0].x;
                 for (delta = begin; delta < end; delta++) {
                     if (delta->x != x) {
                         alpha = fabsf(cover);
@@ -423,12 +426,12 @@ struct Rasterizer {
                 
                 if (x0 < x1) {
                     if (t0 > 0)
-                        writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0, clipBounds.lx, sy0 + t0 * (sy1 - sy0), nullptr, 0, scanlines);
+                        writeDelta0sToScanlines(sy0, sy0 + t0 * (sy1 - sy0), scanlines);
                     if (t1 < 1)
                         writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0 + t1 * (sy1 - sy0), clipBounds.ux, sy1, nullptr, 0, scanlines);
                 } else if (x0 > x1) {
                     if (t0 < 1)
-                        writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0 + t0 * (sy1 - sy0), clipBounds.lx, sy1, nullptr, 0, scanlines);
+                        writeDelta0sToScanlines(sy0 + t0 * (sy1 - sy0), sy1, scanlines);
                     if (t1 > 0)
                         writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0, clipBounds.ux, sy0 + t1 * (sy1 - sy0), nullptr, 0, scanlines);
                 }
@@ -563,6 +566,19 @@ struct Rasterizer {
         }
     }
     
+    static void writeDelta0sToScanlines(float y0, float y1, Scanline *scanlines) {
+        if (y0 == y1)
+            return;
+        float ly, uy, iy0, iy1, sy0, sy1;
+        Scanline *scanline;
+        ly = y0 < y1 ? y0 : y1;
+        uy = y0 > y1 ? y0 : y1;
+        for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++) {
+            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
+            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
+            scanline->delta0 += 255.5f * (sy1 - sy0);
+        }
+    }
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
