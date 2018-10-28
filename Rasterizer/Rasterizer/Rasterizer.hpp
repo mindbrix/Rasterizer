@@ -439,58 +439,6 @@ struct Rasterizer {
             }
         }
     }
-    static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float *deltas, size_t stride, Scanline *scanlines) {
-        float px0, py0, px1, py1, a, dt, s, t, ax, ay;
-        size_t count;
-        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
-        a = ax * ax + ay * ay;
-        if (a < 0.1)
-            writeSegmentToDeltasOrScanlines(x0, y0, x2, y2, deltas, stride, scanlines);
-        else if (a < 8) {
-            px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, deltas, stride, scanlines);
-        } else {
-            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
-            px0 = x0, py0 = y0;
-            while (--count) {
-                t += dt, s = 1.f - t;
-                px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
-                px0 = px1, py0 = py1;
-            }
-            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, deltas, stride, scanlines);
-        }
-    }
-    static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, size_t stride, Scanline *scanlines) {
-        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float px0, py0, px1, py1, a, dt, s, t, ax, ay;
-        size_t count;
-        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
-        a = ax * ax + ay * ay;
-        ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
-        a += ax * ax + ay * ay;
-        if (a < 0.1)
-            writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, deltas, stride, scanlines);
-        else if (a < 16) {
-            px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
-            px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, deltas, stride, scanlines);
-        } else {
-            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
-            px0 = x0, py0 = y0;
-            while (--count) {
-                t += dt, s = 1.f - t;
-                px1 = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
-                py1 = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
-                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
-                px0 = px1, py0 = py1;
-            }
-            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, deltas, stride, scanlines);
-        }
-    }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
         float px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
         writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
@@ -548,6 +496,60 @@ struct Rasterizer {
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
             writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltas, stride, scanlines);
+    }
+    
+    static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float *deltas, size_t stride, Scanline *scanlines) {
+        float px0, py0, px1, py1, a, dt, s, t, ax, ay;
+        size_t count;
+        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
+        a = ax * ax + ay * ay;
+        if (a < 0.1)
+            writeSegmentToDeltasOrScanlines(x0, y0, x2, y2, deltas, stride, scanlines);
+        else if (a < 8) {
+            px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, deltas, stride, scanlines);
+        } else {
+            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
+            px0 = x0, py0 = y0;
+            while (--count) {
+                t += dt, s = 1.f - t;
+                px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
+                px0 = px1, py0 = py1;
+            }
+            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, deltas, stride, scanlines);
+        }
+    }
+    
+    static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, size_t stride, Scanline *scanlines) {
+        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
+        float px0, py0, px1, py1, a, dt, s, t, ax, ay;
+        size_t count;
+        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
+        a = ax * ax + ay * ay;
+        ax = x1 + x3 - x2 - x2, ay = y1 + y3 - y2 - y2;
+        a += ax * ax + ay * ay;
+        if (a < 0.1)
+            writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, deltas, stride, scanlines);
+        else if (a < 16) {
+            px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
+            px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, deltas, stride, scanlines);
+        } else {
+            count = log2f(a), dt = 1.f / count, t = 0, s = 1.f;
+            px0 = x0, py0 = y0;
+            while (--count) {
+                t += dt, s = 1.f - t;
+                px1 = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
+                py1 = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
+                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
+                px0 = px1, py0 = py1;
+            }
+            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, deltas, stride, scanlines);
+        }
     }
     
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float *deltas, size_t stride, Scanline *scanlines) {
