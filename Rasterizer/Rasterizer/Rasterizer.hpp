@@ -494,9 +494,13 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveQuadratic(x0, x1, x2, clipBounds.lx, clipBounds.ux, ts);
                 solveQuadratic(y0, y1, y2, clipBounds.ly, clipBounds.uy, ts);
+                for (int i = 0; i < 4; i++)
+                    ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
+                std::sort(& ts[0], & ts[4]);
                 
+                solveQuadratic(x0, x1, x2, clipBounds.lx, clipBounds.ux, ts);
+
                 px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
                 writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
                 writeClippedSegmentToScanlines(px0, py0, x2, y2, clipBounds, scanlines);
