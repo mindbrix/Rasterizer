@@ -16,7 +16,7 @@ struct Rasterizer {
     template<typename T>
     static void radixSort(T *out, T *in, int n, int shift) {
         union { unsigned int ix; float x; };
-        int counts[256];
+        short counts[256];
         memset(counts, 0, sizeof(counts));
         for (int i = 0; i < n; i++) {
             x = *(float *)(in + i);
