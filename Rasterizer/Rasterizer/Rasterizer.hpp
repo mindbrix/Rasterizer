@@ -217,8 +217,12 @@ struct Rasterizer {
                 }
             }
         }
-        for (scanline = & scanlines[clipped.ly - device.ly], y = clipped.ly; y < clipped.uy; y++, scanline++)
-            scanline->empty();
+        if (device.isZero())
+            for (scanline = & scanlines[clipped.ly - device.ly], y = clipped.ly; y < clipped.uy; y++, scanline++)
+                scanline->empty();
+        else
+            for (scanline = & scanlines[0], y = device.ly; y < device.uy; y++, scanline++)
+                scanline->empty();
     }
     
     static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
@@ -402,7 +406,7 @@ struct Rasterizer {
         Bounds clipped, visible;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
-        visible = clipBounds, visible.lx = -FLT_MAX;
+        visible = clipBounds, visible.lx = -FLT_MAX, visible.ux = FLT_MAX;
         clipped = Bounds(lx, ly, ux, uy ).intersected(visible);
         if (!clipped.isZero()) {
             sy0 = y0 < clipped.ly ? clipped.ly : y0 > clipped.uy ? clipped.uy : y0;
@@ -418,11 +422,17 @@ struct Rasterizer {
                 t1 = (clipBounds.ux - sx0) / (sx1 - sx0);
                 t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
                 
-                if (x0 < x1 && t0 > 0)
-                    writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0, clipBounds.lx, sy1, nullptr, 0, scanlines);
-                else if (x0 > x1 && t0 < 1)
-                    writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0, clipBounds.lx, sy1, nullptr, 0, scanlines);
-                    
+                if (x0 < x1) {
+                    if (t0 > 0)
+                        writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0, clipBounds.lx, sy0 + t0 * (sy1 - sy0), nullptr, 0, scanlines);
+                    if (t1 < 1)
+                        writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0 + t1 * (sy1 - sy0), clipBounds.ux, sy1, nullptr, 0, scanlines);
+                } else if (x0 > x1) {
+                    if (t0 < 1)
+                        writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0 + t0 * (sy1 - sy0), clipBounds.lx, sy1, nullptr, 0, scanlines);
+                    if (t1 > 0)
+                        writeSegmentToDeltasOrScanlines(clipBounds.ux, sy0, clipBounds.ux, sy0 + t1 * (sy1 - sy0), nullptr, 0, scanlines);
+                }
                 if (t0 > t1)
                     tmp = t0, t0 = t1, t1 = tmp;
                 writeSegmentToDeltasOrScanlines(sx0 + t0 * (sx1 - sx0), sy0 + t0 * (sy1 - sy0), sx0 + t1 * (sx1 - sx0), sy0 + t1 * (sy1 - sy0), nullptr, 0, scanlines);
