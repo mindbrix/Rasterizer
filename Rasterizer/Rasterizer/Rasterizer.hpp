@@ -13,6 +13,24 @@
 
 
 struct Rasterizer {
+    template<typename T>
+    static void radixSort(T *out, T *in, int n, int shift) {
+        union { unsigned int ix; float x; };
+        int counts[256];
+        memset(counts, 0, sizeof(counts));
+        for (int i = 0; i < n; i++) {
+            x = *(float *)(in + i);
+            counts[(ix >> shift) & 0xFF]++;
+        }
+        for (int i = 1; i < 256; i++)
+            counts[i] += counts[i - 1];
+        
+        for (int i = n - 1; i >= 0; i--) {
+            x = *(float *)(in + i);
+            out[counts[(ix >> shift) & 0xFF] - 1] = in[i];
+            counts[(ix >> shift) & 0xFF]--;
+        }
+    }
     static const size_t kCellsDimension = 64;
     
     struct AffineTransform {
@@ -192,7 +210,14 @@ struct Rasterizer {
         Scanline::Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++, scanline++) {
             begin = & scanline->deltas[0], end = & scanline->deltas[scanline->idx];
-            std::sort(begin, end);
+
+            int n = int(end - begin);
+            if (n > 64) {
+                uint32_t mem0[n];
+                radixSort(mem0, (uint32_t *)begin, n, 0);
+                radixSort((uint32_t *)begin, mem0, n, 8);
+            } else
+                std::sort(begin, end);
             
             if (scanline->idx == 0) {
                 if (scanline->delta0)
