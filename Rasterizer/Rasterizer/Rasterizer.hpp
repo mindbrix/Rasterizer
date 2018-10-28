@@ -14,7 +14,7 @@
 
 struct Rasterizer {
     template<typename T>
-    static void radixSort(T *out, T *in, int n, int shift) {
+    static void radixSort(T *in, T *out, int n, int shift) {
         union { unsigned int ix; float x; };
         short counts[256];
         memset(counts, 0, sizeof(counts));
@@ -214,8 +214,8 @@ struct Rasterizer {
             int n = int(end - begin);
             if (n > 64) {
                 uint32_t mem0[n];
-                radixSort(mem0, (uint32_t *)begin, n, 0);
-                radixSort((uint32_t *)begin, mem0, n, 8);
+                radixSort((uint32_t *)begin, mem0, n, 0);
+                radixSort(mem0, (uint32_t *)begin, n, 8);
             } else
                 std::sort(begin, end);
             
