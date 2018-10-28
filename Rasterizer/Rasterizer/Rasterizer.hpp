@@ -217,7 +217,7 @@ struct Rasterizer {
                 }
             }
         }
-        for (scanline = & scanlines[0], y = device.ly; y < device.uy; y++, scanline++)
+        for (scanline = & scanlines[clipped.ly - device.ly], y = clipped.ly; y < clipped.uy; y++, scanline++)
             scanline->empty();
     }
     
@@ -398,17 +398,35 @@ struct Rasterizer {
     }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, sx0, sy0, sx1, sy1;
-        Bounds clipped;
+        float lx, ly, ux, uy, sx0, sy0, sx1, sy1, t0, t1, tmp;
+        Bounds clipped, visible;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
-        clipBounds.lx = -FLT_MAX;
-        clipped = Bounds(lx, ly, ux, uy ).intersected(clipBounds);
+        visible = clipBounds, visible.lx = -FLT_MAX;
+        clipped = Bounds(lx, ly, ux, uy ).intersected(visible);
         if (!clipped.isZero()) {
             sy0 = y0 < clipped.ly ? clipped.ly : y0 > clipped.uy ? clipped.uy : y0;
             sy1 = y1 < clipped.ly ? clipped.ly : y1 > clipped.uy ? clipped.uy : y1;
-            sx0 = (sy0 - y0) / (y1 - y0) * (x1 - x0);
-            sx1 = (sy1 - y0) / (y1 - y0) * (x1 - x0);
+            if (x0 == x1) {
+                sx0 = sx1 = x1 < clipBounds.lx ? clipBounds.lx : x1;
+                writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, nullptr, 0, scanlines);
+            } else {
+                sx0 = (sy0 - y0) / (y1 - y0) * (x1 - x0) + x0;
+                sx1 = (sy1 - y0) / (y1 - y0) * (x1 - x0) + x0;
+                t0 = (clipBounds.lx - sx0) / (sx1 - sx0);
+                t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0;
+                t1 = (clipBounds.ux - sx0) / (sx1 - sx0);
+                t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
+                
+                if (x0 < x1 && t0 > 0)
+                    writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0, clipBounds.lx, sy1, nullptr, 0, scanlines);
+                else if (x0 > x1 && t0 < 1)
+                    writeSegmentToDeltasOrScanlines(clipBounds.lx, sy0, clipBounds.lx, sy1, nullptr, 0, scanlines);
+                    
+                if (t0 > t1)
+                    tmp = t0, t0 = t1, t1 = tmp;
+                writeSegmentToDeltasOrScanlines(sx0 + t0 * (sx1 - sx0), sy0 + t0 * (sy1 - sy0), sx0 + t1 * (sx1 - sx0), sy0 + t1 * (sy1 - sy0), nullptr, 0, scanlines);
+            }
         }
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
