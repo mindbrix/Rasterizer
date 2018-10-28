@@ -13,7 +13,7 @@
 
 
 struct Rasterizer {
-    static const size_t kCellsDimension = 256;
+    static const size_t kCellsDimension = 64;
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
@@ -185,6 +185,7 @@ struct Rasterizer {
     }
     
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Span>& spans) {
+        const float scale = 255.5f / 32767.f;
         float x, y, ix, cover, alpha;
         uint8_t a;
         Scanline *scanline = & scanlines[clipped.ly - device.ly];
@@ -214,7 +215,7 @@ struct Rasterizer {
                                 spans.emplace_back(device.lx + ix, y, -a);
                         x = delta->x;
                     }
-                    cover += float(delta->delta) / 32767.f * 255.5f;
+                    cover += float(delta->delta) * scale;
                 }
             }
         }
