@@ -27,7 +27,7 @@ struct Rasterizer {
             counts[(x >> shift) & 0xFF]--;
         }
     }
-    static const size_t kCellsDimension = 64;
+    static const size_t kDeltasDimension = 64;
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
@@ -158,8 +158,8 @@ struct Rasterizer {
                 scanlines.resize(bitmap.height);
         }
         Bitmap bitmap;
-        float deltas[kCellsDimension * kCellsDimension];
-        uint8_t mask[kCellsDimension * kCellsDimension];
+        float deltas[kDeltasDimension * kDeltasDimension];
+        uint8_t mask[kDeltasDimension * kDeltasDimension];
         std::vector<Scanline> scanlines;
         std::vector<Span> spans;
     };
@@ -362,7 +362,7 @@ struct Rasterizer {
             offset = offset.concat(AffineTransform(w / (w + e), 0, 0, h / (h + e), 0, 0));
             offset = offset.concat(AffineTransform(1, 0, 0, 1, -mx, -my));
             
-            if ((device.ux - device.lx) * (device.uy - device.ly) < kCellsDimension * kCellsDimension) {
+            if ((device.ux - device.lx) * (device.uy - device.ly) < kDeltasDimension * kDeltasDimension) {
                 writePathToDeltasOrScanlines(path, deltasCTM.concat(offset), context.deltas, device.ux - device.lx, nullptr);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
