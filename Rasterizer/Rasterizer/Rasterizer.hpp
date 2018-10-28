@@ -447,9 +447,12 @@ struct Rasterizer {
         cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
-            px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
-            writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
-            writeClippedSegmentToScanlines(px0, py0, x2, y2, clipBounds, scanlines);
+            if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
+                px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
+                writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(px0, py0, x2, y2, clipBounds, scanlines);
+            } else
+                writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, nullptr, 0, scanlines);
         }
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
