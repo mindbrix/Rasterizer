@@ -402,15 +402,14 @@ struct Rasterizer {
     }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, sx0, sy0, sx1, sy1, t0, t1, tmp;
-        Bounds clipped, visible;
+        float lx, ly, ux, uy, cly, cuy, sx0, sy0, sx1, sy1, t0, t1, tmp;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
-        visible = clipBounds, visible.lx = -FLT_MAX, visible.ux = FLT_MAX;
-        clipped = Bounds(lx, ly, ux, uy ).intersected(visible);
-        if (clipped.ly != clipped.uy) {
-            sy0 = y0 < clipped.ly ? clipped.ly : y0 > clipped.uy ? clipped.uy : y0;
-            sy1 = y1 < clipped.ly ? clipped.ly : y1 > clipped.uy ? clipped.uy : y1;
+        cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
+        cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
+        if (cly != cuy) {
+            sy0 = y0 < cly ? cly : y0 > cuy ? cuy : y0;
+            sy1 = y1 < cly ? cly : y1 > cuy ? cuy : y1;
             if (x0 == x1) {
                 sx0 = sx1 = x1 < clipBounds.lx ? clipBounds.lx : x1;
                 writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, nullptr, 0, scanlines);
