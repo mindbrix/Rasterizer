@@ -463,8 +463,29 @@ struct Rasterizer {
             }
         }
     }
+    static void solveQuadratic(float A, float B, float C, float& t0, float& t1) {
+        if (fabsf(A) < 1e-3) {
+            t0 = -C / B, t1 = FLT_MAX;
+        } else {
+            float discriminant, sqrtDiscriminant, denominator;
+            discriminant = B * B - 4.0f * A * C;
+            if (discriminant < 0)
+                t0 = t1 = FLT_MAX;
+            else {
+                sqrtDiscriminant = sqrtf(fabsf(discriminant));
+                denominator = 1.0f / (2.0f * A);
+                t0 = (-B + sqrtDiscriminant) * denominator, t1 = (-B - sqrtDiscriminant) * denominator;
+            }
+        }
+    }
+    static void solveQuadratic(float n0, float n1, float n2, float nt0, float nt1, float *ts) {
+        float A, B;
+        A = n0 + n2 - n1 - n1, B = 2.f * (n1 - n0);
+        solveQuadratic(A, B, n0 - nt0, ts[0], ts[1]);
+        solveQuadratic(A, B, n0 - nt1, ts[2], ts[3]);
+    }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, px0, py0;
+        float lx, ly, ux, uy, cly, cuy, px0, py0, ts[4];
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
@@ -473,6 +494,9 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
+                solveQuadratic(x0, x1, x2, clipBounds.lx, clipBounds.ux, ts);
+                solveQuadratic(y0, y1, y2, clipBounds.ly, clipBounds.uy, ts);
+                
                 px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
                 writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
                 writeClippedSegmentToScanlines(px0, py0, x2, y2, clipBounds, scanlines);
