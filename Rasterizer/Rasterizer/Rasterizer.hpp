@@ -114,11 +114,9 @@ struct Rasterizer {
     struct Scanline {
         struct Delta {
             Delta() {}
-            Delta(float x, float y, float delta) : x(x), y(y), delta(delta) {}
-            
-            inline bool operator< (const Delta& other) const { return x < other.x || (x == other.x && y < other.y); }
-            short x, y;
-            float delta;
+            Delta(float x, float y, float delta) : x(x), delta(delta * 32767.f) {}
+            inline bool operator< (const Delta& other) const { return x < other.x; }
+            short x, delta;
         };
         Scanline() { empty(); }
         
@@ -216,7 +214,7 @@ struct Rasterizer {
                                 spans.emplace_back(device.lx + ix, y, -a);
                         x = delta->x;
                     }
-                    cover += delta->delta;
+                    cover += float(delta->delta) / 32767.f * 255.5f;
                 }
             }
         }
@@ -584,7 +582,7 @@ struct Rasterizer {
             return;
         float dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
         Scanline *scanline;
-        sign = 255.5f * (y0 < y1 ? 1 : -1);
+        sign = (scanlines ? 1.f : 255.5f) * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
         dxdy = (x1 - x0) / (y1 - y0);
