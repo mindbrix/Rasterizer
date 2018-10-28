@@ -15,19 +15,16 @@
 struct Rasterizer {
     template<typename T>
     static void radixSort(T *in, short *counts, T *out, int n, int shift) {
-        union { unsigned int ix; float x; };
+        T x;
         memset(counts, 0, sizeof(short) * 256);
-        for (int i = 0; i < n; i++) {
-            x = *(float *)(in + i);
-            counts[(ix >> shift) & 0xFF]++;
-        }
+        for (int i = 0; i < n; i++)
+            counts[(in[i] >> shift) & 0xFF]++;
         for (int i = 1; i < 256; i++)
             counts[i] += counts[i - 1];
-        
         for (int i = n - 1; i >= 0; i--) {
-            x = *(float *)(in + i);
-            out[counts[(ix >> shift) & 0xFF] - 1] = in[i];
-            counts[(ix >> shift) & 0xFF]--;
+            x = in[i];
+            out[counts[(x >> shift) & 0xFF] - 1] = in[i];
+            counts[(x >> shift) & 0xFF]--;
         }
     }
     static const size_t kCellsDimension = 64;
