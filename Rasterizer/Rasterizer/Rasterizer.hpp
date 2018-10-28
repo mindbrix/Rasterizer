@@ -408,7 +408,7 @@ struct Rasterizer {
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
         visible = clipBounds, visible.lx = -FLT_MAX, visible.ux = FLT_MAX;
         clipped = Bounds(lx, ly, ux, uy ).intersected(visible);
-        if (!clipped.isZero()) {
+        if (clipped.ly != clipped.uy) {
             sy0 = y0 < clipped.ly ? clipped.ly : y0 > clipped.uy ? clipped.uy : y0;
             sy1 = y1 < clipped.ly ? clipped.ly : y1 > clipped.uy ? clipped.uy : y1;
             if (x0 == x1) {
