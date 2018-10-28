@@ -14,7 +14,7 @@
 @interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) Rasterizer::Context context;
-@property(nonatomic) BOOL useRasterizer;
+@property(nonatomic) BOOL useCoreGraphics;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
@@ -73,7 +73,7 @@
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = self.useRasterizer ? @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = self.useCoreGraphics ? @"Core Graphics" :  @"Rasterizer";
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
@@ -100,7 +100,7 @@
 }
 
 - (IBAction)toggleRasterizer:(id)sender {
-    self.useRasterizer = !self.useRasterizer;
+    self.useCoreGraphics = !self.useCoreGraphics;
     [self updateRasterizerLabel];
     [self redraw];
 }
@@ -119,15 +119,7 @@
     _context.setBitmap(bitmap);
     float tx, ty;
     
-    if (self.useRasterizer) {
-        uint8_t black[4] = { 0, 0, 0, 255 };
-        uint32_t bgra = *((uint32_t *)black);
-        for (size_t i = 0; i < _glyphPaths.size(); i++) {
-            Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
-            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, _context);
-        }
-    } else {
+    if (self.useCoreGraphics) {
         Rasterizer::Bounds clipBounds(0, 0, _context.bitmap.width, _context.bitmap.height);
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
@@ -141,6 +133,14 @@
                 CGContextFillPath(ctx);
                 CGContextRestoreGState(ctx);
             }
+        }
+    } else {
+        uint8_t black[4] = { 0, 0, 0, 255 };
+        uint32_t bgra = *((uint32_t *)black);
+        for (size_t i = 0; i < _glyphPaths.size(); i++) {
+            Rasterizer::Bounds glyphBounds = _glyphBounds[i];
+            tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
+            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, _context);
         }
     }
 }
