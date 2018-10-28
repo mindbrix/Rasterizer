@@ -479,13 +479,17 @@ struct Rasterizer {
         }
     }
     static void solveQuadratic(float n0, float n1, float n2, float nt0, float nt1, float *ts) {
-        float A, B;
-        A = n0 + n2 - n1 - n1, B = 2.f * (n1 - n0);
+        float A = n0 + n2 - n1 - n1, B = 2.f * (n1 - n0);
         solveQuadratic(A, B, n0 - nt0, ts[0], ts[1]);
         solveQuadratic(A, B, n0 - nt1, ts[2], ts[3]);
+        for (int i = 0; i < 4; i++)
+            ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
+        std::sort(& ts[0], & ts[4]);
+        if (ts[0] == ts[1])
+            std::swap(ts[0], ts[2]), std::swap(ts[1], ts[3]);
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, px0, py0, ts[4];
+        float lx, ly, ux, uy, cly, cuy, px0, py0, tys[4], txs[4], t0, t1, tm, s0, s1, sm, tx0, ty0, tx2, ty2, tmx, tmy, tx1, ty1;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
         ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
@@ -494,16 +498,38 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveQuadratic(y0, y1, y2, clipBounds.ly, clipBounds.uy, ts);
-                for (int i = 0; i < 4; i++)
-                    ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
-                std::sort(& ts[0], & ts[4]);
+                solveQuadratic(y0, y1, y2, clipBounds.ly, clipBounds.uy, tys);
+                solveQuadratic(x0, x1, x2, clipBounds.lx, clipBounds.ux, txs);
+                if (txs[0] == txs[1]) {
+                    ty0 = y0 < cly ? cly : y0 > cuy ? cuy : y0;
+                    ty1 = y1 < cly ? cly : y1 > cuy ? cuy : y1;
+                    ty2 = y2 < cly ? cly : y2 > cuy ? cuy : y2;
+                    if (lx > clipBounds.ux) {
+                        writeSegmentToDeltasOrScanlines(clipBounds.ux, ty0, clipBounds.ux, ty1, nullptr, 0, scanlines);
+                        writeSegmentToDeltasOrScanlines(clipBounds.ux, ty1, clipBounds.ux, ty2, nullptr, 0, scanlines);
+                    } else {
+                        writeDelta0sToScanlines(ty0, ty1, scanlines);
+                        writeDelta0sToScanlines(ty1, ty2, scanlines);
+                    }
+                } else {
+                    t0 = txs[0] < tys[0] ? tys[0] : txs[0] > tys[0] ? tys[0] : txs[0], s0 = 1.f - t0;
+                    t1 = txs[1] < tys[1] ? tys[1] : txs[1] > tys[1] ? tys[1] : txs[1], s1 = 1.f - t1;
+                    tm = (t0 + t1) * 0.5f, sm = 1.f - tm;
+                    tx0 = x0 * s0 * s0 + x1 * 2.f * s0 * t0 + x2 * t0 * t0;
+                    ty0 = y0 * s0 * s0 + y1 * 2.f * s0 * t0 + y2 * t0 * t0;
+                    tx1 = x0 * sm * sm + x1 * 2.f * sm * tm + x2 * tm * tm;
+                    ty1 = y0 * sm * sm + y1 * 2.f * sm * tm + y2 * tm * tm;
+                    tx2 = x0 * s1 * s1 + x1 * 2.f * s1 * t1 + x2 * t1 * t1;
+                    ty2 = y0 * s1 * s1 + y1 * 2.f * s1 * t1 + y2 * t1 * t1;
+                    tmx = (tx0 + tx2) * 0.5f, tmy = (ty0 + ty2) * 0.5f;
+                    tx1 = tmx + 2.f * (tx1 - tmx), ty1 = tmy + 2.f * (ty1 - tmy);
+                    ty0 = ty0 < 0 ? 0 : ty0, ty1 = ty1 < 0 ? 0 : ty1, ty2 = ty2 < 0 ? 0 : ty2;
+                    writeQuadraticToDeltasOrScanlines(tx0, ty0, tx1, ty1, tx2, ty2, nullptr, 0, scanlines);
+                }
                 
-                solveQuadratic(x0, x1, x2, clipBounds.lx, clipBounds.ux, ts);
-
-                px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
-                writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
-                writeClippedSegmentToScanlines(px0, py0, x2, y2, clipBounds, scanlines);
+//                px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
+//                writeClippedSegmentToScanlines(x0, y0, px0, py0, clipBounds, scanlines);
+//                writeClippedSegmentToScanlines(px0, py0, x2, y2, clipBounds, scanlines);
             } else
                 writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, nullptr, 0, scanlines);
         }
