@@ -128,7 +128,7 @@ struct Rasterizer {
     struct Scanline {
         struct Delta {
             Delta() {}
-            Delta(float x, float y, float delta) : x(x), delta(delta) {}
+            inline Delta(float x, float y, float delta) : x(x), delta(delta) {}
             inline bool operator< (const Delta& other) const { return x < other.x; }
             short x, delta;
         };
@@ -147,7 +147,7 @@ struct Rasterizer {
     struct Spanline {
         struct Span {
             Span() {}
-            Span(float x, float w) : x(x), w(w) {}
+            inline Span(float x, float w) : x(x), w(w) {}
             short x, w;
         };
         void empty() { idx = 0; }
