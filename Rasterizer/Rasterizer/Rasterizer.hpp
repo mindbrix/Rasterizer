@@ -548,7 +548,7 @@ struct Rasterizer {
         }
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, cpx, cpy;
+        float lx, ly, ux, uy, cly, cuy;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
         lx = lx < x3 ? lx : x3, ly = ly < y3 ? ly : y3;
@@ -559,8 +559,9 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                cpx = (3.0 * (x2 + x1) - x0 - x3) * 0.25, cpy = (3.0 * (y2 + y1) - y0 - y3) * 0.25;
-                writeClippedQuadraticToScanlines(x0, y0, cpx, cpy, x3, y3, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(x2, y2, x3, y3, clipBounds, scanlines);
             } else
                 writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, nullptr, 0, scanlines);
         }
