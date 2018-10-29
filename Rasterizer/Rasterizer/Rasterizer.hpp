@@ -136,12 +136,12 @@ struct Rasterizer {
         
         void empty() { delta0 = idx = 0; }
         inline Delta *alloc() {
-            if (idx >= deltas.size())
-                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5);
+            if (idx >= size)
+                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size();
             return & deltas[idx++];
         }
         float delta0;
-        size_t idx;
+        size_t idx, size;
         std::vector<Delta> deltas;
     };
     struct Spanline {
@@ -152,11 +152,11 @@ struct Rasterizer {
         };
         void empty() { idx = 0; }
         inline Span *alloc() {
-            if (idx >= spans.size())
-                spans.resize(spans.size() == 0 ? 8 : spans.size() * 1.5);
+            if (idx >= size)
+                spans.resize(spans.size() == 0 ? 8 : spans.size() * 1.5), size = spans.size();
             return & spans[idx++];
         }
-        size_t idx;
+        size_t idx, size;
         std::vector<Span> spans;
     };
     struct Context {
