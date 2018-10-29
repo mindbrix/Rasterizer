@@ -479,17 +479,16 @@ struct Rasterizer {
         }
     }
     static void solveQuadratic(float A, float B, float C, float& t0, float& t1) {
-        if (fabsf(A) < 1e-3) {
+        float disc, root, denom;
+        if (fabsf(A) < 1e-3)
             t0 = -C / B, t1 = FLT_MAX;
-        } else {
-            float discriminant, sqrtDiscriminant, denominator;
-            discriminant = B * B - 4.0f * A * C;
-            if (discriminant < 0)
+        else {
+            disc = B * B - 4.0f * A * C;
+            if (disc < 0)
                 t0 = t1 = FLT_MAX;
             else {
-                sqrtDiscriminant = sqrtf(fabsf(discriminant));
-                denominator = 1.0f / (2.0f * A);
-                t0 = (-B + sqrtDiscriminant) * denominator, t1 = (-B - sqrtDiscriminant) * denominator;
+                root = sqrtf(fabsf(disc)), denom = 0.5f / A;
+                t0 = (-B + root) * denom, t1 = (-B - root) * denom;
             }
         }
     }
