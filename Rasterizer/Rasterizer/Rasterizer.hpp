@@ -144,11 +144,6 @@ struct Rasterizer {
         size_t idx;
         std::vector<Delta> deltas;
     };
-    struct Span {
-        Span() {}
-        Span(float x, float y, float w) : x(x), y(y), w(w) {}
-        short x, y, w;
-    };
     struct Spanline {
         struct Span {
             Span() {}
