@@ -335,7 +335,6 @@ struct Rasterizer {
         uint8_t *components = (uint8_t *) & color;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         uint32_t *pixelAddress;
-        
         Spanline *spanline = & spanlines[clipped.ly - device.ly];
         Spanline::Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
