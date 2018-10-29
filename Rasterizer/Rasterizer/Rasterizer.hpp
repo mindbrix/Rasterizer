@@ -132,7 +132,7 @@ struct Rasterizer {
             inline bool operator< (const Delta& other) const { return x < other.x; }
             short x, delta;
         };
-        Scanline() { empty(); }
+        Scanline() : size(0) { empty(); }
         
         void empty() { delta0 = idx = 0; }
         inline Delta *alloc() {
@@ -150,6 +150,8 @@ struct Rasterizer {
             inline Span(float x, float w) : x(x), w(w) {}
             short x, w;
         };
+        Spanline() : size(0) { empty(); }
+        
         void empty() { idx = 0; }
         inline Span *alloc() {
             if (idx >= size)
