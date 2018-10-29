@@ -548,9 +548,23 @@ struct Rasterizer {
         }
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
-        writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
-        writeClippedSegmentToScanlines(x2, y2, x3, y3, clipBounds, scanlines);
+        float lx, ly, ux, uy, cly, cuy;
+        lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
+        lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
+        lx = lx < x3 ? lx : x3, ly = ly < y3 ? ly : y3;
+        ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
+        ux = ux > x2 ? ux : x2, uy = uy > y2 ? uy : y2;
+        ux = ux > x3 ? ux : x3, uy = uy > y3 ? uy : y3;
+        cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
+        cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
+        if (cly != cuy) {
+            if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
+                writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(x2, y2, x3, y3, clipBounds, scanlines);
+            } else
+                writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, nullptr, 0, scanlines);
+        }
     }
     
     static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines) {
