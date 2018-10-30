@@ -128,7 +128,7 @@ struct Rasterizer {
     struct Scanline {
         struct Delta {
             Delta() {}
-            inline Delta(float x, float y, float delta) : x(x), delta(delta) {}
+            inline Delta(float x, float delta) : x(x), delta(delta) {}
             inline bool operator< (const Delta& other) const { return x < other.x; }
             short x, delta;
         };
@@ -728,13 +728,13 @@ struct Rasterizer {
                 alpha = total + cover * area;
                 total += cover;
                 if (scanlines)
-                    new (scanline->alloc()) Scanline::Delta(ix0, iy0, alpha - last);
+                    new (scanline->alloc()) Scanline::Delta(ix0, alpha - last);
                 else
                     *delta += alpha - last;
                 last = alpha;
             }
             if (scanlines)
-                new (scanline->alloc()) Scanline::Delta(ix0, iy0, total - last);
+                new (scanline->alloc()) Scanline::Delta(ix0, total - last);
             else {
                 if (ix0 < stride)
                     *delta += total - last;
