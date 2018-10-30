@@ -487,7 +487,7 @@ struct Rasterizer {
             if (disc < 0)
                 t0 = t1 = FLT_MAX;
             else {
-                root = sqrtf(fabsf(disc)), denom = 0.5f / A;
+                root = sqrtf(disc), denom = 0.5f / A;
                 t0 = (-B + root) * denom, t1 = (-B - root) * denom;
             }
         }
@@ -561,8 +561,62 @@ struct Rasterizer {
                 writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, nullptr, 0, scanlines);
         }
     }
+    static void solveCubic(float pa, float pb, float pc, float pd, float& t0, float& t1, float& t2) {
+        const float limit = 1e-3;
+        float a, b, c, d;
+        a = (3*pa - 6*pb + 3*pc),
+        b = (-3*pa + 3*pb),
+        c = pa,
+        d = (-pa + 3*pb - 3*pc + pd);
+        
+        t0 = t1 = t2 = FLT_MAX;
+        if (fabsf(d) < limit) {
+            if (fabsf(a) < limit) {
+                if (fabsf(b) < limit) {
+                    return;
+                }
+                t0 = -c / b;
+                return;
+            }
+            float q = (b * b - 4.f * a * c), a2 = 0.5f / a;
+            if (q >= 0)
+                q = sqrtf(q), t0 = (q - b) * a2, t1 = (-b - q) * a2;
+            return;
+        }
+        
+        a /= d, b /= d, c /= d;
+        float p = (3*b - a*a)/3, p3 = p/3, q = (2*a*a*a - 9*a*b + 27*c)/27, q2 = q/2, discriminant = q2*q2 + p3*p3*p3;
+        float u1, v1;
+        
+        if (discriminant < 0) {
+            float mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrtf( mp33 ), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
+            float phi = acosf(cosphi), crtr = cbrtf(fabsf(r)), crtr2 = 2*crtr;
+            t0 = crtr2 * cosf(phi/3) - a/3;
+            t1 = crtr2 * cosf((phi+2*M_PI)/3) - a/3;
+            t2 = crtr2 * cosf((phi+4*M_PI)/3) - a/3;
+        } else if (discriminant == 0) {
+            u1 = q2 < 0 ? cbrtf(-q2) : -cbrtf(q2);
+            t0 = 2*u1 - a/3;
+            t1 = -u1 - a/3;
+        } else {
+            float sd = sqrtf(discriminant);
+            u1 = cbrtf(fabsf(sd - q2));
+            v1 = cbrtf(fabsf(sd + q2));
+            t0 = u1 - v1 - a/3;
+        }
+    }
+    
+    static void solveCubic(float n0, float n1, float n2, float n3, float nt0, float nt1, float *ts) {
+        solveCubic(n0 - nt0, n1 - nt0, n2 - nt0, n3 - nt0, ts[0], ts[1], ts[2]);
+        solveCubic(n0 - nt1, n1 - nt1, n2 - nt1, n3 - nt1, ts[3], ts[4], ts[5]);
+        for (int i = 0; i < 6; i++)
+            ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
+        std::sort(& ts[0], & ts[6]);
+    }
+    
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy;
+        float lx, ly, ux, uy, cly, cuy, tys[6], txs[6], ts[8], ty0, ty1, t0, t1, t;
+        size_t x, y;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
         lx = lx < x3 ? lx : x3, ly = ly < y3 ? ly : y3;
@@ -573,6 +627,22 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
+                solveCubic(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, tys);
+                solveCubic(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, txs);
+                for (y = 0; y < 6; y += 2) {
+                    ty0 = tys[y], ty1 = tys[y + 1];
+                    if (ty0 != ty1) {
+                        ts[0] = ty0, ts[1] = ty1;
+                        for (x = 0; x < 6; x++)
+                            t = txs[x], ts[x + 2] = t < ty0 ? ty0 : t > ty1 ? ty1 : t;
+                        std::sort(& ts[0], & ts[8]);
+                        for (x = 0; x < 7; x++) {
+                            t0 = ts[x], t1 = ts[x + 1];
+                            if (t0 != t1) {
+                            }
+                        }
+                    }
+                }
                 writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
                 writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
                 writeClippedSegmentToScanlines(x2, y2, x3, y3, clipBounds, scanlines);
