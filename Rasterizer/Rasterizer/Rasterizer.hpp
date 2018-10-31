@@ -600,7 +600,7 @@ struct Rasterizer {
         std::sort(& ts[0], & ts[6]);
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
-        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
+        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0, wa = w2 / (w1 * w1), wb = w1 * w1 / (w1 * w1 - w2 * w2);
         float ax, ay, bx, by, cx, cy;
         float tp0, tp1, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, A, B;
         
@@ -618,11 +618,11 @@ struct Rasterizer {
         ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
         A = tx0 * w0 + tx3 * w3 - tx1;
         B = tx0 * w3 + tx3 * w0 - tx2;
-        tx1 = (B * w2 / (w1 * w1) - A / w1) * w1 * w1 / (w1 * w1 - w2 * w2);
+        tx1 = (B * wa - A / w1) * wb;
         tx2 = (-B - tx1 * w2) / w1;
         A = ty0 * w0 + ty3 * w3 - ty1;
         B = ty0 * w3 + ty3 * w0 - ty2;
-        ty1 = (B * w2 / (w1 * w1) - A / w1) * w1 * w1 / (w1 * w1 - w2 * w2);
+        ty1 = (B * wa - A / w1) * wb;
         ty2 = (-B - ty1 * w2) / w1;
         
         tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
