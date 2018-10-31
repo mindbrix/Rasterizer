@@ -492,7 +492,7 @@ struct Rasterizer {
             }
         }
     }
-    static void solveQuadratic(float n0, float n1, float n2, float nt0, float nt1, float *ts) {
+    static void solveQuadratics(float n0, float n1, float n2, float nt0, float nt1, float *ts) {
         float A = n0 + n2 - n1 - n1, B = 2.f * (n1 - n0);
         solveQuadratic(A, B, n0 - nt0, ts[0], ts[1]);
         solveQuadratic(A, B, n0 - nt1, ts[2], ts[3]);
@@ -533,8 +533,8 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveQuadratic(y0, y1, y2, clipBounds.ly, clipBounds.uy, tys);
-                solveQuadratic(x0, x1, x2, clipBounds.lx, clipBounds.ux, txs);
+                solveQuadratics(y0, y1, y2, clipBounds.ly, clipBounds.uy, tys);
+                solveQuadratics(x0, x1, x2, clipBounds.lx, clipBounds.ux, txs);
                 for (y = 0; y < 4; y += 2) {
                     ty0 = tys[y], ty1 = tys[y + 1];
                     if (ty0 != ty1) {
@@ -563,59 +563,67 @@ struct Rasterizer {
     }
     static void solveCubic(float pa, float pb, float pc, float pd, float& t0, float& t1, float& t2) {
         const float limit = 1e-3;
-        float a, b, c, d;
-        a = (3*pa - 6*pb + 3*pc),
-        b = (-3*pa + 3*pb),
-        c = pa,
-        d = (-pa + 3*pb - 3*pc + pd);
+        float a, b, c, d, p, q, q2, u1, v1, p3, discriminant;
         
-        t0 = t1 = t2 = FLT_MAX;
+        a = (3.f * pa - 6.f * pb + 3.f * pc), b = (-3.f * pa + 3.f * pb), c = pa, d = (-pa + 3.f * pb - 3.f * pc + pd);
         if (fabsf(d) < limit) {
-            if (fabsf(a) < limit) {
-                if (fabsf(b) < limit) {
-                    return;
-                }
-                t0 = -c / b;
-                return;
-            }
-            float q = (b * b - 4.f * a * c), a2 = 0.5f / a;
-            if (q >= 0)
-                q = sqrtf(q), t0 = (q - b) * a2, t1 = (-b - q) * a2;
-            return;
-        }
-        
-        a /= d, b /= d, c /= d;
-        float p = (3*b - a*a)/3, p3 = p/3, q = (2*a*a*a - 9*a*b + 27*c)/27, q2 = q/2, discriminant = q2*q2 + p3*p3*p3;
-        float u1, v1;
-        
-        if (discriminant < 0) {
-            float mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrtf( mp33 ), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
-            float phi = acosf(cosphi), crtr = cbrtf(fabsf(r)), crtr2 = 2*crtr;
-            t0 = crtr2 * cosf(phi/3) - a/3;
-            t1 = crtr2 * cosf((phi+2*M_PI)/3) - a/3;
-            t2 = crtr2 * cosf((phi+4*M_PI)/3) - a/3;
-        } else if (discriminant == 0) {
-            u1 = q2 < 0 ? cbrtf(-q2) : -cbrtf(q2);
-            t0 = 2*u1 - a/3;
-            t1 = -u1 - a/3;
+            solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
         } else {
-            float sd = sqrtf(discriminant);
-            u1 = cbrtf(fabsf(sd - q2));
-            v1 = cbrtf(fabsf(sd + q2));
-            t0 = u1 - v1 - a/3;
+            a /= d, b /= d, c /= d;
+            p = (3.f * b - a * a) / 3.f, p3 = p / 3.f, q = (2 * a * a * a - 9.f * a * b + 27.f * c) / 27.f, q2 = q / 2.f;
+            discriminant = q2 * q2 + p3 * p3 * p3;
+            
+            if (discriminant < 0) {
+                float mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrtf( mp33 ), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
+                float phi = acosf(cosphi), crtr = cbrtf(fabsf(r)), crtr2 = 2*crtr;
+                t0 = crtr2 * cosf(phi/3) - a/3;
+                t1 = crtr2 * cosf((phi+2*M_PI)/3) - a/3;
+                t2 = crtr2 * cosf((phi+4*M_PI)/3) - a/3;
+            } else if (discriminant == 0) {
+                u1 = q2 < 0 ? cbrtf(-q2) : -cbrtf(q2);
+                t0 = 2*u1 - a/3;
+                t1 = -u1 - a/3;
+                t2 = FLT_MAX;
+            } else {
+                float sd = sqrtf(discriminant);
+                u1 = cbrtf(fabsf(sd - q2));
+                v1 = cbrtf(fabsf(sd + q2));
+                t0 = u1 - v1 - a/3, t1 = t2 = FLT_MAX;
+            }
         }
     }
     
-    static void solveCubic(float n0, float n1, float n2, float n3, float nt0, float nt1, float *ts) {
+    static void solveCubics(float n0, float n1, float n2, float n3, float nt0, float nt1, float *ts) {
         solveCubic(n0 - nt0, n1 - nt0, n2 - nt0, n3 - nt0, ts[0], ts[1], ts[2]);
         solveCubic(n0 - nt1, n1 - nt1, n2 - nt1, n3 - nt1, ts[3], ts[4], ts[5]);
         for (int i = 0; i < 6; i++)
             ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
         std::sort(& ts[0], & ts[6]);
     }
-    
+    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
+        float tm, s0, s1, sm, tx0, ty0, tx2, ty2, tmx, tmy, tx1, ty1;
+        s0 = 1.f - t0, s1 = 1.f - t1;
+        tm = (t0 + t1) * 0.5f, sm = 1.f - tm;
+        
+        tx0 = x0 * s0 * s0 * s0 + x1 * 3.f * s0 * s0 * t0 + x2 * 3.f * s0 * t0 * t0 + x3 * t0 * t0 * t0;
+        ty0 = y0 * s0 * s0 * s0 + y1 * 3.f * s0 * s0 * t0 + y2 * 3.f * s0 * t0 * t0 + y3 * t0 * t0 * t0;
+        tx1 = x0 * sm * sm * sm + x1 * 3.f * sm * sm * tm + x2 * 3.f * sm * tm * tm + x3 * tm * tm * tm;
+        ty1 = y0 * sm * sm * sm + y1 * 3.f * sm * sm * tm + y2 * 3.f * sm * tm * tm + y3 * tm * tm * tm;
+        tx2 = x0 * s1 * s1 * s1 + x1 * 3.f * s1 * s1 * t1 + x2 * 3.f * s1 * t1 * t1 + x3 * t1 * t1 * t1;
+        ty2 = y0 * s1 * s1 * s1 + y1 * 3.f * s1 * s1 * t1 + y2 * 3.f * s1 * t1 * t1 + y3 * t1 * t1 * t1;
+        
+        tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
+        tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
+        ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
+        ty2 = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
+        if (clip) {
+            tx1 = tx1 < clipBounds.lx ? clipBounds.lx : tx1 > clipBounds.ux ? clipBounds.ux : tx1;
+            ty1 = ty1 < clipBounds.ly ? clipBounds.ly : ty1 > clipBounds.uy ? clipBounds.uy : ty1;
+        }
+        *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2;
+    }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, tys[6], txs[6], ts[8], ty0, ty1, t0, t1, t;
+        float lx, ly, ux, uy, cly, cuy, tys[6], txs[6], ts[8], ty0, ty1, t0, t1, t, q[8];
         size_t x, y;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
@@ -627,8 +635,8 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveCubic(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, tys);
-                solveCubic(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, txs);
+                solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, tys);
+                solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, txs);
                 for (y = 0; y < 6; y += 2) {
                     ty0 = tys[y], ty1 = tys[y + 1];
                     if (ty0 != ty1) {
@@ -639,13 +647,19 @@ struct Rasterizer {
                         for (x = 0; x < 7; x++) {
                             t0 = ts[x], t1 = ts[x + 1];
                             if (t0 != t1) {
+                                if (x & 0x1) {
+                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, q);
+                                    writeCubicToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7], nullptr, 0, scanlines);
+                                } else {
+                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, q);
+                                    writeSegmentToDeltasOrScanlines(q[0], q[1], q[0], q[3], nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(q[0], q[3], q[0], q[5], nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(q[0], q[5], q[0], q[7], nullptr, 0, scanlines);
+                                }
                             }
                         }
                     }
                 }
-                writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
-                writeClippedSegmentToScanlines(x1, y1, x2, y2, clipBounds, scanlines);
-                writeClippedSegmentToScanlines(x2, y2, x3, y3, clipBounds, scanlines);
             } else
                 writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, nullptr, 0, scanlines);
         }
