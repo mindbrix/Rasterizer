@@ -616,14 +616,10 @@ struct Rasterizer {
         ty2 = ((ay * tp1 + by) * tp1 + cy) * tp1 + y0;
         tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0;
         ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
-        A = tx0 * w0 + tx3 * w3 - tx1;
-        B = tx0 * w3 + tx3 * w0 - tx2;
-        tx1 = (B * wa - A / w1) * wb;
-        tx2 = (-B - tx1 * w2) / w1;
-        A = ty0 * w0 + ty3 * w3 - ty1;
-        B = ty0 * w3 + ty3 * w0 - ty2;
-        ty1 = (B * wa - A / w1) * wb;
-        ty2 = (-B - ty1 * w2) / w1;
+        A = tx0 * w0 + tx3 * w3 - tx1, B = tx0 * w3 + tx3 * w0 - tx2;
+        tx1 = (B * wa - A / w1) * wb, tx2 = (-B - tx1 * w2) / w1;
+        A = ty0 * w0 + ty3 * w3 - ty1, B = ty0 * w3 + ty3 * w0 - ty2;
+        ty1 = (B * wa - A / w1) * wb, ty2 = (-B - ty1 * w2) / w1;
         
         tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
         ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
