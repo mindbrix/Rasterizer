@@ -592,7 +592,6 @@ struct Rasterizer {
             }
         }
     }
-    
     static void solveCubics(float n0, float n1, float n2, float n3, float nt0, float nt1, float *ts) {
         solveCubic(n0 - nt0, n1 - nt0, n2 - nt0, n3 - nt0, ts[0], ts[1], ts[2]);
         solveCubic(n0 - nt1, n1 - nt1, n2 - nt1, n3 - nt1, ts[3], ts[4], ts[5]);
@@ -601,26 +600,42 @@ struct Rasterizer {
         std::sort(& ts[0], & ts[6]);
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
-        float tm, s0, s1, sm, tx0, ty0, tx2, ty2, tmx, tmy, tx1, ty1;
-        s0 = 1.f - t0, s1 = 1.f - t1;
-        tm = (t0 + t1) * 0.5f, sm = 1.f - tm;
+        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
+        float ax, ay, bx, by, cx, cy;
+        float tp0, tp1, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, A, B;
         
-        tx0 = x0 * s0 * s0 * s0 + x1 * 3.f * s0 * s0 * t0 + x2 * 3.f * s0 * t0 * t0 + x3 * t0 * t0 * t0;
-        ty0 = y0 * s0 * s0 * s0 + y1 * 3.f * s0 * s0 * t0 + y2 * 3.f * s0 * t0 * t0 + y3 * t0 * t0 * t0;
-        tx1 = x0 * sm * sm * sm + x1 * 3.f * sm * sm * tm + x2 * 3.f * sm * tm * tm + x3 * tm * tm * tm;
-        ty1 = y0 * sm * sm * sm + y1 * 3.f * sm * sm * tm + y2 * 3.f * sm * tm * tm + y3 * tm * tm * tm;
-        tx2 = x0 * s1 * s1 * s1 + x1 * 3.f * s1 * s1 * t1 + x2 * 3.f * s1 * t1 * t1 + x3 * t1 * t1 * t1;
-        ty2 = y0 * s1 * s1 * s1 + y1 * 3.f * s1 * s1 * t1 + y2 * 3.f * s1 * t1 * t1 + y3 * t1 * t1 * t1;
+        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+        tp0 = (2.f * t0 + t1) / 3.f, tp1 = (t0 + 2.f * t1) / 3.f;
+        
+        tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0;
+        ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
+        tx1 = ((ax * tp0 + bx) * tp0 + cx) * tp0 + x0;
+        ty1 = ((ay * tp0 + by) * tp0 + cy) * tp0 + y0;
+        tx2 = ((ax * tp1 + bx) * tp1 + cx) * tp1 + x0;
+        ty2 = ((ay * tp1 + by) * tp1 + cy) * tp1 + y0;
+        tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0;
+        ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
+        A = tx0 * w0 + tx3 * w3 - tx1;
+        B = tx0 * w3 + tx3 * w0 - tx2;
+        tx1 = (B * w2 / (w1 * w1) - A / w1) * w1 * w1 / (w1 * w1 - w2 * w2);
+        tx2 = (-B - tx1 * w2) / w1;
+        A = ty0 * w0 + ty3 * w3 - ty1;
+        B = ty0 * w3 + ty3 * w0 - ty2;
+        ty1 = (B * w2 / (w1 * w1) - A / w1) * w1 * w1 / (w1 * w1 - w2 * w2);
+        ty2 = (-B - ty1 * w2) / w1;
         
         tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
-        tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
         ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
-        ty2 = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
+        tx3 = tx3 < clipBounds.lx ? clipBounds.lx : tx3 > clipBounds.ux ? clipBounds.ux : tx3;
+        ty3 = ty3 < clipBounds.ly ? clipBounds.ly : ty3 > clipBounds.uy ? clipBounds.uy : ty3;
         if (clip) {
             tx1 = tx1 < clipBounds.lx ? clipBounds.lx : tx1 > clipBounds.ux ? clipBounds.ux : tx1;
             ty1 = ty1 < clipBounds.ly ? clipBounds.ly : ty1 > clipBounds.uy ? clipBounds.uy : ty1;
+            tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
+            ty2 = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
         }
-        *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2;
+        *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2, *q++ = tx3, *q++ = ty3;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cly, cuy, tys[6], txs[6], ts[8], ty0, ty1, t0, t1, t, q[8];
