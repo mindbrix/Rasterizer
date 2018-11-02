@@ -749,7 +749,7 @@ struct Rasterizer {
     
     static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float px0, py0, px1, py1, a, dt, s, t, ax, ay, bx, by, cx, cy;
+        float px0, py0, px1, py1, a, dt, s, t, ax, ay, bx, by, cx, cy, pw0, pw1, pw2, pw3;
         size_t count;
         cx = 3.0 * (x1 - x0), bx = 3.0 * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.0 * (y1 - y0), by = 3.0 * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
@@ -768,8 +768,8 @@ struct Rasterizer {
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
-                px1 = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
-                py1 = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
+                pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
+                px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
                 writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, deltas, stride, scanlines);
                 px0 = px1, py0 = py1;
             }
