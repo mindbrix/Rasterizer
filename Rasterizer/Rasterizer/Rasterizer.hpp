@@ -599,7 +599,7 @@ struct Rasterizer {
             ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool visible, float *cubic) {
-        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0, wa = w2 / (w1 * w1), wb = w1 * w1 / (w1 * w1 - w2 * w2);
+        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0, w1r = 1.0 / w1, wa = w2 / (w1 * w1), wb = w1 * w1 / (w1 * w1 - w2 * w2);
         float ax, ay, bx, by, cx, cy;
         float tp0, tp1, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, A, B;
         
@@ -616,9 +616,9 @@ struct Rasterizer {
         tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0;
         ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
         A = tx0 * w0 + tx3 * w3 - tx1, B = tx0 * w3 + tx3 * w0 - tx2;
-        tx1 = (B * wa - A / w1) * wb, tx2 = (-B - tx1 * w2) / w1;
+        tx1 = (B * wa - A * w1r) * wb, tx2 = (-B - tx1 * w2) * w1r;
         A = ty0 * w0 + ty3 * w3 - ty1, B = ty0 * w3 + ty3 * w0 - ty2;
-        ty1 = (B * wa - A / w1) * wb, ty2 = (-B - ty1 * w2) / w1;
+        ty1 = (B * wa - A * w1r) * wb, ty2 = (-B - ty1 * w2) * w1r;
         
         tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
         ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
