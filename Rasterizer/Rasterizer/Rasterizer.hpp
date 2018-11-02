@@ -597,7 +597,6 @@ struct Rasterizer {
         solveCubic(n0 - nt1, n1 - nt1, n2 - nt1, n3 - nt1, ts[3], ts[4], ts[5]);
         for (int i = 0; i < 6; i++)
             ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
-        std::sort(& ts[0], & ts[6]);
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0, wa = w2 / (w1 * w1), wb = w1 * w1 / (w1 * w1 - w2 * w2);
