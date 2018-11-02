@@ -574,7 +574,7 @@ struct Rasterizer {
             discriminant = q2 * q2 + p3 * p3 * p3;
             
             if (discriminant < 0) {
-                mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrtf( mp33 ), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
+                mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrt(mp33), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
                 phi = acos(cosphi), crtr = 2 * cbrt(fabs(r));
                 t0 = crtr * cos(phi/3) - a/3;
                 t1 = crtr * cos((phi+2*M_PI)/3) - a/3;
@@ -657,7 +657,11 @@ struct Rasterizer {
                             visible = x >= clipBounds.lx && x <= clipBounds.ux;
                             writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, visible, cubic);
                             if (visible) {
-                                writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], nullptr, 0, scanlines);
+                                if (fabsf(t1 - t0) < 1e-2) {
+                                    writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], nullptr, 0, scanlines);
+                                } else
+                                    writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], nullptr, 0, scanlines);
                             } else {
                                 writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], cubic[0], cubic[3], nullptr, 0, scanlines);
                                 writeSegmentToDeltasOrScanlines(cubic[0], cubic[3], cubic[0], cubic[5], nullptr, 0, scanlines);
