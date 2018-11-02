@@ -633,17 +633,6 @@ struct Rasterizer {
         }
         *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2, *q++ = tx3, *q++ = ty3;
     }
-    static Bounds cubicBounds(float *cubic) {
-        float lx, ly, ux, uy, x, y;
-        size_t i;
-        lx = ly = FLT_MAX, ux = uy = -FLT_MAX;
-        for (i = 0; i < 8; i += 2)
-            x = cubic[i], lx = x < lx ? x : lx, ux = x > ux ? x : ux;
-        for (i = 1; i < 8; i += 2)
-            y = cubic[i], ly = y < ly ? y : ly, uy = y > uy ? y : uy;
-        return Bounds(lx, ly, ux, uy);
-    }
-    
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8];
         size_t i;
