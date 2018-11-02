@@ -575,10 +575,10 @@ struct Rasterizer {
             
             if (discriminant < 0) {
                 float mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrtf( mp33 ), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
-                float phi = acosf(cosphi), crtr = cbrtf(fabsf(r)), crtr2 = 2*crtr;
-                t0 = crtr2 * cosf(phi/3) - a/3;
-                t1 = crtr2 * cosf((phi+2*M_PI)/3) - a/3;
-                t2 = crtr2 * cosf((phi+4*M_PI)/3) - a/3;
+                float phi = acosf(cosphi), crtr = 2 * cbrtf(fabsf(r));
+                t0 = crtr * cosf(phi/3) - a/3;
+                t1 = crtr * cosf((phi+2*M_PI)/3) - a/3;
+                t2 = crtr * cosf((phi+4*M_PI)/3) - a/3;
             } else if (discriminant == 0) {
                 u1 = q2 < 0 ? cbrtf(-q2) : -cbrtf(q2);
                 t0 = 2*u1 - a/3;
@@ -636,15 +636,13 @@ struct Rasterizer {
         float lx, ly, ux, uy, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8];
         size_t i;
         bool visible;
-        lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
-        lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
-        lx = lx < x3 ? lx : x3, ly = ly < y3 ? ly : y3;
-        ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
-        ux = ux > x2 ? ux : x2, uy = uy > y2 ? uy : y2;
-        ux = ux > x3 ? ux : x3, uy = uy > y3 ? uy : y3;
+        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
+        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
         cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
+            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
+            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
                 solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, & ts[0]);
                 solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, & ts[6]);
