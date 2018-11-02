@@ -633,9 +633,21 @@ struct Rasterizer {
         }
         *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2, *q++ = tx3, *q++ = ty3;
     }
+    static Bounds cubicBounds(float *cubic) {
+        float lx, ly, ux, uy, x, y;
+        size_t i;
+        lx = ly = FLT_MAX, ux = uy = -FLT_MAX;
+        for (i = 0; i < 8; i += 2)
+            x = cubic[i], lx = x < lx ? x : lx, ux = x > ux ? x : ux;
+        for (i = 1; i < 8; i += 2)
+            y = cubic[i], ly = y < ly ? y : ly, uy = y > uy ? y : uy;
+        return Bounds(lx, ly, ux, uy);
+    }
+    
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, tys[6], txs[6], ts[8], ty0, ty1, t0, t1, t, q[8];
-        size_t x, y;
+        float lx, ly, ux, uy, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8];
+        size_t i;
+        bool visible;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
         lx = lx < x3 ? lx : x3, ly = ly < y3 ? ly : y3;
@@ -646,27 +658,24 @@ struct Rasterizer {
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, tys);
-                solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, txs);
-                for (y = 0; y < 6; y += 2) {
-                    ty0 = tys[y], ty1 = tys[y + 1];
-                    if (ty0 != ty1) {
-                        ts[0] = ty0, ts[1] = ty1;
-                        for (x = 0; x < 6; x++)
-                            t = txs[x], ts[x + 2] = t < ty0 ? ty0 : t > ty1 ? ty1 : t;
-                        std::sort(& ts[0], & ts[8]);
-                        for (x = 0; x < 7; x++) {
-                            t0 = ts[x], t1 = ts[x + 1];
-                            if (t0 != t1) {
-                                if (x & 0x1) {
-                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, q);
-                                    writeCubicToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7], nullptr, 0, scanlines);
-                                } else {
-                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, q);
-                                    writeSegmentToDeltasOrScanlines(q[0], q[1], q[0], q[3], nullptr, 0, scanlines);
-                                    writeSegmentToDeltasOrScanlines(q[0], q[3], q[0], q[5], nullptr, 0, scanlines);
-                                    writeSegmentToDeltasOrScanlines(q[0], q[5], q[0], q[7], nullptr, 0, scanlines);
-                                }
+                solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, & ts[0]);
+                solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, & ts[6]);
+                std::sort(& ts[0], & ts[12]);
+                for (i = 0; i < 11; i++) {
+                    t0 = ts[i], t1 = ts[i + 1];
+                    if (t0 != t1) {
+                        t = (t0 + t1) * 0.5f, s = 1.f - t;
+                        y = y0 * s * s * s + y1 * 3.f * s * s * t + y2 * 3.f * s * t * t + y3 * t * t * t;
+                        if (y >= clipBounds.ly && y <= clipBounds.uy) {
+                            x = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
+                            visible = x >= clipBounds.lx && x <= clipBounds.ux;
+                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, !visible, cubic);
+                            if (visible) {
+                                writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], nullptr, 0, scanlines);
+                            } else {
+                                writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], cubic[0], cubic[3], nullptr, 0, scanlines);
+                                writeSegmentToDeltasOrScanlines(cubic[0], cubic[3], cubic[0], cubic[5], nullptr, 0, scanlines);
+                                writeSegmentToDeltasOrScanlines(cubic[0], cubic[5], cubic[0], cubic[7], nullptr, 0, scanlines);
                             }
                         }
                     }
