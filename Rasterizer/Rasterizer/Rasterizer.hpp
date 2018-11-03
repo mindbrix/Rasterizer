@@ -793,9 +793,77 @@ struct Rasterizer {
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
+//        float ilx, ily, iux, iuy;
+//        ilx = floorf(x0 < x1 ? x0 : x1), ily = floorf(y0 < y1 ? y0 : y1), iux = ceilf(x0 > x1 ? x0 : x1), iuy = ceilf(y0 > y1 ? y0 : y1);
+//        if (iux - ilx <= 3.f && iuy - ily <= 3.f) {
+//            float dt, tx0, tx1, tx2, tx3, ty0, ty1, ty2, ty3;
+//            dt = x0 == x1 ? 0.f : 1.f / (x1 - x0);
+//            tx0 = -(x0 - ilx) * dt, tx1 = tx0 + dt, tx2 = tx1 + dt, tx3 = tx2 + dt;
+//            tx0 = tx0 < 0 ? 0 : tx0 > 1 ? 1 : tx0;
+//            tx1 = tx1 < 0 ? 0 : tx1 > 1 ? 1 : tx1;
+//            tx2 = tx2 < 0 ? 0 : tx2 > 1 ? 1 : tx2;
+//            tx3 = tx3 < 0 ? 0 : tx3 > 1 ? 1 : tx3;
+//            dt = 1.f / (y1 - y0);
+//            ty0 = -(y0 - ily) * dt, ty1 = ty0 + dt, ty2 = ty1 + dt, ty3 = ty2 + dt;
+//            ty0 = ty0 < 0 ? 0 : ty0 > 1 ? 1 : ty0;
+//            ty1 = ty1 < 0 ? 0 : ty1 > 1 ? 1 : ty1;
+//            ty2 = ty2 < 0 ? 0 : ty2 > 1 ? 1 : ty2;
+//            ty3 = ty3 < 0 ? 0 : ty3 > 1 ? 1 : ty3;
+//            return;
+//        }
+        float ly, uy, dx, dy, dty, dtx, t0, t1, ct0, ct1, tx0, tx1, ctx0, ctx1,   dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
+        size_t ily, ycount, ilx, iux;
         Scanline *scanline;
         sign = (scanlines ? 32767.f : 255.5f) * (y0 < y1 ? 1 : -1);
+        
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        ily = ly, ycount = ceilf(uy) - ily;
+        dx = x1 - x0, dy = y1 - y0;
+        dtx = x0 == x1 ? 0.f : 1.f / dx, dty = 1.f / dy;
+        t0 = -(y0 - ily) * dty;
+        ct0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0,
+        sx0 = x0 + ct0 * dx, sy0 = y0 + ct0 * dy;
+        deltasRow = deltas + stride * ily, scanline = scanlines + ily;
+        while (true) {
+            t1 = t0 + dty;
+            ct1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
+            sx1 = x0 + ct1 * dx, sy1 = y0 + ct1 * dy;
+
+            lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
+            ilx = lx, iux = ceilf(ux);
+            tx0 = -(x0 - ilx) * dtx;
+            ctx0 = tx0 < 0 ? 0 : tx0 > 1 ? 1 : tx0;
+            cx0 = x0 + ctx0 * dx, cy0 = y0 + ctx0 * dy;
+            total = last = 0;
+            delta = deltasRow + ilx;
+            for (; ilx < iux; ilx++, tx0 = tx1, ctx0 = ctx1, cx0 = cx1, cy0 = cy1, delta++) {
+                tx1 = tx0 + dtx;
+                ctx1 = tx1 < 0 ? 0 : tx1 > 1 ? 1 : tx1;
+                cx1 = x0 + ctx1 * dx, cy1 = y0 + ctx1 * dy;
+                cover = (cy1 - cy0) * sign;
+                area = ((ilx + 1.f) - (cx0 + cx1) * 0.5f);
+                alpha = total + cover * area;
+                total += cover;
+                if (scanlines)
+                    new (scanline->alloc()) Scanline::Delta(ilx, alpha - last);
+                else
+                    *delta += alpha - last;
+                last = alpha;
+            }
+            
+            if (scanlines)
+                new (scanline->alloc()) Scanline::Delta(ilx, total - last);
+            else {
+                if (ilx < stride)
+                    *delta += total - last;
+            }
+            
+            if (--ycount == 0)
+                break;
+            t0 = t1, ct0 = ct1, sx0 = sx1, sy0 = sy1, deltasRow += stride, scanline++;
+        }
+        
+        /*
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
         dxdy = (x1 - x0) / (y1 - y0);
@@ -833,6 +901,6 @@ struct Rasterizer {
                 if (ix0 < stride)
                     *delta += total - last;
             }
-        }
+        }*/
     }
 };
