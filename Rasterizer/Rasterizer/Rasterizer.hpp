@@ -16,6 +16,7 @@ struct Rasterizer {
     template<typename T, typename C>
     static void radixSort(T *in, C *counts, T *out, int n, int shift) {
         T x;
+        C *c;
         memset(counts, 0, sizeof(C) * 256);
         for (int i = 0; i < n; i++)
             counts[(in[i] >> shift) & 0xFF]++;
@@ -23,8 +24,9 @@ struct Rasterizer {
             counts[i] += counts[i - 1];
         for (int i = n - 1; i >= 0; i--) {
             x = in[i];
-            out[counts[(x >> shift) & 0xFF] - 1] = in[i];
-            counts[(x >> shift) & 0xFF]--;
+            c = counts + ((x >> shift) & 0xFF);
+            out[*c - 1] = x;
+            (*c)--;
         }
     }
     static const size_t kDeltasDimension = 64;
@@ -140,6 +142,21 @@ struct Rasterizer {
                 deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
             new (base + idx++) Delta(x, delta);
         }
+        
+//        inline void insertDelta(float x, float delta) {
+//            if (idx >= size)
+//                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
+//            Delta *end = base + ++idx, *ptr, *src, *dst = end - 1;
+//            if (idx > 1) {
+//                ptr = base;
+//                while (ptr < end && x > ptr->x)
+//                    ptr++;
+//                src = end - 2;
+//                while (dst > ptr)
+//                    *dst-- = *src--;
+//            }
+//            new (dst) Delta(x, delta);
+//        }
         float delta0;
         size_t idx, size;
         Delta *base;
