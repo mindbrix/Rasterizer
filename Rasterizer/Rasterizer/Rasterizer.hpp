@@ -142,21 +142,6 @@ struct Rasterizer {
                 deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
             new (base + idx++) Delta(x, delta);
         }
-        
-//        inline void insertDelta(float x, float delta) {
-//            if (idx >= size)
-//                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
-//            Delta *end = base + ++idx, *ptr, *src, *dst = end - 1;
-//            if (idx > 1) {
-//                ptr = base;
-//                while (ptr < end && x > ptr->x)
-//                    ptr++;
-//                src = end - 2;
-//                while (dst > ptr)
-//                    *dst-- = *src--;
-//            }
-//            new (dst) Delta(x, delta);
-//        }
         float delta0;
         size_t idx, size;
         Delta *base;
