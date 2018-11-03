@@ -170,8 +170,10 @@ struct Rasterizer {
                 scanlines.resize(bitmap.height);
             if (spanlines.size() != bitmap.height)
                 spanlines.resize(bitmap.height);
+            clipBounds = Bounds(0, 0, bitmap.width, bitmap.height);
         }
         Bitmap bitmap;
+        Bounds clipBounds;
         float deltas[kDeltasDimension * kDeltasDimension];
         uint8_t mask[kDeltasDimension * kDeltasDimension];
         std::vector<Scanline> scanlines;
@@ -329,7 +331,6 @@ struct Rasterizer {
     }
     
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
-        Bounds clipBounds(0, 0, bitmap.width, bitmap.height);
         float y, lx, ux, src0, src1, src2, src3, alpha, dst0, dst1, dst2, dst3;
         uint8_t *components = (uint8_t *) & color;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
@@ -339,8 +340,8 @@ struct Rasterizer {
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
             for (span = & spanline->spans[0], end = & spanline->spans[spanline->idx]; span < end; span++) {
                 lx = span->x, ux = lx + (span->w > 0 ? span->w : 1);
-                lx = lx < clipBounds.lx ? clipBounds.lx : lx > clipBounds.ux ? clipBounds.ux : lx;
-                ux = ux < clipBounds.lx ? clipBounds.lx : ux > clipBounds.ux ? clipBounds.ux : ux;
+                lx = lx < clipped.lx ? clipped.lx : lx > clipped.ux ? clipped.ux : lx;
+                ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
                 if (lx != ux) {
                     pixelAddress = bitmap.pixelAddress(lx, y);
                     if (span->w > 0)
@@ -363,9 +364,8 @@ struct Rasterizer {
     }
     
     static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
-        Bounds clipBounds(0, 0, context.bitmap.width, context.bitmap.height);
         Bounds device = bounds.transform(ctm).integral();
-        Bounds clipped = device.intersected(clipBounds);
+        Bounds clipped = device.intersected(context.clipBounds);
         if (!clipped.isZero()) {
             AffineTransform deltasCTM = { ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly };
             float e = 2e-3 / sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
@@ -383,7 +383,7 @@ struct Rasterizer {
                 writeScanlinesToSpans(context.scanlines, device, clipped, context.spanlines);
                 writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
             } else {
-                writeClippedPathToScanlines(path, ctm, clipBounds, & context.scanlines[0]);
+                writeClippedPathToScanlines(path, ctm, context.clipBounds, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spanlines);
                 writeSpansToBitmap(context.spanlines, Bounds(0, 0, 0, 0), clipped, bgra, context.bitmap);
             }
