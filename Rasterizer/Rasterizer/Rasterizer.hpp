@@ -16,23 +16,24 @@ struct Rasterizer {
     template<typename T, typename C>
     static void radixSort(T *in, int n, C *counts0, C *counts1, T *out) {
         T x;
-        C *c;
+        C *c, *src, *dst;
         memset(counts0, 0, sizeof(C) * 256);
         memset(counts1, 0, sizeof(C) * 256);
-        for (int i = 0; i < n; i++)
+        int i;
+        for (i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
-        for (int i = 1; i < 256; i++)
-            counts0[i] += counts0[i - 1];
-        for (int i = n - 1; i >= 0; i--) {
+        for (src = counts0, dst = src + 1, i = 1; i < 256; i++)
+            *dst++ += *src++;
+        for (i = n - 1; i >= 0; i--) {
             x = in[i];
             c = counts0 + (x & 0xFF);
             out[*c - 1] = x;
             counts1[(x >> 8) & 0xFF]++;
             (*c)--;
         }
-        for (int i = 1; i < 256; i++)
-            counts1[i] += counts1[i - 1];
-        for (int i = n - 1; i >= 0; i--) {
+        for (src = counts1, dst = src + 1, i = 1; i < 256; i++)
+            *dst++ += *src++;
+        for (i = n - 1; i >= 0; i--) {
             x = out[i];
             c = counts1 + ((x >> 8) & 0xFF);
             in[*c - 1] = x;
