@@ -809,12 +809,9 @@ struct Rasterizer {
              iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
             sy1 = y1 > iy1 ? iy1 : y1;
             sx1 = (sy1 - y0) * dxdy + x0;
-            sx1 = sx1 < 0 ? 0 : sx1;
             
-            lx = sx0, ux = sx1;
-            if (lx > ux)
-                tmp = lx, lx = ux, ux = tmp;
-            
+            lx = sx0 < sx1 ? sx0 : sx1;
+            ux = sx0 > sx1 ? sx0 : sx1;
             ix0 = floorf(lx), ix1 = ix0 + 1;
             if (lx >= ix0 && ux <= ix1) {
                 cover = (sy1 - sy0) * scale;
