@@ -82,13 +82,15 @@ struct RasterizerCoreGraphics {
     static void writeGlyphGrid(NSString *fontName, std::vector<CGPathRef>& _glyphCGPaths, CGFloat _dimension, std::vector<Rasterizer::Path>& _glyphPaths, std::vector<Rasterizer::Bounds>& _glyphBounds) {
         CGPathRef shape = nullptr;
 //        CGPathRef shape = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, _dimension, _dimension), NULL);
+//        CGPathRef shape = CGPathCreateWithRect(CGRectMake(0, 0, _dimension, _dimension), NULL);
+//        CGPathRef shape = CGPathCreateWithRoundedRect(CGRectMake(0, 0, _dimension, _dimension), _dimension * 0.25, _dimension * 0.25, NULL);
         
         for (CGPathRef path : _glyphCGPaths)
             CFRelease(path);
         _glyphCGPaths.resize(0), _glyphPaths.resize(0), _glyphBounds.resize(0);
         CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
         CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension, NULL, NULL);
-        CFIndex glyphCount = shape ? 2 : CTFontGetGlyphCount(ctFont);
+        CFIndex glyphCount =  CTFontGetGlyphCount(ctFont);
         for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
             CGPathRef path = shape ? CGPathRetain(shape) : CTFontCreatePathForGlyph(ctFont, glyph, NULL);
             if (path) {
