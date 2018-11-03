@@ -815,12 +815,15 @@ struct Rasterizer {
             if (lx > ux)
                 tmp = lx, lx = ux, ux = tmp;
             
-            for (ix0 = floorf(lx), ix1 = ix0 + 1, cx0 = lx, cy0 = sy0, total = last = 0, delta = deltasRow + size_t(ix0), dydx = (sy1 - sy0) / (ux - lx);
+            dydx = (sy1 - sy0) / (ux - lx);
+            cx0 = lx, cy0 = sy0;
+            ix0 = floorf(lx), ix1 = ix0 + 1;
+            cx1 = ux < ix1 ? ux : ix1;
+            cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+            for (total = last = 0, delta = deltasRow + size_t(ix0);
                  ix0 <= ux;
-                 ix0 = ix1, ix1++, cx0 = cx1, cy0 = cy1, delta++) {
-                cx1 = ux > ix1 ? ix1 : ux;
-                cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-                
+                 ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
+            
                 cover = (cy1 - cy0) * scale;
                 area = (ix1 - (cx0 + cx1) * 0.5f);
                 alpha = total + cover * area;
