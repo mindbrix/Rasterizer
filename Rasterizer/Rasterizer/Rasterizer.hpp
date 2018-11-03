@@ -223,19 +223,20 @@ struct Rasterizer {
         float x, y, ix, cover, alpha;
         uint8_t a;
         short counts[256];
-        Scanline *scanline = & scanlines[clipped.ly - device.ly];
-        Spanline *spanline = & spanlines[clipped.ly - device.ly];
+        size_t idx;
+        idx = clipped.ly - device.ly;
+        Scanline *scanline = & scanlines[idx];
+        Spanline *spanline = & spanlines[idx];
         Scanline::Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++) {
             if (scanline->idx == 0)
                 continue;
             
-            begin = & scanline->deltas[0], end = & scanline->deltas[scanline->idx];
-            int n = int(end - begin);
-            if (n > 64) {
-                uint32_t mem0[n];
-                radixSort((uint32_t *)begin, counts, mem0, n, 0);
-                radixSort(mem0, counts, (uint32_t *)begin, n, 8);
+            begin = & scanline->deltas[0], end = begin + scanline->idx;
+            if (scanline->idx > 64) {
+                uint32_t mem0[scanline->idx];
+                radixSort((uint32_t *)begin, counts, mem0, int(scanline->idx), 0);
+                radixSort(mem0, counts, (uint32_t *)begin, int(scanline->idx), 8);
             } else
                 std::sort(begin, end);
             
@@ -260,7 +261,7 @@ struct Rasterizer {
             }
         }
         if (device.isZero())
-            for (scanline = & scanlines[clipped.ly - device.ly], y = clipped.ly; y < clipped.uy; y++, scanline++)
+            for (scanline = & scanlines[idx], y = clipped.ly; y < clipped.uy; y++, scanline++)
                 scanline->empty();
         else
             for (scanline = & scanlines[0], y = device.ly; y < device.uy; y++, scanline++)
