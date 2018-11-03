@@ -748,7 +748,7 @@ struct Rasterizer {
             writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
             writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
         } else {
-            count = log2f(a), dt = 1.f / count, t = 0;
+            count = 1.f + floorf(sqrtf(sqrtf(3.f * a))), dt = 1.f / count, t = 0;
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
