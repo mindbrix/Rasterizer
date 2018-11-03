@@ -216,6 +216,7 @@ struct Rasterizer {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover, alpha;
         uint8_t a;
+        short counts[256];
         Scanline *scanline = & scanlines[clipped.ly - device.ly];
         Spanline *spanline = & spanlines[clipped.ly - device.ly];
         Scanline::Delta *begin, *end, *delta;
@@ -226,7 +227,6 @@ struct Rasterizer {
             begin = & scanline->deltas[0], end = & scanline->deltas[scanline->idx];
             int n = int(end - begin);
             if (n > 64) {
-                short counts[256];
                 uint32_t mem0[n];
                 radixSort((uint32_t *)begin, counts, mem0, n, 0);
                 radixSort(mem0, counts, (uint32_t *)begin, n, 8);
