@@ -797,12 +797,13 @@ struct Rasterizer {
             return;
         float dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, sign, *delta;
         Scanline *scanline;
+        size_t ily;
         sign = (scanlines ? 32767.f : 255.5f) * (y0 < y1 ? 1 : -1);
         if (sign < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
         dxdy = (x1 - x0) / (y1 - y0);
         
-        for (iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * size_t(iy0), scanline = scanlines + size_t(iy0);
+        for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * ily, scanline = scanlines + ily;
              iy0 < y1;
              iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
             sy1 = y1 > iy1 ? iy1 : y1;
