@@ -154,12 +154,13 @@ struct Rasterizer {
         Spanline() : size(0) { empty(); }
         
         void empty() { idx = 0; }
-        inline Span *alloc() {
+        inline void insertSpan(float x, float w) {
             if (idx >= size)
-                spans.resize(spans.size() == 0 ? 8 : spans.size() * 1.5), size = spans.size();
-            return & spans[idx++];
+                spans.resize(spans.size() == 0 ? 8 : spans.size() * 1.5), size = spans.size(), base = & spans[0];
+            new (base + idx++) Span(x, w);
         }
         size_t idx, size;
+        Span *base;
         std::vector<Span> spans;
     };
     struct Context {
@@ -247,10 +248,10 @@ struct Rasterizer {
                     a = alpha < 255.f ? alpha : 255.f;
                     
                     if (a > 254)
-                        new (spanline->alloc()) Spanline::Span(device.lx + x, delta->x - x);
+                        spanline->insertSpan(device.lx + x, delta->x - x);
                     else if (a > 0)
                         for (ix = x; ix < delta->x; ix++)
-                            new (spanline->alloc()) Spanline::Span(device.lx + ix, -a);
+                            spanline->insertSpan(device.lx + ix, -a);
                     x = delta->x;
                 }
                 cover += float(delta->delta) * scale;
