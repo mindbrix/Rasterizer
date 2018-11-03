@@ -811,7 +811,7 @@ struct Rasterizer {
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float scale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float dxdy, dydx, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, tmp, *delta;
+        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, *delta;
         Scanline *scanline;
         size_t ily;
         scale = copysign(scale, y1 - y0);
