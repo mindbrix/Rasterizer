@@ -815,30 +815,46 @@ struct Rasterizer {
             if (lx > ux)
                 tmp = lx, lx = ux, ux = tmp;
             
-            dydx = (sy1 - sy0) / (ux - lx);
-            cx0 = lx, cy0 = sy0;
             ix0 = floorf(lx), ix1 = ix0 + 1;
-            cx1 = ux < ix1 ? ux : ix1;
-            cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-            for (total = last = 0, delta = deltasRow + size_t(ix0);
-                 ix0 <= ux;
-                 ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
-            
-                cover = (cy1 - cy0) * scale;
-                area = (ix1 - (cx0 + cx1) * 0.5f);
-                alpha = total + cover * area;
-                total += cover;
+            if (lx >= ix0 && ux <= ix1) {
+                cover = (sy1 - sy0) * scale;
+                area = (ix1 - (ux + lx) * 0.5f);
+                alpha = cover * area;
+                total = cover;
+                if (scanlines) {
+                    new (scanline->alloc()) Scanline::Delta(ix0, alpha);
+                    new (scanline->alloc()) Scanline::Delta(ix1, total - alpha);
+                } else {
+                    delta = deltasRow + size_t(ix0);
+                    *delta++ += alpha;
+                    if (ix1 < stride)
+                        *delta += total - alpha;
+                }
+            } else {
+                dydx = 1.f / fabsf(dxdy);
+                cx0 = lx, cy0 = sy0;
+                cx1 = ux < ix1 ? ux : ix1;
+                cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+                for (total = last = 0, delta = deltasRow + size_t(ix0);
+                     ix0 <= ux;
+                     ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
+                    
+                    cover = (cy1 - cy0) * scale;
+                    area = (ix1 - (cx0 + cx1) * 0.5f);
+                    alpha = total + cover * area;
+                    total += cover;
+                    if (scanlines)
+                        new (scanline->alloc()) Scanline::Delta(ix0, alpha - last);
+                    else
+                        *delta += alpha - last;
+                    last = alpha;
+                }
                 if (scanlines)
-                    new (scanline->alloc()) Scanline::Delta(ix0, alpha - last);
-                else
-                    *delta += alpha - last;
-                last = alpha;
-            }
-            if (scanlines)
-                new (scanline->alloc()) Scanline::Delta(ix0, total - last);
-            else {
-                if (ix0 < stride)
-                    *delta += total - last;
+                    new (scanline->alloc()) Scanline::Delta(ix0, total - last);
+                else {
+                    if (ix0 < stride)
+                        *delta += total - last;
+                }
             }
         }
     }
