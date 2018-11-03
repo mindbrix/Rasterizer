@@ -490,16 +490,16 @@ struct Rasterizer {
             }
         }
     }
-    static void solveQuadratic(float A, float B, float C, float& t0, float& t1) {
-        float disc, root, denom;
-        if (fabsf(A) < 1e-3)
+    static void solveQuadratic(double A, double B, double C, float& t0, float& t1) {
+        double disc, root, denom;
+        if (fabs(A) < 1e-3)
             t0 = -C / B, t1 = FLT_MAX;
         else {
-            disc = B * B - 4.0f * A * C;
+            disc = B * B - 4.0 * A * C;
             if (disc < 0)
                 t0 = t1 = FLT_MAX;
             else {
-                root = sqrtf(disc), denom = 0.5f / A;
+                root = sqrt(disc), denom = 0.5 / A;
                 t0 = (-B + root) * denom, t1 = (-B - root) * denom;
             }
         }
