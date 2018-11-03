@@ -135,13 +135,14 @@ struct Rasterizer {
         Scanline() : size(0) { empty(); }
         
         void empty() { delta0 = idx = 0; }
-        inline Delta *alloc() {
+        inline void insertDelta(float x, float delta) {
             if (idx >= size)
-                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size();
-            return & deltas[idx++];
+                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
+            new (base + idx++) Delta(x, delta);
         }
         float delta0;
         size_t idx, size;
+        Delta *base;
         std::vector<Delta> deltas;
     };
     struct Spanline {
@@ -789,7 +790,7 @@ struct Rasterizer {
             if (x == 0)
                 scanline->delta0 += 255.5f * (sy1 - sy0);
             else
-                new (scanline->alloc()) Scanline::Delta(ix0, (sy1 - sy0) * 32767.f * (ix1 - x));
+                scanline->insertDelta(ix0, (sy1 - sy0) * 32767.f * (ix1 - x));
         }
     }
     
@@ -819,8 +820,8 @@ struct Rasterizer {
                 alpha = cover * area;
                 total = cover;
                 if (scanlines) {
-                    new (scanline->alloc()) Scanline::Delta(ix0, alpha);
-                    new (scanline->alloc()) Scanline::Delta(ix1, total - alpha);
+                    scanline->insertDelta(ix0, alpha);
+                    scanline->insertDelta(ix1, total - alpha);
                 } else {
                     delta = deltasRow + size_t(ix0);
                     *delta++ += alpha;
@@ -841,13 +842,13 @@ struct Rasterizer {
                     alpha = total + cover * area;
                     total += cover;
                     if (scanlines)
-                        new (scanline->alloc()) Scanline::Delta(ix0, alpha - last);
+                        scanline->insertDelta(ix0, alpha - last);
                     else
                         *delta += alpha - last;
                     last = alpha;
                 }
                 if (scanlines)
-                    new (scanline->alloc()) Scanline::Delta(ix0, total - last);
+                    scanline->insertDelta(ix0, total - last);
                 else {
                     if (ix0 < stride)
                         *delta += total - last;
