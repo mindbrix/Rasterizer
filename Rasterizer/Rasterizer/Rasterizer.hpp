@@ -14,18 +14,28 @@
 
 struct Rasterizer {
     template<typename T, typename C>
-    static void radixSort(T *in, C *counts, T *out, int n, int shift) {
+    static void radixSort(T *in, int n, C *counts0, C *counts1, T *out) {
         T x;
         C *c;
-        memset(counts, 0, sizeof(C) * 256);
+        memset(counts0, 0, sizeof(C) * 256);
+        memset(counts1, 0, sizeof(C) * 256);
         for (int i = 0; i < n; i++)
-            counts[(in[i] >> shift) & 0xFF]++;
+            counts0[in[i] & 0xFF]++;
         for (int i = 1; i < 256; i++)
-            counts[i] += counts[i - 1];
+            counts0[i] += counts0[i - 1];
         for (int i = n - 1; i >= 0; i--) {
             x = in[i];
-            c = counts + ((x >> shift) & 0xFF);
+            c = counts0 + (x & 0xFF);
             out[*c - 1] = x;
+            counts1[(x >> 8) & 0xFF]++;
+            (*c)--;
+        }
+        for (int i = 1; i < 256; i++)
+            counts1[i] += counts1[i - 1];
+        for (int i = n - 1; i >= 0; i--) {
+            x = out[i];
+            c = counts1 + ((x >> 8) & 0xFF);
+            in[*c - 1] = x;
             (*c)--;
         }
     }
@@ -222,7 +232,7 @@ struct Rasterizer {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover, alpha;
         uint8_t a;
-        short counts[256];
+        short counts0[256], counts1[256];
         size_t idx;
         idx = clipped.ly - device.ly;
         Scanline *scanline = & scanlines[idx];
@@ -233,10 +243,9 @@ struct Rasterizer {
                 continue;
             
             begin = & scanline->deltas[0], end = begin + scanline->idx;
-            if (scanline->idx > 64) {
+            if (scanline->idx > 32) {
                 uint32_t mem0[scanline->idx];
-                radixSort((uint32_t *)begin, counts, mem0, int(scanline->idx), 0);
-                radixSort(mem0, counts, (uint32_t *)begin, int(scanline->idx), 8);
+                radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
             } else
                 std::sort(begin, end);
             
