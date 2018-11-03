@@ -29,7 +29,7 @@ struct Rasterizer {
             (*c)--;
         }
     }
-    static const size_t kDeltasDimension = 64;
+    static const size_t kDeltasDimension = 128;
     
     struct AffineTransform {
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
