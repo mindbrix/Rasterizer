@@ -22,8 +22,21 @@ struct Rasterizer {
         int i;
         for (i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
-        for (src = counts0, dst = src + 1, i = 1; i < 256; i++)
-            *dst++ += *src++;
+        
+        __m128i shuffle_mask = _mm_set1_epi32(0x0F0E0F0E);
+        __m128i offset, j, *src8, *end8;
+        for (offset = _mm_setzero_si128(), src8 = (__m128i *)counts0, end8 = src8 + 32; src8 < end8; src8++) {
+            j = _mm_loadu_si128(src8);
+            j = _mm_add_epi16(j, _mm_slli_si128(j, 2));
+            j = _mm_add_epi16(j, _mm_slli_si128(j, 4));
+            j = _mm_add_epi16(j, _mm_slli_si128(j, 8));
+            j = _mm_add_epi16(j, offset);
+            _mm_storeu_si128(src8, j);
+            offset = _mm_shuffle_epi8(j, shuffle_mask);
+        }
+//        for (src = counts0, dst = src + 1, i = 1; i < 256; i++)
+//            *dst++ += *src++;
+
         for (i = n - 1; i >= 0; i--) {
             x = in[i];
             c = counts0 + (x & 0xFF);
@@ -31,8 +44,17 @@ struct Rasterizer {
             counts1[(x >> 8) & 0xFF]++;
             (*c)--;
         }
-        for (src = counts1, dst = src + 1, i = 1; i < 256; i++)
-            *dst++ += *src++;
+        for (offset = _mm_setzero_si128(), src8 = (__m128i *)counts1, end8 = src8 + 32; src8 < end8; src8++) {
+            j = _mm_loadu_si128(src8);
+            j = _mm_add_epi16(j, _mm_slli_si128(j, 2));
+            j = _mm_add_epi16(j, _mm_slli_si128(j, 4));
+            j = _mm_add_epi16(j, _mm_slli_si128(j, 8));
+            j = _mm_add_epi16(j, offset);
+            _mm_storeu_si128(src8, j);
+            offset = _mm_shuffle_epi8(j, shuffle_mask);
+        }
+//        for (src = counts1, dst = src + 1, i = 1; i < 256; i++)
+//            *dst++ += *src++;
         for (i = n - 1; i >= 0; i--) {
             x = out[i];
             c = counts1 + ((x >> 8) & 0xFF);
