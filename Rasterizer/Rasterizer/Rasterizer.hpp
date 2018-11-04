@@ -20,13 +20,13 @@ struct Rasterizer {
     static inline void prefixSum(short *counts) {
 #ifdef RASTERIZER_SIMD
         __m128i shuffle_mask = _mm_set1_epi32(0x0F0E0F0E);
-        __m128i offset, j, *src8, *end8;
-        for (offset = _mm_setzero_si128(), src8 = (__m128i *)counts, end8 = src8 + 32; src8 < end8; src8++) {
-            j = _mm_loadu_si128(src8);
-            j = _mm_add_epi16(j, _mm_slli_si128(j, 2)), j = _mm_add_epi16(j, _mm_slli_si128(j, 4)), j = _mm_add_epi16(j, _mm_slli_si128(j, 8));
-            j = _mm_add_epi16(j, offset);
-            _mm_storeu_si128(src8, j);
-            offset = _mm_shuffle_epi8(j, shuffle_mask);
+        __m128i sum8, c8, *src8, *end8;
+        for (sum8 = _mm_setzero_si128(), src8 = (__m128i *)counts, end8 = src8 + 32; src8 < end8; src8++) {
+            c8 = _mm_loadu_si128(src8);
+            c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 2)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 4)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 8));
+            c8 = _mm_add_epi16(c8, sum8);
+            _mm_storeu_si128(src8, c8);
+            sum8 = _mm_shuffle_epi8(c8, shuffle_mask);
         }
 #else
         short *src, *dst;
