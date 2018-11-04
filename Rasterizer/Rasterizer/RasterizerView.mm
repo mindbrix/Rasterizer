@@ -120,12 +120,11 @@
     float tx, ty;
     
     if (self.useCoreGraphics) {
-        Rasterizer::Bounds clipBounds(0, 0, _context.bitmap.width, _context.bitmap.height);
         for (size_t i = 0; i < _glyphPaths.size(); i++) {
             Rasterizer::Bounds glyphBounds = _glyphBounds[i];
             tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
             Rasterizer::Bounds device = glyphBounds.transform(ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty))).integral();
-            Rasterizer::Bounds clipped = device.intersected(clipBounds);
+            Rasterizer::Bounds clipped = device.intersected(_context.clipBounds);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                 CGContextSaveGState(ctx);
                 CGContextTranslateCTM(ctx, tx, ty);
