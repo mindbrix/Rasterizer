@@ -150,4 +150,13 @@
     }
 }
 
+- (void)setSvgData:(NSData *)svgData {
+    _svgData = svgData;
+    
+    if (_svgData) {
+        _svg.empty();
+        RasterizerSVG::writeSVGToScene(_svgData.bytes, _svgData.length, _svg);
+    }
+    [self redraw];
+}
 @end

@@ -9,7 +9,7 @@
 #import "Document.h"
 
 @interface Document ()
-
+@property( nonatomic, strong ) NSData *svgData;
 @end
 
 @implementation Document
@@ -26,6 +26,10 @@
     return YES;
 }
 
+- (void)windowControllerDidLoadNib:(NSWindowController *)aController {
+    [super windowControllerDidLoadNib:aController];
+    self.view.svgData = self.svgData;
+}
 
 - (NSString *)windowNibName {
     // Override returning the nib file name of the document
@@ -43,10 +47,8 @@
 
 
 - (BOOL)readFromData:(NSData *)data ofType:(NSString *)typeName error:(NSError **)outError {
-    // Insert code here to read your document from the given data of the specified type. If outError != NULL, ensure that you create and set an appropriate error when returning NO.
-    // You can also choose to override -readFromFileWrapper:ofType:error: or -readFromURL:ofType:error: instead.
-    // If you override either of these, you should also override -isEntireFileLoaded to return NO if the contents are lazily loaded.
-    [NSException raise:@"UnimplementedMethod" format:@"%@ is unimplemented", NSStringFromSelector(_cmd)];
+    if ([typeName isEqualToString:@"SVG"])
+        self.svgData = data;
     return YES;
 }
 
