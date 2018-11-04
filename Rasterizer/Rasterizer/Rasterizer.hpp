@@ -300,48 +300,16 @@ struct Rasterizer {
     }
     
     static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
-        uint32_t *dst, src4;
+        uint32_t *dst;
         uint8_t *src, *components, *d;
         components = (uint8_t *)& bgra;
         __m128 bgra4 = _mm_set_ps(float(components[3]), float(components[2]), float(components[1]), float(components[0]));
-        __m128 a0, a1, a2, a3, m0, m1, m2, m3, d0, d1, d2, d3;
-        __m128i a32, a16, a16_0, a16_1, a8;
+        __m128 a0, m0, d0;
+        __m128i a32, a16, a8;
         size_t columns;
         
         while (h--) {
             dst = pixelAddress, src = mask, columns = w;
-            while (columns >> 2) {
-                src4 = *((uint32_t *)src);
-                if (src4) {
-                    if (src4 == 0xFFFFFFFF) {
-                        _mm_storeu_si128((__m128i *)dst, _mm_set1_epi32(bgra));
-                    } else {
-                        a0 = _mm_set1_ps(float(src[0]) * 0.003921568627f);
-                        a1 = _mm_set1_ps(float(src[1]) * 0.003921568627f);
-                        a2 = _mm_set1_ps(float(src[2]) * 0.003921568627f);
-                        a3 = _mm_set1_ps(float(src[3]) * 0.003921568627f);
-                        
-                        if (dst[0] == 0 && dst[1] == 0 && dst[2] == 0 && dst[3] == 0)
-                            d0 = d1 = d2 = d3 = _mm_setzero_ps();
-                        else {
-                            d = (uint8_t *) & dst[0], d0 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                            d = (uint8_t *) & dst[1], d1 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                            d = (uint8_t *) & dst[2], d2 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                            d = (uint8_t *) & dst[3], d3 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
-                        }
-                        m0 = _mm_add_ps(_mm_mul_ps(bgra4, a0), _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
-                        m1 = _mm_add_ps(_mm_mul_ps(bgra4, a1), _mm_mul_ps(d1, _mm_sub_ps(_mm_set1_ps(1.f), a1)));
-                        m2 = _mm_add_ps(_mm_mul_ps(bgra4, a2), _mm_mul_ps(d2, _mm_sub_ps(_mm_set1_ps(1.f), a2)));
-                        m3 = _mm_add_ps(_mm_mul_ps(bgra4, a3), _mm_mul_ps(d3, _mm_sub_ps(_mm_set1_ps(1.f), a3)));
-                        
-                        a16_0 = _mm_packs_epi32(_mm_cvttps_epi32(m0), _mm_cvttps_epi32(m1));
-                        a16_1 = _mm_packs_epi32(_mm_cvttps_epi32(m2), _mm_cvttps_epi32(m3));
-                        a8 = _mm_packus_epi16(a16_0, a16_1);
-                        _mm_storeu_si128((__m128i *)dst, a8);
-                    }
-                }
-                columns -= 4, src += 4, dst += 4;
-            }
             while (columns--) {
                 if (*src > 254)
                     *dst = bgra;
