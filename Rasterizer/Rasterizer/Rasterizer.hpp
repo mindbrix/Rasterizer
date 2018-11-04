@@ -557,7 +557,7 @@ struct Rasterizer {
         *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2;
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, tys[4], txs[4], ts[6], ty0, ty1, q[6], t, t0, t1;
+        float lx, ly, ux, uy, cly, cuy, tys[4], txs[4], ts[6], ty0, ty1, q[6], t, s, t0, t1, mx, vx;
         size_t x, y;
         lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
         lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
@@ -583,9 +583,12 @@ struct Rasterizer {
                                     writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, false, q);
                                     writeQuadraticToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], 32767.f, nullptr, 0, scanlines);
                                 } else {
+                                    t = (t0 + t1) * 0.5f, s = 1.f - t;
+                                    mx = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
+                                    vx = mx <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
                                     writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, true, q);
-                                    writeVerticalSegmentToScanlines(q[0], q[1], q[3], scanlines);
-                                    writeVerticalSegmentToScanlines(q[0], q[3], q[5], scanlines);
+                                    writeVerticalSegmentToScanlines(vx, q[1], q[3], scanlines);
+                                    writeVerticalSegmentToScanlines(vx, q[3], q[5], scanlines);
                                 }
                             }
                         }
