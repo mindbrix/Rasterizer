@@ -828,16 +828,14 @@ struct Rasterizer {
             if (lx >= ix0 && ux <= ix1) {
                 cover = (sy1 - sy0) * scale;
                 area = (ix1 - (ux + lx) * 0.5f);
-                alpha = cover * area;
-                total = cover;
                 if (scanlines) {
-                    scanline->insertDelta(ix0, alpha);
-                    scanline->insertDelta(ix1, total - alpha);
+                    scanline->insertDelta(ix0, cover * area);
+                    scanline->insertDelta(ix1, cover * (1.f - area));
                 } else {
                     delta = deltasRow + size_t(ix0);
-                    *delta++ += alpha;
+                    *delta++ += cover * area;
                     if (ix1 < stride)
-                        *delta += total - alpha;
+                        *delta += cover * (1.f - area);
                 }
             } else {
                 dydx = 1.f / fabsf(dxdy);
