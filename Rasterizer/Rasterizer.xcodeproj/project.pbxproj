@@ -42,6 +42,7 @@
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 		E9A7FA84218FAB380031FD4E /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = nanosvg.h; path = ../../../nanosvg/src/nanosvg.h; sourceTree = "<group>"; };
+		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +79,7 @@
 				E920A65D21775F0A00F52C25 /* AGGRasterizer.hpp */,
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCoreGraphics.hpp */,
+				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
 				E920A59D21762BCD00F52C25 /* AppDelegate.m */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
