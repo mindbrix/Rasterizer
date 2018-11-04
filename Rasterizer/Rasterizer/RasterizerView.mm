@@ -18,6 +18,7 @@
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
+@property(nonatomic) RasterizerSVG::Scene svg;
 @property(nonatomic) CGFloat dimension;
 @property(nonatomic) CGFloat phi;
 
@@ -134,12 +135,17 @@
             }
         }
     } else {
-        uint8_t black[4] = { 0, 0, 0, 255 };
-        uint32_t bgra = *((uint32_t *)black);
-        for (size_t i = 0; i < _glyphPaths.size(); i++) {
-            Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
-            Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, _context);
+        if (_svg.paths.size()) {
+            for (size_t i = 0; i < _svg.paths.size(); i++)
+                Rasterizer::writePathToBitmap(_svg.paths[i], _svg.bounds[i], ctm, _svg.bgras[i], _context);
+        } else {
+            uint8_t black[4] = { 0, 0, 0, 255 };
+            uint32_t bgra = *((uint32_t *)black);
+            for (size_t i = 0; i < _glyphPaths.size(); i++) {
+                Rasterizer::Bounds glyphBounds = _glyphBounds[i];
+                tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
+                Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, _context);
+            }
         }
     }
 }
