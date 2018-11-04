@@ -14,9 +14,9 @@
 struct RasterizerSVG {
     struct Scene {
         void empty() { paths.resize(0), bounds.resize(0), bgras.resize(0); }
-        std::vector<Rasterizer::Path> paths;
-        std::vector<Rasterizer::Bounds> bounds;
         std::vector<uint32_t> bgras;
+        std::vector<Rasterizer::Bounds> bounds;
+        std::vector<Rasterizer::Path> paths;
     };
     
     static void writeSVGToScene(const void *bytes, size_t size, Scene& scene) {
