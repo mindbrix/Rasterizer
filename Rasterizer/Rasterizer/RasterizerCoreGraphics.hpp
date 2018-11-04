@@ -14,6 +14,9 @@ struct RasterizerCoreGraphics {
     static Rasterizer::Bounds boundsFromCGRect(CGRect rect) {
         return Rasterizer::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
     }
+    static CGRect CGRectFromBounds(Rasterizer::Bounds bounds) {
+        return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
+    }
     
     struct CGPathApplier {
         CGPathApplier(Rasterizer::Path& path) : p(& path) {}
