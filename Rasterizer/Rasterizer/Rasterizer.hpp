@@ -29,8 +29,8 @@ struct Rasterizer {
             sum8 = _mm_shuffle_epi8(c8, shuffle_mask);
         }
 #else
-        short *src, *dst;
-        for (src = counts0, dst = src + 1, i = 1; i < 256; i++)
+        short *src, *dst, i;
+        for (src = counts, dst = src + 1, i = 1; i < 256; i++)
             *dst++ += *src++;
 #endif
     }
