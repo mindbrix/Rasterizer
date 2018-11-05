@@ -56,6 +56,7 @@ struct RasterizerSVG {
                             pts = path->pts;
                             p.moveTo(pts[0], pts[1]);
                             for (int i = 0; i < path->npts - 1; i += 3, pts += 6)
+//                                p.quadTo((pts[4] + pts[2] + pts[0] + pts[6]) * 0.25, (pts[5] + pts[3] + pts[1] + pts[7]) * 0.25, pts[6], pts[7]);
                                 p.cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
                             p.close();
                         }
