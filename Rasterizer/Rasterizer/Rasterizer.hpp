@@ -354,33 +354,23 @@ struct Rasterizer {
                 ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
                 if (lx != ux) {
                     pixel = bitmap.pixelAddress(lx, y);
-                    if (span->w > 0) {
-                        if (src3 == 255)
-                            memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
-                        else {
-                            alpha = srcAlpha;
-                            for (last = pixel + size_t(ux - lx); pixel < last; pixel++) {
-                                dst = (uint8_t *)pixel;
-                                if (*pixel == 0)
-                                    *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
-                                else {
-                                    *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-                                    *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-                                    *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                                    *dst = *dst * (1.f - alpha) + src3 * alpha, dst++;
-                                }
+                    if (span->w > 0 && src3 == 255)
+                        memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
+                    else {
+                        if (span->w > 0)
+                            last = pixel + size_t(ux - lx), alpha = srcAlpha;
+                        else
+                            last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;;
+                        for (; pixel < last; pixel++) {
+                            dst = (uint8_t *)pixel;
+                            if (*pixel == 0)
+                                *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
+                            else {
+                                *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + src3 * alpha, dst++;
                             }
-                        }
-                    } else {
-                        alpha = float(-span->w) * 0.003921568627f * srcAlpha;
-                        dst = (uint8_t *)pixel;
-                        if (*pixel == 0)
-                            *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
-                        else {
-                            *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-                            *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-                            *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                            *dst = *dst * (1.f - alpha) + src3 * alpha, dst++;
                         }
                     }
                 }
