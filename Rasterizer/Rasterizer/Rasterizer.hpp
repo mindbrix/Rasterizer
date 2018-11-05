@@ -17,6 +17,10 @@
 struct Rasterizer {
     static const size_t kDeltasDimension = 128;
     
+    static inline float lerp(float n0, float n1, float t) {
+        return n0 + t * (n1 - n0);
+    }
+    
     static inline void prefixSum(short *counts) {
 #ifdef RASTERIZER_SIMD
         __m128i shuffle_mask = _mm_set1_epi32(0x0F0E0F0E);
@@ -513,17 +517,14 @@ struct Rasterizer {
         std::sort(& ts[0], & ts[4]);
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
-        float tm, s0, s1, sm, tx0, ty0, tx2, ty2, tmx, tmy, tx1, ty1;
-        s0 = 1.f - t0, s1 = 1.f - t1;
-        tm = (t0 + t1) * 0.5f, sm = 1.f - tm;
-        tx0 = x0 * s0 * s0 + x1 * 2.f * s0 * t0 + x2 * t0 * t0;
-        ty0 = y0 * s0 * s0 + y1 * 2.f * s0 * t0 + y2 * t0 * t0;
-        tx1 = x0 * sm * sm + x1 * 2.f * sm * tm + x2 * tm * tm;
-        ty1 = y0 * sm * sm + y1 * 2.f * sm * tm + y2 * tm * tm;
-        tx2 = x0 * s1 * s1 + x1 * 2.f * s1 * t1 + x2 * t1 * t1;
-        ty2 = y0 * s1 * s1 + y1 * 2.f * s1 * t1 + y2 * t1 * t1;
-        tmx = (tx0 + tx2) * 0.5f, tmy = (ty0 + ty2) * 0.5f;
-        tx1 = tmx + 2.f * (tx1 - tmx), ty1 = tmy + 2.f * (ty1 - tmy);
+        float tx0, ty0, tx2, ty2, tx1, ty1, t, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12;
+        t = t1;
+        x01 = lerp(x0, x1, t), x12 = lerp(x1, x2, t), x012 = lerp(x01, x12, t);
+        y01 = lerp(y0, y1, t), y12 = lerp(y1, y2, t), y012 = lerp(y01, y12, t);
+        t = t0 / t1;
+        tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx0 = lerp(tx01, tx12, t), tx1 = tx12, tx2 = x012;
+        ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty0 = lerp(ty01, ty12, t), ty1 = ty12, ty2 = y012;
+        
         tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
         tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
         ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
@@ -682,9 +683,9 @@ struct Rasterizer {
                             writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, visible, cubic);
                             if (visible) {
                                 cy0 = uccubic[1], cy3 = uccubic[7];
-                                if ((fabsf(cy0) > 1e-2 && cy0 < clipBounds.ly)
-                                    || (fabsf(cy3) > 1e-2 && cy3 < clipBounds.ly)
-                                    || cy0 > clipBounds.uy + 1e-2 || cy3 > clipBounds.uy + 1e-2) {
+                                if (0 && ((fabsf(cy0) > 1 && cy0 < clipBounds.ly)
+                                    || (fabsf(cy3) > 1 && cy3 < clipBounds.ly)
+                                    || cy0 > clipBounds.uy + 1 || cy3 > clipBounds.uy + 1)) {
                                     solveCubics(y0, y1, y2, y3, uy - ly, clipBounds.ly, clipBounds.uy, & tts[0]);
                                     solveCubics(x0, x1, x2, x3, ux - lx, clipBounds.lx, clipBounds.ux, & tts[6]);
                                 } else {
