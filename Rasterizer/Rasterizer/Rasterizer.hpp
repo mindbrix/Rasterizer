@@ -614,27 +614,26 @@ struct Rasterizer {
             ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clip, bool visible, float *cubic) {
-        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0, w1r = 1.0 / w1, wa = w2 / (w1 * w1), wb = w1 * w1 / (w1 * w1 - w2 * w2);
-        float ax, ay, bx, by, cx, cy;
-        float tp0, tp1, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, A, B;
-        
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-        tp0 = (2.f * t0 + t1) / 3.f, tp1 = (t0 + 2.f * t1) / 3.f;
-        
-        tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0;
-        ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
-        tx1 = ((ax * tp0 + bx) * tp0 + cx) * tp0 + x0;
-        ty1 = ((ay * tp0 + by) * tp0 + cy) * tp0 + y0;
-        tx2 = ((ax * tp1 + bx) * tp1 + cx) * tp1 + x0;
-        ty2 = ((ay * tp1 + by) * tp1 + cy) * tp1 + y0;
-        tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0;
-        ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
-        A = tx0 * w0 + tx3 * w3 - tx1, B = tx0 * w3 + tx3 * w0 - tx2;
-        tx1 = (B * wa - A * w1r) * wb, tx2 = (-B - tx1 * w2) * w1r;
-        A = ty0 * w0 + ty3 * w3 - ty1, B = ty0 * w3 + ty3 * w0 - ty2;
-        ty1 = (B * wa - A * w1r) * wb, ty2 = (-B - ty1 * w2) * w1r;
-        
+        float t, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
+        float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
+        float tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3;
+        t = t1;
+        x01 = lerp(x0, x1, t), x12 = lerp(x1, x2, t), x23 = lerp(x2, x3, t);
+        x012 = lerp(x01, x12, t), x123 = lerp(x12, x23, t);
+        x0123 = lerp(x012, x123, t);
+        y01 = lerp(y0, y1, t), y12 = lerp(y1, y2, t), y23 = lerp(y2, y3, t);
+        y012 = lerp(y01, y12, t), y123 = lerp(y12, y23, t);
+        y0123 = lerp(y012, y123, t);
+        t = t0 / t1;
+        tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx23 = lerp(x012, x0123, t);
+        tx012 = lerp(tx01, tx12, t), tx123 = lerp(tx12, tx23, t);
+        tx0123 = lerp(tx012, tx123, t);
+        ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty23 = lerp(y012, y0123, t);
+        ty012 = lerp(ty01, ty12, t), ty123 = lerp(ty12, ty23, t);
+        ty0123 = lerp(ty012, ty123, t);
+        tx0 = tx0123, tx1 = tx123, tx2 = tx23, tx3 = x0123;
+        ty0 = ty0123, ty1 = ty123, ty2 = ty23, ty3 = y0123;
+
         if (clip) {
             tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
             ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
@@ -683,7 +682,7 @@ struct Rasterizer {
                             writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, visible, cubic);
                             if (visible) {
                                 cy0 = uccubic[1], cy3 = uccubic[7];
-                                if (0 && ((fabsf(cy0) > 1 && cy0 < clipBounds.ly)
+                                if (((fabsf(cy0) > 1 && cy0 < clipBounds.ly)
                                     || (fabsf(cy3) > 1 && cy3 < clipBounds.ly)
                                     || cy0 > clipBounds.uy + 1 || cy3 > clipBounds.uy + 1)) {
                                     solveCubics(y0, y1, y2, y3, uy - ly, clipBounds.ly, clipBounds.uy, & tts[0]);
