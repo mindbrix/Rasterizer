@@ -537,13 +537,13 @@ struct Rasterizer {
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cly, cuy, tys[4], txs[4], ts[6], ty0, ty1, q[6], t, s, t0, t1, mx, vx;
         size_t x, y;
-        lx = x0 < x1 ? x0 : x1, ly = y0 < y1 ? y0 : y1;
-        lx = lx < x2 ? lx : x2, ly = ly < y2 ? ly : y2;
-        ux = x0 > x1 ? x0 : x1, uy = y0 > y1 ? y0 : y1;
-        ux = ux > x2 ? ux : x2, uy = uy > y2 ? uy : y2;
+        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
+        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
+            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
+            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
                 solveQuadratics(y0, y1, y2, clipBounds.ly, clipBounds.uy, tys);
                 solveQuadratics(x0, x1, x2, clipBounds.lx, clipBounds.ux, txs);
@@ -667,7 +667,6 @@ struct Rasterizer {
             }
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-            
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
                 solveCubics(y0, y1, y2, y3, uy - ly, clipBounds.ly, clipBounds.uy, & ts[0]);
                 solveCubics(x0, x1, x2, x3, ux - lx, clipBounds.lx, clipBounds.ux, & ts[6]);
