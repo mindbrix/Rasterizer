@@ -650,7 +650,7 @@ struct Rasterizer {
         *cubic++ = tx0, *cubic++ = ty0, *cubic++ = tx1, *cubic++ = ty1, *cubic++ = tx2, *cubic++ = ty2, *cubic++ = tx3, *cubic++ = ty3;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, ts[12], tts[12], t0, t1, t, s, x, y, uccubic[8], cubic[8], vx, cy0, cy3;
+        float lx, ly, ux, uy, ax, bx, cx, ay, by, cy, a, cly, cuy, ts[12], tts[12], t0, t1, t, s, x, y, uccubic[8], cubic[8], vx, cy0, cy3;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
@@ -658,8 +658,16 @@ struct Rasterizer {
         cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
         cuy = uy < clipBounds.ly ? clipBounds.ly : uy > clipBounds.uy ? clipBounds.uy : uy;
         if (cly != cuy) {
+            cx = 3.0 * (x1 - x0), bx = 3.0 * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+            cy = 3.0 * (y1 - y0), by = 3.0 * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+            a = (ax + bx) * (ax + bx) + (ay + by) * (ay + by);
+            if (a < 0.1) {
+                writeClippedSegmentToScanlines(x0, y0, x3, y3, clipBounds, scanlines);
+                return;
+            }
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
+            
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
                 solveCubics(y0, y1, y2, y3, uy - ly, clipBounds.ly, clipBounds.uy, & ts[0]);
                 solveCubics(x0, x1, x2, x3, ux - lx, clipBounds.lx, clipBounds.ux, & ts[6]);
