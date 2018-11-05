@@ -340,10 +340,11 @@ struct Rasterizer {
     }
     
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
-        float y, lx, ux, src0, src1, src2, src3, alpha;
+        float y, lx, ux, src0, src1, src2, src3, srcAlpha, alpha;
         uint8_t *components = (uint8_t *) & color, *dst;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
-        uint32_t *pixelAddress;
+        srcAlpha = src3 * 0.003921568627f;
+        uint32_t *pixel, *last;
         Spanline *spanline = & spanlines[clipped.ly - device.ly];
         Spanline::Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
@@ -352,13 +353,28 @@ struct Rasterizer {
                 lx = lx < clipped.lx ? clipped.lx : lx > clipped.ux ? clipped.ux : lx;
                 ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
                 if (lx != ux) {
-                    pixelAddress = bitmap.pixelAddress(lx, y);
-                    if (span->w > 0)
-                        memset_pattern4(pixelAddress, & color, (ux - lx) * bitmap.bytespp);
-                    else {
-                        alpha = float(-span->w) * 0.003921568627f;
-                        dst = (uint8_t *)pixelAddress;
-                        if (*pixelAddress == 0)
+                    pixel = bitmap.pixelAddress(lx, y);
+                    if (span->w > 0) {
+                        if (src3 == 255)
+                            memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
+                        else {
+                            alpha = srcAlpha;
+                            for (last = pixel + size_t(ux - lx); pixel < last; pixel++) {
+                                dst = (uint8_t *)pixel;
+                                if (*pixel == 0)
+                                    *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
+                                else {
+                                    *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+                                    *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+                                    *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+                                    *dst = *dst * (1.f - alpha) + src3 * alpha, dst++;
+                                }
+                            }
+                        }
+                    } else {
+                        alpha = float(-span->w) * 0.003921568627f * srcAlpha;
+                        dst = (uint8_t *)pixel;
+                        if (*pixel == 0)
                             *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
                         else {
                             *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
