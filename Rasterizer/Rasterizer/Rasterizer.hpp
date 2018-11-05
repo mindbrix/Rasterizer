@@ -340,8 +340,8 @@ struct Rasterizer {
     }
     
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
-        float y, lx, ux, src0, src1, src2, src3, alpha, dst0, dst1, dst2, dst3;
-        uint8_t *components = (uint8_t *) & color;
+        float y, lx, ux, src0, src1, src2, src3, alpha;
+        uint8_t *components = (uint8_t *) & color, *dst;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         uint32_t *pixelAddress;
         Spanline *spanline = & spanlines[clipped.ly - device.ly];
@@ -357,14 +357,14 @@ struct Rasterizer {
                         memset_pattern4(pixelAddress, & color, (ux - lx) * bitmap.bytespp);
                     else {
                         alpha = float(-span->w) * 0.003921568627f;
-                        components = (uint8_t *)pixelAddress;
+                        dst = (uint8_t *)pixelAddress;
                         if (*pixelAddress == 0)
-                            *components++ = src0 * alpha, *components++ = src1 * alpha, *components++ = src2 * alpha, *components++ = src3 * alpha;
+                            *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
                         else {
-                            dst0 = *components, *components++ = dst0 * (1.f - alpha) + src0 * alpha;
-                            dst1 = *components, *components++ = dst1 * (1.f - alpha) + src1 * alpha;
-                            dst2 = *components, *components++ = dst2 * (1.f - alpha) + src2 * alpha;
-                            dst3 = *components, *components++ = dst3 * (1.f - alpha) + src3 * alpha;
+                            *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+                            *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+                            *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+                            *dst = *dst * (1.f - alpha) + src3 * alpha, dst++;
                         }
                     }
                 }
