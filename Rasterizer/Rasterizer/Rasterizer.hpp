@@ -607,7 +607,7 @@ struct Rasterizer {
         for (int i = 0; i < 6; i++)
             ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
     }
-    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool visible, float *cubic) {
+    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clip, bool visible, float *cubic) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0, w1r = 1.0 / w1, wa = w2 / (w1 * w1), wb = w1 * w1 / (w1 * w1 - w2 * w2);
         float ax, ay, bx, by, cx, cy;
         float tp0, tp1, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, A, B;
@@ -629,20 +629,22 @@ struct Rasterizer {
         A = ty0 * w0 + ty3 * w3 - ty1, B = ty0 * w3 + ty3 * w0 - ty2;
         ty1 = (B * wa - A * w1r) * wb, ty2 = (-B - ty1 * w2) * w1r;
         
-        tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
-        ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
-        tx3 = tx3 < clipBounds.lx ? clipBounds.lx : tx3 > clipBounds.ux ? clipBounds.ux : tx3;
-        ty3 = ty3 < clipBounds.ly ? clipBounds.ly : ty3 > clipBounds.uy ? clipBounds.uy : ty3;
-        if (!visible) {
-            tx1 = tx1 < clipBounds.lx ? clipBounds.lx : tx1 > clipBounds.ux ? clipBounds.ux : tx1;
-            ty1 = ty1 < clipBounds.ly ? clipBounds.ly : ty1 > clipBounds.uy ? clipBounds.uy : ty1;
-            tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
-            ty2 = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
+        if (clip) {
+            tx0 = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
+            ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
+            tx3 = tx3 < clipBounds.lx ? clipBounds.lx : tx3 > clipBounds.ux ? clipBounds.ux : tx3;
+            ty3 = ty3 < clipBounds.ly ? clipBounds.ly : ty3 > clipBounds.uy ? clipBounds.uy : ty3;
+            if (!visible) {
+                tx1 = tx1 < clipBounds.lx ? clipBounds.lx : tx1 > clipBounds.ux ? clipBounds.ux : tx1;
+                ty1 = ty1 < clipBounds.ly ? clipBounds.ly : ty1 > clipBounds.uy ? clipBounds.uy : ty1;
+                tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
+                ty2 = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
+            }
         }
         *cubic++ = tx0, *cubic++ = ty0, *cubic++ = tx1, *cubic++ = ty1, *cubic++ = tx2, *cubic++ = ty2, *cubic++ = tx3, *cubic++ = ty3;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8], vx;
+        float lx, ly, ux, uy, cly, cuy, ts[12], tts[12], t0, t1, t, s, x, y, uccubic[8], cubic[8], vx, cy0, cy3;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
@@ -664,13 +666,22 @@ struct Rasterizer {
                         if (y >= clipBounds.ly && y <= clipBounds.uy) {
                             x = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
                             visible = x >= clipBounds.lx && x <= clipBounds.ux;
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, visible, cubic);
+                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, false, visible, uccubic);
+                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, visible, cubic);
                             if (visible) {
-                                if (fabsf(t1 - t0) < 1e-2) {
-                                    writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, 32767.f, nullptr, 0, scanlines);
-                                    writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
-                                } else
-                                    writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
+                                cy0 = uccubic[1], cy3 = uccubic[7];
+                                if ((fabsf(cy0) > 1e-2 && cy0 < clipBounds.ly)
+                                    || (fabsf(cy3) > 1e-2 && cy3 < clipBounds.ly)
+                                    || cy0 > clipBounds.uy + 1e-2 || cy3 > clipBounds.uy + 1e-2) {
+                                    solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, & tts[0]);
+                                    solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, & tts[6]);
+                                } else {
+                                    if (fabsf(t1 - t0) < 1e-2) {
+                                        writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, 32767.f, nullptr, 0, scanlines);
+                                        writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
+                                    } else
+                                        writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
+                                }
                             } else {
                                 vx = x <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
                                 writeVerticalSegmentToScanlines(vx, cubic[1], cubic[3], scanlines);
