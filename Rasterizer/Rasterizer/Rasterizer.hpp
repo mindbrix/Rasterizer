@@ -642,7 +642,7 @@ struct Rasterizer {
         *cubic++ = tx0, *cubic++ = ty0, *cubic++ = tx1, *cubic++ = ty1, *cubic++ = tx2, *cubic++ = ty2, *cubic++ = tx3, *cubic++ = ty3;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8];
+        float lx, ly, ux, uy, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8], vx;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
@@ -672,9 +672,10 @@ struct Rasterizer {
                                 } else
                                     writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
                             } else {
-                                writeVerticalSegmentToScanlines(cubic[0], cubic[1], cubic[3], scanlines);
-                                writeVerticalSegmentToScanlines(cubic[0], cubic[3], cubic[5], scanlines);
-                                writeVerticalSegmentToScanlines(cubic[0], cubic[5], cubic[7], scanlines);
+                                vx = x <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
+                                writeVerticalSegmentToScanlines(vx, cubic[1], cubic[3], scanlines);
+                                writeVerticalSegmentToScanlines(vx, cubic[3], cubic[5], scanlines);
+                                writeVerticalSegmentToScanlines(vx, cubic[5], cubic[7], scanlines);
                             }
                         }
                     }
