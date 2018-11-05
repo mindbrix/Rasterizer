@@ -587,7 +587,6 @@ struct Rasterizer {
             a /= d, b /= d, c /= d;
             p = (3.0 * b - a * a) / 3.0, p3 = p / 3.0, q = (2 * a * a * a - 9.0 * a * b + 27.0 * c) / 27.0, q2 = q / 2.0;
             discriminant = q2 * q2 + p3 * p3 * p3;
-            
             if (discriminant < 0) {
                 mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrt(mp33), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
                 phi = acos(cosphi), crtr = 2 * cbrt(fabs(r));
