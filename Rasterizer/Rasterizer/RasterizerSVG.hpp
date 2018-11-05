@@ -30,6 +30,7 @@ struct RasterizerSVG {
             int limit = 60000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type != NSVG_PAINT_NONE) {
+                    float lx, ly, ux, uy, *pts;
                     uint8_t r, g, b, a;
                     unsigned int rgba;
                     if (shape->fill.type == NSVG_PAINT_COLOR) {
@@ -37,20 +38,28 @@ struct RasterizerSVG {
                         r = rgba & 0xFF, g = (rgba >> 8) & 0xFF, b = (rgba >> 16) & 0xFF, a = rgba >> 24;
                         uint8_t bgra[4] = { b, g, r, a };
                         scene.bgras.emplace_back(*((uint32_t *)bgra));
-                        scene.bounds.emplace_back(shape->bounds[0], shape->bounds[1], shape->bounds[2], shape->bounds[3]);
                         scene.paths.emplace_back();
                         Rasterizer::Path& p = scene.paths.back();
                         
+                        lx = ly = FLT_MAX, ux = uy = -FLT_MAX;
                         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
                             for (int i = 0; i < path->npts; i++)
                                 path->pts[i * 2 + 1] = image->height - path->pts[i * 2 + 1];
                             
-                            float *pts = path->pts;
+                            pts = path->pts;
+                            for (int i = 0; i < path->npts; i++, pts += 2) {
+                                lx = pts[0] < lx ? pts[0] : lx;
+                                ux = pts[0] > ux ? pts[0] : ux;
+                                ly = pts[1] < ly ? pts[1] : ly;
+                                uy = pts[1] > uy ? pts[1] : uy;
+                            }
+                            pts = path->pts;
                             p.moveTo(pts[0], pts[1]);
                             for (int i = 0; i < path->npts - 1; i += 3, pts += 6)
                                 p.cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
                             p.close();
                         }
+                        scene.bounds.emplace_back(lx, ly, ux, uy);
                     }
                 }
             }
