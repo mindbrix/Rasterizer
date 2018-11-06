@@ -482,7 +482,7 @@ struct Rasterizer {
             if (sy0 != sy1) {
                 if (x0 == x1) {
                     sx0 = sx1 = x1 < clipBounds.lx ? clipBounds.lx : x1 > clipBounds.ux ? clipBounds.ux : x1;
-                    writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, 32767.f, nullptr, 0, scanlines, clipBounds);
+                    writeVerticalSegmentToScanlines(sx0, sy0, sy1, scanlines);
                 } else {
                     ty0 = (sy0 - y0) / (y1 - y0);
                     ty1 = (sy1 - y0) / (y1 - y0);
@@ -827,7 +827,7 @@ struct Rasterizer {
     static void writeVerticalSegmentToScanlines(float x, float y0, float y1, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1;
+        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
         Scanline *scanline;
         ly = y0 < y1 ? y0 : y1;
         uy = y0 > y1 ? y0 : y1;
@@ -837,8 +837,12 @@ struct Rasterizer {
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
             if (x == 0)
                 scanline->delta0 += 255.5f * (sy1 - sy0);
-            else
-                scanline->insertDelta(ix0, (sy1 - sy0) * 32767.f * (ix1 - x));
+            else {
+                cover = (sy1 - sy0) * 32767.f, area = ix1 - x;
+                scanline->insertDelta(ix0, cover * area);
+                if (area < 1.f)
+                    scanline->insertDelta(ix1, cover * (1.f - area));
+            }
         }
     }
     
