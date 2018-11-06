@@ -505,10 +505,8 @@ struct Rasterizer {
                                 sx0 = sx0 < clipBounds.lx ? clipBounds.lx : sx0 > clipBounds.ux ? clipBounds.ux : sx0;
                                 sx1 = sx1 < clipBounds.lx ? clipBounds.lx : sx1 > clipBounds.ux ? clipBounds.ux : sx1;
                                 writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, 32767.f, nullptr, 0, scanlines, clipBounds);
-                            } else {
-                                mx = mx < clipBounds.lx ? clipBounds.lx : clipBounds.ux;
-                                writeSegmentToDeltasOrScanlines(mx, sy0, mx, sy1, 32767.f, nullptr, 0, scanlines, clipBounds);
-                            }
+                            } else
+                                writeVerticalSegmentToScanlines(mx < clipBounds.lx ? clipBounds.lx : clipBounds.ux, sy0, sy1, scanlines);
                         }
                     }
                 }
