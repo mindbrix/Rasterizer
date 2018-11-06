@@ -369,12 +369,12 @@ struct Rasterizer {
                         for (; pixel < last; pixel++) {
                             dst = (uint8_t *)pixel;
                             if (*pixel == 0)
-                                *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = src3 * alpha;
+                                *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
                             else {
                                 *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
                                 *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
                                 *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + src3 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
                             }
                         }
                     }
@@ -841,10 +841,10 @@ struct Rasterizer {
     }
     
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float scale, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
-        assert(x0 >= clipBounds.lx && x0 <= clipBounds.ux);
-        assert(x1 >= clipBounds.lx && x1 <= clipBounds.ux);
-        assert(y0 >= clipBounds.ly && y0 <= clipBounds.uy);
-        assert(y1 >= clipBounds.ly && y1 <= clipBounds.uy);
+//        assert(x0 >= clipBounds.lx && x0 <= clipBounds.ux);
+//        assert(x1 >= clipBounds.lx && x1 <= clipBounds.ux);
+//        assert(y0 >= clipBounds.ly && y0 <= clipBounds.uy);
+//        assert(y1 >= clipBounds.ly && y1 <= clipBounds.uy);
         
         if (y0 == y1)
             return;
