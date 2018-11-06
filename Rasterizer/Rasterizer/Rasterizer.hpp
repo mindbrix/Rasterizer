@@ -650,7 +650,7 @@ struct Rasterizer {
         *cubic++ = tx0, *cubic++ = ty0, *cubic++ = tx1, *cubic++ = ty1, *cubic++ = tx2, *cubic++ = ty2, *cubic++ = tx3, *cubic++ = ty3;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, ax, bx, cx, ay, by, cy, a, cly, cuy, ts[12], tts[12], t0, t1, t, s, x, y, uccubic[8], cubic[8], vx, cy0, cy3;
+        float lx, ly, ux, uy, ax, bx, cx, ay, by, cy, a, cly, cuy, ts[12], t0, t1, t, s, x, y, cubic[8], vx;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
@@ -679,22 +679,13 @@ struct Rasterizer {
                         if (y >= clipBounds.ly && y <= clipBounds.uy) {
                             x = x0 * s * s * s + x1 * 3.f * s * s * t + x2 * 3.f * s * t * t + x3 * t * t * t;
                             visible = x >= clipBounds.lx && x <= clipBounds.ux;
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, false, visible, uccubic);
                             writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, true, visible, cubic);
                             if (visible) {
-                                cy0 = uccubic[1], cy3 = uccubic[7];
-                                if (((fabsf(cy0) > 1 && cy0 < clipBounds.ly)
-                                    || (fabsf(cy3) > 1 && cy3 < clipBounds.ly)
-                                    || cy0 > clipBounds.uy + 1 || cy3 > clipBounds.uy + 1)) {
-                                    solveCubics(y0, y1, y2, y3, uy - ly, clipBounds.ly, clipBounds.uy, & tts[0]);
-                                    solveCubics(x0, x1, x2, x3, ux - lx, clipBounds.lx, clipBounds.ux, & tts[6]);
-                                } else {
-                                    if (fabsf(t1 - t0) < 1e-2) {
-                                        writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, 32767.f, nullptr, 0, scanlines);
-                                        writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
-                                    } else
-                                        writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
-                                }
+                                if (fabsf(t1 - t0) < 1e-2) {
+                                    writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, 32767.f, nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
+                                } else
+                                    writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
                             } else {
                                 vx = x <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
                                 writeVerticalSegmentToScanlines(vx, cubic[1], cubic[3], scanlines);
