@@ -388,19 +388,21 @@ struct Rasterizer {
         Bounds clipped = device.intersected(context.clipBounds);
         float w, h, dim, s, t;
         if (!clipped.isZero()) {
-            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-2), t = (1.f - s) / 2.f;
+            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-1), t = (1.f - s) / 2.f;
             AffineTransform offset(s, 0, 0, s, t, t);
             AffineTransform deltasCTM = offset.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
             
             w = device.ux - device.lx, h = device.uy - device.ly;
-            if (h < context.bitmap.height && w * h < kDeltasDimension * kDeltasDimension) {
-                writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, device.ux - device.lx, nullptr, context.clipBounds);
-                writeDeltasToMask(context.deltas, device, context.mask);
-                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
-            } else if (w < context.bitmap.width && h < context.bitmap.height) {
-                writePathToDeltasOrScanlines(path, deltasCTM, nullptr, 0, & context.scanlines[0], context.clipBounds);
-                writeScanlinesToSpans(context.scanlines, device, clipped, context.spanlines);
-                writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
+            if (w < context.bitmap.width && h < context.bitmap.height) {
+                if (w * h < kDeltasDimension * kDeltasDimension) {
+                    writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, device.ux - device.lx, nullptr, context.clipBounds);
+                    writeDeltasToMask(context.deltas, device, context.mask);
+                    writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
+                } else {
+                    writePathToDeltasOrScanlines(path, deltasCTM, nullptr, 0, & context.scanlines[0], context.clipBounds);
+                    writeScanlinesToSpans(context.scanlines, device, clipped, context.spanlines);
+                    writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
+                }
             } else {
                 writeClippedPathToScanlines(path, offset.concat(ctm), context.clipBounds, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spanlines);
@@ -830,10 +832,10 @@ struct Rasterizer {
     }
     
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float scale, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
-//        assert(x0 >= clipBounds.lx && x0 <= clipBounds.ux);
-//        assert(x1 >= clipBounds.lx && x1 <= clipBounds.ux);
-//        assert(y0 >= clipBounds.ly && y0 <= clipBounds.uy);
-//        assert(y1 >= clipBounds.ly && y1 <= clipBounds.uy);
+        assert(x0 >= clipBounds.lx && x0 <= clipBounds.ux);
+        assert(x1 >= clipBounds.lx && x1 <= clipBounds.ux);
+        assert(y0 >= clipBounds.ly && y0 <= clipBounds.uy);
+        assert(y1 >= clipBounds.ly && y1 <= clipBounds.uy);
         
         if (y0 == y1)
             return;
