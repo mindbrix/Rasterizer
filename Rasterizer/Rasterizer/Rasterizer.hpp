@@ -384,18 +384,27 @@ struct Rasterizer {
     }
     
     static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
-        Bounds device = bounds.transform(ctm).integral();
+        Bounds dev = bounds.transform(ctm);
+        Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.clipBounds);
-        float w, h, dim, s, t;
+        const float limit = 5e-2;
+        float w, h, dim, s, t, elx, ely, eux, euy, sx, sy;
         if (!clipped.isZero()) {
-            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-1), t = (1.f - s) / 2.f;
+            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-2), t = dim * (1.f - s) / 2.f;
             AffineTransform bias(s, 0, 0, s, t, t);
-            AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
             
             w = device.ux - device.lx, h = device.uy - device.ly;
             if (w < context.bitmap.width && h < context.bitmap.height) {
+                elx = dev.lx - device.lx, elx = elx < limit ? limit : 0;
+                eux = device.ux - dev.ux, eux = eux < limit ? limit : 0;
+                ely = dev.ly - device.ly, ely = ely < limit ? limit : 0;
+                euy = device.uy - dev.uy, euy = euy < limit ? limit : 0;
+                sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
+                bias = AffineTransform(sx, 0, 0, sy, elx, ely);
+                AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
+                
                 if (w * h < kDeltasDimension * kDeltasDimension) {
-                    writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, device.ux - device.lx, nullptr, context.clipBounds);
+                    writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, w, nullptr, context.clipBounds);
                     writeDeltasToMask(context.deltas, device, context.mask);
                     writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
                 } else {
