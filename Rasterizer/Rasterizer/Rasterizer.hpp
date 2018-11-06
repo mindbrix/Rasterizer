@@ -306,9 +306,10 @@ struct Rasterizer {
     
     static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
         uint32_t *dst;
-        uint8_t *src, *components, *d;
-        components = (uint8_t *)& bgra;
-        __m128 bgra4 = _mm_set_ps(float(components[3]), float(components[2]), float(components[1]), float(components[0]));
+        uint8_t *src, *components, *d, a;
+        components = (uint8_t *)& bgra, a = components[3];
+        float srcAlpha = float(a) * 0.003921568627f;
+        __m128 bgra4 = _mm_set_ps(255.f, float(components[2]), float(components[1]), float(components[0]));
         __m128 a0, m0, d0;
         __m128i a32, a16, a8;
         size_t columns;
@@ -316,10 +317,10 @@ struct Rasterizer {
         while (h--) {
             dst = pixelAddress, src = mask, columns = w;
             while (columns--) {
-                if (*src > 254)
+                if (*src == 255 && a == 255)
                     *dst = bgra;
                 else if (*src) {
-                    a0 = _mm_set1_ps(float(*src) * 0.003921568627f);
+                    a0 = _mm_set1_ps(srcAlpha * float(*src) * 0.003921568627f);
                     m0 = _mm_mul_ps(bgra4, a0);
                     if (*dst) {
                         d = (uint8_t *)dst, d0 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
