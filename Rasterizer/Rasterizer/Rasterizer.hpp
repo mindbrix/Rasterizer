@@ -17,7 +17,8 @@
 struct Rasterizer {
     static const size_t kDeltasDimension = 128;
     
-    static inline float lerp(float n0, float n1, float t) {
+    template<typename T>
+    static inline T lerp(T n0, T n1, T t) {
         return n0 + t * (n1 - n0);
     }
     
@@ -577,11 +578,11 @@ struct Rasterizer {
                 writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, 32767.f, nullptr, 0, scanlines);
         }
     }
-    static void solveCubic(float pa, float pb, float pc, float pd, float pw, float& t0, float& t1, float& t2) {
+    static void solveCubic(float pa, float pb, float pc, float pd, float pw, float nt, float& t0, float& t1, float& t2) {
         const float limit = 1e-3;
         double a, b, c, d, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
         
-        a = (3.0 * pa - 6.0 * pb + 3.0 * pc), b = (-3.0 * pa + 3.0 * pb), c = pa, d = (-pa + 3.0 * pb - 3.0 * pc + pd);
+        a = (3.0 * pa - 6.0 * pb + 3.0 * pc), b = (-3.0 * pa + 3.0 * pb), c = pa - nt, d = (-pa + 3.0 * pb - 3.0 * pc + pd);
         if (fabs(d / pw) < limit) {
             solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
         } else {
@@ -594,7 +595,7 @@ struct Rasterizer {
                 t0 = crtr * cos(phi/3) - a/3;
                 t1 = crtr * cos((phi+2*M_PI)/3) - a/3;
                 t2 = crtr * cos((phi+4*M_PI)/3) - a/3;
-            } else if (discriminant == 0) {
+            } else if (discriminant == 0) { //}< pw * limit) {
                 u1 = q2 < 0 ? cbrt(-q2) : -cbrt(q2);
                 t0 = 2*u1 - a/3;
                 t1 = -u1 - a/3;
@@ -608,8 +609,8 @@ struct Rasterizer {
         }
     }
     static void solveCubics(float n0, float n1, float n2, float n3, float nw, float nt0, float nt1, float *ts) {
-        solveCubic(n0 - nt0, n1 - nt0, n2 - nt0, n3 - nt0, nw, ts[0], ts[1], ts[2]);
-        solveCubic(n0 - nt1, n1 - nt1, n2 - nt1, n3 - nt1, nw, ts[3], ts[4], ts[5]);
+        solveCubic(n0, n1, n2, n3, nw, nt0, ts[0], ts[1], ts[2]);
+        solveCubic(n0, n1, n2, n3, nw, nt1, ts[3], ts[4], ts[5]);
         for (int i = 0; i < 6; i++)
             ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
     }
