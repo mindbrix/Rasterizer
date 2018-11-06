@@ -591,19 +591,19 @@ struct Rasterizer {
             discriminant = q2 * q2 + p3 * p3 * p3;
             if (discriminant < 0) {
                 mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrt(mp33), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
-                phi = acos(cosphi), crtr = 2 * cbrt(fabs(r));
+                phi = acos(cosphi), crtr = 2 * cbrt(r);
                 t0 = crtr * cos(phi/3) - a/3;
                 t1 = crtr * cos((phi+2*M_PI)/3) - a/3;
                 t2 = crtr * cos((phi+4*M_PI)/3) - a/3;
-            } else if (discriminant == 0) { //}< pw * limit) {
+            } else if (discriminant == 0) {
                 u1 = q2 < 0 ? cbrt(-q2) : -cbrt(q2);
                 t0 = 2*u1 - a/3;
                 t1 = -u1 - a/3;
                 t2 = FLT_MAX;
             } else {
                 sd = sqrt(discriminant);
-                u1 = cbrt(fabs(sd - q2));
-                v1 = cbrt(fabs(sd + q2));
+                u1 = cbrt(sd - q2);
+                v1 = cbrt(sd + q2);
                 t0 = u1 - v1 - a/3, t1 = t2 = FLT_MAX;
             }
         }
