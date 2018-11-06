@@ -389,8 +389,8 @@ struct Rasterizer {
         float w, h, dim, s, t;
         if (!clipped.isZero()) {
             w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-1), t = (1.f - s) / 2.f;
-            AffineTransform offset(s, 0, 0, s, t, t);
-            AffineTransform deltasCTM = offset.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
+            AffineTransform bias(s, 0, 0, s, t, t);
+            AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
             
             w = device.ux - device.lx, h = device.uy - device.ly;
             if (w < context.bitmap.width && h < context.bitmap.height) {
@@ -404,7 +404,7 @@ struct Rasterizer {
                     writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
                 }
             } else {
-                writeClippedPathToScanlines(path, offset.concat(ctm), context.clipBounds, & context.scanlines[0]);
+                writeClippedPathToScanlines(path, bias.concat(ctm), context.clipBounds, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spanlines);
                 writeSpansToBitmap(context.spanlines, Bounds(0, 0, 0, 0), clipped, bgra, context.bitmap);
             }
