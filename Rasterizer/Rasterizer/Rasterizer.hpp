@@ -802,7 +802,11 @@ struct Rasterizer {
         a = (ax + bx) * (ax + bx) + (ay + by) * (ay + by);
         if (a < 0.1)
             writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, scale, deltas, stride, scanlines, clipBounds);
-        else if (a < 16) {
+        else if (a < 8) {
+            px0 = (x0 + x3) * 0.125f + (x1 + x2) * 0.375f, py0 = (y0 + y3) * 0.125f + (y1 + y2) * 0.375f;
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines, clipBounds);
+            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines, clipBounds);
+        } else if (a < 16) {
             px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
             px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
             writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines, clipBounds);
