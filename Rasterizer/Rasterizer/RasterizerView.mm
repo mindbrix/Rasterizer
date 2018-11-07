@@ -130,6 +130,7 @@
             Rasterizer::Bounds clipped = device.intersected(_context.clipBounds);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                 CGContextSaveGState(ctx);
+                CGContextSetFillColorWithColor(ctx, _cgscene.colors[i]);
                 CGContextConcatCTM(ctx, _cgscene.ctms[i]);
                 CGContextAddPath(ctx, _cgscene.paths[i]);
                 CGContextFillPath(ctx);

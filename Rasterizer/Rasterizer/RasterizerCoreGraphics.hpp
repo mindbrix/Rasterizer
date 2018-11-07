@@ -26,6 +26,14 @@ struct RasterizerCoreGraphics {
         std::vector<CGPathRef> paths;
     };
     
+    static CGColorRef CGColorFromBGRA(uint32_t bgra) {
+        uint8_t *src = (uint8_t *)& bgra;
+        CGFloat r, g, b, a;
+        r = CGFloat(src[2]) / 255, g = CGFloat(src[1]) / 255, b = CGFloat(src[0]) / 255, a = CGFloat(src[3]) / 255;
+//        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+//        CGColorSpaceRelease(rgb);
+        return CGColorCreateGenericRGB(r, g, b, a);;
+    }
     static Rasterizer::AffineTransform transformFromCGAffineTransform(CGAffineTransform t) {
         return Rasterizer::AffineTransform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }
@@ -140,9 +148,8 @@ struct RasterizerCoreGraphics {
         }
     }
     static void writeSceneToCGScene(Rasterizer::Scene& scene, CGScene& cgscene) {
-        CGColorRef black = CGColorGetConstantColor(kCGColorBlack);
         for (int i = 0; i < scene.paths.size(); i++) {
-            cgscene.colors.emplace_back(CGColorRetain(black));
+            cgscene.colors.emplace_back(CGColorFromBGRA(scene.bgras[i]));
             cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
             cgscene.bounds.emplace_back(CGRectFromBounds(scene.bounds[i]));
             CGMutablePathRef path = CGPathCreateMutable();
@@ -150,31 +157,5 @@ struct RasterizerCoreGraphics {
             cgscene.paths.emplace_back(CGPathCreateCopy(path));
             CGPathRelease(path);
         }
-    }
-    
-    static void writeGlyphGrid(NSString *fontName, std::vector<CGPathRef>& _glyphCGPaths, CGFloat _dimension, std::vector<Rasterizer::Path>& _glyphPaths, std::vector<Rasterizer::Bounds>& _glyphBounds) {
-        CGPathRef shape = nullptr;
-//        CGPathRef shape = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, _dimension, _dimension), NULL);
-//        CGPathRef shape = CGPathCreateWithRect(CGRectMake(0, 0, _dimension, _dimension), NULL);
-//        CGPathRef shape = CGPathCreateWithRoundedRect(CGRectMake(0, 0, _dimension, _dimension), _dimension * 0.25, _dimension * 0.25, NULL);
-        
-        for (CGPathRef path : _glyphCGPaths)
-            CFRelease(path);
-        _glyphCGPaths.resize(0), _glyphPaths.resize(0), _glyphBounds.resize(0);
-        CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
-        CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, _dimension, NULL, NULL);
-        CFIndex glyphCount =  CTFontGetGlyphCount(ctFont);
-        for (CFIndex glyph = 1; glyph < glyphCount; glyph++) {
-            CGPathRef path = shape ? CGPathRetain(shape) : CTFontCreatePathForGlyph(ctFont, glyph, NULL);
-            if (path) {
-                _glyphCGPaths.emplace_back(path);
-                _glyphPaths.emplace_back();
-                writeCGPathToPath(path, _glyphPaths.back());
-                _glyphBounds.emplace_back(boundsFromCGRect(CGPathGetPathBoundingBox(path)));
-            }
-        }
-        CFRelease(cgFont);
-        CFRelease(ctFont);
-        CGPathRelease(shape);
     }
 };
