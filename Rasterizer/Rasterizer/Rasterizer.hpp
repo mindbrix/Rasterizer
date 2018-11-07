@@ -801,9 +801,11 @@ struct Rasterizer {
     
     static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float scale, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
+        float s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3, cx, bx, ax, cy, by, ay;
         size_t count;
-        s = x3 - x0 - 3.0 * (x1 - x0), t = y3 - y0 - 3.0 * (y1 - y0);
+        cx = 3.0 * (x1 - x0), bx = 3.0 * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+        cy = 3.0 * (y1 - y0), by = 3.0 * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+        s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
         a = s * s + t * t;
         if (a < 0.1)
             writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, scale, deltas, stride, scanlines, clipBounds);
