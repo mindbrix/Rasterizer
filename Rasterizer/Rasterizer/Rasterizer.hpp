@@ -788,7 +788,7 @@ struct Rasterizer {
             writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines, clipBounds);
             writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines, clipBounds);
         } else {
-            count = 1.f + floorf(sqrtf(sqrtf(3.f * a))), dt = 1.f / count, t = 0;
+            count = 3.f + floorf(sqrtf(sqrtf(3.f * (a - 8.f)))), dt = 1.f / count, t = 0;
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
@@ -821,7 +821,7 @@ struct Rasterizer {
             writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines, clipBounds);
             writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, scale, deltas, stride, scanlines, clipBounds);
         } else {
-            count = 1.f + floorf(sqrtf(sqrtf(3.f * a))), dt = 1.f / count, t = 0;
+            count = 4.f + floorf(sqrtf(sqrtf(3.f * (a - 16.f)))), dt = 1.f / count, t = 0;
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
