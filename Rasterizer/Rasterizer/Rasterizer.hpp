@@ -69,6 +69,7 @@ struct Rasterizer {
     }
     
     struct AffineTransform {
+        AffineTransform() {}
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
         
         inline AffineTransform concat(AffineTransform t) {
@@ -221,10 +222,11 @@ struct Rasterizer {
         std::vector<Spanline> spanlines;
     };
     struct Scene {
-        void empty() { paths.resize(0), bounds.resize(0), bgras.resize(0); }
+        void empty() { ctms.resize(0), paths.resize(0), bounds.resize(0), bgras.resize(0); }
         std::vector<uint32_t> bgras;
-        std::vector<Rasterizer::Bounds> bounds;
-        std::vector<Rasterizer::Path> paths;
+        std::vector<AffineTransform> ctms;
+        std::vector<Bounds> bounds;
+        std::vector<Path> paths;
     };
     
     static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {

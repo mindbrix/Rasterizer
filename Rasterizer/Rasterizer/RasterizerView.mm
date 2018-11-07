@@ -18,7 +18,8 @@
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
-@property(nonatomic) Rasterizer::Scene svg;
+@property(nonatomic) Rasterizer::Scene scene;
+@property(nonatomic) RasterizerCoreGraphics::CGScene cgscene;
 @property(nonatomic) CGFloat dimension;
 @property(nonatomic) CGFloat phi;
 
@@ -78,7 +79,10 @@
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
-    RasterizerCoreGraphics::writeGlyphGrid(fontName, _glyphCGPaths, _dimension * _phi, _glyphPaths, _glyphBounds);
+    _scene.empty();
+    _cgscene.empty();
+    RasterizerCoreGraphics::writeGlyphGridToCGScene(fontName, _dimension, _phi, _cgscene);
+    RasterizerCoreGraphics::writeCGSceneToScene(_cgscene, _scene);
 }
 
 #pragma mark - NSResponder
@@ -110,7 +114,7 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    size_t square = ceilf(sqrtf(float(_glyphPaths.size())));
+    size_t square = ceilf(sqrtf(float(_scene.paths.size())));
     CGContextConcatCTM(ctx, self.CTM);
     CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * _dimension * _phi);
     CGContextConcatCTM(ctx, CGAffineTransformMake(scale, 0, 0, scale, 0, 0));
@@ -118,35 +122,23 @@
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     _context.setBitmap(bitmap);
-    float tx, ty;
-    
     if (self.useCoreGraphics) {
-        for (size_t i = 0; i < _glyphPaths.size(); i++) {
-            Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-            tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
-            Rasterizer::Bounds device = glyphBounds.transform(ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty))).integral();
+        for (size_t i = 0; i < _cgscene.paths.size(); i++) {
+            Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(_cgscene.bounds[i]);
+            Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(_cgscene.ctms[i]);
+            Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
             Rasterizer::Bounds clipped = device.intersected(_context.clipBounds);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                 CGContextSaveGState(ctx);
-                CGContextTranslateCTM(ctx, tx, ty);
-                CGContextAddPath(ctx, _glyphCGPaths[i]);
+                CGContextConcatCTM(ctx, _cgscene.ctms[i]);
+                CGContextAddPath(ctx, _cgscene.paths[i]);
                 CGContextFillPath(ctx);
                 CGContextRestoreGState(ctx);
             }
         }
     } else {
-        if (_svg.paths.size()) {
-            for (size_t i = 0; i < _svg.paths.size(); i++)
-                Rasterizer::writePathToBitmap(_svg.paths[i], _svg.bounds[i], ctm, _svg.bgras[i], _context);
-        } else {
-            uint8_t black[4] = { 0, 0, 0, 255 };
-            uint32_t bgra = *((uint32_t *)black);
-            for (size_t i = 0; i < _glyphPaths.size(); i++) {
-                Rasterizer::Bounds glyphBounds = _glyphBounds[i];
-                tx = (i % square) * _dimension * _phi - glyphBounds.lx, ty = (i / square) * _dimension * _phi - glyphBounds.ly;
-                Rasterizer::writePathToBitmap(_glyphPaths[i], glyphBounds, ctm.concat(Rasterizer::AffineTransform(1, 0, 0, 1, tx, ty)), bgra, _context);
-            }
-        }
+        for (size_t i = 0; i < _scene.paths.size(); i++)
+            Rasterizer::writePathToBitmap(_scene.paths[i], _scene.bounds[i], ctm.concat(_scene.ctms[i]), _scene.bgras[i], _context);
     }
 }
 
@@ -154,8 +146,10 @@
     _svgData = svgData;
     
     if (_svgData) {
-        _svg.empty();
-        RasterizerSVG::writeToScene(_svgData.bytes, _svgData.length, _svg);
+        _scene.empty();
+        _cgscene.empty();
+        RasterizerSVG::writeToScene(_svgData.bytes, _svgData.length, _scene);
+        RasterizerCoreGraphics::writeSceneToCGScene(_scene, _cgscene);
     }
     [self redraw];
 }

@@ -53,6 +53,7 @@ struct RasterizerSVG {
                             p.close();
                         }
                         scene.bounds.emplace_back(lx, ly, ux, uy);
+                        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                     }
                 }
             }
