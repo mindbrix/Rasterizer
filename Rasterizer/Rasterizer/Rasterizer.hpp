@@ -397,12 +397,8 @@ struct Rasterizer {
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.clipBounds);
-        
-        float w, h, dim, s, t, elx, ely, eux, euy, sx, sy;
+        float w, h, elx, ely, eux, euy, sx, sy;
         if (!clipped.isZero()) {
-            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-2), t = dim * (1.f - s) / 2.f;
-            AffineTransform bias(s, 0, 0, s, t, t);
-            
             w = device.ux - device.lx, h = device.uy - device.ly;
             if (w < context.bitmap.width && h < context.bitmap.height) {
                 elx = dev.lx - device.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
@@ -410,9 +406,8 @@ struct Rasterizer {
                 ely = dev.ly - device.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
                 euy = device.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
-                bias = AffineTransform(sx, 0, 0, sy, elx, ely);
+                AffineTransform bias(sx, 0, 0, sy, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
-                
                 if (w * h < kDeltasDimension * kDeltasDimension) {
                     writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, w, nullptr, context.clipBounds);
                     writeDeltasToMask(context.deltas, device, context.mask);
@@ -423,7 +418,7 @@ struct Rasterizer {
                     writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
                 }
             } else {
-                writeClippedPathToScanlines(path, bias.concat(ctm), context.clipBounds, & context.scanlines[0]);
+                writeClippedPathToScanlines(path, ctm, context.clipBounds, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spanlines);
                 writeSpansToBitmap(context.spanlines, Bounds(0, 0, 0, 0), clipped, bgra, context.bitmap);
             }
@@ -858,10 +853,11 @@ struct Rasterizer {
     }
     
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float scale, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
-//        assert(x0 >= clipBounds.lx && x0 <= clipBounds.ux);
-//        assert(x1 >= clipBounds.lx && x1 <= clipBounds.ux);
-//        assert(y0 >= clipBounds.ly && y0 <= clipBounds.uy);
-//        assert(y1 >= clipBounds.ly && y1 <= clipBounds.uy);
+        float e = 0;
+        assert(x0 >= clipBounds.lx + e && x0 <= clipBounds.ux - e);
+        assert(x1 >= clipBounds.lx + e && x1 <= clipBounds.ux - e);
+        assert(y0 >= clipBounds.ly + e && y0 <= clipBounds.uy - e);
+        assert(y1 >= clipBounds.ly + e && y1 <= clipBounds.uy - e);
         
         if (y0 == y1)
             return;
