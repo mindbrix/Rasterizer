@@ -26,13 +26,23 @@ struct RasterizerCoreGraphics {
         std::vector<CGPathRef> paths;
     };
     
+    static uint32_t bgraFromCGColor(CGColorRef color) {
+        uint32_t bgra = 0;
+        uint8_t *dst = (uint8_t *) &bgra;
+        const CGFloat *components = CGColorGetComponents(color);
+        if (CGColorGetNumberOfComponents(color) == 2)
+            *dst++ = components[0] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[1] * 255.5f;
+        else if (CGColorGetNumberOfComponents(color) == 4)
+            *dst++ = components[2] * 255.5f, *dst++ = components[1] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[3] * 255.5f;
+        return bgra;
+    }
     static CGColorRef CGColorFromBGRA(uint32_t bgra) {
         uint8_t *src = (uint8_t *)& bgra;
         CGFloat r, g, b, a;
         r = CGFloat(src[2]) / 255, g = CGFloat(src[1]) / 255, b = CGFloat(src[0]) / 255, a = CGFloat(src[3]) / 255;
 //        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
 //        CGColorSpaceRelease(rgb);
-        return CGColorCreateGenericRGB(r, g, b, a);;
+        return CGColorCreateGenericRGB(r, g, b, a);
     }
     static Rasterizer::AffineTransform transformFromCGAffineTransform(CGAffineTransform t) {
         return Rasterizer::AffineTransform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
@@ -137,10 +147,8 @@ struct RasterizerCoreGraphics {
     }
     
     static void writeCGSceneToScene(CGScene& cgscene, Rasterizer::Scene& scene) {
-        uint8_t black[4] = { 0, 0, 0, 255 };
-        uint32_t bgra = *((uint32_t *)black);
         for (int i = 0; i < cgscene.paths.size(); i++) {
-            scene.bgras.emplace_back(bgra);
+            scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
             scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
             scene.bounds.emplace_back(boundsFromCGRect(cgscene.bounds[i]));
             scene.paths.emplace_back();
