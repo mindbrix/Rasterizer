@@ -12,14 +12,7 @@
 #import "nanosvg.h"
 
 struct RasterizerSVG {
-    struct Scene {
-        void empty() { paths.resize(0), bounds.resize(0), bgras.resize(0); }
-        std::vector<uint32_t> bgras;
-        std::vector<Rasterizer::Bounds> bounds;
-        std::vector<Rasterizer::Path> paths;
-    };
-    
-    static void writeSVGToScene(const void *bytes, size_t size, Scene& scene) {
+    static void writeToScene(const void *bytes, size_t size, Rasterizer::Scene& scene) {
         char *data = (char *)malloc(size + 1);
         memcpy(data, bytes, size);
         data[size] = 0;

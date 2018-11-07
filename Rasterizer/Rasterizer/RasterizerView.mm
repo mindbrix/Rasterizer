@@ -18,7 +18,7 @@
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
-@property(nonatomic) RasterizerSVG::Scene svg;
+@property(nonatomic) Rasterizer::Scene svg;
 @property(nonatomic) CGFloat dimension;
 @property(nonatomic) CGFloat phi;
 
@@ -155,7 +155,7 @@
     
     if (_svgData) {
         _svg.empty();
-        RasterizerSVG::writeSVGToScene(_svgData.bytes, _svgData.length, _svg);
+        RasterizerSVG::writeToScene(_svgData.bytes, _svgData.length, _svg);
     }
     [self redraw];
 }

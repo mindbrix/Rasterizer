@@ -220,6 +220,12 @@ struct Rasterizer {
         std::vector<Scanline> scanlines;
         std::vector<Spanline> spanlines;
     };
+    struct Scene {
+        void empty() { paths.resize(0), bounds.resize(0), bgras.resize(0); }
+        std::vector<uint32_t> bgras;
+        std::vector<Rasterizer::Bounds> bounds;
+        std::vector<Rasterizer::Path> paths;
+    };
     
     static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
         float cover = 0, alpha;
