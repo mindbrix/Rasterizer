@@ -16,6 +16,7 @@
 
 struct Rasterizer {
     static const size_t kDeltasDimension = 128;
+    static constexpr float kFloatOffset = 5e-2;
     
     template<typename T>
     static inline T lerp(T n0, T n1, T t) {
@@ -396,7 +397,7 @@ struct Rasterizer {
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.clipBounds);
-        const float limit = 5e-2;
+        
         float w, h, dim, s, t, elx, ely, eux, euy, sx, sy;
         if (!clipped.isZero()) {
             w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, dim = w > h ? w : h, s = dim / (dim + 2e-2), t = dim * (1.f - s) / 2.f;
@@ -404,10 +405,10 @@ struct Rasterizer {
             
             w = device.ux - device.lx, h = device.uy - device.ly;
             if (w < context.bitmap.width && h < context.bitmap.height) {
-                elx = dev.lx - device.lx, elx = elx < limit ? limit : 0;
-                eux = device.ux - dev.ux, eux = eux < limit ? limit : 0;
-                ely = dev.ly - device.ly, ely = ely < limit ? limit : 0;
-                euy = device.uy - dev.uy, euy = euy < limit ? limit : 0;
+                elx = dev.lx - device.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
+                eux = device.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
+                ely = dev.ly - device.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
+                euy = device.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
                 bias = AffineTransform(sx, 0, 0, sy, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
