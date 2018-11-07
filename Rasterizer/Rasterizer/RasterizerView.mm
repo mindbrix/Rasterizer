@@ -8,7 +8,6 @@
 
 #import "RasterizerView.h"
 #import "RasterizerCoreGraphics.hpp"
-#import "AGGRasterizer.hpp"
 #import "RasterizerSVG.hpp"
 
 @interface RasterizerView () <CALayerDelegate>
