@@ -777,7 +777,7 @@ struct Rasterizer {
     }
     
     static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float scale, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
-        float px0, py0, px1, py1, a, dt, s, t, ax, ay;
+        float ax, ay, a, dt, s, t, px0, py0, px1, py1;
         size_t count;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
         a = ax * ax + ay * ay;
