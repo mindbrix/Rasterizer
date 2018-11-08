@@ -48,8 +48,7 @@ struct RasterizerCoreGraphics {
                 dstFormat.bitsPerComponent = srcFormat.bitsPerComponent;
                 dstFormat.bitmapInfo = srcFormat.bitmapInfo;
                 dstFormat.colorSpace = dstSpace;
-                vImage_Error error = kvImageNoError;
-                converter = vImageConverter_CreateWithCGImageFormat(&srcFormat, &dstFormat, NULL, kvImageNoFlags, &error);
+                converter = vImageConverter_CreateWithCGImageFormat(&srcFormat, &dstFormat, NULL, kvImageNoFlags, NULL);
             }
         }
         void convert(uint32_t *src, size_t size, uint32_t *dst) {
