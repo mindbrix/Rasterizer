@@ -42,7 +42,7 @@ struct RasterizerCoreGraphics {
                 reset();
                 srcFormat.bitsPerPixel = 32;
                 srcFormat.bitsPerComponent = 8;
-                srcFormat.bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
+                srcFormat.bitmapInfo = (CGBitmapInfo)kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
                 srcFormat.colorSpace = srcSpace;
                 dstFormat.bitsPerPixel = srcFormat.bitsPerPixel;
                 dstFormat.bitsPerComponent = srcFormat.bitsPerComponent;
