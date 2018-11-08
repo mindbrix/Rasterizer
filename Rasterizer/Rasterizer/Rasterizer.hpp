@@ -479,7 +479,7 @@ struct Rasterizer {
             && y0 >= clipBounds.ly && y0 < clipBounds.uy && y1 >= clipBounds.ly && y1 < clipBounds.uy) {
             writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
         } else {
-            float sx0, sy0, sx1, sy1, t0, t1, tmp, ty0, ty1, tx0, tx1, mx;
+            float sx0, sy0, sx1, sy1, t0, t1, ty0, ty1, tx0, tx1, mx;
             int i;
             sy0 = y0 < clipBounds.ly ? clipBounds.ly : y0 > clipBounds.uy ? clipBounds.uy : y0;
             sy1 = y1 < clipBounds.ly ? clipBounds.ly : y1 > clipBounds.uy ? clipBounds.uy : y1;
@@ -494,9 +494,7 @@ struct Rasterizer {
                     tx1 = (clipBounds.ux - x0) / (x1 - x0);
                     tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
                     tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
-                    if (tx0 > tx1)
-                        tmp = tx0, tx0 = tx1, tx1 = tmp;
-                    float ts[4] = { ty0, tx0, tx1, ty1 };
+                    float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
                     for (i = 0; i < 3; i++) {
                         t0 = ts[i], t1 = ts[i + 1];
                         if (t0 != t1) {
