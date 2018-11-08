@@ -479,7 +479,7 @@ struct Rasterizer {
             && y0 >= clipBounds.ly && y0 < clipBounds.uy && y1 >= clipBounds.ly && y1 < clipBounds.uy) {
             writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
         } else {
-            float sx0, sy0, sx1, sy1, t0, t1, ty0, ty1, tx0, tx1, mx;
+            float sx0, sy0, sx1, sy1, ty0, ty1, tx0, tx1, t0, t1, mx;
             int i;
             sy0 = y0 < clipBounds.ly ? clipBounds.ly : y0 > clipBounds.uy ? clipBounds.uy : y0;
             sy1 = y1 < clipBounds.ly ? clipBounds.ly : y1 > clipBounds.uy ? clipBounds.uy : y1;
