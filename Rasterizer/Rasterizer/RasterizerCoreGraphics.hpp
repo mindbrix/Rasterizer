@@ -7,6 +7,7 @@
 //
 
 #import "Rasterizer.hpp"
+#import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
 
@@ -26,6 +27,34 @@ struct RasterizerCoreGraphics {
         std::vector<CGPathRef> paths;
     };
     
+    static void writeConvertedBGRAs(uint32_t *src, size_t size, CGColorSpaceRef srcSpace, CGColorSpaceRef dstSpace, uint32_t *dst) {
+        vImage_CGImageFormat sourceFormat;
+        bzero(&sourceFormat, sizeof(sourceFormat));
+        sourceFormat.bitsPerPixel = 32;
+        sourceFormat.bitsPerComponent = 8;
+        sourceFormat.bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
+        sourceFormat.colorSpace = srcSpace;
+        vImage_CGImageFormat dstFormat;
+        bzero(&dstFormat, sizeof(dstFormat));
+        dstFormat.bitsPerPixel = sourceFormat.bitsPerPixel;
+        dstFormat.bitsPerComponent = sourceFormat.bitsPerComponent;
+        dstFormat.bitmapInfo = sourceFormat.bitmapInfo;
+        dstFormat.colorSpace = dstSpace;
+        /* Set up a converter. */
+        vImage_Error error = kvImageNoError;
+        vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(&sourceFormat, &dstFormat, NULL, kvImageNoFlags, &error);
+        if (converter) {
+            vImage_Buffer sourceBuffer;
+            vImageBuffer_Init(&sourceBuffer, 1, size, sourceFormat.bitsPerPixel, kvImageNoAllocate);
+            sourceBuffer.data = (void *)src;
+            vImage_Buffer destBuffer;
+            vImageBuffer_Init(&destBuffer, 1, size, dstFormat.bitsPerPixel, kvImageNoFlags);
+            destBuffer.data = (void *)dst;
+            vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
+            vImageConverter_Release(converter);
+        }
+    }
+    
     static uint32_t bgraFromCGColor(CGColorRef color) {
         uint32_t bgra = 0;
         uint8_t *dst = (uint8_t *) &bgra;
@@ -40,8 +69,6 @@ struct RasterizerCoreGraphics {
         uint8_t *src = (uint8_t *)& bgra;
         CGFloat r, g, b, a;
         r = CGFloat(src[2]) / 255, g = CGFloat(src[1]) / 255, b = CGFloat(src[0]) / 255, a = CGFloat(src[3]) / 255;
-//        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-//        CGColorSpaceRelease(rgb);
         return CGColorCreateGenericRGB(r, g, b, a);
     }
     static Rasterizer::AffineTransform transformFromCGAffineTransform(CGAffineTransform t) {

@@ -137,8 +137,13 @@
             }
         }
     } else {
+        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+        uint32_t bgras[_scene.paths.size()];
+        RasterizerCoreGraphics::writeConvertedBGRAs(& _scene.bgras[0], _scene.paths.size(), srcSpace, CGBitmapContextGetColorSpace(ctx), bgras);
+        CGColorSpaceRelease(srcSpace);
+        
         for (size_t i = 0; i < _scene.paths.size(); i++)
-            Rasterizer::writePathToBitmap(_scene.paths[i], _scene.bounds[i], ctm.concat(_scene.ctms[i]), _scene.bgras[i], _context);
+            Rasterizer::writePathToBitmap(_scene.paths[i], _scene.bounds[i], ctm.concat(_scene.ctms[i]), bgras[i], _context);
     }
 }
 
