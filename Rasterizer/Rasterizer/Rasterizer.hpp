@@ -600,31 +600,27 @@ struct Rasterizer {
     }
     static void solveCubic(float pa, float pb, float pc, float pd, float pw, float nt, float& t0, float& t1, float& t2) {
         const float limit = 1e-3;
-        double a, b, c, d, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
+        double a, b, c, d, a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
         
         a = (3.0 * pa - 6.0 * pb + 3.0 * pc), b = (-3.0 * pa + 3.0 * pb), c = pa - nt, d = (-pa + 3.0 * pb - 3.0 * pc + pd);
         if (fabs(d / pw) < limit) {
             solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
         } else {
-            a /= d, b /= d, c /= d;
+            a /= d, b /= d, c /= d, a3 = a / 3;
             p = (3.0 * b - a * a) / 3.0, p3 = p / 3.0, q = (2 * a * a * a - 9.0 * a * b + 27.0 * c) / 27.0, q2 = q / 2.0;
             discriminant = q2 * q2 + p3 * p3 * p3;
             if (discriminant < 0) {
-                mp3 = -p/3, mp33 = mp3*mp3*mp3, r = sqrt(mp33), t = -q / (2*r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
+                mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
                 phi = acos(cosphi), crtr = 2 * cbrt(r);
-                t0 = crtr * cos(phi/3) - a/3;
-                t1 = crtr * cos((phi+2*M_PI)/3) - a/3;
-                t2 = crtr * cos((phi+4*M_PI)/3) - a/3;
+                t0 = crtr * cos(phi / 3) - a3;
+                t1 = crtr * cos((phi + 2 * M_PI) / 3) - a3;
+                t2 = crtr * cos((phi + 4 * M_PI) / 3) - a3;
             } else if (discriminant == 0) {
                 u1 = q2 < 0 ? cbrt(-q2) : -cbrt(q2);
-                t0 = 2*u1 - a/3;
-                t1 = -u1 - a/3;
-                t2 = FLT_MAX;
+                t0 = 2 * u1 - a3, t1 = -u1 - a3, t2 = FLT_MAX;
             } else {
-                sd = sqrt(discriminant);
-                u1 = cbrt(sd - q2);
-                v1 = cbrt(sd + q2);
-                t0 = u1 - v1 - a/3, t1 = t2 = FLT_MAX;
+                sd = sqrt(discriminant), u1 = cbrt(sd - q2), v1 = cbrt(sd + q2);
+                t0 = u1 - v1 - a3, t1 = t2 = FLT_MAX;
             }
         }
     }
