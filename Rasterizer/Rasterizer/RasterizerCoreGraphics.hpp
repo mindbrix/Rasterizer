@@ -27,33 +27,46 @@ struct RasterizerCoreGraphics {
         std::vector<CGPathRef> paths;
     };
     
-    static void writeConvertedBGRAs(uint32_t *src, size_t size, CGColorSpaceRef srcSpace, CGColorSpaceRef dstSpace, uint32_t *dst) {
-        vImage_CGImageFormat sourceFormat;
-        bzero(&sourceFormat, sizeof(sourceFormat));
-        sourceFormat.bitsPerPixel = 32;
-        sourceFormat.bitsPerComponent = 8;
-        sourceFormat.bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
-        sourceFormat.colorSpace = srcSpace;
-        vImage_CGImageFormat dstFormat;
-        bzero(&dstFormat, sizeof(dstFormat));
-        dstFormat.bitsPerPixel = sourceFormat.bitsPerPixel;
-        dstFormat.bitsPerComponent = sourceFormat.bitsPerComponent;
-        dstFormat.bitmapInfo = sourceFormat.bitmapInfo;
-        dstFormat.colorSpace = dstSpace;
-        /* Set up a converter. */
-        vImage_Error error = kvImageNoError;
-        vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(&sourceFormat, &dstFormat, NULL, kvImageNoFlags, &error);
-        if (converter) {
-            vImage_Buffer sourceBuffer;
-            vImageBuffer_Init(&sourceBuffer, 1, size, sourceFormat.bitsPerPixel, kvImageNoAllocate);
-            sourceBuffer.data = (void *)src;
-            vImage_Buffer destBuffer;
-            vImageBuffer_Init(&destBuffer, 1, size, dstFormat.bitsPerPixel, kvImageNoFlags);
-            destBuffer.data = (void *)dst;
-            vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
-            vImageConverter_Release(converter);
+    struct BGRAColorConverter {
+        BGRAColorConverter() : converter(nullptr) { reset(); }
+        ~BGRAColorConverter() { reset(); }
+        void reset() {
+            if (converter)
+                vImageConverter_Release(converter);
+            converter = nullptr;
+            bzero(&srcFormat, sizeof(srcFormat));
+            bzero(&dstFormat, sizeof(dstFormat));
         }
-    }
+        void set(CGColorSpaceRef srcSpace, CGColorSpaceRef dstSpace) {
+            if (srcFormat.colorSpace != srcSpace || dstFormat.colorSpace != dstSpace) {
+                reset();
+                srcFormat.bitsPerPixel = 32;
+                srcFormat.bitsPerComponent = 8;
+                srcFormat.bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
+                srcFormat.colorSpace = srcSpace;
+                dstFormat.bitsPerPixel = srcFormat.bitsPerPixel;
+                dstFormat.bitsPerComponent = srcFormat.bitsPerComponent;
+                dstFormat.bitmapInfo = srcFormat.bitmapInfo;
+                dstFormat.colorSpace = dstSpace;
+                /* Set up a converter. */
+                vImage_Error error = kvImageNoError;
+                converter = vImageConverter_CreateWithCGImageFormat(&srcFormat, &dstFormat, NULL, kvImageNoFlags, &error);
+            }
+        }
+        void convert(uint32_t *src, size_t size, uint32_t *dst) {
+            if (size && converter) {
+                vImage_Buffer sourceBuffer;
+                vImageBuffer_Init(&sourceBuffer, 1, size, 32, kvImageNoAllocate);
+                sourceBuffer.data = (void *)src;
+                vImage_Buffer destBuffer;
+                vImageBuffer_Init(&destBuffer, 1, size, 32, kvImageNoFlags);
+                destBuffer.data = (void *)dst;
+                vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
+            }
+        }
+        vImageConverterRef converter;
+        vImage_CGImageFormat srcFormat, dstFormat;
+    };
     
     static uint32_t bgraFromCGColor(CGColorRef color) {
         uint32_t bgra = 0;

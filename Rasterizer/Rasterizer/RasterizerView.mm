@@ -19,6 +19,7 @@
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
 @property(nonatomic) Rasterizer::Scene scene;
 @property(nonatomic) RasterizerCoreGraphics::CGScene cgscene;
+@property(nonatomic) RasterizerCoreGraphics::BGRAColorConverter converter;
 @property(nonatomic) CGFloat dimension;
 @property(nonatomic) CGFloat phi;
 
@@ -139,7 +140,8 @@
     } else {
         CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
         uint32_t bgras[_scene.paths.size()];
-        RasterizerCoreGraphics::writeConvertedBGRAs(& _scene.bgras[0], _scene.paths.size(), srcSpace, CGBitmapContextGetColorSpace(ctx), bgras);
+        _converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
+        _converter.convert(& _scene.bgras[0], _scene.paths.size(), bgras);
         CGColorSpaceRelease(srcSpace);
         
         for (size_t i = 0; i < _scene.paths.size(); i++)
