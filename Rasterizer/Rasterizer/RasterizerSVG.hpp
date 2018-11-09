@@ -52,8 +52,7 @@ struct RasterizerSVG {
                     if (shape->fill.type == NSVG_PAINT_COLOR) {
                         scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                         scene.paths.emplace_back();
-                        Rasterizer::Path& p = scene.paths.back();
-                        Rasterizer::Bounds bounds = writePath(shape, image->height, p);
+                        Rasterizer::Bounds bounds = writePath(shape, image->height, scene.paths.back());
                         scene.bounds.emplace_back(bounds);
                         scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                     }
