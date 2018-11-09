@@ -24,8 +24,9 @@ struct RasterizerSVG {
         int i;
         lx = ly = FLT_MAX, ux = uy = -FLT_MAX;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2)
-                pts[1] = height - pts[1];
+            if (height)
+                for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2)
+                    pts[1] = height - pts[1];
             
             for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2) {
                 lx = pts[0] < lx ? pts[0] : lx;
@@ -53,6 +54,23 @@ struct RasterizerSVG {
                         scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                         scene.paths.emplace_back();
                         Rasterizer::Bounds bounds = writePath(shape, image->height, scene.paths.back());
+                        scene.bounds.emplace_back(bounds);
+                        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
+                    }
+                }
+                if (shape->stroke.type != NSVG_PAINT_NONE) {
+                    if (shape->stroke.type == NSVG_PAINT_COLOR) {
+                        scene.bgras.emplace_back(bgraFromPaint(shape->stroke));
+                        Rasterizer::Path p;
+                        writePath(shape, 0, p);
+                        CGMutablePathRef path = CGPathCreateMutable();
+                        RasterizerCoreGraphics::writePathToCGPath(p, path);
+                        CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, kCGLineCapSquare, kCGLineJoinMiter, shape->miterLimit);
+                        scene.paths.emplace_back();
+                        RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
+                        Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(CGPathGetPathBoundingBox(stroked));
+                        CGPathRelease(path);
+                        CGPathRelease(stroked);
                         scene.bounds.emplace_back(bounds);
                         scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                     }
