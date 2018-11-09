@@ -139,15 +139,13 @@ struct Rasterizer {
             lx = *points++ = x, ly = *points++ = y;
         }
         void quadTo(float cx, float cy, float x, float y) {
-            float ax, ay, bx, by, dot, cosine;
+            float ax, ay, bx, by, cosine;
             ax = cx - lx, ay = cy - ly, bx = x - cx, by = y - cy;
-            dot = ax * bx + ay * by;
-            cosine = sqrtf(dot * dot / ((ax * ax + ay * ay) * (bx * bx + by * by)));
-            if (cosine > 0.99999f) {
-                if (dot > 0.f)
-                    lineTo(x, y);
-                else
-                    lineTo((lx + x) * 0.25f + cx * 0.5f, (ly + y) * 0.25f + cy * 0.5f) , lineTo(x, y);
+            cosine = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
+            if (fabsf(cosine) > 0.99999f) {
+                if (cosine < 0.f && cosine > -1.f)
+                    lineTo((lx + x) * 0.25f + cx * 0.5f, (ly + y) * 0.25f + cy * 0.5f);
+                lineTo(x, y);
             } else {
                 float *points = alloc(Atom::kQuadratic, 2);
                 *points++ = cx, *points++ = cy;
