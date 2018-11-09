@@ -143,8 +143,11 @@ struct Rasterizer {
             ax = cx - lx, ay = cy - ly, bx = x - cx, by = y - cy;
             dot = ax * bx + ay * by;
             cosine = sqrtf(dot * dot / ((ax * ax + ay * ay) * (bx * bx + by * by)));
-            if (cosine > 0.99999f && dot > 0.f) {
-                lineTo(x, y);
+            if (cosine > 0.99999f) {
+                if (dot > 0.f)
+                    lineTo(x, y);
+                else
+                    lineTo((lx + x) * 0.25f + cx * 0.5f, (ly + y) * 0.25f + cy * 0.5f) , lineTo(x, y);
             } else {
                 float *points = alloc(Atom::kQuadratic, 2);
                 *points++ = cx, *points++ = cy;
