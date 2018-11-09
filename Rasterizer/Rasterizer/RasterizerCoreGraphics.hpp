@@ -159,6 +159,9 @@ struct RasterizerCoreGraphics {
             }
         }
     }
+    static CGPathRef createStrokedPath(CGPathRef path, CGFloat width, CGLineCap cap, CGLineJoin join, CGFloat limit) {
+        return CGPathCreateCopyByStrokingPath(path, NULL, width, cap, join, limit);
+    }
     static void writeGlyphGridToCGScene(NSString *fontName, CGFloat dimension, CGFloat phi, CGScene& scene) {
         CGColorRef black = CGColorGetConstantColor(kCGColorBlack);
         CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
