@@ -50,31 +50,28 @@ struct RasterizerSVG {
         if (image) {
             int limit = 60000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
-                if (shape->fill.type != NSVG_PAINT_NONE) {
-                    if (shape->fill.type == NSVG_PAINT_COLOR) {
-                        scene.bgras.emplace_back(bgraFromPaint(shape->fill));
-                        scene.paths.emplace_back();
-                        Rasterizer::Bounds bounds = writePath(shape, image->height, scene.paths.back());
-                        scene.bounds.emplace_back(bounds);
-                        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
-                    }
+                if (shape->fill.type == NSVG_PAINT_COLOR) {
+                    scene.bgras.emplace_back(bgraFromPaint(shape->fill));
+                    scene.paths.emplace_back();
+                    Rasterizer::Bounds bounds = writePath(shape, image->height, scene.paths.back());
+                    scene.bounds.emplace_back(bounds);
+                    scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                 }
-                if (shape->stroke.type != NSVG_PAINT_NONE) {
-                    if (shape->stroke.type == NSVG_PAINT_COLOR) {
-                        scene.bgras.emplace_back(bgraFromPaint(shape->stroke));
-                        Rasterizer::Path p;
-                        writePath(shape, 0, p);
-                        CGMutablePathRef path = CGPathCreateMutable();
-                        RasterizerCoreGraphics::writePathToCGPath(p, path);
-                        CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, kCGLineCapSquare, kCGLineJoinMiter, shape->miterLimit);
-                        scene.paths.emplace_back();
-                        RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
-                        Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(CGPathGetPathBoundingBox(stroked));
-                        CGPathRelease(path);
-                        CGPathRelease(stroked);
-                        scene.bounds.emplace_back(bounds);
-                        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
-                    }
+                if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
+                    scene.bgras.emplace_back(bgraFromPaint(shape->stroke));
+                    Rasterizer::Path p;
+                    if (shape->fill.type == NSVG_PAINT_NONE)
+                        writePath(shape, image->height, p);
+                    CGMutablePathRef path = CGPathCreateMutable();
+                    RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? p : scene.paths.back(), path);
+                    CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, kCGLineCapSquare, kCGLineJoinMiter, shape->miterLimit);
+                    scene.paths.emplace_back();
+                    RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
+                    Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(CGPathGetPathBoundingBox(stroked));
+                    CGPathRelease(path);
+                    CGPathRelease(stroked);
+                    scene.bounds.emplace_back(bounds);
+                    scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                 }
             }
             // Delete
