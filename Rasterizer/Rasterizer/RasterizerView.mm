@@ -138,7 +138,7 @@
             }
         }
     } else {
-        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
         uint32_t bgras[_scene.paths.size()];
         _converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
         _converter.convert(& _scene.bgras[0], _scene.paths.size(), bgras);

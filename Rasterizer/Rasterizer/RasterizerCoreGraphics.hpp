@@ -77,10 +77,12 @@ struct RasterizerCoreGraphics {
         return bgra;
     }
     static CGColorRef CGColorFromBGRA(uint32_t bgra) {
+        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
         uint8_t *src = (uint8_t *)& bgra;
-        CGFloat r, g, b, a;
-        r = CGFloat(src[2]) / 255, g = CGFloat(src[1]) / 255, b = CGFloat(src[0]) / 255, a = CGFloat(src[3]) / 255;
-        return CGColorCreateGenericRGB(r, g, b, a);
+        CGFloat components[4] = { CGFloat(src[2]) / 255, CGFloat(src[1]) / 255, CGFloat(src[0]) / 255, CGFloat(src[3]) / 255 };
+        CGColorRef color = CGColorCreate(srcSpace, components);
+        CGColorSpaceRelease(srcSpace);
+        return color;
     }
     static Rasterizer::AffineTransform transformFromCGAffineTransform(CGAffineTransform t) {
         return Rasterizer::AffineTransform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
