@@ -12,6 +12,13 @@
 #import "nanosvg.h"
 
 struct RasterizerSVG {
+    static uint32_t bgraFromPaint(NSVGpaint paint) {
+        uint8_t r, g, b, a;
+        r = paint.color & 0xFF, g = (paint.color >> 8) & 0xFF, b = (paint.color >> 16) & 0xFF, a = paint.color >> 24;
+        uint8_t bgra[4] = { b, g, r, a };
+        return *((uint32_t *)bgra);
+    }
+    
     static Rasterizer::Bounds writePath(NSVGshape *shape, float height, Rasterizer::Path& p) {
         float lx, ly, ux, uy, *pts;
         int i;
@@ -38,19 +45,12 @@ struct RasterizerSVG {
         memcpy(data, bytes, size);
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
-        
         if (image) {
-            printf("size: %f x %f\n", image->width, image->height);
             int limit = 60000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type != NSVG_PAINT_NONE) {
-                    uint8_t r, g, b, a;
-                    unsigned int rgba;
                     if (shape->fill.type == NSVG_PAINT_COLOR) {
-                        rgba = shape->fill.color;
-                        r = rgba & 0xFF, g = (rgba >> 8) & 0xFF, b = (rgba >> 16) & 0xFF, a = rgba >> 24;
-                        uint8_t bgra[4] = { b, g, r, a };
-                        scene.bgras.emplace_back(*((uint32_t *)bgra));
+                        scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                         scene.paths.emplace_back();
                         Rasterizer::Path& p = scene.paths.back();
                         Rasterizer::Bounds bounds = writePath(shape, image->height, p);
