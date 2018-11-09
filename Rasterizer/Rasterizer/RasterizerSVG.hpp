@@ -14,7 +14,10 @@
 struct RasterizerSVG {
     static uint32_t bgraFromPaint(NSVGpaint paint) {
         uint8_t r, g, b, a;
-        r = paint.color & 0xFF, g = (paint.color >> 8) & 0xFF, b = (paint.color >> 16) & 0xFF, a = paint.color >> 24;
+        if (paint.type == NSVG_PAINT_COLOR)
+            r = paint.color & 0xFF, g = (paint.color >> 8) & 0xFF, b = (paint.color >> 16) & 0xFF, a = paint.color >> 24;
+        else
+            r = 0, g = 0, b = 0, a = 64;
         uint8_t bgra[4] = { b, g, r, a };
         return *((uint32_t *)bgra);
     }
@@ -50,7 +53,7 @@ struct RasterizerSVG {
         if (image) {
             int limit = 60000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
-                if (shape->fill.type == NSVG_PAINT_COLOR) {
+                if (shape->fill.type != NSVG_PAINT_NONE) {
                     scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                     scene.paths.emplace_back();
                     Rasterizer::Bounds bounds = writePath(shape, image->height, scene.paths.back());
