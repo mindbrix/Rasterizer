@@ -36,7 +36,8 @@ struct RasterizerSVG {
             }
             for (pts = path->pts, p.moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
                 p.cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
-            p.close();
+            if (path->closed)
+                p.close();
         }
         return Rasterizer::Bounds(lx, ly, ux, uy);
     }
