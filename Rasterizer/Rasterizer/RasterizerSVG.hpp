@@ -67,7 +67,9 @@ struct RasterizerSVG {
                         writePath(shape, image->height, p);
                     CGMutablePathRef path = CGPathCreateMutable();
                     RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? p : scene.paths.back(), path);
-                    CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, kCGLineCapSquare, kCGLineJoinMiter, shape->miterLimit);
+                    CGLineCap cap = shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound;
+                    CGLineJoin join = shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel;
+                    CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, cap, join, shape->miterLimit);
                     scene.paths.emplace_back();
                     RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
                     Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(CGPathGetPathBoundingBox(stroked));
