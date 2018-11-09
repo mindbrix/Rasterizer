@@ -155,7 +155,7 @@
     if (_svgData) {
         _scene.empty();
         _cgscene.empty();
-        RasterizerSVG::writeToScene(_svgData.bytes, _svgData.length, _scene);
+        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _scene);
         RasterizerCoreGraphics::writeSceneToCGScene(_scene, _cgscene);
     }
     [self redraw];
