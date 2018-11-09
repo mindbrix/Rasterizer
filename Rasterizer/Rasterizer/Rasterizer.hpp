@@ -127,9 +127,8 @@ struct Rasterizer {
             if (index + size > Atom::kCapacity)
                 index = 0, atoms.emplace_back();
             atoms.back().types[index / 2] |= (uint8_t(type) << ((index & 1) * 4));
-            float *points = atoms.back().points + index * 2;
             index += size;
-            return points;
+            return atoms.back().points + (index - size) * 2;
         }
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
