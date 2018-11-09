@@ -121,12 +121,11 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Path() : index(Atom::kCapacity) {}
+        Path() : index(Atom::kCapacity), lx(0), ly(0) {}
         
         float *alloc(Atom::Type type, size_t size) {
             if (index + size > Atom::kCapacity)
                 index = 0, atoms.emplace_back();
-            
             atoms.back().types[index / 2] |= (uint8_t(type) << ((index & 1) * 4));
             float *points = atoms.back().points + index * 2;
             index += size;
@@ -134,28 +133,36 @@ struct Rasterizer {
         }
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
-            *points++ = x, *points++ = y;
+            lx = *points++ = x, ly = *points++ = y;
         }
         void lineTo(float x, float y) {
             float *points = alloc(Atom::kLine, 1);
-            *points++ = x, *points++ = y;
+            lx = *points++ = x, ly = *points++ = y;
         }
         void quadTo(float cx, float cy, float x, float y) {
             float *points = alloc(Atom::kQuadratic, 2);
             *points++ = cx, *points++ = cy;
-            *points++ = x, *points++ = y;
+            lx = *points++ = x, ly = *points++ = y;
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
-            float *points = alloc(Atom::kCubic, 3);
-            *points++ = cx0, *points++ = cy0;
-            *points++ = cx1, *points++ = cy1;
-            *points++ = x, *points++ = y;
+            float dx, dy, cpx, cpy;
+            dx = x + 3.f * (cx0 - cx1) - lx, dy = y + 3.f * (cy0 - cy1) - ly;
+            if (dx * dx + dy * dy < 1e-6f) {
+                cpx = (3.f * (cx1 + cx0) - lx - x) * 0.25f, cpy = (3.f * (cy1 + cy0) - ly - y) * 0.25f;
+                quadTo(cpx, cpy, x, y);
+            } else {
+                float *points = alloc(Atom::kCubic, 3);
+                *points++ = cx0, *points++ = cy0;
+                *points++ = cx1, *points++ = cy1;
+                lx = *points++ = x, ly = *points++ = y;
+            }
         }
         void close() {
             alloc(Atom::kClose, 1);
         }
         std::vector<Atom> atoms;
         size_t index;
+        float lx, ly;
     };
     struct Bitmap {
         Bitmap() {}
