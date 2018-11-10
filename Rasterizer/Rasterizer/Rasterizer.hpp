@@ -357,7 +357,7 @@ struct Rasterizer {
                     alpha = float(*msk) * 0.003921568627f * srcAlpha;
                     dst = (uint8_t *)pixel;
 #ifdef RASTERIZER_SIMD
-                    a0 = _mm_set1_ps(srcAlpha * float(*msk) * 0.003921568627f);
+                    a0 = _mm_set1_ps(alpha);
                     m0 = _mm_mul_ps(bgra4, a0);
                     if (*pixel) {
                         dst = (uint8_t *)pixel, d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
