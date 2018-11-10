@@ -116,7 +116,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Path() : index(Atom::kCapacity), lx(0), ly(0) {}
+        Path() : index(Atom::kCapacity), px(0), py(0) {}
         
         float *alloc(Atom::Type type, size_t size) {
             if (index + size > Atom::kCapacity)
@@ -127,36 +127,36 @@ struct Rasterizer {
         }
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
-            lx = *points++ = x, ly = *points++ = y;
+            px = *points++ = x, py = *points++ = y;
         }
         void lineTo(float x, float y) {
             float *points = alloc(Atom::kLine, 1);
-            lx = *points++ = x, ly = *points++ = y;
+            px = *points++ = x, py = *points++ = y;
         }
         void quadTo(float cx, float cy, float x, float y) {
             float ax, ay, bx, by, cosine;
-            ax = cx - lx, ay = cy - ly, bx = x - cx, by = y - cy;
+            ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy;
             cosine = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
             if (fabsf(cosine) > 0.99999f) {
                 if (cosine < 0.f && cosine > -1.f)
-                    lineTo((lx + x) * 0.25f + cx * 0.5f, (ly + y) * 0.25f + cy * 0.5f);
+                    lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
                 lineTo(x, y);
             } else {
                 float *points = alloc(Atom::kQuadratic, 2);
                 *points++ = cx, *points++ = cy;
-                lx = *points++ = x, ly = *points++ = y;
+                px = *points++ = x, py = *points++ = y;
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
             float dx, dy;
-            dx = x + 3.f * (cx0 - cx1) - lx, dy = y + 3.f * (cy0 - cy1) - ly;
+            dx = x + 3.f * (cx0 - cx1) - px, dy = y + 3.f * (cy0 - cy1) - py;
             if (dx * dx + dy * dy < 1e-6f)
-                quadTo((3.f * (cx1 + cx0) - lx - x) * 0.25f, (3.f * (cy1 + cy0) - ly - y) * 0.25f, x, y);
+                quadTo((3.f * (cx1 + cx0) - px - x) * 0.25f, (3.f * (cy1 + cy0) - py - y) * 0.25f, x, y);
             else {
                 float *points = alloc(Atom::kCubic, 3);
                 *points++ = cx0, *points++ = cy0;
                 *points++ = cx1, *points++ = cy1;
-                lx = *points++ = x, ly = *points++ = y;
+                px = *points++ = x, py = *points++ = y;
             }
         }
         void close() {
@@ -164,7 +164,7 @@ struct Rasterizer {
         }
         std::vector<Atom> atoms;
         size_t index;
-        float lx, ly;
+        float px, py;
     };
     struct Bitmap {
         Bitmap() {}
