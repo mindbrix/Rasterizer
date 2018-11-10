@@ -195,8 +195,20 @@ struct Rasterizer {
         };
         Scanline() : size(0) { empty(); }
         
-        void empty() { delta0 = idx = 0; }
+        void capacity(float cap) {
+            ds.resize(cap), dsbase = & ds[0];
+            for (float& d : ds)
+                d = 0;
+            dfs.resize((cap + 63) / 64), dfsbase = & dfs[0];
+            for (size_t& df : dfs)
+                df = 0;
+        }
+        void empty() { delta0 = idx = xmax = 0; }
         inline void insertDelta(float x, float delta) {
+            int i = int(x);
+            dsbase[i] += delta;
+            dfsbase[i / 64] |= 1UL << (i % 64);
+            xmax = i > xmax ? i : xmax;
             if (idx >= size)
                 deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
             new (base + idx++) Delta(x, delta);
@@ -205,6 +217,11 @@ struct Rasterizer {
         size_t idx, size;
         Delta *base;
         std::vector<Delta> deltas;
+        std::vector<float> ds;
+        float *dsbase;
+        std::vector<size_t> dfs;
+        size_t *dfsbase;
+        int xmax;
     };
     struct Spanline {
         struct Span {
@@ -231,6 +248,8 @@ struct Rasterizer {
             this->bitmap = bitmap;
             if (scanlines.size() != bitmap.height)
                 scanlines.resize(bitmap.height);
+            for (Scanline& scanline : scanlines)
+                scanline.capacity(bitmap.width);
             if (spanlines.size() != bitmap.height)
                 spanlines.resize(bitmap.height);
             clipBounds = Bounds(0, 0, bitmap.width, bitmap.height);
@@ -310,11 +329,42 @@ struct Rasterizer {
             a = alpha < 255.f ? alpha : 255.f;
             
             x = a ? clipped.lx : scanline->deltas[0].x;
+            
+//            int i, iend, j, k, idx;
+//            size_t *df;
+//            uint8_t *d, f;
+//            for (df = scanline->dfsbase, i = 0, iend = scanline->xmax / 64 + 1; i < iend; i++, df++) {
+//                if (*df) {
+//                    for (d = (uint8_t *)df, j = 0; j < 8; j++, d++) {
+//                        if (*d) {
+//                            for (k = 0, f = *d; f; f = f >> 1, k++)
+//                                if (f & 0x1) {
+//                                    idx = i * 64 + j * 8 + k;
+//
+//                                    if (idx != x) {
+//                                        alpha = fabsf(cover);
+//                                        a = alpha < 255.f ? alpha : 255.f;
+//
+//                                        if (a > 254)
+//                                            spanline->insertSpan(device.lx + x, idx - x);
+//                                        else if (a > 0)
+//                                            for (ix = x; ix < idx; ix++)
+//                                                spanline->insertSpan(device.lx + ix, -a);
+//                                        x = idx;
+//                                    }
+//                                    cover += scanline->dsbase[idx] * scale;
+//                                    scanline->dsbase[idx] = 0;
+//                                }
+//                        }
+//                    }
+//                    *df = 0;
+//                }
+//            }
             for (delta = begin; delta < end; delta++) {
                 if (delta->x != x) {
                     alpha = fabsf(cover);
                     a = alpha < 255.f ? alpha : 255.f;
-                    
+
                     if (a > 254)
                         spanline->insertSpan(device.lx + x, delta->x - x);
                     else if (a > 0)
