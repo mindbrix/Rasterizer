@@ -50,14 +50,12 @@ struct Rasterizer {
         for (i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
         prefixSum(counts0);
-        
         for (i = n - 1; i >= 0; i--) {
             x = in[i];
             out[--counts0[x & 0xFF]] = x;
             counts1[(x >> 8) & 0xFF]++;
         }
         prefixSum(counts1);
-        
         for (i = n - 1; i >= 0; i--) {
             x = out[i];
             in[--counts1[(x >> 8) & 0xFF]] = x;
