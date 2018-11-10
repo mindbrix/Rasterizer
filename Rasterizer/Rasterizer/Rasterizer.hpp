@@ -110,13 +110,11 @@ struct Rasterizer {
         struct Atom {
             static const size_t kCapacity = 15;
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose };
-            Atom() {
-                memset(types, kNull, sizeof(types));
-            }
+            Atom() { memset(types, kNull, sizeof(types)); }
             float       points[30];
             uint8_t     types[8];
         };
-        Path() : index(Atom::kCapacity), px(0), py(0) {}
+        Path() : index(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX) {}
         
         float *alloc(Atom::Type type, size_t size) {
             if (index + size > Atom::kCapacity)
@@ -127,10 +125,14 @@ struct Rasterizer {
         }
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
+            bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
+            bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
             px = *points++ = x, py = *points++ = y;
         }
         void lineTo(float x, float y) {
             float *points = alloc(Atom::kLine, 1);
+            bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
+            bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
             px = *points++ = x, py = *points++ = y;
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -143,7 +145,11 @@ struct Rasterizer {
                 lineTo(x, y);
             } else {
                 float *points = alloc(Atom::kQuadratic, 2);
+                bounds.lx = bounds.lx < cx ? bounds.lx : cx, bounds.ly = bounds.ly < cy ? bounds.ly : cy;
+                bounds.ux = bounds.ux > cx ? bounds.ux : cx, bounds.uy = bounds.uy > cy ? bounds.uy : cy;
                 *points++ = cx, *points++ = cy;
+                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
+                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
             }
         }
@@ -154,8 +160,14 @@ struct Rasterizer {
                 quadTo((3.f * (cx1 + cx0) - px - x) * 0.25f, (3.f * (cy1 + cy0) - py - y) * 0.25f, x, y);
             else {
                 float *points = alloc(Atom::kCubic, 3);
+                bounds.lx = bounds.lx < cx0 ? bounds.lx : cx0, bounds.ly = bounds.ly < cy0 ? bounds.ly : cy0;
+                bounds.ux = bounds.ux > cx0 ? bounds.ux : cx0, bounds.uy = bounds.uy > cy0 ? bounds.uy : cy0;
                 *points++ = cx0, *points++ = cy0;
+                bounds.lx = bounds.lx < cx1 ? bounds.lx : cx1, bounds.ly = bounds.ly < cy1 ? bounds.ly : cy1;
+                bounds.ux = bounds.ux > cx1 ? bounds.ux : cx1, bounds.uy = bounds.uy > cy1 ? bounds.uy : cy1;
                 *points++ = cx1, *points++ = cy1;
+                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
+                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
             }
         }
@@ -165,6 +177,7 @@ struct Rasterizer {
         std::vector<Atom> atoms;
         size_t index;
         float px, py;
+        Bounds bounds;
     };
     struct Bitmap {
         Bitmap() {}

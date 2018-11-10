@@ -22,27 +22,19 @@ struct RasterizerSVG {
         return *((uint32_t *)bgra);
     }
     
-    static Rasterizer::Bounds writePath(NSVGshape *shape, float height, Rasterizer::Path& p) {
-        float lx, ly, ux, uy, *pts;
+    static void writePath(NSVGshape *shape, float height, Rasterizer::Path& p) {
+        float *pts;
         int i;
-        lx = ly = FLT_MAX, ux = uy = -FLT_MAX;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
             if (height)
                 for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2)
                     pts[1] = height - pts[1];
             
-            for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2) {
-                lx = pts[0] < lx ? pts[0] : lx;
-                ux = pts[0] > ux ? pts[0] : ux;
-                ly = pts[1] < ly ? pts[1] : ly;
-                uy = pts[1] > uy ? pts[1] : uy;
-            }
             for (pts = path->pts, p.moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
                 p.cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
             if (path->closed)
                 p.close();
         }
-        return Rasterizer::Bounds(lx, ly, ux, uy);
     }
     
     static void writeScene(const void *bytes, size_t size, Rasterizer::Scene& scene) {
@@ -56,8 +48,8 @@ struct RasterizerSVG {
                 if (shape->fill.type != NSVG_PAINT_NONE) {
                     scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                     scene.paths.emplace_back();
-                    Rasterizer::Bounds bounds = writePath(shape, image->height, scene.paths.back());
-                    scene.bounds.emplace_back(bounds);
+                    writePath(shape, image->height, scene.paths.back());
+                    scene.bounds.emplace_back(scene.paths.back().bounds);
                     scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
