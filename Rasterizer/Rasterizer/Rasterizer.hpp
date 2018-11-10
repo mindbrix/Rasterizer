@@ -328,12 +328,10 @@ struct Rasterizer {
                 cover += float(delta->delta) * scale;
             }
         }
-        if (device.isZero())
-            for (scanline = & scanlines[idx], y = clipped.ly; y < clipped.uy; y++, scanline++)
-                scanline->empty();
-        else
-            for (scanline = & scanlines[0], y = device.ly; y < device.uy; y++, scanline++)
-                scanline->empty();
+        scanline = device.isZero() ? & scanlines[clipped.ly] : & scanlines[0];
+        size_t count = device.isZero() ? clipped.uy - clipped.ly : device.uy - device.ly;
+        for (; count--; scanline++)
+            scanline->empty();
     }
     
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
