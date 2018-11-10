@@ -251,9 +251,9 @@ struct Rasterizer {
         std::vector<Path> paths;
     };
     
-    static void writeMaskRowSSE(float *deltas, size_t w, uint8_t *mask) {
+    static void writeMaskRow(float *deltas, size_t w, uint8_t *mask) {
         float cover = 0, alpha;
-        
+#ifdef RASTERIZER_SIMD
         __m128 offset = _mm_setzero_ps(), sign_mask = _mm_set1_ps(-0.);
         __m128i shuffle_mask = _mm_set1_epi32(0x0c080400);
         __m128 x, y, z;
@@ -271,7 +271,8 @@ struct Rasterizer {
             offset = _mm_shuffle_ps(x, x, 0xFF);
             w -= 4, mask += 4;
         }
-        _mm_store_ss(& cover, offset);
+         _mm_store_ss(& cover, offset);
+#endif
         while (w--) {
             cover += *deltas, *deltas++ = 0;
             alpha = fabsf(cover);
@@ -282,7 +283,7 @@ struct Rasterizer {
     static void writeDeltasToMask(float *deltas, Bounds device, uint8_t *mask) {
         size_t w = device.ux - device.lx, h = device.uy - device.ly;
         for (size_t y = 0; y < h; y++, deltas += w, mask += w)
-            writeMaskRowSSE(deltas, w, mask);
+            writeMaskRow(deltas, w, mask);
     }
     
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Spanline>& spanlines) {
