@@ -44,7 +44,6 @@ struct Rasterizer {
     template<typename T, typename C>
     static void radixSort(T *in, int n, C *counts0, C *counts1, T *out) {
         T x;
-        C *c;
         memset(counts0, 0, sizeof(C) * 256);
         memset(counts1, 0, sizeof(C) * 256);
         int i;
@@ -54,18 +53,14 @@ struct Rasterizer {
         
         for (i = n - 1; i >= 0; i--) {
             x = in[i];
-            c = counts0 + (x & 0xFF);
-            out[*c - 1] = x;
+            out[--counts0[x & 0xFF]] = x;
             counts1[(x >> 8) & 0xFF]++;
-            (*c)--;
         }
         prefixSum(counts1);
         
         for (i = n - 1; i >= 0; i--) {
             x = out[i];
-            c = counts1 + ((x >> 8) & 0xFF);
-            in[*c - 1] = x;
-            (*c)--;
+            in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
     
