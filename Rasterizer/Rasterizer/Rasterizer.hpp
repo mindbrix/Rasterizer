@@ -869,7 +869,7 @@ struct Rasterizer {
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float scale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, total, alpha, last, *delta;
+        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
         Scanline *scanline;
         size_t ily;
         scale = copysign(scale, y1 - y0);
@@ -903,25 +903,22 @@ struct Rasterizer {
                 cx0 = lx, cy0 = sy0;
                 cx1 = ux < ix1 ? ux : ix1;
                 cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-                for (total = last = 0, delta = deltasRow + size_t(ix0);
+                for (last = 0, delta = deltasRow + size_t(ix0);
                      ix0 <= ux;
                      ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
-                    
                     cover = (cy1 - cy0) * scale;
                     area = (ix1 - (cx0 + cx1) * 0.5f);
-                    alpha = total + cover * area;
-                    total += cover;
                     if (scanlines)
-                        scanline->insertDelta(ix0, alpha - last);
+                        scanline->insertDelta(ix0, cover * area + last);
                     else
-                        *delta += alpha - last;
-                    last = alpha;
+                        *delta += cover * area + last;
+                    last = cover * (1.f - area);
                 }
                 if (scanlines)
-                    scanline->insertDelta(ix0, total - last);
+                    scanline->insertDelta(ix0, last);
                 else {
                     if (ix0 < stride)
-                        *delta += total - last;
+                        *delta += last;
                 }
             }
         }
