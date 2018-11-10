@@ -245,10 +245,9 @@ struct Rasterizer {
         std::vector<Spanline> spanlines;
     };
     struct Scene {
-        void empty() { ctms.resize(0), paths.resize(0), bounds.resize(0), bgras.resize(0); }
+        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
         std::vector<uint32_t> bgras;
         std::vector<AffineTransform> ctms;
-        std::vector<Bounds> bounds;
         std::vector<Path> paths;
     };
     

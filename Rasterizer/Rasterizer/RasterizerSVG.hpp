@@ -49,7 +49,6 @@ struct RasterizerSVG {
                     scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                     scene.paths.emplace_back();
                     writePath(shape, image->height, scene.paths.back());
-                    scene.bounds.emplace_back(scene.paths.back().bounds);
                     scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
@@ -64,10 +63,8 @@ struct RasterizerSVG {
                     CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, cap, join, shape->miterLimit);
                     scene.paths.emplace_back();
                     RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
-                    Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(CGPathGetPathBoundingBox(stroked));
                     CGPathRelease(path);
                     CGPathRelease(stroked);
-                    scene.bounds.emplace_back(bounds);
                     scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                 }
             }

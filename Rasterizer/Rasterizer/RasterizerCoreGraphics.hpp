@@ -193,7 +193,6 @@ struct RasterizerCoreGraphics {
         for (int i = 0; i < cgscene.paths.size(); i++) {
             scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
             scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
-            scene.bounds.emplace_back(boundsFromCGRect(cgscene.bounds[i]));
             scene.paths.emplace_back();
             writeCGPathToPath(cgscene.paths[i], scene.paths.back());
         }
@@ -202,7 +201,7 @@ struct RasterizerCoreGraphics {
         for (int i = 0; i < scene.paths.size(); i++) {
             cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
             cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
-            cgscene.bounds.emplace_back(CGRectFromBounds(scene.bounds[i]));
+            cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].bounds));
             CGMutablePathRef path = CGPathCreateMutable();
             writePathToCGPath(scene.paths[i], path);
             cgscene.paths.emplace_back(CGPathCreateCopy(path));
