@@ -335,34 +335,50 @@ struct Rasterizer {
                 scanline->empty();
     }
     
-    static void writeMaskToBitmapSSE(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
-        uint32_t *dst;
-        uint8_t *src, *components, *d, a;
+    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
+        uint32_t *pixel;
+        uint8_t *msk, *components, a, *dst;
+        size_t columns;
         components = (uint8_t *)& bgra, a = components[3];
-        float srcAlpha = float(a) * 0.003921568627f;
-        __m128 bgra4 = _mm_set_ps(255.f, float(components[2]), float(components[1]), float(components[0]));
+        float src0, src1, src2, src3, srcAlpha, alpha;
+        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
+        srcAlpha = src3 * 0.003921568627f;
+#ifdef RASTERIZER_SIMD
+        __m128 bgra4 = _mm_set_ps(255.f, src2, src1, src0);
         __m128 a0, m0, d0;
         __m128i a32, a16, a8;
-        size_t columns;
-        
+#endif
         while (h--) {
-            dst = pixelAddress, src = mask, columns = w;
+            pixel = pixelAddress, msk = mask, columns = w;
             while (columns--) {
-                if (*src == 255 && a == 255)
-                    *dst = bgra;
-                else if (*src) {
-                    a0 = _mm_set1_ps(srcAlpha * float(*src) * 0.003921568627f);
+                if (*msk == 255 && a == 255)
+                    *pixel = bgra;
+                else if (*msk) {
+                    alpha = float(*msk) * 0.003921568627f * srcAlpha;
+                    dst = (uint8_t *)pixel;
+#ifdef RASTERIZER_SIMD
+                    a0 = _mm_set1_ps(srcAlpha * float(*msk) * 0.003921568627f);
                     m0 = _mm_mul_ps(bgra4, a0);
-                    if (*dst) {
-                        d = (uint8_t *)dst, d0 = _mm_set_ps(float(d[3]), float(d[2]), float(d[1]), float(d[0]));
+                    if (*pixel) {
+                        dst = (uint8_t *)pixel, d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
                         m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
                     }
                     a32 = _mm_cvttps_epi32(m0);
                     a16 = _mm_packs_epi32(a32, a32);
                     a8 = _mm_packus_epi16(a16, a16);
-                    *dst = _mm_cvtsi128_si32(a8);
+                    *pixel = _mm_cvtsi128_si32(a8);
+#else
+                    if (*pixel == 0)
+                        *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
+                    else {
+                        *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+                        *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+                        *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+                        *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
+                    }
+#endif
                 }
-                src++, dst++;
+                msk++, pixel++;
             }
             pixelAddress -= rowBytes / 4;
             mask += maskRowBytes;
@@ -373,7 +389,7 @@ struct Rasterizer {
         size_t maskRowBytes = device.ux - device.lx;
         size_t offset = maskRowBytes * (clipped.ly - device.ly) + (clipped.lx - device.lx);
         size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        writeMaskToBitmapSSE(mask + offset, maskRowBytes, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
+        writeMaskToBitmap(mask + offset, maskRowBytes, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
     }
     
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
@@ -397,7 +413,7 @@ struct Rasterizer {
                         if (span->w > 0)
                             last = pixel + size_t(ux - lx), alpha = srcAlpha;
                         else
-                            last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;;
+                            last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;
                         for (; pixel < last; pixel++) {
                             dst = (uint8_t *)pixel;
                             if (*pixel == 0)
