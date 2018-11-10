@@ -12,7 +12,7 @@
 
 @interface RasterizerView () <CALayerDelegate>
 
-@property(nonatomic) Rasterizer::Context context;
+@property(nonatomic) std::vector<Rasterizer::Context> contexts;
 @property(nonatomic) BOOL useCoreGraphics;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
@@ -45,6 +45,7 @@
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
+    _contexts.resize(4);
     self.dimension = 24;
     self.phi = (sqrt(5) - 1) / 2;
     [self writeGlyphGrid:@"AppleSymbols"];
@@ -121,13 +122,13 @@
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    _context.setBitmap(bitmap);
+    _contexts[0].setBitmap(bitmap);
     if (self.useCoreGraphics) {
         for (size_t i = 0; i < _cgscene.paths.size(); i++) {
             Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(_cgscene.bounds[i]);
             Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(_cgscene.ctms[i]);
             Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
-            Rasterizer::Bounds clipped = device.intersected(_context.clipBounds);
+            Rasterizer::Bounds clipped = device.intersected(_contexts[0].clipBounds);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                 CGContextSaveGState(ctx);
                 CGContextSetFillColorWithColor(ctx, _cgscene.colors[i]);
@@ -139,13 +140,28 @@
         }
     } else {
         CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-        uint32_t bgras[_scene.paths.size()];
+        uint32_t *bgras = (uint32_t *)alloca(_scene.paths.size() * sizeof(uint32_t));
         _converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
         _converter.convert(& _scene.bgras[0], _scene.paths.size(), bgras);
         CGColorSpaceRelease(srcSpace);
         
-        for (size_t i = 0; i < _scene.paths.size(); i++)
-            Rasterizer::writePathToBitmap(_scene.paths[i], _scene.paths[i].bounds, ctm.concat(_scene.ctms[i]), bgras[i], _context);
+        auto ctms = (Rasterizer::AffineTransform *)alloca(_contexts.size() * sizeof(Rasterizer::AffineTransform));
+        size_t slice, ly, uy, count;
+        slice = bitmap.height / _contexts.size(), slice = slice < 64 ? 64 : slice;
+        for (count = ly = 0; ly < bitmap.height; ly = uy) {
+            uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
+            ctms[count] = ctm;
+            _contexts[count].setBitmap(bitmap);
+            _contexts[count].clipBounds.ly = ly;
+            _contexts[count].clipBounds.uy = uy;
+            count++;
+        }
+        dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+            for (size_t i = 0; i < self->_scene.paths.size(); i++)
+                Rasterizer::writePathToBitmap(self->_scene.paths[i], self->_scene.paths[i].bounds, ctms[idx].concat(self->_scene.ctms[i]), bgras[i], self->_contexts[idx]);
+        });
+//        for (size_t i = 0; i < _scene.paths.size(); i++)
+//            Rasterizer::writePathToBitmap(_scene.paths[i], _scene.paths[i].bounds, ctm.concat(_scene.ctms[i]), bgras[i], _contexts[0]);
     }
 }
 
