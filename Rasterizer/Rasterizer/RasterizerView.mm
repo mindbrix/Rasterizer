@@ -10,10 +10,12 @@
 #import "RasterizerCoreGraphics.hpp"
 #import "RasterizerSVG.hpp"
 
+enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
+
 @interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) std::vector<Rasterizer::Context> contexts;
-@property(nonatomic) BOOL useCoreGraphics;
+@property(nonatomic) int rasterizerType;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
 @property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
 @property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
@@ -76,7 +78,7 @@
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = self.useCoreGraphics ? @"Core Graphics" :  @"Rasterizer";
+    self.rasterizerLabel.stringValue = _rasterizerType == kRasterizerMT ? @"Rasterizer (mt)" : _rasterizerType == kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
@@ -106,7 +108,7 @@
 }
 
 - (IBAction)toggleRasterizer:(id)sender {
-    self.useCoreGraphics = !self.useCoreGraphics;
+    _rasterizerType = (++_rasterizerType) % kRasterizerCount;
     [self updateRasterizerLabel];
     [self redraw];
 }
@@ -123,7 +125,7 @@
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     _contexts[0].setBitmap(bitmap);
-    if (self.useCoreGraphics) {
+    if (_rasterizerType == kCoreGraphics) {
         for (size_t i = 0; i < _cgscene.paths.size(); i++) {
             Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(_cgscene.bounds[i]);
             Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(_cgscene.ctms[i]);
@@ -145,23 +147,27 @@
         _converter.convert(& _scene.bgras[0], _scene.paths.size(), bgras);
         CGColorSpaceRelease(srcSpace);
         
-        auto ctms = (Rasterizer::AffineTransform *)alloca(_contexts.size() * sizeof(Rasterizer::AffineTransform));
-        size_t slice, ly, uy, count;
-        slice = bitmap.height / _contexts.size(), slice = slice < 64 ? 64 : slice;
-        for (count = ly = 0; ly < bitmap.height; ly = uy) {
-            uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
-            ctms[count] = ctm;
-            _contexts[count].setBitmap(bitmap);
-            _contexts[count].clipBounds.ly = ly;
-            _contexts[count].clipBounds.uy = uy;
-            count++;
+        if (_rasterizerType == kRasterizerMT) {
+            auto ctms = (Rasterizer::AffineTransform *)alloca(_contexts.size() * sizeof(Rasterizer::AffineTransform));
+            size_t slice, ly, uy, count;
+            slice = bitmap.height / _contexts.size(), slice = slice < 64 ? 64 : slice;
+            for (count = ly = 0; ly < bitmap.height; ly = uy) {
+                uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
+                ctms[count] = ctm;
+                _contexts[count].setBitmap(bitmap);
+                _contexts[count].clipBounds.ly = ly;
+                _contexts[count].clipBounds.uy = uy;
+                count++;
+            }
+            dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+                for (size_t i = 0; i < self->_scene.paths.size(); i++)
+                    Rasterizer::writePathToBitmap(self->_scene.paths[i], self->_scene.paths[i].bounds, ctms[idx].concat(self->_scene.ctms[i]), bgras[i], self->_contexts[idx]);
+            });
+        } else {
+            for (size_t i = 0; i < _scene.paths.size(); i++)
+                Rasterizer::writePathToBitmap(_scene.paths[i], _scene.paths[i].bounds, ctm.concat(_scene.ctms[i]), bgras[i], _contexts[0]);
+
         }
-        dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-            for (size_t i = 0; i < self->_scene.paths.size(); i++)
-                Rasterizer::writePathToBitmap(self->_scene.paths[i], self->_scene.paths[i].bounds, ctms[idx].concat(self->_scene.ctms[i]), bgras[i], self->_contexts[idx]);
-        });
-//        for (size_t i = 0; i < _scene.paths.size(); i++)
-//            Rasterizer::writePathToBitmap(_scene.paths[i], _scene.paths[i].bounds, ctm.concat(_scene.ctms[i]), bgras[i], _contexts[0]);
     }
 }
 
