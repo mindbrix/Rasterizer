@@ -52,7 +52,8 @@
 }
 
 - (void)rotateWithEvent:(NSEvent *)event {
-    [self.transform rotateBy:event.rotation / 10.f bounds:self.bounds];
+    if (!(event.modifierFlags & NSEventModifierFlagShift))
+        [self.transform rotateBy:event.rotation / 10.f bounds:self.bounds];
     [self redraw];
 }
 
