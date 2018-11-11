@@ -162,7 +162,15 @@ struct RasterizerCoreGraphics {
         }
     }
     static CGPathRef createStrokedPath(CGPathRef path, CGFloat width, CGLineCap cap, CGLineJoin join, CGFloat limit) {
-        return CGPathCreateCopyByStrokingPath(path, NULL, width, cap, join, limit);
+        CGFloat scale = 10;
+        CGAffineTransform scaleUp = { scale, 0, 0, scale, 0, 0 };
+        CGAffineTransform scaleDown = { 1.0 / scale, 0, 0, 1.0 / scale, 0, 0 };
+        CGPathRef scaledUp = CGPathCreateCopyByTransformingPath(path, & scaleUp);
+        CGPathRef stroked = CGPathCreateCopyByStrokingPath(scaledUp, NULL, width * scale, cap, join, limit);
+        CGPathRef scaledDown = CGPathCreateCopyByTransformingPath(stroked, & scaleDown);
+        CGPathRelease(scaledUp);
+        CGPathRelease(stroked);
+        return scaledDown;
     }
     static void writeGlyphGridToCGScene(NSString *fontName, CGFloat dimension, CGFloat phi, CGScene& scene) {
         CGColorRef black = CGColorGetConstantColor(kCGColorBlack);
