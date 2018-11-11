@@ -203,10 +203,8 @@ struct Rasterizer {
         };
         Scanline() : size(0) { empty(); }
         
-        void empty() { delta0 = idx = xmax = 0; }
+        void empty() { delta0 = idx = 0; }
         inline void insertDelta(float x, float delta) {
-            int i = int(x);
-            xmax = i > xmax ? i : xmax;
             if (idx >= size)
                 deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
             new (base + idx++) Delta(x, delta);
@@ -215,7 +213,6 @@ struct Rasterizer {
         size_t idx, size;
         Delta *base;
         std::vector<Delta> deltas;
-        int xmax;
     };
     struct Spanline {
         struct Span {
@@ -442,7 +439,7 @@ struct Rasterizer {
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.clipBounds);
-        float w, h, elx, ely, eux, euy, sx, sy;
+        float w, h, elx, ely, eux, euy, sx, sy, rw;
         if (!clipped.isZero()) {
             w = device.ux - device.lx, h = device.uy - device.ly;
             if (w < context.bitmap.width && h < context.bitmap.height) {
@@ -451,14 +448,15 @@ struct Rasterizer {
                 ely = dev.ly - device.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
                 euy = device.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
+                rw = 1.f / (device.ux - device.lx);
                 AffineTransform bias(sx, 0, 0, sy, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
                 if (w * h < kDeltasDimension * kDeltasDimension) {
-                    writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, w, nullptr, context.clipBounds);
+                    writePathToDeltasOrScanlines(path, deltasCTM, rw, context.deltas, w, nullptr, context.clipBounds);
                     writeDeltasToMask(context.deltas, device, context.mask);
                     writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
                 } else {
-                    writePathToDeltasOrScanlines(path, deltasCTM, nullptr, 0, & context.scanlines[0], context.clipBounds);
+                    writePathToDeltasOrScanlines(path, deltasCTM, rw, nullptr, 0, & context.scanlines[0], context.clipBounds);
                     writeScanlinesToSpans(context.scanlines, device, clipped, context.spanlines);
                     writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
                 }
@@ -471,10 +469,11 @@ struct Rasterizer {
     }
     
     static void writeClippedPathToScanlines(Path& path, AffineTransform ctm, Bounds clipBounds, Scanline *scanlines) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, rw, *p;
         size_t index;
         uint8_t type;
         x0 = y0 = sx = sy = FLT_MAX;
+        rw = 1.f / (clipBounds.ux - clipBounds.lx);
         for (Path::Atom& atom : path.atoms) {
             index = 0;
             for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
@@ -482,20 +481,20 @@ struct Rasterizer {
                 switch (type) {
                     case Path::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-                            writeClippedSegmentToScanlines(x0, y0, sx, sy, clipBounds, scanlines);
+                            writeClippedSegmentToScanlines(x0, y0, sx, sy, rw, clipBounds, scanlines);
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         index++;
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        writeClippedSegmentToScanlines(x0, y0, x1, y1, clipBounds, scanlines);
+                        writeClippedSegmentToScanlines(x0, y0, x1, y1, rw, clipBounds, scanlines);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
                     case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        writeClippedQuadraticToScanlines(x0, y0, x1, y1, x2, y2, clipBounds, scanlines);
+                        writeClippedQuadraticToScanlines(x0, y0, x1, y1, x2, y2, rw, clipBounds, scanlines);
                         x0 = x2, y0 = y2;
                         index += 2;
                         break;
@@ -503,7 +502,7 @@ struct Rasterizer {
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        writeClippedCubicToScanlines(x0, y0, x1, y1, x2, y2, x3, y3, clipBounds, scanlines);
+                        writeClippedCubicToScanlines(x0, y0, x1, y1, x2, y2, x3, y3, rw, clipBounds, scanlines);
                         x0 = x3, y0 = y3;
                         index += 3;
                         break;
@@ -514,15 +513,15 @@ struct Rasterizer {
             }
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-            writeClippedSegmentToScanlines(x0, y0, sx, sy, clipBounds, scanlines);
+            writeClippedSegmentToScanlines(x0, y0, sx, sy, rw, clipBounds, scanlines);
     }
     
-    static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
+    static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, float rw, Bounds clipBounds, Scanline *scanlines) {
         if (y0 == y1)
             return;
         if (x0 >= clipBounds.lx && x0 < clipBounds.ux && x1 >= clipBounds.lx && x1 < clipBounds.ux
             && y0 >= clipBounds.ly && y0 < clipBounds.uy && y1 >= clipBounds.ly && y1 < clipBounds.uy) {
-            writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, rw, 32767.f, nullptr, 0, scanlines);
         } else {
             float sx0, sy0, sx1, sy1, ty0, ty1, tx0, tx1, t0, t1, mx;
             int i;
@@ -531,7 +530,7 @@ struct Rasterizer {
             if (sy0 != sy1) {
                 if (x0 == x1) {
                     sx0 = sx1 = x1 < clipBounds.lx ? clipBounds.lx : x1 > clipBounds.ux ? clipBounds.ux : x1;
-                    writeVerticalSegmentToScanlines(sx0, sy0, sy1, scanlines);
+                    writeVerticalSegmentToScanlines(sx0, sy0, sy1, rw, scanlines);
                 } else {
                     ty0 = (sy0 - y0) / (y1 - y0);
                     ty1 = (sy1 - y0) / (y1 - y0);
@@ -551,9 +550,9 @@ struct Rasterizer {
                                 sx0 = lerp(x0, x1, t0), sx1 = lerp(x0, x1, t1);
                                 sx0 = sx0 < clipBounds.lx ? clipBounds.lx : sx0 > clipBounds.ux ? clipBounds.ux : sx0;
                                 sx1 = sx1 < clipBounds.lx ? clipBounds.lx : sx1 > clipBounds.ux ? clipBounds.ux : sx1;
-                                writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, 32767.f, nullptr, 0, scanlines);
+                                writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, rw, 32767.f, nullptr, 0, scanlines);
                             } else
-                                writeVerticalSegmentToScanlines(mx < clipBounds.lx ? clipBounds.lx : clipBounds.ux, sy0, sy1, scanlines);
+                                writeVerticalSegmentToScanlines(mx < clipBounds.lx ? clipBounds.lx : clipBounds.ux, sy0, sy1, rw, scanlines);
                         }
                     }
                 }
@@ -601,7 +600,7 @@ struct Rasterizer {
         }
         *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2;
     }
-    static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
+    static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float rw, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cly, cuy, tys[4], txs[4], ts[6], ty0, ty1, q[6], t, s, t0, t1, mx, vx;
         size_t x, y;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
@@ -626,20 +625,20 @@ struct Rasterizer {
                             if (t0 != t1) {
                                 if (x & 0x1) {
                                     writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, false, q);
-                                    writeQuadraticToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], 32767.f, nullptr, 0, scanlines);
+                                    writeQuadraticToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], rw, 32767.f, nullptr, 0, scanlines);
                                 } else {
                                     t = (t0 + t1) * 0.5f, s = 1.f - t;
                                     mx = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
                                     vx = mx <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
                                     writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, true, q);
-                                    writeVerticalSegmentToScanlines(vx, q[1], q[5], scanlines);
+                                    writeVerticalSegmentToScanlines(vx, q[1], q[5], rw, scanlines);
                                 }
                             }
                         }
                     }
                 }
             } else
-                writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, 32767.f, nullptr, 0, scanlines);
+                writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, rw, 32767.f, nullptr, 0, scanlines);
         }
     }
     static void solveCubic(float pa, float pb, float pc, float pd, float nt, float& t0, float& t1, float& t2) {
@@ -706,7 +705,7 @@ struct Rasterizer {
         }
         *cubic++ = tx0, *cubic++ = ty0, *cubic++ = tx1, *cubic++ = ty1, *cubic++ = tx2, *cubic++ = ty2, *cubic++ = tx3, *cubic++ = ty3;
     }
-    static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
+    static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float rw, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, a, cly, cuy, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
         size_t i;
         bool visible;
@@ -720,7 +719,7 @@ struct Rasterizer {
             s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
             a = s * s + t * t;
             if (a < 0.1) {
-                writeClippedSegmentToScanlines(x0, y0, x3, y3, clipBounds, scanlines);
+                writeClippedSegmentToScanlines(x0, y0, x3, y3, rw, clipBounds, scanlines);
                 return;
             }
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
@@ -741,23 +740,23 @@ struct Rasterizer {
                             writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clipBounds, !visible, cubic);
                             if (visible) {
                                 if (fabsf(t1 - t0) < 1e-2) {
-                                    writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, 32767.f, nullptr, 0, scanlines);
-                                    writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, rw, 32767.f, nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], rw, 32767.f, nullptr, 0, scanlines);
                                 } else
-                                    writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
+                                    writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], rw, 32767.f, nullptr, 0, scanlines);
                             } else {
                                 vx = x <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
-                                writeVerticalSegmentToScanlines(vx, cubic[1], cubic[7], scanlines);
+                                writeVerticalSegmentToScanlines(vx, cubic[1], cubic[7], rw, scanlines);
                             }
                         }
                     }
                 }
             } else
-                writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, 32767.f, nullptr, 0, scanlines);
+                writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, rw, 32767.f, nullptr, 0, scanlines);
         }
     }
     
-    static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
+    static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float rw, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p, scale;
         size_t index;
         uint8_t type;
@@ -770,21 +769,21 @@ struct Rasterizer {
                 switch (type) {
                     case Path::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-                            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, scanlines);
+                            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, rw, scale, deltas, stride, scanlines);
                         x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         sx = x0, sy = y0;
                         index++;
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, scale, deltas, stride, scanlines);
+                        writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, rw, scale, deltas, stride, scanlines);
                         x0 = x1, y0 = y1;
                         index++;
                         break;
                     case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, scale, deltas, stride, scanlines);
+                        writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, rw, scale, deltas, stride, scanlines);
                         x0 = x2, y0 = y2;
                         index += 2;
                         break;
@@ -792,7 +791,7 @@ struct Rasterizer {
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, scale, deltas, stride, scanlines);
+                        writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, rw, scale, deltas, stride, scanlines);
                         x0 = x3, y0 = y3;
                         index += 3;
                         break;
@@ -803,34 +802,34 @@ struct Rasterizer {
             }
         }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
-            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, rw, scale, deltas, stride, scanlines);
     }
     
-    static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float scale, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float rw, float scale, float *deltas, size_t stride, Scanline *scanlines) {
         float ax, ay, a, dt, s, t, px0, py0, px1, py1;
         size_t count;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
         a = ax * ax + ay * ay;
         if (a < 0.1f)
-            writeSegmentToDeltasOrScanlines(x0, y0, x2, y2, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, x2, y2, rw, scale, deltas, stride, scanlines);
         else if (a < 8.f) {
             px0 = (x0 + x2) * 0.25 + x1 * 0.5, py0 = (y0 + y2) * 0.25 + y1 * 0.5;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, rw, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, rw, scale, deltas, stride, scanlines);
         } else {
             count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0;
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
                 px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, rw, scale, deltas, stride, scanlines);
                 px0 = px1, py0 = py1;
             }
-            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, rw, scale, deltas, stride, scanlines);
         }
     }
     
-    static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float scale, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float rw, float scale, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float cx, bx, ax, cy, by, ay, s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
         size_t count;
@@ -839,17 +838,17 @@ struct Rasterizer {
         s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
         a = s * s + t * t;
         if (a < 0.1f)
-            writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, rw, scale, deltas, stride, scanlines);
         else if (a < 8.f) {
             px0 = (x0 + x3) * 0.125f + (x1 + x2) * 0.375f, py0 = (y0 + y3) * 0.125f + (y1 + y2) * 0.375f;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, rw, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, rw, scale, deltas, stride, scanlines);
         } else if (a < 16.f) {
             px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
             px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, rw, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, rw, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, rw, scale, deltas, stride, scanlines);
         } else {
             count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f;
             px0 = x0, py0 = y0;
@@ -857,14 +856,14 @@ struct Rasterizer {
                 t += dt, s = 1.f - t;
                 pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
                 px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
-                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, rw, scale, deltas, stride, scanlines);
                 px0 = px1, py0 = py1;
             }
-            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, rw, scale, deltas, stride, scanlines);
         }
     }
     
-    static void writeVerticalSegmentToScanlines(float x, float y0, float y1, Scanline *scanlines) {
+    static void writeVerticalSegmentToScanlines(float x, float y0, float y1, float rw, Scanline *scanlines) {
         if (y0 == y1)
             return;
         float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
@@ -885,7 +884,7 @@ struct Rasterizer {
         }
     }
     
-    static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float rw, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
         float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
