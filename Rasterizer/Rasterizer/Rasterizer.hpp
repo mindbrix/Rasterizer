@@ -128,17 +128,19 @@ struct Rasterizer {
             px = *points++ = x, py = *points++ = y;
         }
         void lineTo(float x, float y) {
-            float *points = alloc(Atom::kLine, 1);
-            bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
-            bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
-            px = *points++ = x, py = *points++ = y;
+            if (px != x || py != y) {
+                float *points = alloc(Atom::kLine, 1);
+                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
+                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
+                px = *points++ = x, py = *points++ = y;
+            }
         }
         void quadTo(float cx, float cy, float x, float y) {
-            float ax, ay, bx, by, cosine;
+            float ax, ay, bx, by, det, dot;
             ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy;
-            cosine = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
-            if (fabsf(cosine) > 0.99999f) {
-                if (cosine < 0.f && cosine > -1.f)
+            det = ax * by - ay * bx, dot = ax * bx + ay * by;
+            if (fabsf(det) < 1e-3f) {
+                if (dot < 0.f && det)
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
                 lineTo(x, y);
             } else {
