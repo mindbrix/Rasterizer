@@ -439,10 +439,11 @@ struct Rasterizer {
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.clipBounds);
-        float w, h, elx, ely, eux, euy, sx, sy, rw;
+        float w, h, cw, ch, elx, ely, eux, euy, sx, sy, rw;
         if (!clipped.isZero()) {
             w = device.ux - device.lx, h = device.uy - device.ly;
-            if (w < context.bitmap.width && h < context.bitmap.height) {
+            cw = context.clipBounds.ux - context.clipBounds.lx, ch = context.clipBounds.uy - context.clipBounds.ly;
+            if (w < cw && h < ch) {
                 elx = dev.lx - device.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
                 eux = device.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
                 ely = dev.ly - device.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
