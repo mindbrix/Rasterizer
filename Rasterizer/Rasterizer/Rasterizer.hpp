@@ -186,6 +186,12 @@ struct Rasterizer {
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
     };
+    struct Root {
+        inline bool operator< (const Root& other) const { return t < other.t; }
+        double t;
+        float n;
+        bool isX;
+    };
     struct Scanline {
         struct Delta {
             Delta() {}
@@ -635,13 +641,13 @@ struct Rasterizer {
                 writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, 32767.f, nullptr, 0, scanlines);
         }
     }
-    static void solveCubic(float pa, float pb, float pc, float pd, float pw, float nt, float& t0, float& t1, float& t2) {
+    static void solveCubic(float pa, float pb, float pc, float pd, float nt, float& t0, float& t1, float& t2) {
         const float limit = 1e-3;
         double a, b, c, d, a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
         
         a = (3.0 * pa - 6.0 * pb + 3.0 * pc), b = (-3.0 * pa + 3.0 * pb), c = pa - nt, d = (-pa + 3.0 * pb - 3.0 * pc + pd);
-        if (fabs(d / pw) < limit) {
-            solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
+        if (fabs(d) < limit) {
+            solveQuadratic(a, b, c, t0, t1), t2 = DBL_MAX;
         } else {
             a /= d, b /= d, c /= d, a3 = a / 3;
             p = (3.0 * b - a * a) / 3.0, p3 = p / 3.0, q = (2 * a * a * a - 9.0 * a * b + 27.0 * c) / 27.0, q2 = q / 2.0;
@@ -654,18 +660,17 @@ struct Rasterizer {
                 t2 = crtr * cos((phi + 4 * M_PI) / 3) - a3;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                t0 = 2 * u1 - a3, t1 = -u1 - a3, t2 = FLT_MAX;
+                t0 = 2 * u1 - a3, t1 = -u1 - a3, t2 = DBL_MAX;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                t0 = u1 - v1 - a3, t1 = t2 = FLT_MAX;
+                t0 = u1 - v1 - a3, t1 = t2 = DBL_MAX;
             }
         }
+        t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
     }
-    static void solveCubics(float n0, float n1, float n2, float n3, float nw, float nt0, float nt1, float *ts) {
-        solveCubic(n0, n1, n2, n3, nw, nt0, ts[0], ts[1], ts[2]);
-        solveCubic(n0, n1, n2, n3, nw, nt1, ts[3], ts[4], ts[5]);
-        for (int i = 0; i < 6; i++)
-            ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
+    static void solveCubics(float n0, float n1, float n2, float n3, float nt0, float nt1, float *ts) {
+        solveCubic(n0, n1, n2, n3, nt0, ts[0], ts[1], ts[2]);
+        solveCubic(n0, n1, n2, n3, nt1, ts[3], ts[4], ts[5]);
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clampControlPoints, float *cubic) {
         float t, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
@@ -720,8 +725,8 @@ struct Rasterizer {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveCubics(y0, y1, y2, y3, uy - ly, clipBounds.ly, clipBounds.uy, & ts[0]);
-                solveCubics(x0, x1, x2, x3, ux - lx, clipBounds.lx, clipBounds.ux, & ts[6]);
+                solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, & ts[0]);
+                solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, & ts[6]);
                 std::sort(& ts[0], & ts[12]);
                 for (i = 0; i < 11; i++) {
                     t0 = ts[i], t1 = ts[i + 1];
