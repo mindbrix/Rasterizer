@@ -572,13 +572,12 @@ struct Rasterizer {
                 t0 = (-B + root) * denom, t1 = (-B - root) * denom;
             }
         }
+        t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
     static void solveQuadratics(float n0, float n1, float n2, float nt0, float nt1, float *ts) {
         float A = n0 + n2 - n1 - n1, B = 2.f * (n1 - n0);
         solveQuadratic(A, B, n0 - nt0, ts[0], ts[1]);
         solveQuadratic(A, B, n0 - nt1, ts[2], ts[3]);
-        for (int i = 0; i < 4; i++)
-            ts[i] = ts[i] < 0 ? 0 : ts[i] > 1 ? 1 : ts[i];
         std::sort(& ts[0], & ts[4]);
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
