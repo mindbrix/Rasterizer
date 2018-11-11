@@ -870,16 +870,15 @@ struct Rasterizer {
             return;
         float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
         Scanline *scanline;
-        ly = y0 < y1 ? y0 : y1;
-        uy = y0 > y1 ? y0 : y1;
-        ix0 = floorf(x), ix1 = ix0 + 1.f;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        ix0 = floorf(x), ix1 = ix0 + 1.f, area = ix1 - x;
         for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++) {
             sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
             if (x == 0)
                 scanline->delta0 += 255.5f * (sy1 - sy0);
             else {
-                cover = (sy1 - sy0) * 32767.f, area = ix1 - x;
+                cover = (sy1 - sy0) * 32767.f;
                 scanline->insertDelta(ix0, cover * area);
                 if (area < 1.f)
                     scanline->insertDelta(ix1, cover * (1.f - area));
