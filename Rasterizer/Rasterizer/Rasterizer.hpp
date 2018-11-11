@@ -630,8 +630,7 @@ struct Rasterizer {
                                     mx = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
                                     vx = mx <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
                                     writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, true, q);
-                                    writeVerticalSegmentToScanlines(vx, q[1], q[3], scanlines);
-                                    writeVerticalSegmentToScanlines(vx, q[3], q[5], scanlines);
+                                    writeVerticalSegmentToScanlines(vx, q[1], q[5], scanlines);
                                 }
                             }
                         }
@@ -746,9 +745,7 @@ struct Rasterizer {
                                     writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], 32767.f, nullptr, 0, scanlines);
                             } else {
                                 vx = x <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
-                                writeVerticalSegmentToScanlines(vx, cubic[1], cubic[3], scanlines);
-                                writeVerticalSegmentToScanlines(vx, cubic[3], cubic[5], scanlines);
-                                writeVerticalSegmentToScanlines(vx, cubic[5], cubic[7], scanlines);
+                                writeVerticalSegmentToScanlines(vx, cubic[1], cubic[7], scanlines);
                             }
                         }
                     }
