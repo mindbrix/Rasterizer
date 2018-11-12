@@ -573,13 +573,11 @@ struct Rasterizer {
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
-    static void solveQuadratics(float n0, float n1, float n2, float nt0, float nt1, float *ts) {
+    static void solveQuadratic(float n0, float n1, float n2, float nt, float& t0, float& t1) {
         float A = n0 + n2 - n1 - n1, B = 2.f * (n1 - n0);
-        solveQuadratic(A, B, n0 - nt0, ts[0], ts[1]);
-        solveQuadratic(A, B, n0 - nt1, ts[2], ts[3]);
-        std::sort(& ts[0], & ts[4]);
+        solveQuadratic(A, B, n0 - nt, t0, t1);
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, bool clip, float *q) {
+    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
         float tx0, ty0, tx2, ty2, tx1, ty1, t, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12;
         t = t1;
         x01 = lerp(x0, x1, t), x12 = lerp(x1, x2, t), x012 = lerp(x01, x12, t);
@@ -592,15 +590,13 @@ struct Rasterizer {
         tx2 = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
         ty0 = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
         ty2 = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
-        if (clip) {
-            tx1 = tx1 < clipBounds.lx ? clipBounds.lx : tx1 > clipBounds.ux ? clipBounds.ux : tx1;
-            ty1 = ty1 < clipBounds.ly ? clipBounds.ly : ty1 > clipBounds.uy ? clipBounds.uy : ty1;
-        }
+        
         *q++ = tx0, *q++ = ty0, *q++ = tx1, *q++ = ty1, *q++ = tx2, *q++ = ty2;
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cly, cuy, tys[4], txs[4], ts[6], ty0, ty1, q[6], t, s, t0, t1, mx, vx;
-        size_t x, y;
+        float lx, ly, ux, uy, cly, cuy, ts[8], q[6], t, s, t0, t1, x, y, vx;
+        size_t i;
+        bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         cly = ly < clipBounds.ly ? clipBounds.ly : ly > clipBounds.uy ? clipBounds.uy : ly;
@@ -609,28 +605,29 @@ struct Rasterizer {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveQuadratics(y0, y1, y2, clipBounds.ly, clipBounds.uy, tys);
-                solveQuadratics(x0, x1, x2, clipBounds.lx, clipBounds.ux, txs);
-                for (y = 0; y < 4; y += 2) {
-                    ty0 = tys[y], ty1 = tys[y + 1];
-                    if (ty0 != ty1) {
-                        ts[0] = ty0, ts[1] = ty1;
-                        for (x = 0; x < 4; x++)
-                            t = txs[x], ts[x + 2] = t < ty0 ? ty0 : t > ty1 ? ty1 : t;
-                        std::sort(& ts[0], & ts[6]);
-                        for (x = 0; x < 5; x++) {
-                            t0 = ts[x], t1 = ts[x + 1];
-                            if (t0 != t1) {
-                                if (x & 0x1) {
-                                    writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, false, q);
+                solveQuadratic(y0, y1, y2, clipBounds.ly, ts[0], ts[1]);
+                solveQuadratic(y0, y1, y2, clipBounds.uy, ts[2], ts[3]);
+                solveQuadratic(x0, x1, x2, clipBounds.lx, ts[4], ts[5]);
+                solveQuadratic(x0, x1, x2, clipBounds.ux, ts[6], ts[7]);
+                std::sort(& ts[0], & ts[8]);
+                for (i = 0; i < 7; i++) {
+                    t0 = ts[i], t1 = ts[i + 1];
+                    if (t0 != t1) {
+                        t = (t0 + t1) * 0.5f, s = 1.f - t;
+                        y = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                        if (y >= clipBounds.ly && y < clipBounds.uy) {
+                            x = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
+                            visible = x >= clipBounds.lx && x < clipBounds.ux;
+                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, q);
+                            if (visible) {
+                                if (fabsf(t1 - t0) < 1e-2) {
+                                    writeSegmentToDeltasOrScanlines(q[0], q[1], x, y, 32767.f, nullptr, 0, scanlines);
+                                    writeSegmentToDeltasOrScanlines(x, y, q[4], q[5], 32767.f, nullptr, 0, scanlines);
+                                } else
                                     writeQuadraticToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], 32767.f, nullptr, 0, scanlines);
-                                } else {
-                                    t = (t0 + t1) * 0.5f, s = 1.f - t;
-                                    mx = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
-                                    vx = mx <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
-                                    writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clipBounds, true, q);
-                                    writeVerticalSegmentToScanlines(vx, q[1], q[5], scanlines);
-                                }
+                            } else {
+                                vx = x <= clipBounds.lx ? clipBounds.lx : clipBounds.ux;
+                                writeVerticalSegmentToScanlines(vx, q[1], q[5], scanlines);
                             }
                         }
                     }
