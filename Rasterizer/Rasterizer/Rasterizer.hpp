@@ -701,7 +701,7 @@ struct Rasterizer {
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
             s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
             a = s * s + t * t;
-            if (a < 0.1) {
+            if (a < 0.1f) {
                 writeClippedSegmentToScanlines(x0, y0, x3, y3, clipBounds, scanlines);
                 return;
             }
