@@ -23,11 +23,11 @@ struct Rasterizer {
         return n0 + t * (n1 - n0);
     }
     
-    static inline void prefixSum(short *counts) {
+    static inline void prefixSum(short *counts, short n) {
 #ifdef RASTERIZER_SIMD
         __m128i shuffle_mask = _mm_set1_epi32(0x0F0E0F0E);
         __m128i sum8, c8, *src8, *end8;
-        for (sum8 = _mm_setzero_si128(), src8 = (__m128i *)counts, end8 = src8 + 32; src8 < end8; src8++) {
+        for (sum8 = _mm_setzero_si128(), src8 = (__m128i *)counts, end8 = src8 + (n + 7) / 8; src8 < end8; src8++) {
             c8 = _mm_loadu_si128(src8);
             c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 2)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 4)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 8));
             c8 = _mm_add_epi16(c8, sum8);
@@ -36,7 +36,7 @@ struct Rasterizer {
         }
 #else
         short *src, *dst, i;
-        for (src = counts, dst = src + 1, i = 1; i < 256; i++)
+        for (src = counts, dst = src + 1, i = 1; i < n; i++)
             *dst++ += *src++;
 #endif
     }
@@ -49,13 +49,13 @@ struct Rasterizer {
         int i;
         for (i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
-        prefixSum(counts0);
+        prefixSum(counts0, 256);
         for (i = n - 1; i >= 0; i--) {
             x = in[i];
             out[--counts0[x & 0xFF]] = x;
             counts1[(x >> 8) & 0xFF]++;
         }
-        prefixSum(counts1);
+        prefixSum(counts1, 256);
         for (i = n - 1; i >= 0; i--) {
             x = out[i];
             in[--counts1[(x >> 8) & 0xFF]] = x;
