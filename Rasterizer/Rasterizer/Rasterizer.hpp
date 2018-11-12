@@ -634,11 +634,9 @@ struct Rasterizer {
                 writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, 32767.f, nullptr, 0, scanlines);
         }
     }
-    static void solveCubic(float pa, float pb, float pc, float pd, float nt, float& t0, float& t1, float& t2) {
+    static void solveCubic(double a, double b, double c, double d, float& t0, float& t1, float& t2) {
         const float limit = 1e-3;
-        double a, b, c, d, a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
-        
-        a = (3.0 * pa - 6.0 * pb + 3.0 * pc), b = (-3.0 * pa + 3.0 * pb), c = pa - nt, d = (-pa + 3.0 * pb - 3.0 * pc + pd);
+        double a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
         if (fabs(d) < limit) {
             solveQuadratic(a, b, c, t0, t1), t2 = DBL_MAX;
         } else {
@@ -691,6 +689,7 @@ struct Rasterizer {
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, a, cly, cuy, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
+        float A, B, C, D;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
@@ -709,10 +708,12 @@ struct Rasterizer {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveCubic(y0, y1, y2, y3, clipBounds.ly, ts[0], ts[1], ts[2]);
-                solveCubic(y0, y1, y2, y3, clipBounds.uy, ts[3], ts[4], ts[5]);
-                solveCubic(x0, x1, x2, x3, clipBounds.lx, ts[6], ts[7], ts[8]);
-                solveCubic(x0, x1, x2, x3, clipBounds.ux, ts[9], ts[10], ts[11]);
+                A = (3.0 * y0 - 6.0 * y1 + 3.0 * y2), B = (-3.0 * y0 + 3.0 * y1), C = y0, D = (-y0 + 3.0 * y1 - 3.0 * y2 + y3);
+                solveCubic(A, B, C - clipBounds.ly, D, ts[0], ts[1], ts[2]);
+                solveCubic(A, B, C - clipBounds.uy, D, ts[3], ts[4], ts[5]);
+                A = (3.0 * x0 - 6.0 * x1 + 3.0 * x2), B = (-3.0 * x0 + 3.0 * x1), C = x0, D = (-x0 + 3.0 * x1 - 3.0 * x2 + x3);
+                solveCubic(A, B, C - clipBounds.lx, D, ts[6], ts[7], ts[8]);
+                solveCubic(A, B, C - clipBounds.ux, D, ts[9], ts[10], ts[11]);
                 std::sort(& ts[0], & ts[12]);
                 for (i = 0; i < 11; i++) {
                     t0 = ts[i], t1 = ts[i + 1];
