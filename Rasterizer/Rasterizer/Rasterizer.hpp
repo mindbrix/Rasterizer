@@ -6,11 +6,13 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#import <vector>
-#include <immintrin.h>
-
 #define RASTERIZER_SIMD 1
 
+#ifdef RASTERIZER_SIMD
+#include <immintrin.h>
+#endif
+
+#import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
 
