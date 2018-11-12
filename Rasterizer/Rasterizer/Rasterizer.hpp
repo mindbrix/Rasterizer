@@ -690,7 +690,7 @@ struct Rasterizer {
         *cubic++ = tx0, *cubic++ = ty0, *cubic++ = tx1, *cubic++ = ty1, *cubic++ = tx2, *cubic++ = ty2, *cubic++ = tx3, *cubic++ = ty3;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, a, cly, cuy, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
+        float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, cly, cuy, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
         float A, B, C, D;
         size_t i;
         bool visible;
@@ -702,8 +702,7 @@ struct Rasterizer {
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
             s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
-            a = s * s + t * t;
-            if (a < 0.1f) {
+            if (s * s + t * t < 0.1f) {
                 writeClippedSegmentToScanlines(x0, y0, x3, y3, clipBounds, scanlines);
                 return;
             }
