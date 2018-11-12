@@ -875,9 +875,26 @@ struct Rasterizer {
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+        float tmp, dxdy, iy0, iy1, *deltasRow, dx, dy, sx0, sy0, sx1, sy1, lx, ux, ly, uy, t, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
         Scanline *scanline;
         size_t ily;
+        dx = x1 - x0, dy = y1 - y0;
+        sx0 = x0, sy0 = y0;
+        do {
+            if (x0 < x1)
+                lx = floorf(sx0), ux = lx + 3.f, t = (ux - x0) / dx;
+            else
+                ux = ceilf(sx0), lx = ux - 3.f, t = (lx - x0) / dx;
+            sx1 = t <= 0 ? x0 : t >= 1 ? x1 : x0 + t * dx;
+            if (y0 < y1)
+                ly = floorf(sy0), uy = ly + 3.f, t = (uy - y0) / dy;
+            else
+                uy = ceilf(sy0), ly = uy - 3.f, t = (ly - y0) / dy;
+            sy1 = t <= 0 ? y0 : t >= 1 ? y1 : y0 + t * dy;
+            
+            sx0 = sx1, sy0 = sy1;
+        } while (sy0 != y1);
+        
         deltaScale = copysign(deltaScale, y1 - y0);
         if (deltaScale < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
