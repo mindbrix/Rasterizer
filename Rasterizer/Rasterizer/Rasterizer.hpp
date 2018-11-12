@@ -640,7 +640,7 @@ struct Rasterizer {
         const double limit = 1e-3;
         double a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
         if (fabs(d) < limit) {
-            solveQuadratic(a, b, c, t0, t1), t2 = DBL_MAX;
+            solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
         } else {
             a /= d, b /= d, c /= d, a3 = a / 3;
             p = (3.0 * b - a * a) / 3.0, p3 = p / 3.0, q = (2 * a * a * a - 9.0 * a * b + 27.0 * c) / 27.0, q2 = q / 2.0;
@@ -653,10 +653,10 @@ struct Rasterizer {
                 t2 = crtr * cos((phi + 4 * M_PI) / 3) - a3;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                t0 = 2 * u1 - a3, t1 = -u1 - a3, t2 = DBL_MAX;
+                t0 = 2 * u1 - a3, t1 = -u1 - a3, t2 = FLT_MAX;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                t0 = u1 - v1 - a3, t1 = t2 = DBL_MAX;
+                t0 = u1 - v1 - a3, t1 = t2 = FLT_MAX;
             }
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
