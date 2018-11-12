@@ -666,10 +666,6 @@ struct Rasterizer {
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
     }
-    static void solveCubics(float n0, float n1, float n2, float n3, float nt0, float nt1, float *ts) {
-        solveCubic(n0, n1, n2, n3, nt0, ts[0], ts[1], ts[2]);
-        solveCubic(n0, n1, n2, n3, nt1, ts[3], ts[4], ts[5]);
-    }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, bool clampControlPoints, float *cubic) {
         float t, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
         float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
@@ -723,8 +719,10 @@ struct Rasterizer {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                solveCubics(y0, y1, y2, y3, clipBounds.ly, clipBounds.uy, & ts[0]);
-                solveCubics(x0, x1, x2, x3, clipBounds.lx, clipBounds.ux, & ts[6]);
+                solveCubic(y0, y1, y2, y3, clipBounds.ly, ts[0], ts[1], ts[2]);
+                solveCubic(y0, y1, y2, y3, clipBounds.uy, ts[3], ts[4], ts[5]);
+                solveCubic(x0, x1, x2, x3, clipBounds.lx, ts[6], ts[7], ts[8]);
+                solveCubic(x0, x1, x2, x3, clipBounds.ux, ts[9], ts[10], ts[11]);
                 std::sort(& ts[0], & ts[12]);
                 for (i = 0; i < 11; i++) {
                     t0 = ts[i], t1 = ts[i + 1];
