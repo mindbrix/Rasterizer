@@ -708,10 +708,10 @@ struct Rasterizer {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             if (lx < clipBounds.lx || ux > clipBounds.ux || ly < clipBounds.ly || uy > clipBounds.uy) {
-                A = (3.0 * y0 - 6.0 * y1 + 3.0 * y2), B = (-3.0 * y0 + 3.0 * y1), C = y0, D = (-y0 + 3.0 * y1 - 3.0 * y2 + y3);
+                A = by, B = cy, C = y0, D = ay;
                 solveCubic(A, B, C - clipBounds.ly, D, ts[0], ts[1], ts[2]);
                 solveCubic(A, B, C - clipBounds.uy, D, ts[3], ts[4], ts[5]);
-                A = (3.0 * x0 - 6.0 * x1 + 3.0 * x2), B = (-3.0 * x0 + 3.0 * x1), C = x0, D = (-x0 + 3.0 * x1 - 3.0 * x2 + x3);
+                A = bx, B = cx, C = x0, D = ax;
                 solveCubic(A, B, C - clipBounds.lx, D, ts[6], ts[7], ts[8]);
                 solveCubic(A, B, C - clipBounds.ux, D, ts[9], ts[10], ts[11]);
                 std::sort(& ts[0], & ts[12]);
