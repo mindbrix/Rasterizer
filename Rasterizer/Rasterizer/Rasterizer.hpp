@@ -875,87 +875,9 @@ struct Rasterizer {
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ly, uy, t, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
         Scanline *scanline;
         size_t ily;
-        
-        /*
-        float dx, rdx, dy, rdy, txs[4], *tx, tys[4], *ty, ty0, ty1, lt, ut, tx0, tx1, t0, t1;
-        int i, j;
-        dx = x1 - x0, rdx = dx == 0.f ? 0.f : 1.f / dx , dy = y1 - y0, rdy = 1.f / dy;
-        sx0 = x0, sy0 = y0;
-       
-        do {
-            if (x0 <= x1)
-                lx = floorf(sx0), ux = lx + 3.f, t = dx == 0.f ? 0.f : (ux - x0) / dx;
-            else
-                ux = ceilf(sx0), lx = ux - 3.f, t = (lx - x0) / dx;
-            sx1 = t <= 0.f ? x0 : t >= 1.f ? x1 : x0 + t * dx;
-            if (y0 < y1)
-                ly = floorf(sy0), uy = ly + 3.f, t = (uy - y0) / dy;
-            else
-                uy = ceilf(sy0), ly = uy - 3.f, t = (ly - y0) / dy;
-            sy1 = t <= 0.f ? y0 : t >= 1.f ? y1 : y0 + t * dy;
-            
-            tx = txs;
-            t = (lx - x0) * rdx, *tx++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            t += rdx, *tx++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            t += rdx, *tx++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            t += rdx, *tx++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            ty = tys;
-            t = (ly - y0) * rdy, *ty++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            t += rdy, *ty++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            t += rdy, *ty++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            t += rdy, *ty++ = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            for (ty = tys, ty0 = *ty++, i = 1; i < 4; i++, ty0 = ty1) {
-                ty1 = *ty++;
-                if (ty0 != ty1) {
-                    ily = y0 + (ty0 + ty1) * 0.5f * dy;
-                    lt = ty0 < ty1 ? ty0 : ty1;
-                    ut = ty0 > ty1 ? ty0 : ty1;
-                    scanline = scanlines + ily;
-                    deltasRow = deltas + stride * ily;
-                    for (last = 0, tx = txs, tx0 = *tx++, j = 1; j < 4; j++, tx0 = tx1) {
-                        tx1 = *tx++;
-                        t0 = tx0 < lt ? lt : tx0 > ut ? ut : tx0;
-                        t1 = tx1 < lt ? lt : tx1 > ut ? ut : tx1;
-                        if (t0 != t1) {
-                            if (t0 > t1)
-                                tmp = t0, t0 = t1, t1 = tmp;
-                            cx0 = x0 + t0 * dx, cy0 = y0 + t0 * dy;
-                            cx1 = x0 + t1 * dx, cy1 = y0 + t1 * dy;
-                            if (cy0 != cy1) {
-                                ix0 = floorf(cx0 < cx1 ? cx0 : cx1), ix1 = ix0 + 1.f;
-                                cover = (cy1 - cy0) * deltaScale;
-                                area = (ix1 - (cx0 + cx1) * 0.5f);
-                                if (scanlines)
-                                    scanline->insertDelta(ix0, cover * area + last);
-                                else {
-                                    delta = deltasRow + size_t(ix0);
-                                    *delta += cover * area + last;
-                                }
-                                last = cover * (1.f - area);
-                            }
-                        }
-                    }
-                    if (last) {
-                        if (scanlines)
-                            scanline->insertDelta(ix1, last);
-                        else {
-                            if (ix1 < stride) {
-                                delta = deltasRow + size_t(ix1);
-                                *delta += last;
-                            }
-                        }
-                    }
-                    
-                }
-            }
-            
-            sx0 = sx1, sy0 = sy1;
-        } while (sy0 != y1);
-        return;
-         */
         deltaScale = copysign(deltaScale, y1 - y0);
         if (deltaScale < 0)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
