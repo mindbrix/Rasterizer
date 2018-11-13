@@ -5,7 +5,6 @@
 //  Created by Nigel Barber on 17/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-
 #define RASTERIZER_SIMD 1
 
 #ifdef RASTERIZER_SIMD
@@ -15,54 +14,9 @@
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
-
 struct Rasterizer {
     static const size_t kDeltasDimension = 128;
     static constexpr float kFloatOffset = 5e-2;
-    
-    template<typename T>
-    static inline T lerp(T n0, T n1, T t) {
-        return n0 + t * (n1 - n0);
-    }
-    
-    static inline void prefixSum(short *counts, short n) {
-#ifdef RASTERIZER_SIMD
-        __m128i shuffle_mask = _mm_set1_epi32(0x0F0E0F0E);
-        __m128i sum8, c8, *src8, *end8;
-        for (sum8 = _mm_setzero_si128(), src8 = (__m128i *)counts, end8 = src8 + (n + 7) / 8; src8 < end8; src8++) {
-            c8 = _mm_loadu_si128(src8);
-            c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 2)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 4)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 8));
-            c8 = _mm_add_epi16(c8, sum8);
-            _mm_storeu_si128(src8, c8);
-            sum8 = _mm_shuffle_epi8(c8, shuffle_mask);
-        }
-#else
-        short *src, *dst, i;
-        for (src = counts, dst = src + 1, i = 1; i < n; i++)
-            *dst++ += *src++;
-#endif
-    }
-                          
-    template<typename T, typename C>
-    static void radixSort(T *in, int n, C *counts0, C *counts1, T *out) {
-        T x;
-        memset(counts0, 0, sizeof(C) * 256);
-        int i;
-        for (i = 0; i < n; i++)
-            counts0[in[i] & 0xFF]++;
-        prefixSum(counts0, 256);
-        memset(counts1, 0, sizeof(C) * 256);
-        for (i = n - 1; i >= 0; i--) {
-            x = in[i];
-            out[--counts0[x & 0xFF]] = x;
-            counts1[(x >> 8) & 0xFF]++;
-        }
-        prefixSum(counts1, 256);
-        for (i = n - 1; i >= 0; i--) {
-            x = out[i];
-            in[--counts1[(x >> 8) & 0xFF]] = x;
-        }
-    }
     
     struct AffineTransform {
         AffineTransform() {}
@@ -253,184 +207,6 @@ struct Rasterizer {
         std::vector<Path> paths;
     };
     
-    static void writeMaskRow(float *deltas, size_t w, uint8_t *mask) {
-        float cover = 0, alpha;
-#ifdef RASTERIZER_SIMD
-        __m128 offset = _mm_setzero_ps(), sign_mask = _mm_set1_ps(-0.);
-        __m128i shuffle_mask = _mm_set1_epi32(0x0c080400);
-        __m128 x, y, z;
-        while (w >> 2) {
-            x = _mm_loadu_ps(deltas);
-            *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
-            x = _mm_add_ps(x, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(x), 4)));
-            x = _mm_add_ps(x, _mm_shuffle_ps(_mm_setzero_ps(), x, 0x40));
-            x = _mm_add_ps(x, offset);
-            y = _mm_andnot_ps(sign_mask, x);
-            y = _mm_min_ps(y, _mm_set1_ps(255.0));
-            z = _mm_cvttps_epi32(y);
-            z = _mm_shuffle_epi8(z, shuffle_mask);
-            _mm_store_ss((float *)mask, _mm_castsi128_ps(z));
-            offset = _mm_shuffle_ps(x, x, 0xFF);
-            w -= 4, mask += 4;
-        }
-         _mm_store_ss(& cover, offset);
-#endif
-        while (w--) {
-            cover += *deltas, *deltas++ = 0;
-            alpha = fabsf(cover);
-            *mask++ = alpha < 255.f ? alpha : 255.f;
-        }
-    }
-    
-    static void writeDeltasToMask(float *deltas, Bounds device, uint8_t *mask) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly;
-        for (size_t y = 0; y < h; y++, deltas += w, mask += w)
-            writeMaskRow(deltas, w, mask);
-    }
-    
-    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Spanline>& spanlines) {
-        const float scale = 255.5f / 32767.f;
-        float x, y, ix, cover, alpha;
-        uint8_t a;
-        short counts0[256], counts1[256];
-        size_t idx;
-        idx = clipped.ly - device.ly;
-        Scanline *scanline = & scanlines[idx];
-        Spanline *spanline = & spanlines[idx];
-        Scanline::Delta *begin, *end, *delta;
-        for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++) {
-            if (scanline->idx == 0)
-                continue;
-            
-            begin = & scanline->deltas[0], end = begin + scanline->idx;
-            if (scanline->idx > 32) {
-                uint32_t mem0[scanline->idx];
-                radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
-            } else
-                std::sort(begin, end);
-            
-            cover = scanline->delta0;
-            alpha = fabsf(cover);
-            a = alpha < 255.f ? alpha : 255.f;
-            
-            x = a ? clipped.lx : scanline->deltas[0].x;
-            for (delta = begin; delta < end; delta++) {
-                if (delta->x != x) {
-                    alpha = fabsf(cover);
-                    a = alpha < 255.f ? alpha : 255.f;
-
-                    if (a > 254)
-                        spanline->insertSpan(device.lx + x, delta->x - x);
-                    else if (a > 0)
-                        for (ix = x; ix < delta->x; ix++)
-                            spanline->insertSpan(device.lx + ix, -a);
-                    x = delta->x;
-                }
-                cover += float(delta->delta) * scale;
-            }
-        }
-        scanline = device.isZero() ? & scanlines[clipped.ly] : & scanlines[0];
-        size_t count = device.isZero() ? clipped.uy - clipped.ly : device.uy - device.ly;
-        for (; count--; scanline++)
-            scanline->empty();
-    }
-    
-    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
-        uint32_t *pixel;
-        uint8_t *msk, *components, a, *dst;
-        size_t columns;
-        components = (uint8_t *)& bgra, a = components[3];
-        float src0, src1, src2, src3, srcAlpha, alpha;
-        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
-        srcAlpha = src3 * 0.003921568627f;
-#ifdef RASTERIZER_SIMD
-        __m128 bgra4 = _mm_set_ps(255.f, src2, src1, src0);
-        __m128 a0, m0, d0;
-        __m128i a32, a16, a8;
-#endif
-        while (h--) {
-            pixel = pixelAddress, msk = mask, columns = w;
-            while (columns--) {
-                if (*msk == 255 && a == 255)
-                    *pixel = bgra;
-                else if (*msk) {
-                    alpha = float(*msk) * 0.003921568627f * srcAlpha;
-                    dst = (uint8_t *)pixel;
-#ifdef RASTERIZER_SIMD
-                    a0 = _mm_set1_ps(alpha);
-                    m0 = _mm_mul_ps(bgra4, a0);
-                    if (*pixel) {
-                        dst = (uint8_t *)pixel, d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
-                        m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
-                    }
-                    a32 = _mm_cvttps_epi32(m0);
-                    a16 = _mm_packs_epi32(a32, a32);
-                    a8 = _mm_packus_epi16(a16, a16);
-                    *pixel = _mm_cvtsi128_si32(a8);
-#else
-                    if (*pixel == 0)
-                        *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
-                    else {
-                        *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-                        *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-                        *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                        *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
-                    }
-#endif
-                }
-                msk++, pixel++;
-            }
-            pixelAddress -= rowBytes / 4;
-            mask += maskRowBytes;
-        }
-    }
-    
-    static void writeMaskToBitmap(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        size_t maskRowBytes = device.ux - device.lx;
-        size_t offset = maskRowBytes * (clipped.ly - device.ly) + (clipped.lx - device.lx);
-        size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        writeMaskToBitmap(mask + offset, maskRowBytes, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
-    }
-    
-    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
-        float y, lx, ux, src0, src1, src2, src3, srcAlpha, alpha;
-        uint8_t *components = (uint8_t *) & color, *dst;
-        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
-        srcAlpha = src3 * 0.003921568627f;
-        uint32_t *pixel, *last;
-        Spanline *spanline = & spanlines[clipped.ly - device.ly];
-        Spanline::Span *span, *end;
-        for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
-            for (span = & spanline->spans[0], end = & spanline->spans[spanline->idx]; span < end; span++) {
-                lx = span->x, ux = lx + (span->w > 0 ? span->w : 1);
-                lx = lx < clipped.lx ? clipped.lx : lx > clipped.ux ? clipped.ux : lx;
-                ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
-                if (lx != ux) {
-                    pixel = bitmap.pixelAddress(lx, y);
-                    if (span->w > 0 && src3 == 255)
-                        memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
-                    else {
-                        if (span->w > 0)
-                            last = pixel + size_t(ux - lx), alpha = srcAlpha;
-                        else
-                            last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;
-                        for (; pixel < last; pixel++) {
-                            dst = (uint8_t *)pixel;
-                            if (*pixel == 0)
-                                *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
-                            else {
-                                *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
     static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
@@ -464,6 +240,188 @@ struct Rasterizer {
         }
     }
     
+    static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p, scale;
+        size_t index;
+        uint8_t type;
+        x0 = y0 = sx = sy = FLT_MAX;
+        scale = scanlines ? 32767.f : 255.5f;
+        for (Path::Atom& atom : path.atoms) {
+            index = 0;
+            for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
+                p = atom.points + index * 2;
+                switch (type) {
+                    case Path::Atom::kMove:
+                        if (sx != FLT_MAX && (sx != x0 || sy != y0))
+                            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, scanlines);
+                        sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        index++;
+                        break;
+                    case Path::Atom::kLine:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, scale, deltas, stride, scanlines);
+                        x0 = x1, y0 = y1;
+                        index++;
+                        break;
+                    case Path::Atom::kQuadratic:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, scale, deltas, stride, scanlines);
+                        x0 = x2, y0 = y2;
+                        index += 2;
+                        break;
+                    case Path::Atom::kCubic:
+                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
+                        writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, scale, deltas, stride, scanlines);
+                        x0 = x3, y0 = y3;
+                        index += 3;
+                        break;
+                    case Path::Atom::kClose:
+                        index++;
+                        break;
+                }
+            }
+        }
+        if (sx != FLT_MAX && (sx != x0 || sy != y0))
+            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, scanlines);
+    }
+    
+    static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+        if (y0 == y1)
+            return;
+        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+        Scanline *scanline;
+        size_t ily;
+        deltaScale = copysign(deltaScale, y1 - y0);
+        if (deltaScale < 0)
+            tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
+        dxdy = (x1 - x0) / (y1 - y0);
+        
+        for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * ily, scanline = scanlines + ily;
+             iy0 < y1;
+             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
+            sy1 = y1 > iy1 ? iy1 : y1;
+            sx1 = (sy1 - y0) * dxdy + x0;
+            
+            lx = sx0 < sx1 ? sx0 : sx1;
+            ux = sx0 > sx1 ? sx0 : sx1;
+            ix0 = floorf(lx), ix1 = ix0 + 1;
+            if (lx >= ix0 && ux <= ix1) {
+                cover = (sy1 - sy0) * deltaScale;
+                area = (ix1 - (ux + lx) * 0.5f);
+                if (scanlines) {
+                    scanline->insertDelta(ix0, cover * area);
+                    scanline->insertDelta(ix1, cover * (1.f - area));
+                } else {
+                    delta = deltasRow + size_t(ix0);
+                    *delta++ += cover * area;
+                    if (ix1 < stride)
+                        *delta += cover * (1.f - area);
+                }
+            } else {
+                dydx = 1.f / fabsf(dxdy);
+                cx0 = lx, cy0 = sy0;
+                cx1 = ux < ix1 ? ux : ix1;
+                cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+                for (last = 0, delta = deltasRow + size_t(ix0);
+                     ix0 <= ux;
+                     ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
+                    cover = (cy1 - cy0) * deltaScale;
+                    area = (ix1 - (cx0 + cx1) * 0.5f);
+                    if (scanlines)
+                        scanline->insertDelta(ix0, cover * area + last);
+                    else
+                        *delta += cover * area + last;
+                    last = cover * (1.f - area);
+                }
+                if (scanlines)
+                    scanline->insertDelta(ix0, last);
+                else {
+                    if (ix0 < stride)
+                        *delta += last;
+                }
+            }
+        }
+    }
+    static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float scale, float *deltas, size_t stride, Scanline *scanlines) {
+        float ax, ay, a, dt, s, t, px0, py0, px1, py1;
+        size_t count;
+        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
+        a = ax * ax + ay * ay;
+        if (a < 0.1f)
+            writeSegmentToDeltasOrScanlines(x0, y0, x2, y2, scale, deltas, stride, scanlines);
+        else if (a < 8.f) {
+            px0 = (x0 + x2) * 0.25f + x1 * 0.5f, py0 = (y0 + y2) * 0.25f + y1 * 0.5f;
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+        } else {
+            count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0;
+            px0 = x0, py0 = y0;
+            while (--count) {
+                t += dt, s = 1.f - t;
+                px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+                px0 = px1, py0 = py1;
+            }
+            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+        }
+    }
+    static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float scale, float *deltas, size_t stride, Scanline *scanlines) {
+        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
+        float cx, bx, ax, cy, by, ay, s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
+        size_t count;
+        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+        s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
+        a = s * s + t * t;
+        if (a < 0.1f)
+            writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, scale, deltas, stride, scanlines);
+        else if (a < 8.f) {
+            px0 = (x0 + x3) * 0.125f + (x1 + x2) * 0.375f, py0 = (y0 + y3) * 0.125f + (y1 + y2) * 0.375f;
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+        } else if (a < 16.f) {
+            px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
+            px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
+            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+            writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, scale, deltas, stride, scanlines);
+        } else {
+            count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f;
+            px0 = x0, py0 = y0;
+            while (--count) {
+                t += dt, s = 1.f - t;
+                pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
+                px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
+                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+                px0 = px1, py0 = py1;
+            }
+            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+        }
+    }
+    static void writeVerticalSegmentToScanlines(float x, float y0, float y1, Scanline *scanlines) {
+        if (y0 == y1)
+            return;
+        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
+        Scanline *scanline;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        ix0 = floorf(x), ix1 = ix0 + 1.f, area = ix1 - x;
+        for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++) {
+            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
+            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
+            if (x == 0)
+                scanline->delta0 += 255.5f * (sy1 - sy0);
+            else {
+                cover = (sy1 - sy0) * 32767.f;
+                scanline->insertDelta(ix0, cover * area);
+                if (area < 1.f)
+                    scanline->insertDelta(ix1, cover * (1.f - area));
+            }
+        }
+    }
+
     static void writeClippedPathToScanlines(Path& path, AffineTransform ctm, Bounds clipBounds, Scanline *scanlines) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
         size_t index;
@@ -566,6 +524,10 @@ struct Rasterizer {
             }
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
+    }
+    template<typename T>
+    static inline T lerp(T n0, T n1, T t) {
+        return n0 + t * (n1 - n0);
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
         float x01, x12, x012, y01, y12, y012, t, tx01, tx12, ty01, ty12, tx012, ty012;
@@ -726,186 +688,212 @@ struct Rasterizer {
         }
     }
     
-    static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, float *deltas, size_t stride, Scanline *scanlines, Bounds clipBounds) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p, scale;
-        size_t index;
-        uint8_t type;
-        x0 = y0 = sx = sy = FLT_MAX;
-        scale = scanlines ? 32767.f : 255.5f;
-        for (Path::Atom& atom : path.atoms) {
-            index = 0;
-            for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
-                p = atom.points + index * 2;
-                switch (type) {
-                    case Path::Atom::kMove:
-                        if (sx != FLT_MAX && (sx != x0 || sy != y0))
-                            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, scanlines);
-                        sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        index++;
-                        break;
-                    case Path::Atom::kLine:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, scale, deltas, stride, scanlines);
-                        x0 = x1, y0 = y1;
-                        index++;
-                        break;
-                    case Path::Atom::kQuadratic:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, scale, deltas, stride, scanlines);
-                        x0 = x2, y0 = y2;
-                        index += 2;
-                        break;
-                    case Path::Atom::kCubic:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, scale, deltas, stride, scanlines);
-                        x0 = x3, y0 = y3;
-                        index += 3;
-                        break;
-                    case Path::Atom::kClose:
-                        index++;
-                        break;
+    static void writeMaskRow(float *deltas, size_t w, uint8_t *mask) {
+        float cover = 0, alpha;
+#ifdef RASTERIZER_SIMD
+        __m128 offset = _mm_setzero_ps(), sign_mask = _mm_set1_ps(-0.);
+        __m128i shuffle_mask = _mm_set1_epi32(0x0c080400);
+        __m128 x, y, z;
+        while (w >> 2) {
+            x = _mm_loadu_ps(deltas);
+            *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
+            x = _mm_add_ps(x, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(x), 4)));
+            x = _mm_add_ps(x, _mm_shuffle_ps(_mm_setzero_ps(), x, 0x40));
+            x = _mm_add_ps(x, offset);
+            y = _mm_andnot_ps(sign_mask, x);
+            y = _mm_min_ps(y, _mm_set1_ps(255.0));
+            z = _mm_cvttps_epi32(y);
+            z = _mm_shuffle_epi8(z, shuffle_mask);
+            _mm_store_ss((float *)mask, _mm_castsi128_ps(z));
+            offset = _mm_shuffle_ps(x, x, 0xFF);
+            w -= 4, mask += 4;
+        }
+        _mm_store_ss(& cover, offset);
+#endif
+        while (w--) {
+            cover += *deltas, *deltas++ = 0;
+            alpha = fabsf(cover);
+            *mask++ = alpha < 255.f ? alpha : 255.f;
+        }
+    }
+    static void writeDeltasToMask(float *deltas, Bounds device, uint8_t *mask) {
+        size_t w = device.ux - device.lx, h = device.uy - device.ly;
+        for (size_t y = 0; y < h; y++, deltas += w, mask += w)
+            writeMaskRow(deltas, w, mask);
+    }
+    static void writeMaskToBitmap(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
+        size_t maskRowBytes = device.ux - device.lx;
+        size_t offset = maskRowBytes * (clipped.ly - device.ly) + (clipped.lx - device.lx);
+        size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
+        writeMaskToBitmap(mask + offset, maskRowBytes, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
+    }
+    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
+        uint32_t *pixel;
+        uint8_t *msk, *components, a, *dst;
+        size_t columns;
+        components = (uint8_t *)& bgra, a = components[3];
+        float src0, src1, src2, src3, srcAlpha, alpha;
+        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
+        srcAlpha = src3 * 0.003921568627f;
+#ifdef RASTERIZER_SIMD
+        __m128 bgra4 = _mm_set_ps(255.f, src2, src1, src0);
+        __m128 a0, m0, d0;
+        __m128i a32, a16, a8;
+#endif
+        while (h--) {
+            pixel = pixelAddress, msk = mask, columns = w;
+            while (columns--) {
+                if (*msk == 255 && a == 255)
+                    *pixel = bgra;
+                else if (*msk) {
+                    alpha = float(*msk) * 0.003921568627f * srcAlpha;
+                    dst = (uint8_t *)pixel;
+#ifdef RASTERIZER_SIMD
+                    a0 = _mm_set1_ps(alpha);
+                    m0 = _mm_mul_ps(bgra4, a0);
+                    if (*pixel) {
+                        dst = (uint8_t *)pixel, d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
+                        m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
+                    }
+                    a32 = _mm_cvttps_epi32(m0);
+                    a16 = _mm_packs_epi32(a32, a32);
+                    a8 = _mm_packus_epi16(a16, a16);
+                    *pixel = _mm_cvtsi128_si32(a8);
+#else
+                    if (*pixel == 0)
+                        *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
+                    else {
+                        *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+                        *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+                        *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+                        *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
+                    }
+#endif
                 }
+                msk++, pixel++;
             }
-        }
-        if (sx != FLT_MAX && (sx != x0 || sy != y0))
-            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, scanlines);
-    }
-    
-    static void writeQuadraticToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float scale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ax, ay, a, dt, s, t, px0, py0, px1, py1;
-        size_t count;
-        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
-        a = ax * ax + ay * ay;
-        if (a < 0.1f)
-            writeSegmentToDeltasOrScanlines(x0, y0, x2, y2, scale, deltas, stride, scanlines);
-        else if (a < 8.f) {
-            px0 = (x0 + x2) * 0.25f + x1 * 0.5f, py0 = (y0 + y2) * 0.25f + y1 * 0.5f;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
-        } else {
-            count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0;
-            px0 = x0, py0 = y0;
-            while (--count) {
-                t += dt, s = 1.f - t;
-                px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
-                px0 = px1, py0 = py1;
-            }
-            writeSegmentToDeltasOrScanlines(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+            pixelAddress -= rowBytes / 4;
+            mask += maskRowBytes;
         }
     }
     
-    static void writeCubicToDeltasOrScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float scale, float *deltas, size_t stride, Scanline *scanlines) {
-        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float cx, bx, ax, cy, by, ay, s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
-        size_t count;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-        s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
-        a = s * s + t * t;
-        if (a < 0.1f)
-            writeSegmentToDeltasOrScanlines(x0, y0, x3, y3, scale, deltas, stride, scanlines);
-        else if (a < 8.f) {
-            px0 = (x0 + x3) * 0.125f + (x1 + x2) * 0.375f, py0 = (y0 + y3) * 0.125f + (y1 + y2) * 0.375f;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines);
-        } else if (a < 16.f) {
-            px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
-            px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-            writeSegmentToDeltasOrScanlines(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
-            writeSegmentToDeltasOrScanlines(px1, py1, x3, y3, scale, deltas, stride, scanlines);
-        } else {
-            count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f;
-            px0 = x0, py0 = y0;
-            while (--count) {
-                t += dt, s = 1.f - t;
-                pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
-                px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
-                writeSegmentToDeltasOrScanlines(px0, py0, px1, py1, scale, deltas, stride, scanlines);
-                px0 = px1, py0 = py1;
-            }
-            writeSegmentToDeltasOrScanlines(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+    static inline void prefixSum(short *counts, short n) {
+#ifdef RASTERIZER_SIMD
+        __m128i shuffle_mask = _mm_set1_epi32(0x0F0E0F0E);
+        __m128i sum8, c8, *src8, *end8;
+        for (sum8 = _mm_setzero_si128(), src8 = (__m128i *)counts, end8 = src8 + (n + 7) / 8; src8 < end8; src8++) {
+            c8 = _mm_loadu_si128(src8);
+            c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 2)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 4)), c8 = _mm_add_epi16(c8, _mm_slli_si128(c8, 8));
+            c8 = _mm_add_epi16(c8, sum8);
+            _mm_storeu_si128(src8, c8);
+            sum8 = _mm_shuffle_epi8(c8, shuffle_mask);
+        }
+#else
+        short *src, *dst, i;
+        for (src = counts, dst = src + 1, i = 1; i < n; i++)
+            *dst++ += *src++;
+#endif
+    }
+    template<typename T, typename C>
+    static void radixSort(T *in, int n, C *counts0, C *counts1, T *out) {
+        T x;
+        memset(counts0, 0, sizeof(C) * 256);
+        int i;
+        for (i = 0; i < n; i++)
+            counts0[in[i] & 0xFF]++;
+        prefixSum(counts0, 256);
+        memset(counts1, 0, sizeof(C) * 256);
+        for (i = n - 1; i >= 0; i--) {
+            x = in[i];
+            out[--counts0[x & 0xFF]] = x;
+            counts1[(x >> 8) & 0xFF]++;
+        }
+        prefixSum(counts1, 256);
+        for (i = n - 1; i >= 0; i--) {
+            x = out[i];
+            in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    
-    static void writeVerticalSegmentToScanlines(float x, float y0, float y1, Scanline *scanlines) {
-        if (y0 == y1)
-            return;
-        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
-        Scanline *scanline;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        ix0 = floorf(x), ix1 = ix0 + 1.f, area = ix1 - x;
-        for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++) {
-            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
-            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
-            if (x == 0)
-                scanline->delta0 += 255.5f * (sy1 - sy0);
-            else {
-                cover = (sy1 - sy0) * 32767.f;
-                scanline->insertDelta(ix0, cover * area);
-                if (area < 1.f)
-                    scanline->insertDelta(ix1, cover * (1.f - area));
-            }
-        }
-    }
-    
-    static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        if (y0 == y1)
-            return;
-        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
-        Scanline *scanline;
-        size_t ily;
-        deltaScale = copysign(deltaScale, y1 - y0);
-        if (deltaScale < 0)
-            tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-        dxdy = (x1 - x0) / (y1 - y0);
-        
-        for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * ily, scanline = scanlines + ily;
-             iy0 < y1;
-             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
-            sy1 = y1 > iy1 ? iy1 : y1;
-            sx1 = (sy1 - y0) * dxdy + x0;
+    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Spanline>& spanlines) {
+        const float scale = 255.5f / 32767.f;
+        float x, y, ix, cover, alpha;
+        uint8_t a;
+        short counts0[256], counts1[256];
+        size_t idx;
+        idx = clipped.ly - device.ly;
+        Scanline *scanline = & scanlines[idx];
+        Spanline *spanline = & spanlines[idx];
+        Scanline::Delta *begin, *end, *delta;
+        for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++) {
+            if (scanline->idx == 0)
+                continue;
             
-            lx = sx0 < sx1 ? sx0 : sx1;
-            ux = sx0 > sx1 ? sx0 : sx1;
-            ix0 = floorf(lx), ix1 = ix0 + 1;
-            if (lx >= ix0 && ux <= ix1) {
-                cover = (sy1 - sy0) * deltaScale;
-                area = (ix1 - (ux + lx) * 0.5f);
-                if (scanlines) {
-                    scanline->insertDelta(ix0, cover * area);
-                    scanline->insertDelta(ix1, cover * (1.f - area));
-                } else {
-                    delta = deltasRow + size_t(ix0);
-                    *delta++ += cover * area;
-                    if (ix1 < stride)
-                        *delta += cover * (1.f - area);
+            begin = & scanline->deltas[0], end = begin + scanline->idx;
+            if (scanline->idx > 32) {
+                uint32_t mem0[scanline->idx];
+                radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
+            } else
+                std::sort(begin, end);
+            
+            cover = scanline->delta0;
+            alpha = fabsf(cover);
+            a = alpha < 255.f ? alpha : 255.f;
+            
+            x = a ? clipped.lx : scanline->deltas[0].x;
+            for (delta = begin; delta < end; delta++) {
+                if (delta->x != x) {
+                    alpha = fabsf(cover);
+                    a = alpha < 255.f ? alpha : 255.f;
+                    
+                    if (a > 254)
+                        spanline->insertSpan(device.lx + x, delta->x - x);
+                    else if (a > 0)
+                        for (ix = x; ix < delta->x; ix++)
+                            spanline->insertSpan(device.lx + ix, -a);
+                    x = delta->x;
                 }
-            } else {
-                dydx = 1.f / fabsf(dxdy);
-                cx0 = lx, cy0 = sy0;
-                cx1 = ux < ix1 ? ux : ix1;
-                cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-                for (last = 0, delta = deltasRow + size_t(ix0);
-                     ix0 <= ux;
-                     ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
-                    cover = (cy1 - cy0) * deltaScale;
-                    area = (ix1 - (cx0 + cx1) * 0.5f);
-                    if (scanlines)
-                        scanline->insertDelta(ix0, cover * area + last);
-                    else
-                        *delta += cover * area + last;
-                    last = cover * (1.f - area);
-                }
-                if (scanlines)
-                    scanline->insertDelta(ix0, last);
-                else {
-                    if (ix0 < stride)
-                        *delta += last;
+                cover += float(delta->delta) * scale;
+            }
+        }
+        scanline = device.isZero() ? & scanlines[clipped.ly] : & scanlines[0];
+        size_t count = device.isZero() ? clipped.uy - clipped.ly : device.uy - device.ly;
+        for (; count--; scanline++)
+            scanline->empty();
+    }
+    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
+        float y, lx, ux, src0, src1, src2, src3, srcAlpha, alpha;
+        uint8_t *components = (uint8_t *) & color, *dst;
+        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
+        srcAlpha = src3 * 0.003921568627f;
+        uint32_t *pixel, *last;
+        Spanline *spanline = & spanlines[clipped.ly - device.ly];
+        Spanline::Span *span, *end;
+        for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
+            for (span = & spanline->spans[0], end = & spanline->spans[spanline->idx]; span < end; span++) {
+                lx = span->x, ux = lx + (span->w > 0 ? span->w : 1);
+                lx = lx < clipped.lx ? clipped.lx : lx > clipped.ux ? clipped.ux : lx;
+                ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
+                if (lx != ux) {
+                    pixel = bitmap.pixelAddress(lx, y);
+                    if (span->w > 0 && src3 == 255)
+                        memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
+                    else {
+                        if (span->w > 0)
+                            last = pixel + size_t(ux - lx), alpha = srcAlpha;
+                        else
+                            last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;
+                        for (; pixel < last; pixel++) {
+                            dst = (uint8_t *)pixel;
+                            if (*pixel == 0)
+                                *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
+                            else {
+                                *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+                                *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
+                            }
+                        }
+                    }
                 }
             }
         }
