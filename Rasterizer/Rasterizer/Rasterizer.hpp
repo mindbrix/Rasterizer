@@ -626,9 +626,8 @@ struct Rasterizer {
         }
     }
     static void solveCubic(double a, double b, double c, double d, float& t0, float& t1, float& t2) {
-        const double limit = 1e-3;
         double a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
-        if (fabs(d) < limit) {
+        if (fabs(d) < 1e-3) {
             solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
         } else {
             a /= d, b /= d, c /= d, a3 = a / 3;
