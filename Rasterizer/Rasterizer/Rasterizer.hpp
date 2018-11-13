@@ -458,6 +458,7 @@ struct Rasterizer {
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
             writeClippedSegmentToScanlines(x0, y0, sx, sy, clipBounds, scanlines);
     }
+    static inline float lerp(float n0, float n1, float t) { return n0 + t * (n1 - n0); }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
         if (x0 >= clipBounds.lx && x0 < clipBounds.ux && x1 >= clipBounds.lx && x1 < clipBounds.ux
@@ -483,12 +484,12 @@ struct Rasterizer {
                     for (i = 0; i < 3; i++) {
                         t0 = ts[i], t1 = ts[i + 1];
                         if (t0 != t1) {
-                            sy0 = lerp(y0, y1, t0), sy1 = lerp(y0, y1, t1);
+                            sy0 = y0 + t0 * (y1 - y0), sy1 = y0 + t1 * (y1 - y0);
                             sy0 = sy0 < clipBounds.ly ? clipBounds.ly : sy0 > clipBounds.uy ? clipBounds.uy : sy0;
                             sy1 = sy1 < clipBounds.ly ? clipBounds.ly : sy1 > clipBounds.uy ? clipBounds.uy : sy1;
                             mx = lerp(x0, x1, (t0 + t1) * 0.5f);
                             if (mx >= clipBounds.lx && mx < clipBounds.ux) {
-                                sx0 = lerp(x0, x1, t0), sx1 = lerp(x0, x1, t1);
+                                sx0 = x0 + t0 * (x1 - x0), sx1 = x0 + t1 * (x1 - x0);
                                 sx0 = sx0 < clipBounds.lx ? clipBounds.lx : sx0 > clipBounds.ux ? clipBounds.ux : sx0;
                                 sx1 = sx1 < clipBounds.lx ? clipBounds.lx : sx1 > clipBounds.ux ? clipBounds.ux : sx1;
                                 writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, 32767.f, nullptr, 0, scanlines);
@@ -515,8 +516,6 @@ struct Rasterizer {
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
-    static inline float lerp(float n0, float n1, float t) { return n0 + t * (n1 - n0); }
-    
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
         float x01, x12, x012, y01, y12, y012, t, tx01, tx12, ty01, ty12, tx012, ty012;
         x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x012 = lerp(x01, x12, t1);
