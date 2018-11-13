@@ -819,8 +819,7 @@ struct Rasterizer {
             } else
                 std::sort(begin, end);
     
-            x = scanline->deltas[0].x;
-            for (cover = 0, delta = begin; delta < end; delta++) {
+            for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
                 if (delta->x != x) {
                     alpha = fabsf(cover);
                     a = alpha < 255.f ? alpha : 255.f;
