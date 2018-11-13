@@ -517,11 +517,11 @@ struct Rasterizer {
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
         float x01, x12, x012, y01, y12, y012, t, tx01, tx12, ty01, ty12, tx012, ty012;
-        x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x012 = lerp(x01, x12, t1);
-        y01 = lerp(y0, y1, t1), y12 = lerp(y1, y2, t1), y012 = lerp(y01, y12, t1);
+        x01 = x0 + t1 * (x1 - x0), x12 = x1 + t1 * (x2 - x1), x012 = x01 + t1 * (x12 - x01);
+        y01 = y0 + t1 * (y1 - y0), y12 = y1 + t1 * (y2 - y1), y012 = y01 + t1 * (y12 - y01);
         t = t0 / t1;
-        tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx012 = lerp(tx01, tx12, t);
-        ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty012 = lerp(ty01, ty12, t);
+        tx01 = x0 + t * (x01 - x0), tx12 = x01 + t * (x012 - x01), tx012 = tx01 + t * (tx12 - tx01);
+        ty01 = y0 + t * (y01 - y0), ty12 = y01 + t * (y012 - y01), ty012 = ty01 + t * (ty12 - ty01);
         *q++ = tx012 < clipBounds.lx ? clipBounds.lx : tx012 > clipBounds.ux ? clipBounds.ux : tx012;
         *q++ = ty012 < clipBounds.ly ? clipBounds.ly : ty012 > clipBounds.uy ? clipBounds.uy : ty012;
         *q++ = tx12, *q++ = ty12;
