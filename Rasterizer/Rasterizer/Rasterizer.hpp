@@ -834,9 +834,7 @@ struct Rasterizer {
                 cover += float(delta->delta) * scale;
             }
         }
-        scanline = & scanlines[idx];
-        size_t count = clipped.uy - clipped.ly;
-        for (; count--; scanline++)
+        for (scanline = & scanlines[idx], y = clipped.ly; y < clipped.uy; y++, scanline++)
             scanline->empty();
     }
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t color, Bitmap bitmap) {
