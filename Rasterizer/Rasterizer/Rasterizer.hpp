@@ -190,12 +190,6 @@ struct Rasterizer {
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
     };
-    struct Root {
-        inline bool operator< (const Root& other) const { return t < other.t; }
-        double t;
-        float n;
-        bool isX;
-    };
     struct Scanline {
         struct Delta {
             Delta() {}
