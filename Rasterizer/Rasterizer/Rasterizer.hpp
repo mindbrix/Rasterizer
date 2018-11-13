@@ -153,13 +153,12 @@ struct Rasterizer {
         };
         Scanline() : size(0) { empty(); }
         
-        void empty() { delta0 = idx = 0; }
+        void empty() { idx = 0; }
         inline void insertDelta(float x, float delta) {
             if (idx >= size)
                 deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
             new (base + idx++) Delta(x, delta);
         }
-        float delta0;
         size_t idx, size;
         Delta *base;
         std::vector<Delta> deltas;
@@ -406,14 +405,10 @@ struct Rasterizer {
         for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++) {
             sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
-            if (x == 0)
-                scanline->delta0 += 255.5f * (sy1 - sy0);
-            else {
-                cover = (sy1 - sy0) * 32767.f;
-                scanline->insertDelta(ix0, cover * area);
-                if (area < 1.f)
-                    scanline->insertDelta(ix1, cover * (1.f - area));
-            }
+            cover = (sy1 - sy0) * 32767.f;
+            scanline->insertDelta(ix0, cover * area);
+            if (area < 1.f)
+                scanline->insertDelta(ix1, cover * (1.f - area));
         }
     }
 
@@ -829,13 +824,9 @@ struct Rasterizer {
                 radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
             } else
                 std::sort(begin, end);
-            
-            cover = scanline->delta0;
-            alpha = fabsf(cover);
-            a = alpha < 255.f ? alpha : 255.f;
-            
-            x = a ? clipped.lx : scanline->deltas[0].x;
-            for (delta = begin; delta < end; delta++) {
+    
+            x = scanline->deltas[0].x;
+            for (cover = 0, delta = begin; delta < end; delta++) {
                 if (delta->x != x) {
                     alpha = fabsf(cover);
                     a = alpha < 255.f ? alpha : 255.f;
