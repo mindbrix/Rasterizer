@@ -515,10 +515,8 @@ struct Rasterizer {
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
-    template<typename T>
-    static inline T lerp(T n0, T n1, T t) {
-        return n0 + t * (n1 - n0);
-    }
+    static inline float lerp(float n0, float n1, float t) { return n0 + t * (n1 - n0); }
+    
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
         float x01, x12, x012, y01, y12, y012, t, tx01, tx12, ty01, ty12, tx012, ty012;
         x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x012 = lerp(x01, x12, t1);
