@@ -230,7 +230,7 @@ struct Rasterizer {
             } else {
                 writeClippedPathToScanlines(path, ctm, context.clipBounds, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines);
-                writeSpansToBitmap(context.spanlines, Bounds(0, 0, 0, 0), clipped, bgra, context.bitmap);
+                writeSpansToBitmap(context.spanlines, clipped, bgra, context.bitmap);
             }
         }
     }
@@ -855,13 +855,13 @@ struct Rasterizer {
         for (; count--; scanline++)
             scanline->empty();
     }
-    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds device, Bounds clipped, uint32_t color, Bitmap bitmap) {
+    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t color, Bitmap bitmap) {
         float y, lx, ux, src0, src1, src2, src3, srcAlpha, alpha;
         uint8_t *components = (uint8_t *) & color, *dst;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         srcAlpha = src3 * 0.003921568627f;
         uint32_t *pixel, *last;
-        Spanline *spanline = & spanlines[clipped.ly - device.ly];
+        Spanline *spanline = & spanlines[clipped.ly];
         Spanline::Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
             for (span = & spanline->spans[0], end = & spanline->spans[spanline->idx]; span < end; span++) {
