@@ -487,7 +487,7 @@ struct Rasterizer {
                             sy0 = y0 + t0 * (y1 - y0), sy1 = y0 + t1 * (y1 - y0);
                             sy0 = sy0 < clipBounds.ly ? clipBounds.ly : sy0 > clipBounds.uy ? clipBounds.uy : sy0;
                             sy1 = sy1 < clipBounds.ly ? clipBounds.ly : sy1 > clipBounds.uy ? clipBounds.uy : sy1;
-                            mx = lerp(x0, x1, (t0 + t1) * 0.5f);
+                            mx = x0 + (t0 + t1) * 0.5f * (x1 - x0);
                             if (mx >= clipBounds.lx && mx < clipBounds.ux) {
                                 sx0 = x0 + t0 * (x1 - x0), sx1 = x0 + t1 * (x1 - x0);
                                 sx0 = sx0 < clipBounds.lx ? clipBounds.lx : sx0 > clipBounds.ux ? clipBounds.ux : sx0;
