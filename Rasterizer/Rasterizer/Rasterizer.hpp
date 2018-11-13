@@ -673,8 +673,7 @@ struct Rasterizer {
         *cubic++ = y0123 < clipBounds.ly ? clipBounds.ly : y0123 > clipBounds.uy ? clipBounds.uy : y0123;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
-        float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, cly, cuy, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
-        float A, B, C, D;
+        float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, cly, cuy, A, B, C, D, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
