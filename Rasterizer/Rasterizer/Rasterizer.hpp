@@ -229,7 +229,7 @@ struct Rasterizer {
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
                 writeClippedPathToScanlines(path, ctm, context.clipBounds, & context.scanlines[0]);
-                writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spanlines);
+                writeScanlinesToSpans(context.scanlines, clipped, context.spanlines);
                 writeSpansToBitmap(context.spanlines, Bounds(0, 0, 0, 0), clipped, bgra, context.bitmap);
             }
         }
@@ -809,13 +809,13 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds device, Bounds clipped, std::vector<Spanline>& spanlines) {
+    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, std::vector<Spanline>& spanlines) {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover, alpha;
         uint8_t a;
         short counts0[256], counts1[256];
         size_t idx;
-        idx = clipped.ly - device.ly;
+        idx = clipped.ly;
         Scanline *scanline = & scanlines[idx];
         Spanline *spanline = & spanlines[idx];
         Scanline::Delta *begin, *end, *delta;
@@ -841,17 +841,17 @@ struct Rasterizer {
                     a = alpha < 255.f ? alpha : 255.f;
                     
                     if (a > 254)
-                        spanline->insertSpan(device.lx + x, delta->x - x);
+                        spanline->insertSpan(x, delta->x - x);
                     else if (a > 0)
                         for (ix = x; ix < delta->x; ix++)
-                            spanline->insertSpan(device.lx + ix, -a);
+                            spanline->insertSpan(ix, -a);
                     x = delta->x;
                 }
                 cover += float(delta->delta) * scale;
             }
         }
-        scanline = device.isZero() ? & scanlines[clipped.ly] : & scanlines[0];
-        size_t count = device.isZero() ? clipped.uy - clipped.ly : device.uy - device.ly;
+        scanline = & scanlines[idx];
+        size_t count = clipped.uy - clipped.ly;
         for (; count--; scanline++)
             scanline->empty();
     }
