@@ -570,18 +570,17 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
-        float tx0, ty0, tx2, ty2, tx1, ty1, t, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12;
+        float x01, x12, x012, y01, y12, y012, t, tx01, tx12, ty01, ty12, tx012, ty012;
         x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x012 = lerp(x01, x12, t1);
         y01 = lerp(y0, y1, t1), y12 = lerp(y1, y2, t1), y012 = lerp(y01, y12, t1);
         t = t0 / t1;
-        tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx0 = lerp(tx01, tx12, t), tx1 = tx12, tx2 = x012;
-        ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty0 = lerp(ty01, ty12, t), ty1 = ty12, ty2 = y012;
-        
-        *q++ = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
-        *q++ = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
-        *q++ = tx1, *q++ = ty1;
-        *q++ = tx2 < clipBounds.lx ? clipBounds.lx : tx2 > clipBounds.ux ? clipBounds.ux : tx2;
-        *q++ = ty2 < clipBounds.ly ? clipBounds.ly : ty2 > clipBounds.uy ? clipBounds.uy : ty2;
+        tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx012 = lerp(tx01, tx12, t);
+        ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty012 = lerp(ty01, ty12, t);
+        *q++ = tx012 < clipBounds.lx ? clipBounds.lx : tx012 > clipBounds.ux ? clipBounds.ux : tx012;
+        *q++ = ty012 < clipBounds.ly ? clipBounds.ly : ty012 > clipBounds.uy ? clipBounds.uy : ty012;
+        *q++ = tx12, *q++ = ty12;
+        *q++ = x012 < clipBounds.lx ? clipBounds.lx : x012 > clipBounds.ux ? clipBounds.ux : x012;
+        *q++ = y012 < clipBounds.ly ? clipBounds.ly : y012 > clipBounds.uy ? clipBounds.uy : y012;
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cly, cuy, A, B, ts[8], q[6], t, s, t0, t1, x, y, vx;
@@ -654,9 +653,8 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, float *cubic) {
-        float t, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
-        float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-        float tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3;
+        float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
+        float t, tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
         x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x23 = lerp(x2, x3, t1);
         x012 = lerp(x01, x12, t1), x123 = lerp(x12, x23, t1);
         x0123 = lerp(x012, x123, t1);
@@ -670,15 +668,12 @@ struct Rasterizer {
         ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty23 = lerp(y012, y0123, t);
         ty012 = lerp(ty01, ty12, t), ty123 = lerp(ty12, ty23, t);
         ty0123 = lerp(ty012, ty123, t);
-        tx0 = tx0123, tx1 = tx123, tx2 = tx23, tx3 = x0123;
-        ty0 = ty0123, ty1 = ty123, ty2 = ty23, ty3 = y0123;
-
-        *cubic++ = tx0 < clipBounds.lx ? clipBounds.lx : tx0 > clipBounds.ux ? clipBounds.ux : tx0;
-        *cubic++ = ty0 < clipBounds.ly ? clipBounds.ly : ty0 > clipBounds.uy ? clipBounds.uy : ty0;
-        *cubic++ = tx1, *cubic++ = ty1,
-        *cubic++ = tx2, *cubic++ = ty2;
-        *cubic++ = tx3 < clipBounds.lx ? clipBounds.lx : tx3 > clipBounds.ux ? clipBounds.ux : tx3;
-        *cubic++ = ty3 < clipBounds.ly ? clipBounds.ly : ty3 > clipBounds.uy ? clipBounds.uy : ty3;
+        *cubic++ = tx0123 < clipBounds.lx ? clipBounds.lx : tx0123 > clipBounds.ux ? clipBounds.ux : tx0123;
+        *cubic++ = ty0123 < clipBounds.ly ? clipBounds.ly : ty0123 > clipBounds.uy ? clipBounds.uy : ty0123;
+        *cubic++ = tx123, *cubic++ = ty123,
+        *cubic++ = tx23, *cubic++ = ty23;
+        *cubic++ = x0123 < clipBounds.lx ? clipBounds.lx : x0123 > clipBounds.ux ? clipBounds.ux : x0123;
+        *cubic++ = y0123 < clipBounds.ly ? clipBounds.ly : y0123 > clipBounds.uy ? clipBounds.uy : y0123;
     }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clipBounds, Scanline *scanlines) {
         float lx, ly, ux, uy, cx, bx, ax, cy, by, ay, s, t, cly, cuy, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
