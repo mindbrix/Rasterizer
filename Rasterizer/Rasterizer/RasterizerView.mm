@@ -130,7 +130,7 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
             Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(_cgscene.bounds[i]);
             Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(_cgscene.ctms[i]);
             Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
-            Rasterizer::Bounds clipped = device.intersected(_contexts[0].clipBounds);
+            Rasterizer::Bounds clipped = device.intersected(_contexts[0].clip);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                 CGContextSaveGState(ctx);
                 CGContextSetFillColorWithColor(ctx, _cgscene.colors[i]);
@@ -155,8 +155,8 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
                 uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                 ctms[count] = ctm;
                 _contexts[count].setBitmap(bitmap);
-                _contexts[count].clipBounds.ly = ly;
-                _contexts[count].clipBounds.uy = uy;
+                _contexts[count].clip.ly = ly;
+                _contexts[count].clip.uy = uy;
                 count++;
             }
             dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
