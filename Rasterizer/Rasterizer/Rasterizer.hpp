@@ -465,7 +465,7 @@ struct Rasterizer {
             && y0 >= clipBounds.ly && y0 < clipBounds.uy && y1 >= clipBounds.ly && y1 < clipBounds.uy) {
             writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
         } else {
-            float sx0, sy0, sx1, sy1, ty0, ty1, tx0, tx1, t0, t1, mx;
+            float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx;
             int i;
             sy0 = y0 < clipBounds.ly ? clipBounds.ly : y0 > clipBounds.uy ? clipBounds.uy : y0;
             sy1 = y1 < clipBounds.ly ? clipBounds.ly : y1 > clipBounds.uy ? clipBounds.uy : y1;
@@ -474,22 +474,21 @@ struct Rasterizer {
                     sx0 = sx1 = x1 < clipBounds.lx ? clipBounds.lx : x1 > clipBounds.ux ? clipBounds.ux : x1;
                     writeVerticalSegmentToScanlines(sx0, sy0, sy1, scanlines);
                 } else {
-                    ty0 = (sy0 - y0) / (y1 - y0);
-                    ty1 = (sy1 - y0) / (y1 - y0);
-                    tx0 = (clipBounds.lx - x0) / (x1 - x0);
-                    tx1 = (clipBounds.ux - x0) / (x1 - x0);
+                    dx = x1 - x0, dy = y1 - y0;
+                    ty0 = (sy0 - y0) / dy, tx0 = (clipBounds.lx - x0) / dx;
+                    ty1 = (sy1 - y0) / dy, tx1 = (clipBounds.ux - x0) / dx;
                     tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
                     tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
                     float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
                     for (i = 0; i < 3; i++) {
                         t0 = ts[i], t1 = ts[i + 1];
                         if (t0 != t1) {
-                            sy0 = y0 + t0 * (y1 - y0), sy1 = y0 + t1 * (y1 - y0);
+                            sy0 = y0 + t0 * dy, sy1 = y0 + t1 * dy;
                             sy0 = sy0 < clipBounds.ly ? clipBounds.ly : sy0 > clipBounds.uy ? clipBounds.uy : sy0;
                             sy1 = sy1 < clipBounds.ly ? clipBounds.ly : sy1 > clipBounds.uy ? clipBounds.uy : sy1;
-                            mx = x0 + (t0 + t1) * 0.5f * (x1 - x0);
+                            mx = x0 + (t0 + t1) * 0.5f * dx;
                             if (mx >= clipBounds.lx && mx < clipBounds.ux) {
-                                sx0 = x0 + t0 * (x1 - x0), sx1 = x0 + t1 * (x1 - x0);
+                                sx0 = x0 + t0 * dx, sx1 = x0 + t1 * dx;
                                 sx0 = sx0 < clipBounds.lx ? clipBounds.lx : sx0 > clipBounds.ux ? clipBounds.ux : sx0;
                                 sx1 = sx1 < clipBounds.lx ? clipBounds.lx : sx1 > clipBounds.ux ? clipBounds.ux : sx1;
                                 writeSegmentToDeltasOrScanlines(sx0, sy0, sx1, sy1, 32767.f, nullptr, 0, scanlines);
