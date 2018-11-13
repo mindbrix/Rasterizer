@@ -512,8 +512,6 @@ struct Rasterizer {
     }
     
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
-        if (y0 == y1)
-            return;
         if (x0 >= clipBounds.lx && x0 < clipBounds.ux && x1 >= clipBounds.lx && x1 < clipBounds.ux
             && y0 >= clipBounds.ly && y0 < clipBounds.uy && y1 >= clipBounds.ly && y1 < clipBounds.uy) {
             writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
