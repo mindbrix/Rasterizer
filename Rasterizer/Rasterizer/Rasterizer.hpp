@@ -458,8 +458,6 @@ struct Rasterizer {
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
             writeClippedSegmentToScanlines(x0, y0, sx, sy, clipBounds, scanlines);
     }
-    static inline float lerp(float n0, float n1, float t) { return n0 + t * (n1 - n0); }
-    
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clipBounds, Scanline *scanlines) {
         if (x0 >= clipBounds.lx && x0 < clipBounds.ux && x1 >= clipBounds.lx && x1 < clipBounds.ux
             && y0 >= clipBounds.ly && y0 < clipBounds.uy && y1 >= clipBounds.ly && y1 < clipBounds.uy) {
@@ -600,19 +598,19 @@ struct Rasterizer {
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clipBounds, float *cubic) {
         float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
         float t, tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-        x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x23 = lerp(x2, x3, t1);
-        x012 = lerp(x01, x12, t1), x123 = lerp(x12, x23, t1);
-        x0123 = lerp(x012, x123, t1);
-        y01 = lerp(y0, y1, t1), y12 = lerp(y1, y2, t1), y23 = lerp(y2, y3, t1);
-        y012 = lerp(y01, y12, t1), y123 = lerp(y12, y23, t1);
-        y0123 = lerp(y012, y123, t1);
+        x01 = x0 + t1 * (x1 - x0), x12 = x1 + t1 * (x2 - x1), x23 = x2 + t1 * (x3 - x2);
+        y01 = y0 + t1 * (y1 - y0), y12 = y1 + t1 * (y2 - y1), y23 = y2 + t1 * (y3 - y2);
+        x012 = x01 + t1 * (x12 - x01), x123 = x12 + t1 * (x23 - x12);
+        y012 = y01 + t1 * (y12 - y01), y123 = y12 + t1 * (y23 - y12);
+        x0123 = x012 + t1 * (x123 - x012);
+        y0123 = y012 + t1 * (y123 - y012);
         t = t0 / t1;
-        tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx23 = lerp(x012, x0123, t);
-        tx012 = lerp(tx01, tx12, t), tx123 = lerp(tx12, tx23, t);
-        tx0123 = lerp(tx012, tx123, t);
-        ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty23 = lerp(y012, y0123, t);
-        ty012 = lerp(ty01, ty12, t), ty123 = lerp(ty12, ty23, t);
-        ty0123 = lerp(ty012, ty123, t);
+        tx01 = x0 + t * (x01 - x0), tx12 = x01 + t * (x012 - x01), tx23 = x012 + t * (x0123 - x012);
+        ty01 = y0 + t * (y01 - y0), ty12 = y01 + t * (y012 - y01), ty23 = y012 + t * (y0123 - y012);
+        tx012 = tx01 + t * (tx12 - tx01), tx123 = tx12 + t * (tx23 - tx12);
+        ty012 = ty01 + t * (ty12 - ty01), ty123 = ty12 + t * (ty23 - ty12);
+        tx0123 = tx012 + t * (tx123 - tx012);
+        ty0123 = ty012 + t * (ty123 - ty012);
         *cubic++ = tx0123 < clipBounds.lx ? clipBounds.lx : tx0123 > clipBounds.ux ? clipBounds.ux : tx0123;
         *cubic++ = ty0123 < clipBounds.ly ? clipBounds.ly : ty0123 > clipBounds.uy ? clipBounds.uy : ty0123;
         *cubic++ = tx123, *cubic++ = ty123,
