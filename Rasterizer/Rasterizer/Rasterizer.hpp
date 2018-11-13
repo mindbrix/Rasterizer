@@ -571,9 +571,8 @@ struct Rasterizer {
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clipBounds, float *q) {
         float tx0, ty0, tx2, ty2, tx1, ty1, t, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12;
-        t = t1;
-        x01 = lerp(x0, x1, t), x12 = lerp(x1, x2, t), x012 = lerp(x01, x12, t);
-        y01 = lerp(y0, y1, t), y12 = lerp(y1, y2, t), y012 = lerp(y01, y12, t);
+        x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x012 = lerp(x01, x12, t1);
+        y01 = lerp(y0, y1, t1), y12 = lerp(y1, y2, t1), y012 = lerp(y01, y12, t1);
         t = t0 / t1;
         tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx0 = lerp(tx01, tx12, t), tx1 = tx12, tx2 = x012;
         ty01 = lerp(y0, y01, t), ty12 = lerp(y01, y012, t), ty0 = lerp(ty01, ty12, t), ty1 = ty12, ty2 = y012;
@@ -659,13 +658,12 @@ struct Rasterizer {
         float t, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
         float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
         float tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3;
-        t = t1;
-        x01 = lerp(x0, x1, t), x12 = lerp(x1, x2, t), x23 = lerp(x2, x3, t);
-        x012 = lerp(x01, x12, t), x123 = lerp(x12, x23, t);
-        x0123 = lerp(x012, x123, t);
-        y01 = lerp(y0, y1, t), y12 = lerp(y1, y2, t), y23 = lerp(y2, y3, t);
-        y012 = lerp(y01, y12, t), y123 = lerp(y12, y23, t);
-        y0123 = lerp(y012, y123, t);
+        x01 = lerp(x0, x1, t1), x12 = lerp(x1, x2, t1), x23 = lerp(x2, x3, t1);
+        x012 = lerp(x01, x12, t1), x123 = lerp(x12, x23, t1);
+        x0123 = lerp(x012, x123, t1);
+        y01 = lerp(y0, y1, t1), y12 = lerp(y1, y2, t1), y23 = lerp(y2, y3, t1);
+        y012 = lerp(y01, y12, t1), y123 = lerp(y12, y23, t1);
+        y0123 = lerp(y012, y123, t1);
         t = t0 / t1;
         tx01 = lerp(x0, x01, t), tx12 = lerp(x01, x012, t), tx23 = lerp(x012, x0123, t);
         tx012 = lerp(tx01, tx12, t), tx123 = lerp(tx12, tx23, t);
