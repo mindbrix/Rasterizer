@@ -208,14 +208,15 @@ struct Rasterizer {
     };
     
     static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
+        if (path.bounds.lx == FLT_MAX)
+            return;
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.clipBounds);
-        float w, h, cw, ch, elx, ely, eux, euy, sx, sy;
+        float w, h, elx, ely, eux, euy, sx, sy;
         if (!clipped.isZero()) {
             w = device.ux - device.lx, h = device.uy - device.ly;
-            cw = context.clipBounds.ux - context.clipBounds.lx, ch = context.clipBounds.uy - context.clipBounds.ly;
-            if (w < cw && h < ch) {
+            if (w * h < kDeltasDimension * kDeltasDimension) {
                 elx = dev.lx - device.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
                 eux = device.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
                 ely = dev.ly - device.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
@@ -223,15 +224,9 @@ struct Rasterizer {
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
                 AffineTransform bias(sx, 0, 0, sy, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
-                if (w * h < kDeltasDimension * kDeltasDimension) {
-                    writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, w, nullptr, context.clipBounds);
-                    writeDeltasToMask(context.deltas, device, context.mask);
-                    writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
-                } else {
-                    writePathToDeltasOrScanlines(path, deltasCTM, nullptr, 0, & context.scanlines[0], context.clipBounds);
-                    writeScanlinesToSpans(context.scanlines, device, clipped, context.spanlines);
-                    writeSpansToBitmap(context.spanlines, device, clipped, bgra, context.bitmap);
-                }
+                writePathToDeltasOrScanlines(path, deltasCTM, context.deltas, w, nullptr, context.clipBounds);
+                writeDeltasToMask(context.deltas, device, context.mask);
+                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
                 writeClippedPathToScanlines(path, ctm, context.clipBounds, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, Bounds(0, 0, 0, 0), clipped, context.spanlines);
