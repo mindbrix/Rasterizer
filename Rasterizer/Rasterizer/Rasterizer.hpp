@@ -138,9 +138,7 @@ struct Rasterizer {
     struct Bitmap {
         Bitmap() {}
         Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
-        
         inline uint32_t *pixelAddress(short x, short y) { return (uint32_t *)(data + rowBytes * (height - 1 - y) + x * bytespp); }
-        
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
     };
