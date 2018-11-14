@@ -190,10 +190,11 @@ struct Rasterizer {
                 scanlines.resize(bitmap.height);
             if (spanlines.size() != bitmap.height)
                 spanlines.resize(bitmap.height);
-            clip = Bounds(0, 0, bitmap.width, bitmap.height);
+            device = Bounds(0, 0, bitmap.width, bitmap.height);
+            clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
         Bitmap bitmap;
-        Bounds clip;
+        Bounds clip, device;
         float deltas[kDeltasDimension * kDeltasDimension];
         uint8_t mask[kDeltasDimension * kDeltasDimension];
         std::vector<Scanline> scanlines;
@@ -211,7 +212,7 @@ struct Rasterizer {
             return;
         Bounds dev = bounds.transform(ctm);
         Bounds device = dev.integral();
-        Bounds clipped = device.intersected(context.clip);
+        Bounds clipped = device.intersected(context.device.intersected(context.clip));
         float w, h, elx, ely, eux, euy, sx, sy;
         if (!clipped.isZero()) {
             w = device.ux - device.lx, h = device.uy - device.ly;
@@ -227,7 +228,7 @@ struct Rasterizer {
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
-                writeClippedPathToScanlines(path, ctm, context.clip, & context.scanlines[0]);
+                writeClippedPathToScanlines(path, ctm, clipped, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines);
                 writeSpansToBitmap(context.spanlines, clipped, bgra, context.bitmap);
             }

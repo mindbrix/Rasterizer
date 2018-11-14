@@ -155,8 +155,9 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
                 uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                 ctms[count] = ctm;
                 _contexts[count].setBitmap(bitmap);
-                _contexts[count].clip.ly = ly;
-                _contexts[count].clip.uy = uy;
+                _contexts[count].device.ly = ly;
+                _contexts[count].device.uy = uy;
+//                _contexts[count].clip = Rasterizer::Bounds(100, 100, 800, 800);
                 count++;
             }
             dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
