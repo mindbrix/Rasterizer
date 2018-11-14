@@ -200,10 +200,10 @@ struct Rasterizer {
         std::vector<Path> paths;
     };
     
-    static void writePathToBitmap(Path& path, Bounds bounds, AffineTransform ctm, uint32_t bgra, Context& context) {
+    static void writePathToBitmap(Path& path, AffineTransform ctm, uint32_t bgra, Context& context) {
         if (path.bounds.lx == FLT_MAX)
             return;
-        Bounds dev = bounds.transform(ctm);
+        Bounds dev = path.bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.device.intersected(context.clip));
         float w, h, elx, ely, eux, euy, sx, sy;

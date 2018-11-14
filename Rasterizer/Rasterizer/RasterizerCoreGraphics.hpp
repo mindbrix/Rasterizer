@@ -276,11 +276,11 @@ struct RasterizerCoreGraphics {
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     for (size_t i = 0; i < testScene.scene.paths.size(); i++)
-                        Rasterizer::writePathToBitmap(testScene.scene.paths[i], testScene.scene.paths[i].bounds, ctms[idx].concat(testScene.scene.ctms[i]), bgras[i], testScene.contexts[idx]);
+                        Rasterizer::writePathToBitmap(testScene.scene.paths[i], ctms[idx].concat(testScene.scene.ctms[i]), bgras[i], testScene.contexts[idx]);
                 });
             } else {
                 for (size_t i = 0; i < testScene.scene.paths.size(); i++)
-                    Rasterizer::writePathToBitmap(testScene.scene.paths[i], testScene.scene.paths[i].bounds, ctm.concat(testScene.scene.ctms[i]), bgras[i], testScene.contexts[0]);
+                    Rasterizer::writePathToBitmap(testScene.scene.paths[i], ctm.concat(testScene.scene.ctms[i]), bgras[i], testScene.contexts[0]);
                 
             }
         }
