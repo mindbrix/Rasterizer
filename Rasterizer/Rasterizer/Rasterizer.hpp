@@ -802,10 +802,8 @@ struct Rasterizer {
         float x, y, ix, cover, alpha;
         uint8_t a;
         short counts0[256], counts1[256];
-        size_t idx;
-        idx = clipped.ly;
-        Scanline *scanline = & scanlines[idx];
-        Spanline *spanline = & spanlines[idx];
+        Scanline *scanline = & scanlines[clipped.ly];
+        Spanline *spanline = & spanlines[clipped.ly];
         Scanline::Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++) {
             if (scanline->idx == 0)
