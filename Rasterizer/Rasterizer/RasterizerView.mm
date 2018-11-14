@@ -150,7 +150,7 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
         if (_rasterizerType == kRasterizerMT) {
             auto ctms = (Rasterizer::AffineTransform *)alloca(_contexts.size() * sizeof(Rasterizer::AffineTransform));
             size_t slice, ly, uy, count;
-            slice = bitmap.height / _contexts.size(), slice = slice < 64 ? 64 : slice;
+            slice = (bitmap.height + _contexts.size() - 1) / _contexts.size(), slice = slice < 64 ? 64 : slice;
             for (count = ly = 0; ly < bitmap.height; ly = uy) {
                 uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                 ctms[count] = ctm;
