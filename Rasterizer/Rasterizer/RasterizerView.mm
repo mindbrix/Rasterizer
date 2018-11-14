@@ -14,12 +14,7 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 
 @interface RasterizerView () <CALayerDelegate>
 
-@property(nonatomic) std::vector<Rasterizer::Context> contexts;
-@property(nonatomic) int rasterizerType;
-@property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
-@property(nonatomic) Rasterizer::Scene scene;
-@property(nonatomic) RasterizerCoreGraphics::CGScene cgscene;
-@property(nonatomic) RasterizerCoreGraphics::BGRAColorConverter converter;
+@property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
 @property(nonatomic) CGFloat dimension;
 @property(nonatomic) CGFloat phi;
 
@@ -45,16 +40,11 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    _contexts.resize(4);
+    _testScene.contexts.resize(4);
     self.dimension = 24;
     self.phi = (sqrt(5) - 1) / 2;
     [self writeGlyphGrid:@"AppleSymbols"];
     return self;
-}
-
-- (void)dealloc {
-    for (CGPathRef path : _glyphCGPaths)
-        CFRelease(path);
 }
 
 - (void)drawRect:(NSRect)dirtyRect {}
@@ -76,14 +66,11 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = _rasterizerType == kRasterizerMT ? @"Rasterizer (mt)" : _rasterizerType == kRasterizer ?  @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _testScene.rasterizerType == kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
-    _scene.empty();
-    _cgscene.empty();
-    RasterizerCoreGraphics::writeGlyphGridToCGScene(fontName, _dimension, _phi, _cgscene);
-    RasterizerCoreGraphics::writeCGSceneToScene(_cgscene, _scene);
+    RasterizerCoreGraphics::writeGlyphGrid(fontName, _testScene);
 }
 
 #pragma mark - NSResponder
@@ -106,8 +93,8 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 }
 
 - (IBAction)toggleRasterizer:(id)sender {
-    _rasterizerType = (++_rasterizerType) % kRasterizerCount;
-    if (_rasterizerType != kCoreGraphics)
+    _testScene.rasterizerType = (++_testScene.rasterizerType) % kRasterizerCount;
+    if (_testScene.rasterizerType != kCoreGraphics)
         [self toggleTimer];
     [self updateRasterizerLabel];
     [self redraw];
@@ -117,70 +104,21 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    size_t square = ceilf(sqrtf(float(_scene.paths.size())));
+    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     CGContextConcatCTM(ctx, self.CTM);
     CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * _dimension * _phi);
     CGContextConcatCTM(ctx, CGAffineTransformMake(scale, 0, 0, scale, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    _contexts[0].setBitmap(bitmap);
-    if (_rasterizerType == kCoreGraphics) {
-        for (size_t i = 0; i < _cgscene.paths.size(); i++) {
-            Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(_cgscene.bounds[i]);
-            Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(_cgscene.ctms[i]);
-            Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
-            Rasterizer::Bounds clipped = device.intersected(_contexts[0].clip);
-            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-                CGContextSaveGState(ctx);
-                CGContextSetFillColorWithColor(ctx, _cgscene.colors[i]);
-                CGContextConcatCTM(ctx, _cgscene.ctms[i]);
-                CGContextAddPath(ctx, _cgscene.paths[i]);
-                CGContextFillPath(ctx);
-                CGContextRestoreGState(ctx);
-            }
-        }
-    } else {
-        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-        uint32_t *bgras = (uint32_t *)alloca(_scene.paths.size() * sizeof(uint32_t));
-        _converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
-        _converter.convert(& _scene.bgras[0], _scene.paths.size(), bgras);
-        CGColorSpaceRelease(srcSpace);
-        
-        if (_rasterizerType == kRasterizerMT) {
-            auto ctms = (Rasterizer::AffineTransform *)alloca(_contexts.size() * sizeof(Rasterizer::AffineTransform));
-            size_t slice, ly, uy, count;
-            slice = (bitmap.height + _contexts.size() - 1) / _contexts.size(), slice = slice < 64 ? 64 : slice;
-            for (count = ly = 0; ly < bitmap.height; ly = uy) {
-                uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
-                ctms[count] = ctm;
-                _contexts[count].setBitmap(bitmap);
-                _contexts[count].device.ly = ly;
-                _contexts[count].device.uy = uy;
-//                _contexts[count].clip = Rasterizer::Bounds(100, 100, 800, 800);
-                count++;
-            }
-            dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                for (size_t i = 0; i < self->_scene.paths.size(); i++)
-                    Rasterizer::writePathToBitmap(self->_scene.paths[i], self->_scene.paths[i].bounds, ctms[idx].concat(self->_scene.ctms[i]), bgras[i], self->_contexts[idx]);
-            });
-        } else {
-            for (size_t i = 0; i < _scene.paths.size(); i++)
-                Rasterizer::writePathToBitmap(_scene.paths[i], _scene.paths[i].bounds, ctm.concat(_scene.ctms[i]), bgras[i], _contexts[0]);
-
-        }
-    }
+    RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, ctx, bitmap);
 }
 
 - (void)setSvgData:(NSData *)svgData {
     _svgData = svgData;
     
-    if (_svgData) {
-        _scene.empty();
-        _cgscene.empty();
-        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _scene);
-        RasterizerCoreGraphics::writeSceneToCGScene(_scene, _cgscene);
-    }
+    if (_svgData)
+        RasterizerSVG::writeTestScene(_svgData.bytes, _svgData.length, _testScene);
     [self redraw];
 }
 @end

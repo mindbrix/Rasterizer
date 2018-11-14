@@ -216,4 +216,73 @@ struct RasterizerCoreGraphics {
             CGPathRelease(path);
         }
     }
+    
+    struct CGTestScene {
+        enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
+        
+        CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) {}
+        
+        std::vector<Rasterizer::Context> contexts;
+        int rasterizerType;
+        Rasterizer::Scene scene;
+        RasterizerCoreGraphics::CGScene cgscene;
+        RasterizerCoreGraphics::BGRAColorConverter converter;
+        CGFloat dimension;
+        CGFloat phi;
+    };
+    
+    static void writeGlyphGrid(NSString *fontName, CGTestScene& testScene) {
+        testScene.scene.empty();
+        testScene.cgscene.empty();
+        writeGlyphGridToCGScene(fontName, testScene.dimension, testScene.phi, testScene.cgscene);
+        writeCGSceneToScene(testScene.cgscene, testScene.scene);
+    }
+    
+    static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, Rasterizer::AffineTransform ctm, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
+        testScene.contexts[0].setBitmap(bitmap);
+        if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
+            for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
+                Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
+                Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(testScene.cgscene.ctms[i]);
+                Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
+                Rasterizer::Bounds clipped = device.intersected(testScene.contexts[0].clip);
+                if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+                    CGContextSaveGState(ctx);
+                    CGContextSetFillColorWithColor(ctx, testScene.cgscene.colors[i]);
+                    CGContextConcatCTM(ctx, testScene.cgscene.ctms[i]);
+                    CGContextAddPath(ctx, testScene.cgscene.paths[i]);
+                    CGContextFillPath(ctx);
+                    CGContextRestoreGState(ctx);
+                }
+            }
+        } else {
+            CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            uint32_t *bgras = (uint32_t *)alloca(testScene.scene.paths.size() * sizeof(uint32_t));
+            testScene.converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
+            testScene.converter.convert(& testScene.scene.bgras[0], testScene.scene.paths.size(), bgras);
+            CGColorSpaceRelease(srcSpace);
+            
+            if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
+                auto ctms = (Rasterizer::AffineTransform *)alloca(testScene.contexts.size() * sizeof(Rasterizer::AffineTransform));
+                size_t slice, ly, uy, count;
+                slice = (bitmap.height + testScene.contexts.size() - 1) / testScene.contexts.size(), slice = slice < 64 ? 64 : slice;
+                for (count = ly = 0; ly < bitmap.height; ly = uy) {
+                    uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
+                    ctms[count] = ctm;
+                    testScene.contexts[count].setBitmap(bitmap);
+                    testScene.contexts[count].device.ly = ly;
+                    testScene.contexts[count].device.uy = uy;
+                    count++;
+                }
+                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+                    for (size_t i = 0; i < testScene.scene.paths.size(); i++)
+                        Rasterizer::writePathToBitmap(testScene.scene.paths[i], testScene.scene.paths[i].bounds, ctms[idx].concat(testScene.scene.ctms[i]), bgras[i], testScene.contexts[idx]);
+                });
+            } else {
+                for (size_t i = 0; i < testScene.scene.paths.size(); i++)
+                    Rasterizer::writePathToBitmap(testScene.scene.paths[i], testScene.scene.paths[i].bounds, ctm.concat(testScene.scene.ctms[i]), bgras[i], testScene.contexts[0]);
+                
+            }
+        }
+    }
 };
