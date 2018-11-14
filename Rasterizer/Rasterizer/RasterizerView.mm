@@ -17,8 +17,6 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 @property(nonatomic) std::vector<Rasterizer::Context> contexts;
 @property(nonatomic) int rasterizerType;
 @property(nonatomic) std::vector<CGPathRef> glyphCGPaths;
-@property(nonatomic) std::vector<Rasterizer::Path> glyphPaths;
-@property(nonatomic) std::vector<Rasterizer::Bounds> glyphBounds;
 @property(nonatomic) Rasterizer::Scene scene;
 @property(nonatomic) RasterizerCoreGraphics::CGScene cgscene;
 @property(nonatomic) RasterizerCoreGraphics::BGRAColorConverter converter;
