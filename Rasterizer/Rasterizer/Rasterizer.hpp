@@ -677,12 +677,10 @@ struct Rasterizer {
             x = _mm_loadu_ps(deltas);
             *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
             x = _mm_add_ps(x, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(x), 4)));
-            x = _mm_add_ps(x, _mm_shuffle_ps(_mm_setzero_ps(), x, 0x40));
+            x = _mm_add_ps(x, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(x), 8)));
             x = _mm_add_ps(x, offset);
-            y = _mm_andnot_ps(sign_mask, x);
-            y = _mm_min_ps(y, _mm_set1_ps(255.0));
-            z = _mm_cvttps_epi32(y);
-            z = _mm_shuffle_epi8(z, shuffle_mask);
+            y = _mm_min_ps(_mm_andnot_ps(sign_mask, x), _mm_set1_ps(255.0));
+            z = _mm_shuffle_epi8(_mm_cvttps_epi32(y), shuffle_mask);
             _mm_store_ss((float *)mask, _mm_castsi128_ps(z));
             offset = _mm_shuffle_ps(x, x, 0xFF);
             w -= 4, mask += 4;
