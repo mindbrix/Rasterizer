@@ -96,7 +96,6 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 
 - (BOOL)becomeFirstResponder {
     [self updateRasterizerLabel];
-    [self toggleTimer];
     [self redraw];
     return YES;
 }
@@ -110,6 +109,8 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 
 - (IBAction)toggleRasterizer:(id)sender {
     _rasterizerType = (++_rasterizerType) % kRasterizerCount;
+    if (_rasterizerType != kCoreGraphics)
+        [self toggleTimer];
     [self updateRasterizerLabel];
     [self redraw];
 }
