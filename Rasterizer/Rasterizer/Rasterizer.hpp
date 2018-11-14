@@ -144,43 +144,33 @@ struct Rasterizer {
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
     };
-    struct Scanline {
-        struct Delta {
-            Delta() {}
-            inline Delta(float x, float delta) : x(x), delta(delta) {}
-            inline bool operator< (const Delta& other) const { return x < other.x; }
-            short x, delta;
-        };
-        Scanline() : size(0) { empty(); }
-        
+    struct Delta {
+        Delta() {}
+        inline Delta(float x, float delta) : x(x), delta(delta) {}
+        inline bool operator< (const Delta& other) const { return x < other.x; }
+        short x, delta;
+    };
+    struct Span {
+        Span() {}
+        inline Span(float x, float w) : x(x), w(w) {}
+        short x, w;
+    };
+    template<typename T>
+    struct Line {
+        Line() : idx(0), size(0) {}
         void empty() { idx = 0; }
-        inline void insertDelta(float x, float delta) {
+        T *alloc() {
             if (idx >= size)
-                deltas.resize(deltas.size() == 0 ? 8 : deltas.size() * 1.5), size = deltas.size(), base = & deltas[0];
-            new (base + idx++) Delta(x, delta);
+                elems.resize(elems.size() == 0 ? 8 : elems.size() * 1.5), size = elems.size(), base = & elems[0];
+            return base + idx++;
         }
         size_t idx, size;
-        Delta *base;
-        std::vector<Delta> deltas;
+        T *base;
+        std::vector<T> elems;
     };
-    struct Spanline {
-        struct Span {
-            Span() {}
-            inline Span(float x, float w) : x(x), w(w) {}
-            short x, w;
-        };
-        Spanline() : size(0) { empty(); }
-        
-        void empty() { idx = 0; }
-        inline void insertSpan(float x, float w) {
-            if (idx >= size)
-                spans.resize(spans.size() == 0 ? 8 : spans.size() * 1.5), size = spans.size(), base = & spans[0];
-            new (base + idx++) Span(x, w);
-        }
-        size_t idx, size;
-        Span *base;
-        std::vector<Span> spans;
-    };
+    typedef Line<Delta> Scanline;
+    typedef Line<Span> Spanline;
+
     struct Context {
         Context() { memset(deltas, 0, sizeof(deltas)); }
         
@@ -312,8 +302,8 @@ struct Rasterizer {
                 cover = (sy1 - sy0) * deltaScale;
                 area = (ix1 - (ux + lx) * 0.5f);
                 if (scanlines) {
-                    scanline->insertDelta(ix0, cover * area);
-                    scanline->insertDelta(ix1, cover * (1.f - area));
+                    new (scanline->alloc()) Delta(ix0, cover * area);
+                    new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
                 } else {
                     delta = deltasRow + size_t(ix0);
                     *delta++ += cover * area;
@@ -331,13 +321,13 @@ struct Rasterizer {
                     cover = (cy1 - cy0) * deltaScale;
                     area = (ix1 - (cx0 + cx1) * 0.5f);
                     if (scanlines)
-                        scanline->insertDelta(ix0, cover * area + last);
+                        new (scanline->alloc()) Delta(ix0, cover * area + last);
                     else
                         *delta += cover * area + last;
                     last = cover * (1.f - area);
                 }
                 if (scanlines)
-                    scanline->insertDelta(ix0, last);
+                    new (scanline->alloc()) Delta(ix0, last);
                 else {
                     if (ix0 < stride)
                         *delta += last;
@@ -412,9 +402,11 @@ struct Rasterizer {
             sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
             cover = (sy1 - sy0) * 32767.f;
-            scanline->insertDelta(ix0, cover * area);
+            new (scanline->alloc()) Delta(ix0, cover * area);
+//            scanline->insertDelta(ix0, cover * area);
             if (area < 1.f)
-                scanline->insertDelta(ix1, cover * (1.f - area));
+                new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
+//                scanline->insertDelta(ix1, cover * (1.f - area));
         }
     }
 
@@ -809,12 +801,12 @@ struct Rasterizer {
         short counts0[256], counts1[256];
         Scanline *scanline = & scanlines[clipped.ly];
         Spanline *spanline = & spanlines[clipped.ly];
-        Scanline::Delta *begin, *end, *delta;
+        Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++) {
             if (scanline->idx == 0)
                 continue;
             
-            begin = & scanline->deltas[0], end = begin + scanline->idx;
+            begin = & scanline->elems[0], end = begin + scanline->idx;
             if (scanline->idx > 32) {
                 uint32_t mem0[scanline->idx];
                 radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
@@ -827,10 +819,10 @@ struct Rasterizer {
                     a = alpha < 255.f ? alpha : 255.f;
                     
                     if (a > 254)
-                        spanline->insertSpan(x, delta->x - x);
+                        new (spanline->alloc()) Span(x, delta->x - x);
                     else if (a > 0)
                         for (ix = x; ix < delta->x; ix++)
-                            spanline->insertSpan(ix, -a);
+                            new (spanline->alloc()) Span(ix, -a);
                     x = delta->x;
                 }
                 cover += float(delta->delta) * scale;
@@ -845,9 +837,9 @@ struct Rasterizer {
         srcAlpha = src3 * 0.003921568627f;
         uint32_t *pixel, *last;
         Spanline *spanline = & spanlines[clipped.ly];
-        Spanline::Span *span, *end;
+        Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
-            for (span = & spanline->spans[0], end = & spanline->spans[spanline->idx]; span < end; span++) {
+            for (span = & spanline->elems[0], end = & spanline->elems[spanline->idx]; span < end; span++) {
                 lx = span->x, ux = lx + (span->w > 0 ? span->w : 1);
                 lx = lx < clipped.lx ? clipped.lx : lx > clipped.ux ? clipped.ux : lx;
                 ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
