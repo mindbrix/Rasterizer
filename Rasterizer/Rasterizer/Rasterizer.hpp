@@ -159,7 +159,7 @@ struct Rasterizer {
     struct Line {
         Line() : idx(0), size(0) {}
         void empty() { idx = 0; }
-        T *alloc() {
+        inline T *alloc() {
             if (idx >= size)
                 elems.resize(elems.size() == 0 ? 8 : elems.size() * 1.5), size = elems.size(), base = & elems[0];
             return base + idx++;
@@ -403,10 +403,8 @@ struct Rasterizer {
             sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
             cover = (sy1 - sy0) * 32767.f;
             new (scanline->alloc()) Delta(ix0, cover * area);
-//            scanline->insertDelta(ix0, cover * area);
             if (area < 1.f)
                 new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
-//                scanline->insertDelta(ix1, cover * (1.f - area));
         }
     }
 
