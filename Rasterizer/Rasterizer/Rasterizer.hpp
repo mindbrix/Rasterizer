@@ -184,17 +184,17 @@ struct Rasterizer {
     struct Context {
         Context() { memset(deltas, 0, sizeof(deltas)); }
         
-        void setBitmap(Bitmap bitmap) {
-            this->bitmap = bitmap;
-            if (cliplines.size() != bitmap.height)
-                cliplines.resize(bitmap.height);
+        void setBitmap(Bitmap bm) {
+            bitmap = bm;
+            if (cliplines.size() != bm.height)
+                cliplines.resize(bm.height);
             for (Scanline& clipline : cliplines)
                 clipline.empty();
-            if (scanlines.size() != bitmap.height)
-                scanlines.resize(bitmap.height);
-            if (spanlines.size() != bitmap.height)
-                spanlines.resize(bitmap.height);
-            device = Bounds(0, 0, bitmap.width, bitmap.height);
+            if (scanlines.size() != bm.height)
+                scanlines.resize(bm.height);
+            if (spanlines.size() != bm.height)
+                spanlines.resize(bm.height);
+            device = Bounds(0, 0, bm.width, bm.height);
             clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
         Bitmap bitmap;
