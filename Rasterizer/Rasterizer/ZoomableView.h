@@ -12,5 +12,6 @@
 @interface ZoomableView : NSView
 
 @property(nonatomic) CGAffineTransform CTM;
+- (void)toggleTimer;
 
 @end
