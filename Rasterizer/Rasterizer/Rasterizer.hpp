@@ -217,18 +217,18 @@ struct Rasterizer {
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
                 AffineTransform bias(sx, 0, 0, sy, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
-                writePath(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
+                writePathToDeltasOrScanlines(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, context.mask);
                 writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
             } else {
-                writePath(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
+                writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines, true);
                 writeSpansToBitmap(context.spanlines, clipped, bgra, context.bitmap);
             }
         }
     }
     
-    static void writePath(Path& path, AffineTransform ctm, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
         bool fs, f0, f1, f2, f3;
         size_t index;
