@@ -233,8 +233,7 @@ struct Rasterizer {
         bool fs, f0, f1, f2, f3;
         size_t index;
         uint8_t type;
-        x0 = y0 = sx = sy = FLT_MAX;
-        f0 = fs = false;
+        x0 = y0 = sx = sy = FLT_MAX, f0 = fs = false;
         for (Path::Atom& atom : path.atoms)
             for (index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
