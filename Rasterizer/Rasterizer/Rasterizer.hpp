@@ -599,17 +599,17 @@ struct Rasterizer {
                             x0123 = x012 * s + x123 * t;
                             y0123 = y012 * s + y123 * t;
                             t = t0 / t1, s = 1.f - t;
-                            tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
                             ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty23 = y012 * s + y0123 * t;
-                            tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
                             ty012 = ty01 * s + ty12 * t, ty123 = ty12 * s + ty23 * t;
-                            tx0123 = tx012 * s + tx123 * t;
                             ty0123 = ty012 * s + ty123 * t;
-                            tx0123 = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
                             ty0123 = ty0123 < clip.ly ? clip.ly : ty0123 > clip.uy ? clip.uy : ty0123;
-                            x0123 = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
                             y0123 = y0123 < clip.ly ? clip.ly : y0123 > clip.uy ? clip.uy : y0123;
                             if (visible) {
+                                tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
+                                tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
+                                tx0123 = tx012 * s + tx123 * t;
+                                tx0123 = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
+                                x0123 = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
                                 if (fabsf(t1 - t0) < 1e-2) {
                                     writeSegmentToDeltasOrScanlines(tx0123, ty0123, x, y, deltaScale, deltas, stride, scanlines);
                                     writeSegmentToDeltasOrScanlines(x, y, x0123, y0123, deltaScale, deltas, stride, scanlines);
