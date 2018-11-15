@@ -687,15 +687,15 @@ struct Rasterizer {
         }
     }
     static void writeDeltasToMask(float *deltas, Bounds device, uint8_t *mask) {
-        size_t w = device.ux - device.lx, h = device.uy - device.ly;
-        for (size_t y = 0; y < h; y++, deltas += w, mask += w)
-            writeMaskRow(deltas, w, mask);
+        size_t stride = device.ux - device.lx, h = device.uy - device.ly;
+        for (size_t y = 0; y < h; y++, deltas += stride, mask += stride)
+            writeMaskRow(deltas, stride, mask);
     }
     static void writeMaskToBitmap(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        size_t maskRowBytes = device.ux - device.lx;
-        size_t offset = maskRowBytes * (clipped.ly - device.ly) + (clipped.lx - device.lx);
+        size_t stride = device.ux - device.lx;
+        size_t offset = stride * (clipped.ly - device.ly) + (clipped.lx - device.lx);
         size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        writeMaskToBitmap(mask + offset, maskRowBytes, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
+        writeMaskToBitmap(mask + offset, stride, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
         uint32_t *pixel;
