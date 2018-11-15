@@ -418,8 +418,8 @@ struct Rasterizer {
         sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
             if (x0 == x1) {
-                sx0 = sx1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
-                writeSegment(sx0, sy0, sx0, sy1, deltaScale, deltas, stride, scanlines);
+                vx = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
+                writeSegment(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
             } else {
                 dx = x1 - x0, dy = y1 - y0;
                 ty0 = (sy0 - y0) / dy, tx0 = (clip.lx - x0) / dx;
