@@ -430,7 +430,7 @@ struct Rasterizer {
             if (area < 1.f) {
                 if (scanlines)
                     new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
-                else
+                else if (ix0 < stride)
                     deltas[int(ix0)] += cover * (1.f - area);
             }
         }
