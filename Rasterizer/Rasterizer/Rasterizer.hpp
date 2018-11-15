@@ -232,11 +232,9 @@ struct Rasterizer {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p, scale;
         size_t index;
         uint8_t type;
-        x0 = y0 = sx = sy = FLT_MAX;
-        scale = 255.5f;
-        for (Path::Atom& atom : path.atoms) {
-            index = 0;
-            for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
+        x0 = y0 = sx = sy = FLT_MAX, scale = 255.5f;
+        for (Path::Atom& atom : path.atoms)
+            for (index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
                 switch (type) {
                     case Path::Atom::kMove:
@@ -271,7 +269,6 @@ struct Rasterizer {
                         break;
                 }
             }
-        }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
             writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, nullptr);
     }
@@ -411,9 +408,8 @@ struct Rasterizer {
         size_t index;
         uint8_t type;
         x0 = y0 = sx = sy = FLT_MAX;
-        for (Path::Atom& atom : path.atoms) {
-            index = 0;
-            for (type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
+        for (Path::Atom& atom : path.atoms)
+            for (index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
                 switch (type) {
                     case Path::Atom::kMove:
@@ -448,7 +444,6 @@ struct Rasterizer {
                         break;
                 }
             }
-        }
         if (sx != FLT_MAX && (sx != x0 || sy != y0))
             writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, scanlines);
     }
