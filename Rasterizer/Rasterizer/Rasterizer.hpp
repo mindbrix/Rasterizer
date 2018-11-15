@@ -500,11 +500,7 @@ struct Rasterizer {
                             tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
                             tx012 = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
                             x012 = x012 < clip.lx ? clip.lx : x012 > clip.ux ? clip.ux : x012;
-                            if (fabsf(t1 - t0) < 1e-2) {
-                                writeSegment(tx012, ty012, x, y, deltaScale, deltas, stride, scanlines);
-                                writeSegment(x, y, x012, y012, deltaScale, deltas, stride, scanlines);
-                            } else
-                                writeQuadratic(tx012, ty012, tx12, ty12, x012, y012, deltaScale, deltas, stride, scanlines);
+                            writeQuadratic(tx012, ty012, tx12, ty12, x012, y012, deltaScale, deltas, stride, scanlines);
                         } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             writeVerticalSegment(vx, ty012, y012, deltaScale, deltas, stride, scanlines);
@@ -590,11 +586,7 @@ struct Rasterizer {
                                 tx0123 = tx012 * s + tx123 * t;
                                 tx0123 = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
                                 x0123 = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
-                                if (fabsf(t1 - t0) < 1e-2) {
-                                    writeSegment(tx0123, ty0123, x, y, deltaScale, deltas, stride, scanlines);
-                                    writeSegment(x, y, x0123, y0123, deltaScale, deltas, stride, scanlines);
-                                } else
-                                    writeCubic(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
+                                writeCubic(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
                             } else {
                                 vx = x <= clip.lx ? clip.lx : clip.ux;
                                 writeVerticalSegment(vx, ty0123, y0123, deltaScale, deltas, stride, scanlines);
