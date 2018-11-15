@@ -558,32 +558,10 @@ struct Rasterizer {
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
     }
-    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clip, float *cubic) {
-        float t, s, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
-        float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-        t = t1, s = 1.f - t;
-        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
-        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y23 = y2 * s + y3 * t;
-        x012 = x01 * s + x12 * t, x123 = x12 * s + x23 * t;
-        y012 = y01 * s + y12 * t, y123 = y12 * s + y23 * t;
-        x0123 = x012 * s + x123 * t;
-        y0123 = y012 * s + y123 * t;
-        t = t0 / t1, s = 1.f - t;
-        tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
-        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty23 = y012 * s + y0123 * t;
-        tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
-        ty012 = ty01 * s + ty12 * t, ty123 = ty12 * s + ty23 * t;
-        tx0123 = tx012 * s + tx123 * t;
-        ty0123 = ty012 * s + ty123 * t;
-        *cubic++ = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
-        *cubic++ = ty0123 < clip.ly ? clip.ly : ty0123 > clip.uy ? clip.uy : ty0123;
-        *cubic++ = tx123, *cubic++ = ty123,
-        *cubic++ = tx23, *cubic++ = ty23;
-        *cubic++ = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
-        *cubic++ = y0123 < clip.ly ? clip.ly : y0123 > clip.uy ? clip.uy : y0123;
-    }
     static void writeClippedCubicToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ly, uy, cx, bx, ax, cy, by, ay, s, t, cly, cuy, A, B, C, D, ts[12], t0, t1, w0, w1, w2, w3, x, y, cubic[8], vx;
+        float ly, uy, cx, bx, ax, cy, by, ay, s, t, cly, cuy, A, B, C, D, ts[12], t0, t1, w0, w1, w2, w3, x, y, vx;
+        float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
+        float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
@@ -613,16 +591,33 @@ struct Rasterizer {
                         if (y >= clip.ly && y < clip.uy) {
                             x = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3;
                             visible = x >= clip.lx && x < clip.ux;
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, t0, t1, clip, cubic);
+                            t = t1, s = 1.f - t;
+                            x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
+                            y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y23 = y2 * s + y3 * t;
+                            x012 = x01 * s + x12 * t, x123 = x12 * s + x23 * t;
+                            y012 = y01 * s + y12 * t, y123 = y12 * s + y23 * t;
+                            x0123 = x012 * s + x123 * t;
+                            y0123 = y012 * s + y123 * t;
+                            t = t0 / t1, s = 1.f - t;
+                            tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
+                            ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty23 = y012 * s + y0123 * t;
+                            tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
+                            ty012 = ty01 * s + ty12 * t, ty123 = ty12 * s + ty23 * t;
+                            tx0123 = tx012 * s + tx123 * t;
+                            ty0123 = ty012 * s + ty123 * t;
+                            tx0123 = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
+                            ty0123 = ty0123 < clip.ly ? clip.ly : ty0123 > clip.uy ? clip.uy : ty0123;
+                            x0123 = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
+                            y0123 = y0123 < clip.ly ? clip.ly : y0123 > clip.uy ? clip.uy : y0123;
                             if (visible) {
                                 if (fabsf(t1 - t0) < 1e-2) {
-                                    writeSegmentToDeltasOrScanlines(cubic[0], cubic[1], x, y, deltaScale, deltas, stride, scanlines);
-                                    writeSegmentToDeltasOrScanlines(x, y, cubic[6], cubic[7], deltaScale, deltas, stride, scanlines);
+                                    writeSegmentToDeltasOrScanlines(tx0123, ty0123, x, y, deltaScale, deltas, stride, scanlines);
+                                    writeSegmentToDeltasOrScanlines(x, y, x0123, y0123, deltaScale, deltas, stride, scanlines);
                                 } else
-                                    writeCubicToDeltasOrScanlines(cubic[0], cubic[1], cubic[2], cubic[3], cubic[4], cubic[5], cubic[6], cubic[7], deltaScale, deltas, stride, scanlines);
+                                    writeCubicToDeltasOrScanlines(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
                             } else {
                                 vx = x <= clip.lx ? clip.lx : clip.ux;
-                                writeVerticalSegmentToScanlines(vx, cubic[1], cubic[7], deltaScale, deltas, stride, scanlines);
+                                writeVerticalSegmentToScanlines(vx, ty0123, y0123, deltaScale, deltas, stride, scanlines);
                             }
                         }
                     }
