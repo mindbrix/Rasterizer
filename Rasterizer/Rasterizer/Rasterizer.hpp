@@ -413,26 +413,6 @@ struct Rasterizer {
     }
     static void writeVerticalSegment(float x, float y0, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         writeSegment(x, y0, x, y1, deltaScale, deltas, stride, scanlines);
-//        if (y0 == y1)
-//            return;
-//        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
-//        Scanline *scanline;
-//        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-//        ix0 = floorf(x), ix1 = ix0 + 1.f, area = ix1 - x;
-//        for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++, deltas += stride) {
-//            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
-//            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
-//            cover = (sy1 - sy0) * deltaScale;
-//            if (scanlines) {
-//                new (scanline->alloc()) Delta(ix0, cover * area);
-//                if (area < 1.f) {
-//                    new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
-//            } else
-//                deltas[int(ix0)] += cover * area;
-//                if (ix1 < stride)
-//                    deltas[int(ix1)] += cover * (1.f - area);
-//            }
-//        }
     }
 
     static void writeClippedSegment(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
