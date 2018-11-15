@@ -221,7 +221,7 @@ struct Rasterizer {
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
-                writeClippedPathToScanlines(path, ctm, clipped, & context.scanlines[0]);
+                writeClippedPath(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines, true);
                 writeSpansToBitmap(context.spanlines, clipped, bgra, context.bitmap);
             }
@@ -403,7 +403,7 @@ struct Rasterizer {
         }
     }
 
-    static void writeClippedPathToScanlines(Path& path, AffineTransform ctm, Bounds clip, Scanline *scanlines) {
+    static void writeClippedPath(Path& path, AffineTransform ctm, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
         bool fs, f0, f1, f2, f3;
         size_t index;
@@ -419,7 +419,7 @@ struct Rasterizer {
                             if (f0 || fs)
                                 writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, scanlines);
                             else
-                                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, 32767.f, nullptr, 0, scanlines);
+                                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
                         }
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -431,7 +431,7 @@ struct Rasterizer {
                         if (f0 || f1)
                             writeClippedSegmentToScanlines(x0, y0, x1, y1, clip, scanlines);
                         else
-                            writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
+                            writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, deltaScale, deltas, stride, scanlines);
                         x0 = x1, y0 = y1, f0 = f1;
                         index++;
                         break;
@@ -443,7 +443,7 @@ struct Rasterizer {
                         if (f0 || f1 || f2)
                             writeClippedQuadraticToScanlines(x0, y0, x1, y1, x2, y2, clip, scanlines);
                         else
-                            writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, 32767.f, nullptr, 0, scanlines);
+                            writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, deltaScale, deltas, stride, scanlines);
                         x0 = x2, y0 = y2, f0 = f2;
                         index += 2;
                         break;
@@ -457,7 +457,7 @@ struct Rasterizer {
                         if (f0 || f1 || f2 || f3)
                             writeClippedCubicToScanlines(x0, y0, x1, y1, x2, y2, x3, y3, clip, scanlines);
                         else
-                            writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, 32767.f, nullptr, 0, scanlines);
+                            writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, deltaScale, deltas, stride, scanlines);
                         x0 = x3, y0 = y3, f0 = f3;
                         index += 3;
                         break;
@@ -470,7 +470,7 @@ struct Rasterizer {
             if (f0 || fs)
                 writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, scanlines);
             else
-                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, 32767.f, nullptr, 0, scanlines);
+                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
         }
     }
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clip, Scanline *scanlines) {
