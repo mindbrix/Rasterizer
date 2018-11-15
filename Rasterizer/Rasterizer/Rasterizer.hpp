@@ -453,9 +453,9 @@ struct Rasterizer {
             writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, scanlines);
     }
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clip, Scanline *scanlines) {
-        if (x0 >= clip.lx && x0 < clip.ux && x1 >= clip.lx && x1 < clip.ux && y0 >= clip.ly && y0 < clip.uy && y1 >= clip.ly && y1 < clip.uy) {
+        if (x0 >= clip.lx && x0 < clip.ux && x1 >= clip.lx && x1 < clip.ux && y0 >= clip.ly && y0 < clip.uy && y1 >= clip.ly && y1 < clip.uy)
             writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, 32767.f, nullptr, 0, scanlines);
-        } else {
+        else {
             float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx;
             int i;
             sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
