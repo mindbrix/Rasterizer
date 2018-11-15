@@ -538,13 +538,13 @@ struct Rasterizer {
             }
         }
     }
-    static void solveCubic(double a, double b, double c, double d, float& t0, float& t1, float& t2) {
+    static void solveCubic(double A, double B, double C, double D, float& t0, float& t1, float& t2) {
         double a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
-        if (fabs(d) < 1e-3) {
-            solveQuadratic(a, b, c, t0, t1), t2 = FLT_MAX;
+        if (fabs(D) < 1e-3) {
+            solveQuadratic(A, B, C, t0, t1), t2 = FLT_MAX;
         } else {
-            a /= d, b /= d, c /= d, a3 = a / 3;
-            p = (3.0 * b - a * a) / 3.0, p3 = p / 3.0, q = (2 * a * a * a - 9.0 * a * b + 27.0 * c) / 27.0, q2 = q / 2.0;
+            A /= D, B /= D, C /= D, a3 = A / 3;
+            p = (3.0 * B - A * A) / 3.0, p3 = p / 3.0, q = (2 * A * A * A - 9.0 * A * B + 27.0 * C) / 27.0, q2 = q / 2.0;
             discriminant = q2 * q2 + p3 * p3 * p3;
             if (discriminant < 0) {
                 mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
