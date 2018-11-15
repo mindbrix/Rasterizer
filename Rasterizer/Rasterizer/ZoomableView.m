@@ -79,11 +79,11 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)toggleTimer {
-    if (_displayLink)
-        [self stopTimer];
-    else
-        [self resetTimer];
-    [self redraw];
+//    if (_displayLink)
+//        [self stopTimer];
+//    else
+//        [self resetTimer];
+//    [self redraw];
 }
 
 #pragma mark - Override
