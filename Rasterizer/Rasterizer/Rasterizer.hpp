@@ -486,12 +486,13 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clip, float *q) {
-        float x01, x12, x012, y01, y12, y012, t, tx01, tx12, ty01, ty12, tx012, ty012;
-        x01 = x0 + t1 * (x1 - x0), x12 = x1 + t1 * (x2 - x1), x012 = x01 + t1 * (x12 - x01);
-        y01 = y0 + t1 * (y1 - y0), y12 = y1 + t1 * (y2 - y1), y012 = y01 + t1 * (y12 - y01);
-        t = t0 / t1;
-        tx01 = x0 + t * (x01 - x0), tx12 = x01 + t * (x012 - x01), tx012 = tx01 + t * (tx12 - tx01);
-        ty01 = y0 + t * (y01 - y0), ty12 = y01 + t * (y012 - y01), ty012 = ty01 + t * (ty12 - ty01);
+        float x01, x12, x012, y01, y12, y012, t, s, tx01, tx12, ty01, ty12, tx012, ty012;
+        t = t1, s = 1.f - t;
+        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
+        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
+        t = t0 / t1, s = 1.f - t;
+        tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
+        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty012 = ty01 * s + ty12 * t;
         *q++ = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
         *q++ = ty012 < clip.ly ? clip.ly : ty012 > clip.uy ? clip.uy : ty012;
         *q++ = tx12, *q++ = ty12;
