@@ -486,8 +486,7 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ly, uy, cly, cuy, A, B, ts[8], t, s, t0, t1, x, y, vx;
-        float x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        float ly, uy, cly, cuy, A, B, ts[8], t, s, t0, t1, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
