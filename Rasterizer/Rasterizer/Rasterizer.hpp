@@ -206,20 +206,20 @@ struct Rasterizer {
         Bounds dev = path.bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.device.intersected(context.clip));
-        float w, h, elx, ely, eux, euy, sx, sy;
+        float w, h, stride, elx, ely, eux, euy, sx, sy;
         if (!clipped.isZero()) {
-            w = device.ux - device.lx, h = device.uy - device.ly;
-            if (w * h < kDeltasDimension * kDeltasDimension) {
-                elx = dev.lx - device.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
-                eux = device.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
-                ely = dev.ly - device.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
-                euy = device.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
+            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1;
+            if (stride * h < kDeltasDimension * kDeltasDimension) {
+                elx = dev.lx - clipped.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
+                eux = clipped.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
+                ely = dev.ly - clipped.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
+                euy = clipped.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
                 AffineTransform bias(sx, 0, 0, sy, elx, ely);
-                AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
-                writePath(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, w, nullptr);
-                writeDeltasToMask(context.deltas, device, context.mask);
-                writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
+                AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
+                writePath(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
+                writeDeltasToMask(context.deltas, stride, clipped, context.mask);
+                writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
             } else {
                 writePath(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines, true);
@@ -412,27 +412,27 @@ struct Rasterizer {
         }
     }
     static void writeVerticalSegment(float x, float y0, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        if (y0 == y1)
-            return;
-        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
-        Scanline *scanline;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        ix0 = floorf(x), ix1 = ix0 + 1.f, area = ix1 - x;
-        for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++, deltas += stride) {
-            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
-            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
-            cover = (sy1 - sy0) * deltaScale;
-            if (scanlines)
-                new (scanline->alloc()) Delta(ix0, cover * area);
-            else
-                deltas[int(ix0)] += cover * area;
-            if (area < 1.f) {
-                if (scanlines)
-                    new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
-                else if (ix0 < stride)
-                    deltas[int(ix0)] += cover * (1.f - area);
-            }
-        }
+        writeSegment(x, y0, x, y1, deltaScale, deltas, stride, scanlines);
+//        if (y0 == y1)
+//            return;
+//        float ly, uy, iy0, iy1, sy0, sy1, ix0, ix1, cover, area;
+//        Scanline *scanline;
+//        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+//        ix0 = floorf(x), ix1 = ix0 + 1.f, area = ix1 - x;
+//        for (iy0 = floorf(ly), iy1 = iy0 + 1, scanline = scanlines + size_t(iy0); iy0 < uy; iy0 = iy1, iy1++, scanline++, deltas += stride) {
+//            sy0 = y0 < iy0 ? iy0 : y0 > iy1 ? iy1 : y0;
+//            sy1 = y1 < iy0 ? iy0 : y1 > iy1 ? iy1 : y1;
+//            cover = (sy1 - sy0) * deltaScale;
+//            if (scanlines) {
+//                new (scanline->alloc()) Delta(ix0, cover * area);
+//                if (area < 1.f) {
+//                    new (scanline->alloc()) Delta(ix0, cover * (1.f - area));
+//            } else
+//                deltas[int(ix0)] += cover * area;
+//                if (ix1 < stride)
+//                    deltas[int(ix1)] += cover * (1.f - area);
+//            }
+//        }
     }
 
     static void writeClippedSegment(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
@@ -652,16 +652,14 @@ struct Rasterizer {
             *mask++ = alpha < 255.f ? alpha : 255.f;
         }
     }
-    static void writeDeltasToMask(float *deltas, Bounds device, uint8_t *mask) {
-        size_t stride = device.ux - device.lx, h = device.uy - device.ly;
+    static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, uint8_t *mask) {
+        size_t h = clipped.uy - clipped.ly;
         for (size_t y = 0; y < h; y++, deltas += stride, mask += stride)
             writeMaskRow(deltas, stride, mask);
     }
-    static void writeMaskToBitmap(uint8_t *mask, Bounds device, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        size_t stride = device.ux - device.lx;
-        size_t offset = stride * (clipped.ly - device.ly) + (clipped.lx - device.lx);
+    static void writeMaskToBitmap(uint8_t *mask, size_t stride, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        writeMaskToBitmap(mask + offset, stride, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
+        writeMaskToBitmap(mask, stride, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
         uint32_t *pixel;
