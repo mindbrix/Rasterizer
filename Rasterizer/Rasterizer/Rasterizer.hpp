@@ -485,22 +485,9 @@ struct Rasterizer {
         }
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float t0, float t1, Bounds clip, float *q) {
-        float x01, x12, x012, y01, y12, y012, t, s, tx01, tx12, ty01, ty12, tx012, ty012;
-        t = t1, s = 1.f - t;
-        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
-        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
-        t = t0 / t1, s = 1.f - t;
-        tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
-        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty012 = ty01 * s + ty12 * t;
-        *q++ = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
-        *q++ = ty012 < clip.ly ? clip.ly : ty012 > clip.uy ? clip.uy : ty012;
-        *q++ = tx12, *q++ = ty12;
-        *q++ = x012 < clip.lx ? clip.lx : x012 > clip.ux ? clip.ux : x012;
-        *q++ = y012 < clip.ly ? clip.ly : y012 > clip.uy ? clip.uy : y012;
-    }
     static void writeClippedQuadraticToScanlines(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ly, uy, cly, cuy, A, B, ts[8], q[6], t, s, t0, t1, x, y, vx;
+        float ly, uy, cly, cuy, A, B, ts[8], t, s, t0, t1, x, y, vx;
+        float x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
         size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
@@ -523,16 +510,25 @@ struct Rasterizer {
                     if (y >= clip.ly && y < clip.uy) {
                         x = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
                         visible = x >= clip.lx && x < clip.ux;
-                        writeClippedQuadratic(x0, y0, x1, y1, x2, y2, t0, t1, clip, q);
+                        t = t1, s = 1.f - t;
+                        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
+                        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
+                        t = t0 / t1, s = 1.f - t;
+                        tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
+                        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty012 = ty01 * s + ty12 * t;
+                        tx012 = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
+                        ty012 = ty012 < clip.ly ? clip.ly : ty012 > clip.uy ? clip.uy : ty012;
+                        x012 = x012 < clip.lx ? clip.lx : x012 > clip.ux ? clip.ux : x012;
+                        y012 = y012 < clip.ly ? clip.ly : y012 > clip.uy ? clip.uy : y012;
                         if (visible) {
                             if (fabsf(t1 - t0) < 1e-2) {
-                                writeSegmentToDeltasOrScanlines(q[0], q[1], x, y, deltaScale, deltas, stride, scanlines);
-                                writeSegmentToDeltasOrScanlines(x, y, q[4], q[5], deltaScale, deltas, stride, scanlines);
+                                writeSegmentToDeltasOrScanlines(tx012, ty012, x, y, deltaScale, deltas, stride, scanlines);
+                                writeSegmentToDeltasOrScanlines(x, y, x012, y012, deltaScale, deltas, stride, scanlines);
                             } else
-                                writeQuadraticToDeltasOrScanlines(q[0], q[1], q[2], q[3], q[4], q[5], deltaScale, deltas, stride, scanlines);
+                                writeQuadraticToDeltasOrScanlines(tx012, ty012, tx12, ty12, x012, y012, deltaScale, deltas, stride, scanlines);
                         } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
-                            writeVerticalSegmentToScanlines(vx, q[1], q[5], deltaScale, deltas, stride, scanlines);
+                            writeVerticalSegmentToScanlines(vx, ty012, y012, deltaScale, deltas, stride, scanlines);
                         }
                     }
                 }
