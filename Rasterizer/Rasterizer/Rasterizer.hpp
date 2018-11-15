@@ -564,21 +564,22 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float t0, float t1, Bounds clip, float *cubic) {
-        float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
-        float t, tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-        x01 = x0 + t1 * (x1 - x0), x12 = x1 + t1 * (x2 - x1), x23 = x2 + t1 * (x3 - x2);
-        y01 = y0 + t1 * (y1 - y0), y12 = y1 + t1 * (y2 - y1), y23 = y2 + t1 * (y3 - y2);
-        x012 = x01 + t1 * (x12 - x01), x123 = x12 + t1 * (x23 - x12);
-        y012 = y01 + t1 * (y12 - y01), y123 = y12 + t1 * (y23 - y12);
-        x0123 = x012 + t1 * (x123 - x012);
-        y0123 = y012 + t1 * (y123 - y012);
-        t = t0 / t1;
-        tx01 = x0 + t * (x01 - x0), tx12 = x01 + t * (x012 - x01), tx23 = x012 + t * (x0123 - x012);
-        ty01 = y0 + t * (y01 - y0), ty12 = y01 + t * (y012 - y01), ty23 = y012 + t * (y0123 - y012);
-        tx012 = tx01 + t * (tx12 - tx01), tx123 = tx12 + t * (tx23 - tx12);
-        ty012 = ty01 + t * (ty12 - ty01), ty123 = ty12 + t * (ty23 - ty12);
-        tx0123 = tx012 + t * (tx123 - tx012);
-        ty0123 = ty012 + t * (ty123 - ty012);
+        float t, s, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
+        float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
+        t = t1, s = 1.f - t;
+        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
+        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y23 = y2 * s + y3 * t;
+        x012 = x01 * s + x12 * t, x123 = x12 * s + x23 * t;
+        y012 = y01 * s + y12 * t, y123 = y12 * s + y23 * t;
+        x0123 = x012 * s + x123 * t;
+        y0123 = y012 * s + y123 * t;
+        t = t0 / t1, s = 1.f - t;
+        tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
+        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty23 = y012 * s + y0123 * t;
+        tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
+        ty012 = ty01 * s + ty12 * t, ty123 = ty12 * s + ty23 * t;
+        tx0123 = tx012 * s + tx123 * t;
+        ty0123 = ty012 * s + ty123 * t;
         *cubic++ = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
         *cubic++ = ty0123 < clip.ly ? clip.ly : ty0123 > clip.uy ? clip.uy : ty0123;
         *cubic++ = tx123, *cubic++ = ty123,
