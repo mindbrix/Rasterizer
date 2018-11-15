@@ -411,19 +411,15 @@ struct Rasterizer {
             writeSegment(px0, py0, x3, y3, scale, deltas, stride, scanlines);
         }
     }
-    static void writeVerticalSegment(float x, float y0, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        writeSegment(x, y0, x, y1, deltaScale, deltas, stride, scanlines);
-    }
-
     static void writeClippedSegment(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx;
+        float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx, vx;
         int i;
         sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
             if (x0 == x1) {
                 sx0 = sx1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
-                writeVerticalSegment(sx0, sy0, sy1, deltaScale, deltas, stride, scanlines);
+                writeSegment(sx0, sy0, sx0, sy1, deltaScale, deltas, stride, scanlines);
             } else {
                 dx = x1 - x0, dy = y1 - y0;
                 ty0 = (sy0 - y0) / dy, tx0 = (clip.lx - x0) / dx;
@@ -443,8 +439,10 @@ struct Rasterizer {
                             sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                             sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                             writeSegment(sx0, sy0, sx1, sy1, deltaScale, deltas, stride, scanlines);
-                        } else
-                            writeVerticalSegment(mx < clip.lx ? clip.lx : clip.ux, sy0, sy1, deltaScale, deltas, stride, scanlines);
+                        } else {
+                            vx = mx < clip.lx ? clip.lx : clip.ux;
+                            writeSegment(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
+                        }
                     }
                 }
             }
@@ -503,7 +501,7 @@ struct Rasterizer {
                             writeQuadratic(tx012, ty012, tx12, ty12, x012, y012, deltaScale, deltas, stride, scanlines);
                         } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
-                            writeVerticalSegment(vx, ty012, y012, deltaScale, deltas, stride, scanlines);
+                            writeSegment(vx, ty012, vx, y012, deltaScale, deltas, stride, scanlines);
                         }
                     }
                 }
@@ -589,7 +587,7 @@ struct Rasterizer {
                                 writeCubic(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
                             } else {
                                 vx = x <= clip.lx ? clip.lx : clip.ux;
-                                writeVerticalSegment(vx, ty0123, y0123, deltaScale, deltas, stride, scanlines);
+                                writeSegment(vx, ty0123, vx, y0123, deltaScale, deltas, stride, scanlines);
                             }
                         }
                     }
