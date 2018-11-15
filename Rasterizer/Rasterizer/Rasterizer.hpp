@@ -618,9 +618,9 @@ struct Rasterizer {
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
             s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
-            if (s * s + t * t < 0.1f) {
+            if (s * s + t * t < 0.1f)
                 writeClippedSegmentToScanlines(x0, y0, x3, y3, clip, scanlines);
-            } else {
+            else {
                 lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
                 ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
                 if (lx < clip.lx || ux > clip.ux || ly < clip.ly || uy > clip.uy) {
