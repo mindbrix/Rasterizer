@@ -217,7 +217,7 @@ struct Rasterizer {
                 sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
                 AffineTransform bias(sx, 0, 0, sy, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - device.lx, ctm.ty - device.ly));
-                writePathToDeltas(path, deltasCTM, context.deltas, w);
+                writeClippedPath(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, w, nullptr);
                 writeDeltasToMask(context.deltas, device, context.mask);
                 writeMaskToBitmap(context.mask, device, clipped, bgra, context.bitmap);
             } else {
@@ -228,40 +228,62 @@ struct Rasterizer {
         }
     }
     
-    static void writePathToDeltas(Path& path, AffineTransform ctm, float *deltas, size_t stride) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p, scale;
+    static void writeClippedPath(Path& path, AffineTransform ctm, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
+        bool fs, f0, f1, f2, f3;
         size_t index;
         uint8_t type;
-        x0 = y0 = sx = sy = FLT_MAX, scale = 255.5f;
+        x0 = y0 = sx = sy = FLT_MAX;
+        f0 = fs = false;
         for (Path::Atom& atom : path.atoms)
             for (index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
                 switch (type) {
                     case Path::Atom::kMove:
-                        if (sx != FLT_MAX && (sx != x0 || sy != y0))
-                            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, nullptr);
+                        if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
+                            if (f0 || fs)
+                                writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
+                            else
+                                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
+                        }
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
                         index++;
                         break;
                     case Path::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, scale, deltas, stride, nullptr);
-                        x0 = x1, y0 = y1;
+                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
+                        if (f0 || f1)
+                            writeClippedSegmentToScanlines(x0, y0, x1, y1, clip, deltaScale, deltas, stride, scanlines);
+                        else
+                            writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, deltaScale, deltas, stride, scanlines);
+                        x0 = x1, y0 = y1, f0 = f1;
                         index++;
                         break;
                     case Path::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, scale, deltas, stride, nullptr);
-                        x0 = x2, y0 = y2;
+                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
+                        if (f0 || f1 || f2)
+                            writeClippedQuadraticToScanlines(x0, y0, x1, y1, x2, y2, clip, deltaScale, deltas, stride, scanlines);
+                        else
+                            writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, deltaScale, deltas, stride, scanlines);
+                        x0 = x2, y0 = y2, f0 = f2;
                         index += 2;
                         break;
                     case Path::Atom::kCubic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, scale, deltas, stride, nullptr);
-                        x0 = x3, y0 = y3;
+                        f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
+                        if (f0 || f1 || f2 || f3)
+                            writeClippedCubicToScanlines(x0, y0, x1, y1, x2, y2, x3, y3, clip, deltaScale, deltas, stride, scanlines);
+                        else
+                            writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, deltaScale, deltas, stride, scanlines);
+                        x0 = x3, y0 = y3, f0 = f3;
                         index += 3;
                         break;
                     case Path::Atom::kClose:
@@ -269,8 +291,12 @@ struct Rasterizer {
                         break;
                 }
             }
-        if (sx != FLT_MAX && (sx != x0 || sy != y0))
-            writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, scale, deltas, stride, nullptr);
+        if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
+            if (f0 || fs)
+                writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
+            else
+                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
+        }
     }
     
     static void writeSegmentToDeltasOrScanlines(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
@@ -410,76 +436,6 @@ struct Rasterizer {
         }
     }
 
-    static void writeClippedPath(Path& path, AffineTransform ctm, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
-        bool fs, f0, f1, f2, f3;
-        size_t index;
-        uint8_t type;
-        x0 = y0 = sx = sy = FLT_MAX;
-        f0 = fs = false;
-        for (Path::Atom& atom : path.atoms)
-            for (index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
-                p = atom.points + index * 2;
-                switch (type) {
-                    case Path::Atom::kMove:
-                        if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
-                            if (f0 || fs)
-                                writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
-                            else
-                                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
-                        }
-                        sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
-                        index++;
-                        break;
-                    case Path::Atom::kLine:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        if (f0 || f1)
-                            writeClippedSegmentToScanlines(x0, y0, x1, y1, clip, deltaScale, deltas, stride, scanlines);
-                        else
-                            writeSegmentToDeltasOrScanlines(x0, y0, x1, y1, deltaScale, deltas, stride, scanlines);
-                        x0 = x1, y0 = y1, f0 = f1;
-                        index++;
-                        break;
-                    case Path::Atom::kQuadratic:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
-                        if (f0 || f1 || f2)
-                            writeClippedQuadraticToScanlines(x0, y0, x1, y1, x2, y2, clip, deltaScale, deltas, stride, scanlines);
-                        else
-                            writeQuadraticToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, deltaScale, deltas, stride, scanlines);
-                        x0 = x2, y0 = y2, f0 = f2;
-                        index += 2;
-                        break;
-                    case Path::Atom::kCubic:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
-                        x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
-                        if (f0 || f1 || f2 || f3)
-                            writeClippedCubicToScanlines(x0, y0, x1, y1, x2, y2, x3, y3, clip, deltaScale, deltas, stride, scanlines);
-                        else
-                            writeCubicToDeltasOrScanlines(x0, y0, x1, y1, x2, y2, x3, y3, deltaScale, deltas, stride, scanlines);
-                        x0 = x3, y0 = y3, f0 = f3;
-                        index += 3;
-                        break;
-                    case Path::Atom::kClose:
-                        index++;
-                        break;
-                }
-            }
-        if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
-            if (f0 || fs)
-                writeClippedSegmentToScanlines(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
-            else
-                writeSegmentToDeltasOrScanlines(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
-        }
-    }
     static void writeClippedSegmentToScanlines(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx;
         int i;
