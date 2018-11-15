@@ -514,13 +514,13 @@ struct Rasterizer {
                         x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
                         y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
                         t = t0 / t1, s = 1.f - t;
-                        tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
                         ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty012 = ty01 * s + ty12 * t;
-                        tx012 = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
                         ty012 = ty012 < clip.ly ? clip.ly : ty012 > clip.uy ? clip.uy : ty012;
-                        x012 = x012 < clip.lx ? clip.lx : x012 > clip.ux ? clip.ux : x012;
                         y012 = y012 < clip.ly ? clip.ly : y012 > clip.uy ? clip.uy : y012;
                         if (visible) {
+                            tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
+                            tx012 = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
+                            x012 = x012 < clip.lx ? clip.lx : x012 > clip.ux ? clip.ux : x012;
                             if (fabsf(t1 - t0) < 1e-2) {
                                 writeSegmentToDeltasOrScanlines(tx012, ty012, x, y, deltaScale, deltas, stride, scanlines);
                                 writeSegmentToDeltasOrScanlines(x, y, x012, y012, deltaScale, deltas, stride, scanlines);
