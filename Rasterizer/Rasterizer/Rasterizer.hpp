@@ -298,7 +298,6 @@ struct Rasterizer {
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx, vx;
-        int i;
         sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
@@ -308,7 +307,7 @@ struct Rasterizer {
             tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
             tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
             float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
-            for (i = 0; i < 3; i++) {
+            for (int i = 0; i < 3; i++) {
                 t0 = ts[i], t1 = ts[i + 1];
                 if (t0 != t1) {
                     sy0 = y0 + t0 * dy, sy1 = y0 + t1 * dy;
@@ -402,7 +401,6 @@ struct Rasterizer {
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float ly, uy, cly, cuy, A, B, ts[8], t, s, t0, t1, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
-        size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
@@ -416,7 +414,7 @@ struct Rasterizer {
             solveQuadratic(A, B, x0 - clip.lx, ts[4], ts[5]);
             solveQuadratic(A, B, x0 - clip.ux, ts[6], ts[7]);
             std::sort(& ts[0], & ts[8]);
-            for (i = 0; i < 7; i++) {
+            for (int i = 0; i < 7; i++) {
                 t0 = ts[i], t1 = ts[i + 1];
                 if (t0 != t1) {
                     t = (t0 + t1) * 0.5f, s = 1.f - t;
@@ -496,7 +494,6 @@ struct Rasterizer {
         float ly, uy, s, t, cly, cuy, A, B, C, D, ts[12], t0, t1, w0, w1, w2, w3, x, y, vx;
         float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
         float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-        size_t i;
         bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -510,7 +507,7 @@ struct Rasterizer {
             solveCubic(A, B, C - clip.lx, D, ts[6], ts[7], ts[8]);
             solveCubic(A, B, C - clip.ux, D, ts[9], ts[10], ts[11]);
             std::sort(& ts[0], & ts[12]);
-            for (i = 0; i < 11; i++) {
+            for (int i = 0; i < 11; i++) {
                 t0 = ts[i], t1 = ts[i + 1];
                 if (t0 != t1) {
                     t = (t0 + t1) * 0.5f, s = 1.f - t;
