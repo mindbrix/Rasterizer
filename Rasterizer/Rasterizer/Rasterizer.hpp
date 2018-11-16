@@ -216,7 +216,7 @@ struct Rasterizer {
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, even, context.mask);
-                writeMaskToBitmap(context.mask, stride, w, h, bgra, context.bitmap.pixelAddress(clipped.lx, clipped.ly), context.bitmap.rowBytes);
+                writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines, true);
@@ -600,11 +600,13 @@ struct Rasterizer {
             *mask++ = alpha < 255.f ? alpha : 255.f;
         }
     }
-    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
-        uint32_t *pixel;
+    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
+        uint32_t *pixelAddress, *pixel;
         uint8_t *msk, *components, a, *dst;
-        size_t columns;
+        size_t columns, w, h;
         float src0, src1, src2, src3, srcAlpha, alpha;
+        w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
+        pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
         components = (uint8_t *)& bgra, a = components[3];
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         srcAlpha = src3 * 0.003921568627f;
@@ -639,7 +641,7 @@ struct Rasterizer {
                 }
                 msk++, pixel++;
             }
-            pixelAddress -= rowBytes / 4;
+            pixelAddress -= bitmap.rowBytes / 4;
             mask += maskRowBytes;
         }
     }
