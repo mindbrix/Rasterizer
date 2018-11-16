@@ -506,50 +506,45 @@ struct Rasterizer {
         if (cly != cuy) {
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-            s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
-            if (s * s + t * t < 0.1f)
-                writeClippedLine(x0, y0, x3, y3, clip, deltaScale, deltas, stride, scanlines);
-            else {
-                A = by, B = cy, C = y0, D = ay;
-                solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
-                solveCubic(A, B, C - clip.uy, D, ts[3], ts[4], ts[5]);
-                A = bx, B = cx, C = x0, D = ax;
-                solveCubic(A, B, C - clip.lx, D, ts[6], ts[7], ts[8]);
-                solveCubic(A, B, C - clip.ux, D, ts[9], ts[10], ts[11]);
-                std::sort(& ts[0], & ts[12]);
-                for (i = 0; i < 11; i++) {
-                    t0 = ts[i], t1 = ts[i + 1];
-                    if (t0 != t1) {
-                        t = (t0 + t1) * 0.5f, s = 1.f - t;
-                        w0 = s * s * s, w1 = 3.f * s * s * t, w2 = 3.f * s * t * t, w3 = t * t * t;
-                        y = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
-                        if (y >= clip.ly && y < clip.uy) {
-                            x = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3;
-                            visible = x >= clip.lx && x < clip.ux;
-                            t = t1, s = 1.f - t;
-                            x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
-                            y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y23 = y2 * s + y3 * t;
-                            x012 = x01 * s + x12 * t, x123 = x12 * s + x23 * t;
-                            y012 = y01 * s + y12 * t, y123 = y12 * s + y23 * t;
-                            x0123 = x012 * s + x123 * t;
-                            y0123 = y012 * s + y123 * t;
-                            t = t0 / t1, s = 1.f - t;
-                            ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty23 = y012 * s + y0123 * t;
-                            ty012 = ty01 * s + ty12 * t, ty123 = ty12 * s + ty23 * t;
-                            ty0123 = ty012 * s + ty123 * t;
-                            ty0123 = ty0123 < clip.ly ? clip.ly : ty0123 > clip.uy ? clip.uy : ty0123;
-                            y0123 = y0123 < clip.ly ? clip.ly : y0123 > clip.uy ? clip.uy : y0123;
-                            if (visible) {
-                                tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
-                                tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
-                                tx0123 = tx012 * s + tx123 * t;
-                                tx0123 = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
-                                x0123 = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
-                                writeCubic(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
-                            } else {
-                                vx = x <= clip.lx ? clip.lx : clip.ux;
-                                writeLine(vx, ty0123, vx, y0123, deltaScale, deltas, stride, scanlines);
-                            }
+            A = by, B = cy, C = y0, D = ay;
+            solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
+            solveCubic(A, B, C - clip.uy, D, ts[3], ts[4], ts[5]);
+            A = bx, B = cx, C = x0, D = ax;
+            solveCubic(A, B, C - clip.lx, D, ts[6], ts[7], ts[8]);
+            solveCubic(A, B, C - clip.ux, D, ts[9], ts[10], ts[11]);
+            std::sort(& ts[0], & ts[12]);
+            for (i = 0; i < 11; i++) {
+                t0 = ts[i], t1 = ts[i + 1];
+                if (t0 != t1) {
+                    t = (t0 + t1) * 0.5f, s = 1.f - t;
+                    w0 = s * s * s, w1 = 3.f * s * s * t, w2 = 3.f * s * t * t, w3 = t * t * t;
+                    y = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
+                    if (y >= clip.ly && y < clip.uy) {
+                        x = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3;
+                        visible = x >= clip.lx && x < clip.ux;
+                        t = t1, s = 1.f - t;
+                        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
+                        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y23 = y2 * s + y3 * t;
+                        x012 = x01 * s + x12 * t, x123 = x12 * s + x23 * t;
+                        y012 = y01 * s + y12 * t, y123 = y12 * s + y23 * t;
+                        x0123 = x012 * s + x123 * t;
+                        y0123 = y012 * s + y123 * t;
+                        t = t0 / t1, s = 1.f - t;
+                        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty23 = y012 * s + y0123 * t;
+                        ty012 = ty01 * s + ty12 * t, ty123 = ty12 * s + ty23 * t;
+                        ty0123 = ty012 * s + ty123 * t;
+                        ty0123 = ty0123 < clip.ly ? clip.ly : ty0123 > clip.uy ? clip.uy : ty0123;
+                        y0123 = y0123 < clip.ly ? clip.ly : y0123 > clip.uy ? clip.uy : y0123;
+                        if (visible) {
+                            tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx23 = x012 * s + x0123 * t;
+                            tx012 = tx01 * s + tx12 * t, tx123 = tx12 * s + tx23 * t;
+                            tx0123 = tx012 * s + tx123 * t;
+                            tx0123 = tx0123 < clip.lx ? clip.lx : tx0123 > clip.ux ? clip.ux : tx0123;
+                            x0123 = x0123 < clip.lx ? clip.lx : x0123 > clip.ux ? clip.ux : x0123;
+                            writeCubic(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
+                        } else {
+                            vx = x <= clip.lx ? clip.lx : clip.ux;
+                            writeLine(vx, ty0123, vx, y0123, deltaScale, deltas, stride, scanlines);
                         }
                     }
                 }
