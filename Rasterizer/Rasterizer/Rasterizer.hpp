@@ -618,8 +618,8 @@ struct Rasterizer {
         uint32_t *pixel;
         uint8_t *msk, *components, a, *dst;
         size_t columns;
-        components = (uint8_t *)& bgra, a = components[3];
         float src0, src1, src2, src3, srcAlpha, alpha;
+        components = (uint8_t *)& bgra, a = components[3];
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         srcAlpha = src3 * 0.003921568627f;
         while (h--) {
