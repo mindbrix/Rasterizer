@@ -445,7 +445,6 @@ struct Rasterizer {
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float scale, float *deltas, size_t stride, Scanline *scanlines) {
         float ax, ay, a, dt, s, t, px0, py0, px1, py1;
-        size_t count;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
         a = ax * ax + ay * ay;
         if (a < 0.1f)
@@ -455,8 +454,8 @@ struct Rasterizer {
             writeLine(x0, y0, px0, py0, scale, deltas, stride, scanlines);
             writeLine(px0, py0, x2, y2, scale, deltas, stride, scanlines);
         } else {
-            count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0;
-            px0 = x0, py0 = y0;
+            size_t count = 3.f + floorf(sqrtf(sqrtf(a - 8.f)));
+            px0 = x0, py0 = y0, dt = 1.f / count, t = 0.f;
             while (--count) {
                 t += dt, s = 1.f - t;
                 px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
@@ -548,7 +547,6 @@ struct Rasterizer {
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float scale, float *deltas, size_t stride, Scanline *scanlines) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float cx, bx, ax, cy, by, ay, s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
-        size_t count;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
@@ -566,8 +564,8 @@ struct Rasterizer {
             writeLine(px0, py0, px1, py1, scale, deltas, stride, scanlines);
             writeLine(px1, py1, x3, y3, scale, deltas, stride, scanlines);
         } else {
-            count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f;
-            px0 = x0, py0 = y0;
+            size_t count = 4.f + floorf(sqrtf(sqrtf(a - 16.f)));
+            px0 = x0, py0 = y0, dt = 1.f / count, t = 0.f;
             while (--count) {
                 t += dt, s = 1.f - t;
                 pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
