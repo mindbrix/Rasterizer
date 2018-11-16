@@ -206,7 +206,7 @@ struct Rasterizer {
         Bounds dev = path.bounds.transform(ctm);
         Bounds device = dev.integral();
         Bounds clipped = device.intersected(context.device.intersected(context.clip));
-        float w, h, stride, elx, ely, eux, euy, sx, sy;
+        float w, h, stride, elx, ely, eux, euy;
         if (!clipped.isZero()) {
             w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1;
             if (stride * h < kDeltasDimension * kDeltasDimension) {
@@ -214,8 +214,7 @@ struct Rasterizer {
                 eux = clipped.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
                 ely = dev.ly - clipped.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
                 euy = clipped.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
-                sx = (w - elx - eux) / w, sy = (h - ely - euy) / h;
-                AffineTransform bias(sx, 0, 0, sy, elx, ely);
+                AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, context.mask);
