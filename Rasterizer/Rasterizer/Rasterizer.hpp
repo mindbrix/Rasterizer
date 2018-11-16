@@ -328,7 +328,7 @@ struct Rasterizer {
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
-        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last;
         Scanline *scanline;
         size_t ily;
         deltaScale = copysign(deltaScale, y1 - y0);
@@ -352,32 +352,31 @@ struct Rasterizer {
                     new (scanline->alloc()) Delta(ix0, cover * area);
                     new (scanline->alloc()) Delta(ix1, cover * (1.f - area));
                 } else {
-                    delta = deltasRow + size_t(ix0);
-                    *delta++ += cover * area;
+                    deltasRow[int(ix0)] += cover * area;
                     if (ix1 < stride)
-                        *delta += cover * (1.f - area);
+                        deltasRow[int(ix1)] += cover * (1.f - area);
                 }
             } else {
                 dydx = 1.f / fabsf(dxdy);
                 cx0 = lx, cy0 = sy0;
                 cx1 = ux < ix1 ? ux : ix1;
                 cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-                for (last = 0, delta = deltasRow + size_t(ix0);
+                for (last = 0;
                      ix0 <= ux;
-                     ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1, delta++) {
+                     ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
                     cover = (cy1 - cy0) * deltaScale;
                     area = (ix1 - (cx0 + cx1) * 0.5f);
                     if (scanlines)
                         new (scanline->alloc()) Delta(ix0, cover * area + last);
                     else
-                        *delta += cover * area + last;
+                        deltasRow[int(ix0)] += cover * area + last;
                     last = cover * (1.f - area);
                 }
                 if (scanlines)
                     new (scanline->alloc()) Delta(ix0, last);
                 else {
                     if (ix0 < stride)
-                        *delta += last;
+                        deltasRow[int(ix0)] += last;
                 }
             }
         }
