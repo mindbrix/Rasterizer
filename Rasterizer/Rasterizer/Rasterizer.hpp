@@ -401,7 +401,6 @@ struct Rasterizer {
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float ly, uy, cly, cuy, A, B, ts[8], t, s, t0, t1, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
-        bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
@@ -421,7 +420,7 @@ struct Rasterizer {
                     y = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     if (y >= clip.ly && y < clip.uy) {
                         x = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
-                        visible = x >= clip.lx && x < clip.ux;
+                        bool visible = x >= clip.lx && x < clip.ux;
                         t = t1, s = 1.f - t;
                         x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
                         y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
@@ -493,7 +492,6 @@ struct Rasterizer {
         float ly, uy, s, t, cly, cuy, A, B, C, D, ts[12], t0, t1, w0, w1, w2, w3, x, y, vx;
         float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
         float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-        bool visible;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
         cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
@@ -514,7 +512,7 @@ struct Rasterizer {
                     y = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
                     if (y >= clip.ly && y < clip.uy) {
                         x = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3;
-                        visible = x >= clip.lx && x < clip.ux;
+                        bool visible = x >= clip.lx && x < clip.ux;
                         t = t1, s = 1.f - t;
                         x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
                         y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y23 = y2 * s + y3 * t;
