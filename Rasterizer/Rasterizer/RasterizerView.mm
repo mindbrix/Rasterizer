@@ -10,8 +10,6 @@
 #import "RasterizerCoreGraphics.hpp"
 #import "RasterizerSVG.hpp"
 
-enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
-
 @interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
@@ -66,7 +64,7 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = _testScene.rasterizerType == kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == kRasterizer ?  @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
@@ -93,7 +91,7 @@ enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRast
 }
 
 - (IBAction)toggleRasterizer:(id)sender {
-    _testScene.rasterizerType = (++_testScene.rasterizerType) % kRasterizerCount;
+    _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCoreGraphics::CGTestScene::kRasterizerCount;
     [self updateRasterizerLabel];
     [self redraw];
 }
