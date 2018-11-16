@@ -241,9 +241,9 @@ struct Rasterizer {
                     case Path::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
                             if (f0 || fs)
-                                writeClippedSegment(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
+                                writeClippedLine(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
                             else
-                                writeSegment(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
+                                writeLine(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
                         }
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -253,9 +253,9 @@ struct Rasterizer {
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         if (f0 || f1)
-                            writeClippedSegment(x0, y0, x1, y1, clip, deltaScale, deltas, stride, scanlines);
+                            writeClippedLine(x0, y0, x1, y1, clip, deltaScale, deltas, stride, scanlines);
                         else
-                            writeSegment(x0, y0, x1, y1, deltaScale, deltas, stride, scanlines);
+                            writeLine(x0, y0, x1, y1, deltaScale, deltas, stride, scanlines);
                         x0 = x1, y0 = y1, f0 = f1;
                         index++;
                         break;
@@ -292,12 +292,12 @@ struct Rasterizer {
             }
         if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
             if (f0 || fs)
-                writeClippedSegment(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
+                writeClippedLine(x0, y0, sx, sy, clip, deltaScale, deltas, stride, scanlines);
             else
-                writeSegment(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
+                writeLine(x0, y0, sx, sy, deltaScale, deltas, stride, scanlines);
         }
     }
-    static void writeClippedSegment(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx, vx;
         int i;
         sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
@@ -320,16 +320,16 @@ struct Rasterizer {
                         sx0 = x0 + t0 * dx, sx1 = x0 + t1 * dx;
                         sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                        writeSegment(sx0, sy0, sx1, sy1, deltaScale, deltas, stride, scanlines);
+                        writeLine(sx0, sy0, sx1, sy1, deltaScale, deltas, stride, scanlines);
                     } else {
                         vx = mx < clip.lx ? clip.lx : clip.ux;
-                        writeSegment(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
+                        writeLine(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
                     }
                 }
             }
         }
     }
-    static void writeSegment(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+    static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 == y1)
             return;
         float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last, *delta;
@@ -439,7 +439,7 @@ struct Rasterizer {
                             writeQuadratic(tx012, ty012, tx12, ty12, x012, y012, deltaScale, deltas, stride, scanlines);
                         } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
-                            writeSegment(vx, ty012, vx, y012, deltaScale, deltas, stride, scanlines);
+                            writeLine(vx, ty012, vx, y012, deltaScale, deltas, stride, scanlines);
                         }
                     }
                 }
@@ -452,21 +452,21 @@ struct Rasterizer {
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1;
         a = ax * ax + ay * ay;
         if (a < 0.1f)
-            writeSegment(x0, y0, x2, y2, scale, deltas, stride, scanlines);
+            writeLine(x0, y0, x2, y2, scale, deltas, stride, scanlines);
         else if (a < 8.f) {
             px0 = (x0 + x2) * 0.25f + x1 * 0.5f, py0 = (y0 + y2) * 0.25f + y1 * 0.5f;
-            writeSegment(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegment(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+            writeLine(x0, y0, px0, py0, scale, deltas, stride, scanlines);
+            writeLine(px0, py0, x2, y2, scale, deltas, stride, scanlines);
         } else {
             count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0;
             px0 = x0, py0 = y0;
             while (--count) {
                 t += dt, s = 1.f - t;
                 px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                writeSegment(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+                writeLine(px0, py0, px1, py1, scale, deltas, stride, scanlines);
                 px0 = px1, py0 = py1;
             }
-            writeSegment(px0, py0, x2, y2, scale, deltas, stride, scanlines);
+            writeLine(px0, py0, x2, y2, scale, deltas, stride, scanlines);
         }
     }
     static void solveCubic(double A, double B, double C, double D, float& t0, float& t1, float& t2) {
@@ -508,7 +508,7 @@ struct Rasterizer {
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
             s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
             if (s * s + t * t < 0.1f)
-                writeClippedSegment(x0, y0, x3, y3, clip, deltaScale, deltas, stride, scanlines);
+                writeClippedLine(x0, y0, x3, y3, clip, deltaScale, deltas, stride, scanlines);
             else {
                 A = by, B = cy, C = y0, D = ay;
                 solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
@@ -548,7 +548,7 @@ struct Rasterizer {
                                 writeCubic(tx0123, ty0123, tx123, ty123, tx23, ty23, x0123, y0123, deltaScale, deltas, stride, scanlines);
                             } else {
                                 vx = x <= clip.lx ? clip.lx : clip.ux;
-                                writeSegment(vx, ty0123, vx, y0123, deltaScale, deltas, stride, scanlines);
+                                writeLine(vx, ty0123, vx, y0123, deltaScale, deltas, stride, scanlines);
                             }
                         }
                     }
@@ -565,17 +565,17 @@ struct Rasterizer {
         s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by);
         a = s * s + t * t;
         if (a < 0.1f)
-            writeSegment(x0, y0, x3, y3, scale, deltas, stride, scanlines);
+            writeLine(x0, y0, x3, y3, scale, deltas, stride, scanlines);
         else if (a < 8.f) {
             px0 = (x0 + x3) * 0.125f + (x1 + x2) * 0.375f, py0 = (y0 + y3) * 0.125f + (y1 + y2) * 0.375f;
-            writeSegment(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegment(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+            writeLine(x0, y0, px0, py0, scale, deltas, stride, scanlines);
+            writeLine(px0, py0, x3, y3, scale, deltas, stride, scanlines);
         } else if (a < 16.f) {
             px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
             px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
-            writeSegment(x0, y0, px0, py0, scale, deltas, stride, scanlines);
-            writeSegment(px0, py0, px1, py1, scale, deltas, stride, scanlines);
-            writeSegment(px1, py1, x3, y3, scale, deltas, stride, scanlines);
+            writeLine(x0, y0, px0, py0, scale, deltas, stride, scanlines);
+            writeLine(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+            writeLine(px1, py1, x3, y3, scale, deltas, stride, scanlines);
         } else {
             count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f;
             px0 = x0, py0 = y0;
@@ -583,10 +583,10 @@ struct Rasterizer {
                 t += dt, s = 1.f - t;
                 pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
                 px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
-                writeSegment(px0, py0, px1, py1, scale, deltas, stride, scanlines);
+                writeLine(px0, py0, px1, py1, scale, deltas, stride, scanlines);
                 px0 = px1, py0 = py1;
             }
-            writeSegment(px0, py0, x3, y3, scale, deltas, stride, scanlines);
+            writeLine(px0, py0, x3, y3, scale, deltas, stride, scanlines);
         }
     }
     
