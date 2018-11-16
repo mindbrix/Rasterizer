@@ -198,7 +198,7 @@ struct Rasterizer {
         std::vector<Path> paths;
     };
     
-    static void writePathToBitmap(Path& path, AffineTransform ctm, uint32_t bgra, Context& context) {
+    static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint32_t bgra, Context& context) {
         if (path.bounds.lx == FLT_MAX)
             return;
         Bounds dev = path.bounds.transform(ctm);
@@ -215,7 +215,7 @@ struct Rasterizer {
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
-                writeDeltasToMask(context.deltas, stride, clipped, context.mask);
+                writeDeltasToMask(context.deltas, stride, clipped, even, context.mask);
                 writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
@@ -572,11 +572,11 @@ struct Rasterizer {
         }
     }
     
-    static void writeMaskRow(float *deltas, size_t w, uint8_t *mask) {
+    static void writeMaskRow(float *deltas, size_t stride, bool even, uint8_t *mask) {
         float cover = 0, alpha;
 #ifdef RASTERIZER_SIMD
         __m128 offset4 = _mm_setzero_ps(), sign_mask4 = _mm_set1_ps(-0.), cover4, alpha4, mask4;
-        while (w >> 2) {
+        while (stride >> 2) {
             cover4 = _mm_loadu_ps(deltas), *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
             cover4 = _mm_add_ps(cover4, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(cover4), 4)));
             cover4 = _mm_add_ps(cover4, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(cover4), 8)));
@@ -585,20 +585,20 @@ struct Rasterizer {
             alpha4 = _mm_min_ps(_mm_andnot_ps(sign_mask4, cover4), _mm_set1_ps(255.0));
             mask4 = _mm_shuffle_epi8(_mm_cvttps_epi32(alpha4), _mm_set1_epi32(0x0c080400));
             _mm_store_ss((float *)mask, _mm_castsi128_ps(mask4));
-            w -= 4, mask += 4;
+            stride -= 4, mask += 4;
         }
         _mm_store_ss(& cover, offset4);
 #endif
-        while (w--) {
+        while (stride--) {
             cover += *deltas, *deltas++ = 0;
             alpha = fabsf(cover);
             *mask++ = alpha < 255.f ? alpha : 255.f;
         }
     }
-    static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, uint8_t *mask) {
+    static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *mask) {
         size_t h = clipped.uy - clipped.ly;
         for (size_t y = 0; y < h; y++, deltas += stride, mask += stride)
-            writeMaskRow(deltas, stride, mask);
+            writeMaskRow(deltas, stride, even, mask);
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t stride, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
