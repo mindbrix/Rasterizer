@@ -683,18 +683,17 @@ struct Rasterizer {
     static void radixSort(uint32_t *in, int n, short *counts0, short *counts1, uint32_t *out) {
         uint32_t x;
         memset(counts0, 0, sizeof(short) * 256);
-        int i;
-        for (i = 0; i < n; i++)
+        for (int i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
         prefixSum(counts0, 256);
         memset(counts1, 0, sizeof(short) * 256);
-        for (i = n - 1; i >= 0; i--) {
+        for (int i = n - 1; i >= 0; i--) {
             x = in[i];
             out[--counts0[x & 0xFF]] = x;
             counts1[(x >> 8) & 0xFF]++;
         }
         prefixSum(counts1, 256);
-        for (i = n - 1; i >= 0; i--) {
+        for (int i = n - 1; i >= 0; i--) {
             x = out[i];
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
