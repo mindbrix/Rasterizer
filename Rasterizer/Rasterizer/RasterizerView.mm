@@ -13,8 +13,6 @@
 @interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
-@property(nonatomic) CGFloat dimension;
-@property(nonatomic) CGFloat phi;
 
 @end
 
@@ -39,8 +37,6 @@
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     _testScene.contexts.resize(4);
-    self.dimension = 24;
-    self.phi = (sqrt(5) - 1) / 2;
     [self writeGlyphGrid:@"AppleSymbols"];
     return self;
 }
@@ -102,7 +98,8 @@
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     CGContextConcatCTM(ctx, self.CTM);
-    CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * _dimension * _phi);
+    CGFloat dimension = 24, phi = (sqrt(5) - 1) / 2;
+    CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * dimension * phi);
     CGContextConcatCTM(ctx, CGAffineTransformMake(scale, 0, 0, scale, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
