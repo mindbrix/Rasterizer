@@ -216,7 +216,7 @@ struct Rasterizer {
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, even, context.mask);
-                writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
+                writeMaskToBitmap(context.mask, stride, w, h, bgra, context.bitmap.pixelAddress(clipped.lx, clipped.ly), context.bitmap.rowBytes);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, context.spanlines, true);
@@ -572,6 +572,11 @@ struct Rasterizer {
         }
     }
     
+    static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *mask) {
+        size_t h = clipped.uy - clipped.ly;
+        for (size_t y = 0; y < h; y++, deltas += stride, mask += stride)
+            writeMaskRow(deltas, stride, even, mask);
+    }
     static void writeMaskRow(float *deltas, size_t stride, bool even, uint8_t *mask) {
         float cover = 0, alpha;
 #ifdef RASTERIZER_SIMD
@@ -594,15 +599,6 @@ struct Rasterizer {
             alpha = fabsf(cover);
             *mask++ = alpha < 255.f ? alpha : 255.f;
         }
-    }
-    static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *mask) {
-        size_t h = clipped.uy - clipped.ly;
-        for (size_t y = 0; y < h; y++, deltas += stride, mask += stride)
-            writeMaskRow(deltas, stride, even, mask);
-    }
-    static void writeMaskToBitmap(uint8_t *mask, size_t stride, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        size_t w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        writeMaskToBitmap(mask, stride, w, h, bgra, bitmap.pixelAddress(clipped.lx, clipped.ly), bitmap.rowBytes);
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, size_t w, size_t h, uint32_t bgra, uint32_t *pixelAddress, size_t rowBytes) {
         uint32_t *pixel;
