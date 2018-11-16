@@ -417,32 +417,27 @@ struct Rasterizer {
         sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
-            if (x0 == x1) {
-                vx = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
-                writeSegment(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
-            } else {
-                dx = x1 - x0, dy = y1 - y0;
-                ty0 = (sy0 - y0) / dy, tx0 = (clip.lx - x0) / dx;
-                ty1 = (sy1 - y0) / dy, tx1 = (clip.ux - x0) / dx;
-                tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
-                tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
-                float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
-                for (i = 0; i < 3; i++) {
-                    t0 = ts[i], t1 = ts[i + 1];
-                    if (t0 != t1) {
-                        sy0 = y0 + t0 * dy, sy1 = y0 + t1 * dy;
-                        sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                        sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                        mx = x0 + (t0 + t1) * 0.5f * dx;
-                        if (mx >= clip.lx && mx < clip.ux) {
-                            sx0 = x0 + t0 * dx, sx1 = x0 + t1 * dx;
-                            sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                            sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                            writeSegment(sx0, sy0, sx1, sy1, deltaScale, deltas, stride, scanlines);
-                        } else {
-                            vx = mx < clip.lx ? clip.lx : clip.ux;
-                            writeSegment(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
-                        }
+            dx = x1 - x0, dy = y1 - y0;
+            ty0 = (sy0 - y0) / dy, tx0 = dx == 0.f ? 0.f : (clip.lx - x0) / dx;
+            ty1 = (sy1 - y0) / dy, tx1 = dx == 0.f ? 1.f : (clip.ux - x0) / dx;
+            tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
+            tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
+            float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
+            for (i = 0; i < 3; i++) {
+                t0 = ts[i], t1 = ts[i + 1];
+                if (t0 != t1) {
+                    sy0 = y0 + t0 * dy, sy1 = y0 + t1 * dy;
+                    sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                    sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                    mx = x0 + (t0 + t1) * 0.5f * dx;
+                    if (mx >= clip.lx && mx < clip.ux) {
+                        sx0 = x0 + t0 * dx, sx1 = x0 + t1 * dx;
+                        sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                        sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                        writeSegment(sx0, sy0, sx1, sy1, deltaScale, deltas, stride, scanlines);
+                    } else {
+                        vx = mx < clip.lx ? clip.lx : clip.ux;
+                        writeSegment(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
                     }
                 }
             }
