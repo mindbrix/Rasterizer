@@ -5,8 +5,6 @@
 //  Created by Nigel Barber on 17/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#define RASTERIZER_SIMD 1
-
 #ifdef RASTERIZER_SIMD
 #include <immintrin.h>
 #endif
