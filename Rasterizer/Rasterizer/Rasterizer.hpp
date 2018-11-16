@@ -215,8 +215,8 @@ struct Rasterizer {
                 ely = dev.ly - clipped.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
                 euy = clipped.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
-                AffineTransform deltasCTM = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
-                writePathToDeltasOrScanlines(path, deltasCTM, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
+                AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
+                writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, context.mask);
                 writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
             } else {
