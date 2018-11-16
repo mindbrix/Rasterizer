@@ -470,9 +470,9 @@ struct Rasterizer {
     }
     static void solveCubic(double A, double B, double C, double D, float& t0, float& t1, float& t2) {
         double a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
-        if (fabs(D) < 1e-3) {
+        if (fabs(D) < 1e-3)
             solveQuadratic(A, B, C, t0, t1), t2 = FLT_MAX;
-        } else {
+        else {
             A /= D, B /= D, C /= D, a3 = A / 3;
             p = (3.0 * B - A * A) / 3.0, p3 = p / 3.0, q = (2 * A * A * A - 9.0 * A * B + 27.0 * C) / 27.0, q2 = q / 2.0;
             discriminant = q2 * q2 + p3 * p3 * p3;
