@@ -622,11 +622,6 @@ struct Rasterizer {
         float src0, src1, src2, src3, srcAlpha, alpha;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         srcAlpha = src3 * 0.003921568627f;
-#ifdef RASTERIZER_SIMD
-        __m128 bgra4 = _mm_set_ps(255.f, src2, src1, src0);
-        __m128 a0, m0, d0;
-        __m128i a32, a16, a8;
-#endif
         while (h--) {
             pixel = pixelAddress, msk = mask, columns = w;
             while (columns--) {
@@ -636,8 +631,10 @@ struct Rasterizer {
                     alpha = float(*msk) * 0.003921568627f * srcAlpha;
                     dst = (uint8_t *)pixel;
 #ifdef RASTERIZER_SIMD
+                    __m128 a0, m0, d0;
+                    __m128i a32, a16, a8;
                     a0 = _mm_set1_ps(alpha);
-                    m0 = _mm_mul_ps(bgra4, a0);
+                    m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
                     if (*pixel) {
                         dst = (uint8_t *)pixel, d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
                         m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
