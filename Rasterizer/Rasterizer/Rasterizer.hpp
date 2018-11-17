@@ -664,7 +664,7 @@ struct Rasterizer {
                         uint8_t a = alphaForCover(cover, even);
                         if (a == 255)
                             new (spanline->alloc()) Span(x, delta->x - x);
-                        else if (a > 0)
+                        else if (a)
                             for (ix = x; ix < delta->x; ix++)
                                 new (spanline->alloc()) Span(ix, -a);
                         x = delta->x;
