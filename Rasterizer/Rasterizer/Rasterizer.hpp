@@ -218,7 +218,7 @@ struct Rasterizer {
                 writeMaskToBitmap(context.mask, stride, clipped, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
-                writeScanlinesToSpans(context.scanlines, clipped, even, context.spanlines, true);
+                writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
                 writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
         }
@@ -637,12 +637,10 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, bool even, std::vector<Spanline>& spanlines, bool writeSpans) {
+    static void writeScanlinesToSpans(Scanline *scanline, Bounds clipped, bool even, Spanline *spanline, bool writeSpans) {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover;
         short counts0[256], counts1[256];
-        Scanline *scanline = & scanlines[clipped.ly];
-        Spanline *spanline = & spanlines[clipped.ly];
         Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++)
             if (scanline->idx) {
