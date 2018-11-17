@@ -676,11 +676,11 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t color, Bitmap bitmap) {
+    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         float y, lx, ux, src0, src1, src2, srcAlpha, alpha;
-        uint8_t *components = (uint8_t *) & color;
-        src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.003921568627f;
-        uint32_t *pixel, *last;
+        uint8_t *components;
+        uint32_t *pixel, w;
+        components = (uint8_t *) & bgra, src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.003921568627f;
         Spanline *spanline = & spanlines[clipped.ly];
         Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
@@ -691,14 +691,14 @@ struct Rasterizer {
                 if (lx != ux) {
                     pixel = bitmap.pixelAddress(lx, y);
                     if (span->w > 0 && components[3] == 255)
-                        memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
+                        memset_pattern4(pixel, & bgra, (ux - lx) * bitmap.bytespp);
                     else {
                         if (span->w > 0)
-                            last = pixel + size_t(ux - lx), alpha = srcAlpha;
+                            w = ux - lx, alpha = srcAlpha;
                         else
-                            last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;
-                        for (; pixel < last; pixel++)
-                            writePixel(src0, src1, src2, alpha, pixel);
+                            w = 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;
+                        while (w--)
+                            writePixel(src0, src1, src2, alpha, pixel++);
                     }
                 }
             }
