@@ -578,8 +578,8 @@ struct Rasterizer {
         }
     }
     static inline uint8_t alphaForCover(float cover, bool even) {
-        float alpha = fabsf(cover);
-        return alpha < 255.f ? alpha : 255;
+        int alpha = fabsf(cover);
+        return alpha <= 255 ? alpha : even ? 255 - abs(alpha % 510 - 255) : 255;
     }
     
     static inline void prefixSum(short *counts) {
