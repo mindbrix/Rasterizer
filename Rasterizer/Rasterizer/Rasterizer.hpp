@@ -395,7 +395,7 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ly, uy, cly, cuy, A, B, ts[8], t, s, t0, t1, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        float ly, uy, cly, cuy, A, B, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
@@ -408,18 +408,17 @@ struct Rasterizer {
             solveQuadratic(A, B, x0 - clip.lx, ts[4], ts[5]);
             solveQuadratic(A, B, x0 - clip.ux, ts[6], ts[7]);
             std::sort(& ts[0], & ts[8]);
-            for (int i = 0; i < 7; i++) {
-                t0 = ts[i], t1 = ts[i + 1];
-                if (t0 != t1) {
-                    t = (t0 + t1) * 0.5f, s = 1.f - t;
+            for (int i = 0; i < 7; i++)
+                if (ts[i] != ts[i + 1]) {
+                    t = (ts[i] + ts[i + 1]) * 0.5f, s = 1.f - t;
                     y = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     if (y >= clip.ly && y < clip.uy) {
                         x = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
                         bool visible = x >= clip.lx && x < clip.ux;
-                        t = t1, s = 1.f - t;
+                        t = ts[i + 1], s = 1.f - t;
                         x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
                         y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
-                        t = t0 / t1, s = 1.f - t;
+                        t = ts[i] / ts[i + 1], s = 1.f - t;
                         ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty012 = ty01 * s + ty12 * t;
                         ty012 = ty012 < clip.ly ? clip.ly : ty012 > clip.uy ? clip.uy : ty012;
                         y012 = y012 < clip.ly ? clip.ly : y012 > clip.uy ? clip.uy : y012;
@@ -434,7 +433,6 @@ struct Rasterizer {
                         }
                     }
                 }
-            }
         }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float scale, float *deltas, size_t stride, Scanline *scanlines) {
