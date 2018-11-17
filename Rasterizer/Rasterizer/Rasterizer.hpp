@@ -184,7 +184,6 @@ struct Rasterizer {
         Bitmap bitmap;
         Bounds clip, device;
         float deltas[kDeltasDimension * kDeltasDimension];
-        uint8_t mask[kDeltasDimension * kDeltasDimension];
         std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
     };
