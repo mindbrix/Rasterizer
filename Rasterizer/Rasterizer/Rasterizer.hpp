@@ -641,10 +641,9 @@ struct Rasterizer {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover;
         short counts0[256], counts1[256];
-        Delta *begin, *end, *delta;
         for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++)
             if (scanline->idx) {
-                begin = & scanline->elems[0], end = begin + scanline->idx;
+                Delta *begin = & scanline->elems[0], *end = begin + scanline->idx, *delta;
                 if (scanline->idx > 32)
                     radixSort((uint32_t *)begin, scanline->idx, counts0, counts1);
                 else
