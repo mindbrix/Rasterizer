@@ -663,7 +663,7 @@ struct Rasterizer {
                 for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
                     if (delta->x != x) {
                         alpha = fabsf(cover), a = alpha < 255.f ? alpha : 255.f;
-                        if (a > 254)
+                        if (a == 255)
                             new (spanline->alloc()) Span(x, delta->x - x);
                         else if (a > 0)
                             for (ix = x; ix < delta->x; ix++)
