@@ -482,7 +482,7 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ly, uy, s, t, cly, cuy, A, B, C, D, ts[12], w0, w1, w2, w3, x, y, vx;
+        float ly, uy, cly, cuy, A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx;
         float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
         float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
