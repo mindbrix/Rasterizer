@@ -295,7 +295,7 @@ struct Rasterizer {
         }
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, t0, t1, mx, vx;
+        float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, mx, vx;
         sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
@@ -305,15 +305,14 @@ struct Rasterizer {
             tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
             tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
             float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
-            for (int i = 0; i < 3; i++) {
-                t0 = ts[i], t1 = ts[i + 1];
-                if (t0 != t1) {
-                    sy0 = y0 + t0 * dy, sy1 = y0 + t1 * dy;
+            for (int i = 0; i < 3; i++)
+                if (ts[i] != ts[i + 1]) {
+                    sy0 = y0 + ts[i] * dy, sy1 = y0 + ts[i + 1] * dy;
                     sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
                     sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                    mx = x0 + (t0 + t1) * 0.5f * dx;
+                    mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
                     if (mx >= clip.lx && mx < clip.ux) {
-                        sx0 = x0 + t0 * dx, sx1 = x0 + t1 * dx;
+                        sx0 = x0 + ts[i] * dx, sx1 = x0 + ts[i + 1] * dx;
                         sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                         writeLine(sx0, sy0, sx1, sy1, deltaScale, deltas, stride, scanlines);
@@ -322,7 +321,6 @@ struct Rasterizer {
                         writeLine(vx, sy0, vx, sy1, deltaScale, deltas, stride, scanlines);
                     }
                 }
-            }
         }
     }
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
