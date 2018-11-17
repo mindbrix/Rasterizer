@@ -644,31 +644,30 @@ struct Rasterizer {
         Scanline *scanline = & scanlines[clipped.ly];
         Spanline *spanline = & spanlines[clipped.ly];
         Delta *begin, *end, *delta;
-        for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++) {
-            if (scanline->idx == 0)
-                continue;
-            begin = & scanline->elems[0], end = begin + scanline->idx;
-            if (scanline->idx > 32) {
-                uint32_t mem0[scanline->idx];
-                radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
-            } else
-                std::sort(begin, end);
-            if (writeSpans) {
-                for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
-                    if (delta->x != x) {
-                        uint8_t a = alphaForCover(cover, even);
-                        if (a == 255)
-                            new (spanline->alloc()) Span(x, delta->x - x);
-                        else if (a)
-                            for (ix = x; ix < delta->x; ix++)
-                                new (spanline->alloc()) Span(ix, -a);
-                        x = delta->x;
+        for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++)
+            if (scanline->idx) {
+                begin = & scanline->elems[0], end = begin + scanline->idx;
+                if (scanline->idx > 32) {
+                    uint32_t mem0[scanline->idx];
+                    radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
+                } else
+                    std::sort(begin, end);
+                if (writeSpans) {
+                    for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
+                        if (delta->x != x) {
+                            uint8_t a = alphaForCover(cover, even);
+                            if (a == 255)
+                                new (spanline->alloc()) Span(x, delta->x - x);
+                            else if (a)
+                                for (ix = x; ix < delta->x; ix++)
+                                    new (spanline->alloc()) Span(ix, -a);
+                            x = delta->x;
+                        }
+                        cover += float(delta->delta) * scale;
                     }
-                    cover += float(delta->delta) * scale;
+                    scanline->empty();
                 }
-                scanline->empty();
             }
-        }
     }
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint8_t *src, Bitmap bitmap) {
         float y, lx, ux, src0, src1, src2, srcAlpha;
