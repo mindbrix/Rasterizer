@@ -185,8 +185,7 @@ struct Rasterizer {
         Bounds clip, device;
         float deltas[kDeltasDimension * kDeltasDimension];
         uint8_t mask[kDeltasDimension * kDeltasDimension];
-        std::vector<Scanline> cliplines;
-        std::vector<Scanline> scanlines;
+        std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
     };
     struct Scene {
