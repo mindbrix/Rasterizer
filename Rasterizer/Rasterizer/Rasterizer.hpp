@@ -597,13 +597,10 @@ struct Rasterizer {
         uint8_t *msk, *components;
         size_t columns, w, h;
         float src0, src1, src2, srcAlpha;
-        w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
         pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
-        components = (uint8_t *)& bgra;
-        src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.0000153787005f;
-        while (h--) {
-            pixel = pixelAddress, msk = mask, columns = w;
-            while (columns--) {
+        components = (uint8_t *)& bgra, src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.0000153787005f;
+        for (w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly; h; h--) {
+            for (pixel = pixelAddress, msk = mask, columns = w; columns; columns--) {
                 if (*msk == 255 && components[3] == 255)
                     *pixel = bgra;
                 else if (*msk)
