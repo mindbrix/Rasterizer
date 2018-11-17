@@ -594,14 +594,13 @@ struct Rasterizer {
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         uint32_t *pixelAddress, *pixel;
-        uint8_t *msk, *components;
-        size_t columns, w, h;
+        uint8_t *msk, *src;
+        size_t w, h;
         float src0, src1, src2, srcAlpha;
-        components = (uint8_t *)& bgra, src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.0000153787005f;
-        w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
-        for (pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly); h; h--, pixelAddress -= bitmap.rowBytes / 4, mask += maskRowBytes)
-            for (pixel = pixelAddress, msk = mask, columns = w; columns; columns--, msk++, pixel++) {
-                if (*msk == 255 && components[3] == 255)
+        src = (uint8_t *)& bgra, src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
+        for (pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly), h = clipped.uy - clipped.ly; h; h--, pixelAddress -= bitmap.rowBytes / 4, mask += maskRowBytes)
+            for (pixel = pixelAddress, msk = mask, w = clipped.ux - clipped.lx; w; w--, msk++, pixel++) {
+                if (*msk == 255 && src[3] == 255)
                     *pixel = bgra;
                 else if (*msk)
                     writePixel(src0, src1, src2, float(*msk) * srcAlpha, pixel);
