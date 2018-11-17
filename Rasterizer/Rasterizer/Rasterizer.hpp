@@ -573,7 +573,7 @@ struct Rasterizer {
         float cover = 0, alpha;
 #ifdef RASTERIZER_SIMD
         __m128 offset4 = _mm_setzero_ps(), sign_mask4 = _mm_set1_ps(-0.), cover4, alpha4, mask4;
-        while (stride >> 2) {
+        for (; stride >> 2; stride -= 4, mask += 4) {
             cover4 = _mm_loadu_ps(deltas), *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
             cover4 = _mm_add_ps(cover4, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(cover4), 4)));
             cover4 = _mm_add_ps(cover4, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(cover4), 8)));
@@ -582,7 +582,6 @@ struct Rasterizer {
             alpha4 = _mm_min_ps(_mm_andnot_ps(sign_mask4, cover4), _mm_set1_ps(255.0));
             mask4 = _mm_shuffle_epi8(_mm_cvttps_epi32(alpha4), _mm_set1_epi32(0x0c080400));
             _mm_store_ss((float *)mask, _mm_castsi128_ps(mask4));
-            stride -= 4, mask += 4;
         }
         _mm_store_ss(& cover, offset4);
 #endif
