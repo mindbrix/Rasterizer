@@ -619,8 +619,8 @@ struct Rasterizer {
             *dst++ += *src++;
 #endif
     }
-    static void radixSort(uint32_t *in, int n, short *counts0, short *counts1, uint32_t *out) {
-        uint32_t x;
+    static void radixSort(uint32_t *in, short n, short *counts0, short *counts1) {
+        uint32_t x, tmp[n];
         memset(counts0, 0, sizeof(short) * 256);
         for (int i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
@@ -628,12 +628,12 @@ struct Rasterizer {
         memset(counts1, 0, sizeof(short) * 256);
         for (int i = n - 1; i >= 0; i--) {
             x = in[i];
-            out[--counts0[x & 0xFF]] = x;
+            tmp[--counts0[x & 0xFF]] = x;
             counts1[(x >> 8) & 0xFF]++;
         }
         prefixSum(counts1, 256);
         for (int i = n - 1; i >= 0; i--) {
-            x = out[i];
+            x = tmp[i];
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
@@ -647,10 +647,9 @@ struct Rasterizer {
         for (y = clipped.ly; y < clipped.uy; y++, scanline++, spanline++)
             if (scanline->idx) {
                 begin = & scanline->elems[0], end = begin + scanline->idx;
-                if (scanline->idx > 32) {
-                    uint32_t mem0[scanline->idx];
-                    radixSort((uint32_t *)begin, int(scanline->idx), counts0, counts1, mem0);
-                } else
+                if (scanline->idx > 32)
+                    radixSort((uint32_t *)begin, scanline->idx, counts0, counts1);
+                else
                     std::sort(begin, end);
                 if (writeSpans) {
                     for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
