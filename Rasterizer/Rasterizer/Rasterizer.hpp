@@ -13,8 +13,6 @@
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
-    static const size_t kDeltasDimension = 128;
-    
     struct AffineTransform {
         AffineTransform() {}
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
@@ -182,6 +180,7 @@ struct Rasterizer {
             device = Bounds(0, 0, bm.width, bm.height);
             clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
+        static const size_t kDeltasDimension = 128;
         Bitmap bitmap;
         Bounds clip, device;
         float deltas[kDeltasDimension * kDeltasDimension];
@@ -206,7 +205,7 @@ struct Rasterizer {
         float w, h, stride, elx, ely, eux, euy;
         if (!clipped.isZero()) {
             w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1;
-            if (stride * h < kDeltasDimension * kDeltasDimension) {
+            if (stride * h < Context::kDeltasDimension * Context::kDeltasDimension) {
                 const float kFloatOffset = 5e-2;
                 elx = dev.lx - clipped.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
                 eux = clipped.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
