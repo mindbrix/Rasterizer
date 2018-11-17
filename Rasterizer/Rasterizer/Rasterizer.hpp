@@ -215,7 +215,7 @@ struct Rasterizer {
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, even, context.mask);
-                writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
+                writeMaskToBitmap(context.mask, stride, clipped, (uint8_t *)& bgra, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, even, context.spanlines, true);
@@ -589,15 +589,15 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return alpha < 255.f ? alpha : 255;
     }
-    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        uint8_t *pixelAddress, *pixel, *msk, *src;
+    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint8_t *src, Bitmap bitmap) {
+        uint8_t *pixelAddress, *pixel, *msk;
         size_t w, h;
         float src0, src1, src2, srcAlpha;
-        src = (uint8_t *)& bgra, src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
+        src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
         for (pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly), h = clipped.uy - clipped.ly; h; h--, pixelAddress -= bitmap.rowBytes, mask += maskRowBytes)
             for (pixel = pixelAddress, msk = mask, w = clipped.ux - clipped.lx; w; w--, msk++, pixel += bitmap.bytespp) {
                 if (*msk == 255 && src[3] == 255)
-                    *((uint32_t *)pixel) = bgra;
+                    *((uint32_t *)pixel) = *((uint32_t *)src);
                 else if (*msk)
                     writePixel(src0, src1, src2, float(*msk) * srcAlpha, pixel);
             }
