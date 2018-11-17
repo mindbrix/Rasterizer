@@ -228,11 +228,9 @@ struct Rasterizer {
     static void writePathToDeltasOrScanlines(Path& path, AffineTransform ctm, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
         bool fs, f0, f1, f2, f3;
-        size_t index;
-        uint8_t type;
         x0 = y0 = sx = sy = FLT_MAX, f0 = fs = false;
         for (Path::Atom& atom : path.atoms)
-            for (index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
+            for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
                 switch (type) {
                     case Path::Atom::kMove:
