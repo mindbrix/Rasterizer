@@ -645,7 +645,6 @@ struct Rasterizer {
     static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, bool even, std::vector<Spanline>& spanlines, bool writeSpans) {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover;
-        uint8_t a;
         short counts0[256], counts1[256];
         Scanline *scanline = & scanlines[clipped.ly];
         Spanline *spanline = & spanlines[clipped.ly];
@@ -662,7 +661,7 @@ struct Rasterizer {
             if (writeSpans) {
                 for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
                     if (delta->x != x) {
-                        a = alphaForCover(cover, even);
+                        uint8_t a = alphaForCover(cover, even);
                         if (a == 255)
                             new (spanline->alloc()) Span(x, delta->x - x);
                         else if (a > 0)
