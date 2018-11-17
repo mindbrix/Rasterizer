@@ -594,7 +594,7 @@ struct Rasterizer {
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         uint32_t *pixelAddress, *pixel;
-        uint8_t *msk, *components, a, *dst;
+        uint8_t *msk, *components, a;
         size_t columns, w, h;
         float src0, src1, src2, src3, srcAlpha, alpha;
         w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
@@ -609,27 +609,7 @@ struct Rasterizer {
                     *pixel = bgra;
                 else if (*msk) {
                     alpha = float(*msk) * 0.003921568627f * srcAlpha;
-                    dst = (uint8_t *)pixel;
-#ifdef RASTERIZER_SIMD
-                    __m128 a0 = _mm_set1_ps(alpha);
-                    __m128 m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
-                    if (*pixel) {
-                        dst = (uint8_t *)pixel;
-                        __m128i d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
-                        m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
-                    }
-                    __m128i a32 = _mm_cvttps_epi32(m0), a16 = _mm_packs_epi32(a32, a32), a8 = _mm_packus_epi16(a16, a16);
-                    *pixel = _mm_cvtsi128_si32(a8);
-#else
-                    if (*pixel == 0)
-                        *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
-                    else {
-                        *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-                        *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-                        *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                        *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
-                    }
-#endif
+                    writePixel(src0, src1, src2, alpha, pixel);
                 }
                 msk++, pixel++;
             }
@@ -708,7 +688,7 @@ struct Rasterizer {
     }
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t color, Bitmap bitmap) {
         float y, lx, ux, src0, src1, src2, src3, srcAlpha, alpha;
-        uint8_t *components = (uint8_t *) & color, *dst;
+        uint8_t *components = (uint8_t *) & color;
         src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
         srcAlpha = src3 * 0.003921568627f;
         uint32_t *pixel, *last;
@@ -728,20 +708,34 @@ struct Rasterizer {
                             last = pixel + size_t(ux - lx), alpha = srcAlpha;
                         else
                             last = pixel + 1, alpha = float(-span->w) * 0.003921568627f * srcAlpha;
-                        for (; pixel < last; pixel++) {
-                            dst = (uint8_t *)pixel;
-                            if (*pixel == 0)
-                                *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
-                            else {
-                                *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-                                *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
-                            }
-                        }
+                        for (; pixel < last; pixel++)
+                            writePixel(src0, src1, src2, alpha, pixel);
                     }
                 }
             }
         }
+    }
+    static inline void writePixel(float src0, float src1, float src2, float alpha, uint32_t *pixel) {
+        uint8_t *dst;
+#ifdef RASTERIZER_SIMD
+        __m128 a0 = _mm_set1_ps(alpha);
+        __m128 m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
+        if (*pixel) {
+            dst = (uint8_t *)pixel;
+            __m128i d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
+            m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
+        }
+        __m128i a32 = _mm_cvttps_epi32(m0), a16 = _mm_packs_epi32(a32, a32), a8 = _mm_packus_epi16(a16, a16);
+        *pixel = _mm_cvtsi128_si32(a8);
+#else
+        if (*pixel == 0)
+            *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
+        else {
+            *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
+            *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
+            *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
+            *dst = *dst * (1.f - alpha) + 255.f * alpha, dst++;
+        }
+#endif
     }
 };
