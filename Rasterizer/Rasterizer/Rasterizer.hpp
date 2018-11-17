@@ -219,7 +219,7 @@ struct Rasterizer {
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, even, context.spanlines, true);
-                writeSpansToBitmap(context.spanlines, clipped, bgra, context.bitmap);
+                writeSpansToBitmap(context.spanlines, clipped, (uint8_t *)& bgra, context.bitmap);
             }
         }
     }
@@ -670,10 +670,9 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
+    static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint8_t *src, Bitmap bitmap) {
         float y, lx, ux, src0, src1, src2, srcAlpha;
-        uint8_t *src, *pixel;
-        src = (uint8_t *) & bgra, src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
+        src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
         Spanline *spanline = & spanlines[clipped.ly];
         Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
@@ -682,9 +681,9 @@ struct Rasterizer {
                 lx = lx < clipped.lx ? clipped.lx : lx > clipped.ux ? clipped.ux : lx;
                 ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
                 if (lx != ux) {
-                    pixel = bitmap.pixelAddress(lx, y);
+                    uint8_t *pixel = bitmap.pixelAddress(lx, y);
                     if (span->w > 0 && src[3] == 255)
-                        memset_pattern4(pixel, & bgra, (ux - lx) * bitmap.bytespp);
+                        memset_pattern4(pixel, src, (ux - lx) * bitmap.bytespp);
                     else {
                         if (span->w > 0) {
                             for (size_t w = ux - lx; w; w--, pixel += bitmap.bytespp)
