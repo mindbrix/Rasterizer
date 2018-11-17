@@ -180,9 +180,9 @@ struct Rasterizer {
             device = Bounds(0, 0, bm.width, bm.height);
             clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
-        static const size_t kDeltasDimension = 128;
         Bitmap bitmap;
         Bounds clip, device;
+        static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
         std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
@@ -565,9 +565,11 @@ struct Rasterizer {
         src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
         pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
         for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
-            cover = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
+            cover = mask = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
             while (w--) {
-                cover += *delta, *delta++ = 0, mask = alphaForCover(cover, even);
+                if (*delta)
+                    cover += *delta, *delta = 0, mask = alphaForCover(cover, even);
+                delta++;
                 if (mask == 255 && src[3] == 255)
                     *((uint32_t *)pixel) = *((uint32_t *)src);
                 else if (mask)
