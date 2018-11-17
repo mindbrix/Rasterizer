@@ -395,18 +395,18 @@ struct Rasterizer {
         t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        float ly, uy, cly, cuy, A, B, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        float ly, uy, cly, cuy, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
         cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
         if (cly != cuy) {
-            A = y0 + y2 - y1 - y1, B = 2.f * (y1 - y0);
-            solveQuadratic(A, B, y0 - clip.ly, ts[0], ts[1]);
-            solveQuadratic(A, B, y0 - clip.uy, ts[2], ts[3]);
-            A = x0 + x2 - x1 - x1, B = 2.f * (x1 - x0);
-            solveQuadratic(A, B, x0 - clip.lx, ts[4], ts[5]);
-            solveQuadratic(A, B, x0 - clip.ux, ts[6], ts[7]);
+            A = y0 + y2 - y1 - y1, B = 2.f * (y1 - y0), C = y0;
+            solveQuadratic(A, B, C - clip.ly, ts[0], ts[1]);
+            solveQuadratic(A, B, C - clip.uy, ts[2], ts[3]);
+            A = x0 + x2 - x1 - x1, B = 2.f * (x1 - x0), C = x0;
+            solveQuadratic(A, B, C - clip.lx, ts[4], ts[5]);
+            solveQuadratic(A, B, C - clip.ux, ts[6], ts[7]);
             std::sort(& ts[0], & ts[8]);
             for (int i = 0; i < 7; i++)
                 if (ts[i] != ts[i + 1]) {
