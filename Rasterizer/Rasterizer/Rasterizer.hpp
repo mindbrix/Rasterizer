@@ -213,8 +213,7 @@ struct Rasterizer {
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
-                writeDeltasToMask(context.deltas, stride, clipped, even, context.mask);
-                writeMaskToBitmap(context.mask, stride, clipped, src, context.bitmap);
+                writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
@@ -560,46 +559,28 @@ struct Rasterizer {
             writeLine(px0, py0, x3, y3, scale, deltas, stride, scanlines);
         }
     }
-    
-    static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *mask) {
-        for (size_t y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, mask += stride)
-            writeMaskRow(deltas, stride, even, mask);
-    }
-    static void writeMaskRow(float *deltas, size_t stride, bool even, uint8_t *mask) {
-        float cover = 0;
-#ifdef RASTERIZER_SIMD
-        __m128 offset4 = _mm_setzero_ps(), sign_mask4 = _mm_set1_ps(-0.), cover4, alpha4, mask4;
-        for (; stride >> 2; stride -= 4, mask += 4) {
-            cover4 = _mm_loadu_ps(deltas), *deltas++ = 0, *deltas++ = 0, *deltas++ = 0, *deltas++ = 0;
-            cover4 = _mm_add_ps(cover4, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(cover4), 4)));
-            cover4 = _mm_add_ps(cover4, _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(cover4), 8)));
-            cover4 = _mm_add_ps(cover4, offset4);
-            offset4 = _mm_shuffle_ps(cover4, cover4, 0xFF);
-            alpha4 = _mm_min_ps(_mm_andnot_ps(sign_mask4, cover4), _mm_set1_ps(255.0));
-            mask4 = _mm_shuffle_epi8(_mm_cvttps_epi32(alpha4), _mm_set1_epi32(0x0c080400));
-            _mm_store_ss((float *)mask, _mm_castsi128_ps(mask4));
+    static void writeDeltasToBitmap(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *src, Bitmap bitmap) {
+        float y, h, w, cover, *delta;
+        uint8_t *pixelAddress, *pixel, mask;
+        float src0, src1, src2, srcAlpha;
+        src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
+        pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
+        for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
+            cover = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
+            while (w--) {
+                cover += *delta, *delta++ = 0, mask = alphaForCover(cover, even);
+                if (mask == 255 && src[3] == 255)
+                    *((uint32_t *)pixel) = *((uint32_t *)src);
+                else if (mask)
+                    writePixel(src0, src1, src2, float(mask) * srcAlpha, pixel);
+                pixel += bitmap.bytespp;
+            }
+            *delta = 0;
         }
-        _mm_store_ss(& cover, offset4);
-#endif
-        while (stride--)
-            cover += *deltas, *deltas++ = 0, *mask++ = alphaForCover(cover, even);
     }
     static inline uint8_t alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
         return alpha < 255.f ? alpha : 255;
-    }
-    static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint8_t *src, Bitmap bitmap) {
-        uint8_t *pixelAddress, *pixel, *msk;
-        size_t w, h;
-        float src0, src1, src2, srcAlpha;
-        src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
-        for (pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly), h = clipped.uy - clipped.ly; h; h--, pixelAddress -= bitmap.rowBytes, mask += maskRowBytes)
-            for (pixel = pixelAddress, msk = mask, w = clipped.ux - clipped.lx; w; w--, msk++, pixel += bitmap.bytespp) {
-                if (*msk == 255 && src[3] == 255)
-                    *((uint32_t *)pixel) = *((uint32_t *)src);
-                else if (*msk)
-                    writePixel(src0, src1, src2, float(*msk) * srcAlpha, pixel);
-            }
     }
     
     static inline void prefixSum(short *counts) {
