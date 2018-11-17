@@ -324,57 +324,57 @@ struct Rasterizer {
         }
     }
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
-        if (y0 == y1)
-            return;
-        float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last;
-        Scanline *scanline;
-        size_t ily;
-        deltaScale = copysign(deltaScale, y1 - y0);
-        if (deltaScale < 0)
-            tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-        dxdy = (x1 - x0) / (y1 - y0);
-        
-        for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * ily, scanline = scanlines + ily;
-             iy0 < y1;
-             iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
-            sy1 = y1 > iy1 ? iy1 : y1;
-            sx1 = (sy1 - y0) * dxdy + x0;
+        if (y0 != y1) {
+            float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last;
+            Scanline *scanline;
+            size_t ily;
+            deltaScale = copysign(deltaScale, y1 - y0);
+            if (deltaScale < 0)
+                tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
+            dxdy = (x1 - x0) / (y1 - y0);
             
-            lx = sx0 < sx1 ? sx0 : sx1;
-            ux = sx0 > sx1 ? sx0 : sx1;
-            ix0 = floorf(lx), ix1 = ix0 + 1;
-            if (lx >= ix0 && ux <= ix1) {
-                cover = (sy1 - sy0) * deltaScale;
-                area = (ix1 - (ux + lx) * 0.5f);
-                if (scanlines) {
-                    new (scanline->alloc()) Delta(ix0, cover * area);
-                    new (scanline->alloc()) Delta(ix1, cover * (1.f - area));
+            for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * ily, scanline = scanlines + ily;
+                 iy0 < y1;
+                 iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
+                sy1 = y1 > iy1 ? iy1 : y1;
+                sx1 = (sy1 - y0) * dxdy + x0;
+                
+                lx = sx0 < sx1 ? sx0 : sx1;
+                ux = sx0 > sx1 ? sx0 : sx1;
+                ix0 = floorf(lx), ix1 = ix0 + 1;
+                if (lx >= ix0 && ux <= ix1) {
+                    cover = (sy1 - sy0) * deltaScale;
+                    area = (ix1 - (ux + lx) * 0.5f);
+                    if (scanlines) {
+                        new (scanline->alloc()) Delta(ix0, cover * area);
+                        new (scanline->alloc()) Delta(ix1, cover * (1.f - area));
+                    } else {
+                        deltasRow[int(ix0)] += cover * area;
+                        if (ix1 < stride)
+                            deltasRow[int(ix1)] += cover * (1.f - area);
+                    }
                 } else {
-                    deltasRow[int(ix0)] += cover * area;
-                    if (ix1 < stride)
-                        deltasRow[int(ix1)] += cover * (1.f - area);
-                }
-            } else {
-                dydx = 1.f / fabsf(dxdy);
-                cx0 = lx, cy0 = sy0;
-                cx1 = ux < ix1 ? ux : ix1;
-                cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-                for (last = 0;
-                     ix0 <= ux;
-                     ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
-                    cover = (cy1 - cy0) * deltaScale;
-                    area = (ix1 - (cx0 + cx1) * 0.5f);
+                    dydx = 1.f / fabsf(dxdy);
+                    cx0 = lx, cy0 = sy0;
+                    cx1 = ux < ix1 ? ux : ix1;
+                    cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+                    for (last = 0;
+                         ix0 <= ux;
+                         ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
+                        cover = (cy1 - cy0) * deltaScale;
+                        area = (ix1 - (cx0 + cx1) * 0.5f);
+                        if (scanlines)
+                            new (scanline->alloc()) Delta(ix0, cover * area + last);
+                        else
+                            deltasRow[int(ix0)] += cover * area + last;
+                        last = cover * (1.f - area);
+                    }
                     if (scanlines)
-                        new (scanline->alloc()) Delta(ix0, cover * area + last);
-                    else
-                        deltasRow[int(ix0)] += cover * area + last;
-                    last = cover * (1.f - area);
-                }
-                if (scanlines)
-                    new (scanline->alloc()) Delta(ix0, last);
-                else {
-                    if (ix0 < stride)
-                        deltasRow[int(ix0)] += last;
+                        new (scanline->alloc()) Delta(ix0, last);
+                    else {
+                        if (ix0 < stride)
+                            deltasRow[int(ix0)] += last;
+                    }
                 }
             }
         }
