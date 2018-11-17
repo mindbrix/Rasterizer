@@ -596,12 +596,11 @@ struct Rasterizer {
         uint32_t *pixelAddress, *pixel;
         uint8_t *msk, *components, a;
         size_t columns, w, h;
-        float src0, src1, src2, src3, srcAlpha, alpha;
+        float src0, src1, src2, srcAlpha, alpha;
         w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly;
         pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
         components = (uint8_t *)& bgra, a = components[3];
-        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
-        srcAlpha = src3 * 0.003921568627f;
+        src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.003921568627f;
         while (h--) {
             pixel = pixelAddress, msk = mask, columns = w;
             while (columns--) {
@@ -687,10 +686,9 @@ struct Rasterizer {
         }
     }
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t color, Bitmap bitmap) {
-        float y, lx, ux, src0, src1, src2, src3, srcAlpha, alpha;
+        float y, lx, ux, src0, src1, src2, srcAlpha, alpha;
         uint8_t *components = (uint8_t *) & color;
-        src0 = components[0], src1 = components[1], src2 = components[2], src3 = components[3];
-        srcAlpha = src3 * 0.003921568627f;
+        src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.003921568627f;
         uint32_t *pixel, *last;
         Spanline *spanline = & spanlines[clipped.ly];
         Span *span, *end;
@@ -701,7 +699,7 @@ struct Rasterizer {
                 ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
                 if (lx != ux) {
                     pixel = bitmap.pixelAddress(lx, y);
-                    if (span->w > 0 && src3 == 255)
+                    if (span->w > 0 && components[3] == 255)
                         memset_pattern4(pixel, & color, (ux - lx) * bitmap.bytespp);
                     else {
                         if (span->w > 0)
