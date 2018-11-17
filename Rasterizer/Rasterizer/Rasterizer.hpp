@@ -14,7 +14,6 @@
 
 struct Rasterizer {
     static const size_t kDeltasDimension = 128;
-    static constexpr float kFloatOffset = 5e-2;
     
     struct AffineTransform {
         AffineTransform() {}
@@ -208,6 +207,7 @@ struct Rasterizer {
         if (!clipped.isZero()) {
             w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1;
             if (stride * h < kDeltasDimension * kDeltasDimension) {
+                const float kFloatOffset = 5e-2;
                 elx = dev.lx - clipped.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
                 eux = clipped.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
                 ely = dev.ly - clipped.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
