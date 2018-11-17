@@ -219,7 +219,7 @@ struct Rasterizer {
                 writeMaskToBitmap(context.mask, stride, clipped, bgra, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
-                writeScanlinesToSpans(context.scanlines, clipped, context.spanlines, true);
+                writeScanlinesToSpans(context.scanlines, clipped, even, context.spanlines, true);
                 writeSpansToBitmap(context.spanlines, clipped, bgra, context.bitmap);
             }
         }
@@ -570,7 +570,7 @@ struct Rasterizer {
             writeMaskRow(deltas, stride, even, mask);
     }
     static void writeMaskRow(float *deltas, size_t stride, bool even, uint8_t *mask) {
-        float cover = 0, alpha;
+        float cover = 0;
 #ifdef RASTERIZER_SIMD
         __m128 offset4 = _mm_setzero_ps(), sign_mask4 = _mm_set1_ps(-0.), cover4, alpha4, mask4;
         for (; stride >> 2; stride -= 4, mask += 4) {
@@ -585,11 +585,13 @@ struct Rasterizer {
         }
         _mm_store_ss(& cover, offset4);
 #endif
-        while (stride--) {
-            cover += *deltas, *deltas++ = 0;
-            alpha = fabsf(cover);
-            *mask++ = alpha < 255.f ? alpha : 255.f;
-        }
+        while (stride--)
+            cover += *deltas, *deltas++ = 0, *mask++ = alphaForCover(cover, even);
+        
+    }
+    static inline uint8_t alphaForCover(float cover, bool even) {
+        float alpha = fabsf(cover);
+        return alpha < 255.f ? alpha : 255;
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         uint32_t *pixelAddress, *pixel;
@@ -640,9 +642,9 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, std::vector<Spanline>& spanlines, bool writeSpans) {
+    static void writeScanlinesToSpans(std::vector<Scanline>& scanlines, Bounds clipped, bool even, std::vector<Spanline>& spanlines, bool writeSpans) {
         const float scale = 255.5f / 32767.f;
-        float x, y, ix, cover, alpha;
+        float x, y, ix, cover;
         uint8_t a;
         short counts0[256], counts1[256];
         Scanline *scanline = & scanlines[clipped.ly];
@@ -660,7 +662,7 @@ struct Rasterizer {
             if (writeSpans) {
                 for (cover = 0, delta = begin, x = begin->x; delta < end; delta++) {
                     if (delta->x != x) {
-                        alpha = fabsf(cover), a = alpha < 255.f ? alpha : 255.f;
+                        a = alphaForCover(cover, even);
                         if (a == 255)
                             new (spanline->alloc()) Span(x, delta->x - x);
                         else if (a > 0)
@@ -702,12 +704,11 @@ struct Rasterizer {
         }
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint32_t *pixel) {
-        uint8_t *dst;
+        uint8_t *dst = (uint8_t *)pixel;
 #ifdef RASTERIZER_SIMD
         __m128 a0 = _mm_set1_ps(alpha);
         __m128 m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
         if (*pixel) {
-            dst = (uint8_t *)pixel;
             __m128i d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
             m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
         }
