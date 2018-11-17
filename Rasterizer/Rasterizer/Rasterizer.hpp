@@ -136,7 +136,7 @@ struct Rasterizer {
     struct Bitmap {
         Bitmap() {}
         Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp) : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
-        inline uint32_t *pixelAddress(short x, short y) { return (uint32_t *)(data + rowBytes * (height - 1 - y) + x * bytespp); }
+        inline uint8_t *pixelAddress(short x, short y) { return data + rowBytes * (height - 1 - y) + x * bytespp; }
         uint8_t *data;
         size_t width, height, rowBytes, bpp, bytespp;
     };
@@ -592,15 +592,14 @@ struct Rasterizer {
         return alpha < 255.f ? alpha : 255;
     }
     static void writeMaskToBitmap(uint8_t *mask, size_t maskRowBytes, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
-        uint32_t *pixelAddress, *pixel;
-        uint8_t *msk, *src;
+        uint8_t *pixelAddress, *pixel, *msk, *src;
         size_t w, h;
         float src0, src1, src2, srcAlpha;
         src = (uint8_t *)& bgra, src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
-        for (pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly), h = clipped.uy - clipped.ly; h; h--, pixelAddress -= bitmap.rowBytes / 4, mask += maskRowBytes)
-            for (pixel = pixelAddress, msk = mask, w = clipped.ux - clipped.lx; w; w--, msk++, pixel++) {
+        for (pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly), h = clipped.uy - clipped.ly; h; h--, pixelAddress -= bitmap.rowBytes, mask += maskRowBytes)
+            for (pixel = pixelAddress, msk = mask, w = clipped.ux - clipped.lx; w; w--, msk++, pixel += bitmap.bytespp) {
                 if (*msk == 255 && src[3] == 255)
-                    *pixel = bgra;
+                    *((uint32_t *)pixel) = bgra;
                 else if (*msk)
                     writePixel(src0, src1, src2, float(*msk) * srcAlpha, pixel);
             }
@@ -675,9 +674,8 @@ struct Rasterizer {
     }
     static void writeSpansToBitmap(std::vector<Spanline>& spanlines, Bounds clipped, uint32_t bgra, Bitmap bitmap) {
         float y, lx, ux, src0, src1, src2, srcAlpha;
-        uint8_t *components;
-        uint32_t *pixel, w;
-        components = (uint8_t *) & bgra, src0 = components[0], src1 = components[1], src2 = components[2], srcAlpha = components[3] * 0.003921568627f;
+        uint8_t *src, *pixel;
+        src = (uint8_t *) & bgra, src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
         Spanline *spanline = & spanlines[clipped.ly];
         Span *span, *end;
         for (y = clipped.ly; y < clipped.uy; y++, spanline->empty(), spanline++) {
@@ -687,11 +685,11 @@ struct Rasterizer {
                 ux = ux < clipped.lx ? clipped.lx : ux > clipped.ux ? clipped.ux : ux;
                 if (lx != ux) {
                     pixel = bitmap.pixelAddress(lx, y);
-                    if (span->w > 0 && components[3] == 255)
+                    if (span->w > 0 && src[3] == 255)
                         memset_pattern4(pixel, & bgra, (ux - lx) * bitmap.bytespp);
                     else {
                         if (span->w > 0) {
-                            for (w = ux - lx; w; w--, pixel++)
+                            for (size_t w = ux - lx; w; w--, pixel += bitmap.bytespp)
                                 writePixel(src0, src1, src2, srcAlpha, pixel);
                         } else
                             writePixel(src0, src1, src2, float(-span->w) * 0.003921568627f * srcAlpha, pixel);
@@ -700,17 +698,16 @@ struct Rasterizer {
             }
         }
     }
-    static inline void writePixel(float src0, float src1, float src2, float alpha, uint32_t *pixel) {
-        uint8_t *dst = (uint8_t *)pixel;
+    static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *pixel) {
 #ifdef RASTERIZER_SIMD
         __m128 a0 = _mm_set1_ps(alpha);
         __m128 m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
-        if (*pixel) {
-            __m128i d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
+        if (*((uint32_t *)pixel)) {
+            __m128i d0 = _mm_set_ps(float(pixel[3]), float(pixel[2]), float(pixel[1]), float(pixel[0]));
             m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
         }
         __m128i a32 = _mm_cvttps_epi32(m0), a16 = _mm_packs_epi32(a32, a32), a8 = _mm_packus_epi16(a16, a16);
-        *pixel = _mm_cvtsi128_si32(a8);
+        *((uint32_t *)pixel) = _mm_cvtsi128_si32(a8);
 #else
         if (*pixel == 0)
             *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
