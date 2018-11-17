@@ -565,8 +565,7 @@ struct Rasterizer {
     }
     
     static void writeDeltasToMask(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *mask) {
-        size_t h = clipped.uy - clipped.ly;
-        for (size_t y = 0; y < h; y++, deltas += stride, mask += stride)
+        for (size_t y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, mask += stride)
             writeMaskRow(deltas, stride, even, mask);
     }
     static void writeMaskRow(float *deltas, size_t stride, bool even, uint8_t *mask) {
