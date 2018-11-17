@@ -196,7 +196,7 @@ struct Rasterizer {
         std::vector<Path> paths;
     };
     
-    static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint32_t bgra, Context& context) {
+    static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
         if (path.bounds.lx == FLT_MAX)
             return;
         Bounds dev = path.bounds.transform(ctm);
@@ -215,11 +215,11 @@ struct Rasterizer {
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
                 writeDeltasToMask(context.deltas, stride, clipped, even, context.mask);
-                writeMaskToBitmap(context.mask, stride, clipped, (uint8_t *)& bgra, context.bitmap);
+                writeMaskToBitmap(context.mask, stride, clipped, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(context.scanlines, clipped, even, context.spanlines, true);
-                writeSpansToBitmap(context.spanlines, clipped, (uint8_t *)& bgra, context.bitmap);
+                writeSpansToBitmap(context.spanlines, clipped, src, context.bitmap);
             }
         }
     }
