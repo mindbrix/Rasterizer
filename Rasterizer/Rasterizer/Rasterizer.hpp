@@ -213,7 +213,7 @@ struct Rasterizer {
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
-                writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
+                writeDeltasToBitmap(context.deltas, context.mask, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0]);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
@@ -560,22 +560,22 @@ struct Rasterizer {
             writeLine(px0, py0, x3, y3, scale, deltas, stride, scanlines);
         }
     }
-    static void writeDeltasToBitmap(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *src, Bitmap bitmap) {
+    static void writeDeltasToBitmap(float *deltas, uint8_t *mask, size_t stride, Bounds clipped, bool even, uint8_t *src, Bitmap bitmap) {
         float y, h, w, cover, *delta;
-        uint8_t *pixelAddress, *pixel, mask;
+        uint8_t *pixelAddress, *pixel, a;
         float src0, src1, src2, srcAlpha;
         src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
         pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
         for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
-            cover = mask = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
+            cover = a = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
             while (w--) {
                 if (*delta)
-                    cover += *delta, *delta = 0, mask = alphaForCover(cover, even);
+                    cover += *delta, *delta = 0, a = alphaForCover(cover, even);
                 delta++;
-                if (mask == 255 && src[3] == 255)
+                if (a == 255 && src[3] == 255)
                     *((uint32_t *)pixel) = *((uint32_t *)src);
-                else if (mask)
-                    writePixel(src0, src1, src2, float(mask) * srcAlpha, pixel);
+                else if (a)
+                    writePixel(src0, src1, src2, float(a) * srcAlpha, pixel);
                 pixel += bitmap.bytespp;
             }
             *delta = 0;
