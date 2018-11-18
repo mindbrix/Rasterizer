@@ -57,9 +57,9 @@ struct Rasterizer {
     };
     struct Path {
         struct Atom {
-            static const size_t kCapacity = 15;
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose };
             Atom() { memset(types, kNull, sizeof(types)); }
+            static const size_t kCapacity = 15;
             float       points[30];
             uint8_t     types[8];
         };
