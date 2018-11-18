@@ -182,8 +182,9 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         Bounds clip, device;
-        static const size_t kDeltasDimension = 128;
+        static const size_t kDeltasDimension = 1024;
         float deltas[kDeltasDimension * kDeltasDimension];
+        uint8_t mask[(kDeltasDimension * kDeltasDimension + 63) / 64 * 64];
         std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
     };
@@ -319,17 +320,17 @@ struct Rasterizer {
     }
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
         if (y0 != y1) {
-            float tmp, dxdy, iy0, iy1, *deltasRow, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last;
+            float tmp, dxdy, iy0, iy1, sx0, sy0, sx1, sy1, lx, ux, ix0, ix1, dydx, cx0, cy0, cx1, cy1, cover, area, last;
             Scanline *scanline;
-            size_t ily;
+            size_t ily, row;
             deltaScale = copysign(deltaScale, y1 - y0);
             if (deltaScale < 0)
                 tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
             dxdy = (x1 - x0) / (y1 - y0);
             
-            for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, deltasRow = deltas + stride * ily, scanline = scanlines + ily;
+            for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, row = stride * ily, scanline = scanlines + ily;
                  iy0 < y1;
-                 iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, deltasRow += stride, scanline++) {
+                 iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, row += stride, scanline++) {
                 sy1 = y1 > iy1 ? iy1 : y1;
                 sx1 = (sy1 - y0) * dxdy + x0;
                 
@@ -344,32 +345,32 @@ struct Rasterizer {
                         if (area < 1.f)
                             new (scanline->alloc()) Delta(ix1, cover * (1.f - area));
                     } else {
-                        deltasRow[int(ix0)] += cover * area;
+                        float *delta = & deltas[row + size_t(ix0)];
+                        *delta++ += cover * area;
                         if (area < 1.f && ix1 < stride)
-                            deltasRow[int(ix1)] += cover * (1.f - area);
+                            *delta += cover * (1.f - area);
                     }
                 } else {
                     dydx = 1.f / fabsf(dxdy);
                     cx0 = lx, cy0 = sy0;
                     cx1 = ux < ix1 ? ux : ix1;
                     cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+                    float *delta = & deltas[row + size_t(ix0)];
                     for (last = 0;
                          ix0 <= ux;
-                         ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
+                         delta++, ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
                         cover = (cy1 - cy0) * deltaScale;
                         area = (ix1 - (cx0 + cx1) * 0.5f);
                         if (scanlines)
                             new (scanline->alloc()) Delta(ix0, cover * area + last);
                         else
-                            deltasRow[int(ix0)] += cover * area + last;
+                            *delta += cover * area + last;
                         last = cover * (1.f - area);
                     }
                     if (scanlines)
                         new (scanline->alloc()) Delta(ix0, last);
-                    else {
-                        if (ix0 < stride)
-                            deltasRow[int(ix0)] += last;
-                    }
+                    else if (ix0 < stride)
+                        *delta += last;
                 }
             }
         }
