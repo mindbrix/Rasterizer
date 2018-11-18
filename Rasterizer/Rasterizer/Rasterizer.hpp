@@ -345,7 +345,8 @@ struct Rasterizer {
                         if (area < 1.f)
                             new (scanline->alloc()) Delta(ix1, cover * (1.f - area));
                     } else {
-                        float *delta = & deltas[row + size_t(ix0)];
+                        size_t idx = row + size_t(ix0);
+                        float *delta = deltas + idx;
                         *delta++ += cover * area;
                         if (area < 1.f && ix1 < stride)
                             *delta += cover * (1.f - area);
@@ -355,22 +356,22 @@ struct Rasterizer {
                     cx0 = lx, cy0 = sy0;
                     cx1 = ux < ix1 ? ux : ix1;
                     cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
-                    float *delta = & deltas[row + size_t(ix0)];
+                    size_t idx = row + size_t(ix0);
                     for (last = 0;
                          ix0 <= ux;
-                         delta++, ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
+                         idx++, ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
                         cover = (cy1 - cy0) * deltaScale;
                         area = (ix1 - (cx0 + cx1) * 0.5f);
                         if (scanlines)
                             new (scanline->alloc()) Delta(ix0, cover * area + last);
                         else
-                            *delta += cover * area + last;
+                            deltas[idx] += cover * area + last;
                         last = cover * (1.f - area);
                     }
                     if (scanlines)
                         new (scanline->alloc()) Delta(ix0, last);
                     else if (ix0 < stride)
-                        *delta += last;
+                        deltas[idx] += last;
                 }
             }
         }
