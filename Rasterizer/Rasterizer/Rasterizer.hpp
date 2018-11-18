@@ -157,9 +157,9 @@ struct Rasterizer {
                 elems.resize(elems.size() == 0 ? 8 : elems.size() * 1.5), size = elems.size(), base = & elems[0];
             return base + idx++;
         }
+        std::vector<T> elems;
         size_t idx, size;
         T *base;
-        std::vector<T> elems;
     };
     typedef Line<Delta> Scanline;
     typedef Line<Span> Spanline;
