@@ -580,6 +580,7 @@ struct Rasterizer {
             }
             *delta = 0;
         }
+        memset(mask, 0, (stride * h + 63) / 64 * 64);
     }
     static inline uint8_t alphaForCover(float cover, bool even) {
         int alpha = fabsf(cover);
