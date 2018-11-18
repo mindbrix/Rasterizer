@@ -329,10 +329,9 @@ struct Rasterizer {
             for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, row = stride * ily, scanline = scanlines + ily;
                  iy0 < y1;
                  iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, row += stride, scanline++) {
-                sy1 = y1 > iy1 ? iy1 : y1;
-                sx1 = x0 + (sy1 - y0) * dxdy;
-                lx = sx0 < sx1 ? sx0 : sx1;
-                ux = sx0 > sx1 ? sx0 : sx1;
+                sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
+                
+                lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
                 ix0 = floorf(lx), ix1 = ix0 + 1;
                 if (lx >= ix0 && ux <= ix1) {
                     cover = (sy1 - sy0) * deltaScale;
@@ -350,8 +349,7 @@ struct Rasterizer {
                 } else {
                     dydx = fabsf(dy / dx);
                     cx0 = lx, cy0 = sy0;
-                    cx1 = ux < ix1 ? ux : ix1;
-                    cy1 = ux == lx ? sy1 : (cx1 - lx) * dydx + sy0;
+                    cx1 = ux < ix1 ? ux : ix1, cy1 = cy0 + (cx1 - lx) * dydx;
                     float *delta = deltas + row + size_t(ix0);
                     for (last = 0;
                          ix0 <= ux;
@@ -369,7 +367,6 @@ struct Rasterizer {
                         new (scanline->alloc()) Delta(ix0, last);
                     else if (ix0 < stride)
                         *delta += last;
-                    
                 }
             }
         }
