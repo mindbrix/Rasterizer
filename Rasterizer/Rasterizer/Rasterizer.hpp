@@ -50,8 +50,8 @@ struct Rasterizer {
             return {
                 t.tx + wa * t.a + wc * t.c,
                 t.ty + wb * t.b + wd * t.d,
-                t.tx + (1 - wa) * t.a + (1 - wc) * t.c,
-                t.ty + (1 - wb) * t.b + (1 - wd) * t.d };
+                t.tx + (1.f - wa) * t.a + (1.f - wc) * t.c,
+                t.ty + (1.f - wb) * t.b + (1.f - wd) * t.d };
         }
         float lx, ly, ux, uy;
     };
