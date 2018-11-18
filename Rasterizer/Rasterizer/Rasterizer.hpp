@@ -182,6 +182,7 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         Bounds clip, device;
+        static constexpr float kFloatOffset = 5e-2;
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
         std::vector<Scanline> cliplines, scanlines;
@@ -204,11 +205,10 @@ struct Rasterizer {
         if (!clipped.isZero()) {
             w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1;
             if (stride * h < Context::kDeltasDimension * Context::kDeltasDimension) {
-                const float kFloatOffset = 5e-2;
-                elx = dev.lx - clipped.lx, elx = elx < kFloatOffset ? kFloatOffset : 0;
-                eux = clipped.ux - dev.ux, eux = eux < kFloatOffset ? kFloatOffset : 0;
-                ely = dev.ly - clipped.ly, ely = ely < kFloatOffset ? kFloatOffset : 0;
-                euy = clipped.uy - dev.uy, euy = euy < kFloatOffset ? kFloatOffset : 0;
+                elx = dev.lx - clipped.lx, elx = elx < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                eux = clipped.ux - dev.ux, eux = eux < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                ely = dev.ly - clipped.ly, ely = ely < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                euy = clipped.uy - dev.uy, euy = euy < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
                 writePathToDeltasOrScanlines(path, biased, Bounds(0.f, 0.f, w, h), 255.5f, context.deltas, stride, nullptr);
@@ -325,7 +325,7 @@ struct Rasterizer {
             deltaScale = copysign(deltaScale, y1 - y0);
             if (deltaScale < 0)
                 tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-            dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 5e-2f) * dx / dy;
+            dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) * dx / dy;
             for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, row = stride * ily, scanline = scanlines + ily;
                  iy0 < y1;
                  iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, row += stride, scanline++) {
