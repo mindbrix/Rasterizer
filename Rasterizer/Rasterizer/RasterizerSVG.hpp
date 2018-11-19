@@ -37,7 +37,7 @@ struct RasterizerSVG {
         }
     }
     
-    static void writeScene(const void *bytes, size_t size, Rasterizer::Scene& scene) {
+    static void writeScene(const void *bytes, size_t size, RasterizerCoreGraphics::Scene& scene) {
         char *data = (char *)malloc(size + 1);
         memcpy(data, bytes, size);
         data[size] = 0;

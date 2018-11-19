@@ -188,12 +188,6 @@ struct Rasterizer {
         std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
     };
-    struct Scene {
-        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
-        std::vector<uint32_t> bgras;
-        std::vector<AffineTransform> ctms;
-        std::vector<Path> paths;
-    };
     
     static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
         if (path.bounds.lx == FLT_MAX)
