@@ -181,14 +181,15 @@ struct Rasterizer {
         
         void setBitmap(Bitmap bm) {
             bitmap = bm;
-            if (cliplines.size() != bm.height)
+            if (cliplines.size() != bm.height) {
+                segments.resize(bm.height);
+                indices.resize(bm.height);
                 cliplines.resize(bm.height);
+                scanlines.resize(bm.height);
+                spanlines.resize(bm.height);
+            }
             for (Scanline& clipline : cliplines)
                 clipline.empty();
-            if (scanlines.size() != bm.height)
-                scanlines.resize(bm.height);
-            if (spanlines.size() != bm.height)
-                spanlines.resize(bm.height);
             device = Bounds(0, 0, bm.width, bm.height);
             clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
@@ -197,6 +198,8 @@ struct Rasterizer {
         static constexpr float kFloatOffset = 5e-2;
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
+        std::vector<Segmentline> segments;
+        std::vector<Indexline> indices;
         std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
     };
