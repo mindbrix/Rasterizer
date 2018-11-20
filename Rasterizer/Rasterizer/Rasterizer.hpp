@@ -138,8 +138,10 @@ struct Rasterizer {
         size_t width, height, rowBytes, bpp, bytespp;
     };
     struct Segment {
+        Segment() {}
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         struct Index {
+            Index() {}
             Index(short x, short i) : x(x), i(i) {}
             short x, i;
             inline bool operator< (const Index& other) const { return x < other.x; }
@@ -195,7 +197,7 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         Bounds clip, device;
-        static constexpr float kFloatOffset = 5e-2;
+        static constexpr float kFloatOffset = 5e-2, kFatHeight = 4;
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
         std::vector<Segmentline> segments;
@@ -224,6 +226,7 @@ struct Rasterizer {
                 writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
+                emptySegments(clipped, & context.segments[0]);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
                 writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
@@ -326,7 +329,33 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Segmentline *segments) {
+    static void emptySegments(Bounds clipped, Segmentline *segmentlines) {
+        size_t ly, uy, y;
+        Segmentline *segments;
+        ly = floorf(clipped.ly / Context::kFatHeight);
+        uy = ceilf(clipped.uy / Context::kFatHeight);
+        for (segments = segmentlines + ly, y = ly; y < uy; y++, segments++)
+            segments->empty();
+    }
+    
+    static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Segmentline *segmentlines) {
+        float ly, uy, dx, dy, fly, fuy, fy0, fy1, sx0, sy0, sx1, sy1;
+        Segmentline *segments;
+        size_t ily;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        dx = x1 - x0, dx *= fabsf(dx) / (fabsf(dx) + Context::kFloatOffset), dy = y1 - y0;
+        ily = ly / Context::kFatHeight;
+        fly = floorf(ly / Context::kFatHeight) * Context::kFatHeight;
+        fuy = ceilf(uy / Context::kFatHeight) * Context::kFatHeight;
+        segments = segmentlines + ily;
+        for (fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
+            fy1 = fy0 + Context::kFatHeight;
+            sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0;
+            sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1;
+            sx0 = (sy0 - y0) / dy * dx + x0;
+            sx1 = (sy1 - y0) / dy * dx + x0;
+            new (segments->alloc()) Segment(sx0, sy0, sx1, sy1);
+        }
     }
     
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines, Segmentline *segments) {
