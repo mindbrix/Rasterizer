@@ -378,11 +378,11 @@ struct Rasterizer {
             if (deltaScale < 0)
                 tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
             dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) * dx / dy;
-            for (ily = iy0 = floorf(y0), iy1 = iy0 + 1, sy0 = y0, sx0 = x0, row = stride * ily, scanline = scanlines + ily;
+            for (ily = iy0 = floorf(y0), sy0 = y0, sx0 = x0, row = stride * ily, scanline = scanlines + ily;
                  iy0 < y1;
-                 iy0 = iy1, iy1++, sy0 = sy1, sx0 = sx1, row += stride, scanline++) {
+                 iy0 = iy1, sy0 = sy1, sx0 = sx1, row += stride, scanline++) {
+                iy1 = iy0 + 1.f;
                 sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
-                
                 lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
                 ix0 = floorf(lx), ix1 = ix0 + 1;
                 if (lx >= ix0 && ux <= ix1) {
