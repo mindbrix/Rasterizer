@@ -226,7 +226,7 @@ struct Rasterizer {
                 writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
-                emptySegments(clipped, & context.segments[0]);
+                emptySegments(clipped, & context.segments[0], 32767.f, & context.scanlines[0]);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
                 writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
@@ -329,13 +329,20 @@ struct Rasterizer {
                 }
         }
     }
-    static void emptySegments(Bounds clipped, Segmentline *segmentlines) {
+    static void emptySegments(Bounds clipped, Segmentline *segmentlines, float deltaScale, Scanline *scanlines) {
+        return;
+        
         size_t ly, uy, y;
         Segmentline *segments;
+        Segment *s, *end;
         ly = floorf(clipped.ly / Context::kFatHeight);
         uy = ceilf(clipped.uy / Context::kFatHeight);
-        for (segments = segmentlines + ly, y = ly; y < uy; y++, segments++)
+        for (segments = segmentlines + ly, y = ly; y < uy; y++, segments++) {
+            for (s = & segments->elems[0], end = & segments->elems[segments->idx]; s < end; s++) {
+                writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
+            }
             segments->empty();
+        }
     }
     
     static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Segmentline *segmentlines) {
@@ -360,8 +367,9 @@ struct Rasterizer {
     
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines, Segmentline *segments) {
         if (y0 != y1) {
-            if (segments)
-                writeSegments(x0, y0, x1, y1, stride, segments);
+            if (segments) {
+               // writeSegments(x0, y0, x1, y1, stride, segments);
+            }
             
             float tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
             Scanline *scanline;
