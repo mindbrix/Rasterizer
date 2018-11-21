@@ -173,8 +173,6 @@ struct Rasterizer {
         T *base;
     };
     typedef Line<Segment> Segmentline;
-    typedef Line<Segment::Index> Indexline;
-    
     typedef Line<Delta> Scanline;
     typedef Line<Span> Spanline;
 
@@ -185,7 +183,6 @@ struct Rasterizer {
             bitmap = bm;
             if (cliplines.size() != bm.height) {
                 segments.resize(bm.height);
-                indices.resize(bm.height);
                 cliplines.resize(bm.height);
                 scanlines.resize(bm.height);
                 spanlines.resize(bm.height);
@@ -201,7 +198,6 @@ struct Rasterizer {
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
         std::vector<Segmentline> segments;
-        std::vector<Indexline> indices;
         std::vector<Scanline> cliplines, scanlines;
         std::vector<Spanline> spanlines;
     };
@@ -226,7 +222,7 @@ struct Rasterizer {
                 writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
-                writeSegmentsToBitmap(& context.segments[0], & context.indices[0], clipped, context.deltas, stride, src, context.bitmap);
+                writeSegmentsToBitmap(& context.segments[0], clipped, context.deltas, stride, src, context.bitmap);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
                 writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
@@ -651,26 +647,24 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    static void writeSegmentsToBitmap(Segmentline *segmentlines, Indexline *indicesline, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
-        size_t ly, uy, y, i;
+    static void writeSegmentsToBitmap(Segmentline *segmentlines, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
+        size_t ily, iuy, iy, i;
         Segmentline *segments;
-        Segment *s, *end;
-        Indexline *indices;
-        Segment::Index *idx, *iend;
-        ly = floorf(clipped.ly / Context::kFatHeight);
-        uy = ceilf(clipped.uy / Context::kFatHeight);
-        for (segments = segmentlines + ly, indices = indicesline + ly, y = ly; y < uy; y++, segments++, indices++) {
+        Segment *segment;
+        Line<Segment::Index> indices;
+        Segment::Index *index;
+        ily = floorf(clipped.ly / Context::kFatHeight);
+        iuy = ceilf(clipped.uy / Context::kFatHeight);
+        for (segments = segmentlines + ily, iy = ily; iy < iuy; iy++, segments++) {
             if (segments->idx) {
-                s = & segments->elems[0], end = & segments->elems[segments->idx];
-                for (i = 0; s < end; s++, i++)
-                    new (indices->alloc()) Segment::Index(s->x0 < s->x1 ? s->x0 : s->x1, i);
-                idx = & indices->elems[0], iend = & indices->elems[indices->idx];
-                std::sort(idx, iend);
-                for (; idx < iend; idx++) {
-                    s = & segments->elems[idx->i];
+                for (segment = & segments->elems[0], i = 0; i < segments->idx; i++, segment++)
+                    new (indices.alloc()) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                std::sort(& indices.elems[0], & indices.elems[indices.idx]);
+                for (index = & indices.elems[0], i = 0; i < indices.idx; i++, index++) {
+                    segment = & segments->elems[index->i];
                     // writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
                 }
-                indices->empty();
+                indices.empty();
                 segments->empty();
             }
         }
