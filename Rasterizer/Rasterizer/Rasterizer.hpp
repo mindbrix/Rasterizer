@@ -329,31 +329,6 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeSegmentsToBitmap(Segmentline *segmentlines, Indexline *indicesline, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
-        size_t ly, uy, y, i;
-        Segmentline *segments;
-        Segment *s, *end;
-        Indexline *indices;
-        Segment::Index *idx, *iend;
-        ly = floorf(clipped.ly / Context::kFatHeight);
-        uy = ceilf(clipped.uy / Context::kFatHeight);
-        for (segments = segmentlines + ly, indices = indicesline + ly, y = ly; y < uy; y++, segments++, indices++) {
-            if (segments->idx) {
-                s = & segments->elems[0], end = & segments->elems[segments->idx];
-                for (i = 0; s < end; s++, i++)
-                    new (indices->alloc()) Segment::Index(s->x0 < s->x1 ? s->x0 : s->x1, i);
-                idx = & indices->elems[0], iend = & indices->elems[indices->idx];
-                std::sort(idx, iend);
-                for (; idx < iend; idx++) {
-                    s = & segments->elems[idx->i];
-                    // writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
-                }
-                indices->empty();
-                segments->empty();
-            }
-        }
-    }
-    
     static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Segmentline *segmentlines) {
         float ly, uy, dx, dy, fly, fuy, fy0, fy1, sx0, sy0, sx1, sy1;
         Segmentline *segments;
@@ -676,6 +651,31 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
+    static void writeSegmentsToBitmap(Segmentline *segmentlines, Indexline *indicesline, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
+        size_t ly, uy, y, i;
+        Segmentline *segments;
+        Segment *s, *end;
+        Indexline *indices;
+        Segment::Index *idx, *iend;
+        ly = floorf(clipped.ly / Context::kFatHeight);
+        uy = ceilf(clipped.uy / Context::kFatHeight);
+        for (segments = segmentlines + ly, indices = indicesline + ly, y = ly; y < uy; y++, segments++, indices++) {
+            if (segments->idx) {
+                s = & segments->elems[0], end = & segments->elems[segments->idx];
+                for (i = 0; s < end; s++, i++)
+                    new (indices->alloc()) Segment::Index(s->x0 < s->x1 ? s->x0 : s->x1, i);
+                idx = & indices->elems[0], iend = & indices->elems[indices->idx];
+                std::sort(idx, iend);
+                for (; idx < iend; idx++) {
+                    s = & segments->elems[idx->i];
+                    // writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
+                }
+                indices->empty();
+                segments->empty();
+            }
+        }
+    }
+    
     static void writeScanlinesToSpans(Scanline *scanline, Bounds clipped, bool even, Spanline *spanline, bool writeSpans) {
         const float scale = 255.5f / 32767.f;
         float x, y, ix, cover;
