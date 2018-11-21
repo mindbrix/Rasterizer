@@ -649,6 +649,7 @@ struct Rasterizer {
     }
     static void writeSegmentsToBitmap(Segmentline *segmentlines, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
+        short counts0[256], counts1[256];
         Segmentline *segments;
         Segment *segment;
         Line<Segment::Index> indices;
@@ -659,7 +660,10 @@ struct Rasterizer {
             if (segments->idx) {
                 for (segment = & segments->elems[0], i = 0; i < segments->idx; i++, segment++)
                     new (indices.alloc()) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                std::sort(& indices.elems[0], & indices.elems[indices.idx]);
+                if (indices.idx > 32)
+                    radixSort((uint32_t *)& indices.elems[0], indices.idx, counts0, counts1);
+                else
+                    std::sort(& indices.elems[0], & indices.elems[indices.idx]);
                 for (index = & indices.elems[0], i = 0; i < indices.idx; i++, index++) {
                     segment = & segments->elems[index->i];
                     // writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
