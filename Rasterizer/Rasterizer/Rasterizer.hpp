@@ -223,8 +223,8 @@ struct Rasterizer {
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
                 writeSegmentsToBitmap(& context.segments[0], clipped, context.deltas, stride, src, context.bitmap);
-                writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
-                writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
+//                writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
+//                writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
         }
     }
@@ -349,6 +349,7 @@ struct Rasterizer {
         if (y0 != y1) {
             if (segments) {
                 writeSegments(x0, y0, x1, y1, stride, segments);
+                return;
             }
             
             float tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
@@ -650,6 +651,7 @@ struct Rasterizer {
     static void writeSegmentsToBitmap(Segmentline *segmentlines, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
         short counts0[256], counts1[256];
+        float ly, uy;
         Segmentline *segments;
         Segment *segment;
         Line<Segment::Index> indices;
@@ -664,10 +666,15 @@ struct Rasterizer {
                     radixSort((uint32_t *)& indices.elems[0], indices.idx, counts0, counts1);
                 else
                     std::sort(& indices.elems[0], & indices.elems[indices.idx]);
+                
+                ly = iy * Context::kFatHeight, uy = ly + Context::kFatHeight;
+                ly = ly < clipped.ly ? clipped.ly : ly > clipped.uy ? clipped.uy : ly;
+                uy = uy < clipped.ly ? clipped.ly : uy > clipped.uy ? clipped.uy : uy;
                 for (index = & indices.elems[0], i = 0; i < indices.idx; i++, index++) {
                     segment = & segments->elems[index->i];
-                    // writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
+                    writeLine(segment->x0 - clipped.lx, segment->y0 - ly, segment->x1 - clipped.lx, segment->y1 - ly, 255.5f, deltas, stride, nullptr, nullptr);
                 }
+                writeDeltasToBitmap(deltas, stride, Bounds(clipped.lx, ly, clipped.ux, uy), false, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
