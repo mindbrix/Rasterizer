@@ -226,7 +226,7 @@ struct Rasterizer {
                 writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
-                writeSegmentsToBitmap(& context.segments[0], & context.indices[0], clipped, src, context.bitmap);
+                writeSegmentsToBitmap(& context.segments[0], & context.indices[0], clipped, context.deltas, stride, src, context.bitmap);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
                 writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
@@ -329,7 +329,7 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeSegmentsToBitmap(Segmentline *segmentlines, Indexline *indicesline, Bounds clipped, uint8_t *src, Bitmap bitmap) {
+    static void writeSegmentsToBitmap(Segmentline *segmentlines, Indexline *indicesline, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ly, uy, y, i;
         Segmentline *segments;
         Segment *s, *end;
