@@ -226,7 +226,7 @@ struct Rasterizer {
                 writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
-                emptySegments(clipped, & context.segments[0], 32767.f, & context.scanlines[0]);
+                writeSegmentsToBitmap(& context.segments[0], & context.indices[0], clipped, src, context.bitmap);
                 writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
                 writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
@@ -329,19 +329,28 @@ struct Rasterizer {
                 }
         }
     }
-    static void emptySegments(Bounds clipped, Segmentline *segmentlines, float deltaScale, Scanline *scanlines) {
-        return;
-        
-        size_t ly, uy, y;
+    static void writeSegmentsToBitmap(Segmentline *segmentlines, Indexline *indicesline, Bounds clipped, uint8_t *src, Bitmap bitmap) {
+        size_t ly, uy, y, i;
         Segmentline *segments;
         Segment *s, *end;
+        Indexline *indices;
+        Segment::Index *idx, *iend;
         ly = floorf(clipped.ly / Context::kFatHeight);
         uy = ceilf(clipped.uy / Context::kFatHeight);
-        for (segments = segmentlines + ly, y = ly; y < uy; y++, segments++) {
-            for (s = & segments->elems[0], end = & segments->elems[segments->idx]; s < end; s++) {
-                writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
+        for (segments = segmentlines + ly, indices = indicesline + ly, y = ly; y < uy; y++, segments++, indices++) {
+            if (segments->idx) {
+                s = & segments->elems[0], end = & segments->elems[segments->idx];
+                for (i = 0; s < end; s++, i++)
+                    new (indices->alloc()) Segment::Index(s->x0 < s->x1 ? s->x0 : s->x1, i);
+                idx = & indices->elems[0], iend = & indices->elems[indices->idx];
+                std::sort(idx, iend);
+                for (; idx < iend; idx++) {
+                    s = & segments->elems[idx->i];
+                    // writeLine(s->x0, s->y0, s->x1, s->y1, deltaScale, nullptr, 0, scanlines, nullptr);
+                }
+                indices->empty();
+                segments->empty();
             }
-            segments->empty();
         }
     }
     
@@ -368,7 +377,7 @@ struct Rasterizer {
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines, Segmentline *segments) {
         if (y0 != y1) {
             if (segments) {
-               // writeSegments(x0, y0, x1, y1, stride, segments);
+                writeSegments(x0, y0, x1, y1, stride, segments);
             }
             
             float tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
