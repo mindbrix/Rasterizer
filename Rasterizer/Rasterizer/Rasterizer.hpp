@@ -651,7 +651,7 @@ struct Rasterizer {
     static void writeSegmentsToBitmap(Segmentline *segmentlines, Bounds clipped, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
         short counts0[256], counts1[256];
-        float ly, uy;
+        float ly, uy, lx, ux, x, y, cover, *delta;
         Segmentline *segments;
         Segment *segment;
         Line<Segment::Index> indices;
@@ -670,11 +670,26 @@ struct Rasterizer {
                 ly = iy * Context::kFatHeight, uy = ly + Context::kFatHeight;
                 ly = ly < clipped.ly ? clipped.ly : ly > clipped.uy ? clipped.uy : ly;
                 uy = uy < clipped.ly ? clipped.ly : uy > clipped.uy ? clipped.uy : uy;
-                for (index = & indices.elems[0], i = 0; i < indices.idx; i++, index++) {
+                cover = 0.f;
+                for (index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     segment = & segments->elems[index->i];
-                    writeLine(segment->x0 - clipped.lx, segment->y0 - ly, segment->x1 - clipped.lx, segment->y1 - ly, 255.5f, deltas, stride, nullptr, nullptr);
+                    if (index->x > ux) {
+                        uint8_t a = alphaForCover(cover, false);
+                        if (a == 255) {
+                            writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), false, src, bitmap);
+                            for (y = ly; y < uy; y++)
+                                writeSpan(ux, index->x, y, src, bitmap);
+                            lx = ux = index->x;
+                            for (delta = deltas, y = ly; y < uy; y++, delta += stride)
+                                *delta = cover;
+                        }
+                    }
+                    cover += (segment->y1 - segment->y0) / (uy - ly) * 255.5f;
+                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1);
+                    ux = x > ux ? x : ux;
+                    writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, 255.5f, deltas, stride, nullptr, nullptr);
                 }
-                writeDeltasToBitmap(deltas, stride, Bounds(clipped.lx, ly, clipped.ux, uy), false, src, bitmap);
+                writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), false, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
@@ -732,6 +747,18 @@ struct Rasterizer {
             }
         }
     }
+    static void writeSpan(short lx, short ux, short y, uint8_t *src, Bitmap bitmap) {
+        uint8_t *pixel = bitmap.pixelAddress(lx, y);
+        if (src[3] == 255)
+            memset_pattern4(pixel, src, (ux - lx) * bitmap.bytespp);
+        else {
+            float src0, src1, src2, srcAlpha;
+            src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
+            for (size_t w = ux - lx; w; w--, pixel += bitmap.bytespp)
+                writePixel(src0, src1, src2, srcAlpha, pixel);
+        }
+    }
+    
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *pixel) {
 #ifdef RASTERIZER_SIMD
         __m128 a0 = _mm_set1_ps(alpha);
