@@ -365,8 +365,49 @@ struct Rasterizer {
         }
     }
     
+    static void writeSegment(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines) {
+        float ly, uy, dx, dy, fly, fuy, fy0, fy1, sx0, sy0, sx1, sy1, lx, ux, plx, pux, px0, px1, sdx, sdy, cx0, cx1, cy0, cy1, cover, area, last;
+        Scanline *scanline;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        dx = x1 - x0, dx *= fabsf(dx) / (fabsf(dx) + Context::kFloatOffset), dy = y1 - y0;
+        fly = floorf(ly), fuy = ceilf(uy);
+        scanline = scanlines + size_t(fly);
+        for (fy0 = fly; fy0 < fuy; fy0 = fy1, scanline++) {
+            fy1 = fy0 + 1.f;
+            sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0;
+            sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1;
+            sx0 = (sy0 - y0) / dy * dx + x0;
+            sx1 = (sy1 - y0) / dy * dx + x0;
+            sdx = sx1 - sx0, sdy = sy1 - sy0;
+            lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
+            plx = floorf(lx), pux = ceilf(ux);
+            float *delta = deltas + size_t(stride * fy0 + plx);
+            for (last = 0, px0 = plx; px0 <= pux; px0 = px1, delta++) {
+                px1 = px0 + 1.f;
+                cx0 = sx0 < px0 ? px0 : sx0 > px1 ? px1 : sx0;
+                cx1 = sx1 < px0 ? px0 : sx1 > px1 ? px1 : sx1;
+                cy0 = dx == 0.f ? sy0 : (cx0 - sx0) / sdx * sdy + sy0;
+                cy1 = dx == 0.f ? sy1 : (cx1 - sx0) / sdx * sdy + sy0;
+                cover = (cy1 - cy0) * deltaScale;
+                area = (px1 - (cx0 + cx1) * 0.5f);
+                if (scanlines)
+                    new (scanline->alloc()) Delta(px0, cover * area + last);
+                else {
+                    *delta += cover * area + last;
+                }
+                last = cover * (1.f - area);
+            }
+            if (scanlines)
+                new (scanline->alloc()) Delta(px0, last);
+            else if (px0 < stride)
+                *delta += last;
+        }
+    }
+    
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Scanline *scanlines, Segmentline *segments) {
         if (y0 != y1) {
+//            writeSegment(x0, y0, x1, y1, deltaScale, deltas, stride, scanlines);
+//            return;
             if (segments) {
                // writeSegments(x0, y0, x1, y1, stride, segments);
             }
