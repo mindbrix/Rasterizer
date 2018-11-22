@@ -223,6 +223,7 @@ struct Rasterizer {
             } else {
                 writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], & context.segments[0]);
                 writeSegmentsToBitmap(& context.segments[0], clipped, context.deltas, stride, src, context.bitmap);
+//                writePathToDeltasOrScanlines(path, ctm, clipped, 32767.f, nullptr, 0, & context.scanlines[0], nullptr);
 //                writeScanlinesToSpans(& context.scanlines[clipped.ly], clipped, even, & context.spanlines[clipped.ly], true);
 //                writeSpansToBitmap(& context.spanlines[clipped.ly], clipped, src, context.bitmap);
             }
@@ -590,23 +591,28 @@ struct Rasterizer {
     }
     static void writeDeltasToBitmap(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *src, Bitmap bitmap) {
         float y, h, w, cover, *delta;
-        uint8_t *pixelAddress, *pixel, a;
-        float src0, src1, src2, srcAlpha;
-        src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
-        pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
-        for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
-            cover = a = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
-            while (w--) {
-                if (*delta)
-                    cover += *delta, *delta = 0, a = alphaForCover(cover, even);
-                delta++;
-                if (a == 255 && src[3] == 255)
-                    *((uint32_t *)pixel) = *((uint32_t *)src);
-                else if (a)
-                    writePixel(src0, src1, src2, float(a) * srcAlpha, pixel);
-                pixel += bitmap.bytespp;
+        if (clipped.lx == clipped.ux) {
+            for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride)
+                *deltas = 0.f;
+        } else {
+            uint8_t *pixelAddress, *pixel, a;
+            float src0, src1, src2, srcAlpha;
+            src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
+            pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
+            for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
+                cover = a = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
+                while (w--) {
+                    if (*delta)
+                        cover += *delta, *delta = 0.f, a = alphaForCover(cover, even);
+                    delta++;
+                    if (a == 255 && src[3] == 255)
+                        *((uint32_t *)pixel) = *((uint32_t *)src);
+                    else if (a)
+                        writePixel(src0, src1, src2, float(a) * srcAlpha, pixel);
+                    pixel += bitmap.bytespp;
+                }
+                *delta = 0;
             }
-            *delta = 0;
         }
     }
     static inline uint8_t alphaForCover(float cover, bool even) {
@@ -675,13 +681,15 @@ struct Rasterizer {
                     segment = & segments->elems[index->i];
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, false);
-                        if (a == 255) {
+                        if (a == 0 || a == 255) {
                             writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), false, src, bitmap);
-                            for (y = ly; y < uy; y++)
-                                writeSpan(ux, index->x, y, src, bitmap);
+                            if (a == 255) {
+                                for (y = ly; y < uy; y++)
+                                    writeSpan(ux, index->x, y, src, bitmap);
+                                for (delta = deltas, y = ly; y < uy; y++, delta += stride)
+                                    *delta = cover;
+                            }
                             lx = ux = index->x;
-                            for (delta = deltas, y = ly; y < uy; y++, delta += stride)
-                                *delta = cover;
                         }
                     }
                     cover += (segment->y1 - segment->y0) / (uy - ly) * 255.5f;
