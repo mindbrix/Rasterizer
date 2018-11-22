@@ -337,46 +337,45 @@ struct Rasterizer {
     
     static void writeLine(float x0, float y0, float x1, float y1, float deltaScale, float *deltas, size_t stride, Segmentline *segments) {
         if (y0 != y1) {
-            if (segments) {
+            if (segments)
                 writeSegments(x0, y0, x1, y1, stride, segments);
-                return;
-            }
-            
-            float tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
-            size_t ily, row;
-            deltaScale = copysign(deltaScale, y1 - y0);
-            if (deltaScale < 0)
-                tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-            dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) * dx / dy;
-            for (ily = iy0 = floorf(y0), sy0 = y0, sx0 = x0, row = stride * ily;
-                 iy0 < y1;
-                 iy0 = iy1, sy0 = sy1, sx0 = sx1, row += stride) {
-                iy1 = iy0 + 1.f;
-                sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
-                lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
-                ix0 = floorf(lx), ix1 = ix0 + 1;
-                if (lx >= ix0 && ux <= ix1) {
-                    cover = (sy1 - sy0) * deltaScale;
-                    area = (ix1 - (ux + lx) * 0.5f);
-                    float *delta = deltas + row + size_t(ix0);
-                    *delta++ += cover * area;
-                    if (area < 1.f && ix1 < stride)
-                        *delta += cover * (1.f - area);
-                } else {
-                    dydx = fabsf(dy / dx);
-                    cx0 = lx, cy0 = sy0;
-                    cx1 = ux < ix1 ? ux : ix1, cy1 = cy0 + (cx1 - lx) * dydx;
-                    float *delta = deltas + row + size_t(ix0);
-                    for (last = 0;
-                         ix0 <= ux;
-                         delta++, ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
-                        cover = (cy1 - cy0) * deltaScale;
-                        area = (ix1 - (cx0 + cx1) * 0.5f);
-                        *delta += cover * area + last;
-                        last = cover * (1.f - area);
+            else {
+                float tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
+                size_t ily, row;
+                deltaScale = copysign(deltaScale, y1 - y0);
+                if (deltaScale < 0)
+                    tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
+                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) * dx / dy;
+                for (ily = iy0 = floorf(y0), sy0 = y0, sx0 = x0, row = stride * ily;
+                     iy0 < y1;
+                     iy0 = iy1, sy0 = sy1, sx0 = sx1, row += stride) {
+                    iy1 = iy0 + 1.f;
+                    sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
+                    lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
+                    ix0 = floorf(lx), ix1 = ix0 + 1;
+                    if (lx >= ix0 && ux <= ix1) {
+                        cover = (sy1 - sy0) * deltaScale;
+                        area = (ix1 - (ux + lx) * 0.5f);
+                        float *delta = deltas + row + size_t(ix0);
+                        *delta++ += cover * area;
+                        if (area < 1.f && ix1 < stride)
+                            *delta += cover * (1.f - area);
+                    } else {
+                        dydx = fabsf(dy / dx);
+                        cx0 = lx, cy0 = sy0;
+                        cx1 = ux < ix1 ? ux : ix1, cy1 = cy0 + (cx1 - lx) * dydx;
+                        float *delta = deltas + row + size_t(ix0);
+                        for (last = 0;
+                             ix0 <= ux;
+                             delta++, ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
+                            cover = (cy1 - cy0) * deltaScale;
+                            area = (ix1 - (cx0 + cx1) * 0.5f);
+                            *delta += cover * area + last;
+                            last = cover * (1.f - area);
+                        }
+                        if (ix0 < stride)
+                            *delta += last;
                     }
-                    if (ix0 < stride)
-                        *delta += last;
                 }
             }
         }
