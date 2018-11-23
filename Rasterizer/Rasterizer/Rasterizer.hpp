@@ -658,8 +658,7 @@ struct Rasterizer {
                         }
                     }
                     cover += (segment->y1 - segment->y0) / (uy - ly) * 255.5f;
-                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1);
-                    ux = x > ux ? x : ux;
+                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
                 writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), false, src, bitmap);
