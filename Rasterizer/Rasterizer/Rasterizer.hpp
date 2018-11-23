@@ -312,13 +312,13 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Row<Segment> *segmentlines) {
+    static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Row<Segment> *segmentrows) {
         float ly, uy, dx, dy, dxdy, fly, fuy, fy0, fy1, sy0, sx0, sy1, sx1;
         Row<Segment> *segments;
         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         dx = x1 - x0, dx *= fabsf(dx) / (fabsf(dx) + Context::kFloatOffset), dy = y1 - y0, dxdy = dx / dy;
         fly = floorf(ly * Context::kFatHeightRecip) * Context::kFatHeight, fuy = ceilf(uy * Context::kFatHeightRecip) * Context::kFatHeight;
-        for (segments = segmentlines + size_t(ly * Context::kFatHeightRecip), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
+        for (segments = segmentrows + size_t(ly * Context::kFatHeightRecip), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
             fy1 = fy0 + Context::kFatHeight;
             sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
             sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
@@ -619,7 +619,7 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    static void writeSegmentsToBitmap(Row<Segment> *segmentlines, Bounds clipped, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
+    static void writeSegmentsToBitmap(Row<Segment> *segmentrows, Bounds clipped, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
         short counts0[256], counts1[256];
         float ly, uy, lx, ux, x, y, cover, *delta;
@@ -629,7 +629,7 @@ struct Rasterizer {
         Segment::Index *index;
         ily = floorf(clipped.ly / Context::kFatHeight);
         iuy = ceilf(clipped.uy / Context::kFatHeight);
-        for (segments = segmentlines + ily, iy = ily; iy < iuy; iy++, segments++) {
+        for (segments = segmentrows + ily, iy = ily; iy < iuy; iy++, segments++) {
             if (segments->idx) {
                 for (segment = & segments->elems[0], i = 0; i < segments->idx; i++, segment++)
                     new (indices.alloc()) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
