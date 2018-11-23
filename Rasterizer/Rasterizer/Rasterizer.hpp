@@ -188,7 +188,7 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         Bounds clip, device;
-        static constexpr float kFloatOffset = 5e-2, kFatHeight = 4;
+        static constexpr float kFloatOffset = 5e-2, kFatHeight = 4, kFatHeightRecip = 1.0 / kFatHeight;
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
         std::vector<Segmentline> segments, clipsegments;
@@ -321,9 +321,9 @@ struct Rasterizer {
         size_t ily;
         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         dx = x1 - x0, dx *= fabsf(dx) / (fabsf(dx) + Context::kFloatOffset), dy = y1 - y0;
-        ily = ly / Context::kFatHeight;
-        fly = floorf(ly / Context::kFatHeight) * Context::kFatHeight;
-        fuy = ceilf(uy / Context::kFatHeight) * Context::kFatHeight;
+        ily = ly * Context::kFatHeightRecip;
+        fly = floorf(ly * Context::kFatHeightRecip) * Context::kFatHeight;
+        fuy = ceilf(uy * Context::kFatHeightRecip) * Context::kFatHeight;
         segments = segmentlines + ily;
         for (fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
             fy1 = fy0 + Context::kFatHeight;
