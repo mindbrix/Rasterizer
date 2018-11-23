@@ -210,16 +210,16 @@ struct Rasterizer {
                 euy = clipped.uy - dev.uy, euy = euy < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
-                writePathToDeltasOrSegmentss(path, biased, Bounds(0.f, 0.f, w, h), context.deltas, stride, nullptr);
+                writePathToDeltasOrSegments(path, biased, Bounds(0.f, 0.f, w, h), context.deltas, stride, nullptr);
                 writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
             } else {
-                writePathToDeltasOrSegmentss(path, ctm, clipped,  nullptr, 0, & context.segments[0]);
+                writePathToDeltasOrSegments(path, ctm, clipped, nullptr, 0, & context.segments[0]);
                 writeSegmentsToBitmap(& context.segments[0], clipped, context.deltas, stride, src, context.bitmap);
             }
         }
     }
     
-    static void writePathToDeltasOrSegmentss(Path& path, AffineTransform ctm, Bounds clip, float *deltas, size_t stride, Segmentline *segments) {
+    static void writePathToDeltasOrSegments(Path& path, AffineTransform ctm, Bounds clip, float *deltas, size_t stride, Segmentline *segments) {
         float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
         bool fs, f0, f1, f2, f3;
         x0 = y0 = sx = sy = FLT_MAX, f0 = fs = false;
