@@ -658,12 +658,9 @@ struct Rasterizer {
                         uint8_t a = alphaForCover(cover, false);
                         if (a == 0 || a == 255) {
                             writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), false, src, bitmap);
-                            if (a == 255) {
-                                for (y = ly; y < uy; y++)
-                                    writeSpan(ux, index->x, y, src, bitmap);
+                            if (a == 255)
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride)
-                                    *delta = cover;
-                            }
+                                    *delta = cover, writeSpan(ux, index->x, y, src, bitmap);
                             lx = ux = index->x;
                         }
                     }
