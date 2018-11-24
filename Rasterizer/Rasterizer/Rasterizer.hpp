@@ -185,13 +185,12 @@ struct Rasterizer {
             if (segments.size() != bm.height)
                 segments.resize(bm.height), clipcells.resize(ceilf(bm.height * kFatHeightRecip)), clipcovers.resize(ceilf(bm.height * kFatHeightRecip));
             emptyClip();
-            deltas.resize(kDeltasDimension * kDeltasDimension);
+            deltas.resize((bm.width + 1) * kFatHeight);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         Bitmap bitmap;
         Bounds device, clip;
         static constexpr float kFloatOffset = 5e-2, kFatHeight = 4, kFatHeightRecip = 1.0 / kFatHeight;
-        static const size_t kDeltasDimension = 128;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
