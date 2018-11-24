@@ -197,15 +197,11 @@ struct Rasterizer {
             return;
         Bounds dev = path.bounds.transform(ctm), device = dev.integral();
         Bounds clip = device.intersect(context.device.intersect(context.clip));
-        float w, h, stride, elx, ely, eux, euy;
+        float w, h, stride;
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
             w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
             if (stride * h < context.deltas.size()) {
-                elx = dev.lx - clip.lx, elx = elx < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                eux = clip.ux - dev.ux, eux = eux < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                ely = dev.ly - clip.ly, ely = ely < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                euy = clip.uy - dev.uy, euy = euy < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
+                AffineTransform bias(w / (w + Context::kFloatOffset), 0, 0, h / (h + Context::kFloatOffset), 0.5f * Context::kFloatOffset, 0.5f * Context::kFloatOffset);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly));
                 writePathToDeltasOrSegments(path, biased, Bounds(0.f, 0.f, w, h), & context.deltas[0], stride, nullptr);
                 writeDeltasToBitmap(& context.deltas[0], stride, clip, even, src, context.bitmap);
