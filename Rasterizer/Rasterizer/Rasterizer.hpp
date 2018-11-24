@@ -627,8 +627,8 @@ struct Rasterizer {
         Segment *segment;
         Row<Segment::Index> indices;
         Segment::Index *index;
-        ily = floorf(clip.ly / Context::kFatHeight);
-        iuy = ceilf(clip.uy / Context::kFatHeight);
+        ily = floorf(clip.ly * Context::kFatHeightRecip);
+        iuy = ceilf(clip.uy * Context::kFatHeightRecip);
         for (segments = segmentrows + ily, iy = ily; iy < iuy; iy++, segments++) {
             if (segments->idx) {
                 for (segment = & segments->elems[0], i = 0; i < segments->idx; i++, segment++)
