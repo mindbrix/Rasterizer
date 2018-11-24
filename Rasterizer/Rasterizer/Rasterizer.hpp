@@ -173,7 +173,7 @@ struct Rasterizer {
         T *base;
     };
     struct Context {
-        Context() { memset(deltas, 0, sizeof(deltas)); }
+        Context() {}
         void emptyClip() {
             clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
             for (int i = 0; i < clipcells.size(); i++)
@@ -185,12 +185,14 @@ struct Rasterizer {
             if (segments.size() != bm.height)
                 segments.resize(bm.height), clipcells.resize(ceilf(bm.height * kFatHeightRecip)), clipcovers.resize(ceilf(bm.height * kFatHeightRecip));
             emptyClip();
+            deltas.resize(kDeltasDimension * kDeltasDimension);
+            memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         Bitmap bitmap;
         Bounds device, clip;
         static constexpr float kFloatOffset = 5e-2, kFatHeight = 4, kFatHeightRecip = 1.0 / kFatHeight;
         static const size_t kDeltasDimension = 128;
-        float deltas[kDeltasDimension * kDeltasDimension];
+        std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
         std::vector<Row<float>> clipcovers;
@@ -205,18 +207,18 @@ struct Rasterizer {
         float w, h, stride, elx, ely, eux, euy;
         if (!clip.isZero()) {
             w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
-            if (stride * h < Context::kDeltasDimension * Context::kDeltasDimension) {
+            if (stride * h < context.deltas.size()) {
                 elx = dev.lx - clip.lx, elx = elx < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 eux = clip.ux - dev.ux, eux = eux < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 ely = dev.ly - clip.ly, ely = ely < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 euy = clip.uy - dev.uy, euy = euy < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly));
-                writePathToDeltasOrSegments(path, biased, Bounds(0.f, 0.f, w, h), context.deltas, stride, nullptr);
-                writeDeltasToBitmap(context.deltas, stride, clip, even, src, context.bitmap);
+                writePathToDeltasOrSegments(path, biased, Bounds(0.f, 0.f, w, h), & context.deltas[0], stride, nullptr);
+                writeDeltasToBitmap(& context.deltas[0], stride, clip, even, src, context.bitmap);
             } else {
                 writePathToDeltasOrSegments(path, ctm, clip, nullptr, 0, & context.segments[0]);
-                writeSegmentsToBitmap(& context.segments[0], clip, even, context.deltas, stride, src, context.bitmap);
+                writeSegmentsToBitmap(& context.segments[0], clip, even, & context.deltas[0], stride, src, context.bitmap);
             }
         }
     }
