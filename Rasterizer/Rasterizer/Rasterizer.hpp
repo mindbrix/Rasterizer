@@ -43,10 +43,9 @@ struct Rasterizer {
         }
         Bounds transform(AffineTransform ctm) {
             AffineTransform t = ctm.unit(lx, ly, ux, uy);
-            float wa = t.a < 0 ? 1 : 0, wb = t.b < 0 ? 1 : 0, wc = t.c < 0 ? 1 : 0, wd = t.d < 0 ? 1 : 0;
             return {
-                t.tx + wa * t.a + wc * t.c, t.ty + wb * t.b + wd * t.d,
-                t.tx + (1.f - wa) * t.a + (1.f - wc) * t.c, t.ty + (1.f - wb) * t.b + (1.f - wd) * t.d };
+                t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f),
+                t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f) };
         }
         float lx, ly, ux, uy;
     };
