@@ -686,10 +686,10 @@ struct Rasterizer {
         if (*((uint32_t *)dst) == 0)
             *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst = 255.f * alpha;
         else {
-            *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
-            *dst = *dst * (1.f - alpha) + src1 * alpha, dst++;
-            *dst = *dst * (1.f - alpha) + src2 * alpha, dst++;
-            *dst = *dst * (1.f - alpha) + 255.f * alpha, dst;
+            *dst = *dst * (1.f - alpha) + src0 * alpha;
+            dst++, *dst = *dst * (1.f - alpha) + src1 * alpha;
+            dst++, *dst = *dst * (1.f - alpha) + src2 * alpha;
+            dst++, *dst = *dst * (1.f - alpha) + 255.f * alpha;
         }
 #endif
     }
