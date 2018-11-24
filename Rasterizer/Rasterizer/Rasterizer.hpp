@@ -35,7 +35,7 @@ struct Rasterizer {
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         
         Bounds integral() { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
-        Bounds intersected(Bounds other) {
+        Bounds intersect(Bounds other) {
             return {
                 lx < other.lx ? other.lx : lx > other.ux ? other.ux : lx, ly < other.ly ? other.ly : ly > other.uy ? other.uy : ly,
                 ux < other.lx ? other.lx : ux > other.ux ? other.ux : ux, uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy
@@ -195,9 +195,8 @@ struct Rasterizer {
     static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
         if (path.bounds.lx == FLT_MAX)
             return;
-        Bounds dev = path.bounds.transform(ctm);
-        Bounds device = dev.integral();
-        Bounds clip = device.intersected(context.device.intersected(context.clip));
+        Bounds dev = path.bounds.transform(ctm), device = dev.integral();
+        Bounds clip = device.intersect(context.device.intersect(context.clip));
         float w, h, stride, elx, ely, eux, euy;
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
             w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;

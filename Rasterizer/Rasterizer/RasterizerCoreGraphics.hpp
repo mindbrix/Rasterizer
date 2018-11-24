@@ -253,7 +253,7 @@ struct RasterizerCoreGraphics {
                 Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
                 Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(testScene.cgscene.ctms[i]);
                 Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
-                Rasterizer::Bounds clipped = device.intersected(testScene.contexts[0].clip);
+                Rasterizer::Bounds clipped = device.intersect(testScene.contexts[0].clip);
                 if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                     CGContextSaveGState(ctx);
                     CGContextSetFillColorWithColor(ctx, testScene.cgscene.colors[i]);
