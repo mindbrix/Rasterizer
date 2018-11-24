@@ -181,13 +181,13 @@ struct Rasterizer {
         }
         void setBitmap(Bitmap bm) {
             bitmap = bm;
+            device = Bounds(0, 0, bm.width, bm.height);
             if (segments.size() != bm.height)
                 segments.resize(bm.height), clipcells.resize(ceilf(bm.height * kFatHeightRecip)), clipcovers.resize(ceilf(bm.height * kFatHeightRecip));
             emptyClip();
-            device = Bounds(0, 0, bm.width, bm.height);
         }
         Bitmap bitmap;
-        Bounds clip, device;
+        Bounds device, clip;
         static constexpr float kFloatOffset = 5e-2, kFatHeight = 4, kFatHeightRecip = 1.0 / kFatHeight;
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
