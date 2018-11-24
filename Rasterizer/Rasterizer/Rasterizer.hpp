@@ -175,6 +175,7 @@ struct Rasterizer {
     struct Context {
         Context() { memset(deltas, 0, sizeof(deltas)); }
         void emptyClip() {
+            clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
             for (int i = 0; i < clipcells.size(); i++)
                 clipcells[i].empty(), clipcovers[i].empty();
         }
@@ -184,7 +185,6 @@ struct Rasterizer {
                 segments.resize(bm.height), clipcells.resize(ceilf(bm.height * kFatHeightRecip)), clipcovers.resize(ceilf(bm.height * kFatHeightRecip));
             emptyClip();
             device = Bounds(0, 0, bm.width, bm.height);
-            clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
         Bitmap bitmap;
         Bounds clip, device;
