@@ -60,6 +60,7 @@
 }
 
 - (void)updateRasterizerLabel {
+    [self.rasterizerLabel setHidden:YES];
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
