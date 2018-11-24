@@ -642,7 +642,6 @@ struct Rasterizer {
                 uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 cover = 0.f;
                 for (index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
-                    segment = & segments->elems[index->i];
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
@@ -653,6 +652,7 @@ struct Rasterizer {
                             lx = ux = index->x;
                         }
                     }
+                    segment = & segments->elems[index->i];
                     cover += (segment->y1 - segment->y0) / (uy - ly) * 255.5f;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
