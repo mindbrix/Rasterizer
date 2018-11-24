@@ -43,7 +43,6 @@ struct Rasterizer {
                 uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy,
             };
         }
-        inline bool isZero() { return lx == ux || ly == uy; }
         Bounds transform(AffineTransform ctm) {
             AffineTransform t = ctm.unit(lx, ly, ux, uy);
             float wa = t.a < 0 ? 1 : 0, wb = t.b < 0 ? 1 : 0, wc = t.c < 0 ? 1 : 0, wd = t.d < 0 ? 1 : 0;
@@ -204,7 +203,7 @@ struct Rasterizer {
         Bounds device = dev.integral();
         Bounds clip = device.intersected(context.device.intersected(context.clip));
         float w, h, stride, elx, ely, eux, euy;
-        if (!clip.isZero()) {
+        if (clip.lx != clip.ux && clip.ly != clip.uy) {
             w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
             if (stride * h < context.deltas.size()) {
                 elx = dev.lx - clip.lx, elx = elx < Context::kFloatOffset ? Context::kFloatOffset : 0;
