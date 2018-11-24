@@ -607,11 +607,11 @@ struct Rasterizer {
         }
     }
     static void writeSegments(float x0, float y0, float x1, float y1, size_t stride, Row<Segment> *segmentrows) {
-        float ly, uy, dx, dy, dxdy, fly, fuy, fy0, fy1, sy0, sx0, sy1, sx1;
+        float ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
         Row<Segment> *segments;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        dx = x1 - x0, dx *= fabsf(dx) / (fabsf(dx) + Context::kFloatOffset), dy = y1 - y0, dxdy = dx / dy;
-        fly = floorf(ly * Context::kFatHeightRecip) * Context::kFatHeight, fuy = ceilf(uy * Context::kFatHeightRecip) * Context::kFatHeight;
+        ly = y0 < y1 ? y0 : y1, fly = floorf(ly * Context::kFatHeightRecip) * Context::kFatHeight;
+        uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * Context::kFatHeightRecip) * Context::kFatHeight;
+        dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) / (y1 - y0);
         for (segments = segmentrows + size_t(ly * Context::kFatHeightRecip), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
             fy1 = fy0 + Context::kFatHeight;
             sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
