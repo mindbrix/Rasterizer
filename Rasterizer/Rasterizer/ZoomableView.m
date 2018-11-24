@@ -66,9 +66,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)resetTimer {
     [self stopTimer];
-    CVReturn cvReturn = CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
+    CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
     cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
-    cvReturn = CVDisplayLinkSetCurrentCGDisplay(_displayLink, CGMainDisplayID());
     CVDisplayLinkStart(_displayLink);
 }
 
