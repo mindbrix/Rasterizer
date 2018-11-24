@@ -73,12 +73,4 @@ struct RasterizerSVG {
         }
         free(data);
     }
-    
-    static void writeTestScene(const void *bytes, size_t size, RasterizerCoreGraphics::CGTestScene& testScene) {
-        testScene.scene.empty();
-        testScene.cgscene.empty();
-        writeScene(bytes, size, testScene.scene);
-        RasterizerCoreGraphics::writeSceneToCGScene(testScene.scene, testScene.cgscene);
-    }
-    
 };
