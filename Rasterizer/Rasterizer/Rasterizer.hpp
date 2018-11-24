@@ -672,18 +672,18 @@ struct Rasterizer {
                 writePixel(src0, src1, src2, srcAlpha, pixel);
         }
     }
-    static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *pixel) {
+    static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
 #ifdef RASTERIZER_SIMD
         __m128 a0 = _mm_set1_ps(alpha);
         __m128 m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
-        if (*((uint32_t *)pixel)) {
-            __m128i d0 = _mm_set_ps(float(pixel[3]), float(pixel[2]), float(pixel[1]), float(pixel[0]));
+        if (*((uint32_t *)dst)) {
+            __m128i d0 = _mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0]));
             m0 = _mm_add_ps(m0, _mm_mul_ps(d0, _mm_sub_ps(_mm_set1_ps(1.f), a0)));
         }
         __m128i a32 = _mm_cvttps_epi32(m0), a16 = _mm_packs_epi32(a32, a32), a8 = _mm_packus_epi16(a16, a16);
-        *((uint32_t *)pixel) = _mm_cvtsi128_si32(a8);
+        *((uint32_t *)dst) = _mm_cvtsi128_si32(a8);
 #else
-        if (*pixel == 0)
+        if (*((uint32_t *)dst) == 0)
             *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst++ = 255.f * alpha;
         else {
             *dst = *dst * (1.f - alpha) + src0 * alpha, dst++;
