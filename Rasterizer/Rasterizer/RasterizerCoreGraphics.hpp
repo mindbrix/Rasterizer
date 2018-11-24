@@ -227,7 +227,7 @@ struct RasterizerCoreGraphics {
     struct CGTestScene {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         
-        CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) {}
+        CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) { contexts.resize(4); }
         
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;

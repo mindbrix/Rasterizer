@@ -36,7 +36,6 @@
     self.layer.opaque = NO;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    _testScene.contexts.resize(4);
     [self writeGlyphGrid:@"AppleSymbols"];
     return self;
 }
