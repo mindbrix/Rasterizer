@@ -245,8 +245,9 @@ struct RasterizerCoreGraphics {
         writeCGSceneToScene(testScene.cgscene, testScene.scene);
     }
     
-    static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, Rasterizer::AffineTransform ctm, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
+    static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
         testScene.contexts[0].setBitmap(bitmap);
+        testScene.contexts[0].clip = clip;
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
                 Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
@@ -277,6 +278,7 @@ struct RasterizerCoreGraphics {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                     ctms[count] = ctm;
                     testScene.contexts[count].setBitmap(bitmap);
+                    testScene.contexts[count].clip = clip;
                     testScene.contexts[count].device.ly = ly;
                     testScene.contexts[count].device.uy = uy;
                     count++;

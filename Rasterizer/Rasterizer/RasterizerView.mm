@@ -97,6 +97,7 @@
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+    CGRect clip = CGRectApplyAffineTransform(CGContextGetClipBoundingBox(ctx), CGContextGetCTM(ctx));
     size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     CGContextConcatCTM(ctx, self.CTM);
     CGFloat dimension = 24, phi = (sqrt(5) - 1) / 2;
@@ -105,7 +106,7 @@
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, ctx, bitmap);
+    RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), ctx, bitmap);
 }
 
 - (void)setSvgData:(NSData *)svgData {
