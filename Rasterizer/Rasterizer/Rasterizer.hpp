@@ -663,13 +663,13 @@ struct Rasterizer {
         }
     }
     static void writeSpan(short lx, short ux, short y, uint8_t *src, Bitmap bitmap) {
-        uint8_t *pixel = bitmap.pixelAddress(lx, y);
+        uint8_t *dst = bitmap.pixelAddress(lx, y);
         if (src[3] == 255)
-            memset_pattern4(pixel, src, (ux - lx) * bitmap.bytespp);
+            memset_pattern4(dst, src, (ux - lx) * bitmap.bytespp);
         else {
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-            for (size_t w = ux - lx; w; w--, pixel += bitmap.bytespp)
-                writePixel(src0, src1, src2, srcAlpha, pixel);
+            for (size_t w = ux - lx; w; w--, dst += bitmap.bytespp)
+                writePixel(src0, src1, src2, srcAlpha, dst);
         }
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
