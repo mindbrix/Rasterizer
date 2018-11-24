@@ -61,6 +61,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         CVDisplayLinkStop(_displayLink);
         CVDisplayLinkRelease(_displayLink);
         _displayLink = nil;
+        _time = 0;
     }
 }
 
