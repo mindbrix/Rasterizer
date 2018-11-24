@@ -14,7 +14,7 @@
 @property(nonatomic) BOOL eventFlag;
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
-- (void)timerFired;
+- (void)timerFired:(double)time;
 
 @end
 
@@ -27,7 +27,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     ZoomableView *view = (__bridge ZoomableView *)displayLinkContext;
     @autoreleasepool {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [view timerFired];
+            [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
         });
     }
     return kCVReturnSuccess;
@@ -72,7 +72,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     CVDisplayLinkStart(_displayLink);
 }
 
-- (void)timerFired {
+- (void)timerFired:(double)time {
+    _time = time;
     if (_eventFlag)
         [self redraw];
     _eventFlag = NO;
