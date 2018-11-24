@@ -179,31 +179,6 @@ struct RasterizerCoreGraphics {
         CGPathRelease(stroked);
         return scaledDown;
     }
-    static void writeGlyphGridToCGScene(NSString *fontName, CGFloat dimension, CGFloat phi, CGScene& scene) {
-        CGColorRef black = CGColorGetConstantColor(kCGColorBlack);
-        CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
-        CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, dimension * phi, NULL, NULL);
-        CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
-        size_t square = ceilf(sqrtf(float(glyphCount)));
-        CGFloat tx, ty;
-        CGRect bounds;
-        size_t idx = 0;
-        for (CFIndex i = 1; i < glyphCount; i++) {
-            CGPathRef path = CTFontCreatePathForGlyph(ctFont, i, NULL);
-            if (path) {
-                bounds = CGPathGetPathBoundingBox(path);
-                tx = (idx % square) * dimension * phi - bounds.origin.x, ty = (idx / square) * dimension * phi - bounds.origin.y;
-                idx++;
-                scene.ctms.emplace_back(CGAffineTransformMake(1, 0, 0, 1, tx, ty));
-                scene.paths.emplace_back(path);
-                scene.bounds.emplace_back(bounds);
-                scene.colors.emplace_back(CGColorRetain(black));
-            }
-        }
-        CFRelease(cgFont);
-        CFRelease(ctFont);
-    }
-    
     static void writeCGSceneToScene(CGScene& cgscene, Scene& scene) {
         for (int i = 0; i < cgscene.paths.size(); i++) {
             scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
@@ -241,7 +216,28 @@ struct RasterizerCoreGraphics {
     static void writeGlyphGrid(NSString *fontName, CGTestScene& testScene) {
         testScene.scene.empty();
         testScene.cgscene.empty();
-        writeGlyphGridToCGScene(fontName, testScene.dimension, testScene.phi, testScene.cgscene);
+        CGColorRef black = CGColorGetConstantColor(kCGColorBlack);
+        CGFontRef cgFont = CGFontCreateWithFontName((__bridge CFStringRef)fontName);
+        CTFontRef ctFont = CTFontCreateWithGraphicsFont(cgFont, testScene.dimension * testScene.phi, NULL, NULL);
+        CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
+        size_t square = ceilf(sqrtf(float(glyphCount)));
+        CGFloat tx, ty;
+        CGRect bounds;
+        size_t idx = 0;
+        for (CFIndex i = 1; i < glyphCount; i++) {
+            CGPathRef path = CTFontCreatePathForGlyph(ctFont, i, NULL);
+            if (path) {
+                bounds = CGPathGetPathBoundingBox(path);
+                tx = (idx % square) * testScene.dimension * testScene.phi - bounds.origin.x, ty = (idx / square) * testScene.dimension * testScene.phi - bounds.origin.y;
+                idx++;
+                testScene.cgscene.ctms.emplace_back(CGAffineTransformMake(1, 0, 0, 1, tx, ty));
+                testScene.cgscene.paths.emplace_back(path);
+                testScene.cgscene.bounds.emplace_back(bounds);
+                testScene.cgscene.colors.emplace_back(CGColorRetain(black));
+            }
+        }
+        CFRelease(cgFont);
+        CFRelease(ctFont);
         writeCGSceneToScene(testScene.cgscene, testScene.scene);
     }
     
