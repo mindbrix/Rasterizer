@@ -178,7 +178,7 @@ struct Rasterizer {
         void setBitmap(Bitmap bm) {
             bitmap = bm;
             if (segments.size() != bm.height)
-                segments.resize(bm.height), clipcells.resize(bm.height), clipcovers.resize(bm.height);
+                segments.resize(bm.height), clipcells.resize(ceilf(bm.height * kFatHeightRecip)), clipcovers.resize(ceilf(bm.height * kFatHeightRecip));
             for (int i = 0; i < clipcells.size(); i++)
                 clipcells[i].empty(), clipcovers[i].empty();
             device = Bounds(0, 0, bm.width, bm.height);
