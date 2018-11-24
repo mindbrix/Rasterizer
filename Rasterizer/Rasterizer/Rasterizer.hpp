@@ -164,7 +164,7 @@ struct Rasterizer {
         Row() : idx(0), size(0) {}
         void empty() { idx = 0; }
         inline T *alloc() {
-            if (idx >= size)
+            if (size - idx < 1)
                 elems.resize(elems.size() == 0 ? 8 : elems.size() * 1.5), size = elems.size(), base = & elems[0];
             return base + idx++;
         }
