@@ -197,22 +197,22 @@ struct Rasterizer {
             return;
         Bounds dev = path.bounds.transform(ctm);
         Bounds device = dev.integral();
-        Bounds clipped = device.intersected(context.device.intersected(context.clip));
+        Bounds clip = device.intersected(context.device.intersected(context.clip));
         float w, h, stride, elx, ely, eux, euy;
-        if (!clipped.isZero()) {
-            w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1;
+        if (!clip.isZero()) {
+            w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
             if (stride * h < Context::kDeltasDimension * Context::kDeltasDimension) {
-                elx = dev.lx - clipped.lx, elx = elx < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                eux = clipped.ux - dev.ux, eux = eux < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                ely = dev.ly - clipped.ly, ely = ely < Context::kFloatOffset ? Context::kFloatOffset : 0;
-                euy = clipped.uy - dev.uy, euy = euy < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                elx = dev.lx - clip.lx, elx = elx < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                eux = clip.ux - dev.ux, eux = eux < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                ely = dev.ly - clip.ly, ely = ely < Context::kFloatOffset ? Context::kFloatOffset : 0;
+                euy = clip.uy - dev.uy, euy = euy < Context::kFloatOffset ? Context::kFloatOffset : 0;
                 AffineTransform bias((w - elx - eux) / w, 0, 0, (h - ely - euy) / h, elx, ely);
-                AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly));
+                AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly));
                 writePathToDeltasOrSegments(path, biased, Bounds(0.f, 0.f, w, h), context.deltas, stride, nullptr);
-                writeDeltasToBitmap(context.deltas, stride, clipped, even, src, context.bitmap);
+                writeDeltasToBitmap(context.deltas, stride, clip, even, src, context.bitmap);
             } else {
-                writePathToDeltasOrSegments(path, ctm, clipped, nullptr, 0, & context.segments[0]);
-                writeSegmentsToBitmap(& context.segments[0], clipped, even, context.deltas, stride, src, context.bitmap);
+                writePathToDeltasOrSegments(path, ctm, clip, nullptr, 0, & context.segments[0]);
+                writeSegmentsToBitmap(& context.segments[0], clip, even, context.deltas, stride, src, context.bitmap);
             }
         }
     }
@@ -546,18 +546,18 @@ struct Rasterizer {
         return alpha <= 255 ? alpha : even ? 255 - abs(alpha % 510 - 255) : 255;
     }
     
-    static void writeDeltasToBitmap(float *deltas, size_t stride, Bounds clipped, bool even, uint8_t *src, Bitmap bitmap) {
+    static void writeDeltasToBitmap(float *deltas, size_t stride, Bounds clip, bool even, uint8_t *src, Bitmap bitmap) {
         float y, h, w, cover, *delta;
-        if (clipped.lx == clipped.ux) {
-            for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride)
+        if (clip.lx == clip.ux) {
+            for (y = 0, h = clip.uy - clip.ly; y < h; y++, deltas += stride)
                 *deltas = 0.f;
         } else {
             uint8_t *pixelAddress, *pixel, a;
             float src0, src1, src2, srcAlpha;
             src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
-            pixelAddress = bitmap.pixelAddress(clipped.lx, clipped.ly);
-            for (y = 0, h = clipped.uy - clipped.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
-                cover = a = 0, delta = deltas, w = clipped.ux - clipped.lx, pixel = pixelAddress;
+            pixelAddress = bitmap.pixelAddress(clip.lx, clip.ly);
+            for (y = 0, h = clip.uy - clip.ly; y < h; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
+                cover = a = 0, delta = deltas, w = clip.ux - clip.lx, pixel = pixelAddress;
                 while (w--) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, a = alphaForCover(cover, even);
@@ -619,7 +619,7 @@ struct Rasterizer {
             new (segments->alloc()) Segment(sx0, sy0, sx1, sy1);
         }
     }
-    static void writeSegmentsToBitmap(Row<Segment> *segmentrows, Bounds clipped, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
+    static void writeSegmentsToBitmap(Row<Segment> *segmentrows, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
         short counts0[256], counts1[256];
         float ly, uy, lx, ux, x, y, cover, *delta;
@@ -627,8 +627,8 @@ struct Rasterizer {
         Segment *segment;
         Row<Segment::Index> indices;
         Segment::Index *index;
-        ily = floorf(clipped.ly / Context::kFatHeight);
-        iuy = ceilf(clipped.uy / Context::kFatHeight);
+        ily = floorf(clip.ly / Context::kFatHeight);
+        iuy = ceilf(clip.uy / Context::kFatHeight);
         for (segments = segmentrows + ily, iy = ily; iy < iuy; iy++, segments++) {
             if (segments->idx) {
                 for (segment = & segments->elems[0], i = 0; i < segments->idx; i++, segment++)
@@ -638,8 +638,8 @@ struct Rasterizer {
                 else
                     std::sort(& indices.elems[0], & indices.elems[indices.idx]);
                 ly = iy * Context::kFatHeight, uy = ly + Context::kFatHeight;
-                ly = ly < clipped.ly ? clipped.ly : ly > clipped.uy ? clipped.uy : ly;
-                uy = uy < clipped.ly ? clipped.ly : uy > clipped.uy ? clipped.uy : uy;
+                ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 cover = 0.f;
                 for (index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     segment = & segments->elems[index->i];
