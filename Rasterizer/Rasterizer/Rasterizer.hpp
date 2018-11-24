@@ -178,9 +178,9 @@ struct Rasterizer {
         void setBitmap(Bitmap bm) {
             bitmap = bm;
             if (segments.size() != bm.height)
-                segments.resize(bm.height);
-            for (Row<Segment>& clipsegment : clipsegments)
-                clipsegment.empty();
+                segments.resize(bm.height), clipcells.resize(bm.height), clipcovers.resize(bm.height);
+            for (int i = 0; i < clipcells.size(); i++)
+                clipcells[i].empty(), clipcovers[i].empty();
             device = Bounds(0, 0, bm.width, bm.height);
             clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
         }
@@ -189,7 +189,9 @@ struct Rasterizer {
         static constexpr float kFloatOffset = 5e-2, kFatHeight = 4, kFatHeightRecip = 1.0 / kFatHeight;
         static const size_t kDeltasDimension = 128;
         float deltas[kDeltasDimension * kDeltasDimension];
-        std::vector<Row<Segment>> segments, clipsegments;
+        std::vector<Row<Segment>> segments;
+        std::vector<Row<Bounds>> clipcells;
+        std::vector<Row<float>> clipcovers;
     };
     
     static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
