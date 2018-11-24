@@ -622,7 +622,7 @@ struct Rasterizer {
     static void writeSegmentsToBitmap(Row<Segment> *segmentrows, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
         short counts0[256], counts1[256];
-        float ly, uy, lx, ux, x, y, cover, *delta;
+        float ly, uy, lx, ux, x, y, scale, cover, *delta;
         Row<Segment> *segments;
         Segment *segment;
         Row<Segment::Index> indices;
@@ -640,7 +640,7 @@ struct Rasterizer {
                 ly = iy * Context::kFatHeight, uy = ly + Context::kFatHeight;
                 ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                cover = 0.f;
+                scale = 255.5f / (uy - ly), cover = 0.f;
                 for (index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, even);
@@ -653,7 +653,7 @@ struct Rasterizer {
                         }
                     }
                     segment = & segments->elems[index->i];
-                    cover += (segment->y1 - segment->y0) / (uy - ly) * 255.5f;
+                    cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
