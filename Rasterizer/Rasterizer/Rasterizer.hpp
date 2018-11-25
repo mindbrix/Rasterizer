@@ -545,24 +545,17 @@ struct Rasterizer {
             for (y = clip.ly; y < clip.uy; y++, deltas += stride)
                 *deltas = 0.f;
         } else {
-            uint8_t *pixelAddress, *pixel, a;
-            float src0, src1, src2, srcAlpha;
-            src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
-            pixelAddress = bitmap.pixelAddress(clip.lx, clip.ly);
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap.rowBytes) {
-                cover = a = 0, delta = deltas, pixel = pixelAddress;
-                for (x = clip.lx; x < clip.ux; x++) {
+            uint8_t *pixelAddress= bitmap.pixelAddress(clip.lx, clip.ly), *pixel, a;
+            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
+            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap.rowBytes, *delta = 0.f)
+                for (cover = a = 0, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap.bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, a = alphaForCover(cover, even);
-                    delta++;
                     if (a == 255 && src[3] == 255)
                         *((uint32_t *)pixel) = *((uint32_t *)src);
                     else if (a)
                         writePixel(src0, src1, src2, float(a) * srcAlpha, pixel);
-                    pixel += bitmap.bytespp;
                 }
-                *delta = 0;
-            }
         }
     }
     static inline void prefixSum(short *counts) {
