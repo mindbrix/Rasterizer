@@ -196,9 +196,8 @@ struct Rasterizer {
         if (path.bounds.lx == FLT_MAX)
             return;
         Bounds clip = path.bounds.transform(ctm).integral().intersect(context.device.intersect(context.clip));
-        float w, h, stride;
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-            w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
+            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
             if (stride * h < context.deltas.size()) {
                 AffineTransform bias(w / (w + Context::kFloatOffset), 0, 0, h / (h + Context::kFloatOffset), 0.5f * Context::kFloatOffset, 0.5f * Context::kFloatOffset);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly));
