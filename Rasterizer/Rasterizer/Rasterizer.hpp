@@ -195,8 +195,7 @@ struct Rasterizer {
     static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
         if (path.bounds.lx == FLT_MAX)
             return;
-        Bounds dev = path.bounds.transform(ctm), device = dev.integral();
-        Bounds clip = device.intersect(context.device.intersect(context.clip));
+        Bounds clip = path.bounds.transform(ctm).integral().intersect(context.device.intersect(context.clip));
         float w, h, stride;
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
             w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1;
