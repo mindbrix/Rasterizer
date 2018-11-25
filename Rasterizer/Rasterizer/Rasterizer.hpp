@@ -143,17 +143,6 @@ struct Rasterizer {
         };
         float x0, y0, x1, y1;
     };
-    struct Delta {
-        Delta() {}
-        inline Delta(float x, float delta) : x(x), delta(delta) {}
-        inline bool operator< (const Delta& other) const { return x < other.x; }
-        short x, delta;
-    };
-    struct Span {
-        Span() {}
-        inline Span(float x, float w) : x(x), w(w) {}
-        short x, w;
-    };
     template<typename T>
     struct Row {
         Row() : idx(0), size(0) {}
