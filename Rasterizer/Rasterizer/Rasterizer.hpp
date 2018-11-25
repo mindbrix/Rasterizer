@@ -626,7 +626,7 @@ struct Rasterizer {
                                         memset_pattern4(dst, src, (index->x - ux) * bitmap.bytespp);
                                     else {
                                         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-                                        for (size_t w = index->x - ux; w; w--, dst += bitmap.bytespp)
+                                        for (size_t x = ux; x < index->x; x++, dst += bitmap.bytespp)
                                             writePixel(src0, src1, src2, srcAlpha, dst);
                                     }
                                 }
