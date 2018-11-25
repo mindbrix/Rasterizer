@@ -24,9 +24,6 @@ struct Rasterizer {
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
-        inline AffineTransform unit(float lx, float ly, float ux, float uy) {
-            return { a * (ux - lx), b * (ux - lx), c * (uy - ly), d * (uy - ly), lx * a + ly * c + tx, lx * b + ly * d + ty };
-        }
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
@@ -40,11 +37,12 @@ struct Rasterizer {
                 ux < other.lx ? other.lx : ux > other.ux ? other.ux : ux, uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy
             };
         }
-        Bounds transform(AffineTransform ctm) {
-            AffineTransform t = ctm.unit(lx, ly, ux, uy);
+        Bounds transform(AffineTransform t) {
+            float a = t.a * (ux - lx), b = t.b * (ux - lx), c = t.c * (uy - ly), d = t.d * (uy - ly);
+            float tx = lx * t.a + ly * t.c + t.tx, ty = lx * t.b + ly * t.d + t.ty;
             return {
-                t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f),
-                t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f)
+                tx + (a < 0.f ? a : 0.f) + (c < 0.f ? c : 0.f), ty + (b < 0.f ? b : 0.f) + (d < 0.f ? d : 0.f),
+                tx + (a > 0.f ? a : 0.f) + (c > 0.f ? c : 0.f), ty + (b > 0.f ? b : 0.f) + (d > 0.f ? d : 0.f)
             };
         }
         float lx, ly, ux, uy;
