@@ -25,8 +25,7 @@ struct Rasterizer {
             };
         }
         inline AffineTransform unit(float lx, float ly, float ux, float uy) {
-            float w = ux - lx, h = uy - ly;
-            return { a * w, b * w, c * h, d * h, lx * a + ly * c + tx, lx * b + ly * d + ty };
+            return { a * (ux - lx), b * (ux - lx), c * (uy - ly), d * (uy - ly), lx * a + ly * c + tx, lx * b + ly * d + ty };
         }
         float a, b, c, d, tx, ty;
     };
