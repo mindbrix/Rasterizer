@@ -592,14 +592,13 @@ struct Rasterizer {
         }
     }
     static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
-        size_t ily, iuy, iy, i;
+        size_t ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip), iy, i;
         short counts0[256], counts1[256];
         float ly, uy, lx, ux, x, y, scale, cover, *delta;
         Row<Segment> *row;
         Segment *segment;
         Row<Segment::Index> indices;
         Segment::Index *index;
-        ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip);
         for (row = segments + ily, iy = ily; iy < iuy; iy++, row++) {
             if (row->idx) {
                 for (segment = & row->elems[0], i = 0; i < row->idx; i++, segment++)
