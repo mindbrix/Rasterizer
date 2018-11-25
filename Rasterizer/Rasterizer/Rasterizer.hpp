@@ -295,11 +295,21 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeLine(float x0, float y0, float x1, float y1, float *deltas, size_t stride, Row<Segment> *segments) {
+    static void writeLine(float x0, float y0, float x1, float y1, float *deltas, size_t stride, Row<Segment> *segmentrows) {
         if (y0 != y1) {
-            if (segments)
-                writeSegments(x0, y0, x1, y1, segments);
-            else {
+            if (segmentrows) {
+                float ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
+                Row<Segment> *segments;
+                ly = y0 < y1 ? y0 : y1, fly = floorf(ly * Context::kFatHeightRecip) * Context::kFatHeight;
+                uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * Context::kFatHeightRecip) * Context::kFatHeight;
+                dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) / (y1 - y0);
+                for (segments = segmentrows + size_t(ly * Context::kFatHeightRecip), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
+                    fy1 = fy0 + Context::kFatHeight;
+                    sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
+                    sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
+                    new (segments->alloc()) Segment(sx0, sy0, sx1, sy1);
+                }
+            } else {
                 float deltaScale, tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
                 size_t ily, row;
                 deltaScale = copysign(255.5f, y1 - y0);
@@ -587,19 +597,6 @@ struct Rasterizer {
         for (int i = n - 1; i >= 0; i--) {
             x = tmp[i];
             in[--counts1[(x >> 8) & 0xFF]] = x;
-        }
-    }
-    static void writeSegments(float x0, float y0, float x1, float y1, Row<Segment> *segmentrows) {
-        float ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
-        Row<Segment> *segments;
-        ly = y0 < y1 ? y0 : y1, fly = floorf(ly * Context::kFatHeightRecip) * Context::kFatHeight;
-        uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * Context::kFatHeightRecip) * Context::kFatHeight;
-        dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) / (y1 - y0);
-        for (segments = segmentrows + size_t(ly * Context::kFatHeightRecip), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
-            fy1 = fy0 + Context::kFatHeight;
-            sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
-            sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
-            new (segments->alloc()) Segment(sx0, sy0, sx1, sy1);
         }
     }
     static void writeSegmentsToBitmap(Row<Segment> *segmentrows, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
