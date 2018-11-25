@@ -200,9 +200,8 @@ struct Rasterizer {
         }
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, float *deltas, size_t stride, Row<Segment> *segments) {
-        float sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, *p;
-        bool fs, f0, f1, f2, f3;
-        x0 = y0 = sx = sy = FLT_MAX, f0 = fs = false;
+        float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
+        bool fs = false, f0 = false, f1, f2, f3;
         for (Path::Atom& atom : path.atoms)
             for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Path::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 p = atom.points + index * 2;
