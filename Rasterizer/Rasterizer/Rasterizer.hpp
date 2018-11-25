@@ -189,7 +189,7 @@ struct Rasterizer {
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1, offset = Context::kFloatOffset;
             if (stride * h < context.deltas.size()) {
-                AffineTransform bias(w / (w + offset), 0, 0, h / (h + offset), 0.5f * offset, 0.5f * offset);
+                AffineTransform bias(w / (w + offset), 0.f, 0.f, h / (h + offset), 0.5f * offset, 0.5f * offset);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly));
                 writePathToDeltasOrSegments(path, biased, Bounds(0.f, 0.f, w, h), & context.deltas[0], stride, nullptr);
                 writeDeltasToBitmap(& context.deltas[0], stride, clip, even, src, context.bitmap);
