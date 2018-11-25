@@ -599,18 +599,18 @@ struct Rasterizer {
             in[--counts1[(x >> 8) & 0xFF]] = x;
         }
     }
-    static void writeSegmentsToBitmap(Row<Segment> *segmentrows, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
+    static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily, iuy, iy, i;
         short counts0[256], counts1[256];
         float ly, uy, lx, ux, x, y, scale, cover, *delta;
-        Row<Segment> *segments;
+        Row<Segment> *row;
         Segment *segment;
         Row<Segment::Index> indices;
         Segment::Index *index;
         ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip);
-        for (segments = segmentrows + ily, iy = ily; iy < iuy; iy++, segments++) {
-            if (segments->idx) {
-                for (segment = & segments->elems[0], i = 0; i < segments->idx; i++, segment++)
+        for (row = segments + ily, iy = ily; iy < iuy; iy++, row++) {
+            if (row->idx) {
+                for (segment = & row->elems[0], i = 0; i < row->idx; i++, segment++)
                     new (indices.alloc()) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.idx > 32)
                     radixSort((uint32_t *)& indices.elems[0], indices.idx, counts0, counts1);
@@ -640,14 +640,14 @@ struct Rasterizer {
                             lx = ux = index->x;
                         }
                     }
-                    segment = & segments->elems[index->i];
+                    segment = & row->elems[index->i];
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
                 writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                 indices.empty();
-                segments->empty();
+                row->empty();
             }
         }
     }
