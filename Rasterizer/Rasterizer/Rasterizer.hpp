@@ -160,6 +160,9 @@ struct Rasterizer {
             for (int i = 0; i < clipcells.size(); i++)
                 clipcells[i].empty(), clipcovers[i].empty();
         }
+        void intersectClip(Bounds cl) {
+            clip = clip.intersect(cl);
+        }
         void setBitmap(Bitmap bm) {
             bitmap = bm;
             device = Bounds(0, 0, bm.width, bm.height);

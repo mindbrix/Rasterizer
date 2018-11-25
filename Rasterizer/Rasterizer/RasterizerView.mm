@@ -55,6 +55,7 @@
 #pragma mark - Drawing
 
 - (void)redraw {
+//    [self.layer setNeedsDisplayInRect:CGRectInset(self.bounds, 100, 100)];
     [self.layer setNeedsDisplay];
 }
 
