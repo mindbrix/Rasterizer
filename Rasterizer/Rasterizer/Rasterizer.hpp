@@ -629,8 +629,17 @@ struct Rasterizer {
                         if (a == 0 || a == 255) {
                             writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                             if (a == 255)
-                                for (delta = deltas, y = ly; y < uy; y++, delta += stride)
-                                    *delta = cover, writeSpan(ux, index->x, y, src, bitmap);
+                                for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
+                                    *delta = cover;
+                                    uint8_t *dst = bitmap.pixelAddress(ux, y);
+                                    if (src[3] == 255)
+                                        memset_pattern4(dst, src, (index->x - ux) * bitmap.bytespp);
+                                    else {
+                                        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
+                                        for (size_t w = index->x - ux; w; w--, dst += bitmap.bytespp)
+                                            writePixel(src0, src1, src2, srcAlpha, dst);
+                                    }
+                                }
                             lx = ux = index->x;
                         }
                     }
@@ -643,16 +652,6 @@ struct Rasterizer {
                 indices.empty();
                 segments->empty();
             }
-        }
-    }
-    static void writeSpan(short lx, short ux, short y, uint8_t *src, Bitmap bitmap) {
-        uint8_t *dst = bitmap.pixelAddress(lx, y);
-        if (src[3] == 255)
-            memset_pattern4(dst, src, (ux - lx) * bitmap.bytespp);
-        else {
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-            for (size_t w = ux - lx; w; w--, dst += bitmap.bytespp)
-                writePixel(src0, src1, src2, srcAlpha, dst);
         }
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
