@@ -351,7 +351,7 @@ struct Rasterizer {
             else
                 r = sqrt(d), t0 = (-B + r) * 0.5 / A, t1 = (-B - r) * 0.5 / A;
         }
-        t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1;
+        t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float *deltas, size_t stride, Row<Segment> *segments) {
         float ly, uy, cly, cuy, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
@@ -438,7 +438,7 @@ struct Rasterizer {
                 t0 = u1 - v1 - a3, t1 = t2 = FLT_MAX;
             }
         }
-        t0 = t0 < 0 ? 0 : t0 > 1 ? 1 : t0, t1 = t1 < 0 ? 0 : t1 > 1 ? 1 : t1, t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
+        t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1, t2 = t2 < 0.f ? 0.f : t2 > 1.f ? 1.f : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float *deltas, size_t stride, Row<Segment> *segments) {
         float ly, uy, cly, cuy, A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx;
