@@ -427,9 +427,7 @@ struct Rasterizer {
             if (discriminant < 0) {
                 mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
                 phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
-                t0 = crtr * cos(phi / 3) - a3;
-                t1 = crtr * cos((phi + 2 * M_PI) / 3) - a3;
-                t2 = crtr * cos((phi + 4 * M_PI) / 3) - a3;
+                t0 = crtr * cos(phi / 3) - a3, t1 = crtr * cos((phi + 2 * M_PI) / 3) - a3, t2 = crtr * cos((phi + 4 * M_PI) / 3) - a3;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
                 t0 = 2 * u1 - a3, t1 = -u1 - a3, t2 = FLT_MAX;
