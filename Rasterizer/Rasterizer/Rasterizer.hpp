@@ -543,20 +543,18 @@ struct Rasterizer {
                 }
         }
     }
-    static inline void prefixSum(short *counts) {
-        for (short *src = counts, *dst = src + 1, i = 1; i < 256; i++)
-            *dst++ += *src++;
-    }
     static void radixSort(uint32_t *in, short n, short *counts0, short *counts1) {
         uint32_t x, tmp[n];
         memset(counts0, 0, sizeof(short) * 256);
         for (int i = 0; i < n; i++)
             counts0[in[i] & 0xFF]++;
-        prefixSum(counts0);
+        for (short *src = counts0, *dst = src + 1, i = 1; i < 256; i++)
+            *dst++ += *src++;
         memset(counts1, 0, sizeof(short) * 256);
         for (int i = n - 1; i >= 0; i--)
             x = in[i], tmp[--counts0[x & 0xFF]] = x, counts1[(x >> 8) & 0xFF]++;
-        prefixSum(counts1);
+        for (short *src = counts1, *dst = src + 1, i = 1; i < 256; i++)
+            *dst++ += *src++;
         for (int i = n - 1; i >= 0; i--)
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
