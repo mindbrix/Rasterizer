@@ -562,10 +562,8 @@ struct Rasterizer {
         size_t ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip), iy, i;
         short counts0[256], counts1[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
-        Row<Segment> *row;
-        Segment *segment;
-        Row<Segment::Index> indices;
-        Segment::Index *index;
+        Row<Segment> *row;              Segment *segment;
+        Row<Segment::Index> indices;    Segment::Index *index;
         for (row = segments + ily, iy = ily; iy < iuy; iy++, row++) {
             if (row->idx) {
                 for (segment = & row->elems[0], i = 0; i < row->idx; i++, segment++)
