@@ -561,7 +561,7 @@ struct Rasterizer {
     static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip), iy, i;
         short counts0[256], counts1[256];
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, lx, ux, x, y, scale, cover, *delta;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Row<Segment> *row;
         Segment *segment;
         Row<Segment::Index> indices;
@@ -574,11 +574,9 @@ struct Rasterizer {
                     radixSort((uint32_t *)& indices.elems[0], indices.idx, counts0, counts1);
                 else
                     std::sort(& indices.elems[0], & indices.elems[indices.idx]);
-                ly = iy * Context::kFatHeight, uy = ly + Context::kFatHeight;
-                ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                scale = 255.5f / (uy - ly), cover = 0.f;
-                for (index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
+                ly = iy * Context::kFatHeight, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * Context::kFatHeight, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                for (scale = 255.5f / (uy - ly), cover = 0.f, index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
