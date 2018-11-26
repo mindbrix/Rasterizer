@@ -266,11 +266,9 @@ struct Rasterizer {
         }
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, float *deltas, size_t stride, Row<Segment> *segments) {
-        float sx0, sy0, sx1, sy1, dx, dy, ty0, ty1, tx0, tx1, mx, vx;
-        sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
-        sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+        float sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
-            dx = x1 - x0, dy = y1 - y0;
+            float dx = x1 - x0, dy = y1 - y0, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
             ty0 = (sy0 - y0) / dy, tx0 = dx == 0.f ? 0.f : (clip.lx - x0) / dx;
             ty1 = (sy1 - y0) / dy, tx1 = dx == 0.f ? 1.f : (clip.ux - x0) / dx;
             tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
