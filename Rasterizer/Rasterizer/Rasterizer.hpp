@@ -438,12 +438,12 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1, t2 = t2 < 0.f ? 0.f : t2 > 1.f ? 1.f : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float *deltas, size_t stride, Row<Segment> *segments) {
-        float ly, uy, cly, cuy, A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx;
-        float x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
-        float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
+        float ly, uy, cly, cuy;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3, cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3, cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
         if (cly != cuy) {
+            float A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
+            float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
             B = 3.f * (y1 - y0), A = 3.f * (y2 - y1) - B, D = y3 - y0 - B - A, C = y0;
             solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
             solveCubic(A, B, C - clip.uy, D, ts[3], ts[4], ts[5]);
