@@ -566,16 +566,11 @@ struct Rasterizer {
             counts0[in[i] & 0xFF]++;
         prefixSum(counts0);
         memset(counts1, 0, sizeof(short) * 256);
-        for (int i = n - 1; i >= 0; i--) {
-            x = in[i];
-            tmp[--counts0[x & 0xFF]] = x;
-            counts1[(x >> 8) & 0xFF]++;
-        }
+        for (int i = n - 1; i >= 0; i--)
+            x = in[i], tmp[--counts0[x & 0xFF]] = x, counts1[(x >> 8) & 0xFF]++;
         prefixSum(counts1);
-        for (int i = n - 1; i >= 0; i--) {
-            x = tmp[i];
-            in[--counts1[(x >> 8) & 0xFF]] = x;
-        }
+        for (int i = n - 1; i >= 0; i--)
+            x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
     static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, size_t stride, uint8_t *src, Bitmap bitmap) {
         size_t ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip), iy, i;
