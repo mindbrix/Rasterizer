@@ -618,12 +618,12 @@ struct Rasterizer {
         *((uint32_t *)dst) = _mm_cvtsi128_si32(a8);
 #else
         if (*((uint32_t *)dst) == 0)
-            *dst++ = src0 * alpha, *dst++ = src1 * alpha, *dst++ = src2 * alpha, *dst = 255.f * alpha;
+            dst[0] = src0 * alpha, dst[1] = src1 * alpha, dst[2] = src2 * alpha, dst[3] = 255.f * alpha;
         else {
-            *dst = *dst * (1.f - alpha) + src0 * alpha;
-            dst++, *dst = *dst * (1.f - alpha) + src1 * alpha;
-            dst++, *dst = *dst * (1.f - alpha) + src2 * alpha;
-            dst++, *dst = *dst * (1.f - alpha) + 255.f * alpha;
+            dst[0] = dst[0] * (1.f - alpha) + src0 * alpha;
+            dst[1] = dst[1] * (1.f - alpha) + src1 * alpha;
+            dst[2] = dst[2] * (1.f - alpha) + src2 * alpha;
+            dst[3] = dst[3] * (1.f - alpha) + 255.f * alpha;
         }
 #endif
     }
