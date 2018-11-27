@@ -294,7 +294,7 @@ struct Rasterizer {
                 float fh = Context::kFatHeight, rfh = Context::kFatHeightRecip, ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
                 Row<Segment> *row;
                 ly = y0 < y1 ? y0 : y1, fly = floorf(ly * rfh) * fh, uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * rfh) * fh;
-                dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) / (y1 - y0);
+                dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + 1e-3f) / (y1 - y0);
                 for (row = segments + size_t(ly * rfh), fy0 = fly; fy0 < fuy; fy0 = fy1, row++) {
                     fy1 = fy0 + fh;
                     sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
