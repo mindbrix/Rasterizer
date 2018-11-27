@@ -407,8 +407,7 @@ struct Rasterizer {
         } else {
             count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0.f, px0 = x0, py0 = y0;
             while (--count) {
-                t += dt, s = 1.f - t;
-                px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                t += dt, s = 1.f - t, px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                 writeLine(px0, py0, px1, py1, deltas, stride, segments);
                 px0 = px1, py0 = py1;
             }
@@ -508,8 +507,7 @@ struct Rasterizer {
         } else {
             count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f, px0 = x0, py0 = y0;
             while (--count) {
-                t += dt, s = 1.f - t;
-                pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
+                t += dt, s = 1.f - t, pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
                 px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
                 writeLine(px0, py0, px1, py1, deltas, stride, segments);
                 px0 = px1, py0 = py1;
