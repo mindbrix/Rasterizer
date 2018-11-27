@@ -306,7 +306,7 @@ struct Rasterizer {
                 float scale = copysign(255.5f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
                 if (scale < 0)
                     tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) * dx / dy;
+                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-3f) * dx / dy;
                 for (sy0 = y0, sx0 = x0, ily = iy0 = floorf(y0), row = stride * ily; iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, row += stride) {
                     iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
                     lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
