@@ -293,8 +293,7 @@ struct Rasterizer {
             if (segments) {
                 float fh = Context::kFatHeight, rfh = Context::kFatHeightRecip, ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
                 Row<Segment> *row;
-                ly = y0 < y1 ? y0 : y1, fly = floorf(ly * rfh) * fh;
-                uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * rfh) * fh;
+                ly = y0 < y1 ? y0 : y1, fly = floorf(ly * rfh) * fh, uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * rfh) * fh;
                 dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) / (y1 - y0);
                 for (row = segments + size_t(ly * rfh), fy0 = fly; fy0 < fuy; fy0 = fy1, row++) {
                     fy1 = fy0 + fh;
@@ -303,10 +302,9 @@ struct Rasterizer {
                     new (row->alloc()) Segment(sx0, sy0, sx1, sy1);
                 }
             } else {
-                float deltaScale, tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
                 size_t ily, row;
-                deltaScale = copysign(255.5f, y1 - y0);
-                if (deltaScale < 0)
+                float scale = copysign(255.5f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last;
+                if (scale < 0)
                     tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
                 dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + Context::kFloatOffset) * dx / dy;
                 for (ily = iy0 = floorf(y0), sy0 = y0, sx0 = x0, row = stride * ily;
@@ -317,7 +315,7 @@ struct Rasterizer {
                     lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
                     ix0 = floorf(lx), ix1 = ix0 + 1;
                     if (lx >= ix0 && ux <= ix1) {
-                        cover = (sy1 - sy0) * deltaScale;
+                        cover = (sy1 - sy0) * scale;
                         area = (ix1 - (ux + lx) * 0.5f);
                         float *delta = deltas + row + size_t(ix0);
                         *delta++ += cover * area;
@@ -331,7 +329,7 @@ struct Rasterizer {
                         for (last = 0;
                              ix0 <= ux;
                              delta++, ix0 = ix1, ix1++, cx0 = cx1, cx1 = ux < ix1 ? ux : ix1, cy0 = cy1, cy1 += dydx, cy1 = cy1 < sy1 ? cy1 : sy1) {
-                            cover = (cy1 - cy0) * deltaScale;
+                            cover = (cy1 - cy0) * scale;
                             area = (ix1 - (cx0 + cx1) * 0.5f);
                             *delta += cover * area + last;
                             last = cover * (1.f - area);
