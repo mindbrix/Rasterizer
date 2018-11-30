@@ -293,13 +293,17 @@ struct Rasterizer {
             if (segments) {
                 float fh = Context::kFatHeight, rfh = Context::kFatHeightRecip, ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
                 Row<Segment> *row;
-                ly = y0 < y1 ? y0 : y1, fly = floorf(ly * rfh) * fh, uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * rfh) * fh;
-                dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + 1e-3f) / (y1 - y0);
-                for (row = segments + size_t(ly * rfh), fy0 = fly; fy0 < fuy; fy0 = fy1, row++) {
-                    fy1 = fy0 + fh;
-                    sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
-                    sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
-                    new (row->alloc()) Segment(sx0, sy0, sx1, sy1);
+                if (floorf(y0 * rfh) == floorf(y1 * rfh))
+                    new (segments[size_t(y0 * rfh)].alloc()) Segment(x0, y0, x1, y1);
+                else {
+                    ly = y0 < y1 ? y0 : y1, fly = floorf(ly * rfh) * fh, uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * rfh) * fh;
+                    dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + 1e-3f) / (y1 - y0);
+                    for (row = segments + size_t(ly * rfh), fy0 = fly; fy0 < fuy; fy0 = fy1, row++) {
+                        fy1 = fy0 + fh;
+                        sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
+                        sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
+                        new (row->alloc()) Segment(sx0, sy0, sx1, sy1);
+                    }
                 }
             } else {
                 float scale = copysign(255.5f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
