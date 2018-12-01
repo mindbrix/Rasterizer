@@ -124,11 +124,11 @@ struct Rasterizer {
     };
     struct Bitmap {
         Bitmap() {}
-        Bitmap(void *data, size_t width, size_t height, size_t rowBytes, size_t bpp)
-            : data((uint8_t *)data), width(width), height(height), rowBytes(rowBytes), bpp(bpp), bytespp(bpp / 8) {}
-        inline uint8_t *pixelAddress(short x, short y) { return data + rowBytes * (height - 1 - y) + x * bytespp; }
+        Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp)
+            : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
+        inline uint8_t *pixelAddress(short x, short y) { return data + stride * (height - 1 - y) + x * bytespp; }
         uint8_t *data;
-        size_t width, height, rowBytes, bpp, bytespp;
+        size_t width, height, stride, bpp, bytespp;
     };
     struct Segment {
         Segment() {}
@@ -519,7 +519,7 @@ struct Rasterizer {
         else {
             uint8_t *pixelAddress= bitmap.pixelAddress(clip.lx, clip.ly), *pixel, a;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f;
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap.rowBytes, *delta = 0.f)
+            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap.stride, *delta = 0.f)
                 for (cover = a = 0, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap.bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, a = alphaForCover(cover, even);
