@@ -168,14 +168,14 @@ struct Rasterizer {
             bitmap = bm;
             device = Bounds(0, 0, bm.width, bm.height);
             if (segments.size() != bm.height)
-                segments.resize(bm.height), clipcells.resize(ceilf(bm.height * kFatHeightRecip)), clipcovers.resize(ceilf(bm.height * kFatHeightRecip));
+                segments.resize(bm.height), clipcells.resize(ceilf(bm.height * krfh)), clipcovers.resize(ceilf(bm.height * krfh));
             emptyClip();
-            deltas.resize((bm.width + 1) * kFatHeight);
+            deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         Bitmap bitmap;
         Bounds device, clip;
-        static constexpr float kFloatOffset = 5e-2, kFatHeight = 4, kFatHeightRecip = 1.0 / kFatHeight;
+        static constexpr float kFloatOffset = 5e-2, kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
@@ -291,15 +291,16 @@ struct Rasterizer {
     static void writeLine(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
         if (y0 != y1) {
             if (segments) {
-                float fh = Context::kFatHeight, rfh = Context::kFatHeightRecip, ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
-                Row<Segment> *row;
-                if (floorf(y0 * rfh) == floorf(y1 * rfh))
-                    new (segments[size_t(y0 * rfh)].alloc()) Segment(x0, y0, x1, y1);
+                float iy0 = floorf(y0 * Context::krfh), iy1 = floorf(y1 * Context::krfh);
+                if (iy0 == iy1)
+                    new (segments[size_t(iy0)].alloc()) Segment(x0, y0, x1, y1);
                 else {
-                    ly = y0 < y1 ? y0 : y1, fly = floorf(ly * rfh) * fh, uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * rfh) * fh;
+                    float ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
+                    Row<Segment> *row;
+                    ly = y0 < y1 ? y0 : y1, fly = floorf(ly * Context::krfh) * Context::kfh, uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * Context::krfh) * Context::kfh;
                     dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + 1e-3f) / (y1 - y0);
-                    for (row = segments + size_t(ly * rfh), fy0 = fly; fy0 < fuy; fy0 = fy1, row++) {
-                        fy1 = fy0 + fh;
+                    for (row = segments + size_t(ly * Context::krfh), fy0 = fly; fy0 < fuy; fy0 = fy1, row++) {
+                        fy1 = fy0 + Context::kfh;
                         sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
                         sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
                         new (row->alloc()) Segment(sx0, sy0, sx1, sy1);
@@ -546,7 +547,7 @@ struct Rasterizer {
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
     static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap bitmap) {
-        size_t ily = floorf(clip.ly * Context::kFatHeightRecip), iuy = ceilf(clip.uy * Context::kFatHeightRecip), iy, i;
+        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Row<Segment> *row;              Segment *segment;
@@ -559,8 +560,8 @@ struct Rasterizer {
                     radixSort((uint32_t *)& indices.elems[0], indices.idx, counts0, counts1);
                 else
                     std::sort(& indices.elems[0], & indices.elems[indices.idx]);
-                ly = iy * Context::kFatHeight, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * Context::kFatHeight, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 255.5f / (uy - ly), cover = 0.f, index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, even);
