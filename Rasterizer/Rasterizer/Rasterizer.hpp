@@ -38,7 +38,7 @@ struct Rasterizer {
             };
         }
         Bounds transform(AffineTransform t) {
-            float a = t.a * (ux - lx), b = t.b * (ux - lx), c = t.c * (uy - ly), d = t.d * (uy - ly);
+            float w = ux - lx, h = uy - ly, a = t.a * w, b = t.b * w, c = t.c * h, d = t.d * h;
             float tx = lx * t.a + ly * t.c + t.tx, ty = lx * t.b + ly * t.d + t.ty;
             return {
                 tx + (a < 0.f ? a : 0.f) + (c < 0.f ? c : 0.f), ty + (b < 0.f ? b : 0.f) + (d < 0.f ? d : 0.f),
