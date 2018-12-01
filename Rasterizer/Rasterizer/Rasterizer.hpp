@@ -175,7 +175,7 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         Bounds device, clip;
-        static constexpr float kFloatOffset = 5e-2, kfh = 4, krfh = 1.0 / kfh;
+        static constexpr float kbo = 5e-2, kbo2 = 0.5 * kbo, kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
@@ -187,9 +187,9 @@ struct Rasterizer {
             return;
         Bounds clip = path.bounds.transform(ctm).integral().intersect(context.device.intersect(context.clip));
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1, o = Context::kFloatOffset;
+            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             if (stride * h < context.deltas.size()) {
-                AffineTransform bias(w / (w + o), 0.f, 0.f, h / (h + o), 0.5f * o, 0.5f * o);
+                AffineTransform bias(w / (w + Context::kbo), 0.f, 0.f, h / (h + Context::kbo), Context::kbo2, Context::kbo2);
                 AffineTransform biased = bias.concat(AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly));
                 writePath(path, biased, Bounds(0.f, 0.f, w, h), & context.deltas[0], stride, nullptr);
                 writeDeltasToBitmap(& context.deltas[0], stride, clip, even, src, context.bitmap);
