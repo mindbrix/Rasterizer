@@ -274,9 +274,7 @@ struct RasterizerCoreGraphics {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                     ctms[count] = ctm;
                     testScene.contexts[count].setBitmap(bitmap);
-                    testScene.contexts[count].intersectClip(clip);
-                    testScene.contexts[count].device.ly = ly;
-                    testScene.contexts[count].device.uy = uy;
+                    testScene.contexts[count].intersectClip(Rasterizer::Bounds(clip.lx, ly, clip.ux, uy));
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {

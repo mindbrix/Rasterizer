@@ -157,7 +157,7 @@ struct Rasterizer {
     struct Context {
         Context() {}
         void emptyClip() {
-            clip = Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
+            clip = device;
             for (int i = 0; i < clipcells.size(); i++)
                 clipcells[i].empty(), clipcovers[i].empty();
         }
@@ -185,7 +185,7 @@ struct Rasterizer {
     static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
         if (path.bounds.lx == FLT_MAX)
             return;
-        Bounds clip = path.bounds.transform(ctm).integral().intersect(context.device.intersect(context.clip));
+        Bounds clip = path.bounds.transform(ctm).integral().intersect(context.clip);
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             if (stride * h < context.deltas.size()) {
