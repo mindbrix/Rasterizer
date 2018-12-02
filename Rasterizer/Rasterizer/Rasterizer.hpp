@@ -306,63 +306,31 @@ struct Rasterizer {
                     }
                 }
             } else {
-                {
-                    float scale = copysign(1.f, x1 - x0), tmp;
-                    if (scale < 0.f)
-                        tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-                    float ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1, *row, flx, fux, fx0, fx1, dydx, cx0, cy0, cx1, cy1, cover, area, last;
-                   
-                    ly = y0 < y1 ? y0 : y1, fly = floorf(ly), uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy);
-                    dx = x1 - x0, dxdy = dx * fabsf(dx) / (fabsf(dx) + 1e-4f) / (y1 - y0);
-                    for (row = deltas + size_t(fly) * stride, fy0 = fly; fy0 < fuy; fy0 = fy1, row += stride) {
-                        fy1 = fy0 + 1.f;
-                        sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
-                        sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
-                        
-                        flx = floorf(sx0), fux = ceilf(sx1), fux += flx == fux ? 1.f : 0.f;
-                        cx0 = sx0, cy0 = sy0;
-                        dydx = (sy1 - sy0) / (sx1 - sx0);
-                        last = 0.f;
-                        for (fx0 = flx; fx0 < fux; fx0 = fx1, cx0 = cx1, cy0 = cy1) {
-                            fx1 = fx0 + 1.f;
-                            cx1 = sx1 < fx0 ? fx0 : sx1 > fx1 ? fx1 : sx1;
-                            cy1 = dx == 0.f ? sy1 : (cx1 - sx0) * dydx + sy0;
-                            
-                            cover = (cy1 - cy0) * scale, area = (fx1 - (cx0 + cx1) * 0.5f);
-                            row[int(fx0)] += cover * area + last;
+                float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+                if (scale < 0.f)
+                    tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
+                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
+                for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = deltas + size_t(iy0 * stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += stride) {
+                    iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
+                    lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
+                    ix0 = floorf(lx), ix1 = ix0 + 1.f;
+                    if (lx >= ix0 && ux <= ix1) {
+                        cover = (sy1 - sy0) * scale, area = (ix1 - (ux + lx) * 0.5f);
+                        delta[int(ix0)] += cover * area;
+                        if (area < 1.f && ix1 < stride)
+                            delta[int(ix1)] += cover * (1.f - area);
+                    } else {
+                        dydx = fabsf(dy / dx);
+                        for (last = 0.f, cx0 = lx, cy0 = sy0; ix0 <= ux; ix0 = ix1, cx0 = cx1, cy0 = cy1) {
+                            ix1 = ix0 + 1.f, cx1 = ux < ix1 ? ux : ix1, cy1 = sy0 + (cx1 - lx) * dydx;
+                            cover = (cy1 - cy0) * scale, area = (ix1 - (cx0 + cx1) * 0.5f);
+                            delta[int(ix0)] += cover * area + last;
                             last = cover * (1.f - area);
                         }
-                        if (fx0 < stride)
-                            row[int(fx0)] += last;
+                        if (ix0 < stride)
+                            delta[int(ix0)] += last;
                     }
                 }
-                
-                
-//                float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
-//                if (scale < 0.f)
-//                    tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-//                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
-//                for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = deltas + size_t(iy0 * stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += stride) {
-//                    iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
-//                    lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
-//                    ix0 = floorf(lx), ix1 = ix0 + 1.f;
-//                    if (lx >= ix0 && ux <= ix1) {
-//                        cover = (sy1 - sy0) * scale, area = (ix1 - (ux + lx) * 0.5f);
-//                        delta[int(ix0)] += cover * area;
-//                        if (area < 1.f && ix1 < stride)
-//                            delta[int(ix1)] += cover * (1.f - area);
-//                    } else {
-//                        dydx = fabsf(dy / dx);
-//                        for (last = 0.f, cx0 = lx, cy0 = sy0; ix0 <= ux; ix0 = ix1, cx0 = cx1, cy0 = cy1) {
-//                            ix1 = ix0 + 1.f, cx1 = ux < ix1 ? ux : ix1, cy1 = sy0 + (cx1 - lx) * dydx;
-//                            cover = (cy1 - cy0) * scale, area = (ix1 - (cx0 + cx1) * 0.5f);
-//                            delta[int(ix0)] += cover * area + last;
-//                            last = cover * (1.f - area);
-//                        }
-//                        if (ix0 < stride)
-//                            delta[int(ix0)] += last;
-//                    }
-//                }
             }
         }
     }
