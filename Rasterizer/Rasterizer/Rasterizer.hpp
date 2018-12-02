@@ -307,10 +307,10 @@ struct Rasterizer {
                     }
                 }
             } else {
-                float scale = copysign(255.5f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+                float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
                 if (scale < 0.f)
                     tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-3f) * dx / dy;
+                dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
                 for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = deltas + size_t(iy0 * stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += stride) {
                     iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
                     lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
@@ -508,7 +508,7 @@ struct Rasterizer {
         }
     }
     static inline uint8_t alphaForCover(float cover, bool even) {
-        int alpha = fabsf(cover);
+        int alpha = fabsf(cover) * 255.5f;
         return alpha <= 255 ? alpha : even ? 255 - abs(alpha % 510 - 255) : 255;
     }
     
@@ -561,7 +561,7 @@ struct Rasterizer {
                     std::sort(& indices.elems[0], & indices.elems[indices.idx]);
                 ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (scale = 255.5f / (uy - ly), cover = 0.f, index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
+                for (scale = 1.f / (uy - ly), cover = 0.f, index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
