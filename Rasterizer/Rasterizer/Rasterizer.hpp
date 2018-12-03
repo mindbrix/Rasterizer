@@ -164,13 +164,25 @@ struct Rasterizer {
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl);
         }
+        void intersectClipPath(Path& path, AffineTransform ctm, bool even) {
+            if (path.bounds.lx == FLT_MAX)
+                return;
+            Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
+            if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                writePath(path, ctm, clip, nullptr, 0, & segments[0]);
+            }
+        }
         void setBitmap(Bitmap bm) {
             bitmap = bm;
-            device = Bounds(0, 0, bm.width, bm.height);
-            if (segments.size() != bm.height)
-                segments.resize(bm.height), clipcells.resize(ceilf(bm.height * krfh)), clipcovers.resize(ceilf(bm.height * krfh));
+            setDevice(Bounds(0, 0, bm.width, bm.height));
+        }
+        void setDevice(Bounds dev) {
+            device = dev;
+            size_t size = ceilf((dev.uy - dev.ly) * krfh);
+            if (segments.size() != size)
+                segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
             emptyClip();
-            deltas.resize((bm.width + 1) * kfh);
+            deltas.resize((dev.ux - dev.lx + 1.f) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         Bitmap bitmap;
