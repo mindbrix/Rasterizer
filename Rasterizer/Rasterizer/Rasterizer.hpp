@@ -172,7 +172,7 @@ struct Rasterizer {
                     writeDeltasToBitmap(& deltas[0], stride, clip, even, src, & bitmap);
                 } else {
                     writePath(path, ctm, clip, nullptr, 0, & segments[0]);
-                    writeSegmentsToBitmap(& segments[0], clip, even, & deltas[0], stride, src, & bitmap);
+                    writeSegmentsToBitmap(& segments[0], clip, even, & deltas[0], stride, src, & bitmap, & clipcells[0]);
                 }
             }
         }
@@ -557,7 +557,7 @@ struct Rasterizer {
         for (int i = n - 1; i >= 0; i--)
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
-    static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap) {
+    static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
