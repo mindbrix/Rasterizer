@@ -169,10 +169,10 @@ struct Rasterizer {
                 if (stride * h < deltas.size()) {
                     AffineTransform biased(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly);
                     writePath(path, biased, Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
-                    writeDeltasToBitmap(& deltas[0], stride, clip, even, src, bitmap);
+                    writeDeltasToBitmap(& deltas[0], stride, clip, even, src, & bitmap);
                 } else {
                     writePath(path, ctm, clip, nullptr, 0, & segments[0]);
-                    writeSegmentsToBitmap(& segments[0], clip, even, & deltas[0], stride, src, bitmap);
+                    writeSegmentsToBitmap(& segments[0], clip, even, & deltas[0], stride, src, & bitmap);
                 }
             }
         }
@@ -524,15 +524,15 @@ struct Rasterizer {
         return alpha <= 255 ? alpha : even ? 255 - abs(alpha % 510 - 255) : 255;
     }
     
-    static void writeDeltasToBitmap(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap bitmap) {
+    static void writeDeltasToBitmap(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
         if (clip.lx == clip.ux)
             for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
                 *deltas = 0.f;
         else {
-            uint8_t *pixelAddress = bitmap.pixelAddress(clip.lx, clip.ly), *pixel, a;
+            uint8_t *pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel, a;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.0000153787005f, y, x, cover, *delta;
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap.stride, *delta = 0.f)
-                for (cover = a = 0, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap.bytespp) {
+            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap->stride, *delta = 0.f)
+                for (cover = a = 0, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, a = alphaForCover(cover, even);
                     if (a == 255 && src[3] == 255)
@@ -557,7 +557,7 @@ struct Rasterizer {
         for (int i = n - 1; i >= 0; i--)
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
-    static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap bitmap) {
+    static void writeSegmentsToBitmap(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
@@ -581,11 +581,11 @@ struct Rasterizer {
                             if (a == 255)
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
                                     *delta = cover;
-                                    uint8_t *dst = bitmap.pixelAddress(ux, y);
+                                    uint8_t *dst = bitmap->pixelAddress(ux, y);
                                     if (src[3] == 255)
-                                        memset_pattern4(dst, src, (index->x - ux) * bitmap.bytespp);
+                                        memset_pattern4(dst, src, (index->x - ux) * bitmap->bytespp);
                                     else
-                                        for (size_t x = ux; x < index->x; x++, dst += bitmap.bytespp)
+                                        for (size_t x = ux; x < index->x; x++, dst += bitmap->bytespp)
                                             writePixel(src0, src1, src2, srcAlpha, dst);
                                 }
                             lx = ux = index->x;
