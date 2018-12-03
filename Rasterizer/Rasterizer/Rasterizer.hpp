@@ -160,7 +160,7 @@ struct Rasterizer {
             bitmap = bm;
             setDevice(Bounds(0, 0, bm.width, bm.height));
         }
-        void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
+        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
                 return;
             Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
