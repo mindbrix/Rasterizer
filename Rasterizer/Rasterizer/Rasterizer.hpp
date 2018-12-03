@@ -156,6 +156,26 @@ struct Rasterizer {
     };
     struct Context {
         Context() {}
+        void setBitmap(Bitmap bm) {
+            bitmap = bm;
+            setDevice(Bounds(0, 0, bm.width, bm.height));
+        }
+        void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
+            if (path.bounds.lx == FLT_MAX)
+                return;
+            Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
+            if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+                if (stride * h < deltas.size()) {
+                    AffineTransform biased(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly);
+                    writePath(path, biased, Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
+                    writeDeltasToBitmap(& deltas[0], stride, clip, even, src, bitmap);
+                } else {
+                    writePath(path, ctm, clip, nullptr, 0, & segments[0]);
+                    writeSegmentsToBitmap(& segments[0], clip, even, & deltas[0], stride, src, bitmap);
+                }
+            }
+        }
         void emptyClip() {
             clip = device;
             for (int i = 0; i < clipcells.size(); i++)
@@ -171,10 +191,6 @@ struct Rasterizer {
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 writePath(path, ctm, clip, nullptr, 0, & segments[0]);
             }
-        }
-        void setBitmap(Bitmap bm) {
-            bitmap = bm;
-            setDevice(Bounds(0, 0, bm.width, bm.height));
         }
         void setDevice(Bounds dev) {
             device = dev;
@@ -194,22 +210,6 @@ struct Rasterizer {
         std::vector<Row<float>> clipcovers;
     };
     
-    static void writePathToBitmap(Path& path, AffineTransform ctm, bool even, uint8_t *src, Context& context) {
-        if (path.bounds.lx == FLT_MAX)
-            return;
-        Bounds clip = path.bounds.transform(ctm).integral().intersect(context.clip);
-        if (clip.lx != clip.ux && clip.ly != clip.uy) {
-            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-            if (stride * h < context.deltas.size()) {
-                AffineTransform biased(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly);
-                writePath(path, biased, Bounds(0.f, 0.f, w, h), & context.deltas[0], stride, nullptr);
-                writeDeltasToBitmap(& context.deltas[0], stride, clip, even, src, context.bitmap);
-            } else {
-                writePath(path, ctm, clip, nullptr, 0, & context.segments[0]);
-                writeSegmentsToBitmap(& context.segments[0], clip, even, & context.deltas[0], stride, src, context.bitmap);
-            }
-        }
-    }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
