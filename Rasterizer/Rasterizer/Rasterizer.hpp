@@ -184,10 +184,11 @@ struct Rasterizer {
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl);
         }
-        void intersectClipPath(Path& path, AffineTransform ctm, bool even) {
+        void intersectClip(Path& path, AffineTransform ctm, bool even) {
             if (path.bounds.lx == FLT_MAX)
                 return;
             Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
+            intersectClip(clip);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 writePath(path, ctm, clip, nullptr, 0, & segments[0]);
             }
