@@ -577,17 +577,19 @@ struct Rasterizer {
                     if (index->x > ux) {
                         uint8_t a = alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
+                            if (bitmap)
+                                writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                             if (a == 255)
-                                for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
-                                    *delta = cover;
-                                    uint8_t *dst = bitmap->pixelAddress(ux, y);
-                                    if (src[3] == 255)
-                                        memset_pattern4(dst, src, (index->x - ux) * bitmap->bytespp);
-                                    else
-                                        for (size_t x = ux; x < index->x; x++, dst += bitmap->bytespp)
-                                            writePixel(src0, src1, src2, srcAlpha, dst);
-                                }
+                                if (bitmap)
+                                    for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
+                                        *delta = cover;
+                                        uint8_t *dst = bitmap->pixelAddress(ux, y);
+                                        if (src[3] == 255)
+                                            memset_pattern4(dst, src, (index->x - ux) * bitmap->bytespp);
+                                        else
+                                            for (size_t x = ux; x < index->x; x++, dst += bitmap->bytespp)
+                                                writePixel(src0, src1, src2, srcAlpha, dst);
+                                    }
                             lx = ux = index->x;
                         }
                     }
@@ -596,7 +598,8 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
+                if (bitmap)
+                    writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                 indices.empty();
                 row->empty();
             }
