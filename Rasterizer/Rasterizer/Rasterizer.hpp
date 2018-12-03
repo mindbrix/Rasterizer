@@ -519,11 +519,10 @@ struct Rasterizer {
             writeLine(px0, py0, x3, y3, deltas, stride, segments);
         }
     }
-    static inline uint8_t alphaForCover(float cover, bool even) {
-        int alpha = fabsf(cover) * 255.5f;
-        return alpha <= 255 ? alpha : even ? 255 - abs(alpha % 510 - 255) : 255;
+    static inline float alphaForCover(float cover, bool even) {
+        float alpha = fabsf(cover);
+        return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    
     static void writeDeltasToBitmap(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
         if (clip.lx == clip.ux)
             for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
@@ -534,7 +533,7 @@ struct Rasterizer {
             for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap->stride, *delta = 0.f)
                 for (cover = a = 0, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
-                        cover += *delta, *delta = 0.f, a = alphaForCover(cover, even);
+                        cover += *delta, *delta = 0.f, a = 255.5f * alphaForCover(cover, even);
                     if (a == 255 && src[3] == 255)
                         *((uint32_t *)pixel) = *((uint32_t *)src);
                     else if (a)
@@ -575,7 +574,7 @@ struct Rasterizer {
                 uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
-                        uint8_t a = alphaForCover(cover, even);
+                        uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
                             if (bitmap)
                                 writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
