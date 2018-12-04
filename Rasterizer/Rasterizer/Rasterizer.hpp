@@ -571,7 +571,7 @@ struct Rasterizer {
                 if (indices.idx > 32)
                     radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
                 else
-                    std::sort(indices.base, & indices.elems[indices.idx]);
+                    std::sort(indices.base, indices.base + indices.idx);
                 ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
