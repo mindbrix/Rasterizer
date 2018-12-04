@@ -168,7 +168,7 @@ struct Rasterizer {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
                     writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
-                    writeDeltasToBitmap(& deltas[0], stride, clip, even, src, & bitmap, nullptr);
+                    writeDeltas(& deltas[0], stride, clip, even, src, & bitmap, nullptr);
                 } else {
                     writePath(path, ctm, clip, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clip, even, & deltas[0], stride, src, & bitmap, nullptr, nullptr);
@@ -523,7 +523,7 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    static void writeDeltasToBitmap(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap, float *covers) {
+    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap, float *covers) {
         if (clip.lx == clip.ux)
             for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
                 *deltas = 0.f;
@@ -579,9 +579,9 @@ struct Rasterizer {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
                             if (clipcovers)
-                                writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
+                                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
                             else
-                                writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
+                                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
                             if (a == 255) {
                                 if (clipcovers)
                                     ;
@@ -605,9 +605,9 @@ struct Rasterizer {
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
                 if (clipcovers)
-                    writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
+                    writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
                 else
-                    writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
+                    writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
                 indices.empty();
                 row->empty();
             }
