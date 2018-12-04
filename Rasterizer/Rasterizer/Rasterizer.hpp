@@ -566,22 +566,26 @@ struct Rasterizer {
         Row<Segment::Index> indices;    Segment::Index *index;
         for (row = segments + ily, iy = ily; iy < iuy; iy++, row++) {
             if (row->idx) {
-                for (segment = & row->elems[0], i = 0; i < row->idx; i++, segment++)
+                for (segment = row->base, i = 0; i < row->idx; i++, segment++)
                     new (indices.alloc()) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.idx > 32)
-                    radixSort((uint32_t *)& indices.elems[0], indices.idx, counts0, counts1);
+                    radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
                 else
-                    std::sort(& indices.elems[0], & indices.elems[indices.idx]);
+                    std::sort(indices.base, & indices.elems[indices.idx]);
                 ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (scale = 1.f / (uy - ly), cover = 0.f, index = & indices.elems[0], lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
+                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            if (bitmap)
+                            if (clipcovers)
+                                writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
+                            else
                                 writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
-                            if (a == 255)
-                                if (bitmap)
+                            if (a == 255) {
+                                if (clipcovers)
+                                    ;
+                                else
                                     for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
                                         *delta = cover;
                                         uint8_t *dst = bitmap->pixelAddress(ux, y);
@@ -591,6 +595,7 @@ struct Rasterizer {
                                             for (size_t x = ux; x < index->x; x++, dst += bitmap->bytespp)
                                                 writePixel(src0, src1, src2, srcAlpha, dst);
                                     }
+                            }
                             lx = ux = index->x;
                         }
                     }
@@ -599,7 +604,9 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                if (bitmap)
+                if (clipcovers)
+                    writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
+                else
                     writeDeltasToBitmap(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
                 indices.empty();
                 row->empty();
