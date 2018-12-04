@@ -581,7 +581,8 @@ struct Rasterizer {
                     if (index->x > ux) {
                         a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
+                            if (lx != ux)
+                                new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
                             writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
                             if (a == 255) {
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride)
@@ -591,12 +592,13 @@ struct Rasterizer {
                             lx = ux = index->x;
                         }
                     }
-                    segment = & segments->elems[index->i];
+                    segment = segments->base + index->i;
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
+                if (lx != ux)
+                    new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
                 writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
                 indices.empty();
                 segments->empty();
@@ -638,7 +640,7 @@ struct Rasterizer {
                             lx = ux = index->x;
                         }
                     }
-                    segment = & segments->elems[index->i];
+                    segment = segments->base + index->i;
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
