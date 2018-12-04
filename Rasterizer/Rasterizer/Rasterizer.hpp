@@ -158,7 +158,7 @@ struct Rasterizer {
         Context() {}
         void setBitmap(Bitmap bm) {
             bitmap = bm;
-            setDevice(Bounds(0, 0, bm.width, bm.height));
+            setDevice(Bounds(0.f, 0.f, bm.width, bm.height));
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
