@@ -145,6 +145,13 @@ struct Rasterizer {
     struct Row {
         Row() : idx(0), size(0) {}
         void empty() { idx = 0; }
+        inline T *alloc(size_t n) {
+            if (size - idx < n)
+                elems.resize(elems.size() + n + 15), size = elems.size(), base = & elems[0];
+            T *ptr = base + idx;
+            idx += n;
+            return ptr;
+        }
         inline T *alloc() {
             if (size - idx < 1)
                 elems.resize(elems.size() + 16), size = elems.size(), base = & elems[0];
@@ -566,8 +573,8 @@ struct Rasterizer {
         Row<Segment::Index> indices;    Segment::Index *index;
         for (row = segments + ily, iy = ily; iy < iuy; iy++, row++) {
             if (row->idx) {
-                for (segment = row->base, i = 0; i < row->idx; i++, segment++)
-                    new (indices.alloc()) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                for (index = indices.alloc(row->idx), segment = row->base, i = 0; i < row->idx; i++, segment++, index++)
+                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.idx > 32)
                     radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
                 else
