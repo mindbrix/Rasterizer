@@ -564,11 +564,11 @@ struct Rasterizer {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
-        Row<Segment> *row;              Segment *segment;
+        Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
-        for (row = segments + ily, iy = ily; iy < iuy; iy++, row++) {
-            if (row->idx) {
-                for (index = indices.alloc(row->idx), segment = row->base, i = 0; i < row->idx; i++, segment++, index++)
+        for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
+            if (segments->idx) {
+                for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.idx > 32)
                     radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
@@ -580,16 +580,18 @@ struct Rasterizer {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            if (clipcovers)
-                                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
-                            else
+                            if (clipcovers) {
+                                new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
+                                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
+                            } else
                                 writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
                             if (a == 255) {
+                                for (delta = deltas, y = ly; y < uy; y++, delta += stride)
+                                    *delta = cover;
                                 if (clipcovers)
-                                    ;
+                                    new (clipcells->alloc(1)) Bounds(lx, ly, ux, uy);
                                 else
-                                    for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
-                                        *delta = cover;
+                                    for (y = ly; y < uy; y++) {
                                         uint8_t *dst = bitmap->pixelAddress(ux, y);
                                         if (src[3] == 255)
                                             memset_pattern4(dst, src, (index->x - ux) * bitmap->bytespp);
@@ -601,17 +603,18 @@ struct Rasterizer {
                             lx = ux = index->x;
                         }
                     }
-                    segment = & row->elems[index->i];
+                    segment = & segments->elems[index->i];
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                if (clipcovers)
-                    writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->base);
-                else
+                if (clipcovers) {
+                    new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
+                    writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
+                } else
                     writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
                 indices.empty();
-                row->empty();
+                segments->empty();
             }
         }
     }
