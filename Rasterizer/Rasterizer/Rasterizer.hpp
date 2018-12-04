@@ -152,11 +152,6 @@ struct Rasterizer {
             idx += n;
             return ptr;
         }
-        inline T *alloc() {
-            if (size - idx < 1)
-                elems.resize(elems.size() + 16), size = elems.size(), base = & elems[0];
-            return base + idx++;
-        }
         std::vector<T> elems;
         size_t idx, size;
         T *base;
@@ -312,7 +307,7 @@ struct Rasterizer {
             if (segments) {
                 float iy0 = floorf(y0 * Context::krfh), iy1 = floorf(y1 * Context::krfh);
                 if (iy0 == iy1)
-                    new (segments[size_t(iy0)].alloc()) Segment(x0, y0, x1, y1);
+                    new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
                     float ly, fly, uy, fuy, dx, dxdy, fy0, fy1, sy0, sx0, sy1, sx1;
                     Row<Segment> *row;
@@ -322,7 +317,7 @@ struct Rasterizer {
                         fy1 = fy0 + Context::kfh;
                         sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
                         sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
-                        new (row->alloc()) Segment(sx0, sy0, sx1, sy1);
+                        new (row->alloc(1)) Segment(sx0, sy0, sx1, sy1);
                     }
                 }
             } else {
