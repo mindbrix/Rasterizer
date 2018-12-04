@@ -167,8 +167,7 @@ struct Rasterizer {
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
-                    AffineTransform biased(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly);
-                    writePath(path, biased, Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
+                    writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
                     writeDeltasToBitmap(& deltas[0], stride, clip, even, src, & bitmap);
                 } else {
                     writePath(path, ctm, clip, nullptr, 0, & segments[0]);
