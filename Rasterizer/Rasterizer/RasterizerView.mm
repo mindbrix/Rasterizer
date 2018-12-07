@@ -48,7 +48,7 @@
 - (void)changeFont:(id)sender {
     NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
     [self writeGlyphGrid:newFont.fontName];
-    [self resetCTM:nil];
+    self.CTM = CGAffineTransformIdentity;
     [self redraw];
 }
 
@@ -82,10 +82,6 @@
 
 
 #pragma mark - IBOutlet
-
-- (IBAction)resetCTM:(id)sender {
-    self.CTM = CGAffineTransformIdentity;
-}
 
 - (IBAction)toggleRasterizer:(id)sender {
     _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCoreGraphics::CGTestScene::kRasterizerCount;

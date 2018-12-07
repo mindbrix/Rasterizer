@@ -15,7 +15,6 @@
 
 @property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
 
-- (IBAction)resetCTM:(id)sender;
 - (IBAction)toggleRasterizer:(id)sender;
 
 @end

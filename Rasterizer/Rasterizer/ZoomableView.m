@@ -102,6 +102,16 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     return YES;
 }
 
+- (void)keyDown:(NSEvent *)event {
+    NSLog(@"%d", event.keyCode);
+    if (event.keyCode == 36) {
+        self.CTM = CGAffineTransformIdentity;
+        [self redraw];
+    } else {
+        [super keyDown:event];
+    }
+}
+
 - (void)magnifyWithEvent:(NSEvent *)event {
     [self.transform scaleBy:1.0f + event.magnification bounds:self.bounds];
     _eventFlag = YES;
