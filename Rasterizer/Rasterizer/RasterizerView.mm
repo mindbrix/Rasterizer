@@ -33,7 +33,7 @@
     self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
     self.layer.delegate = self;
     self.layer.bounds = self.bounds;
-    self.layer.opaque = NO;
+    self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     [self writeGlyphGrid:@"AppleSymbols"];
@@ -102,6 +102,7 @@
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
+    bitmap.clear(0xFFFFFFFF);
     RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), ctx, bitmap);
 }
 

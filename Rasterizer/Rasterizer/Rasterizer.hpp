@@ -126,6 +126,7 @@ struct Rasterizer {
         Bitmap() {}
         Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp)
             : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
+        void clear(uint32_t pixel) { memset_pattern4(data, & pixel, stride * height); }
         inline uint8_t *pixelAddress(short x, short y) { return data + stride * (height - 1 - y) + x * bytespp; }
         uint8_t *data;
         size_t width, height, stride, bpp, bytespp;
