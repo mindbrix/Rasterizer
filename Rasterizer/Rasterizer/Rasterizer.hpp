@@ -640,7 +640,8 @@ struct Rasterizer {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
                             writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clx, cux, even, src, bitmap, nullptr);
-                            lx = ux, ux = index->x;
+                            lx = ux, lx = lx < clx ? clx : lx > cux ? cux : lx;
+                            ux = index->x, ux = ux < clx ? clx : ux > cux ? cux : ux;
                             if (a == 255)
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
                                     *delta = cover;
@@ -651,7 +652,7 @@ struct Rasterizer {
                                         for (size_t x = lx; x < ux; x++, dst += bitmap->bytespp)
                                             writePixel(src0, src1, src2, srcAlpha, dst);
                                 }
-                            lx = ux;
+                            lx = ux = index->x;
                         }
                     }
                     segment = segments->base + index->i;
