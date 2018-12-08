@@ -589,12 +589,13 @@ struct Rasterizer {
                             if (lx != ux)
                                 new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
                             writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
+                            lx = ux, ux = index->x;
                             if (a == 255) {
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride)
                                     *delta = cover;
                                 new (clipcells->alloc(1)) Bounds(lx, ly, ux, uy);
                             }
-                            lx = ux = index->x;
+                            lx = ux;
                         }
                     }
                     segment = segments->base + index->i;
