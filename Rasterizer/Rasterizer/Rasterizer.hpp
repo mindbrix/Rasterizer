@@ -612,15 +612,22 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells, Row<float> *clipcovers) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, clx, cux, slx, sux, scale, cover, lx, ux, x, y, *delta;
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+            clx = clipcells->idx ? clipcells->base->lx : clip.lx;
+            cux = clipcells->idx ? (clipcells->base + clipcells->idx - 1)->ux : clip.ux;
             if (segments->idx) {
-                for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++)
+                slx = FLT_MAX, sux = -FLT_MAX;
+                for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++) {
+                    slx = segment->x0 < slx ? segment->x0 : slx, slx = segment->x1 < slx ? segment->x1 : slx;
+                    sux = segment->x0 > sux ? segment->x0 : sux, sux = segment->x1 > sux ? segment->x1 : sux;
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                }
+                slx = floorf(slx), sux = ceilf(sux);
                 if (indices.idx > 32)
                     radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
                 else
