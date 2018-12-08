@@ -102,7 +102,7 @@
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    bitmap.clear(0xFFFFFFFF);
+    bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
     RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), ctx, bitmap);
 }
 
