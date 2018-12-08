@@ -64,6 +64,8 @@ struct Rasterizer {
             index += size;
             return atoms.back().points + (index - size) * 2;
         }
+        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
+        
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
             bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
