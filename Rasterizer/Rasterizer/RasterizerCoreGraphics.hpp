@@ -242,8 +242,12 @@ struct RasterizerCoreGraphics {
     }
     
     static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
+        Rasterizer::AffineTransform clipCTM = ctm;
+        Rasterizer::Path clipPath;
+        clipPath.addBounds(Rasterizer::Bounds(100, 100, 500, 400));
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
+//        testScene.contexts[0].intersectClip(clipPath, clipCTM, false);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
                 Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
@@ -276,6 +280,7 @@ struct RasterizerCoreGraphics {
                     testScene.contexts[count].setBitmap(bitmap);
                     testScene.contexts[count].intersectClip(clip);
                     testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
+//                    testScene.contexts[count].intersectClip(clipPath, clipCTM, false);
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
