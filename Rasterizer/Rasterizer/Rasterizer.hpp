@@ -569,15 +569,17 @@ struct Rasterizer {
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
-            if (segments->idx) {
+            ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+            uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+            if (segments->idx == 0)
+                new (clipcells->alloc(1)) Bounds(0.f, ly, 0.f, uy);
+            else {
                 for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.idx > 32)
                     radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
                 else
                     std::sort(indices.base, indices.base + indices.idx);
-                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         a = 255.5f * alphaForCover(cover, even);
@@ -614,6 +616,8 @@ struct Rasterizer {
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
+            ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+            uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             if (segments->idx) {
                 for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
@@ -621,8 +625,6 @@ struct Rasterizer {
                     radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
                 else
                     std::sort(indices.base, indices.base + indices.idx);
-                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
