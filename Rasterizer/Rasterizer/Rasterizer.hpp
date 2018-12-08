@@ -537,7 +537,7 @@ struct Rasterizer {
                 for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, alpha = alphaForCover(cover, even);
-                    if (alpha > 0.003921568627f) {
+                    if (alpha > 0.003921568627f && x >= clx && x < cux) {
                         if (bitmap)
                             writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
                         else
