@@ -174,7 +174,7 @@ struct Rasterizer {
                     writeDeltas(& deltas[0], stride, clip, clip.lx, clip.ux, even, src, & bitmap, nullptr);
                 } else {
                     writePath(path, ctm, clip, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clip, even, & deltas[0], stride, src, & bitmap, nullptr, nullptr);
+                    writeSegments(& segments[0], clip, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
                 }
             }
         }
@@ -638,18 +638,19 @@ struct Rasterizer {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, bitmap, nullptr);
+                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clx, cux, even, src, bitmap, nullptr);
+                            lx = ux, ux = index->x;
                             if (a == 255)
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
                                     *delta = cover;
-                                    uint8_t *dst = bitmap->pixelAddress(ux, y);
+                                    uint8_t *dst = bitmap->pixelAddress(lx, y);
                                     if (src[3] == 255)
-                                        memset_pattern4(dst, src, (index->x - ux) * bitmap->bytespp);
+                                        memset_pattern4(dst, src, (ux - lx) * bitmap->bytespp);
                                     else
-                                        for (size_t x = ux; x < index->x; x++, dst += bitmap->bytespp)
+                                        for (size_t x = lx; x < ux; x++, dst += bitmap->bytespp)
                                             writePixel(src0, src1, src2, srcAlpha, dst);
                                 }
-                            lx = ux = index->x;
+                            lx = ux;
                         }
                     }
                     segment = segments->base + index->i;
@@ -657,7 +658,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, bitmap, nullptr);
+                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clx, cux, even, src, bitmap, nullptr);
                 indices.empty();
                 segments->empty();
             }
