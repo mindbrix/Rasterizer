@@ -627,7 +627,7 @@ struct Rasterizer {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             clx = clipcells->idx ? clipcells->base->lx : clip.lx;
-            cux = clipcells->idx ? (clipcells->base + clipcells->idx - 1)->ux : clip.ux;
+            cux = clipcells->idx ? fabsf((clipcells->base + clipcells->idx - 1)->ux) : clip.ux;
             if (segments->idx) {
                 slx = FLT_MAX, sux = -FLT_MAX;
                 for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++) {
