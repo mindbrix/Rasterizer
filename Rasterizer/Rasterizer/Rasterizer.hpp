@@ -134,10 +134,8 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct Segment {
-        Segment() {}
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         struct Index {
-            Index() {}
             Index(short x, short i) : x(x), i(i) {}
             short x, i;
             inline bool operator< (const Index& other) const { return x < other.x; }
@@ -146,16 +144,16 @@ struct Rasterizer {
     };
     template<typename T>
     struct Row {
-        Row() : idx(0), size(0) {}
+        Row() : idx(0), size(0), base(nullptr) {}
+        ~Row() { if (base) free(base); }
         void empty() { idx = 0; }
         inline T *alloc(size_t n) {
             size_t i = idx;
             idx += n;
             if (size < idx)
-                size = idx, elems.resize(size), base = & elems[0];
+                size = idx, base = (T *)realloc(base, size * sizeof(T));
             return base + i;
         }
-        std::vector<T> elems;
         size_t idx, size;
         T *base;
     };
