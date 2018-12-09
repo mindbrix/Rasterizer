@@ -13,6 +13,7 @@
 @interface RasterizerView () <CALayerDelegate>
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
+@property(nonatomic) BOOL useClip;
 
 @end
 
@@ -80,6 +81,14 @@
     return YES;
 }
 
+- (void)keyDown:(NSEvent *)event {
+    if (event.keyCode == 8) {
+        _useClip = !_useClip;
+        [self redraw];
+    } else {
+        [super keyDown:event];
+    }
+}
 
 #pragma mark - IBOutlet
 
@@ -103,7 +112,9 @@
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
-    RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), ctx, bitmap);
+    Rasterizer::Path clipPath;
+    clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
+    RasterizerCoreGraphics::writeTestSceneToContextOrBitmap(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, bitmap);
 }
 
 - (void)setSvgData:(NSData *)svgData {
