@@ -169,7 +169,7 @@ struct Rasterizer {
             Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-                if (stride * h < deltas.size()) {
+                if (0 && stride * h < deltas.size()) {
                     writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
                     writeDeltas(& deltas[0], stride, clip, clip.lx, clip.ux, even, src, & bitmap, nullptr);
                 } else {
@@ -570,7 +570,7 @@ struct Rasterizer {
         uint8_t a, src[4];
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
-        for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
+        for (segments += ily, clipcells += ily, clipcovers += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++, clipcovers++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             if (segments->idx == 0)
@@ -586,8 +586,7 @@ struct Rasterizer {
                     if (index->x > ux) {
                         a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            if (lx != ux)
-                                new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
+                            new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
                             writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
                             lx = ux, ux = index->x;
                             if (a == 255) {
@@ -603,8 +602,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                if (lx != ux)
-                    new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
+                new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
                 writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
                 indices.empty();
                 segments->empty();
