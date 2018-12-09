@@ -149,10 +149,10 @@ struct Rasterizer {
         Row() : idx(0), size(0) {}
         void empty() { idx = 0; }
         inline T *alloc(size_t n) {
-            size_t i;
-            if (size - idx < n)
-                elems.resize(elems.size() + n + 15), size = elems.size(), base = & elems[0];
-            i = idx, idx += n;
+            size_t i = idx;
+            idx += n;
+            if (size < idx)
+                size = idx, elems.resize(size), base = & elems[0];
             return base + i;
         }
         std::vector<T> elems;
