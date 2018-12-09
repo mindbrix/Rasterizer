@@ -169,7 +169,7 @@ struct Rasterizer {
             Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-                if (0 && stride * h < deltas.size()) {
+                if (stride * h < deltas.size()) {
                     writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
                     writeDeltas(& deltas[0], stride, clip, clip.lx, clip.ux, even, src, & bitmap, nullptr);
                 } else {
