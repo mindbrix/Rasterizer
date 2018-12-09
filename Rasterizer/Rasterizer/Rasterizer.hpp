@@ -16,7 +16,6 @@ struct Rasterizer {
     struct AffineTransform {
         AffineTransform() {}
         AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        
         inline AffineTransform concat(AffineTransform t) {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
@@ -29,7 +28,6 @@ struct Rasterizer {
     struct Bounds {
         Bounds() {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        
         Bounds integral() { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
         Bounds intersect(Bounds other) {
             return {
@@ -134,8 +132,10 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct Segment {
+        Segment() {}
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         struct Index {
+            Index() {}
             Index(short x, short i) : x(x), i(i) {}
             short x, i;
             inline bool operator< (const Index& other) const { return x < other.x; }
@@ -144,16 +144,16 @@ struct Rasterizer {
     };
     template<typename T>
     struct Row {
-        Row() : end(0), size(0), base(nullptr) {}
-        ~Row() { if (base) free(base); }
+        Row() : end(0), size(0) {}
         void empty() { end = 0; }
         inline T *alloc(size_t n) {
             size_t i = end;
             end += n;
             if (size < end)
-                size = end, base = (T *)realloc(base, size * sizeof(T));
+                size = end, elems.resize(size), base = & elems[0];
             return base + i;
         }
+        std::vector<T> elems;
         size_t end, size;
         T *base;
     };
