@@ -537,11 +537,11 @@ struct Rasterizer {
             size_t bstride = 0, bytespp = 0;
             if (bitmap)
                 pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), bstride = bitmap->stride, bytespp = bitmap->bytespp;
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta, zero = 0.f;
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bstride) {
+            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
+            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bstride, *delta = 0.f)
                 for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bytespp) {
                     if (*delta)
-                        cover += *delta, alpha = alphaForCover(cover, even);
+                        cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
                     if (alpha > 0.003921568627f && x >= clx && x < cux) {
                         if (bitmap)
                             writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
@@ -549,8 +549,6 @@ struct Rasterizer {
                             *covers++ = alpha;
                     }
                 }
-                memset_pattern4(deltas, & zero, sizeof(deltas[0]) * (clip.ux - clip.lx + 1.f));
-            }
         }
     }
     static void radixSort(uint32_t *in, short n, short *counts0, short *counts1) {
