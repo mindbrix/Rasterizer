@@ -366,7 +366,7 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, uy, cly, cuy, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        float ly, cly, uy, cuy, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
         if (cly != cuy) {
@@ -446,7 +446,7 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1, t2 = t2 < 0.f ? 0.f : t2 > 1.f ? 1.f : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, uy, cly, cuy;
+        float ly, cly, uy, cuy;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3, cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3, cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
         if (cly != cuy) {
