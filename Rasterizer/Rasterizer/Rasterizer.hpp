@@ -144,17 +144,17 @@ struct Rasterizer {
     };
     template<typename T>
     struct Row {
-        Row() : idx(0), size(0), base(nullptr) {}
+        Row() : end(0), size(0), base(nullptr) {}
         ~Row() { if (base) free(base); }
-        void empty() { idx = 0; }
+        void empty() { end = 0; }
         inline T *alloc(size_t n) {
-            size_t i = idx;
-            idx += n;
-            if (size < idx)
-                size = idx, base = (T *)realloc(base, size * sizeof(T));
+            size_t i = end;
+            end += n;
+            if (size < end)
+                size = end, base = (T *)realloc(base, size * sizeof(T));
             return base + i;
         }
-        size_t idx, size;
+        size_t end, size;
         T *base;
     };
     struct Context {
@@ -573,16 +573,16 @@ struct Rasterizer {
         for (segments += ily, clipcells += ily, clipcovers += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++, clipcovers++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            if (segments->idx == 0)
+            if (segments->end == 0)
                 new (clipcells->alloc(1)) Bounds(0.f, ly, 0.f, uy);
             else {
-                for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++)
+                for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                if (indices.idx > 32)
-                    radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
+                if (indices.end > 32)
+                    radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
                 else
-                    std::sort(indices.base, indices.base + indices.idx);
-                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
+                    std::sort(indices.base, indices.base + indices.end);
+                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux) {
                         a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
@@ -619,21 +619,21 @@ struct Rasterizer {
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            clx = clipcells->idx ? clipcells->base->lx : clip.lx;
-            cux = clipcells->idx ? fabsf((clipcells->base + clipcells->idx - 1)->ux) : clip.ux;
-            if (segments->idx) {
+            clx = clipcells->end ? clipcells->base->lx : clip.lx;
+            cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
+            if (segments->end) {
                 slx = FLT_MAX, sux = -FLT_MAX;
-                for (index = indices.alloc(segments->idx), segment = segments->base, i = 0; i < segments->idx; i++, segment++, index++) {
+                for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++) {
                     slx = segment->x0 < slx ? segment->x0 : slx, slx = segment->x1 < slx ? segment->x1 : slx;
                     sux = segment->x0 > sux ? segment->x0 : sux, sux = segment->x1 > sux ? segment->x1 : sux;
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 }
                 slx = floorf(slx), sux = ceilf(sux);
-                if (indices.idx > 32)
-                    radixSort((uint32_t *)indices.base, indices.idx, counts0, counts1);
+                if (indices.end > 32)
+                    radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
                 else
-                    std::sort(indices.base, indices.base + indices.idx);
-                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.idx; i++, index++) {
+                    std::sort(indices.base, indices.base + indices.end);
+                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
