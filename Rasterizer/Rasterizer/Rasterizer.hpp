@@ -182,6 +182,13 @@ struct Rasterizer {
             memset(& bitmap, 0, sizeof(bitmap));
             gp.quads->empty();
         }
+        void setDevice(Bounds dev) {
+            device = dev;
+            size_t size = ceilf((dev.uy - dev.ly) * krfh);
+            if (segments.size() != size)
+                segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
+            emptyClip();
+        }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
                 return;
@@ -213,13 +220,6 @@ struct Rasterizer {
                 writePath(path, ctm, clip, nullptr, 0, & segments[0]);
                 writeSegmentsToClip(& segments[0], clip, even, & deltas[0], clip.ux - clip.lx + 1.f, & clipcells[0], & clipcovers[0]);
             }
-        }
-        void setDevice(Bounds dev) {
-            device = dev;
-            size_t size = ceilf((dev.uy - dev.ly) * krfh);
-            if (segments.size() != size)
-                segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
-            emptyClip();
         }
         Bitmap bitmap;
         GPU gpu;
