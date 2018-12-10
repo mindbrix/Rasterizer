@@ -157,6 +157,16 @@ struct Rasterizer {
         size_t end, size;
         T *base;
     };
+    struct GPU {
+        struct Quad {
+            Quad() {}
+            Quad(float lx, float ly, float ux, float uy, uint8_t *src) : lx(lx), ly(ly), ux(ux), uy(uy), src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
+            short lx, ly, ux, uy;
+            uint8_t src0, src1, src2, src3;
+        };
+        Row<Quad> *quads;
+        size_t width, height;
+    };
     struct Context {
         Context() {}
         void setBitmap(Bitmap bm) {
@@ -164,6 +174,12 @@ struct Rasterizer {
             setDevice(Bounds(0.f, 0.f, bm.width, bm.height));
             deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
+        }
+        void setGPU(GPU gp) {
+            gpu = gp;
+            setDevice(Bounds(0.f, 0.f, gp.width, gp.height));
+            memset(& bitmap, 0, sizeof(bitmap));
+            gp.quads->empty();
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
@@ -205,6 +221,7 @@ struct Rasterizer {
             emptyClip();
         }
         Bitmap bitmap;
+        GPU gpu;
         Bounds device, clip;
         static constexpr float kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
