@@ -144,8 +144,8 @@ struct Rasterizer {
     };
     template<typename T>
     struct Row {
-        Row() : end(0), size(0) {}
-        void empty() { end = 0; }
+        Row() : end(0), size(0), idx(0) {}
+        void empty() { end = idx = 0; }
         inline T *alloc(size_t n) {
             size_t i = end;
             end += n;
@@ -154,7 +154,7 @@ struct Rasterizer {
             return base + i;
         }
         std::vector<T> elems;
-        size_t end, size;
+        size_t end, size, idx;
         T *base;
     };
     struct GPU {
