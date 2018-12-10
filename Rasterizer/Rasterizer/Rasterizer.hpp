@@ -674,8 +674,8 @@ struct Rasterizer {
                             qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                             new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, src);
                             if (a == 255) {
-                                lx = ux, qlx = lx < clx ? clx : lx > cux ? cux : lx;
-                                ux = index->x, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                                lx = ux, ux = index->x;
+                                qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                                 // if (src[3] == 255)
                                 new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, src);
                             }
