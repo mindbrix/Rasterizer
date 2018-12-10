@@ -205,6 +205,7 @@ struct Rasterizer {
                     }
                 } else {
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
+                    writeSegments(& segments[0], clipped, even, src, & gpu, & clipcells[0], & clipcovers[0]);
                 }
             }
         }
@@ -647,7 +648,8 @@ struct Rasterizer {
             }
         }
     }
-    
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, GPU *gpu, Row<Bounds> *clipcells, Row<float> *clipcovers) {
+    }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells, Row<float> *clipcovers) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
