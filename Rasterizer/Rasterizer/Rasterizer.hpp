@@ -162,6 +162,8 @@ struct Rasterizer {
         void setBitmap(Bitmap bm) {
             bitmap = bm;
             setDevice(Bounds(0.f, 0.f, bm.width, bm.height));
+            deltas.resize((bm.width + 1) * kfh);
+            memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
@@ -201,8 +203,6 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
             emptyClip();
-            deltas.resize((dev.ux - dev.lx + 1.f) * kfh);
-            memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         Bitmap bitmap;
         Bounds device, clip;
