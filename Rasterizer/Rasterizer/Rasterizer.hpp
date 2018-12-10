@@ -166,15 +166,15 @@ struct Rasterizer {
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
                 return;
-            Bounds clip = path.bounds.transform(ctm).integral().intersect(this->clip);
-            if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+            Bounds clipped = path.bounds.transform(ctm).integral().intersect(clip);
+            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
+                float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
-                    writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
-                    writeDeltas(& deltas[0], stride, clip, even, src, & bitmap, & clipcells[0]);
+                    writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
+                    writeDeltas(& deltas[0], stride, clipped, even, src, & bitmap, & clipcells[0]);
                 } else {
-                    writePath(path, ctm, clip, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clip, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
+                    writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
+                    writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
                 }
             }
         }
