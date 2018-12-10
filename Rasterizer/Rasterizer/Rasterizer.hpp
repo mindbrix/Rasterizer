@@ -171,7 +171,7 @@ struct Rasterizer {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
                     writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
-                    writeDeltas(& deltas[0], stride, clip, clip.lx, clip.ux, even, src, & bitmap, nullptr);
+                    writeDeltas(& deltas[0], stride, clip, even, src, & bitmap, & clipcells[0]);
                 } else {
                     writePath(path, ctm, clip, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clip, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
@@ -523,6 +523,19 @@ struct Rasterizer {
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
+    }
+    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells) {
+        float fly, fuy, fy0, fy1, sly, suy, clx, cux;
+        fly = floorf(clip.ly * Context::krfh) * Context::kfh, fuy = ceilf(clip.uy * Context::krfh) * Context::kfh;
+        for (clipcells += size_t(clip.ly * Context::krfh), fy0 = fly; fy0 < fuy; fy0 = fy1, clipcells++) {
+            fy1 = fy0 + Context::kfh;
+            sly = clip.ly < fy0 ? fy0 : clip.ly > fy1 ? fy1 : clip.ly;
+            suy = clip.uy < fy0 ? fy0 : clip.uy > fy1 ? fy1 : clip.uy;
+            clx = clipcells->end ? clipcells->base->lx : clip.lx;
+            cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
+            writeDeltas(deltas, stride, Bounds(clip.lx, sly, clip.ux, suy), clx, cux, even, src, bitmap, nullptr);
+            deltas += size_t(suy - sly) * stride;
+        }
     }
     static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, float clx, float cux, bool even, uint8_t *src, Bitmap *bitmap, float *covers) {
         if (clip.lx == clip.ux)
