@@ -285,10 +285,12 @@ struct RasterizerCoreGraphics {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     for (size_t i = 0; i < testScene.scene.paths.size(); i++)
                         testScene.contexts[idx].drawPath(testScene.scene.paths[i], ctms[idx].concat(testScene.scene.ctms[i]), false, (uint8_t *)& bgras[i]);
+                    testScene.contexts[idx].flush();
                 });
             } else {
                 for (size_t i = 0; i < testScene.scene.paths.size(); i++)
                     testScene.contexts[0].drawPath(testScene.scene.paths[i], ctm.concat(testScene.scene.ctms[i]), false, (uint8_t *)& bgras[i]);
+                testScene.contexts[0].flush();
             }
         }
     }
