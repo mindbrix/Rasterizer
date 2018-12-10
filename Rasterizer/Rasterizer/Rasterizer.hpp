@@ -160,8 +160,9 @@ struct Rasterizer {
     struct GPU {
         struct Quad {
             Quad() {}
-            Quad(float lx, float ly, float ux, float uy, uint8_t *src) : lx(lx), ly(ly), ux(ux), uy(uy), src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
-            short lx, ly, ux, uy;
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, uint8_t *src)
+             : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
+            short lx, ly, ux, uy, ox, oy;
             uint8_t src0, src1, src2, src3;
         };
         Row<Quad> *quads;
