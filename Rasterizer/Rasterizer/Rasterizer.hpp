@@ -649,6 +649,49 @@ struct Rasterizer {
         }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, GPU *gpu, Row<Bounds> *clipcells, Row<float> *clipcovers) {
+        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i;
+        short counts0[256], counts1[256];
+        float ly, uy, clx, cux, scale, cover, lx, ux, qlx, qux, x;
+        Segment *segment;
+        Row<Segment::Index> indices;    Segment::Index *index;
+        for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
+            ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+            uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+            clx = clipcells->end ? clipcells->base->lx : clip.lx;
+            cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
+            count = segments->end - segments->idx;
+            if (count) {
+                for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
+                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                if (indices.end > 32)
+                    radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
+                else
+                    std::sort(indices.base, indices.base + indices.end);
+                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
+                    if (index->x > ux) {
+                        uint8_t a = 255.5f * alphaForCover(cover, even);
+                        if (a == 0 || a == 255) {
+                            qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                            new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, src);
+                            if (a == 255) {
+                                lx = ux, qlx = lx < clx ? clx : lx > cux ? cux : lx;
+                                ux = index->x, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                                // if (src[3] == 255)
+                                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, src);
+                            }
+                            lx = ux = index->x;
+                        }
+                    }
+                    segment = segments->base + segments->idx + index->i;
+                    cover += (segment->y1 - segment->y0) * scale;
+                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
+                }
+                qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, src);
+                indices.empty();
+                segments->idx = segments->end;
+            }
+        }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells, Row<float> *clipcovers) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
