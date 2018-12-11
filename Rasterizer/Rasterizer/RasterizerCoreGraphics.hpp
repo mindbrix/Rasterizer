@@ -241,7 +241,7 @@ struct RasterizerCoreGraphics {
         writeCGSceneToScene(testScene.cgscene, testScene.scene);
     }
     
-    static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
+    static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (clipPath)
@@ -250,8 +250,7 @@ struct RasterizerCoreGraphics {
             for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
                 Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
                 Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(testScene.cgscene.ctms[i]);
-                Rasterizer::Bounds device = bounds.transform(ctm.concat(t)).integral();
-                Rasterizer::Bounds clipped = device.intersect(testScene.contexts[0].clip);
+                Rasterizer::Bounds clipped = bounds.transform(ctm.concat(t)).integral().intersect(testScene.contexts[0].clip);
                 if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                     CGContextSaveGState(ctx);
                     CGContextSetFillColorWithColor(ctx, testScene.cgscene.colors[i]);
@@ -269,12 +268,10 @@ struct RasterizerCoreGraphics {
             CGColorSpaceRelease(srcSpace);
             
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
-                auto ctms = (Rasterizer::AffineTransform *)alloca(testScene.contexts.size() * sizeof(Rasterizer::AffineTransform));
                 size_t slice, ly, uy, count;
                 slice = (bitmap.height + testScene.contexts.size() - 1) / testScene.contexts.size(), slice = slice < 64 ? 64 : slice;
                 for (count = ly = 0; ly < bitmap.height; ly = uy) {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
-                    ctms[count] = ctm;
                     testScene.contexts[count].setBitmap(bitmap);
                     testScene.contexts[count].intersectClip(clip);
                     testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
@@ -284,7 +281,7 @@ struct RasterizerCoreGraphics {
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     for (size_t i = 0; i < testScene.scene.paths.size(); i++)
-                        testScene.contexts[idx].drawPath(testScene.scene.paths[i], ctms[idx].concat(testScene.scene.ctms[i]), false, (uint8_t *)& bgras[i]);
+                        testScene.contexts[idx].drawPath(testScene.scene.paths[i], ctm.concat(testScene.scene.ctms[i]), false, (uint8_t *)& bgras[i]);
                     testScene.contexts[idx].flush();
                 });
             } else {
