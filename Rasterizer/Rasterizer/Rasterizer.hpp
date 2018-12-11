@@ -201,8 +201,6 @@ struct Rasterizer {
             gpu = gp;
             setDevice(Bounds(0.f, 0.f, gp.width, gp.height));
             memset(& bitmap, 0, sizeof(bitmap));
-            gp.paints->empty();
-            gp.quads->empty();
             gp.reset();
         }
         void setDevice(Bounds dev) {
@@ -235,6 +233,8 @@ struct Rasterizer {
         }
         void flush() {
              if (bitmap.width == 0) {
+                 paints.empty();
+                 quads.empty();
              }
         }
         void emptyClip() {
