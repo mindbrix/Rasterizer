@@ -174,11 +174,12 @@ struct Rasterizer {
         size_t size;
         T *base;
     };
+    struct Range {
+        Range() {}
+        Range(size_t begin, size_t end) : begin(begin), end(end) {}
+        size_t begin, end;
+    };
     struct Mesh {
-        struct Range {
-            Range() {}
-            size_t begin, end;
-        };
         Buffer<uint8_t> *buffer;
         Row<Range> *edgeRanges, *quadRanges;
         size_t edges, indices, segments, paints, quads, opaques;
@@ -196,8 +197,6 @@ struct Rasterizer {
             uint32_t idx;
         };
         GPU() {}
-        GPU(Row<Quad> *edges, Row<uint32_t> *indices, Row<Paint> *paints, Row<Quad> *quads, Row<Quad> *opaques, size_t width, size_t height)
-         : edges(edges), indices(indices), paints(paints), quads(quads), opaques(opaques), width(width), height(height) {}
         Bounds alloc(float w) {
             if (strip.ux - strip.lx < w) {
                 if (strips.uy - strips.ly < Context::kfh)
@@ -218,6 +217,7 @@ struct Rasterizer {
         Row<Paint> *paints;
         Row<uint32_t> *indices;
         Row<Quad> *edges, *quads, *opaques;
+        Row<Range> *edgeRanges, *quadRanges;
     };
     struct Context {
         Context() {}
@@ -227,11 +227,13 @@ struct Rasterizer {
             deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
-        void setGPU(GPU gp) {
-            gpu = gp;
-            setDevice(Bounds(0.f, 0.f, gp.width, gp.height));
+        void setGPU(size_t width, size_t height) {
+            gpu.width = width, gpu.height = height;
+            gpu.edges = & edges, gpu.indices = &indices, gpu.paints = & paints, gpu.quads = & quads, gpu.opaques = & opaques;
+            gpu.edgeRanges = & edgeRanges, gpu.quadRanges = & quadRanges;
+            setDevice(Bounds(0.f, 0.f, width, height));
             memset(& bitmap, 0, sizeof(bitmap));
-            gp.reset();
+            gpu.reset();
         }
         void setDevice(Bounds dev) {
             device = dev;
@@ -268,7 +270,7 @@ struct Rasterizer {
         }
         void flush() {
             if (bitmap.width == 0) {
-                paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty();
+                paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
                 for (int i = 0; i < segments.size(); i++)
                     segments[i].empty();
             }
@@ -298,6 +300,7 @@ struct Rasterizer {
         Row<GPU::Paint> paints;
         Row<uint32_t> indices;
         Row<GPU::Quad> edges, quads, opaques;
+        Row<Range> edgeRanges, quadRanges;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
         std::vector<Row<float>> clipcovers;
@@ -711,12 +714,35 @@ struct Rasterizer {
             }
         }
     }
+    static void writeEdges(Row<uint32_t>& idxs, float lx, float ly, float ux, float uy, size_t idx, GPU *gpu) {
+        uint32_t *sid, *did, i;
+        if (lx != ux) {
+            Bounds alloced = gpu->alloc(ux - lx);
+            if (alloced.lx == 0.f && alloced.ly == 0.f && gpu->edges->idx != gpu->edges->end) {
+                new (gpu->edgeRanges->alloc(1)) Range(gpu->edges->idx, gpu->edges->end);
+                gpu->edges->idx = gpu->edges->end;
+                new (gpu->quadRanges->alloc(1)) Range(gpu->quads->idx, gpu->quads->end);
+                gpu->quads->idx = gpu->quads->end;
+            }
+            for (did = sid = idxs.base, i = 0; i < idxs.end; i++) {
+                if (i % 4 == 0) {
+                    did = gpu->indices->alloc(4);
+                    did[0] = did[1] = did[2] = did[3] = 0xFFFFFFFF;
+                    new (gpu->edges->alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
+                }
+                did[i % 4] = sid[i];
+            }
+            new (gpu->quads->alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
+        }
+        idxs.empty();
+    }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t idx, GPU *gpu, Row<Bounds> *clipcells) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i;
         short counts0[256], counts1[256];
         float ly, uy, clx, cux, scale, cover, lx, ux, qlx, qux, x;
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
+        Row<uint32_t> idxs;
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
@@ -735,8 +761,8 @@ struct Rasterizer {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
                             qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                            if (qlx != qux)
-                                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                            writeEdges(idxs, qlx, ly, qux, uy, idx, gpu);
+                
                             if (a == 255) {
                                 lx = ux, ux = index->x;
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
@@ -750,13 +776,14 @@ struct Rasterizer {
                             lx = ux = index->x;
                         }
                     }
+                    *(idxs.alloc(1)) = uint32_t(segments->idx + index->i);
                     segment = segments->base + segments->idx + index->i;
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                if (qlx != qux)
-                    new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                writeEdges(idxs, qlx, ly, qux, uy, idx, gpu);
+                
                 indices.empty();
                 segments->idx = segments->end;
             }
