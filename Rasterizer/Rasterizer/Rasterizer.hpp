@@ -206,7 +206,8 @@ struct Rasterizer {
             gp.reset();
         }
         void setDevice(Bounds dev) {
-            clip = device = dev;
+            device = dev;
+            emptyClip();
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
@@ -233,13 +234,13 @@ struct Rasterizer {
             }
         }
         void flush() {
-            emptyClip();
             if (bitmap.width == 0) {
                 paints.empty();
                 quads.empty();
             }
         }
         void emptyClip() {
+            clip = device;
             for (int i = 0; i < clipcells.size(); i++)
                 clipcells[i].empty(), clipcovers[i].empty();
         }
