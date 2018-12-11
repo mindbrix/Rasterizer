@@ -240,11 +240,11 @@ struct Rasterizer {
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
-            for (size_t i = 0; i < count; i++)
-                drawPath(paths[i], ctms[i], even, (uint8_t *)& bgras[i]);
+            for (size_t idx = 0; idx < count; idx++)
+                drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
             flush();
         }
-        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
+        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t idx) {
             if (path.bounds.lx == FLT_MAX)
                 return;
             Bounds clipped = path.bounds.transform(ctm).integral().intersect(clip);
@@ -261,7 +261,7 @@ struct Rasterizer {
                 } else {
                     new (paints.alloc(1)) GPU::Paint(src);
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clipped, even, src, & gpu, & clipcells[0]);
+                    writeSegments(& segments[0], clipped, even, src, idx, & gpu, & clipcells[0]);
                 }
             }
         }
@@ -710,7 +710,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, GPU *gpu, Row<Bounds> *clipcells) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t idx, GPU *gpu, Row<Bounds> *clipcells) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i;
         short counts0[256], counts1[256];
         float ly, uy, clx, cux, scale, cover, lx, ux, qlx, qux, x;
@@ -735,15 +735,15 @@ struct Rasterizer {
                         if (a == 0 || a == 255) {
                             qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                             if (qlx != qux)
-                                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
                             if (a == 255) {
                                 lx = ux, ux = index->x;
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                                 if (qlx != qux) {
                                     if (src[3] == 255)
-                                        new (gpu->opaques->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                                        new (gpu->opaques->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
                                     else
-                                        new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                                        new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
                                 }
                             }
                             lx = ux = index->x;
@@ -755,7 +755,7 @@ struct Rasterizer {
                 }
                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                 if (qlx != qux)
-                    new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                    new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
                 indices.empty();
                 segments->idx = segments->end;
             }
