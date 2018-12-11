@@ -184,11 +184,10 @@ struct Rasterizer {
             strips = Bounds(0.f, 0.f, width, height);
             strip = Bounds(0.f, 0.f, 0.f, 0.f);
         }
+        Bounds strips, strip;
+        size_t width, height;
         Row<Paint> *paints;
         Row<Quad> *quads;
-        Bounds strips, strip;
-        uint32_t idx;
-        size_t width, height;
     };
     struct Context {
         Context() {}
@@ -228,7 +227,7 @@ struct Rasterizer {
                         writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
                     }
                 } else {
-                    new (gpu.paints->alloc(1)) GPU::Paint(src);
+                    new (paints.alloc(1)) GPU::Paint(src);
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clipped, even, src, & gpu, & clipcells[0], & clipcovers[0]);
                 }
@@ -260,6 +259,8 @@ struct Rasterizer {
         Bounds device, clip;
         static constexpr float kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
+        Row<GPU::Paint> paints;
+        Row<GPU::Quad> quads;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
         std::vector<Row<float>> clipcovers;
