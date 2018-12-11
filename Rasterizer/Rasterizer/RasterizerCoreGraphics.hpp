@@ -261,6 +261,9 @@ struct RasterizerCoreGraphics {
                 }
             }
         } else {
+            Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(testScene.scene.paths.size() * sizeof(ctm));
+            for (size_t i = 0; i < testScene.scene.paths.size(); i++)
+                ctms[i] = ctm.concat(testScene.scene.ctms[i]);
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             uint32_t *bgras = (uint32_t *)alloca(testScene.scene.paths.size() * sizeof(uint32_t));
             testScene.converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
@@ -280,14 +283,10 @@ struct RasterizerCoreGraphics {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    for (size_t i = 0; i < testScene.scene.paths.size(); i++)
-                        testScene.contexts[idx].drawPath(testScene.scene.paths[i], ctm.concat(testScene.scene.ctms[i]), false, (uint8_t *)& bgras[i]);
-                    testScene.contexts[idx].flush();
+                    testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
                 });
             } else {
-                for (size_t i = 0; i < testScene.scene.paths.size(); i++)
-                    testScene.contexts[0].drawPath(testScene.scene.paths[i], ctm.concat(testScene.scene.ctms[i]), false, (uint8_t *)& bgras[i]);
-                testScene.contexts[0].flush();
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
             }
         }
     }
