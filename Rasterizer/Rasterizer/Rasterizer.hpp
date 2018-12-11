@@ -165,7 +165,23 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
             uint8_t src0, src1, src2, src3;
         };
+        Bounds alloc(float w) {
+            if (strip.ux - strip.lx < w) {
+                if (strips.uy - strips.ly < Context::kfh)
+                    return Bounds(0.f, 0.f, 0.f, 0.f);
+                strip = Bounds(strips.lx, strips.ly, strips.ux, strips.ly + Context::kfh);
+                strips.ly = strip.uy;
+            }
+            Bounds piece(strip.lx, strip.ly, strip.lx + w, strip.uy);
+            strip.lx = piece.ux;
+            return piece;
+        }
+        void reset() {
+            strips = Bounds(0.f, 0.f, width, height);
+            strip = Bounds(0.f, 0.f, 0.f, 0.f);
+        }
         Row<Quad> *quads;
+        Bounds strips, strip;
         size_t width, height;
     };
     struct Context {
@@ -181,6 +197,7 @@ struct Rasterizer {
             setDevice(Bounds(0.f, 0.f, gp.width, gp.height));
             memset(& bitmap, 0, sizeof(bitmap));
             gp.quads->empty();
+            gp.reset();
         }
         void setDevice(Bounds dev) {
             device = dev;
