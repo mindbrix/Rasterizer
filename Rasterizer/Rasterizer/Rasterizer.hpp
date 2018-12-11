@@ -196,8 +196,8 @@ struct Rasterizer {
             uint32_t idx;
         };
         GPU() {}
-        GPU(Row<Paint> *paints, Row<Quad> *quads, Row<Quad> *opaques, size_t width, size_t height)
-         : paints(paints), quads(quads), opaques(opaques), width(width), height(height) {}
+        GPU(Row<Quad> *edges, Row<uint32_t> *indices, Row<Paint> *paints, Row<Quad> *quads, Row<Quad> *opaques, size_t width, size_t height)
+         : edges(edges), indices(indices), paints(paints), quads(quads), opaques(opaques), width(width), height(height) {}
         Bounds alloc(float w) {
             if (strip.ux - strip.lx < w) {
                 if (strips.uy - strips.ly < Context::kfh)
@@ -210,13 +210,14 @@ struct Rasterizer {
             return piece;
         }
         void reset() {
-            strips = Bounds(0.f, 0.f, width, height);
+            strips = Bounds(0.f, 0.f, width * 4, height / 4);
             strip = Bounds(0.f, 0.f, 0.f, 0.f);
         }
         Bounds strips, strip;
         size_t width, height;
         Row<Paint> *paints;
-        Row<Quad> *quads, *opaques;
+        Row<uint32_t> *indices;
+        Row<Quad> *edges, *quads, *opaques;
     };
     struct Context {
         Context() {}
