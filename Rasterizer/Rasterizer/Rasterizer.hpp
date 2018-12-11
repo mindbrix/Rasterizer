@@ -206,11 +206,10 @@ struct Rasterizer {
             gp.reset();
         }
         void setDevice(Bounds dev) {
-            device = dev;
+            clip = device = dev;
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
-            emptyClip();
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src) {
             if (path.bounds.lx == FLT_MAX)
@@ -234,13 +233,13 @@ struct Rasterizer {
             }
         }
         void flush() {
-             if (bitmap.width == 0) {
-                 paints.empty();
-                 quads.empty();
-             }
+            emptyClip();
+            if (bitmap.width == 0) {
+                paints.empty();
+                quads.empty();
+            }
         }
         void emptyClip() {
-            clip = device;
             for (int i = 0; i < clipcells.size(); i++)
                 clipcells[i].empty(), clipcovers[i].empty();
         }
