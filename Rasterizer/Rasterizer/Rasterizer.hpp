@@ -262,7 +262,9 @@ struct Rasterizer {
         }
         void flush() {
             if (bitmap.width == 0) {
-                paints.empty(), quads.empty(), opaques.empty();
+                paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty();
+                for (int i = 0; i < segments.size(); i++)
+                    segments[i].empty();
             }
         }
         void emptyClip() {
@@ -288,7 +290,8 @@ struct Rasterizer {
         static constexpr float kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         Row<GPU::Paint> paints;
-        Row<GPU::Quad> quads, opaques;
+        Row<uint32_t> indices;
+        Row<GPU::Quad> edges, quads, opaques;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
         std::vector<Row<float>> clipcovers;
