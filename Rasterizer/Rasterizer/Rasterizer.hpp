@@ -245,7 +245,16 @@ struct Rasterizer {
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
             for (size_t idx = 0; idx < count; idx++)
                 drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
-            flush();
+            
+            if (bitmap.width == 0) {
+                GPU::Paint *dst = paints.alloc(count);
+                for (size_t idx = 0; idx < count; idx++)
+                    new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
+                
+                paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
+                for (int i = 0; i < segments.size(); i++)
+                    segments[i].empty();
+            }
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t idx) {
             if (path.bounds.lx == FLT_MAX)
@@ -262,17 +271,9 @@ struct Rasterizer {
                         writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
                     }
                 } else {
-                    new (paints.alloc(1)) GPU::Paint(src);
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clipped, even, src, idx, & gpu, & clipcells[0]);
                 }
-            }
-        }
-        void flush() {
-            if (bitmap.width == 0) {
-                paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
-                for (int i = 0; i < segments.size(); i++)
-                    segments[i].empty();
             }
         }
         void emptyClip() {
