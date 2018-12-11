@@ -175,8 +175,13 @@ struct Rasterizer {
         T *base;
     };
     struct Mesh {
-        Buffer<uint8_t> buffer;
-        size_t paints, quads, opaques, segments, end;
+        struct Range {
+            Range() {}
+            size_t begin, end;
+        };
+        Buffer<uint8_t> *buffer;
+        Row<Range> *edgeRanges, *quadRanges;
+        size_t edges, indices, segments, paints, quads, opaques;
     };
     struct GPU {
         struct Paint {
