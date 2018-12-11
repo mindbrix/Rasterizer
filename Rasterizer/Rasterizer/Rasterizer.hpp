@@ -701,14 +701,17 @@ struct Rasterizer {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
                             qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                            new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                            if (qlx != qux)
+                                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
                             if (a == 255) {
                                 lx = ux, ux = index->x;
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                                if (src[3] == 255)
-                                    new (gpu->opaques->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
-                                else
-                                    new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                                if (qlx != qux) {
+                                    if (src[3] == 255)
+                                        new (gpu->opaques->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                                    else
+                                        new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                                }
                             }
                             lx = ux = index->x;
                         }
@@ -718,7 +721,8 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
+                if (qlx != qux)
+                    new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, gpu->paints->end - 1);
                 indices.empty();
                 segments->idx = segments->end;
             }
