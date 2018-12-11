@@ -157,6 +157,27 @@ struct Rasterizer {
         size_t end, size, idx;
         T *base;
     };
+    template<typename T>
+    struct Buffer {
+        const size_t kPageSize = 4096;
+        Buffer() : size(0), base(nullptr) {}
+        ~Buffer() { if (base) free(base); }
+        T *alloc(size_t n) {
+            if (size < n) {
+                size = n;
+                if (base)
+                    free(base);
+                posix_memalign(& base, kPageSize, (size * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize);
+            }
+            return base;
+        }
+        size_t size;
+        T *base;
+    };
+    struct Mesh {
+        Buffer<uint8_t> buffer;
+        size_t paints, quads, opaques, segments, end;
+    };
     struct GPU {
         struct Paint {
             Paint() {}
