@@ -243,10 +243,6 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
-            for (size_t idx = 0; idx < count; idx++)
-                drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
-        }
         size_t bufferSize() {
             size_t size = indices.bytes() + edges.bytes() + quads.bytes() + opaques.bytes();
             for (int i = 0; i < segments.size(); i++)
@@ -261,6 +257,10 @@ struct Rasterizer {
             paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
             for (int i = 0; i < segments.size(); i++)
                 segments[i].empty();
+        }
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
+            for (size_t idx = 0; idx < count; idx++)
+                drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t idx) {
             if (path.bounds.lx == FLT_MAX)
