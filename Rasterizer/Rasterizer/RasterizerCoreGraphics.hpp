@@ -200,7 +200,7 @@ struct RasterizerCoreGraphics {
     }
     
     struct CGTestScene {
-        enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
+        enum RasterizerType : int { kRasterizerGPU = 0, kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         
         CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) { contexts.resize(8); }
         

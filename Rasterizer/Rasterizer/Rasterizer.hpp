@@ -145,6 +145,7 @@ struct Rasterizer {
     template<typename T>
     struct Row {
         Row() : end(0), size(0), idx(0) {}
+        size_t bytes() { return end * sizeof(T); }
         void empty() { end = idx = 0; }
         inline T *alloc(size_t n) {
             size_t i = end;
@@ -245,16 +246,21 @@ struct Rasterizer {
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
             for (size_t idx = 0; idx < count; idx++)
                 drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
+        }
+        size_t bufferSize() {
+            size_t size = indices.bytes() + edges.bytes() + quads.bytes() + opaques.bytes();
+            for (int i = 0; i < segments.size(); i++)
+                size += segments[i].bytes();
+            return size;
+        }
+        void writeMesh(Mesh *mesh, uint32_t *bgras, size_t count) {
+            GPU::Paint *dst = paints.alloc(count);
+            for (size_t idx = 0; idx < count; idx++)
+                new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
             
-            if (bitmap.width == 0) {
-                GPU::Paint *dst = paints.alloc(count);
-                for (size_t idx = 0; idx < count; idx++)
-                    new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
-                
-                paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
-                for (int i = 0; i < segments.size(); i++)
-                    segments[i].empty();
-            }
+            paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
+            for (int i = 0; i < segments.size(); i++)
+                segments[i].empty();
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t idx) {
             if (path.bounds.lx == FLT_MAX)
