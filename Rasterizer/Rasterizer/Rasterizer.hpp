@@ -169,6 +169,8 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
             uint32_t idx;
         };
+        GPU() {}
+        GPU(Row<Paint> *paints, Row<Quad> *quads, size_t width, size_t height) : paints(paints), quads(quads), width(width), height(height) {}
         Bounds alloc(float w) {
             if (strip.ux - strip.lx < w) {
                 if (strips.uy - strips.ly < Context::kfh)
