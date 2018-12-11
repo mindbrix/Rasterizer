@@ -230,14 +230,13 @@ struct Rasterizer {
                 } else {
                     new (paints.alloc(1)) GPU::Paint(src);
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clipped, even, src, & gpu, & clipcells[0], & clipcovers[0]);
+                    writeSegments(& segments[0], clipped, even, src, & gpu, & clipcells[0]);
                 }
             }
         }
         void flush() {
             if (bitmap.width == 0) {
-                paints.empty();
-                quads.empty();
+                paints.empty(), quads.empty(), opaques.empty();
             }
         }
         void emptyClip() {
@@ -263,7 +262,7 @@ struct Rasterizer {
         static constexpr float kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         Row<GPU::Paint> paints;
-        Row<GPU::Quad> quads;
+        Row<GPU::Quad> quads, opaques;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
         std::vector<Row<float>> clipcovers;
@@ -677,7 +676,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, GPU *gpu, Row<Bounds> *clipcells, Row<float> *clipcovers) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, GPU *gpu, Row<Bounds> *clipcells) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i;
         short counts0[256], counts1[256];
         float ly, uy, clx, cux, scale, cover, lx, ux, qlx, qux, x;
