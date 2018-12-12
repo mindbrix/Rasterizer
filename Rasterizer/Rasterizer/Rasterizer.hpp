@@ -261,6 +261,7 @@ struct Rasterizer {
             
             if (bitmap.width == 0) {
                 gpu.writePaints(bgras, count);
+                gpu.empty();
                 for (int i = 0; i < segments.size(); i++)
                     segments[i].empty();
             }
