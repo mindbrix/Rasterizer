@@ -242,7 +242,7 @@ struct Rasterizer {
             size_t size, i, j, begin, end;
             size = contexts[0].gpu.paints.bytes();
             for (size = i = 0; i < count; i++)
-                size += contexts[i].gpu.indices.end * sizeof(Segment) + contexts[i].gpu.edges.bytes() + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+                size += contexts[i].gpu.edges.end * 4 * sizeof(Segment) + contexts[i].gpu.edges.bytes() + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             buffer.data.alloc(size);
             begin = end = 0;
             
