@@ -216,12 +216,23 @@ struct Rasterizer {
             uint32_t idx;
         };
         GPU() {}
+        size_t bufferSize() {
+            return paints.bytes() + indices.bytes() + edges.bytes() + quads.bytes() + opaques.bytes();
+        }
+        void empty() {
+            paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
+        }
+        void writePaints(uint32_t *bgras, size_t count) {
+            Paint *dst = paints.alloc(count);
+            for (size_t idx = 0; idx < count; idx++)
+                new (dst++) Paint((uint8_t *)& bgras[idx]);
+        }
         size_t width, height;
         Allocator allocator;
-        Row<Paint> *paints;
-        Row<uint32_t> *indices;
-        Row<Quad> *edges, *quads, *opaques;
-        Row<Range> *edgeRanges, *quadRanges;
+        Row<Paint> paints;
+        Row<uint32_t> indices;
+        Row<Quad> edges, quads, opaques;
+        Row<Range> edgeRanges, quadRanges;
     };
     struct Context {
         Context() {}
@@ -235,8 +246,6 @@ struct Rasterizer {
             bitmap = Bitmap();
             setDevice(Bounds(0.f, 0.f, width, height));
             gpu.width = width, gpu.height = height;
-            gpu.edges = & edges, gpu.indices = & indices, gpu.paints = & paints, gpu.quads = & quads, gpu.opaques = & opaques;
-            gpu.edgeRanges = & edgeRanges, gpu.quadRanges = & quadRanges;
             gpu.allocator.reset(width, height);
         }
         void setDevice(Bounds dev) {
@@ -246,24 +255,15 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
-        size_t bufferSize() {
-            size_t size = indices.bytes() + edges.bytes() + quads.bytes() + opaques.bytes();
-            for (int i = 0; i < segments.size(); i++)
-                size += segments[i].bytes();
-            return size;
-        }
-        void writeMesh(Mesh *mesh, uint32_t *bgras, size_t count) {
-            GPU::Paint *dst = paints.alloc(count);
-            for (size_t idx = 0; idx < count; idx++)
-                new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
-            
-            paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
-            for (int i = 0; i < segments.size(); i++)
-                segments[i].empty();
-        }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
             for (size_t idx = 0; idx < count; idx++)
                 drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
+            
+            if (bitmap.width == 0) {
+                gpu.writePaints(bgras, count);
+                for (int i = 0; i < segments.size(); i++)
+                    segments[i].empty();
+            }
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t idx) {
             if (path.bounds.lx == FLT_MAX)
@@ -307,10 +307,6 @@ struct Rasterizer {
         Bounds device, clip;
         static constexpr float kfh = 4, krfh = 1.0 / kfh;
         std::vector<float> deltas;
-        Row<GPU::Paint> paints;
-        Row<uint32_t> indices;
-        Row<GPU::Quad> edges, quads, opaques;
-        Row<Range> edgeRanges, quadRanges;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;
         std::vector<Row<float>> clipcovers;
@@ -728,21 +724,21 @@ struct Rasterizer {
         uint32_t *sid, *did, i;
         if (lx != ux) {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
-            if (alloced.lx == 0.f && alloced.ly == 0.f && gpu->edges->idx != gpu->edges->end) {
-                new (gpu->edgeRanges->alloc(1)) Range(gpu->edges->idx, gpu->edges->end);
-                gpu->edges->idx = gpu->edges->end;
-                new (gpu->quadRanges->alloc(1)) Range(gpu->quads->idx, gpu->quads->end);
-                gpu->quads->idx = gpu->quads->end;
+            if (alloced.lx == 0.f && alloced.ly == 0.f && gpu->edges.idx != gpu->edges.end) {
+                new (gpu->edgeRanges.alloc(1)) Range(gpu->edges.idx, gpu->edges.end);
+                gpu->edges.idx = gpu->edges.end;
+                new (gpu->quadRanges.alloc(1)) Range(gpu->quads.idx, gpu->quads.end);
+                gpu->quads.idx = gpu->quads.end;
             }
             for (did = sid = idxs.base, i = 0; i < idxs.end; i++) {
                 if (i % 4 == 0) {
-                    did = gpu->indices->alloc(4);
+                    did = gpu->indices.alloc(4);
                     did[0] = did[1] = did[2] = did[3] = 0xFFFFFFFF;
-                    new (gpu->edges->alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
+                    new (gpu->edges.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
                 }
                 did[i % 4] = sid[i];
             }
-            new (gpu->quads->alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
+            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
         }
         idxs.empty();
     }
@@ -778,9 +774,9 @@ struct Rasterizer {
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                                 if (qlx != qux) {
                                     if (src[3] == 255)
-                                        new (gpu->opaques->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                                        new (gpu->opaques.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
                                     else
-                                        new (gpu->quads->alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                                        new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
                                 }
                             }
                             lx = ux = index->x;
