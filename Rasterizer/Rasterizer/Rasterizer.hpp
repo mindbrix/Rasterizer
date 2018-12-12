@@ -159,10 +159,10 @@ struct Rasterizer {
         T *base;
     };
     template<typename T>
-    struct Buffer {
+    struct Pages {
         const size_t kPageSize = 4096;
-        Buffer() : size(0), base(nullptr) {}
-        ~Buffer() { if (base) free(base); }
+        Pages() : size(0), base(nullptr) {}
+        ~Pages() { if (base) free(base); }
         T *alloc(size_t n) {
             if (size < n) {
                 size = n;
@@ -181,7 +181,7 @@ struct Rasterizer {
         size_t begin, end;
     };
     struct Mesh {
-        Buffer<uint8_t> *buffer;
+        Pages<uint8_t> *buffer;
         Row<Range> *edgeRanges, *quadRanges;
         size_t edges, indices, segments, paints, quads, opaques;
     };
