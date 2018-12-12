@@ -289,6 +289,11 @@ struct RasterizerCoreGraphics {
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
+                
+                testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
+                Rasterizer::Buffer buffer;
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], 1, buffer);
             }
         }
     }

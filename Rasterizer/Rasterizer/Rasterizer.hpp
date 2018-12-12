@@ -239,16 +239,40 @@ struct Rasterizer {
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
-            size_t size, i;
+            size_t size, i, j, begin, end;
             size = contexts[0].gpu.paints.bytes();
             for (size = i = 0; i < count; i++)
                 size += contexts[i].gpu.indices.end * sizeof(Segment) + contexts[i].gpu.edges.bytes() + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             buffer.data.alloc(size);
+            begin = end = 0;
             
-            for (size = i = 0; i < count; i++) {
-                contexts[i].gpu.empty();
-                for (int i = 0; i < contexts[i].segments.size(); i++)
-                    contexts[i].segments[i].empty();
+            end += contexts[0].gpu.paints.bytes();
+            memcpy(buffer.data.base + begin, contexts[0].gpu.paints.base, end - begin);
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
+            begin = end;
+            
+            for (i = 0; i < count; i++) {
+                Context& context = contexts[i];
+                assert(context.gpu.indices.end == context.gpu.edges.end * 4);
+                
+                end += context.gpu.opaques.bytes();
+                memcpy(buffer.data.base + begin, context.gpu.opaques.base, end - begin);
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
+                begin = end;
+                
+                end += context.gpu.edges.bytes();
+                memcpy(buffer.data.base + begin, context.gpu.edges.base, end - begin);
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
+                begin = end;
+                
+                end += context.gpu.quads.bytes();
+                memcpy(buffer.data.base + begin, context.gpu.quads.base, end - begin);
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
+                begin = end;
+                
+                context.gpu.empty();
+                for (j = 0; j < context.segments.size(); j++)
+                    context.segments[j].empty();
             }
         }
         Context() {}
