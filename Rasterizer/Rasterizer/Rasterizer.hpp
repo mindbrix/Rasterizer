@@ -180,10 +180,16 @@ struct Rasterizer {
         Range(size_t begin, size_t end) : begin(begin), end(end) {}
         size_t begin, end;
     };
-    struct Mesh {
-        Pages<uint8_t> *buffer;
-        Row<Range> *edgeRanges, *quadRanges;
-        size_t edges, indices, segments, paints, quads, opaques;
+    struct Buffer {
+        struct Entry {
+            enum Type { kEdges, kIndices, kSegments, kPaints, kQuads, kOpaques };
+            Entry() {}
+            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
+            Type type;
+            size_t begin, end;
+        };
+        Pages<uint8_t> data;
+        Row<Entry> entries;
     };
     struct GPU {
         struct Allocator {
