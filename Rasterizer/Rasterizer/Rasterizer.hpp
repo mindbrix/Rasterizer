@@ -123,7 +123,7 @@ struct Rasterizer {
         Bounds bounds;
     };
     struct Bitmap {
-        Bitmap() {}
+        Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
         Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp)
             : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
         void clear(uint32_t pixel) { memset_pattern4(data, & pixel, stride * height); }
@@ -232,11 +232,11 @@ struct Rasterizer {
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         void setGPU(size_t width, size_t height) {
-            gpu.width = width, gpu.height = height;
-            gpu.edges = & edges, gpu.indices = &indices, gpu.paints = & paints, gpu.quads = & quads, gpu.opaques = & opaques;
-            gpu.edgeRanges = & edgeRanges, gpu.quadRanges = & quadRanges;
+            bitmap = Bitmap();
             setDevice(Bounds(0.f, 0.f, width, height));
-            memset(& bitmap, 0, sizeof(bitmap));
+            gpu.width = width, gpu.height = height;
+            gpu.edges = & edges, gpu.indices = & indices, gpu.paints = & paints, gpu.quads = & quads, gpu.opaques = & opaques;
+            gpu.edgeRanges = & edgeRanges, gpu.quadRanges = & quadRanges;
             gpu.allocator.reset(width, height);
         }
         void setDevice(Bounds dev) {
