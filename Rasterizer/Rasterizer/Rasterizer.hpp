@@ -145,7 +145,7 @@ struct Rasterizer {
     template<typename T>
     struct Row {
         Row() : end(0), size(0), idx(0) {}
-        size_t bytes() { return end * sizeof(T); }
+        size_t bytes() const { return end * sizeof(T); }
         void empty() { end = idx = 0; }
         inline T *alloc(size_t n) {
             size_t i = end;
@@ -168,7 +168,7 @@ struct Rasterizer {
                 size = n;
                 if (base)
                     free(base);
-                posix_memalign(& base, kPageSize, (size * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize);
+                posix_memalign((void **)& base, kPageSize, (size * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize);
             }
             return base;
         }
@@ -179,17 +179,6 @@ struct Rasterizer {
         Range() {}
         Range(size_t begin, size_t end) : begin(begin), end(end) {}
         size_t begin, end;
-    };
-    struct Buffer {
-        struct Entry {
-            enum Type { kEdges, kIndices, kSegments, kPaints, kQuads, kOpaques };
-            Entry() {}
-            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
-            Type type;
-            size_t begin, end;
-        };
-        Pages<uint8_t> data;
-        Row<Entry> entries;
     };
     struct GPU {
         struct Allocator {
@@ -222,9 +211,6 @@ struct Rasterizer {
             uint32_t idx;
         };
         GPU() {}
-        size_t bufferSize() {
-            return paints.bytes() + indices.bytes() + edges.bytes() + quads.bytes() + opaques.bytes();
-        }
         void empty() {
             paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
         }
@@ -240,7 +226,31 @@ struct Rasterizer {
         Row<Quad> edges, quads, opaques;
         Row<Range> edgeRanges, quadRanges;
     };
+    struct Buffer {
+        struct Entry {
+            enum Type { kEdges, kIndices, kSegments, kPaints, kQuads, kOpaques };
+            Entry() {}
+            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
+            Type type;
+            size_t begin, end;
+        };
+        Pages<uint8_t> data;
+        Row<Entry> entries;
+    };
     struct Context {
+        static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
+            size_t size, i;
+            size = contexts[0].gpu.paints.bytes();
+            for (size = i = 0; i < count; i++)
+                size += contexts[i].gpu.indices.end * sizeof(Segment) + contexts[i].gpu.edges.bytes() + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+            buffer.data.alloc(size);
+            
+            for (size = i = 0; i < count; i++) {
+                contexts[i].gpu.empty();
+                for (int i = 0; i < contexts[i].segments.size(); i++)
+                    contexts[i].segments[i].empty();
+            }
+        }
         Context() {}
         void setBitmap(Bitmap bm) {
             bitmap = bm;
@@ -265,12 +275,8 @@ struct Rasterizer {
             for (size_t idx = 0; idx < count; idx++)
                 drawPath(paths[idx], ctms[idx], even, (uint8_t *)& bgras[idx], idx);
             
-            if (bitmap.width == 0) {
+            if (bitmap.width == 0)
                 gpu.writePaints(bgras, count);
-                gpu.empty();
-                for (int i = 0; i < segments.size(); i++)
-                    segments[i].empty();
-            }
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t idx) {
             if (path.bounds.lx == FLT_MAX)
