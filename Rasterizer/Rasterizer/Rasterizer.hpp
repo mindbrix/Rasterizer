@@ -757,7 +757,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeEdges(Row<Segment::Index>& indices, size_t begin, size_t end, size_t base, float lx, float ly, float ux, float uy, size_t idx, GPU *gpu) {
+    static void writeEdges(Row<Segment::Index>* indices, size_t begin, size_t end, size_t base, float lx, float ly, float ux, float uy, size_t idx, GPU *gpu) {
         if (lx != ux) {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
             if (alloced.lx == 0.f && alloced.ly == 0.f && gpu->edges.idx != gpu->edges.end) {
@@ -774,7 +774,7 @@ struct Rasterizer {
                     did[0] = did[1] = did[2] = did[3] = 0xFFFFFFFF;
                     new (gpu->edges.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, 0);
                 }
-                did[idx % 4] = uint32_t(base + indices.base[i].i);
+                did[idx % 4] = uint32_t(base + (indices ? indices->base[i].i : i));
             }
             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
         }
@@ -792,40 +792,45 @@ struct Rasterizer {
             cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
             count = segments->end - segments->idx;
             if (count) {
-                for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
-                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
-                else
-                    std::sort(indices.base, indices.base + indices.end);
-                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = begin = 0; i < indices.end; i++, index++) {
-                    if (index->x > ux) {
-                        uint8_t a = 255.5f * alphaForCover(cover, even);
-                        if (a == 0 || a == 255) {
-                            qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                            writeEdges(indices, begin, i, segments->idx, qlx, ly, qux, uy, idx, gpu);
-                            begin = i;
-                            if (a == 255) {
-                                lx = ux, ux = index->x;
+                if (clip.ux - clip.lx < 16.f) {
+                    qlx = clip.lx < clx ? clx : clip.lx > cux ? cux : clip.lx, qux = clip.ux < clx ? clx : clip.ux > cux ? cux : clip.ux;
+                    writeEdges(nullptr, segments->idx, segments->end, segments->idx, qlx, ly, qux, uy, idx, gpu);
+                } else {
+                    for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
+                        new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                    if (indices.end > 32)
+                        radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
+                    else
+                        std::sort(indices.base, indices.base + indices.end);
+                    for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = begin = 0; i < indices.end; i++, index++) {
+                        if (index->x > ux) {
+                            uint8_t a = 255.5f * alphaForCover(cover, even);
+                            if (a == 0 || a == 255) {
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                                if (qlx != qux) {
-                                    if (src[3] == 255)
-                                        new (gpu->opaques.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
-                                    else
-                                        new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                                writeEdges(& indices, begin, i, segments->idx, qlx, ly, qux, uy, idx, gpu);
+                                begin = i;
+                                if (a == 255) {
+                                    lx = ux, ux = index->x;
+                                    qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                                    if (qlx != qux) {
+                                        if (src[3] == 255)
+                                            new (gpu->opaques.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                                        else
+                                            new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, idx);
+                                    }
                                 }
+                                lx = ux = index->x;
                             }
-                            lx = ux = index->x;
                         }
+                        segment = segments->base + segments->idx + index->i;
+                        cover += (segment->y1 - segment->y0) * scale;
+                        x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
-                    segment = segments->base + segments->idx + index->i;
-                    cover += (segment->y1 - segment->y0) * scale;
-                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
+                    qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                    writeEdges(& indices, begin, i, segments->idx, qlx, ly, qux, uy, idx, gpu);
+                    
+                    indices.empty();
                 }
-                qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                writeEdges(indices, begin, i, segments->idx, qlx, ly, qux, uy, idx, gpu);
-                
-                indices.empty();
                 segments->idx = segments->end;
             }
         }
