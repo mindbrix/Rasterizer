@@ -186,6 +186,24 @@ struct Rasterizer {
         size_t edges, indices, segments, paints, quads, opaques;
     };
     struct GPU {
+        struct Allocator {
+            Bounds alloc(float w) {
+                if (strip.ux - strip.lx < w) {
+                    if (strips.uy - strips.ly < Context::kfh)
+                        return Bounds(0.f, 0.f, 0.f, 0.f);
+                    strip = Bounds(strips.lx, strips.ly, strips.ux, strips.ly + Context::kfh);
+                    strips.ly = strip.uy;
+                }
+                Bounds piece(strip.lx, strip.ly, strip.lx + w, strip.uy);
+                strip.lx = piece.ux;
+                return piece;
+            }
+            void reset(size_t width, size_t height) {
+                strips = Bounds(0.f, 0.f, width * 4, height / 4);
+                strip = Bounds(0.f, 0.f, 0.f, 0.f);
+            }
+            Bounds strips, strip;
+        };
         struct Paint {
             Paint() {}
             Paint(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
@@ -198,23 +216,8 @@ struct Rasterizer {
             uint32_t idx;
         };
         GPU() {}
-        Bounds alloc(float w) {
-            if (strip.ux - strip.lx < w) {
-                if (strips.uy - strips.ly < Context::kfh)
-                    return Bounds(0.f, 0.f, 0.f, 0.f);
-                strip = Bounds(strips.lx, strips.ly, strips.ux, strips.ly + Context::kfh);
-                strips.ly = strip.uy;
-            }
-            Bounds piece(strip.lx, strip.ly, strip.lx + w, strip.uy);
-            strip.lx = piece.ux;
-            return piece;
-        }
-        void reset() {
-            strips = Bounds(0.f, 0.f, width * 4, height / 4);
-            strip = Bounds(0.f, 0.f, 0.f, 0.f);
-        }
-        Bounds strips, strip;
         size_t width, height;
+        Allocator allocator;
         Row<Paint> *paints;
         Row<uint32_t> *indices;
         Row<Quad> *edges, *quads, *opaques;
@@ -234,7 +237,7 @@ struct Rasterizer {
             gpu.edgeRanges = & edgeRanges, gpu.quadRanges = & quadRanges;
             setDevice(Bounds(0.f, 0.f, width, height));
             memset(& bitmap, 0, sizeof(bitmap));
-            gpu.reset();
+            gpu.allocator.reset(width, height);
         }
         void setDevice(Bounds dev) {
             device = dev;
@@ -724,7 +727,7 @@ struct Rasterizer {
     static void writeEdges(Row<uint32_t>& idxs, float lx, float ly, float ux, float uy, size_t idx, GPU *gpu) {
         uint32_t *sid, *did, i;
         if (lx != ux) {
-            Bounds alloced = gpu->alloc(ux - lx);
+            Bounds alloced = gpu->allocator.alloc(ux - lx);
             if (alloced.lx == 0.f && alloced.ly == 0.f && gpu->edges->idx != gpu->edges->end) {
                 new (gpu->edgeRanges->alloc(1)) Range(gpu->edges->idx, gpu->edges->end);
                 gpu->edges->idx = gpu->edges->end;
