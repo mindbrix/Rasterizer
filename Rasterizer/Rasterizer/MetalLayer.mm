@@ -164,7 +164,7 @@
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     [commandEncoder setDepthStencilState:_depthState];
     
-    uint32_t reverse;
+    uint32_t reverse, pathCount;
     float width = drawable.texture.width, height = drawable.texture.height;
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
@@ -178,6 +178,7 @@
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:10];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:11];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:12];
+                [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -207,6 +208,7 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:11];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:12];
+                [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -214,6 +216,7 @@
                                   baseInstance:0];
                 break;
             case Rasterizer::Buffer::Entry::kPaints:
+                pathCount = uint32_t(size / sizeof(Rasterizer::GPU::Paint));
                 break;
         }
     }
