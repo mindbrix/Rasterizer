@@ -150,10 +150,14 @@
     drawableDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     drawableDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+    drawableDescriptor.depthAttachment.texture = _depthTexture;
+    drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
+    drawableDescriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+    drawableDescriptor.depthAttachment.clearDepth = 0;
     
     MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
-    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionDontCare;
+    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
