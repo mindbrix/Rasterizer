@@ -35,7 +35,9 @@ struct OpaquesVertex
     float4 position [[position]];
 };
 
-vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]], constant uint *reverse [[buffer(10)]], uint vid [[vertex_id]], uint iid [[instance_id]])
+vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+                                         constant uint *reverse [[buffer(10)]], constant float *width [[buffer(11)]], constant float *height [[buffer(12)]],
+                                         uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     OpaquesVertex vert;
     vert.position = float4(0.0, 0.0, 1.0, 1.0);
@@ -54,7 +56,9 @@ struct EdgesVertex
     float4 position [[position]];
 };
 
-vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]], uint vid [[vertex_id]], uint iid [[instance_id]])
+vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
+                                     constant float *width [[buffer(11)]], constant float *height [[buffer(12)]],
+                                     uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     EdgesVertex vert;
     vert.position = float4(0.0, 0.0, 1.0, 1.0);
@@ -74,7 +78,9 @@ struct QuadsVertex
     float4 position [[position]];
 };
 
-vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]], uint vid [[vertex_id]], uint iid [[instance_id]])
+vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+                                     constant float *width [[buffer(11)]], constant float *height [[buffer(12)]],
+                                     uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     QuadsVertex vert;
     vert.position = float4(0.0, 0.0, 1.0, 1.0);
