@@ -35,7 +35,7 @@ struct OpaquesVertex
     float4 position [[position]];
 };
 
-vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]], uint vid [[vertex_id]], uint iid [[instance_id]])
+vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]], constant uint *reverse [[buffer(10)]], uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     OpaquesVertex vert;
     vert.position = float4(0.0, 0.0, 1.0, 1.0);

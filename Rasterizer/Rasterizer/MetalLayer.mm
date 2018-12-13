@@ -164,17 +164,21 @@
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     [commandEncoder setDepthStencilState:_depthState];
     
+    uint32_t reverse;
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
+        size_t size = entry.end - entry.begin;
         switch (entry.type) {
             case Rasterizer::Buffer::Entry::kOpaques:
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                reverse = uint32_t(size / sizeof(Rasterizer::GPU::Quad));
+                [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:10];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad)
+                                 instanceCount:size / sizeof(Rasterizer::GPU::Quad)
                                   baseInstance:0];
                 break;
             case Rasterizer::Buffer::Entry::kEdges:
@@ -186,7 +190,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::Buffer::Edge)
+                                 instanceCount:size / sizeof(Rasterizer::Buffer::Edge)
                                   baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
@@ -199,7 +203,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad)
+                                 instanceCount:size / sizeof(Rasterizer::GPU::Quad)
                                   baseInstance:0];
                 break;
             case Rasterizer::Buffer::Entry::kPaints:
