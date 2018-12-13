@@ -250,7 +250,7 @@ struct Rasterizer {
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
-            size_t size, i, j, begin, end, eend;
+            size_t size, i, j, k, begin, end, eend;
             size = contexts[0].gpu.paints.bytes();
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edges.end * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
@@ -277,9 +277,17 @@ struct Rasterizer {
                     end += (eend - context.gpu.edges.idx) * sizeof(Buffer::Edge);
                     GPU::Edge *src = (GPU::Edge *)(context.gpu.edges.base + context.gpu.edges.idx);
                     Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
+                    Row<Segment> *segments;
                     for (j = context.gpu.edges.idx; j < eend; j++, src++, dst++) {
                         dst->cover = src->cover;
                         dst->quad = src->quad;
+                        segments = & context.segments[src->index.iy];
+                        for (k = 0; k < 4; k++) {
+                            if (src->index.is[k] == 0xFFFF)
+                                new (& dst->segments[k]) Segment(0.f, 0.f, 0.f, 0.f);
+                            else
+                                dst->segments[k] = segments->base[src->index.idx + src->index.is[k]];
+                        }
                     }
                     new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
 
