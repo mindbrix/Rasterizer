@@ -212,7 +212,7 @@ struct Rasterizer {
         };
         GPU() {}
         void empty() {
-            paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty(), edgeRanges.empty(), quadRanges.empty();
+            paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty();
         }
         void writePaints(uint32_t *bgras, size_t count) {
             Paint *dst = paints.alloc(count);
@@ -224,7 +224,6 @@ struct Rasterizer {
         Row<Paint> paints;
         Row<uint32_t> indices;
         Row<Quad> edges, quads, opaques;
-        Row<Range> edgeRanges, quadRanges;
     };
     struct Buffer {
         struct Entry {
@@ -760,12 +759,6 @@ struct Rasterizer {
     static void writeEdges(Row<Segment::Index>* indices, size_t begin, size_t end, size_t base, float lx, float ly, float ux, float uy, size_t idx, GPU *gpu) {
         if (lx != ux) {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
-            if (alloced.lx == 0.f && alloced.ly == 0.f && gpu->edges.idx != gpu->edges.end) {
-                new (gpu->edgeRanges.alloc(1)) Range(gpu->edges.idx, gpu->edges.end);
-                gpu->edges.idx = gpu->edges.end;
-                new (gpu->quadRanges.alloc(1)) Range(gpu->quads.idx, gpu->quads.end);
-                gpu->quads.idx = gpu->quads.end;
-            }
             uint32_t *did = nullptr;
             size_t i, idx;
             for (idx = 0, i = begin; i < end; i++, idx++) {
