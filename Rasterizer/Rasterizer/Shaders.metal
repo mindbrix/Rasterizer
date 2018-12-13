@@ -37,7 +37,8 @@ struct OpaquesVertex
 };
 
 vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
-                                         constant uint *reverse [[buffer(10)]], constant float *width [[buffer(11)]], constant float *height [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
+                                         constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                         constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[*reverse - 1 - iid];
@@ -67,7 +68,7 @@ struct EdgesVertex
 };
 
 vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
-                                     constant float *width [[buffer(11)]], constant float *height [[buffer(12)]],
+                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     EdgesVertex vert;
@@ -90,7 +91,8 @@ struct QuadsVertex
 };
 
 vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
-                                     constant float *width [[buffer(11)]], constant float *height [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
+                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                     constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];

@@ -175,9 +175,9 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 reverse = uint32_t(size / sizeof(Rasterizer::GPU::Quad));
-                [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:10];
-                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:11];
-                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:12];
+                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
+                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
+                [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
@@ -191,8 +191,8 @@
                 [commandEncoder setRenderPipelineState:_edgesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:11];
-                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:12];
+                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
+                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -206,8 +206,8 @@
                 [commandEncoder setRenderPipelineState:_quadsPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:11];
-                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:12];
+                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
+                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
