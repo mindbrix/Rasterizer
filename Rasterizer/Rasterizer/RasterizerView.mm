@@ -120,7 +120,7 @@
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
     Rasterizer::Path clipPath;
     clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
-    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, bitmap);
+    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, bitmap, nullptr);
 }
 
 - (void)setSvgData:(NSData *)svgData {
