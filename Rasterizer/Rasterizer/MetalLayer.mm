@@ -145,12 +145,64 @@
     
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
+    MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    drawableDescriptor.colorAttachments[0].texture = drawable.texture;
+    drawableDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+    drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+    drawableDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+    
+    MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
+    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionDontCare;
+    edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+    edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+    
+    id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+    [commandEncoder setDepthStencilState:_depthState];
+    
     for (size_t i = 0; i < buffer->entries.end; i++) {
-        switch (buffer->entries.base[i].type) {
-            default:
+        Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
+        switch (entry.type) {
+            case Rasterizer::Buffer::Entry::kOpaques:
+                [commandEncoder setRenderPipelineState:_opaquesPipelineState];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                                   vertexStart:0
+                                   vertexCount:4
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad)
+                                  baseInstance:0];
+                break;
+            case Rasterizer::Buffer::Entry::kEdges:
+                [commandEncoder endEncoding];
+                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
+                [commandEncoder setRenderPipelineState:_edgesPipelineState];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                                   vertexStart:0
+                                   vertexCount:4
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::Buffer::Edge)
+                                  baseInstance:0];
+                [commandEncoder endEncoding];
+                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+                [commandEncoder setDepthStencilState:_depthState];
+                break;
+            case Rasterizer::Buffer::Entry::kQuads:
+                [commandEncoder setRenderPipelineState:_quadsPipelineState];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                                   vertexStart:0
+                                   vertexCount:4
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad)
+                                  baseInstance:0];
+                break;
+            case Rasterizer::Buffer::Entry::kPaints:
                 break;
         }
     }
+    [commandEncoder endEncoding];
     __block dispatch_semaphore_t block_sema = _inflight_semaphore;
     [commandBuffer addCompletedHandler:^(id <MTLCommandBuffer> buffer) {
         dispatch_semaphore_signal(block_sema);
