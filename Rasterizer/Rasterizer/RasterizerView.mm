@@ -9,8 +9,9 @@
 #import "RasterizerView.h"
 #import "RasterizerCoreGraphics.hpp"
 #import "RasterizerSVG.hpp"
+#import "MetalLayer.h"
 
-@interface RasterizerView () <CALayerDelegate>
+@interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
 @property(nonatomic) BOOL useClip;
@@ -98,6 +99,11 @@
     [self redraw];
 }
 
+#pragma mark - LayerDelegate
+
+- (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
+    
+}
 
 #pragma mark - CALayerDelegate
 
