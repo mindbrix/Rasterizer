@@ -130,6 +130,19 @@
         self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
         [self.accumulationTexture setLabel:@"accumulationTexture"];
     }
+    
+    id <MTLBuffer> mtlBuffer = _odd ? _mtlBuffer1 : _mtlBuffer0;
+    if (mtlBuffer.contents != buffer->data.base || mtlBuffer.length != buffer->data.size) {
+        mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->data.base
+                                                   length:buffer->data.size
+                                                  options:MTLResourceStorageModeShared
+                                              deallocator:nil];
+        if (_odd)
+            _mtlBuffer1 = mtlBuffer;
+        else
+            _mtlBuffer0 = mtlBuffer;
+    }
+    
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     for (size_t i = 0; i < buffer->entries.end; i++) {
