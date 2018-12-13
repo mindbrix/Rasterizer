@@ -241,7 +241,7 @@ struct RasterizerCoreGraphics {
         writeCGSceneToScene(testScene.cgscene, testScene.scene);
     }
     
-    static void writeTestSceneToContextOrBitmap(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
+    static void writeTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, Rasterizer::Bitmap bitmap) {
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
