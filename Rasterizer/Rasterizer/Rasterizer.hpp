@@ -252,7 +252,6 @@ struct Rasterizer {
             
             for (i = 0; i < count; i++) {
                 Context& context = contexts[i];
-                assert(context.gpu.indices.end == context.gpu.edges.end * 4);
                 
                 end += context.gpu.opaques.bytes();
                 memcpy(buffer.data.base + begin, context.gpu.opaques.base, end - begin);
