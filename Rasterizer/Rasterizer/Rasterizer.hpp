@@ -270,21 +270,22 @@ struct Rasterizer {
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
                 begin = end;
                 
-//                if (context.gpu.edges.idx != context.gpu.edges.end) {
-//                    for (eend = context.gpu.edges.idx + 1; eend < context.gpu.edges.end; eend++)
-//                        if (context.gpu.edges.base[eend].quad.ox == 0.f && context.gpu.edges.base[eend].quad.oy == 0.f)
-//                            break;
-//                    end += (eend - context.gpu.edges.idx) * sizeof(Buffer::Edge);
-//                    GPU::Edge *src = (GPU::Edge *)(context.gpu.edges.base + context.gpu.edges.idx);
-//                    Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
-//                    for (j = context.gpu.edges.idx; j < eend; j++, src++, dst++) {
-//                        dst->quad = src->quad;
-//                    }
-//                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
-//
-//                    context.gpu.edges.idx = eend;
-//                }
+                if (context.gpu.edges.idx != context.gpu.edges.end) {
+                    for (eend = context.gpu.edges.idx + 1; eend < context.gpu.edges.end; eend++)
+                        if (context.gpu.edges.base[eend].quad.ox == 0.f && context.gpu.edges.base[eend].quad.oy == 0.f)
+                            break;
+                    end += (eend - context.gpu.edges.idx) * sizeof(Buffer::Edge);
+                    GPU::Edge *src = (GPU::Edge *)(context.gpu.edges.base + context.gpu.edges.idx);
+                    Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
+                    for (j = context.gpu.edges.idx; j < eend; j++, src++, dst++) {
+                        dst->cover = src->cover;
+                        dst->quad = src->quad;
+                    }
+                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
 
+                    context.gpu.edges.idx = eend;
+                }
+                begin = end;
                 
                 end += context.gpu.quads.bytes();
                 memcpy(buffer.data.base + begin, context.gpu.quads.base, end - begin);
