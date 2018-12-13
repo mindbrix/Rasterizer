@@ -755,20 +755,19 @@ struct Rasterizer {
             }
         }
     }
-    static void writeEdges(Row<Segment::Index>* indices, size_t begin, size_t end, size_t base, float lx, float ly, float ux, float uy, size_t idx, GPU *gpu) {
+    static void writeEdges(Row<Segment::Index>* indices, size_t begin, size_t end, size_t idx, float lx, float ly, float ux, float uy, size_t pi, GPU *gpu) {
         if (lx != ux) {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
             uint32_t *did = nullptr;
-            size_t i, idx;
-            for (idx = 0, i = begin; i < end; i++, idx++) {
-                if (idx % 4 == 0) {
+            for (size_t i = begin; i < end; i++) {
+                if ((i - begin) % 4 == 0) {
                     did = gpu->indices.alloc(4);
                     did[0] = did[1] = did[2] = did[3] = 0xFFFFFFFF;
                     new (gpu->edges.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, 0);
                 }
-                did[idx % 4] = uint32_t(base + (indices ? indices->base[i].i : i));
+                did[(i - begin) % 4] = uint32_t(idx + (indices ? indices->base[i].i : i));
             }
-            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, idx);
+            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, pi);
         }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t idx, GPU *gpu, Row<Bounds> *clipcells) {
