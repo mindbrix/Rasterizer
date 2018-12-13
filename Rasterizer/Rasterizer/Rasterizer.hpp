@@ -239,6 +239,10 @@ struct Rasterizer {
             Type type;
             size_t begin, end;
         };
+        struct Edge {
+            GPU::Quad quad;
+            Segment segment;
+        };
         Pages<uint8_t> data;
         Row<Entry> entries;
     };
@@ -246,8 +250,8 @@ struct Rasterizer {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
             size_t size, i, j, begin, end;
             size = contexts[0].gpu.paints.bytes();
-            for (size = i = 0; i < count; i++)
-                size += contexts[i].gpu.edges.end * 4 * sizeof(Segment) + contexts[i].gpu.edges.bytes() + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+            for (i = 0; i < count; i++)
+                size += contexts[i].gpu.edges.end * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             buffer.data.alloc(size);
             begin = end = 0;
             
@@ -264,7 +268,7 @@ struct Rasterizer {
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
                 begin = end;
                 
-                end += context.gpu.edges.bytes();
+                end += context.gpu.edges.end * sizeof(Buffer::Edge);
                 memcpy(buffer.data.base + begin, context.gpu.edges.base, end - begin);
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
                 begin = end;
