@@ -251,6 +251,7 @@ struct Rasterizer {
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
             size_t size, i, j, k, begin, end, eend;
+            short ox, oy;
             size = contexts[0].gpu.paints.bytes();
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edges.end * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
@@ -271,8 +272,8 @@ struct Rasterizer {
                 begin = end;
                 
                 if (context.gpu.edges.idx != context.gpu.edges.end) {
-                    for (eend = context.gpu.edges.idx + 1; eend < context.gpu.edges.end; eend++)
-                        if (context.gpu.edges.base[eend].quad.ox == 0.f && context.gpu.edges.base[eend].quad.oy == 0.f)
+                    for (ox = oy = 0, eend = context.gpu.edges.idx; eend < context.gpu.edges.end; eend++)
+                        if (context.gpu.edges.base[eend].quad.oy <= oy && context.gpu.edges.base[eend].quad.ox < ox)
                             break;
                     end += (eend - context.gpu.edges.idx) * sizeof(Buffer::Edge);
                     GPU::Edge *src = (GPU::Edge *)(context.gpu.edges.base + context.gpu.edges.idx);
@@ -798,7 +799,7 @@ struct Rasterizer {
                     new (& edge->index) GPU::Index(iy, idx);
                     new (& edge->quad) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz);
                 }
-                edge->index.is[(i - begin) % 4] = uint32_t(indices ? indices->base[i].i : i);
+                edge->index.is[(i - begin) % 4] = uint32_t(indices ? indices->base[i].i : i - idx);
             }
             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz);
         }
