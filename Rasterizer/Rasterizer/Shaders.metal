@@ -43,7 +43,7 @@ vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], dev
     device Quad& quad = quads[*reverse - 1 - iid];
     float x = select(quad.lx, quad.ux, vid == 1 || vid == 2) / *width * 2.0 - 1.0;
     float y = select(quad.ly, quad.uy, vid > 1) / *height * 2.0 - 1.0;
-    float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
+    float z = (quad.idx * 2 + 2) / float(*pathCount * 2 + 2);
     
     device Paint& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
@@ -99,10 +99,10 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
     
     device Paint& paint = paints[quad.idx];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
+    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
-    vert.color = float4(r, g, b, 1.0);
+    vert.color = float4(r * a, g * a, b * a, a);
     return vert;
 }
 
