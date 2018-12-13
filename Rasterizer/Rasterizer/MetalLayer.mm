@@ -143,7 +143,7 @@
             _mtlBuffer0 = mtlBuffer;
     }
     
-    id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
+    id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     for (size_t i = 0; i < buffer->entries.end; i++) {
         switch (buffer->entries.base[i].type) {
@@ -152,7 +152,7 @@
         }
     }
     __block dispatch_semaphore_t block_sema = _inflight_semaphore;
-    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+    [commandBuffer addCompletedHandler:^(id <MTLCommandBuffer> buffer) {
         dispatch_semaphore_signal(block_sema);
     }];
     [commandBuffer presentDrawable:drawable];
