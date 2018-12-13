@@ -61,6 +61,36 @@
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreaterEqual;
     self.depthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
+    MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
+    descriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
+    descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+    
+    descriptor.colorAttachments[0].blendingEnabled = NO;
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"opaques_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"opaques_fragment_main"];
+    descriptor.label = @"opaques";
+    self.opaquesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
+    descriptor.colorAttachments[0].blendingEnabled = YES;
+    descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
+    descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+    descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorOne;
+    descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
+    descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+    descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quads_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quads_fragment_main"];
+    descriptor.label = @"quads";
+    self.quadsPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
+    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
+    descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
+    descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"edges_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"edges_fragment_main"];
+    descriptor.label = @"edges";
+    self.edgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
     return self;
 }
 
