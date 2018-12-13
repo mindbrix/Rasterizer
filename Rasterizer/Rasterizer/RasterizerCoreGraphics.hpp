@@ -285,6 +285,22 @@ struct RasterizerCoreGraphics {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
                 });
+                
+                for (count = ly = 0; ly < bitmap.height; ly = uy) {
+                    uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
+                    testScene.contexts[count].setGPU(bitmap.width, bitmap.height);
+                    testScene.contexts[count].intersectClip(clip);
+                    testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
+                    if (clipPath)
+                        testScene.contexts[count].intersectClip(*clipPath, ctm, false);
+                    count++;
+                }
+                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+                    testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
+                });
+                Rasterizer::Buffer buffer;
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, buffer);
+                
             } else {
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
