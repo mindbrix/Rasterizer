@@ -19,6 +19,7 @@
 		E920A5BE21767BD800F52C25 /* ZoomableView.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5BD21767BD800F52C25 /* ZoomableView.m */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* MetalLayer.mm */; };
+		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 		E990649021C2E11500D2DBF2 /* MetalLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MetalLayer.h; sourceTree = "<group>"; };
 		E990649121C2E11500D2DBF2 /* MetalLayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MetalLayer.mm; sourceTree = "<group>"; };
+		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		E9A7FA84218FAB380031FD4E /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = nanosvg.h; path = ../../../nanosvg/src/nanosvg.h; sourceTree = "<group>"; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -112,6 +114,7 @@
 				E920A5B921767B7900F52C25 /* VGAffineTransform.m */,
 				E990649021C2E11500D2DBF2 /* MetalLayer.h */,
 				E990649121C2E11500D2DBF2 /* MetalLayer.mm */,
+				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 			);
 			path = Rasterizer;
 			sourceTree = "<group>";
@@ -187,6 +190,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */,
 				E920A5BB21767B7900F52C25 /* VGAffineTransform.m in Sources */,
 				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
