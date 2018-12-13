@@ -211,9 +211,14 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
             uint32_t idx;
         };
+        struct Edge {
+            Edge() {}
+            Quad quad;
+            Index index;
+        };
         GPU() {}
         void empty() {
-            paints.empty(), indices.empty(), edges.empty(), quads.empty(), opaques.empty();
+            paints.empty(), edges.empty(), quads.empty(), opaques.empty();
         }
         void writePaints(uint32_t *bgras, size_t count) {
             Paint *dst = paints.alloc(count);
@@ -223,8 +228,8 @@ struct Rasterizer {
         size_t width, height;
         Allocator allocator;
         Row<Paint> paints;
-        Row<Index> indices;
-        Row<Quad> edges, quads, opaques;
+        Row<Edge> edges;
+        Row<Quad> quads, opaques;
     };
     struct Buffer {
         struct Entry {
@@ -759,13 +764,14 @@ struct Rasterizer {
     static void writeEdges(Row<Segment::Index>* indices, size_t begin, size_t end, size_t idx, float lx, float ly, float ux, float uy, size_t iy, size_t iz, GPU *gpu) {
         if (lx != ux) {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
-            GPU::Index *index = nullptr;
+            GPU::Edge *edge = nullptr;
             for (size_t i = begin; i < end; i++) {
                 if ((i - begin) % 4 == 0) {
-                    index = new (gpu->indices.alloc(1)) GPU::Index(iy, idx);
-                    new (gpu->edges.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz);
+                    edge = gpu->edges.alloc(1);
+                    new (& edge->index) GPU::Index(iy, idx);
+                    new (& edge->quad) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz);
                 }
-                index->is[(i - begin) % 4] = uint32_t(indices ? indices->base[i].i : i);
+                edge->index.is[(i - begin) % 4] = uint32_t(indices ? indices->base[i].i : i);
             }
             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz);
         }
