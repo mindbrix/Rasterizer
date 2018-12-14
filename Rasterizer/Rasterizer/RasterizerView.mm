@@ -119,6 +119,9 @@
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
+    if (_testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kCoreGraphics)
+        return;
+        
     size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     float dimension = 24, phi = (sqrt(5) - 1) / 2;
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
