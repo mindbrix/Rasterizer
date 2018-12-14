@@ -294,11 +294,12 @@ struct RasterizerCoreGraphics {
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, *buffer);
                 
             } else {
+                if (buffer)
+                    testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
+                testScene.contexts[0].intersectClip(clip);
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 
-                if (buffer)
-                    testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
                 
                 if (buffer)
