@@ -241,7 +241,7 @@ struct RasterizerCoreGraphics {
         writeCGSceneToScene(testScene.cgscene, testScene.scene);
     }
     
-    static void writeTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void writeTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -266,7 +266,7 @@ struct RasterizerCoreGraphics {
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             uint32_t *bgras = (uint32_t *)alloca(testScene.scene.paths.size() * sizeof(uint32_t));
-            testScene.converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
+            testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert(& testScene.scene.bgras[0], testScene.scene.paths.size(), bgras);
             CGColorSpaceRelease(srcSpace);
             

@@ -15,6 +15,7 @@
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
 @property(nonatomic) BOOL useClip;
+@property(nonatomic) BOOL useMetal;
 
 @end
 
@@ -28,7 +29,7 @@
     if (! self)
         return nil;
     
-    [self initLayer:NO];
+    [self initLayer:_useMetal];
     [self writeGlyphGrid:@"AppleSymbols"];
     return self;
 }
@@ -98,6 +99,10 @@
     if (event.keyCode == 8) {
         _useClip = !_useClip;
         [self redraw];
+    } else if (event.keyCode == 46) {
+        _useMetal = !_useMetal;
+        [self initLayer:_useMetal];
+        [self redraw];
     } else {
         [super keyDown:event];
     }
@@ -125,7 +130,7 @@
     Rasterizer::Path clipPath;
     clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
-    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, bitmap, buffer);
+    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 
 #pragma mark - CALayerDelegate
@@ -143,7 +148,7 @@
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
     Rasterizer::Path clipPath;
     clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
-    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, bitmap, nullptr);
+    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }
 
 - (void)setSvgData:(NSData *)svgData {
