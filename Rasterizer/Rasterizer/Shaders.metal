@@ -65,20 +65,29 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct EdgesVertex
 {
     float4 position [[position]];
+    float cover;
 };
 
 vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
+    device Edge& edge = edges[iid];
+    device Quad& quad = edge.quad;
+    float lx = quad.ox, ux = lx + quad.ux - quad.lx;
+    float ly = quad.oy, uy = ly + quad.uy - quad.ly;
+    float x = select(lx, ux, vid == 1 || vid == 2) / *width * 2.0 - 1.0;
+    float y = select(ly, uy, vid > 1) / *height * 2.0 - 1.0;
+    
     EdgesVertex vert;
-    vert.position = float4(0.0, 0.0, 1.0, 1.0);
+    vert.position = float4(x, y, 1.0, 1.0);
+    vert.cover = edge.cover;
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return float4(1, 0, 0, 1);
+    return float4(1.0);
 }
 
 
