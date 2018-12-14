@@ -54,7 +54,7 @@
     
     self.commandQueue = [self.device newCommandQueue];
     self.defaultLibrary = [self.device newDefaultLibrary];
-    self.inflight_semaphore = dispatch_semaphore_create(1);
+    self.inflight_semaphore = dispatch_semaphore_create(2);
     
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
     depthStencilDescriptor.depthWriteEnabled = YES;
