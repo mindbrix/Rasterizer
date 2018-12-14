@@ -62,7 +62,7 @@
     self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
     self.layer.bounds = self.bounds;
-    self.layer.opaque = YES;
+    self.layer.opaque = !useMetal;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     if (useMetal) {
