@@ -28,16 +28,7 @@
     if (! self)
         return nil;
     
-    [self setWantsLayer:YES];
-    [self setLayer:[CALayer layer]];
-    self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
-    self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
-    self.layer.delegate = self;
-    self.layer.bounds = self.bounds;
-    self.layer.opaque = YES;
-    self.layer.needsDisplayOnBoundsChange = YES;
-    self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
+    [self initLayer:NO];
     [self writeGlyphGrid:@"AppleSymbols"];
     return self;
 }
@@ -57,8 +48,29 @@
 #pragma mark - Drawing
 
 - (void)redraw {
-//    [self.layer setNeedsDisplayInRect:CGRectInset(self.bounds, 100, 100)];
     [self.layer setNeedsDisplay];
+}
+
+- (void)initLayer:(BOOL)useMetal {
+    [self setWantsLayer:YES];
+    if (useMetal)
+        [self setLayer:[MetalLayer layer]];
+    else
+        [self setLayer:[CALayer layer]];
+    
+    self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+    self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
+    self.layer.bounds = self.bounds;
+    self.layer.opaque = YES;
+    self.layer.needsDisplayOnBoundsChange = YES;
+    self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
+    if (useMetal) {
+        MetalLayer *layer = (MetalLayer *)self.layer;
+        layer.layerDelegate = self;
+    } else {
+        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
+        self.layer.delegate = self;
+    }
 }
 
 - (void)updateRasterizerLabel {
