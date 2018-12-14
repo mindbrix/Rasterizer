@@ -154,7 +154,7 @@
     drawableDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     drawableDescriptor.depthAttachment.texture = _depthTexture;
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
-    drawableDescriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+    drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
     drawableDescriptor.depthAttachment.clearDepth = 0;
     
     MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -165,6 +165,9 @@
     
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     [commandEncoder setDepthStencilState:_depthState];
+    
+    drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
     uint32_t reverse, pathCount;
     float width = drawable.texture.width, height = drawable.texture.height;
