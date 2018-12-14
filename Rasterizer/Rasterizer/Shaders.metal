@@ -93,18 +93,26 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
 {
     device Edge& edge = edges[iid];
     device Quad& quad = edge.quad;
+    device Segment *segments = edge.segments;
+    
     float lx = quad.ox, ux = lx + quad.ux - quad.lx;
     float ly = quad.oy, uy = ly + quad.uy - quad.ly;
-    float x = select(lx, ux, vid & 1) / *width * 2.0 - 1.0;
-    float y = select(ly, uy, vid >> 1) / *height * 2.0 - 1.0;
+    float w = *width * 4.0, h = floor(*height / 4.0);
+    float dx = select(lx, ux, vid & 1), x = dx / w * 2.0 - 1.0;
+    float dy = select(ly, uy, vid >> 1), y = dy / h * 2.0 - 1.0;
+    float tx = -(quad.lx - quad.ox) + -dx + 0.5, ty = -(quad.ly - quad.oy) + -dy + 0.5;
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.cover = edge.cover;
-    vert.x0 = vert.y0 = vert.x1 = vert.y1 = 0.0;
-    vert.x2 = vert.y2 = vert.x3 = vert.y3 = 0.0;
-    vert.x4 = vert.y4 = vert.x5 = vert.y5 = 0.0;
-    vert.x6 = vert.y6 = vert.x7 = vert.y7 = 0.0;
+    vert.x0 = segments[0].x0 + tx, vert.y0 = segments[0].y0 + ty;
+    vert.x1 = segments[0].x1 + tx, vert.y1 = segments[0].y1 + ty;
+    vert.x2 = segments[1].x0 + tx, vert.y2 = segments[1].y0 + ty;
+    vert.x3 = segments[1].x1 + tx, vert.y3 = segments[1].y1 + ty;
+    vert.x4 = segments[2].x0 + tx, vert.y4 = segments[2].y0 + ty;
+    vert.x5 = segments[2].x1 + tx, vert.y5 = segments[2].y1 + ty;
+    vert.x6 = segments[3].x0 + tx, vert.y6 = segments[3].y0 + ty;
+    vert.x7 = segments[3].x1 + tx, vert.y7 = segments[3].y1 + ty;
     return vert;
 }
 
