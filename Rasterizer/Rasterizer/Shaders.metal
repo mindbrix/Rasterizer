@@ -42,8 +42,8 @@ vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], dev
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[*reverse - 1 - iid];
-    float x = select(quad.lx, quad.ux, vid == 1 || vid == 2) / *width * 2.0 - 1.0;
-    float y = select(quad.ly, quad.uy, vid > 1) / *height * 2.0 - 1.0;
+    float x = select(quad.lx, quad.ux, vid & 1) / *width * 2.0 - 1.0;
+    float y = select(quad.ly, quad.uy, vid >> 1) / *height * 2.0 - 1.0;
     float z = (quad.idx * 2 + 2) / float(*pathCount * 2 + 2);
     
     device Paint& paint = paints[quad.idx];
@@ -76,8 +76,8 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     device Quad& quad = edge.quad;
     float lx = quad.ox, ux = lx + quad.ux - quad.lx;
     float ly = quad.oy, uy = ly + quad.uy - quad.ly;
-    float x = select(lx, ux, vid == 1 || vid == 2) / *width * 2.0 - 1.0;
-    float y = select(ly, uy, vid > 1) / *height * 2.0 - 1.0;
+    float x = select(lx, ux, vid & 1) / *width * 2.0 - 1.0;
+    float y = select(ly, uy, vid >> 1) / *height * 2.0 - 1.0;
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
@@ -105,8 +105,8 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    float x = select(quad.lx, quad.ux, vid == 1 || vid == 2) / *width * 2.0 - 1.0;
-    float y = select(quad.ly, quad.uy, vid > 1) / *height * 2.0 - 1.0;
+    float x = select(quad.lx, quad.ux, vid & 1) / *width * 2.0 - 1.0;
+    float y = select(quad.ly, quad.uy, vid >> 1) / *height * 2.0 - 1.0;
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
     
     device Paint& paint = paints[quad.idx];
