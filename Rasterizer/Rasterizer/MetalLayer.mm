@@ -106,6 +106,7 @@
 - (void)draw {
     _odd = !_odd;
     Rasterizer::Buffer *buffer = _odd ? & _buffer1 : & _buffer0;
+    buffer->entries.empty();
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
