@@ -28,6 +28,21 @@ struct Edge {
     Segment segments[4];
 };
 
+float edgeWinding(float x0, float y0, float x1, float y1) {
+    float sy0 = saturate(y0), sy1 = saturate(y1);
+    float coverage = sy1 - sy0;
+    
+    if (coverage == 0.0 || saturate(x0) + saturate(x1) == 0.0)
+        return coverage;
+    
+    float dxdy = (x1 - x0) / (y1 - y0);
+    float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
+    float minx = min(sx0, sx1), range = abs(sx1 - sx0);
+    float t0 = saturate(-minx / range), t1 = saturate((1.0 - minx) / range);
+    float area = (saturate(sx0) + saturate(sx1)) * 0.5;
+    return coverage * (t1 - ((t1 - t0) * area));
+}
+
 #pragma mark - Opaques
 
 struct OpaquesVertex
@@ -66,6 +81,10 @@ struct EdgesVertex
 {
     float4 position [[position]];
     float cover;
+    float x0, y0, x1, y1;
+    float x2, y2, x3, y3;
+    float x4, y4, x5, y5;
+    float x6, y6, x7, y7;
 };
 
 vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
@@ -82,12 +101,21 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.cover = edge.cover;
+    vert.x0 = vert.y0 = vert.x1 = vert.y1 = 0.0;
+    vert.x2 = vert.y2 = vert.x3 = vert.y3 = 0.0;
+    vert.x4 = vert.y4 = vert.x5 = vert.y5 = 0.0;
+    vert.x6 = vert.y6 = vert.x7 = vert.y7 = 0.0;
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return float4(1.0);
+    float winding = vert.cover;
+    winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
+    winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
+    winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
+    winding += edgeWinding(vert.x6, vert.y6, vert.x7, vert.y7);
+    return float4(winding);
 }
 
 
