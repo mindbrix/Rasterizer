@@ -214,6 +214,7 @@
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
+                [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4

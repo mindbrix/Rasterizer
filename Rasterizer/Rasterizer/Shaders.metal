@@ -9,6 +9,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
+constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::linear, min_filter::linear, mip_filter::linear);
+
 struct Paint {
     unsigned char src0, src1, src2, src3;
 };
@@ -133,6 +135,8 @@ struct QuadsVertex
 {
     float4 position [[position]];
     float4 color;
+    float2 uv;
+    bool even;
 };
 
 vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
@@ -141,20 +145,25 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    float x = select(quad.lx, quad.ux, vid & 1) / *width * 2.0 - 1.0;
-    float y = select(quad.ly, quad.uy, vid >> 1) / *height * 2.0 - 1.0;
+    float dx = select(quad.lx, quad.ux, vid & 1), x = dx / *width * 2.0 - 1.0;
+    float dy = select(quad.ly, quad.uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
+    float w = *width * 4.0, h = floor(*height / 4.0);
     
     device Paint& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
+    vert.uv = float2((quad.ox + dx - quad.lx) / w, 1.0 - (quad.oy + dy - quad.ly) / h);
+    vert.even = false;
     return vert;
 }
 
-fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]])
+fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    return vert.color;
+    float winding = accumulation.sample(s, vert.uv).x;
+    float alpha = abs(winding);
+    return vert.color * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
 }
 
