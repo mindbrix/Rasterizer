@@ -267,10 +267,11 @@ struct Rasterizer {
                 Context& context = contexts[i];
                 
                 end += context.gpu.opaques.bytes();
-                memcpy(buffer.data.base + begin, context.gpu.opaques.base, end - begin);
-                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
-                begin = end;
-                
+                if (begin != end) {
+                    memcpy(buffer.data.base + begin, context.gpu.opaques.base, end - begin);
+                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
+                    begin = end;
+                }
                 while (context.gpu.edges.idx != context.gpu.edges.end || context.gpu.quads.idx != context.gpu.quads.end) {
                     if (context.gpu.edges.idx != context.gpu.edges.end) {
                         for (ox = oy = 0, eend = context.gpu.edges.idx; eend < context.gpu.edges.end; eend++)
