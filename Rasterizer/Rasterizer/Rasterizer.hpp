@@ -165,10 +165,10 @@ struct Rasterizer {
         ~Pages() { if (base) free(base); }
         T *alloc(size_t n) {
             if (size < n) {
-                size = n;
+                size = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
                 if (base)
                     free(base);
-                posix_memalign((void **)& base, kPageSize, (size * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize);
+                posix_memalign((void **)& base, kPageSize, size);
             }
             return base;
         }
