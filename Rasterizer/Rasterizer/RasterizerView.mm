@@ -102,7 +102,18 @@
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
-    
+    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
+    float dimension = 24, phi = (sqrt(5) - 1) / 2;
+    float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    float scale = (w < h ? w : h) / float(square * dimension * phi);
+    Rasterizer::AffineTransform view(self.CTM.a, self.CTM.b, self.CTM.c, self.CTM.d, self.CTM.tx, self.CTM.ty);
+    Rasterizer::AffineTransform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
+    Rasterizer::AffineTransform ctm = contentsScale.concat(view).concat(Rasterizer::AffineTransform(scale, 0, 0, scale, 0, 0));
+    Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
+    Rasterizer::Path clipPath;
+    clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
+    Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
+    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, bitmap, buffer);
 }
 
 #pragma mark - CALayerDelegate
