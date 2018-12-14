@@ -247,6 +247,7 @@ struct Rasterizer {
         };
         Pages<uint8_t> data;
         Row<Entry> entries;
+        GPU::Paint clearColor;
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {

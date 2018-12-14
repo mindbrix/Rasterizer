@@ -62,7 +62,7 @@
     self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
     self.layer.bounds = self.bounds;
-    self.layer.opaque = !useMetal;
+    self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     if (useMetal) {
@@ -130,6 +130,8 @@
     Rasterizer::Path clipPath;
     clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
+    uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    buffer->clearColor = Rasterizer::GPU::Paint(_svgData ? svg : font);
     RasterizerCoreGraphics::writeTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 
