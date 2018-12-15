@@ -865,7 +865,7 @@ struct Rasterizer {
                         x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
                     qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                    writeEdges(& indices, begin, cover, i, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
+                    writeEdges(& indices, begin, i, cover, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
                     
                     indices.empty();
                 }
