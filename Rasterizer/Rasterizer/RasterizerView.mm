@@ -60,7 +60,6 @@
         [self setLayer:[CALayer layer]];
     
     self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    self.layer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
     self.layer.bounds = self.bounds;
     self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
