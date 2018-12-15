@@ -37,14 +37,6 @@
     if (!self)
         return nil;
     
-    self.opaque = NO;
-    self.needsDisplayOnBoundsChange = YES;
-    self.actions = @{ @"onOrderIn": [NSNull null],
-                      @"onOrderOut": [NSNull null],
-                      @"sublayers": [NSNull null],
-                      @"contents": [NSNull null],
-                      @"backgroundColor": [NSNull null],
-                      @"bounds": [NSNull null] };
     self.device = MTLCreateSystemDefaultDevice();
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
