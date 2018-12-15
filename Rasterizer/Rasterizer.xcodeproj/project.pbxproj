@@ -41,6 +41,7 @@
 		E920A5BA21767B7900F52C25 /* VGAffineTransform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VGAffineTransform.h; sourceTree = "<group>"; };
 		E920A5BC21767BD800F52C25 /* ZoomableView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZoomableView.h; sourceTree = "<group>"; };
 		E920A5BD21767BD800F52C25 /* ZoomableView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ZoomableView.m; sourceTree = "<group>"; };
+		E938EB1121C4FCB800794C0B /* Rasterizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Rasterizer.h; sourceTree = "<group>"; };
 		E946C9D1217F0F8B004582CC /* RasterizerCoreGraphics.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerCoreGraphics.hpp; sourceTree = "<group>"; };
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
@@ -92,6 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				E9A7FA84218FAB380031FD4E /* nanosvg.h */,
+				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCoreGraphics.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,

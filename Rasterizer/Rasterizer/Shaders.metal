@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 13/12/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-
+#import "Rasterizer.h"
 #include <metal_stdlib>
 using namespace metal;
 
@@ -98,8 +98,8 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     device Segment *segments = edge.segments;
     
     float lx = quad.ox, ux = lx + quad.ux - quad.lx;
-    float ly = quad.oy, uy = ly + quad.uy - quad.ly;
-    float w = *width * 4.0, h = floor(*height / 4.0);
+    float ly = quad.oy, uy = ly + kFatHeight;
+    float w = *width * kAccumulateStretch, h = floor(*height / kAccumulateStretch);
     float dx = select(lx, ux, vid & 1), x = dx / w * 2.0 - 1.0;
     float dy = select(ly, uy, vid >> 1), y = dy / h * 2.0 - 1.0;
     float tx = -(quad.lx - quad.ox) + -dx + 0.5, ty = -(quad.ly - quad.oy) + -dy + 0.5;
@@ -148,7 +148,7 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     float dx = select(quad.lx, quad.ux, vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = select(quad.ly, quad.uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
-    float w = *width * 4.0, h = floor(*height / 4.0);
+    float w = *width * kAccumulateStretch, h = floor(*height / kAccumulateStretch);
     
     device Paint& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;

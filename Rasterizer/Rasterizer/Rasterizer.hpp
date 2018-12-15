@@ -9,6 +9,7 @@
 #include <immintrin.h>
 #endif
 
+#import "Rasterizer.h"
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
@@ -189,7 +190,7 @@ struct Rasterizer {
                 return piece;
             }
             void reset(size_t width, size_t height) {
-                strips = Bounds(0.f, 0.f, width * 4, height / 4);
+                strips = Bounds(0.f, 0.f, width * 1, height / 1);
                 strip = Bounds(0.f, 0.f, 0.f, 0.f);
             }
             Bounds strips, strip;
@@ -380,7 +381,7 @@ struct Rasterizer {
         Bitmap bitmap;
         GPU gpu;
         Bounds device, clip;
-        static constexpr float kfh = 4, krfh = 1.0 / kfh;
+        static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
         std::vector<Row<Bounds>> clipcells;

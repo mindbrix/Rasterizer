@@ -125,8 +125,8 @@
         self.depthTexture = [self.device newTextureWithDescriptor:desc];
         [self.depthTexture setLabel:@"depthTexture"];
         
-        desc.width = self.drawableSize.width * 4;
-        desc.height = self.drawableSize.height / 4;
+        desc.width = self.drawableSize.width * kAccumulateStretch;
+        desc.height = self.drawableSize.height / kAccumulateStretch;
         desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
         desc.pixelFormat = MTLPixelFormatR32Float;
         self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
