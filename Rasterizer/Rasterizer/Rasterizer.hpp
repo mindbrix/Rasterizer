@@ -253,7 +253,6 @@ struct Rasterizer {
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
             size_t size, i, j, k, begin, end, eend, qend;
-            short ox, oy;
             size = contexts[0].gpu.paints.bytes();
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edges.end * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
@@ -276,8 +275,8 @@ struct Rasterizer {
                 }
                 while (context.gpu.edges.idx != context.gpu.edges.end || context.gpu.quads.idx != context.gpu.quads.end) {
                     if (context.gpu.edges.idx != context.gpu.edges.end) {
-                        for (ox = oy = 0, eend = context.gpu.edges.idx; eend < context.gpu.edges.end; eend++)
-                            if (context.gpu.edges.base[eend].quad.oy <= oy && context.gpu.edges.base[eend].quad.ox < ox)
+                        for (eend = context.gpu.edges.idx; eend < context.gpu.edges.end; eend++)
+                            if (context.gpu.edges.base[eend].quad.oy <= 0 && context.gpu.edges.base[eend].quad.ox < 0)
                                 break;
                         end += (eend - context.gpu.edges.idx) * sizeof(Buffer::Edge);
                         GPU::Edge *src = (GPU::Edge *)(context.gpu.edges.base + context.gpu.edges.idx);
@@ -299,8 +298,8 @@ struct Rasterizer {
                         begin = end;
                     }
                     if (context.gpu.quads.idx != context.gpu.quads.end) {
-                        for (ox = oy = 0, qend = context.gpu.quads.idx; qend < context.gpu.quads.end; qend++)
-                            if (context.gpu.quads.base[qend].oy <= oy && context.gpu.quads.base[qend].ox < ox)
+                        for (qend = context.gpu.quads.idx; qend < context.gpu.quads.end; qend++)
+                            if (context.gpu.quads.base[qend].oy <= 0 && context.gpu.quads.base[qend].ox < 0)
                                 break;
                         end += (qend - context.gpu.quads.idx) * sizeof(GPU::Quad);
                         memcpy(buffer.data.base + begin, context.gpu.quads.base + context.gpu.quads.idx, end - begin);
@@ -854,7 +853,7 @@ struct Rasterizer {
                                         if (src[3] == 255)
                                             new (gpu->opaques.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, iz);
                                         else
-                                            new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, iz);
+                                            new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 32767.f, 0.f, iz);
                                     }
                                 }
                                 lx = ux = index->x;

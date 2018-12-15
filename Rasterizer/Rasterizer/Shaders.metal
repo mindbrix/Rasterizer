@@ -136,7 +136,7 @@ struct QuadsVertex
     float4 position [[position]];
     float4 color;
     float u, v;
-    bool even;
+    bool even, solid;
 };
 
 vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
@@ -148,21 +148,24 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     float dx = select(quad.lx, quad.ux, vid & 1), u = dx / *width, du = (quad.lx - quad.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(quad.ly, quad.uy, vid >> 1), v = dy / *height, dv = (quad.ly - quad.oy) / *height, y = v * 2.0 - 1.0;
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
+    bool solid = quad.ox == 32767;
     
     device Paint& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
+    
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.u = u - du, vert.v = v - dv;
     vert.even = false;
+    vert.solid = solid;
     return vert;
      
 }
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float winding = accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
+    float winding = vert.solid ? 1.0 : accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
     float alpha = abs(winding);
     return vert.color * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
 }
