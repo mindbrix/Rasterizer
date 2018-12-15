@@ -145,19 +145,19 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    float dx = select(quad.lx, quad.ux, vid & 1), x = dx / *width * 2.0 - 1.0;
-    float dy = select(quad.ly, quad.uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
+    float dx = select(quad.lx, quad.ux, vid & 1), u = dx / *width, du = (quad.lx - quad.ox) / *width, x = u * 2.0 - 1.0;
+    float dy = select(quad.ly, quad.uy, vid >> 1), v = dy / *height, dv = (quad.ly - quad.oy) / *height, y = v * 2.0 - 1.0;
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
-    float w = *width * kAccumulateStretch, h = floor(*height / kAccumulateStretch);
     
     device Paint& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.u = (quad.ox + dx - quad.lx) / w, vert.v = (quad.oy + dy - quad.ly) / h;
+    vert.u = u - du, vert.v = v - dv;
     vert.even = false;
     return vert;
+     
 }
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
