@@ -9,7 +9,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::linear, min_filter::linear, mip_filter::linear);
+constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
 struct Paint {
     unsigned char src0, src1, src2, src3;
