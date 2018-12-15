@@ -802,7 +802,7 @@ struct Rasterizer {
             for (size_t i = begin; i < end; i++) {
                 if ((i - begin) % 4 == 0) {
                     edge = gpu->edges.alloc(1);
-                    edge->cover = cover;
+                    edge->cover = i == begin ? cover : 0.f;
                     new (& edge->index) GPU::Index(iy, idx);
                     new (& edge->quad) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz);
                 }
