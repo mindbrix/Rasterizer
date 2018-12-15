@@ -815,7 +815,7 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu, Row<Bounds> *clipcells) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
         short counts0[256], counts1[256];
-        float ly, uy, clx, cux, scale, cover, lx, ux, qlx, qux, x;
+        float ly, uy, clx, cux, scale, cover, winding, lx, ux, qlx, qux, x;
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
@@ -840,9 +840,9 @@ struct Rasterizer {
                         radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
                     else
                         std::sort(indices.base, indices.base + indices.end);
-                    for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = begin = 0; i < indices.end; i++, index++) {
+                    for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base, lx = ux = index->x, i = begin = 0; i < indices.end; i++, index++) {
                         if (index->x > ux) {
-                            uint8_t a = 255.5f * alphaForCover(cover, even);
+                            uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (a == 0 || a == 255) {
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                                 writeEdges(& indices, begin, i, cover, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
@@ -858,10 +858,11 @@ struct Rasterizer {
                                     }
                                 }
                                 lx = ux = index->x;
+                                cover = winding;
                             }
                         }
                         segment = segments->base + segments->idx + index->i;
-                        cover += (segment->y1 - segment->y0) * scale;
+                        winding += (segment->y1 - segment->y0) * scale;
                         x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
                     qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
