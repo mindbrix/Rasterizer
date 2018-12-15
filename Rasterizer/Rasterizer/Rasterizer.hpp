@@ -283,14 +283,12 @@ struct Rasterizer {
                         Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
                         Segment *segments;
                         for (j = context.gpu.edges.idx; j < eend; j++, src++, dst++) {
-                            dst->cover = src->cover;
-                            dst->quad = src->quad;
+                            dst->cover = src->cover, dst->quad = src->quad;
                             segments = context.segments[src->index.iy].base + src->index.idx;
-                            for (k = 0; k < 4; k++)
-                                if (src->index.is[k] == 0xFFFF)
-                                    new (& dst->segments[k]) Segment(0.f, 0.f, 0.f, 0.f);
-                                else
-                                    dst->segments[k] = segments[src->index.is[k]];
+                            for (k = 0; k < 4 && src->index.is[k] != 0xFFFF; k++)
+                                dst->segments[k] = segments[src->index.is[k]];
+                            for (; k < 4; k++)
+                                new (& dst->segments[k]) Segment(0.f, 0.f, 0.f, 0.f);
                         }
                         new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
                         context.gpu.edges.idx = eend;
