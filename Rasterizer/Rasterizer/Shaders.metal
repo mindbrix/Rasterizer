@@ -135,7 +135,7 @@ struct QuadsVertex
 {
     float4 position [[position]];
     float4 color;
-    float2 uv;
+    float u, v;
     bool even;
 };
 
@@ -155,15 +155,14 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.uv = float2((quad.ox + dx - quad.lx) / w, 1.0 - (quad.oy + dy - quad.ly) / h);
+    vert.u = (quad.ox + dx - quad.lx) / w, vert.v = (quad.oy + dy - quad.ly) / h;
     vert.even = false;
     return vert;
 }
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float winding = accumulation.sample(s, vert.uv).x;
+    float winding = accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
     float alpha = abs(winding);
     return vert.color * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
 }
-
