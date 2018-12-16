@@ -100,6 +100,7 @@
         [self redraw];
     } else if (event.keyCode == 46) {
         _useMetal = !_useMetal;
+        [self toggleTimer];
         [self initLayer:_useMetal];
         [self redraw];
     } else {
