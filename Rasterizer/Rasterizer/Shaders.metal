@@ -18,6 +18,7 @@ struct Paint {
 struct Quad {
     short lx, ly, ux, uy, ox, oy;
     unsigned int idx;
+    float cover;
 };
 
 struct Segment {
@@ -82,7 +83,6 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct EdgesVertex
 {
     float4 position [[position]];
-    float cover;
     float x0, y0, x1, y1;
     float x2, y2, x3, y3;
     float x4, y4, x5, y5;
@@ -106,7 +106,7 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.cover = 0;// edge.cover;
+    
     vert.x0 = segments[0].x0 + tx, vert.y0 = segments[0].y0 + ty;
     vert.x1 = segments[0].x1 + tx, vert.y1 = segments[0].y1 + ty;
     vert.x2 = segments[1].x0 + tx, vert.y2 = segments[1].y0 + ty;
@@ -115,13 +115,13 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     vert.x5 = segments[2].x1 + tx, vert.y5 = segments[2].y1 + ty;
     vert.x6 = segments[3].x0 + tx, vert.y6 = segments[3].y0 + ty;
     vert.x7 = segments[3].x1 + tx, vert.y7 = segments[3].y1 + ty;
-    
+
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    float winding = 0;// vert.cover;
+    float winding = 0;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
     winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
@@ -137,6 +137,7 @@ struct QuadsVertex
     float4 position [[position]];
     float4 color;
     float u, v;
+    float cover;
     bool even, solid;
 };
 
@@ -158,6 +159,7 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.u = u - du, vert.v = v - dv;
+    vert.cover = quad.cover;
     vert.even = false;
     vert.solid = solid;
     return vert;
@@ -166,7 +168,7 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float winding = vert.solid ? 1.0 : accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
+    float winding = vert.solid ? 1.0 : vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
     float alpha = abs(winding);
     return vert.color * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
 }
