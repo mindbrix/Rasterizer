@@ -178,6 +178,10 @@ struct Rasterizer {
     };
     struct GPU {
         struct Allocator {
+            void init(size_t w, size_t h) {
+                width = w, height = h;
+                reset();
+            }
             Bounds alloc(float w) {
                 if (strip.ux - strip.lx < w) {
                     if (strips.uy - strips.ly < Context::kfh)
@@ -189,10 +193,11 @@ struct Rasterizer {
                 strip.lx = piece.ux;
                 return piece;
             }
-            void reset(size_t width, size_t height) {
-                strips = Bounds(0.f, 0.f, width * 1, height / 1);
+            void reset() {
+                strips = Bounds(0.f, 0.f, width, height);
                 strip = Bounds(0.f, 0.f, 0.f, 0.f);
             }
+            size_t width, height;
             Bounds strips, strip;
         };
         struct Index {
@@ -322,7 +327,7 @@ struct Rasterizer {
             bitmap = Bitmap();
             setDevice(Bounds(0.f, 0.f, width, height));
             gpu.width = width, gpu.height = height;
-            gpu.allocator.reset(width, height);
+            gpu.allocator.init(width, height);
         }
         void setDevice(Bounds dev) {
             device = dev;
