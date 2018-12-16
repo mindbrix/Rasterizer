@@ -106,7 +106,7 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.cover = edge.cover;
+    vert.cover = 0;// edge.cover;
     vert.x0 = segments[0].x0 + tx, vert.y0 = segments[0].y0 + ty;
     vert.x1 = segments[0].x1 + tx, vert.y1 = segments[0].y1 + ty;
     vert.x2 = segments[1].x0 + tx, vert.y2 = segments[1].y0 + ty;
@@ -116,17 +116,12 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     vert.x6 = segments[3].x0 + tx, vert.y6 = segments[3].y0 + ty;
     vert.x7 = segments[3].x1 + tx, vert.y7 = segments[3].y1 + ty;
     
-//    vert.x0 = vert.y0 = vert.x1 = vert.y1 = 0;
-//    vert.x2 = vert.y2 = vert.x3 = vert.y3 = 0;
-//    vert.x4 = vert.y4 = vert.x5 = vert.y5 = 0;
-//    vert.x6 = vert.y6 = vert.x7 = vert.y7 = 0;
-    
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    float winding = vert.cover;
+    float winding = 0;// vert.cover;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
     winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
