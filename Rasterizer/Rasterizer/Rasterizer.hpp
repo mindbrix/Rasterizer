@@ -248,7 +248,6 @@ struct Rasterizer {
             size_t begin, end;
         };
         struct Edge {
-            float cover;
             GPU::Quad quad;
             Segment segments[kSegmentsCount];
         };
