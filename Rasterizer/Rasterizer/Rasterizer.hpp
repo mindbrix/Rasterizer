@@ -204,7 +204,7 @@ struct Rasterizer {
             Index() {}
             Index(size_t iy, size_t idx) : iy(uint32_t(iy)), idx(uint32_t(idx)) { memset(is, 0xFF, sizeof(is)); }
             uint32_t iy, idx;
-            unsigned short is[4];
+            unsigned short is[kSegmentsCount];
         };
         struct Paint {
             Paint() {}
@@ -250,7 +250,7 @@ struct Rasterizer {
         struct Edge {
             float cover;
             GPU::Quad quad;
-            Segment segments[4];
+            Segment segments[kSegmentsCount];
         };
         Pages<uint8_t> data;
         Row<Entry> entries;
@@ -291,9 +291,9 @@ struct Rasterizer {
                         for (j = context.gpu.edges.idx; j < eend; j++, src++, dst++) {
                             dst->quad = src->quad;
                             segments = context.segments[src->index.iy].base + src->index.idx;
-                            for (k = 0; k < 4 && src->index.is[k] != 0xFFFF; k++)
+                            for (k = 0; k < kSegmentsCount && src->index.is[k] != 0xFFFF; k++)
                                 dst->segments[k] = segments[src->index.is[k]];
-                            for (; k < 4; k++)
+                            for (; k < kSegmentsCount; k++)
                                 new (& dst->segments[k]) Segment(0.f, 0.f, 0.f, 0.f);
                         }
                         new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
@@ -803,12 +803,12 @@ struct Rasterizer {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
             GPU::Edge *edge = nullptr;
             for (size_t i = begin; i < end; i++) {
-                if ((i - begin) % 4 == 0) {
+                if ((i - begin) % kSegmentsCount == 0) {
                     edge = gpu->edges.alloc(1);
                     new (& edge->index) GPU::Index(iy, idx);
                     new (& edge->quad) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
                 }
-                edge->index.is[(i - begin) % 4] = uint32_t(indices ? indices->base[i].i : i - idx);
+                edge->index.is[(i - begin) % kSegmentsCount] = uint32_t(indices ? indices->base[i].i : i - idx);
             }
             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
         }

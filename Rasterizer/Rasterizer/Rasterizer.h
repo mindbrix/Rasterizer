@@ -8,3 +8,4 @@
 
 #define kFatHeight 8
 #define kAccumulateStretch 1
+#define kSegmentsCount 4
