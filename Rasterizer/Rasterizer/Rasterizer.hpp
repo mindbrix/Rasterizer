@@ -202,7 +202,7 @@ struct Rasterizer {
         };
         struct Index {
             Index() {}
-            Index(size_t iy, size_t idx) : iy(uint32_t(iy)), idx(uint32_t(idx)) { is[0] = 0xFFFF, is[1] = 0xFFFF, is[2] = 0xFFFF, is[3] = 0xFFFF; }
+            Index(size_t iy, size_t idx) : iy(uint32_t(iy)), idx(uint32_t(idx)) { memset(is, 0xFF, sizeof(is)); }
             uint32_t iy, idx;
             unsigned short is[4];
         };
