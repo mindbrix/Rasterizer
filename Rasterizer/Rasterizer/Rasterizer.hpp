@@ -185,7 +185,7 @@ struct Rasterizer {
             Bounds alloc(float w) {
                 if (strip.ux - strip.lx < w) {
                     if (strips.uy - strips.ly < Context::kfh)
-                        return Bounds(0.f, 0.f, 0.f, 0.f);
+                        reset();
                     strip = Bounds(strips.lx, strips.ly, strips.ux, strips.ly + Context::kfh);
                     strips.ly = strip.uy;
                 }
