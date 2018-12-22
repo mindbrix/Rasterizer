@@ -202,8 +202,8 @@ struct Rasterizer {
         };
         struct Index {
             Index() {}
-            Index(size_t iy, size_t idx) : iy(uint32_t(iy)), idx(uint32_t(idx)) { memset(is, 0xFF, sizeof(is)); }
-            uint32_t iy, idx;
+            Index(size_t iy, size_t idx, size_t begin, size_t end) : iy(uint32_t(iy)), idx(uint32_t(idx)), begin(uint32_t(begin)), end(uint32_t(end))     { memset(is, 0xFF, sizeof(is)); }
+            uint32_t iy, idx, begin, end;
             unsigned short is[kSegmentsCount];
         };
         struct Paint {
@@ -805,7 +805,7 @@ struct Rasterizer {
             for (size_t i = begin; i < end; i++) {
                 if ((i - begin) % kSegmentsCount == 0) {
                     edge = gpu->edges.alloc(1);
-                    new (& edge->index) GPU::Index(iy, idx);
+                    new (& edge->index) GPU::Index(iy, idx, begin, end);
                     new (& edge->quad) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
                 }
                 edge->index.is[(i - begin) % kSegmentsCount] = uint32_t(indices ? indices->base[i].i : i - idx);
