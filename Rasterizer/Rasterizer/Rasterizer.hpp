@@ -226,7 +226,7 @@ struct Rasterizer {
         };
         GPU() {}
         void empty() {
-            paints.empty(), edges.empty(), quads.empty(), opaques.empty();
+            indices.empty(), paints.empty(), edges.empty(), quads.empty(), opaques.empty();
         }
         void writePaints(uint32_t *bgras, size_t count) {
             Paint *dst = paints.alloc(count);
@@ -837,11 +837,13 @@ struct Rasterizer {
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                         new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                    if (indices.end > 32)
-                        radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
+                    
+                    if (indices.end - indices.idx > 32)
+                        radixSort((uint32_t *)indices.base + indices.idx, indices.end - indices.idx, counts0, counts1);
                     else
-                        std::sort(indices.base, indices.base + indices.end);
-                    for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base, lx = ux = index->x, i = begin = 0; i < indices.end; i++, index++) {
+                        std::sort(indices.base + indices.idx, indices.base + indices.end);
+                    
+                    for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                         if (index->x > ux) {
                             uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (a == 0 || a == 255) {
@@ -869,7 +871,7 @@ struct Rasterizer {
                     qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
                     writeEdges(& indices, begin, i, cover, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
                     
-                    indices.empty();
+                    indices.idx = indices.end;
                 }
                 segments->idx = segments->end;
             }
