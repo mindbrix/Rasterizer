@@ -833,7 +833,10 @@ struct Rasterizer {
                     }
                     lx = floorf(lx), qlx = lx < clx ? clx : lx > cux ? cux : lx;
                     ux = ceilf(ux), qux = ux < clx ? clx : ux > cux ? cux : ux;
+                    for (index = indices.alloc(count), i = 0; i < count; i++, index++)
+                        new (index) Segment::Index(0.f, i);
                     writeEdges(nullptr, segments->idx, segments->end, 0.f, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
+                    indices.idx = indices.end;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                         new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
