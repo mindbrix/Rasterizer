@@ -235,6 +235,7 @@ struct Rasterizer {
         }
         size_t width, height;
         Allocator allocator;
+        Row<Segment::Index> indices;
         Row<Paint> paints;
         Row<Edge> edges;
         Row<Quad> quads, opaques;
@@ -817,7 +818,7 @@ struct Rasterizer {
         short counts0[256], counts1[256];
         float ly, uy, clx, cux, scale, cover, winding, lx, ux, qlx, qux, x;
         Segment *segment;
-        Row<Segment::Index> indices;    Segment::Index *index;
+        Row<Segment::Index>& indices = gpu->indices;    Segment::Index *index;
         for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
