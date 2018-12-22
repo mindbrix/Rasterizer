@@ -226,7 +226,7 @@ struct Rasterizer {
         };
         GPU() {}
         void empty() {
-            indices.empty(), paints.empty(), edges.empty(), quads.empty(), opaques.empty();
+            indices.empty(), paints.empty(), edges.empty(), edgeIndices.empty(), quads.empty(), opaques.empty();
         }
         void writePaints(uint32_t *bgras, size_t count) {
             Paint *dst = paints.alloc(count);
@@ -238,6 +238,7 @@ struct Rasterizer {
         Row<Segment::Index> indices;
         Row<Paint> paints;
         Row<Edge> edges;
+        Row<Index> edgeIndices;
         Row<Quad> quads, opaques;
     };
     struct Buffer {
@@ -811,6 +812,7 @@ struct Rasterizer {
                 edge->index.is[(i - begin) % kSegmentsCount] = uint32_t(indices ? indices->base[i].i : i - idx);
             }
             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
+            new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, idx, begin, end);
         }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu, Row<Bounds> *clipcells) {
