@@ -6,7 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#define kFatHeight 8
+#define kFatHeight 4
 #define kAccumulateStretch 1
 #define kSegmentsCount 4
 #define kSolidQuad 32767
