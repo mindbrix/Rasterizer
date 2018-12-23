@@ -283,7 +283,7 @@ struct Rasterizer {
                     
                     GPU::Quad *quad = context.gpu.quads.base + context.gpu.quads.idx;
                     GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
-                    Segment *segments;   Segment::Index *is;
+                    Segment *segments, *ds;   Segment::Index *is;
                     for (q = context.gpu.quads.idx; q < qend; q++, quad++) {
                         if (quad->ox != kSolidQuad) {
                             end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
@@ -291,10 +291,10 @@ struct Rasterizer {
                             is = context.gpu.indices.base + index->begin;
                             for (j = index->begin; j < index->end; j += kSegmentsCount, dst++) {
                                 dst->quad = *quad;
-                                for (k = j, kend = j + kSegmentsCount; k < index->end && k < kend; k++, is++)
-                                    dst->segments[k - j] = segments[is->i];
-                                for (; k < kend; k++)
-                                    dst->segments[k - j] = Segment(0.f, 0.f, 0.f, 0.f);
+                                for (ds = dst->segments, k = j, kend = j + kSegmentsCount; k < index->end && k < kend; k++, is++)
+                                    *ds++ = segments[is->i];
+                                if (k < kend)
+                                    memset(ds, 0, (kend - k) * sizeof(Segment));
                             }
                             index++;
                         }
