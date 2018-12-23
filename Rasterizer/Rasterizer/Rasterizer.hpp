@@ -219,25 +219,19 @@ struct Rasterizer {
             uint32_t idx;
             float cover;
         };
-        struct Edge {
-            Edge() {}
-            Quad quad;
-            Index index;
-        };
-        GPU() {}
+        GPU() : edgeInstances(0) {}
         void empty() {
-            indices.empty(), paints.empty(), edges.empty(), edgeIndices.empty(), quads.empty(), opaques.empty();
+            edgeInstances = 0, indices.empty(), paints.empty(), edgeIndices.empty(), quads.empty(), opaques.empty();
         }
         void writePaints(uint32_t *bgras, size_t count) {
             Paint *dst = paints.alloc(count);
             for (size_t idx = 0; idx < count; idx++)
                 new (dst++) Paint((uint8_t *)& bgras[idx]);
         }
-        size_t width, height;
+        size_t width, height, edgeInstances;
         Allocator allocator;
         Row<Segment::Index> indices;
         Row<Paint> paints;
-        Row<Edge> edges;
         Row<Index> edgeIndices;
         Row<Quad> quads, opaques;
     };
@@ -259,10 +253,11 @@ struct Rasterizer {
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
-            size_t size, i, j, k, begin, end, eend, qend;
+            size_t size, i, j, k, kend, begin, end, qend, q;
             size = contexts[0].gpu.paints.bytes();
             for (i = 0; i < count; i++)
-                size += contexts[i].gpu.edges.end * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+                size += contexts[i].gpu.edgeInstances * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+            
             buffer.data.alloc(size);
             begin = end = 0;
             
@@ -280,37 +275,40 @@ struct Rasterizer {
                     new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
                     begin = end;
                 }
-                while (context.gpu.edges.idx != context.gpu.edges.end || context.gpu.quads.idx != context.gpu.quads.end) {
-                    if (context.gpu.edges.idx != context.gpu.edges.end) {
-                        for (eend = context.gpu.edges.idx; eend < context.gpu.edges.end; eend++)
-                            if (context.gpu.edges.base[eend].quad.oy <= 0 && context.gpu.edges.base[eend].quad.ox < 0)
-                                break;
-                        end += (eend - context.gpu.edges.idx) * sizeof(Buffer::Edge);
-                        GPU::Edge *src = (GPU::Edge *)(context.gpu.edges.base + context.gpu.edges.idx);
-                        Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
-                        Segment *segments;
-                        for (j = context.gpu.edges.idx; j < eend; j++, src++, dst++) {
-                            dst->quad = src->quad;
-                            segments = context.segments[src->index.iy].base + src->index.idx;
-                            for (k = 0; k < kSegmentsCount && src->index.is[k] != 0xFFFF; k++)
-                                dst->segments[k] = segments[src->index.is[k]];
-                            for (; k < kSegmentsCount; k++)
-                                new (& dst->segments[k]) Segment(0.f, 0.f, 0.f, 0.f);
+                
+                while (context.gpu.quads.idx != context.gpu.quads.end) {
+                    for (qend = context.gpu.quads.idx + 1; qend < context.gpu.quads.end; qend++)
+                        if (context.gpu.quads.base[qend].oy == 0 && context.gpu.quads.base[qend].ox == 0)
+                            break;
+                    
+                    Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
+                    GPU::Index *index = context.gpu.edgeIndices.base + context.gpu.quads.idx;
+                    GPU::Quad *quad = context.gpu.quads.base + context.gpu.quads.idx;
+                    Segment *segments;   Segment::Index *is;
+                    for (q = context.gpu.quads.idx; q < qend; q++, index++, quad++) {
+                        end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(Buffer::Edge);
+                        assert(end < size);
+                        segments = context.segments[index->iy].base + index->idx;
+                        is = context.gpu.indices.base + index->begin;
+                        
+                        for (j = index->begin; j < index->end; j += kSegmentsCount, dst++) {
+                            dst->quad = *quad;
+                            for (k = j, kend = j + kSegmentsCount; k < index->end && k < kend; k++, is++)
+                                dst->segments[k - j] = segments[is->i];
+                            for (; k < kend; k++)
+                                dst->segments[k - j] = Segment(0.f, 0.f, 0.f, 0.f);
                         }
-                        new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
-                        context.gpu.edges.idx = eend;
-                        begin = end;
                     }
-                    if (context.gpu.quads.idx != context.gpu.quads.end) {
-                        for (qend = context.gpu.quads.idx; qend < context.gpu.quads.end; qend++)
-                            if (context.gpu.quads.base[qend].oy <= 0 && context.gpu.quads.base[qend].ox < 0)
-                                break;
-                        end += (qend - context.gpu.quads.idx) * sizeof(GPU::Quad);
-                        memcpy(buffer.data.base + begin, context.gpu.quads.base + context.gpu.quads.idx, end - begin);
-                        new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
-                        context.gpu.quads.idx = qend;
-                        begin = end;
-                    }
+                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
+                    begin = end;
+                    
+                    
+                    end += (qend - context.gpu.quads.idx) * sizeof(GPU::Quad);
+                    memcpy(buffer.data.base + begin, context.gpu.quads.base + context.gpu.quads.idx, end - begin);
+                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
+                    begin = end;
+                    
+                    context.gpu.quads.idx = qend;
                 }
                 context.gpu.empty();
                 for (j = 0; j < context.segments.size(); j++)
@@ -802,17 +800,9 @@ struct Rasterizer {
     static void writeEdges(Row<Segment::Index>* indices, size_t begin, size_t end, float cover, size_t idx, float lx, float ly, float ux, float uy, size_t iy, size_t iz, GPU *gpu) {
         if (lx != ux) {
             Bounds alloced = gpu->allocator.alloc(ux - lx);
-            GPU::Edge *edge = nullptr;
-            for (size_t i = begin; i < end; i++) {
-                if ((i - begin) % kSegmentsCount == 0) {
-                    edge = gpu->edges.alloc(1);
-                    new (& edge->index) GPU::Index(iy, idx, begin, end);
-                    new (& edge->quad) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
-                }
-                edge->index.is[(i - begin) % kSegmentsCount] = uint32_t(indices ? indices->base[i].i : i - idx);
-            }
             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
             new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, idx, begin, end);
+            gpu->edgeInstances += (end - begin + kSegmentsCount - 1) / kSegmentsCount;
         }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu, Row<Bounds> *clipcells) {
@@ -837,7 +827,7 @@ struct Rasterizer {
                     ux = ceilf(ux), qux = ux < clx ? clx : ux > cux ? cux : ux;
                     for (index = indices.alloc(count), i = 0; i < count; i++, index++)
                         new (index) Segment::Index(0.f, i);
-                    writeEdges(nullptr, segments->idx, segments->end, 0.f, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
+                    writeEdges(nullptr, indices.idx, indices.end, 0.f, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
                     indices.idx = indices.end;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
