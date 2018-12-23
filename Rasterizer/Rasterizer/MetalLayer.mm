@@ -193,7 +193,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:size / sizeof(Rasterizer::Buffer::Edge)
+                                 instanceCount:size / sizeof(Rasterizer::GPU::Edge)
                                   baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];

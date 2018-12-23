@@ -218,6 +218,10 @@ struct Rasterizer {
             uint32_t idx;
             float cover;
         };
+        struct Edge {
+            Quad quad;
+            Segment segments[kSegmentsCount];
+        };
         GPU() : edgeInstances(0) {}
         void empty() {
             edgeInstances = 0, indices.empty(), paints.empty(), edgeIndices.empty(), quads.empty(), opaques.empty();
@@ -242,10 +246,6 @@ struct Rasterizer {
             Type type;
             size_t begin, end;
         };
-        struct Edge {
-            GPU::Quad quad;
-            Segment segments[kSegmentsCount];
-        };
         Pages<uint8_t> data;
         Row<Entry> entries;
         GPU::Paint clearColor;
@@ -255,7 +255,7 @@ struct Rasterizer {
             size_t size, i, j, k, kend, begin, end, qend, q;
             size = contexts[0].gpu.paints.bytes();
             for (i = 0; i < count; i++)
-                size += contexts[i].gpu.edgeInstances * sizeof(Buffer::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             
             buffer.data.alloc(size);
             begin = end = 0;
@@ -280,12 +280,12 @@ struct Rasterizer {
                         if (context.gpu.quads.base[qend].oy == 0 && context.gpu.quads.base[qend].ox == 0)
                             break;
                     
-                    Buffer::Edge *dst = (Buffer::Edge *)(buffer.data.base + begin);
+                    GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
                     GPU::Index *index = context.gpu.edgeIndices.base + context.gpu.quads.idx;
                     GPU::Quad *quad = context.gpu.quads.base + context.gpu.quads.idx;
                     Segment *segments;   Segment::Index *is;
                     for (q = context.gpu.quads.idx; q < qend; q++, index++, quad++) {
-                        end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(Buffer::Edge);
+                        end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                         assert(end < size);
                         segments = context.segments[index->iy].base + index->idx;
                         is = context.gpu.indices.base + index->begin;
