@@ -86,11 +86,10 @@ struct EdgesVertex
     float x2, y2, x3, y3;
     float x4, y4, x5, y5;
     float x6, y6, x7, y7;
-    /*
     float x8, y8, x9, y9;
     float x10, y10, x11, y11;
     float x12, y12, x13, y13;
-    float x14, y14, x15, y15;*/
+    float x14, y14, x15, y15;
 };
 
 vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
@@ -125,7 +124,7 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     vert.x10 = vert.y10 = vert.x11 = vert.y11 = 0.0;
     vert.x12 = vert.y12 = vert.x13 = vert.y13 = 0.0;
     vert.x14 = vert.y14 = vert.x15 = vert.y15 = 0.0;
-    vert.x8 = 0.2;
+    
     
     
     vert.x8 = segments[4].x0 + tx, vert.y8 = segments[4].y0 + ty;
@@ -177,7 +176,7 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     float dx = select(quad.lx, quad.ux, vid & 1), u = dx / *width, du = (quad.lx - quad.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(quad.ly, quad.uy, vid >> 1), v = dy / *height, dv = (quad.ly - quad.oy) / *height, y = v * 2.0 - 1.0;
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
-    bool solid = quad.ox == 32767;
+    bool solid = quad.ox == kSolidQuad;
     
     device Paint& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
