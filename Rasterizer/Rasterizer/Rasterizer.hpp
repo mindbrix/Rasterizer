@@ -299,9 +299,10 @@ struct Rasterizer {
                             index++;
                         }
                     }
-                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
-                    begin = end;
-                    
+                    if (begin != end) {
+                        new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
+                        begin = end;
+                    }
                     end += (qend - context.gpu.quads.idx) * sizeof(GPU::Quad);
                     memcpy(buffer.data.base + begin, context.gpu.quads.base + context.gpu.quads.idx, end - begin);
                     new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
