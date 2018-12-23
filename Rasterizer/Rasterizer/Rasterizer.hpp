@@ -202,9 +202,8 @@ struct Rasterizer {
         };
         struct Index {
             Index() {}
-            Index(size_t iy, size_t idx, size_t begin, size_t end) : iy(uint32_t(iy)), idx(uint32_t(idx)), begin(uint32_t(begin)), end(uint32_t(end))     { memset(is, 0xFF, sizeof(is)); }
+            Index(size_t iy, size_t idx, size_t begin, size_t end) : iy(uint32_t(iy)), idx(uint32_t(idx)), begin(uint32_t(begin)), end(uint32_t(end)) {}
             uint32_t iy, idx, begin, end;
-            unsigned short is[kSegmentsCount];
         };
         struct Paint {
             Paint() {}
