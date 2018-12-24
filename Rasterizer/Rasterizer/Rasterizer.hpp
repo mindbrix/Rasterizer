@@ -797,14 +797,6 @@ struct Rasterizer {
             }
         }
     }
-    static void writeEdges(size_t begin, size_t end, float cover, size_t idx, float lx, float ly, float ux, float uy, size_t iy, size_t iz, GPU *gpu) {
-        if (lx != ux) {
-            Bounds alloced = gpu->allocator.alloc(ux - lx);
-            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, alloced.lx, alloced.ly, iz, cover);
-            new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, idx, begin, end);
-            gpu->edgeInstances += (end - begin + kSegmentsCount - 1) / kSegmentsCount;
-        }
-    }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu, Row<Bounds> *clipcells) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
         short counts0[256], counts1[256];
@@ -825,9 +817,14 @@ struct Rasterizer {
                     }
                     lx = floorf(lx), qlx = lx < clx ? clx : lx > cux ? cux : lx;
                     ux = ceilf(ux), qux = ux < clx ? clx : ux > cux ? cux : ux;
-                    for (index = indices.alloc(count), i = 0; i < count; i++, index++)
-                        new (index) Segment::Index(0.f, i);
-                    writeEdges(indices.idx, indices.end, 0.f, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
+                    if (qlx != qux) {
+                        for (index = indices.alloc(count), i = 0; i < count; i++, index++)
+                            new (index) Segment::Index(0.f, i);
+                        Bounds alloced = gpu->allocator.alloc(qux - qlx);
+                        new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, alloced.lx, alloced.ly, iz, 0.f);
+                        new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, segments->idx, indices.idx, indices.end);
+                        gpu->edgeInstances += (indices.end - indices.idx + kSegmentsCount - 1) / kSegmentsCount;
+                    }
                     indices.idx = indices.end;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
@@ -843,7 +840,12 @@ struct Rasterizer {
                             uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (a == 0 || a == 255) {
                                 qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                                writeEdges(begin, i, cover, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
+                                if (qlx != qux) {
+                                    Bounds alloced = gpu->allocator.alloc(qux - qlx);
+                                    new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, alloced.lx, alloced.ly, iz, cover);
+                                    new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
+                                    gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
+                                }
                                 begin = i;
                                 if (a == 255) {
                                     lx = ux, ux = index->x;
@@ -864,7 +866,12 @@ struct Rasterizer {
                         x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
                     qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
-                    writeEdges(begin, i, cover, segments->idx, qlx, ly, qux, uy, iy, iz, gpu);
+                    if (qlx != qux) {
+                        Bounds alloced = gpu->allocator.alloc(qux - qlx);
+                        new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, alloced.lx, alloced.ly, iz, cover);
+                        new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
+                        gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
+                    }
                     
                     indices.idx = indices.end;
                 }
