@@ -98,9 +98,8 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     
     float lx = quad.ox, ux = lx + quad.ux - quad.lx;
     float ly = quad.oy, uy = ly + kFatHeight;
-    float w = *width * kAccumulateStretch, h = floor(*height / kAccumulateStretch);
-    float dx = select(lx, ux, vid & 1), x = dx / w * 2.0 - 1.0;
-    float dy = select(ly, uy, vid >> 1), y = dy / h * 2.0 - 1.0;
+    float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
+    float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float tx = -(quad.lx - quad.ox) - (dx - 0.5), ty = -(quad.ly - quad.oy) - (dy - 0.5);
     
     EdgesVertex vert;

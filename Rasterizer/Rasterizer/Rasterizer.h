@@ -7,6 +7,5 @@
 //
 
 #define kFatHeight 4
-#define kAccumulateStretch 1
 #define kSegmentsCount 4
 #define kSolidQuad 32767
