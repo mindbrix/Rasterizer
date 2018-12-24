@@ -109,7 +109,6 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
-    
     vert.x0 = segments[0].x0 + tx, vert.y0 = segments[0].y0 + ty;
     vert.x1 = segments[0].x1 + tx, vert.y1 = segments[0].y1 + ty;
     vert.x2 = segments[1].x0 + tx, vert.y2 = segments[1].y0 + ty;
@@ -118,24 +117,6 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     vert.x5 = segments[2].x1 + tx, vert.y5 = segments[2].y1 + ty;
     vert.x6 = segments[3].x0 + tx, vert.y6 = segments[3].y0 + ty;
     vert.x7 = segments[3].x1 + tx, vert.y7 = segments[3].y1 + ty;
-    
-    /*
-    vert.x8 = vert.y8 = vert.x9 = vert.y9 = 0.0;
-    vert.x10 = vert.y10 = vert.x11 = vert.y11 = 0.0;
-    vert.x12 = vert.y12 = vert.x13 = vert.y13 = 0.0;
-    vert.x14 = vert.y14 = vert.x15 = vert.y15 = 0.0;
-    
-    
-    
-    vert.x8 = segments[4].x0 + tx, vert.y8 = segments[4].y0 + ty;
-    vert.x9 = segments[4].x1 + tx, vert.y9 = segments[4].y1 + ty;
-    vert.x10 = segments[5].x0 + tx, vert.y10 = segments[5].y0 + ty;
-    vert.x11 = segments[5].x1 + tx, vert.y11 = segments[5].y1 + ty;
-    vert.x12 = segments[6].x0 + tx, vert.y12 = segments[6].y0 + ty;
-    vert.x13 = segments[6].x1 + tx, vert.y13 = segments[6].y1 + ty;
-    vert.x14 = segments[7].x0 + tx, vert.y14 = segments[7].y0 + ty;
-    vert.x15 = segments[7].x1 + tx, vert.y15 = segments[7].y1 + ty;
-    */
     return vert;
 }
 
@@ -146,12 +127,6 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
     winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
     winding += edgeWinding(vert.x6, vert.y6, vert.x7, vert.y7);
-    /*
-    winding += edgeWinding(vert.x8, vert.y8, vert.x9, vert.y9);
-    winding += edgeWinding(vert.x10, vert.y10, vert.x11, vert.y11);
-    winding += edgeWinding(vert.x12, vert.y12, vert.x13, vert.y13);
-    winding += edgeWinding(vert.x14, vert.y14, vert.x15, vert.y15);
-   */
     return float4(winding);
 }
 
