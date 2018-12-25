@@ -179,24 +179,19 @@ struct Rasterizer {
     struct GPU {
         struct Allocator {
             void init(size_t w, size_t h) {
-                width = w, height = h;
-                reset();
+                width = w, height = h, strip = sheet = Bounds(0.f, 0.f, 0.f, 0.f);
             }
             void alloc(float w, float& ox, float& oy) {
                 if (strip.ux - strip.lx < w) {
-                    if (strips.uy - strips.ly < Context::kfh)
-                        reset();
-                    strip = Bounds(strips.lx, strips.ly, strips.ux, strips.ly + Context::kfh);
-                    strips.ly = strip.uy;
+                    if (sheet.uy - sheet.ly < Context::kfh)
+                        sheet = Bounds(0.f, 0.f, width, height);
+                    strip = sheet;
+                    strip.uy = sheet.ly + Context::kfh, sheet.ly = strip.uy;
                 }
                 ox = strip.lx, strip.lx += w, oy = strip.ly;
             }
-            void reset() {
-                strips = Bounds(0.f, 0.f, width, height);
-                strip = Bounds(0.f, 0.f, 0.f, 0.f);
-            }
             size_t width, height;
-            Bounds strips, strip;
+            Bounds sheet, strip;
         };
         struct Index {
             Index() {}
