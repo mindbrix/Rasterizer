@@ -96,8 +96,18 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     device Quad& quad = edge.quad;
     device Segment *segments = edge.segments;
     
+    float sly = FLT_MAX, suy = -FLT_MAX;
+    for (int i = 0; i < 4; i++) {
+        device Segment& s = segments[i];
+        if (s.y0 != s.y1) {
+            sly = min(sly, min(s.y0, s.y1));
+            suy = max(suy, max(s.y0, s.y1));
+        }
+    }
+    sly = floor(sly), suy = ceil(suy);
+    
     float lx = quad.ox, ux = lx + quad.ux - quad.lx;
-    float ly = quad.oy, uy = ly + kFatHeight;
+    float ly = quad.oy + sly - quad.ly, uy = quad.oy + suy - quad.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float tx = -(quad.lx - quad.ox) - (dx - 0.5), ty = -(quad.ly - quad.oy) - (dy - 0.5);
