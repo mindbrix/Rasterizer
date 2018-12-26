@@ -6,6 +6,6 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#define kFatHeight 4
+#define kFatHeight 8
 #define kSegmentsCount 4
 #define kSolidQuad 32767
