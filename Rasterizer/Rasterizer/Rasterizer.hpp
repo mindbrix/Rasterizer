@@ -125,18 +125,21 @@ struct Rasterizer {
         size_t refCount;
     };
     struct Sequence {
-        Sequence() { path = new Path(); }
-        Sequence(const Sequence& other)         { assign(other); }
-        Sequence& operator= (Sequence other)    { assign(other); return *this; }
-        ~Sequence() { if (--(path->refCount) == 0) delete path; }
-        void assign(const Sequence& other) {
+        Sequence() {
+            path = new Path();
+        }
+        Sequence(const Sequence& other) {
             if (this != & other) {
                 this->~Sequence();
                 if ((path = other.path))
                     path->refCount++;
             }
         }
-        Path *path;
+        ~Sequence() {
+            if (path && --(path->refCount) == 0)
+                delete path;
+        }
+        Path *path = nullptr;
     };
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
