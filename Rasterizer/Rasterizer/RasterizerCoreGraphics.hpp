@@ -13,10 +13,10 @@
 
 struct RasterizerCoreGraphics {
     struct Scene {
-        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
+        void empty() { ctms.resize(0), sequences.resize(0), bgras.resize(0); }
         std::vector<uint32_t> bgras;
         std::vector<Rasterizer::AffineTransform> ctms;
-        std::vector<Rasterizer::Path> paths;
+        std::vector<Rasterizer::Sequence> sequences;
     };
     
     struct CGScene {
@@ -183,20 +183,21 @@ struct RasterizerCoreGraphics {
         for (int i = 0; i < cgscene.paths.size(); i++) {
             scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
             scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
-            scene.paths.emplace_back();
-            writeCGPathToPath(cgscene.paths[i], scene.paths.back());
+            scene.sequences.emplace_back();
+            writeCGPathToPath(cgscene.paths[i], *(scene.sequences.back().path));
         }
     }
     static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
-        for (int i = 0; i < scene.paths.size(); i++) {
-            cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
-            cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
-            cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].bounds));
-            CGMutablePathRef path = CGPathCreateMutable();
-            writePathToCGPath(scene.paths[i], path);
-            cgscene.paths.emplace_back(CGPathCreateCopy(path));
-            CGPathRelease(path);
-        }
+        for (int i = 0; i < scene.sequences.size(); i++)
+            if (scene.sequences[i].path) {
+                cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
+                cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
+                cgscene.bounds.emplace_back(CGRectFromBounds(scene.sequences[i].path->bounds));
+                CGMutablePathRef path = CGPathCreateMutable();
+                writePathToCGPath(*scene.sequences[i].path, path);
+                cgscene.paths.emplace_back(CGPathCreateCopy(path));
+                CGPathRelease(path);
+            }
     }
     
     struct CGTestScene {
@@ -261,14 +262,14 @@ struct RasterizerCoreGraphics {
                 }
             }
         } else {
-            Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(testScene.scene.paths.size() * sizeof(ctm));
-            size_t pathsCount = testScene.scene.paths.size();
+            size_t pathsCount = testScene.scene.sequences.size();
+            Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-            uint32_t *bgras = (uint32_t *)alloca(testScene.scene.paths.size() * sizeof(uint32_t));
+            uint32_t *bgras = (uint32_t *)alloca(pathsCount * sizeof(uint32_t));
             testScene.converter.set(srcSpace, dstSpace);
-            testScene.converter.convert(& testScene.scene.bgras[0], testScene.scene.paths.size(), bgras);
+            testScene.converter.convert(& testScene.scene.bgras[0], pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
             
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
@@ -288,9 +289,8 @@ struct RasterizerCoreGraphics {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, testScene.scene.paths.size());
+                    testScene.contexts[idx].drawPaths(& testScene.scene.sequences[0], ctms, false, bgras, pathsCount);
                 });
-                
                 if (buffer)
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, pathsCount, *buffer);
                 
@@ -301,8 +301,7 @@ struct RasterizerCoreGraphics {
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 
-                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, pathsCount);
-                
+                testScene.contexts[0].drawPaths(& testScene.scene.sequences[0], ctms, false, bgras, pathsCount);
                 if (buffer)
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], 1, bgras, pathsCount, *buffer);
             }

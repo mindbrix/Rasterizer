@@ -122,7 +122,7 @@
     if (_testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kCoreGraphics)
         return;
         
-    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
+    size_t square = ceilf(sqrtf(float(_testScene.scene.sequences.size())));
     float dimension = 24, phi = (sqrt(5) - 1) / 2;
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
     float scale = (w < h ? w : h) / float(square * dimension * phi);
@@ -142,7 +142,7 @@
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     CGRect clip = CGRectApplyAffineTransform(CGContextGetClipBoundingBox(ctx), CGContextGetCTM(ctx));
-    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
+    size_t square = ceilf(sqrtf(float(_testScene.scene.sequences.size())));
     CGContextConcatCTM(ctx, self.CTM);
     CGFloat dimension = 24, phi = (sqrt(5) - 1) / 2;
     CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * dimension * phi);
