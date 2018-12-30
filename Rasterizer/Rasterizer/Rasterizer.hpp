@@ -217,17 +217,11 @@ struct Rasterizer {
         };
         GPU() : edgeInstances(0) {}
         void empty() {
-            edgeInstances = 0, indices.empty(), paints.empty(), edgeIndices.empty(), quads.empty(), opaques.empty();
-        }
-        void writePaints(uint32_t *bgras, size_t count) {
-            Paint *dst = paints.alloc(count);
-            for (size_t idx = 0; idx < count; idx++)
-                new (dst++) Paint((uint8_t *)& bgras[idx]);
+            edgeInstances = 0, indices.empty(), edgeIndices.empty(), quads.empty(), opaques.empty();
         }
         size_t width, height, edgeInstances;
         Allocator allocator;
         Row<Segment::Index> indices;
-        Row<Paint> paints;
         Row<Index> edgeIndices;
         Row<Quad> quads, opaques;
     };
@@ -244,17 +238,19 @@ struct Rasterizer {
         GPU::Paint clearColor;
     };
     struct Context {
-        static void writeContextsToBuffer(Context *contexts, size_t count, Buffer& buffer) {
+        static void writeContextsToBuffer(Context *contexts, size_t count, uint32_t *bgras, size_t pathsCount, Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q;
-            size = contexts[0].gpu.paints.bytes();
+            size = pathsCount * sizeof(GPU::Paint);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             
             buffer.data.alloc(size);
             begin = end = 0;
             
-            end += contexts[0].gpu.paints.bytes();
-            memcpy(buffer.data.base + begin, contexts[0].gpu.paints.base, end - begin);
+            end += pathsCount * sizeof(GPU::Paint);
+            GPU::Paint *dst = (GPU::Paint *)(buffer.data.base + begin);
+            for (size_t idx = 0; idx < pathsCount; idx++)
+                new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
             begin = end;
             
@@ -331,9 +327,6 @@ struct Rasterizer {
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
             for (size_t iz = 0; iz < count; iz++)
                 drawPath(paths[iz], ctms[iz], even, (uint8_t *)& bgras[iz], iz);
-            
-            if (bitmap.width == 0)
-                gpu.writePaints(bgras, count);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz) {
             if (path.bounds.lx == FLT_MAX)
