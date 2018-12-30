@@ -122,7 +122,7 @@
     if (_testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kCoreGraphics)
         return;
         
-    size_t square = ceilf(sqrtf(float(_testScene.scene.sequences.size())));
+    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     float dimension = 24, phi = (sqrt(5) - 1) / 2;
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
     float scale = (w < h ? w : h) / float(square * dimension * phi);
@@ -130,7 +130,7 @@
     Rasterizer::AffineTransform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
     Rasterizer::AffineTransform ctm = contentsScale.concat(view).concat(Rasterizer::AffineTransform(scale, 0, 0, scale, 0, 0));
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
-    Rasterizer::Path clipPath;
+    Rasterizer::Sequence clipPath;
     clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
@@ -142,7 +142,7 @@
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     CGRect clip = CGRectApplyAffineTransform(CGContextGetClipBoundingBox(ctx), CGContextGetCTM(ctx));
-    size_t square = ceilf(sqrtf(float(_testScene.scene.sequences.size())));
+    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     CGContextConcatCTM(ctx, self.CTM);
     CGFloat dimension = 24, phi = (sqrt(5) - 1) / 2;
     CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * dimension * phi);
@@ -151,7 +151,7 @@
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
-    Rasterizer::Path clipPath;
+    Rasterizer::Sequence clipPath;
     clipPath.addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     RasterizerCoreGraphics::writeTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }

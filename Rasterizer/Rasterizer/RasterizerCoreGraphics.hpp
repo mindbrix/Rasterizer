@@ -13,10 +13,10 @@
 
 struct RasterizerCoreGraphics {
     struct Scene {
-        void empty() { ctms.resize(0), sequences.resize(0), bgras.resize(0); }
+        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
         std::vector<uint32_t> bgras;
         std::vector<Rasterizer::AffineTransform> ctms;
-        std::vector<Rasterizer::Sequence> sequences;
+        std::vector<Rasterizer::Path> paths;
     };
     
     struct CGScene {
@@ -105,7 +105,7 @@ struct RasterizerCoreGraphics {
     }
     
     struct CGPathApplier {
-        CGPathApplier(Rasterizer::Path& path) : p(& path) {}
+        CGPathApplier(Rasterizer::Sequence& path) : p(& path) {}
         void apply(const CGPathElement *element) {
             switch (element->type) {
                 case kCGPathElementMoveToPoint:
@@ -125,41 +125,41 @@ struct RasterizerCoreGraphics {
                     break;
             }
         }
-        Rasterizer::Path *p;
+        Rasterizer::Sequence *p;
     };
     static void CGPathApplierFunction(void *info, const CGPathElement *element) {
         ((CGPathApplier *)info)->apply(element);
     };
-    static void writeCGPathToPath(CGPathRef path, Rasterizer::Path &p) {
+    static void writeCGPathToPath(CGPathRef path, Rasterizer::Sequence &p) {
         CGPathApplier applier(p);
         CGPathApply(path, & applier, CGPathApplierFunction);
     }
     
-    static void writePathToCGPath(Rasterizer::Path &p, CGMutablePathRef path) {
+    static void writePathToCGPath(Rasterizer::Sequence &p, CGMutablePathRef path) {
         float *points;
-        for (Rasterizer::Path::Atom& atom : p.atoms) {
+        for (Rasterizer::Sequence::Atom& atom : p.atoms) {
             size_t index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
                 points = atom.points + index * 2;
                 switch (type) {
-                    case Rasterizer::Path::Atom::kMove:
+                    case Rasterizer::Sequence::Atom::kMove:
                         CGPathMoveToPoint(path, NULL, points[0], points[1]);
                         index++;
                         break;
-                    case Rasterizer::Path::Atom::kLine:
+                    case Rasterizer::Sequence::Atom::kLine:
                         CGPathAddLineToPoint(path, NULL, points[0], points[1]);
                         index++;
                         break;
-                    case Rasterizer::Path::Atom::kQuadratic:
+                    case Rasterizer::Sequence::Atom::kQuadratic:
                         CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[2], points[3]);
                         index += 2;
                         break;
-                    case Rasterizer::Path::Atom::kCubic:
+                    case Rasterizer::Sequence::Atom::kCubic:
                         CGPathAddCurveToPoint(path, NULL, points[0], points[1], points[2], points[3], points[4], points[5]);
                         index += 3;
                         break;
-                    case Rasterizer::Path::Atom::kClose:
+                    case Rasterizer::Sequence::Atom::kClose:
                         CGPathCloseSubpath(path);
                         index++;
                         break;
@@ -183,18 +183,18 @@ struct RasterizerCoreGraphics {
         for (int i = 0; i < cgscene.paths.size(); i++) {
             scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
             scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
-            scene.sequences.emplace_back();
-            writeCGPathToPath(cgscene.paths[i], *(scene.sequences.back().path));
+            scene.paths.emplace_back();
+            writeCGPathToPath(cgscene.paths[i], *(scene.paths.back().sequence));
         }
     }
     static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
-        for (int i = 0; i < scene.sequences.size(); i++)
-            if (scene.sequences[i].path) {
+        for (int i = 0; i < scene.paths.size(); i++)
+            if (scene.paths[i].sequence) {
                 cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
                 cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
-                cgscene.bounds.emplace_back(CGRectFromBounds(scene.sequences[i].path->bounds));
+                cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].sequence->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
-                writePathToCGPath(*scene.sequences[i].path, path);
+                writePathToCGPath(*scene.paths[i].sequence, path);
                 cgscene.paths.emplace_back(CGPathCreateCopy(path));
                 CGPathRelease(path);
             }
@@ -242,7 +242,7 @@ struct RasterizerCoreGraphics {
         writeCGSceneToScene(testScene.cgscene, testScene.scene);
     }
     
-    static void writeTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void writeTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Sequence *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -262,7 +262,7 @@ struct RasterizerCoreGraphics {
                 }
             }
         } else {
-            size_t pathsCount = testScene.scene.sequences.size();
+            size_t pathsCount = testScene.scene.paths.size();
             Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
@@ -289,7 +289,7 @@ struct RasterizerCoreGraphics {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    testScene.contexts[idx].drawPaths(& testScene.scene.sequences[0], ctms, false, bgras, pathsCount);
+                    testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, pathsCount);
                 });
                 if (buffer)
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, pathsCount, *buffer);
@@ -301,7 +301,7 @@ struct RasterizerCoreGraphics {
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 
-                testScene.contexts[0].drawPaths(& testScene.scene.sequences[0], ctms, false, bgras, pathsCount);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, pathsCount);
                 if (buffer)
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], 1, bgras, pathsCount, *buffer);
             }
