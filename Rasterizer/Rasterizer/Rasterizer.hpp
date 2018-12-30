@@ -54,7 +54,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Path() : index(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX) {}
+        Path() : index(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), refCount(1) {}
         
         float *alloc(Atom::Type type, size_t size) {
             if (index + size > Atom::kCapacity)
@@ -122,6 +122,21 @@ struct Rasterizer {
         size_t index;
         float px, py;
         Bounds bounds;
+        size_t refCount;
+    };
+    struct Sequence {
+        Sequence() { path = new Path(); }
+        Sequence(const Sequence& other)         { assign(other); }
+        Sequence& operator= (Sequence other)    { assign(other); return *this; }
+        ~Sequence() { if (--(path->refCount) == 0) delete path; }
+        void assign(const Sequence& other) {
+            if (this != & other) {
+                this->~Sequence();
+                if ((path = other.path))
+                    path->refCount++;
+            }
+        }
+        Path *path;
     };
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
