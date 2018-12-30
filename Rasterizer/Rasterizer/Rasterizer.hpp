@@ -342,15 +342,13 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
-        void drawPaths(Path *sequences, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
-            for (size_t iz = 0; iz < count; iz++)
-                if (sequences[iz].sequence)
-                    drawPath(*sequences[iz].sequence, ctms[iz], even, (uint8_t *)& bgras[iz], iz);
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
+            for (size_t iz = 0; iz < count; iz++, paths++)
+                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
+                    drawPath(*paths, ctms[iz], even, (uint8_t *)& bgras[iz], iz);
         }
-        void drawPath(Sequence& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz) {
-            if (path.bounds.lx == FLT_MAX)
-                return;
-            Bounds clipped = path.bounds.transform(ctm).integral().intersect(clip);
+        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz) {
+            Bounds clipped = path.sequence->bounds.transform(ctm).integral().intersect(clip);
             if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
                 if (bitmap.width) {
                     float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
@@ -375,13 +373,13 @@ struct Rasterizer {
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl);
         }
-        void intersectClip(Sequence& path, AffineTransform ctm, bool even) {
-            if (path.bounds.lx == FLT_MAX)
-                return;
-            clip = path.bounds.transform(ctm).integral().intersect(clip);
-            if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                writePath(path, ctm, clip, nullptr, 0, & segments[0]);
-                writeSegmentsToClip(& segments[0], clip, even, & deltas[0], clip.ux - clip.lx + 1.f, & clipcells[0], & clipcovers[0]);
+        void intersectClip(Path& path, AffineTransform ctm, bool even) {
+            if (path.sequence && path.sequence->bounds.lx != FLT_MAX) {
+                clip = path.sequence->bounds.transform(ctm).integral().intersect(clip);
+                if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                    writePath(path, ctm, clip, nullptr, 0, & segments[0]);
+                    writeSegmentsToClip(& segments[0], clip, even, & deltas[0], clip.ux - clip.lx + 1.f, & clipcells[0], & clipcovers[0]);
+                }
             }
         }
         Bitmap bitmap;
@@ -394,10 +392,10 @@ struct Rasterizer {
         std::vector<Row<float>> clipcovers;
     };
     
-    static void writePath(Sequence& path, AffineTransform ctm, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writePath(Path& path, AffineTransform ctm, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
-        for (Sequence::Atom& atom : path.atoms)
+        for (Sequence::Atom& atom : path.sequence->atoms)
             for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Sequence::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 float *p = atom.points + index * 2;
                 switch (type) {
