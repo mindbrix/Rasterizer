@@ -263,6 +263,7 @@ struct RasterizerCoreGraphics {
             }
         } else {
             size_t pathsCount = testScene.scene.paths.size();
+            size_t slice, ly, uy, count;
             Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
@@ -273,7 +274,6 @@ struct RasterizerCoreGraphics {
             CGColorSpaceRelease(srcSpace);
             
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
-                size_t slice, ly, uy, count;
                 slice = (bitmap.height + testScene.contexts.size() - 1) / testScene.contexts.size(), slice = slice < 64 ? 64 : slice;
                 for (count = ly = 0; ly < bitmap.height; ly = uy) {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
@@ -291,20 +291,17 @@ struct RasterizerCoreGraphics {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
                 });
-                if (buffer)
-                    Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, pathsCount, *buffer);
-                
             } else {
+                count = 1;
                 if (buffer)
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
                 testScene.contexts[0].intersectClip(clip);
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
-                
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
-                if (buffer)
-                    Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], 1, bgras, pathsCount, *buffer);
             }
+            if (buffer)
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, pathsCount, *buffer);
         }
     }
 };
