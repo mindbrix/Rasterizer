@@ -289,7 +289,7 @@ struct RasterizerCoreGraphics {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, pathsCount);
+                    testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
                 });
                 if (buffer)
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, pathsCount, *buffer);
@@ -301,7 +301,7 @@ struct RasterizerCoreGraphics {
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 
-                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, pathsCount);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
                 if (buffer)
                     Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], 1, bgras, pathsCount, *buffer);
             }

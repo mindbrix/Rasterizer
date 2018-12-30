@@ -342,8 +342,8 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t count) {
-            for (size_t iz = 0; iz < count; iz++, paths++)
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t begin, size_t end) {
+            for (size_t iz = begin; iz < end; iz++, paths++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
                     drawPath(*paths, ctms[iz], even, (uint8_t *)& bgras[iz], iz);
         }
