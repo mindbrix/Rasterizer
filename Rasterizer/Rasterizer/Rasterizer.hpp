@@ -271,31 +271,42 @@ struct Rasterizer {
                 new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
             begin = end;
-            
-            for (i = 0; i < count; i++) {
-                Context& context = contexts[i];
-                
-                end += context.gpu.opaques.bytes();
+			
+			Context *ctx = contexts;
+			
+//			size_t opaquesBegin = begin;
+//			for (i = 0; i < count; i++, ctx++) {
+//				end += ctx->gpu.opaques.bytes();
+//				if (begin != end) {
+//					memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
+//					begin = end;
+//				}
+//			}
+//			if (opaquesBegin != end)
+//				new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, opaquesBegin, end);
+			
+            for (i = 0; i < count; i++, ctx++) {
+                end += ctx->gpu.opaques.bytes();
                 if (begin != end) {
-                    memcpy(buffer.data.base + begin, context.gpu.opaques.base, end - begin);
+                    memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
                     new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
                     begin = end;
                 }
                 
-                GPU::Index *index = context.gpu.edgeIndices.base;
-                while (context.gpu.quads.idx != context.gpu.quads.end) {
-                    for (qend = context.gpu.quads.idx + 1; qend < context.gpu.quads.end; qend++)
-                        if (context.gpu.quads.base[qend].oy == 0 && context.gpu.quads.base[qend].ox == 0)
+                GPU::Index *index = ctx->gpu.edgeIndices.base;
+                while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
+                    for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
+                        if (ctx->gpu.quads.base[qend].oy == 0 && ctx->gpu.quads.base[qend].ox == 0)
                             break;
                     
-                    GPU::Quad *quad = context.gpu.quads.base + context.gpu.quads.idx;
+                    GPU::Quad *quad = ctx->gpu.quads.base + ctx->gpu.quads.idx;
                     GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
                     Segment *segments, *ds;   Segment::Index *is;
-                    for (q = context.gpu.quads.idx; q < qend; q++, quad++) {
+                    for (q = ctx->gpu.quads.idx; q < qend; q++, quad++) {
                         if (quad->ox != kSolidQuad) {
                             end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
-                            segments = context.segments[index->iy].base + index->idx;
-                            is = context.gpu.indices.base + index->begin;
+                            segments = ctx->segments[index->iy].base + index->idx;
+                            is = ctx->gpu.indices.base + index->begin;
                             for (j = index->begin; j < index->end; j += kSegmentsCount, dst++) {
                                 dst->quad = *quad;
                                 for (ds = dst->segments, k = j, kend = j + kSegmentsCount; k < index->end && k < kend; k++, is++)
@@ -310,16 +321,16 @@ struct Rasterizer {
                         new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kEdges, begin, end);
                         begin = end;
                     }
-                    end += (qend - context.gpu.quads.idx) * sizeof(GPU::Quad);
-                    memcpy(buffer.data.base + begin, context.gpu.quads.base + context.gpu.quads.idx, end - begin);
+                    end += (qend - ctx->gpu.quads.idx) * sizeof(GPU::Quad);
+                    memcpy(buffer.data.base + begin, ctx->gpu.quads.base + ctx->gpu.quads.idx, end - begin);
                     new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
                     begin = end;
                     
-                    context.gpu.quads.idx = qend;
+                    ctx->gpu.quads.idx = qend;
                 }
-                context.gpu.empty();
-                for (j = 0; j < context.segments.size(); j++)
-                    context.segments[j].empty();
+                ctx->gpu.empty();
+                for (j = 0; j < ctx->segments.size(); j++)
+                    ctx->segments[j].empty();
             }
         }
         Context() {}
