@@ -272,27 +272,19 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
             begin = end;
 			
-			Context *ctx = contexts;
+			Context *ctx;
+			size_t opaquesBegin = begin;
+			for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+				end += ctx->gpu.opaques.bytes();
+				if (begin != end) {
+					memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
+					begin = end;
+				}
+			}
+			if (opaquesBegin != end)
+				new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, opaquesBegin, end);
 			
-//			size_t opaquesBegin = begin;
-//			for (i = 0; i < count; i++, ctx++) {
-//				end += ctx->gpu.opaques.bytes();
-//				if (begin != end) {
-//					memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
-//					begin = end;
-//				}
-//			}
-//			if (opaquesBegin != end)
-//				new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, opaquesBegin, end);
-			
-            for (i = 0; i < count; i++, ctx++) {
-                end += ctx->gpu.opaques.bytes();
-                if (begin != end) {
-                    memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
-                    new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
-                    begin = end;
-                }
-                
+            for (ctx = contexts, i = 0; i < count; i++, ctx++) {
                 GPU::Index *index = ctx->gpu.edgeIndices.base;
                 while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                     for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
@@ -354,6 +346,7 @@ struct Rasterizer {
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t begin, size_t end) {
+			paths += begin;
             for (size_t iz = begin; iz < end; iz++, paths++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
                     drawPath(*paths, ctms[iz], even, (uint8_t *)& bgras[iz], iz);
