@@ -627,18 +627,32 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1, t2 = t2 < 0.f ? 0.f : t2 > 1.f ? 1.f : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, cly, uy, cuy;
+        float ly, cly, uy, cuy, lx, ux;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3, cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3, cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
         if (cly != cuy) {
             float A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
             float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
+			lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
+			ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             B = 3.f * (y1 - y0), A = 3.f * (y2 - y1) - B, D = y3 - y0 - B - A, C = y0;
-            solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
-            solveCubic(A, B, C - clip.uy, D, ts[3], ts[4], ts[5]);
+			if (clip.ly >= ly && clip.ly < uy)
+            	solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
+			else
+				ts[0] = 0.f, ts[1] = 0.f, ts[2] = 1.f;
+			if (clip.uy >= ly && clip.uy < uy)
+            	solveCubic(A, B, C - clip.uy, D, ts[3], ts[4], ts[5]);
+			else
+				ts[3] = 0.f, ts[4] = 0.f, ts[5] = 1.f;
             B = 3.f * (x1 - x0), A = 3.f * (x2 - x1) - B, D = x3 - x0 - B - A, C = x0;
-            solveCubic(A, B, C - clip.lx, D, ts[6], ts[7], ts[8]);
-            solveCubic(A, B, C - clip.ux, D, ts[9], ts[10], ts[11]);
+			if (clip.lx >= lx && clip.lx < ux)
+				solveCubic(A, B, C - clip.lx, D, ts[6], ts[7], ts[8]);
+			else
+				ts[6] = 0.f, ts[7] = 0.f, ts[8] = 1.f;
+			if (clip.ux >= lx && clip.ux < ux)
+            	solveCubic(A, B, C - clip.ux, D, ts[9], ts[10], ts[11]);
+			else
+				ts[9] = 0.f, ts[10] = 0.f, ts[11] = 1.f;
             std::sort(& ts[0], & ts[12]);
             for (int i = 0; i < 11; i++)
                 if (ts[i] != ts[i + 1]) {
