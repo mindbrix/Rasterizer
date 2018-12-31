@@ -23,7 +23,8 @@
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadsPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
-@property (nonatomic) id <MTLDepthStencilState> depthState;
+@property (nonatomic) id <MTLDepthStencilState> quadsDepthState;
+@property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
 @property (nonatomic) id <MTLTexture> depthTexture;
 @property (nonatomic) id <MTLTexture> accumulationTexture;
 
@@ -51,12 +52,13 @@
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
     depthStencilDescriptor.depthWriteEnabled = YES;
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreaterEqual;
-    self.depthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-    
+    self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+	depthStencilDescriptor.depthWriteEnabled = NO;
+    self.quadsDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+	
     MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
     descriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
     descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
-    
     descriptor.colorAttachments[0].blendingEnabled = NO;
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"opaques_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"opaques_fragment_main"];
@@ -156,8 +158,6 @@
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-    [commandEncoder setDepthStencilState:_depthState];
-    
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
@@ -168,6 +168,7 @@
         size_t size = entry.end - entry.begin;
         switch (entry.type) {
             case Rasterizer::Buffer::Entry::kOpaques:
+				[commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
@@ -197,9 +198,9 @@
                                   baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                [commandEncoder setDepthStencilState:_depthState];
                 break;
             case Rasterizer::Buffer::Entry::kQuads:
+				[commandEncoder setDepthStencilState:_quadsDepthState];
                 [commandEncoder setRenderPipelineState:_quadsPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:0 atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
