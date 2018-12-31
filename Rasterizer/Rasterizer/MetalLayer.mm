@@ -41,9 +41,7 @@
     self.device = MTLCreateSystemDefaultDevice();
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
-    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-    self.colorspace = rgb;
-    CGColorSpaceRelease(rgb);
+    self.colorspace = nil;
     
     self.commandQueue = [self.device newCommandQueue];
     self.defaultLibrary = [self.device newDefaultLibrary];
