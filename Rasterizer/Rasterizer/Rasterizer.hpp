@@ -832,7 +832,6 @@ struct Rasterizer {
                         new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, segments->idx, indices.idx, indices.end);
                         gpu->edgeInstances += (indices.end - indices.idx + kSegmentsCount - 1) / kSegmentsCount;
                     }
-                    indices.idx = indices.end;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                         new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
@@ -879,9 +878,8 @@ struct Rasterizer {
                         new (gpu->edgeIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
                         gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                     }
-                    
-                    indices.idx = indices.end;
                 }
+				indices.idx = indices.end;
                 segments->idx = segments->end;
             }
         }
