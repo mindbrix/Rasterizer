@@ -73,6 +73,10 @@ struct RasterizerCoreGraphics {
         vImage_CGImageFormat srcFormat, dstFormat;
     };
     
+    static CGColorSpaceRef createSrcColorSpace() {
+        return CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    }
+    
     static uint32_t bgraFromCGColor(CGColorRef color) {
         uint32_t bgra = 0;
         uint8_t *dst = (uint8_t *) &bgra;
@@ -84,7 +88,7 @@ struct RasterizerCoreGraphics {
         return bgra;
     }
     static CGColorRef createCGColorFromBGRA(uint32_t bgra) {
-        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+        CGColorSpaceRef srcSpace = createSrcColorSpace();
         uint8_t *src = (uint8_t *)& bgra;
         CGFloat components[4] = { CGFloat(src[2]) / 255, CGFloat(src[1]) / 255, CGFloat(src[0]) / 255, CGFloat(src[3]) / 255 };
         CGColorRef color = CGColorCreate(srcSpace, components);
@@ -267,7 +271,7 @@ struct RasterizerCoreGraphics {
             Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
-            CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            CGColorSpaceRef srcSpace = createSrcColorSpace();
             uint32_t *bgras = (uint32_t *)alloca(pathsCount * sizeof(uint32_t));
             testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert(& testScene.scene.bgras[0], pathsCount, bgras);
