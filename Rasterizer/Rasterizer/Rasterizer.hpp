@@ -492,15 +492,16 @@ struct Rasterizer {
                 if (iy0 == iy1)
                     new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
-                    float ly, fly, uy, fuy, dxdy, fy0, fy1, cy0, cy1, sy0, sx0, sy1, sx1;
+                    float ly, fly, uy, fuy, dx, dy, fy0, fy1, t, sy0, sx0, sy1, sx1;
                     ly = y0 < y1 ? y0 : y1, fly = floorf(ly * Context::krfh) * Context::kfh;
                     uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * Context::krfh) * Context::kfh;
-                    dxdy = (x1 - x0) / (y1 - y0);
+                    dx = x1 - x0, dy = y1 - y0;
                     for (segments += size_t(ly * Context::krfh), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
                         fy1 = fy0 + Context::kfh;
-                        cy0 = fy0 + 1e-4f, cy1 = fy1 - 1e-4f;
-                        sy0 = y0 < cy0 ? cy0 : y0 > cy1 ? cy1 : y0, sx0 = (sy0 - y0) * dxdy + x0;
-                        sy1 = y1 < cy0 ? cy0 : y1 > cy1 ? cy1 : y1, sx1 = (sy1 - y0) * dxdy + x0;
+                        sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0;
+                        t = (sy0 - y0) / dy, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, sx0 = t * dx + x0;
+                        sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1;
+                        t = (sy1 - y0) / dy, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, sx1 = t * dx + x0;
                         new (segments->alloc(1)) Segment(sx0, sy0, sx1, sy1);
                     }
                 }
