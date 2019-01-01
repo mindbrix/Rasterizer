@@ -645,25 +645,20 @@ struct Rasterizer {
 			lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
 			ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             B = 3.f * (y1 - y0), A = 3.f * (y2 - y1) - B, D = y3 - y0 - B - A, C = y0;
-			if (clip.ly >= ly && clip.ly < uy)
-            	solveCubic(A, B, C - clip.ly, D, ts[0], ts[1], ts[2]);
-			else
-				ts[0] = 0.f, ts[1] = 0.f, ts[2] = 1.f;
-			if (clip.uy >= ly && clip.uy < uy)
-            	solveCubic(A, B, C - clip.uy, D, ts[3], ts[4], ts[5]);
-			else
-				ts[3] = 0.f, ts[4] = 0.f, ts[5] = 1.f;
+            int end = 0;
+            if (clip.ly >= ly && clip.ly < uy)
+                solveCubic(A, B, C - clip.ly, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
+            if (clip.uy >= ly && clip.uy < uy)
+                solveCubic(A, B, C - clip.uy, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
             B = 3.f * (x1 - x0), A = 3.f * (x2 - x1) - B, D = x3 - x0 - B - A, C = x0;
-			if (clip.lx >= lx && clip.lx < ux)
-				solveCubic(A, B, C - clip.lx, D, ts[6], ts[7], ts[8]);
-			else
-				ts[6] = 0.f, ts[7] = 0.f, ts[8] = 1.f;
-			if (clip.ux >= lx && clip.ux < ux)
-            	solveCubic(A, B, C - clip.ux, D, ts[9], ts[10], ts[11]);
-			else
-				ts[9] = 0.f, ts[10] = 0.f, ts[11] = 1.f;
-            std::sort(& ts[0], & ts[12]);
-            for (int i = 0; i < 11; i++)
+            if (clip.lx >= lx && clip.lx < ux)
+                solveCubic(A, B, C - clip.lx, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
+            if (clip.ux >= lx && clip.ux < ux)
+                solveCubic(A, B, C - clip.ux, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
+            if (end < 12)
+                ts[end] = 0.f, ts[end + 1] = 1.f, end += 2;
+            std::sort(& ts[0], & ts[end]);
+            for (int i = 0; i < end - 1; i++)
                 if (ts[i] != ts[i + 1]) {
                     t = (ts[i] + ts[i + 1]) * 0.5f, s = 1.f - t;
                     w0 = s * s * s, w1 = 3.f * s * s * t, w2 = 3.f * s * t * t, w3 = t * t * t;
