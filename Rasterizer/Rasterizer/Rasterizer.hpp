@@ -554,25 +554,20 @@ struct Rasterizer {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
             A = y0 + y2 - y1 - y1, B = 2.f * (y1 - y0), C = y0;
+            int end = 0;
             if (clip.ly >= ly && clip.ly < uy)
-                solveQuadratic(A, B, C - clip.ly, ts[0], ts[1]);
-            else
-                ts[0] = 0.f, ts[1] = 1.f;
+                solveQuadratic(A, B, C - clip.ly, ts[end], ts[end + 1]), end += 2;
             if (clip.uy >= ly && clip.uy < uy)
-                solveQuadratic(A, B, C - clip.uy, ts[2], ts[3]);
-            else
-                ts[2] = 0.f, ts[3] = 1.f;
+                solveQuadratic(A, B, C - clip.uy, ts[end], ts[end + 1]), end += 2;
             A = x0 + x2 - x1 - x1, B = 2.f * (x1 - x0), C = x0;
             if (clip.lx >= lx && clip.lx < ux)
-                solveQuadratic(A, B, C - clip.lx, ts[4], ts[5]);
-            else
-                ts[4] = 0.f, ts[5] = 1.f;
+                solveQuadratic(A, B, C - clip.lx, ts[end], ts[end + 1]), end += 2;
             if (clip.ux >= lx && clip.ux < ux)
-                solveQuadratic(A, B, C - clip.ux, ts[6], ts[7]);
-            else
-                ts[6] = 0.f, ts[7] = 1.f;
-            std::sort(& ts[0], & ts[8]);
-            for (int i = 0; i < 7; i++)
+                solveQuadratic(A, B, C - clip.ux, ts[end], ts[end + 1]), end += 2;
+            if (end < 8)
+                ts[end] = 0.f, ts[end + 1] = 1.f, end += 2;
+            std::sort(& ts[0], & ts[end]);
+            for (int i = 0; i < end - 1; i++)
                 if (ts[i] != ts[i + 1]) {
                     t = (ts[i] + ts[i + 1]) * 0.5f, s = 1.f - t;
                     y = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
