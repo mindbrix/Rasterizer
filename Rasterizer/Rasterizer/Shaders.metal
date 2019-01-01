@@ -105,8 +105,7 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
             suy = max(suy, max(s.y0, s.y1));
         }
     }
-    slx = floor(slx), sly = floor(sly), suy = ceil(suy);
-    
+    slx = max(floor(slx), float(quad.lx)), sly = floor(sly), suy = ceil(suy);
     float lx = quad.ox + slx - quad.lx, ux = quad.ox + quad.ux - quad.lx;
     float ly = quad.oy + sly - quad.ly, uy = quad.oy + suy - quad.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
