@@ -97,7 +97,7 @@ vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device 
     device Segment *segments = edge.segments;
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < kSegmentsCount; i++) {
         device Segment& s = segments[i];
         if (s.y0 != s.y1) {
             slx = min(slx, min(s.x0, s.x1));
