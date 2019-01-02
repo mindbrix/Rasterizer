@@ -488,15 +488,17 @@ struct Rasterizer {
     static void writeLine(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
         if (y0 != y1) {
             if (segments) {
-                float iy0 = floorf(y0 * Context::krfh), iy1 = floorf(y1 * Context::krfh);
-                if (iy0 == iy1)
+                float iy0 = y0 * Context::krfh, iy1 = y1 * Context::krfh;
+                if (floorf(iy0) == floorf(iy1))
                     new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
-                    float ly, fly, uy, fuy, dx, dy, fy0, fy1, sy0, sy1, t0, t1;
-                    ly = y0 < y1 ? y0 : y1, fly = floorf(ly * Context::krfh) * Context::kfh;
-                    uy = y0 > y1 ? y0 : y1, fuy = ceilf(uy * Context::krfh) * Context::kfh;
+                    float ily, fly, fuy, dx, dy, fy0, fy1, sy0, sy1, t0, t1;
+                    if (y0 < y1)
+                        ily = floorf(iy0), fly = ily * Context::kfh, fuy = ceilf(iy1) * Context::kfh;
+                    else
+                        ily = floorf(iy1), fly = ily * Context::kfh, fuy = ceilf(iy0) * Context::kfh;
                     dx = x1 - x0, dy = y1 - y0;
-                    for (segments += size_t(ly * Context::krfh), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
+                    for (segments += size_t(ily), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
                         fy1 = fy0 + Context::kfh;
                         sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0;
                         sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1;
