@@ -839,12 +839,8 @@ struct Rasterizer {
             count = segments->end - segments->idx;
             if (count) {
                 if (clip.ux - clip.lx < 16.f) {
-                    for (lx = FLT_MAX, ux = -FLT_MAX, segment = segments->base + segments->idx, i = segments->idx; i < segments->end; i++, segment++) {
-                        lx = segment->x0 < lx ? segment->x0 : lx, lx = segment->x1 < lx ? segment->x1 : lx;
-                        ux = segment->x0 > ux ? segment->x0 : ux, ux = segment->x1 > ux ? segment->x1 : ux;
-                    }
-                    lx = floorf(lx), qlx = lx < clx ? clx : lx > cux ? cux : lx;
-                    ux = ceilf(ux), qux = ux < clx ? clx : ux > cux ? cux : ux;
+                    qlx = clip.lx < clx ? clx : clip.lx > cux ? cux : clip.lx;
+                    qux = clip.ux < clx ? clx : clip.ux > cux ? cux : clip.ux;
                     if (qlx != qux) {
                         for (index = indices.alloc(count), i = 0; i < count; i++, index++)
                             new (index) Segment::Index(0.f, i);
