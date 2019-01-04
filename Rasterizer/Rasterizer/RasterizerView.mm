@@ -85,14 +85,14 @@
 	CFRelease(fontRef);
 	NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
 	CFRelease(url);
-	const char *utf8 = fontName.UTF8String;
 	_testScene.scene.empty();
     _testScene.cgscene.empty();
 	RasterizerText::Font font;
 	float size = 32;
 	uint8_t bgra[4] = { 0, 0, 0, 255 };
-	if (font.init(data.bytes, utf8) != 0) {
-        RasterizerText::writeGlyphs(font, size, bgra, "Hello, world!", _testScene.scene);
+    const char *label = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789";
+	if (font.init(data.bytes, fontName.UTF8String) != 0) {
+        RasterizerText::writeGlyphs(font, size, bgra, label, _testScene.scene);
 //        RasterizerText::writeGlyphGrid(font, size, bgra, _testScene.scene);
 		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 	}

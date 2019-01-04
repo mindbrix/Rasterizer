@@ -36,8 +36,8 @@ struct RasterizerText {
         stbtt_fontinfo info;
     };
 	
-	static void writeGlyphs(Font& font, float size, uint8_t *bgra, char *str, RasterizerCoreGraphics::Scene& scene) {
-		int flx, fly, fux, fuy, fw, fh, fdim, d = 64;
+	static void writeGlyphs(Font& font, float size, uint8_t *bgra, const char *str, RasterizerCoreGraphics::Scene& scene) {
+		int flx, fly, fux, fuy, fw, fh, fdim, d = 16;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
 		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
 		float s = size / float(fdim);
