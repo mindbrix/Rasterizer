@@ -36,7 +36,7 @@ struct RasterizerText {
 			scene.bgras.emplace_back(*((uint32_t *)bgra));
 			scene.paths.emplace_back();
 			writeGlyphPath(font, glyph, scene.paths.back());
-			scene.ctms.emplace_back(s, 0, 0, s, s * float(glyph % d * fdim), s * float(glyph / d * fdim));
+			scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, s * float(glyph % d * fdim), s * float(glyph / d * fdim));
 		}
 	}
     static void writeGlyphGrid(const void *bytes, RasterizerCoreGraphics::Scene& scene) {
