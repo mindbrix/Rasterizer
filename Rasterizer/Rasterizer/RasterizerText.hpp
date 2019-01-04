@@ -14,8 +14,16 @@
 struct RasterizerText {
     struct Font {
         Font() { bzero(& info, sizeof(info)); }
-        int init(const void *bytes) {
+        int init(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
+			int index = stbtt_FindMatchingFont(ttf_buffer, name, STBTT_MACSTYLE_DONTCARE);
+			int numfonts = stbtt_GetNumberOfFonts(ttf_buffer);
+			int length;
+			const char *n;
+			for (int i = 0; i < numfonts; i++) {
+				stbtt_InitFont(& info, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, i));
+				n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 0);
+			}
             int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, 0);
             if (offset == -1)
                 return 0;
@@ -24,6 +32,26 @@ struct RasterizerText {
         stbtt_fontinfo info;
     };
 	
+	static void writeGlyphs(Font& font, char *str, RasterizerCoreGraphics::Scene& scene) {
+		uint8_t bgra[4] = { 0, 0, 0, 255 };
+		int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d = 64;
+		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
+		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
+		float s = float(fsize) / float(fdim);
+		size_t len = strlen(str), i;
+		for (i = 0; i < len; i++) {
+			char c = str[i];
+			int glyph = stbtt_FindGlyphIndex(& font.info, c);
+			if (glyph != -1) {
+				if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
+					scene.bgras.emplace_back(*((uint32_t *)bgra));
+					scene.paths.emplace_back();
+					writeGlyphPath(font, glyph, scene.paths.back());
+					scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, s * float(i % d * fdim), s * float(i / d * fdim));
+				}
+			}
+		}
+	}
 	static void writeGlyphGrid(Font& font, RasterizerCoreGraphics::Scene& scene) {
 		uint8_t bgra[4] = { 0, 0, 0, 255 };
 		int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d;
@@ -32,18 +60,13 @@ struct RasterizerText {
 		d = ceilf(sqrtf((float)font.info.numGlyphs));
 		float s = float(fsize) / float(fdim);
 		for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
-		if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-			scene.bgras.emplace_back(*((uint32_t *)bgra));
-			scene.paths.emplace_back();
-			writeGlyphPath(font, glyph, scene.paths.back());
-			scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, s * float(glyph % d * fdim), s * float(glyph / d * fdim));
-		}
+			if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
+				scene.bgras.emplace_back(*((uint32_t *)bgra));
+				scene.paths.emplace_back();
+				writeGlyphPath(font, glyph, scene.paths.back());
+				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, s * float(glyph % d * fdim), s * float(glyph / d * fdim));
+			}
 	}
-    static void writeGlyphGrid(const void *bytes, RasterizerCoreGraphics::Scene& scene) {
-        RasterizerText::Font font;
-        if (font.init(bytes) != 0)
-			writeGlyphGrid(font, scene);
-    }
     
     static void writeGlyphPath(Font& font, int glyph, Rasterizer::Path& path) {
         stbtt_vertex *vertices, *vertex;

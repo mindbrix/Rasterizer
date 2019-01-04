@@ -86,10 +86,14 @@
 	CFRelease(fontRef);
 	NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
 	CFRelease(url);
-	
-    _testScene.scene.empty();
-    RasterizerText::writeGlyphGrid(data.bytes, _testScene.scene);
-    RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
+	const char *utf8 = fontName.UTF8String;
+	_testScene.scene.empty();
+	RasterizerText::Font font;
+	if (font.init(data.bytes, utf8) != 0) {
+//		RasterizerText::writeGlyphs(font, "Hello, world!", _testScene.scene);
+		RasterizerText::writeGlyphGrid(font, _testScene.scene);
+		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
+	}
 }
 
 #pragma mark - NSResponder
