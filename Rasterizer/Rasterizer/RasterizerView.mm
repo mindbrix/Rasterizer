@@ -32,7 +32,7 @@
         return nil;
     
     [self initLayer:_useMetal];
-    [self writeGlyphGrid:@"AppleSymbols"];
+    [self writeGlyphGrid:@"AppleSymbols" fontSize:36];
     return self;
 }
 
@@ -43,7 +43,7 @@
 
 - (void)changeFont:(id)sender {
     NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
-    [self writeGlyphGrid:newFont.fontName];
+    [self writeGlyphGrid:newFont.fontName fontSize:newFont.pointSize];
     [self redraw];
 }
 
@@ -79,7 +79,7 @@
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
-- (void)writeGlyphGrid:(NSString *)fontName {
+- (void)writeGlyphGrid:(NSString *)fontName fontSize:(CGFloat)fontSize {
 	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
 	CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
 	CFRelease(fontRef);
@@ -88,12 +88,11 @@
 	_testScene.scene.empty();
     _testScene.cgscene.empty();
 	RasterizerText::Font font;
-	float size = 32;
 	uint8_t bgra[4] = { 0, 0, 0, 255 };
     const char *label = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789";
 	if (font.init(data.bytes, fontName.UTF8String) != 0) {
-        RasterizerText::writeGlyphs(font, size, bgra, label, _testScene.scene);
-//        RasterizerText::writeGlyphGrid(font, size, bgra, _testScene.scene);
+        RasterizerText::writeGlyphs(font, float(fontSize), bgra, label, _testScene.scene);
+//        RasterizerText::writeGlyphGrid(font, float(fontSize), bgra, _testScene.scene);
 		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 	}
 }
