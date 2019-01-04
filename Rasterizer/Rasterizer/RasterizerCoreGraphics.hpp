@@ -219,6 +219,12 @@ struct RasterizerCoreGraphics {
     };
     
     static void writeGlyphGrid(NSString *fontName, CGTestScene& testScene) {
+        CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
+        CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
+        CFRelease(fontRef);
+        NSString *fontPath = [(__bridge NSURL *)url path];
+        CFRelease(url);
+        
         testScene.scene.empty();
         testScene.cgscene.empty();
         CGColorRef black = CGColorGetConstantColor(kCGColorBlack);
