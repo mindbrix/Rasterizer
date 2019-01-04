@@ -9,6 +9,7 @@
 #import "RasterizerView.h"
 #import "RasterizerCoreGraphics.hpp"
 #import "RasterizerSVG.hpp"
+#import "RasterizerText.hpp"
 #import "MetalLayer.h"
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
