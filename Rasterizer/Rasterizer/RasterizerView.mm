@@ -89,7 +89,7 @@
     _testScene.cgscene.empty();
 	RasterizerText::Font font;
 	uint8_t bgra[4] = { 0, 0, 0, 255 };
-    const char *label = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 !@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
+    const char *label = "Hello, world!\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz 0123456789\n!@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
 	if (font.init(data.bytes, fontName.UTF8String) != 0) {
         RasterizerText::writeGlyphs(font, float(fontSize), bgra, label, _testScene.scene);
 //        RasterizerText::writeGlyphGrid(font, float(fontSize), bgra, _testScene.scene);

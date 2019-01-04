@@ -39,9 +39,10 @@ struct RasterizerText {
 	static void writeGlyphs(Font& font, float size, uint8_t *bgra, const char *str, RasterizerCoreGraphics::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return;
-		size_t len = strlen(str), i, lines = 1;
+        char nl = '\n';
+        size_t len = strlen(str), i, lines = 1;
         for (i = 0; i < len; i++)
-            if (str[i] == ' ')
+            if (str[i] == nl)
                 lines++;
         int flx, fly, fux, fuy, fw, fh, fdim;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
@@ -49,18 +50,20 @@ struct RasterizerText {
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s = size / float(fdim), height = ascent - descent + lineGap, x = 0, y = (lines - 1) * height;
-		for (i = 0; i < len; i++) {
+        for (i = 0; i < len; i++) {
 			char c = str[i];
-            if (c == ' ')
+            if (c == nl)
                 x = 0, y -= height;
-			int glyph = stbtt_FindGlyphIndex(& font.info, c);
-			if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-                scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
-                stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-                x += advanceWidth;
-                scene.bgras.emplace_back(*((uint32_t *)bgra));
-				scene.paths.emplace_back(font.glyphPath(glyph));
-			}
+            else {
+                int glyph = stbtt_FindGlyphIndex(& font.info, c);
+                if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
+                    stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
+                    scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
+                    x += advanceWidth;// - leftSideBearing;
+                    scene.bgras.emplace_back(*((uint32_t *)bgra));
+                    scene.paths.emplace_back(font.glyphPath(glyph));
+                }
+            }
 		}
 	}
 	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
