@@ -24,16 +24,11 @@ struct RasterizerText {
         stbtt_fontinfo info;
     };
     
-    static void writeGlyphGrid(NSString *fontName, RasterizerCoreGraphics::Scene& scene) {
-        CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
-        CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
-        CFRelease(fontRef);
-        NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
-        CFRelease(url);
+    static void writeGlyphGrid(const void *bytes, RasterizerCoreGraphics::Scene& scene) {
         uint8_t bgra[4] = { 0, 0, 0, 255 };
         int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d, ix, iy;
         RasterizerText::Font font;
-        if (font.init(data.bytes) != 0) {
+        if (font.init(bytes) != 0) {
             stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
             fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
             d = ceilf(sqrtf((float)font.info.numGlyphs));

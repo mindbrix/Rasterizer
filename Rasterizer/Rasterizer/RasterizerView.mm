@@ -81,8 +81,14 @@
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
+	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
+	CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
+	CFRelease(fontRef);
+	NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
+	CFRelease(url);
+	
     _testScene.scene.empty();
-    RasterizerText::writeGlyphGrid(fontName, _testScene.scene);
+    RasterizerText::writeGlyphGrid(data.bytes, _testScene.scene);
     RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 }
 
