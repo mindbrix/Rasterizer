@@ -15,6 +15,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
+@property(nonatomic) RasterizerCoreGraphics::Scene textScene;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useMetal;
 
@@ -81,6 +82,7 @@
 
 - (void)writeGlyphGrid:(NSString *)fontName {
     RasterizerCoreGraphics::writeGlyphGrid(fontName, _testScene);
+    RasterizerText::writeGlyphGrid(fontName, _textScene);
 }
 
 #pragma mark - NSResponder
