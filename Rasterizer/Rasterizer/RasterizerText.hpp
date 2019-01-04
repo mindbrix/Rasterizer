@@ -37,23 +37,27 @@ struct RasterizerText {
     };
 	
 	static void writeGlyphs(Font& font, float size, uint8_t *bgra, const char *str, RasterizerCoreGraphics::Scene& scene) {
-		int flx, fly, fux, fuy, fw, fh, fdim, d = 16;
-        size_t len = strlen(str), i;
+        if (font.info.numGlyphs == 0)
+            return;
+		int flx, fly, fux, fuy, fw, fh, fdim;
+        size_t len = strlen(str), i, lines = 1;
+        for (i = 0; i < len; i++)
+            if (str[i] == ' ')
+                lines++;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
-        float s = size / float(fdim), height = ascent - descent + lineGap, x = 0, y = ((len + d - 1) / d - 1) * height;
+        float s = size / float(fdim), height = ascent - descent + lineGap, x = 0, y = (lines - 1) * height;
 		for (i = 0; i < len; i++) {
 			char c = str[i];
+            if (c == ' ')
+                x = 0, y -= height;
 			int glyph = stbtt_FindGlyphIndex(& font.info, c);
 			if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
                 scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
                 stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-                if (i % d == d - 1)
-                    x = 0, y -= height;
-                else
-                    x += advanceWidth;
+                x += advanceWidth;
                 scene.bgras.emplace_back(*((uint32_t *)bgra));
 				scene.paths.emplace_back(font.glyphPath(glyph));
 			}
