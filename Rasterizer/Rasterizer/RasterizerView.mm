@@ -44,7 +44,6 @@
 - (void)changeFont:(id)sender {
     NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
     [self writeGlyphGrid:newFont.fontName];
-    self.CTM = CGAffineTransformIdentity;
     [self redraw];
 }
 
