@@ -89,9 +89,11 @@
 	const char *utf8 = fontName.UTF8String;
 	_testScene.scene.empty();
 	RasterizerText::Font font;
+	float size = 32;
+	uint8_t bgra[4] = { 0, 0, 0, 255 };
 	if (font.init(data.bytes, utf8) != 0) {
-//		RasterizerText::writeGlyphs(font, "Hello, world!", _testScene.scene);
-		RasterizerText::writeGlyphGrid(font, _testScene.scene);
+		RasterizerText::writeGlyphs(font, size, bgra, "Hello, world!", _testScene.scene);
+//		RasterizerText::writeGlyphGrid(font, size, bgra, _testScene.scene);
 		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 	}
 }

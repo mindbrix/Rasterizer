@@ -32,12 +32,11 @@ struct RasterizerText {
         stbtt_fontinfo info;
     };
 	
-	static void writeGlyphs(Font& font, char *str, RasterizerCoreGraphics::Scene& scene) {
-		uint8_t bgra[4] = { 0, 0, 0, 255 };
-		int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d = 64;
+	static void writeGlyphs(Font& font, float size, uint8_t *bgra, char *str, RasterizerCoreGraphics::Scene& scene) {
+		int flx, fly, fux, fuy, fw, fh, fdim, d = 64;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
 		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
-		float s = float(fsize) / float(fdim);
+		float s = size / float(fdim);
 		size_t len = strlen(str), i;
 		for (i = 0; i < len; i++) {
 			char c = str[i];
@@ -46,23 +45,22 @@ struct RasterizerText {
 				scene.bgras.emplace_back(*((uint32_t *)bgra));
 				scene.paths.emplace_back();
 				writeGlyphPath(font, glyph, scene.paths.back());
-				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, fsize * float(i % d), fsize * float(i / d));
+				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, size * float(i % d), size * float(i / d));
 			}
 		}
 	}
-	static void writeGlyphGrid(Font& font, RasterizerCoreGraphics::Scene& scene) {
-		uint8_t bgra[4] = { 0, 0, 0, 255 };
-		int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d;
+	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
+		int flx, fly, fux, fuy, fw, fh, fdim, d;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
 		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
 		d = ceilf(sqrtf((float)font.info.numGlyphs));
-		float s = float(fsize) / float(fdim);
+		float s = size / float(fdim);
 		for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
 			if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 				scene.bgras.emplace_back(*((uint32_t *)bgra));
 				scene.paths.emplace_back();
 				writeGlyphPath(font, glyph, scene.paths.back());
-				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, fsize * float(glyph % d), fsize * float(glyph / d));
+				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, size * float(glyph % d), size * float(glyph / d));
 			}
 	}
     
