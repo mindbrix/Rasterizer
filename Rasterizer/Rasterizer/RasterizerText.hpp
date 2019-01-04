@@ -29,6 +29,11 @@ struct RasterizerText {
                 return 0;
             return stbtt_InitFont(& info, ttf_buffer, offset);
         }
+		Rasterizer::Path glyphPath(int glyph) {
+			Rasterizer::Path path;
+			writeGlyphPath(*this, glyph, path);
+			return path;
+		}
         stbtt_fontinfo info;
     };
 	
@@ -43,8 +48,7 @@ struct RasterizerText {
 			int glyph = stbtt_FindGlyphIndex(& font.info, c);
 			if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 				scene.bgras.emplace_back(*((uint32_t *)bgra));
-				scene.paths.emplace_back();
-				writeGlyphPath(font, glyph, scene.paths.back());
+				scene.paths.emplace_back(font.glyphPath(glyph));
 				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, size * float(i % d), size * float(i / d));
 			}
 		}
@@ -58,8 +62,7 @@ struct RasterizerText {
 		for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
 			if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 				scene.bgras.emplace_back(*((uint32_t *)bgra));
-				scene.paths.emplace_back();
-				writeGlyphPath(font, glyph, scene.paths.back());
+				scene.paths.emplace_back(font.glyphPath(glyph));
 				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, size * float(glyph % d), size * float(glyph / d));
 			}
 	}
