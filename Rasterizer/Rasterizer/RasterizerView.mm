@@ -92,8 +92,8 @@
 	float size = 32;
 	uint8_t bgra[4] = { 0, 0, 0, 255 };
 	if (font.init(data.bytes, utf8) != 0) {
-		RasterizerText::writeGlyphs(font, size, bgra, "Hello, world!", _testScene.scene);
-//		RasterizerText::writeGlyphGrid(font, size, bgra, _testScene.scene);
+//		RasterizerText::writeGlyphs(font, size, bgra, "Hello, world!", _testScene.scene);
+		RasterizerText::writeGlyphGrid(font, size, bgra, _testScene.scene);
 		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 	}
 }
@@ -138,13 +138,10 @@
     if (_testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kCoreGraphics)
         return;
         
-    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
-    float dimension = 24, phi = (sqrt(5) - 1) / 2;
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    float scale = (w < h ? w : h) / float(square * dimension * phi);
-    Rasterizer::AffineTransform view(self.CTM.a, self.CTM.b, self.CTM.c, self.CTM.d, self.CTM.tx, self.CTM.ty);
+	Rasterizer::AffineTransform view(self.CTM.a, self.CTM.b, self.CTM.c, self.CTM.d, self.CTM.tx, self.CTM.ty);
     Rasterizer::AffineTransform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
-    Rasterizer::AffineTransform ctm = contentsScale.concat(view).concat(Rasterizer::AffineTransform(scale, 0, 0, scale, 0, 0));
+    Rasterizer::AffineTransform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     Rasterizer::Path clipPath;
     clipPath.sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
@@ -158,11 +155,7 @@
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     CGRect clip = CGRectApplyAffineTransform(CGContextGetClipBoundingBox(ctx), CGContextGetCTM(ctx));
-    size_t square = ceilf(sqrtf(float(_testScene.scene.paths.size())));
     CGContextConcatCTM(ctx, self.CTM);
-    CGFloat dimension = 24, phi = (sqrt(5) - 1) / 2;
-    CGFloat w = self.bounds.size.width, h = self.bounds.size.height, scale = (w < h ? w : h) / CGFloat(square * dimension * phi);
-    CGContextConcatCTM(ctx, CGAffineTransformMake(scale, 0, 0, scale, 0, 0));
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
