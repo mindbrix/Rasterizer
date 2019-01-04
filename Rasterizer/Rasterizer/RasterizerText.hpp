@@ -18,7 +18,7 @@ struct RasterizerText {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
             int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, 0);
             if (offset == -1)
-                return offset;
+                return 0;
             return stbtt_InitFont(& font, ttf_buffer, offset);
         }
         stbtt_fontinfo font;
@@ -33,21 +33,20 @@ struct RasterizerText {
         uint8_t bgra[4] = { 0, 0, 0, 255 };
         int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d, ix, iy;
         RasterizerText::Font font;
-        font.init(data.bytes);
-        stbtt_GetFontBoundingBox(& font.font, & flx, & fly, & fux, & fuy);
-        fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
-        d = ceilf(sqrtf((float)font.font.numGlyphs));
-        Rasterizer::AffineTransform scale = { float(fsize) / float(fdim), 0, 0, float(fsize) / float(fdim), 0, 0 };
-        for (int glyph = 0; glyph < font.font.numGlyphs; glyph++) {
-            ix = glyph % d, iy = glyph / d;
-            Rasterizer::AffineTransform CTM = { 1, 0, 0, 1, float(ix * fdim), float(iy * fdim) };
-            CTM = scale.concat(CTM);
-            if (stbtt_IsGlyphEmpty(& font.font, glyph) == 0) {
-                scene.bgras.emplace_back(*((uint32_t *)bgra));
-                scene.paths.emplace_back();
-                writeGlyphPath(font, glyph, scene.paths.back());
-                scene.ctms.emplace_back(CTM);
-            }
+        if (font.init(data.bytes) != 0) {
+            stbtt_GetFontBoundingBox(& font.font, & flx, & fly, & fux, & fuy);
+            fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
+            d = ceilf(sqrtf((float)font.font.numGlyphs));
+            float s = float(fsize) / float(fdim);
+            for (int glyph = 0; glyph < font.font.numGlyphs; glyph++)
+                if (stbtt_IsGlyphEmpty(& font.font, glyph) == 0) {
+                    ix = glyph % d, iy = glyph / d;
+                    Rasterizer::AffineTransform CTM = { s, 0, 0, s, s * float(ix * fdim), s * float(iy * fdim) };
+                    scene.bgras.emplace_back(*((uint32_t *)bgra));
+                    scene.paths.emplace_back();
+                    writeGlyphPath(font, glyph, scene.paths.back());
+                    scene.ctms.emplace_back(CTM);
+                }
         }
     }
     
