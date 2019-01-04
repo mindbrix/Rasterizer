@@ -37,12 +37,12 @@ struct RasterizerText {
     };
 	
 	static void writeGlyphs(Font& font, float size, uint8_t *bgra, const char *str, RasterizerCoreGraphics::Scene& scene) {
-		int flx, fly, fux, fuy, fw, fh, fdim, d = 16;
+		int flx, fly, fux, fuy, fw, fh, fdim;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
-		float s = size / float(fdim);
+        float s = size / float(fdim), x = 0, y = 0;
 		size_t len = strlen(str), i;
 		for (i = 0; i < len; i++) {
 			char c = str[i];
@@ -51,7 +51,8 @@ struct RasterizerText {
                 stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
 				scene.bgras.emplace_back(*((uint32_t *)bgra));
 				scene.paths.emplace_back(font.glyphPath(glyph));
-				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, size * float(i % d), size * float(i / d));
+				scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
+                x += advanceWidth;
 			}
 		}
 	}
