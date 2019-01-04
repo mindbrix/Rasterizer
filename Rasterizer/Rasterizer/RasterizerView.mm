@@ -81,8 +81,9 @@
 }
 
 - (void)writeGlyphGrid:(NSString *)fontName {
-    RasterizerCoreGraphics::writeGlyphGrid(fontName, _testScene);
-    RasterizerText::writeGlyphGrid(fontName, _textScene);
+    _testScene.scene.empty();
+    RasterizerText::writeGlyphGrid(fontName, _testScene.scene);
+    RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 }
 
 #pragma mark - NSResponder
