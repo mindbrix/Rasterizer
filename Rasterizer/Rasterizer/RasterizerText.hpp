@@ -39,16 +39,16 @@ struct RasterizerText {
 	static void writeGlyphs(Font& font, float size, uint8_t *bgra, const char *str, RasterizerCoreGraphics::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return;
-		int flx, fly, fux, fuy, fw, fh, fdim;
-        size_t len = strlen(str), i, lines = 1;
+		size_t len = strlen(str), i, lines = 1;
         for (i = 0; i < len; i++)
             if (str[i] == ' ')
                 lines++;
+        int flx, fly, fux, fuy, fw, fh, fdim;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
+        fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
-		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
-        float s = size / float(fdim), height = ascent - descent + lineGap, x = 0, y = (lines - 1) * height;
+		float s = size / float(fdim), height = ascent - descent + lineGap, x = 0, y = (lines - 1) * height;
 		for (i = 0; i < len; i++) {
 			char c = str[i];
             if (c == ' ')
