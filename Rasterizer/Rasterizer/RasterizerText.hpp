@@ -26,7 +26,7 @@ struct RasterizerText {
     
     static void writeGlyphGrid(const void *bytes, RasterizerCoreGraphics::Scene& scene) {
         uint8_t bgra[4] = { 0, 0, 0, 255 };
-        int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d, ix, iy;
+        int flx, fly, fux, fuy, fw, fh, fdim, fsize = 32, d;
         RasterizerText::Font font;
         if (font.init(bytes) != 0) {
             stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
@@ -35,12 +35,10 @@ struct RasterizerText {
             float s = float(fsize) / float(fdim);
             for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
                 if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-                    ix = glyph % d, iy = glyph / d;
-                    Rasterizer::AffineTransform CTM = { s, 0, 0, s, s * float(ix * fdim), s * float(iy * fdim) };
                     scene.bgras.emplace_back(*((uint32_t *)bgra));
                     scene.paths.emplace_back();
                     writeGlyphPath(font, glyph, scene.paths.back());
-                    scene.ctms.emplace_back(CTM);
+                    scene.ctms.emplace_back(s, 0, 0, s, s * float(glyph % d * fdim), s * float(glyph / d * fdim));
                 }
         }
     }
