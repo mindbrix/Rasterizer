@@ -16,18 +16,17 @@ struct RasterizerText {
         Font() { bzero(& info, sizeof(info)); }
         int init(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
-			int index = stbtt_FindMatchingFont(ttf_buffer, name, STBTT_MACSTYLE_DONTCARE);
 			int numfonts = stbtt_GetNumberOfFonts(ttf_buffer);
+			size_t numchars = strlen(name);
 			int length;
 			const char *n;
 			for (int i = 0; i < numfonts; i++) {
 				stbtt_InitFont(& info, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, i));
-				n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 0);
+				n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
+				if (n != NULL && length == numchars && memcmp(name, n, length) == 0)
+					return 1;
 			}
-            int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, 0);
-            if (offset == -1)
-                return 0;
-            return stbtt_InitFont(& info, ttf_buffer, offset);
+			return 0;
         }
 		Rasterizer::Path glyphPath(int glyph) {
 			Rasterizer::Path path;
