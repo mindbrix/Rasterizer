@@ -40,7 +40,7 @@ struct RasterizerText {
         Rasterizer::AffineTransform scale = { float(fsize) / float(fdim), 0, 0, float(fsize) / float(fdim), 0, 0 };
         for (int glyph = 0; glyph < font.font.numGlyphs; glyph++) {
             ix = glyph % d, iy = glyph / d;
-            Rasterizer::AffineTransform CTM = { 1, 0, 0, 1, float(ix * (fux - flx)), float(iy * (fuy - fly)) };
+            Rasterizer::AffineTransform CTM = { 1, 0, 0, 1, float(ix * fdim), float(iy * fdim) };
             CTM = scale.concat(CTM);
             if (stbtt_IsGlyphEmpty(& font.font, glyph) == 0) {
                 scene.bgras.emplace_back(*((uint32_t *)bgra));
