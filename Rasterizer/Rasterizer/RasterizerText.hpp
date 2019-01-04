@@ -79,8 +79,7 @@ struct RasterizerText {
     
     static void writeGlyphPath(Font& font, int glyph, Rasterizer::Path& path) {
         stbtt_vertex *vertices, *vertex;
-        int nverts, i;
-        nverts = stbtt_GetGlyphShape(& font.info, glyph, & vertices);
+        int i, nverts = stbtt_GetGlyphShape(& font.info, glyph, & vertices);
         if (nverts) {
             for (vertex = vertices, i = 0; i < nverts; i++, vertex++) {
                 switch (vertex->type) {
