@@ -36,7 +36,7 @@ struct RasterizerText {
         stbtt_fontinfo info;
     };
 	
-	static void writeGlyphs(Font& font, float size, uint8_t *bgra, const char *str, RasterizerCoreGraphics::Scene& scene) {
+	static void writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str, RasterizerCoreGraphics::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return;
         char nl = '\n', sp = ' ';
@@ -51,7 +51,7 @@ struct RasterizerText {
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s = size / float(fdim);
 		float height = ascent - descent + lineGap, space = height * 0.166;
-		float x = 0, y = (lines - 1) * height;
+		float x = 0, y = bounds.uy / s - (ascent - descent);
         for (i = 0; i < len; i++) {
 			char c = str[i];
             if (c == nl)
