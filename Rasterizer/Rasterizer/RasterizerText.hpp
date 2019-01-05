@@ -13,7 +13,7 @@
 
 struct RasterizerText {
     struct Font {
-        Font() { monospace = 0.f, bzero(& info, sizeof(info)); }
+        Font() { monospace = space = 0.f, bzero(& info, sizeof(info)); }
         int init(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
 			int numfonts = stbtt_GetNumberOfFonts(ttf_buffer);
@@ -34,6 +34,7 @@ struct RasterizerText {
 									stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
 							if (widths[0] == widths[1] && widths[1] == widths[2])
 								monospace = widths[0];
+                            space = widths[2];
 							return 1;
 						}
 					}
@@ -46,7 +47,7 @@ struct RasterizerText {
 			writeGlyphPath(*this, glyph, path);
 			return path;
 		}
-		float monospace;
+		float monospace, space;
         stbtt_fontinfo info;
     };
 	
@@ -54,17 +55,16 @@ struct RasterizerText {
         if (font.info.numGlyphs == 0)
             return;
         char nl = '\n', sp = ' ';
-		int flx, fly, fux, fuy, fw, fh, fdim, d = 80;
+		int d = 80;
 		size_t len = strlen(str), i, lines = 1;
         for (i = 0; i < len; i++)
             if (str[i] == nl || (i && i % d == 0))
                 lines++;
-        stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
-        fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
-		float s = size / float(fdim);
-		float height = ascent - descent, lineHeight = height + lineGap, space = font.monospace ? font.monospace : lineHeight * 0.166f;
+        float height = ascent - descent, lineHeight = height + lineGap;
+        float space = font.monospace ? font.monospace : font.space ? font.space : lineHeight * 0.166f;
+        float s = size / height;
 		float x = 0, y = bounds.uy / s - height;
         for (i = 0; i < len; i++) {
 			char c = str[i];
