@@ -80,7 +80,7 @@ struct RasterizerText {
 					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
 						scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
-						x += advanceWidth;// - leftSideBearing;
+						x += advanceWidth;
 						scene.bgras.emplace_back(*((uint32_t *)bgra));
 						scene.paths.emplace_back(font.glyphPath(glyph));
 					}
