@@ -21,17 +21,22 @@ struct RasterizerText {
 			int length;
 			const char *n;
 			for (int i = 0; i < numfonts; i++) {
-				stbtt_InitFont(& info, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, i));
-				n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
-				if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
-					const char* lw_ =  "lW ";
-					int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
-					for (int j = 0; j < 3; j++)
-						if ((glyph = stbtt_FindGlyphIndex(& info, lw_[j])) != -1)
-							stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
-					if (widths[0] == widths[1] && widths[1] == widths[2])
-						monospace = widths[0];
-					return 1;
+				int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i);
+				if (offset != -1) {
+					stbtt_InitFont(& info, ttf_buffer, offset);
+					if (info.numGlyphs) {
+						n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
+						if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
+							const char* lw_ =  "lW ";
+							int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
+							for (int j = 0; j < 3; j++)
+								if ((glyph = stbtt_FindGlyphIndex(& info, lw_[j])) != -1)
+									stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
+							if (widths[0] == widths[1] && widths[1] == widths[2])
+								monospace = widths[0];
+							return 1;
+						}
+					}
 				}
 			}
 			return 0;
