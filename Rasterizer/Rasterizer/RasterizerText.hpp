@@ -67,6 +67,8 @@ struct RasterizerText {
 		}
 	}
 	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
+		if (font.info.numGlyphs == 0)
+			return;
 		int flx, fly, fux, fuy, fw, fh, fdim, d;
 		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
 		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
