@@ -50,15 +50,15 @@ struct RasterizerText {
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s = size / float(fdim);
-		float height = ascent - descent + lineGap, space = height * 0.166;
-		float x = 0, y = bounds.uy / s - (ascent - descent);
+		float height = ascent - descent, lineHeight = height + lineGap, space = height * 0.166;
+		float x = 0, y = bounds.uy / s - height;
         for (i = 0; i < len; i++) {
 			char c = str[i];
             if (c == nl)
-                x = 0, y -= height;
+                x = 0, y -= lineHeight;
             else {
 				if (i && i % d == 0)
-					x = 0, y -= height;
+					x = 0, y -= lineHeight;
 				if (c == sp)
 					x += space;
 				else {
