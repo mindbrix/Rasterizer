@@ -30,9 +30,8 @@
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    
     [self initLayer:_useMetal];
-    [self writeGlyphGrid:@"AppleSymbols" fontSize:36];
+    [self writeGlyphGrid:[NSFont fontWithName:@"AppleSymbols" size:14]];
     return self;
 }
 
@@ -42,8 +41,7 @@
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    NSFont *newFont = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
-    [self writeGlyphGrid:newFont.fontName fontSize:newFont.pointSize];
+    [self writeGlyphGrid:[[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]]];
     [self redraw];
 }
 
@@ -79,8 +77,8 @@
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
-- (void)writeGlyphGrid:(NSString *)fontName fontSize:(CGFloat)fontSize {
-	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
+- (void)writeGlyphGrid:(NSFont *)nsFont {
+	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)nsFont.fontName, 1);
 	CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
 	CFRelease(fontRef);
 	NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
@@ -90,9 +88,9 @@
 	RasterizerText::Font font;
 	uint8_t bgra[4] = { 0, 0, 0, 255 };
     const char *label = "Hello, world!\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz 0123456789\n!@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
-	if (font.init(data.bytes, fontName.UTF8String) != 0) {
-        RasterizerText::writeGlyphs(font, float(fontSize), bgra, label, _testScene.scene);
-//        RasterizerText::writeGlyphGrid(font, float(fontSize), bgra, _testScene.scene);
+	if (font.init(data.bytes, nsFont.fontName.UTF8String) != 0) {
+//        RasterizerText::writeGlyphs(font, float(nsFont.pointSize), bgra, label, _testScene.scene);
+        RasterizerText::writeGlyphGrid(font, float(nsFont.pointSize), bgra, _testScene.scene);
 		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 	}
 }
