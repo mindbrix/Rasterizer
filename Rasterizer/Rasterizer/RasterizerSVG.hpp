@@ -23,15 +23,11 @@ struct RasterizerSVG {
     }
     
     static void writePath(NSVGshape *shape, float height, Rasterizer::Path p) {
-        float *pts;
+		float *pts;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            if (height)
-                for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2)
-                    pts[1] = height - pts[1];
-            
-            for (pts = path->pts, p.sequence->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
-                p.sequence->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
+            for (pts = path->pts, p.sequence->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
+                p.sequence->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
             if (path->closed)
                 p.sequence->close();
         }
