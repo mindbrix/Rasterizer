@@ -75,7 +75,10 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
 	
-	static void writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str, RasterizerCoreGraphics::Scene& scene) {
+	static void writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str,
+							std::vector<uint32_t>& bgras,
+							std::vector<Rasterizer::AffineTransform>& ctms,
+							std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
@@ -96,26 +99,29 @@ struct RasterizerTrueType {
 				else {
 					int glyph = stbtt_FindGlyphIndex(& font.info, str[i]);
 					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
+						bgras.emplace_back(*((uint32_t *)bgra));
 						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-						scene.ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
+						ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
 						x += advanceWidth;
-						scene.bgras.emplace_back(*((uint32_t *)bgra));
-						scene.paths.emplace_back(font.glyphPath(glyph));
+						paths.emplace_back(font.glyphPath(glyph));
 					}
 				}
             }
 		}
 	}
-	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
+	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
+							   std::vector<uint32_t>& bgras,
+							   std::vector<Rasterizer::AffineTransform>& ctms,
+							   std::vector<Rasterizer::Path>& paths) {
 		if (font.info.numGlyphs == 0)
 			return;
 		int d = ceilf(sqrtf((float)font.info.numGlyphs));
 		float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
 		for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
 			if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-				scene.bgras.emplace_back(*((uint32_t *)bgra));
-				scene.paths.emplace_back(font.glyphPath(glyph));
-				scene.ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
+				bgras.emplace_back(*((uint32_t *)bgra));
+				ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
+				paths.emplace_back(font.glyphPath(glyph));
 			}
 	}
 };

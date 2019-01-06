@@ -91,8 +91,8 @@
 	
     const char *label = "Hello, world!\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz 0123456789\n!@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
 	if (font.set(data.bytes, nsFont.fontName.UTF8String) != 0) {
-        RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), text, _testScene.scene);
-//        RasterizerText::writeGlyphGrid(font, float(nsFont.pointSize), bgra, _testScene.scene);
+        RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), text, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+//        RasterizerTrueType::writeGlyphGrid(font, float(nsFont.pointSize), bgra,  _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
 		RasterizerCoreGraphics::writeSceneToCGScene(_testScene.scene, _testScene.cgscene);
 	}
 }
