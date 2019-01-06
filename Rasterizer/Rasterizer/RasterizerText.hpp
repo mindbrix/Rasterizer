@@ -54,7 +54,7 @@ struct RasterizerText {
 	static void writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str, RasterizerCoreGraphics::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return;
-        char nl = '\n', sp = ' ';
+        const char nl = '\n', sp = ' ';
 		int d = 80;
 		size_t len = strlen(str), i, lines = 1;
         for (i = 0; i < len; i++)
