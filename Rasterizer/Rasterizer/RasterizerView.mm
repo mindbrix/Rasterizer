@@ -146,7 +146,7 @@
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::GPU::Paint(_svgData ? svg : font);
-    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 
 #pragma mark - CALayerDelegate
@@ -160,7 +160,7 @@
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
     Rasterizer::Path clipPath;
     clipPath.sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
-    RasterizerCoreGraphics::writeTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }
 
 - (void)setSvgData:(NSData *)svgData {

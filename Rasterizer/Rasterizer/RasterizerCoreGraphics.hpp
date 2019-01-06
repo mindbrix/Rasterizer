@@ -218,7 +218,7 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void writeTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
