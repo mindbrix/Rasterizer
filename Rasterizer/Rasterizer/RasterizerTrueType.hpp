@@ -48,7 +48,27 @@ struct RasterizerTrueType {
         }
 		Rasterizer::Path glyphPath(int glyph) {
 			Rasterizer::Path path;
-			writeGlyphPath(*this, glyph, path);
+			stbtt_vertex *vertices, *vertex;
+			int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
+			if (nverts) {
+				for (vertex = vertices, i = 0; i < nverts; i++, vertex++) {
+					switch (vertex->type) {
+						case STBTT_vmove:
+							path.sequence->moveTo(vertex->x, vertex->y);
+							break;
+						case STBTT_vline:
+							path.sequence->lineTo(vertex->x, vertex->y);
+							break;
+						case STBTT_vcurve:
+							path.sequence->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
+							break;
+						case STBTT_vcubic:
+							path.sequence->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
+							break;
+					}
+				}
+				stbtt_FreeShape(& info, vertices);
+			}
 			return path;
 		}
 		float monospace, space;
@@ -98,28 +118,4 @@ struct RasterizerTrueType {
 				scene.ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
 			}
 	}
-    
-    static void writeGlyphPath(Font& font, int glyph, Rasterizer::Path& path) {
-        stbtt_vertex *vertices, *vertex;
-        int i, nverts = stbtt_GetGlyphShape(& font.info, glyph, & vertices);
-        if (nverts) {
-            for (vertex = vertices, i = 0; i < nverts; i++, vertex++) {
-                switch (vertex->type) {
-                    case STBTT_vmove:
-                        path.sequence->moveTo(vertex->x, vertex->y);
-                        break;
-                    case STBTT_vline:
-                        path.sequence->lineTo(vertex->x, vertex->y);
-                        break;
-                    case STBTT_vcurve:
-                        path.sequence->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
-                        break;
-                    case STBTT_vcubic:
-                        path.sequence->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
-                        break;
-                }
-            }
-            stbtt_FreeShape(& font.info, vertices);
-        }
-    }
 };
