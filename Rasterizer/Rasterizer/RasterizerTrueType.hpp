@@ -82,7 +82,7 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
-		int len = (int)strlen(str), i, j, idx, ascent, descent, lineGap, advanceWidth, leftSideBearing , glyphs[len];
+		int len = (int)strlen(str), i, j, idx, ascent, descent, lineGap, leftSideBearing, glyphs[len];
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s, width, height, lineHeight, space, x, y;
 		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
@@ -98,29 +98,32 @@ struct RasterizerTrueType {
 			while (i < len && (str[i] == sp || str[i] == nl)) {
 				if (str[i] == nl)
 					x = 0, y -= lineHeight;
-				else {
-					if (x > width)
-						x = 0, y -= lineHeight;
-					else
-						x += space;
-				}
+				else
+					x += space;
 				i++;
 			}
 			idx = i;
 			while (i < len && str[i] != sp && str[i] != nl)
 				i++;
-			for (j = idx; j < i; j++) {
+			int advances[i - idx], *advance = advances, total = 0;
+			bzero(advances, sizeof(advances));
+			for (j = idx; j < i; j++, advance++) {
 				int glyph = glyphs[j];
 				if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-					bgras.emplace_back(*((uint32_t *)bgra));
-					stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-					ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
-					x += advanceWidth;
+					stbtt_GetGlyphHMetrics(& font.info, glyph, advance, & leftSideBearing);
 					if (j < len - 1)
-						x += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]);
-					paths.emplace_back(font.glyphPath(glyph));
+						*advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
 				}
 			}
+			if (x + total > width)
+				x = 0, y -= lineHeight;
+			for (advance = advances, j = idx; j < i; j++, advance++)
+				if (*advance) {
+					bgras.emplace_back(*((uint32_t *)bgra));
+					ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
+					x += *advance;
+					paths.emplace_back(font.glyphPath(glyphs[j]));
+				}
 		} while (i < len);
 	}
 	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
