@@ -85,16 +85,13 @@ struct RasterizerTrueType {
 	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
 		if (font.info.numGlyphs == 0)
 			return;
-		int flx, fly, fux, fuy, fw, fh, fdim, d;
-		stbtt_GetFontBoundingBox(& font.info, & flx, & fly, & fux, & fuy);
-		fw = fux - flx, fh = fuy - fly, fdim = fw < fh ? fw : fh;
-		d = ceilf(sqrtf((float)font.info.numGlyphs));
-		float s = size / float(fdim);
+		int d = ceilf(sqrtf((float)font.info.numGlyphs));
+		float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
 		for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
 			if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 				scene.bgras.emplace_back(*((uint32_t *)bgra));
 				scene.paths.emplace_back(font.glyphPath(glyph));
-				scene.ctms.emplace_back(s * 1.333, 0, 0, s * 1.333, size * float(glyph % d), size * float(glyph / d));
+				scene.ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
 			}
 	}
     
