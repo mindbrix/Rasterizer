@@ -56,17 +56,14 @@ struct RasterizerTrueType {
             return;
         const char nl = '\n', sp = ' ';
 		int d = 80;
-		size_t len = strlen(str), i, lines = 1;
-        for (i = 0; i < len; i++)
-            if (str[i] == nl || (i && i % d == 0))
-                lines++;
+		size_t len = strlen(str), i;
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
         float height = ascent - descent, lineHeight = height + lineGap;
         float space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
-        float x = 0, y = bounds.uy / s - height;
-        for (i = 0; i < len; i++) {
+		float x = 0, y = 0;
+		for (i = 0; i < len; i++) {
 			if (str[i] == nl)
                 x = 0, y -= lineHeight;
             else {
@@ -78,7 +75,7 @@ struct RasterizerTrueType {
 					int glyph = stbtt_FindGlyphIndex(& font.info, str[i]);
 					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-						scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
+						scene.ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
 						x += advanceWidth;
 						scene.bgras.emplace_back(*((uint32_t *)bgra));
 						scene.paths.emplace_back(font.glyphPath(glyph));
