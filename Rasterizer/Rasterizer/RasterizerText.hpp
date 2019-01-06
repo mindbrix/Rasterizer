@@ -81,8 +81,6 @@ struct RasterizerText {
 						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
 						scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
 						x += advanceWidth;
-                        if (i < len - 1)
-                            x += stbtt_GetCodepointKernAdvance(& font.info, str[i], str[i + 1]);
 						scene.bgras.emplace_back(*((uint32_t *)bgra));
 						scene.paths.emplace_back(font.glyphPath(glyph));
 					}
