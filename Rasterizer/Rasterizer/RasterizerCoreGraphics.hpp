@@ -64,7 +64,7 @@ struct RasterizerCoreGraphics {
                 vImageBuffer_Init(&sourceBuffer, 1, size, 32, kvImageNoAllocate);
                 sourceBuffer.data = (void *)src;
                 vImage_Buffer destBuffer;
-                vImageBuffer_Init(&destBuffer, 1, size, 32, kvImageNoFlags);
+                vImageBuffer_Init(&destBuffer, 1, size, 32, kvImageNoAllocate);
                 destBuffer.data = (void *)dst;
                 vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
             }
