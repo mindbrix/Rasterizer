@@ -222,6 +222,8 @@ struct RasterizerCoreGraphics {
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
+            if (testScene.cgscene.paths.size() == 0)
+                RasterizerCoreGraphics::writeSceneToCGScene(testScene.scene, testScene.cgscene);
             if (clipPath)
                 testScene.contexts[0].intersectClip(*clipPath, ctm, false);
             for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
