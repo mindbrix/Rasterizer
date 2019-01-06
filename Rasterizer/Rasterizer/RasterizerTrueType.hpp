@@ -14,7 +14,7 @@
 struct RasterizerTrueType {
     struct Font {
         Font() { monospace = space = 0.f, bzero(& info, sizeof(info)); }
-        int init(const void *bytes, const char *name) {
+        int set(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
 			int numfonts = stbtt_GetNumberOfFonts(ttf_buffer);
 			size_t numchars = strlen(name);
