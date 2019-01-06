@@ -55,15 +55,13 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
-		int d = 80;
-		size_t len = strlen(str), i;
-        int ascent, descent, lineGap, advanceWidth, leftSideBearing;
+		int d = 80, len = (int)strlen(str), i, ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
-        float height = ascent - descent, lineHeight = height + lineGap;
-        float space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-        float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
-		float x = 0, y = 0;
-		for (i = 0; i < len; i++) {
+		float height, lineHeight, space, s, x, y;
+		height = ascent - descent, lineHeight = height + lineGap;
+		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
+		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
+		for (x = y = i = 0; i < len; i++) {
 			if (str[i] == nl)
                 x = 0, y -= lineHeight;
             else {
