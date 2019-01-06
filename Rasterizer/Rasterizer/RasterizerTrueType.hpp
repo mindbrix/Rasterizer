@@ -82,13 +82,16 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
-		int len = (int)strlen(str), i, j, idx, ascent, descent, lineGap, advanceWidth, leftSideBearing;
+		int len = (int)strlen(str), i, j, idx, ascent, descent, lineGap, advanceWidth, leftSideBearing , glyphs[len];
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s, width, height, lineHeight, space, x, y;
 		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
 		width = (bounds.ux - bounds.lx) / s;
 		height = ascent - descent, lineHeight = height + lineGap;
 		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
+		
+		for (i = 0; i < len; i++)
+			glyphs[i] = stbtt_FindGlyphIndex(& font.info, str[i]);
 		
 		x = y = i = 0;
 		do {
@@ -107,14 +110,14 @@ struct RasterizerTrueType {
 			while (i < len && str[i] != sp && str[i] != nl)
 				i++;
 			for (j = idx; j < i; j++) {
-				int glyph = stbtt_FindGlyphIndex(& font.info, str[j]);
+				int glyph = glyphs[j];
 				if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 					bgras.emplace_back(*((uint32_t *)bgra));
 					stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
 					ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
 					x += advanceWidth;
 					if (j < len - 1)
-						x += stbtt_GetCodepointKernAdvance(& font.info, str[j], str[j + 1]);
+						x += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]);
 					paths.emplace_back(font.glyphPath(glyph));
 				}
 			}
