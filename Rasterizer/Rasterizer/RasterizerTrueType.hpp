@@ -82,7 +82,7 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
-		int len = (int)strlen(str), i, idx, ascent, descent, lineGap, advanceWidth, leftSideBearing;
+		int len = (int)strlen(str), i, j, idx, ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s, width, height, lineHeight, space, x, y;
 		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
@@ -90,33 +90,35 @@ struct RasterizerTrueType {
 		height = ascent - descent, lineHeight = height + lineGap;
 		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
 		
-		for (x = y = idx = i = 0; i < len; i++) {
-			while (idx < len && str[idx] != sp && str[idx] != nl)
-				idx++;
-			
-			if (str[i] == nl)
-                x = 0, y -= lineHeight;
-            else {
-				if (str[i] == sp) {
+		x = y = i = 0;
+		do {
+			while (i < len && (str[i] == sp || str[i] == nl)) {
+				if (str[i] == nl)
+					x = 0, y -= lineHeight;
+				else {
 					if (x > width)
 						x = 0, y -= lineHeight;
 					else
 						x += space;
 				}
-				else {
-					int glyph = stbtt_FindGlyphIndex(& font.info, str[i]);
-					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-						bgras.emplace_back(*((uint32_t *)bgra));
-						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-						ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
-						x += advanceWidth;
-						if (i < len - 1)
-							x += stbtt_GetCodepointKernAdvance(& font.info, str[i], str[i + 1]);
-						paths.emplace_back(font.glyphPath(glyph));
-					}
+				i++;
+			}
+			idx = i;
+			while (i < len && str[i] != sp && str[i] != nl)
+				i++;
+			for (j = idx; j < i; j++) {
+				int glyph = stbtt_FindGlyphIndex(& font.info, str[j]);
+				if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
+					bgras.emplace_back(*((uint32_t *)bgra));
+					stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
+					ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
+					x += advanceWidth;
+					if (j < len - 1)
+						x += stbtt_GetCodepointKernAdvance(& font.info, str[j], str[j + 1]);
+					paths.emplace_back(font.glyphPath(glyph));
 				}
-            }
-		}
+			}
+		} while (i < len);
 	}
 	static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
 							   std::vector<uint32_t>& bgras,
