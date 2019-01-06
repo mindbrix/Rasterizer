@@ -109,39 +109,39 @@ struct RasterizerCoreGraphics {
     }
     
     struct CGPathApplier {
-        CGPathApplier(Rasterizer::Sequence& path) : p(& path) {}
+        CGPathApplier(Rasterizer::Path path) : p(path) {}
         void apply(const CGPathElement *element) {
             switch (element->type) {
                 case kCGPathElementMoveToPoint:
-                    p->moveTo(float(element->points[0].x), float(element->points[0].y));
+                    p.sequence->moveTo(float(element->points[0].x), float(element->points[0].y));
                     break;
                 case kCGPathElementAddLineToPoint:
-                    p->lineTo(float(element->points[0].x), float(element->points[0].y));
+                    p.sequence->lineTo(float(element->points[0].x), float(element->points[0].y));
                     break;
                 case kCGPathElementAddQuadCurveToPoint:
-                    p->quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
+                    p.sequence->quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
                     break;
                 case kCGPathElementAddCurveToPoint:
-                    p->cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
+                    p.sequence->cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
                     break;
                 case kCGPathElementCloseSubpath:
-                    p->close();
+                    p.sequence->close();
                     break;
             }
         }
-        Rasterizer::Sequence *p;
+        Rasterizer::Path p;
     };
     static void CGPathApplierFunction(void *info, const CGPathElement *element) {
         ((CGPathApplier *)info)->apply(element);
     };
-    static void writeCGPathToPath(CGPathRef path, Rasterizer::Sequence &p) {
+    static void writeCGPathToPath(CGPathRef path, Rasterizer::Path p) {
         CGPathApplier applier(p);
         CGPathApply(path, & applier, CGPathApplierFunction);
     }
     
-    static void writePathToCGPath(Rasterizer::Sequence &p, CGMutablePathRef path) {
+    static void writePathToCGPath(Rasterizer::Path p, CGMutablePathRef path) {
         float *points;
-        for (Rasterizer::Sequence::Atom& atom : p.atoms) {
+        for (Rasterizer::Sequence::Atom& atom : p.sequence->atoms) {
             size_t index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
@@ -188,7 +188,7 @@ struct RasterizerCoreGraphics {
             scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
             scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
             scene.paths.emplace_back();
-            writeCGPathToPath(cgscene.paths[i], *(scene.paths.back().sequence));
+            writeCGPathToPath(cgscene.paths[i], scene.paths.back());
         }
     }
     static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
@@ -198,7 +198,7 @@ struct RasterizerCoreGraphics {
                 cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
                 cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].sequence->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
-                writePathToCGPath(*scene.paths[i].sequence, path);
+                writePathToCGPath(scene.paths[i], path);
                 cgscene.paths.emplace_back(CGPathCreateCopy(path));
                 CGPathRelease(path);
             }

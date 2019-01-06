@@ -22,7 +22,7 @@ struct RasterizerSVG {
         return *((uint32_t *)bgra);
     }
     
-    static void writePath(NSVGshape *shape, float height, Rasterizer::Sequence& p) {
+    static void writePath(NSVGshape *shape, float height, Rasterizer::Path p) {
         float *pts;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
@@ -30,10 +30,10 @@ struct RasterizerSVG {
                 for (pts = path->pts, i = 0; i < path->npts; i++, pts += 2)
                     pts[1] = height - pts[1];
             
-            for (pts = path->pts, p.moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
-                p.cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
+            for (pts = path->pts, p.sequence->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
+                p.sequence->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
             if (path->closed)
-                p.close();
+                p.sequence->close();
         }
     }
     
@@ -48,7 +48,7 @@ struct RasterizerSVG {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
                     scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                     scene.paths.emplace_back();
-                    writePath(shape, image->height, *scene.paths.back().sequence);
+                    writePath(shape, image->height, scene.paths.back());
                     scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
@@ -56,15 +56,15 @@ struct RasterizerSVG {
                     
                     Rasterizer::Path s;
                     if (shape->fill.type == NSVG_PAINT_NONE)
-                        writePath(shape, image->height, *s.sequence);
+                        writePath(shape, image->height, s);
                     CGMutablePathRef path = CGPathCreateMutable();
-                    RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? *s.sequence : *scene.paths.back().sequence, path);
+                    RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
                     CGLineCap cap = shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound;
                     CGLineJoin join = shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel;
                     CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, cap, join, shape->miterLimit);
                     
                     scene.paths.emplace_back();
-                    RasterizerCoreGraphics::writeCGPathToPath(stroked, *scene.paths.back().sequence);
+                    RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
                     CGPathRelease(path);
                     CGPathRelease(stroked);
                     scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
