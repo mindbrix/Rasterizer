@@ -1,5 +1,5 @@
 //
-//  RasterizerText.hpp
+//  RasterizerTrueType.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 04/01/2019.
@@ -11,7 +11,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #import "stb_truetype.h"
 
-struct RasterizerText {
+struct RasterizerTrueType {
     struct Font {
         Font() { monospace = space = 0.f, bzero(& info, sizeof(info)); }
         int init(const void *bytes, const char *name) {
