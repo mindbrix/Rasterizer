@@ -108,7 +108,7 @@ struct RasterizerTrueType {
 					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 						bgras.emplace_back(*((uint32_t *)bgra));
 						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
-						ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
+						ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
 						x += advanceWidth;
 						if (i < len - 1)
 							x += stbtt_GetCodepointKernAdvance(& font.info, str[i], str[i + 1]);
