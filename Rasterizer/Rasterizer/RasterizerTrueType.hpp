@@ -107,14 +107,12 @@ struct RasterizerTrueType {
 				i++;
 			int advances[i - idx], *advance = advances, total = 0;
 			bzero(advances, sizeof(advances));
-			for (j = idx; j < i; j++, advance++) {
-				int glyph = glyphs[j];
-				if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-					stbtt_GetGlyphHMetrics(& font.info, glyph, advance, & leftSideBearing);
+			for (j = idx; j < i; j++, advance++)
+				if (glyphs[j] != -1 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
+					stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
 					if (j < len - 1)
 						*advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
 				}
-			}
 			if (x + total > width)
 				x = 0, y -= lineHeight;
 			for (advance = advances, j = idx; j < i; j++, advance++)
