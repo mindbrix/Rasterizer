@@ -82,20 +82,24 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
-		int d = 80, len = (int)strlen(str), i, ascent, descent, lineGap, advanceWidth, leftSideBearing;
+		int len = (int)strlen(str), i, ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
-		float height, lineHeight, space, s, x, y;
+		float s, width, height, lineHeight, space, x, y;
+		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
+		width = (bounds.ux - bounds.lx) / s;
 		height = ascent - descent, lineHeight = height + lineGap;
 		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
+		
 		for (x = y = i = 0; i < len; i++) {
 			if (str[i] == nl)
                 x = 0, y -= lineHeight;
             else {
-				if (i && i % d == 0)
-					x = 0, y -= lineHeight;
-				if (str[i] == sp)
-					x += space;
+				if (str[i] == sp) {
+					if (x > width)
+						x = 0, y -= lineHeight;
+					else
+						x += space;
+				}
 				else {
 					int glyph = stbtt_FindGlyphIndex(& font.info, str[i]);
 					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
