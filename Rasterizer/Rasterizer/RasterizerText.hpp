@@ -67,16 +67,15 @@ struct RasterizerText {
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         float x = 0, y = bounds.uy / s - height;
         for (i = 0; i < len; i++) {
-			char c = str[i];
-            if (c == nl)
+			if (str[i] == nl)
                 x = 0, y -= lineHeight;
             else {
 				if (i && i % d == 0)
 					x = 0, y -= lineHeight;
-				if (c == sp)
+				if (str[i] == sp)
 					x += space;
 				else {
-					int glyph = stbtt_FindGlyphIndex(& font.info, c);
+					int glyph = stbtt_FindGlyphIndex(& font.info, str[i]);
 					if (glyph != -1 && stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
 						stbtt_GetGlyphHMetrics(& font.info, glyph, & advanceWidth, & leftSideBearing);
 						scene.ctms.emplace_back(s, 0, 0, s, x * s, y * s);
