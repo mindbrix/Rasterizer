@@ -63,7 +63,7 @@ struct RasterizerText {
         int ascent, descent, lineGap, advanceWidth, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
         float height = ascent - descent, lineHeight = height + lineGap;
-        float space = font.monospace ? font.monospace : font.space ? font.space : lineHeight * 0.166f;
+        float space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         float x = 0, y = bounds.uy / s - height;
         for (i = 0; i < len; i++) {
