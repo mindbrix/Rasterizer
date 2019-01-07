@@ -23,7 +23,7 @@ struct RasterizerSVG {
     }
     
     static void writePath(NSVGshape *shape, float height, Rasterizer::Path p) {
-		float *pts;
+        float *pts;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
             for (pts = path->pts, p.sequence->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
