@@ -82,7 +82,9 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return;
         const char nl = '\n', sp = ' ';
-		int len = (int)strlen(str), i, j, idx, ascent, descent, lineGap, leftSideBearing, glyphs[len];
+        const int NL = -1, SP = -2;
+        std::vector<int> glyphs;
+		int i, j, idx, ascent, descent, lineGap, leftSideBearing, len;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s, width, height, lineHeight, space, x, y;
 		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
@@ -90,25 +92,25 @@ struct RasterizerTrueType {
 		height = ascent - descent, lineHeight = height + lineGap;
 		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
 		
-		for (i = 0; i < len; i++)
-			glyphs[i] = stbtt_FindGlyphIndex(& font.info, str[i]);
-		
+		for (i = 0; str[i]; i++)
+            glyphs.emplace_back(str[i] == sp ? SP : str[i] == nl ? NL : stbtt_FindGlyphIndex(& font.info, str[i]));
+        len = (int)glyphs.size();
 		x = y = i = 0;
 		do {
-			while (i < len && (str[i] == sp || str[i] == nl)) {
-				if (str[i] == nl)
+			while (i < len && (glyphs[i] == SP || glyphs[i] == NL)) {
+				if (glyphs[i] == NL)
 					x = 0, y -= lineHeight;
 				else
 					x += space;
 				i++;
 			}
 			idx = i;
-			while (i < len && str[i] != sp && str[i] != nl)
+			while (i < len && glyphs[i] != SP && glyphs[i] != NL)
 				i++;
 			int advances[i - idx], *advance = advances, total = 0;
 			bzero(advances, sizeof(advances));
 			for (j = idx; j < i; j++, advance++)
-				if (glyphs[j] != -1 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
+				if (glyphs[j] > 0 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
 					stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
 					if (j < len - 1)
 						*advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;

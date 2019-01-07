@@ -87,11 +87,12 @@
     _testScene.cgscene.empty();
 	RasterizerTrueType::Font font;
 	uint8_t bgra[4] = { 0, 0, 0, 255 };
-	const char *text = "One of the obvious motivations has been Objective-C, and in particular the notion of Software-ICs, components that are connected via dynamic messages. This is actually an instance of the Scripted Components (pdf) pattern, with the interesting twist that unlike most of the instances of this pattern, there is only a single programming language for both the scripts and the components, that language being Objective-C.";
+    
+	NSString *text = @"One of the obvious motivations has been Objective-C, and in particular the notion of Software-ICs, components that are connected via dynamic messages. This is actually an instance of the Scripted Components (pdf) pattern, with the interesting twist that unlike most of the instances of this pattern, there is only a single programming language for both the scripts and the components, that language being Objective-C.";
 	
-    const char *label = "Hello, world!\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz 0123456789\n!@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
+    NSString *label = @"Hello, world!\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz 0123456789\n!@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
 	if (font.set(data.bytes, nsFont.fontName.UTF8String) != 0) {
-        RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), text, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+        RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), text.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
 //        RasterizerTrueType::writeGlyphGrid(font, float(nsFont.pointSize), bgra,  _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
 	}
 }
