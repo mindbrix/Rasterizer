@@ -81,19 +81,12 @@ struct RasterizerTrueType {
 							std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
             return;
-        const char nl = '\n', sp = ' ';
-        const int NL = -1, SP = -2;
-        std::vector<int> glyphs;
-        const uint8_t *utf8 = (uint8_t *)str;
-		int i, j, idx, ascent, descent, lineGap, leftSideBearing, step, len, codepoint;
-        stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
-		float s, width, height, lineHeight, space, x, y;
-		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
-		width = (bounds.ux - bounds.lx) / s;
-		height = ascent - descent, lineHeight = height + lineGap;
-		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-		
-        for (step = 1, codepoint = i = 0; step; i += step) {
+        int i, j, idx, step, len, codepoint;
+		const char nl = '\n', sp = ' ';
+		const int NL = -1, SP = -2;
+		const uint8_t *utf8 = (uint8_t *)str;
+		std::vector<int> glyphs;
+		for (step = 1, codepoint = i = 0; step; i += step) {
             if (utf8[i] < 128)
                 step = 1, codepoint = utf8[i];
             else if ((utf8[i] & 0xE0) == 0xC0 && (utf8[i + 1] & 0xC0) == 0x80)
@@ -110,6 +103,13 @@ struct RasterizerTrueType {
             if (step)
                 glyphs.emplace_back(codepoint == sp ? SP : codepoint == nl ? NL : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
+		int ascent, descent, lineGap, leftSideBearing;
+		stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
+		float s, width, height, lineHeight, space, x, y;
+		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
+		width = (bounds.ux - bounds.lx) / s;
+		height = ascent - descent, lineHeight = height + lineGap;
+		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         len = (int)glyphs.size();
 		x = y = i = 0;
 		do {
