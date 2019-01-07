@@ -144,7 +144,7 @@ struct Rasterizer {
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
         Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp)
-            : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
+        : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
         void clear(uint32_t pixel) { memset_pattern4(data, & pixel, stride * height); }
         inline uint8_t *pixelAddress(short x, short y) { return data + stride * (height - 1 - y) + x * bytespp; }
         uint8_t *data;
@@ -224,7 +224,7 @@ struct Rasterizer {
         struct Quad {
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t idx, float(cover))
-             : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), idx((uint32_t)idx), cover(cover) {}
+            : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), idx((uint32_t)idx), cover(cover) {}
             short lx, ly, ux, uy, ox, oy;
             uint32_t idx;
             float cover;
@@ -271,19 +271,19 @@ struct Rasterizer {
                 new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
             begin = end;
-			
-			Context *ctx;
-			size_t opaquesBegin = begin;
-			for (ctx = contexts, i = 0; i < count; i++, ctx++) {
-				end += ctx->gpu.opaques.bytes();
-				if (begin != end) {
-					memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
-					begin = end;
-				}
-			}
-			if (opaquesBegin != end)
-				new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, opaquesBegin, end);
-			
+            
+            Context *ctx;
+            size_t opaquesBegin = begin;
+            for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+                end += ctx->gpu.opaques.bytes();
+                if (begin != end) {
+                    memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
+                    begin = end;
+                }
+            }
+            if (opaquesBegin != end)
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, opaquesBegin, end);
+            
             for (ctx = contexts, i = 0; i < count; i++, ctx++) {
                 GPU::Index *index = ctx->gpu.quadIndices.base;
                 while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
@@ -346,7 +346,7 @@ struct Rasterizer {
                 segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t begin, size_t end) {
-			paths += begin;
+            paths += begin;
             for (size_t iz = begin; iz < end; iz++, paths++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
                     drawPath(*paths, ctms[iz], even, (uint8_t *)& bgras[iz], iz);
@@ -645,8 +645,8 @@ struct Rasterizer {
         if (cly != cuy) {
             float A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
             float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
-			lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
-			ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
+            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
+            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             B = 3.f * (y1 - y0), A = 3.f * (y2 - y1) - B, D = y3 - y0 - B - A, C = y0;
             int end = 0;
             if (clip.ly >= ly && clip.ly < uy)
@@ -898,7 +898,7 @@ struct Rasterizer {
                         gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                     }
                 }
-				indices.idx = indices.end;
+                indices.idx = indices.end;
                 segments->idx = segments->end;
             }
         }
