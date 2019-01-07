@@ -51,7 +51,7 @@ struct RasterizerTrueType {
 			stbtt_vertex *vertices, *vertex;
 			int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
 			if (nverts) {
-				for (vertex = vertices, i = 0; i < nverts; i++, vertex++) {
+				for (vertex = vertices, i = 0; i < nverts; i++, vertex++)
 					switch (vertex->type) {
 						case STBTT_vmove:
 							path.sequence->moveTo(vertex->x, vertex->y);
@@ -66,7 +66,6 @@ struct RasterizerTrueType {
 							path.sequence->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
 							break;
 					}
-				}
 				stbtt_FreeShape(& info, vertices);
 			}
 			return path;
