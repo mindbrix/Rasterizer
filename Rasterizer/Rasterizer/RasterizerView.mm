@@ -18,6 +18,7 @@
 @property(nonatomic) RasterizerCoreGraphics::Scene textScene;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useMetal;
+@property(nonatomic) NSString *pastedString;
 
 @end
 
@@ -31,7 +32,7 @@
     if (! self)
         return nil;
     [self initLayer:_useMetal];
-    [self writeGlyphGrid:[NSFont fontWithName:@"AppleSymbols" size:14]];
+	[self writeGlyph:[NSFont fontWithName:@"AppleSymbols" size:14] string:nil];
     return self;
 }
 
@@ -41,7 +42,7 @@
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    [self writeGlyphGrid:[[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]]];
+    [self writeGlyph:[[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]] string:self.pastedString];
     [self redraw];
 }
 
@@ -77,7 +78,7 @@
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
-- (void)writeGlyphGrid:(NSFont *)nsFont {
+- (void)writeGlyph:(NSFont *)nsFont string:(NSString *)string {
 	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)nsFont.fontName, 1);
 	CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
 	CFRelease(fontRef);
@@ -86,14 +87,12 @@
 	_testScene.scene.empty();
     _testScene.cgscene.empty();
 	RasterizerTrueType::Font font;
-	uint8_t bgra[4] = { 0, 0, 0, 255 };
-    
-	NSString *text = @"€® One of the obvious motivations has been Objective-C, and in particular the notion of Software-ICs, components that are connected via dynamic messages. This is actually an instance of the Scripted Components (pdf) pattern, with the interesting twist that unlike most of the instances of this pattern, there is only a single programming language for both the scripts and the components, that language being Objective-C.";
-	
-    NSString *label = @"Hello, world!\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz 0123456789\n!@$%^&*()-_=+[]{};:\'\"\\|~,.<>/?";
 	if (font.set(data.bytes, nsFont.fontName.UTF8String) != 0) {
-        RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), text.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
-//        RasterizerTrueType::writeGlyphGrid(font, float(nsFont.pointSize), bgra,  _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+		uint8_t bgra[4] = { 0, 0, 0, 255 };
+		if (string)
+        	RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+		else
+        	RasterizerTrueType::writeGlyphGrid(font, float(nsFont.pointSize), bgra,  _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
 	}
 }
 
@@ -121,6 +120,14 @@
     } else {
         [super keyDown:event];
     }
+}
+
+- (void)paste:(id)sender {
+	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+	NSArray<NSPasteboardItem *> *items = pasteboard.pasteboardItems;
+	self.pastedString = [[items objectAtIndex:0] stringForType:NSPasteboardTypeString];
+	[self writeGlyph:[[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]] string:self.pastedString];
+	[self redraw];
 }
 
 #pragma mark - IBOutlet
