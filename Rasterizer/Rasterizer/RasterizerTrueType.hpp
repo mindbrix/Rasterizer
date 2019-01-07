@@ -6,6 +6,7 @@
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
 
+#import <unordered_map>
 #import "Rasterizer.hpp"
 
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -22,6 +23,7 @@ struct RasterizerTrueType {
 			int length;
 			const char *n;
 			empty();
+			cache.clear();
 			for (int i = 0; i < numfonts; i++) {
 				int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i);
 				if (offset != -1) {
@@ -47,6 +49,9 @@ struct RasterizerTrueType {
 			return 0;
         }
 		Rasterizer::Path glyphPath(int glyph) {
+			auto it = cache.find(glyph);
+			if (it != cache.end())
+				return it->second;
 			Rasterizer::Path path;
 			stbtt_vertex *vertices, *vertex;
 			int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
@@ -67,9 +72,11 @@ struct RasterizerTrueType {
 							break;
 					}
 				stbtt_FreeShape(& info, vertices);
+				cache.emplace(glyph, path);
 			}
 			return path;
 		}
+		std::unordered_map<int, Rasterizer::Path> cache;
 		float monospace, space;
         stbtt_fontinfo info;
     };
