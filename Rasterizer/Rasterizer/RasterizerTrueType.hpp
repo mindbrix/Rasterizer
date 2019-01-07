@@ -139,7 +139,7 @@ struct RasterizerTrueType {
 			for (advance = advances, j = idx; j < i; j++, advance++)
 				if (*advance) {
 					bgras.emplace_back(*((uint32_t *)bgra));
-					ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - ascent) * s + bounds.uy);
+					ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
 					x += *advance;
 					paths.emplace_back(font.glyphPath(glyphs[j]));
 				}
