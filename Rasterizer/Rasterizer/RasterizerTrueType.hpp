@@ -84,7 +84,8 @@ struct RasterizerTrueType {
         const char nl = '\n', sp = ' ';
         const int NL = -1, SP = -2;
         std::vector<int> glyphs;
-		int i, j, idx, ascent, descent, lineGap, leftSideBearing, len;
+        uint8_t *utf8 = (uint8_t *)str;
+		int i, j, idx, ascent, descent, lineGap, leftSideBearing, step, len, codepoint;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
 		float s, width, height, lineHeight, space, x, y;
 		s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
@@ -92,8 +93,26 @@ struct RasterizerTrueType {
 		height = ascent - descent, lineHeight = height + lineGap;
 		space = font.monospace ?: font.space ?: lineHeight * 0.166f;
 		
-		for (i = 0; str[i]; i++)
-            glyphs.emplace_back(str[i] == sp ? SP : str[i] == nl ? NL : stbtt_FindGlyphIndex(& font.info, str[i]));
+        for (codepoint = 0, step = 1, i = 0; step; i += step) {
+            if (utf8[i] < 128)
+                step = 1, codepoint = utf8[i];
+            else if ((utf8[i] & 0xE0) == 0xC0 && (utf8[i + 1] & 0xC0) == 0x80)
+                step = 2, codepoint = ((utf8[i] & ~0xE0) << 6) | (utf8[i + 1] & ~0xC0);
+            else if ((utf8[i] & 0xF0) == 0xE0 && (utf8[i + 1] & 0xC0) == 0x80 && (utf8[i + 2] & 0xC0) == 0x80)
+                step = 3, codepoint = (utf8[i] & ~0xF0) << 12 | (utf8[i + 1] & ~0xC0) << 6 | (utf8[i + 2] & ~0xC0);
+            else if ((utf8[i] & 0xF8) == 0xF0 && (utf8[i + 1] & 0xC0) == 0x80 && (utf8[i + 2] & 0xC0) == 0x80 && (utf8[i + 3] & 0xC0) == 0x80)
+                step = 4, codepoint = (utf8[i] & ~0xF8) << 18 | (utf8[i + 1] & ~0xC0) << 12 | (utf8[i + 2] & ~0xC0) << 6 | (utf8[i + 3] & ~0xC0);
+            else
+                assert(0);
+            
+            for (j = 0; j < step; j++)
+                if (utf8[i + j] == 0) {
+                    step = 0;
+                    break;
+                }
+            if (step)
+                glyphs.emplace_back(codepoint == sp ? SP : codepoint == nl ? NL : stbtt_FindGlyphIndex(& font.info, codepoint));
+        }
         len = (int)glyphs.size();
 		x = y = i = 0;
 		do {
