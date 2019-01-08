@@ -15,12 +15,11 @@
 struct RasterizerTrueType {
     struct Font {
         Font() { empty(); }
-        void empty() { monospace = space = 0.f, bzero(& info, sizeof(info)); }
+        void empty() { monospace = space = 0.f, bzero(& info, sizeof(info)), cache.clear(); }
         int set(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
             int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
             empty();
-            cache.clear();
             for (int i = 0; i < numfonts; i++)
                 if ((offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i)) != -1) {
                     stbtt_InitFont(& info, ttf_buffer, offset);
