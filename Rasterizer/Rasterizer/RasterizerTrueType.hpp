@@ -18,18 +18,14 @@ struct RasterizerTrueType {
         void empty() { monospace = space = 0.f, bzero(& info, sizeof(info)); }
         int set(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
-            int numfonts = stbtt_GetNumberOfFonts(ttf_buffer);
-            size_t numchars = strlen(name);
-            int length;
-            const char *n;
+            int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
             empty();
             cache.clear();
-            for (int i = 0; i < numfonts; i++) {
-                int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i);
-                if (offset != -1) {
+            for (int i = 0; i < numfonts; i++)
+                if ((offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i)) != -1) {
                     stbtt_InitFont(& info, ttf_buffer, offset);
                     if (info.numGlyphs) {
-                        n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
+                        const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                         if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
                             const char* lw_ =  "lW ";
                             int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
@@ -45,7 +41,6 @@ struct RasterizerTrueType {
                         }
                     }
                 }
-            }
             return 0;
         }
         Rasterizer::Path glyphPath(int glyph) {
