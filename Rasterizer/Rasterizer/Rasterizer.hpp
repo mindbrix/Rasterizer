@@ -48,9 +48,8 @@ struct Rasterizer {
     };
     struct Sequence {
         struct Atom {
-            enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose };
+            enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCapacity = 15 };
             Atom() { bzero(points, sizeof(points)), bzero(types, sizeof(types)); }
-            static const size_t kCapacity = 15;
             float       points[30];
             uint8_t     types[8];
         };
