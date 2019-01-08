@@ -118,11 +118,10 @@ struct Rasterizer {
         void close() {
             alloc(Atom::kClose, 1);
         }
+        size_t refCount, index;
         std::vector<Atom> atoms;
-        size_t index;
         float px, py;
         Bounds bounds;
-        size_t refCount;
     };
     struct Path {
         Path() {
