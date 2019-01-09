@@ -81,7 +81,7 @@ struct RasterizerTrueType {
                             std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
             return;
-        int i, j, idx, step, len, codepoint;
+        int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ';
         const int NL = -1, SP = -2;
         const uint8_t *utf8 = (uint8_t *)str;
@@ -120,12 +120,12 @@ struct RasterizerTrueType {
                     x += space;
                 i++;
             }
-            idx = i;
+            begin = i;
             while (i < len && glyphs[i] != SP && glyphs[i] != NL)
                 i++;
-            int advances[i - idx], *advance = advances, total = 0;
+            int advances[i - begin], *advance = advances, total = 0;
             bzero(advances, sizeof(advances));
-            for (j = idx; j < i; j++, advance++)
+            for (j = begin; j < i; j++, advance++)
                 if (glyphs[j] > 0 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
                     stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
                     if (j < len - 1)
@@ -133,7 +133,7 @@ struct RasterizerTrueType {
                 }
             if (x + total > width)
                 x = 0, y -= lineHeight;
-            for (advance = advances, j = idx; j < i; j++, advance++)
+            for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
                     bgras.emplace_back(*((uint32_t *)bgra));
                     ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
