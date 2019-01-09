@@ -18,6 +18,7 @@
 @property(nonatomic) RasterizerCoreGraphics::Scene textScene;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useMetal;
+@property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 
 @end
@@ -32,7 +33,8 @@
     if (! self)
         return nil;
     [self initLayer:_useMetal];
-	[self writeGlyph:[NSFont fontWithName:@"AppleSymbols" size:14] string:nil];
+    self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
+	[self writeGlyphs:self.font string:nil];
     return self;
 }
 
@@ -42,7 +44,8 @@
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    [self writeGlyph:[[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]] string:self.pastedString];
+    self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
+    [self writeGlyphs:self.font string:self.pastedString];
     [self redraw];
 }
 
@@ -78,7 +81,7 @@
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
-- (void)writeGlyph:(NSFont *)nsFont string:(NSString *)string {
+- (void)writeGlyphs:(NSFont *)nsFont string:(NSString *)string {
 	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)nsFont.fontName, 1);
 	CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
 	CFRelease(fontRef);
@@ -126,7 +129,7 @@
 	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
 	NSArray<NSPasteboardItem *> *items = pasteboard.pasteboardItems;
 	self.pastedString = [[items objectAtIndex:0] stringForType:NSPasteboardTypeString];
-	[self writeGlyph:[[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]] string:self.pastedString];
+	[self writeGlyphs:self.font string:self.pastedString];
 	[self redraw];
 }
 
