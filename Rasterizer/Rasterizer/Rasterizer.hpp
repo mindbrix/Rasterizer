@@ -53,14 +53,14 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : index(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), refCount(1) {}
+        Sequence() : end(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), refCount(1) {}
         
         float *alloc(Atom::Type type, size_t size) {
-            if (index + size > Atom::kCapacity)
-                index = 0, atoms.emplace_back();
-            atoms.back().types[index / 2] |= (uint8_t(type) << ((index & 1) * 4));
-            index += size;
-            return atoms.back().points + (index - size) * 2;
+            if (end + size > Atom::kCapacity)
+                end = 0, atoms.emplace_back();
+            atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
+            end += size;
+            return atoms.back().points + (end - size) * 2;
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
         
@@ -117,7 +117,7 @@ struct Rasterizer {
         void close() {
             alloc(Atom::kClose, 1);
         }
-        size_t refCount, index;
+        size_t refCount, end;
         std::vector<Atom> atoms;
         float px, py;
         Bounds bounds;
