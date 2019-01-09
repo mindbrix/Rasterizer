@@ -6,7 +6,8 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 #ifdef RASTERIZER_SIMD
-#include <immintrin.h>
+typedef float vec4f __attribute__((vector_size(16)));
+typedef uint8_t vec4b __attribute__((vector_size(4)));
 #endif
 
 #import "Rasterizer.h"
@@ -952,11 +953,12 @@ struct Rasterizer {
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
 #ifdef RASTERIZER_SIMD
-        __m128 a0 = _mm_set1_ps(alpha), m0 = _mm_mul_ps(_mm_set_ps(255.f, src2, src1, src0), a0);
-        if (*((uint32_t *)dst))
-            m0 = _mm_add_ps(m0, _mm_mul_ps(_mm_set_ps(float(dst[3]), float(dst[2]), float(dst[1]), float(dst[0])), _mm_sub_ps(_mm_set1_ps(1.f), a0)));
-        __m128i a32 = _mm_cvttps_epi32(m0), a16 = _mm_packs_epi32(a32, a32), a8 = _mm_packus_epi16(a16, a16);
-        *((uint32_t *)dst) = _mm_cvtsi128_si32(a8);
+        vec4f a4 = { alpha, alpha, alpha, alpha }, src4 = { src0, src1, src2, 255.f }, m4 = a4 * src4, dst4, one4 = { 1.f, 1.f, 1.f, 1.f };
+        if (*((uint32_t *)dst)) {
+            dst4 = { float(dst[0]), float(dst[1]), float(dst[2]), float(dst[3]) };
+            m4 = m4 + dst4 * (one4 - a4);
+        }
+        *((vec4b *)dst) = __builtin_convertvector (m4, vec4b);
 #else
         if (*((uint32_t *)dst) == 0)
             dst[0] = src0 * alpha, dst[1] = src1 * alpha, dst[2] = src2 * alpha, dst[3] = 255.f * alpha;
