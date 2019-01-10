@@ -113,13 +113,14 @@ struct RasterizerTrueType {
         beginx = left ? width : 0;
         base = (int)paths.size();
         len = (int)glyphs.size();
-        x = y = i = 0;
+        x = beginx;
+        y = i = 0;
         do {
             while (i < len && (glyphs[i] == SP || glyphs[i] == NL)) {
                 if (glyphs[i] == NL)
-                    x = 0, y -= lineHeight;
+                    x = beginx, y -= lineHeight;
                 else
-                    x += space;
+                    x += left ? -space : space;
                 i++;
             }
             begin = i;
@@ -133,19 +134,24 @@ struct RasterizerTrueType {
                     if (j < len - 1)
                         *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
                 }
-            if (x + total > width)
-                x = 0, y -= lineHeight;
+            if (!left && x + total > width)
+                x = beginx, y -= lineHeight;
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
                     bgras.emplace_back(*((uint32_t *)bgra));
                     paths.emplace_back(font.glyphPath(glyphs[j]));
                     Rasterizer::Bounds gb = paths.back().sequence->bounds;
-                    if (x == 0)
-                        x += -gb.lx;
+                    if (x == beginx) {
+                        if (left)
+                            x += *advance - gb.ux;
+                        else
+                            x += -gb.lx;
+                    }
+                    if (left)
+                        x -= *advance;
                     ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
-                    x += *advance;
-//                    Rasterizer::Bounds b = gb.transform(ctms.back());
-//                    assert(b.lx >= bounds.lx);
+                    if (!left)
+                        x += *advance;
                 }
         } while (i < len);
         
