@@ -75,7 +75,7 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static Rasterizer::Bounds writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str,
+    static Rasterizer::Bounds writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, bool left, const char *str,
                             std::vector<uint32_t>& bgras,
                             std::vector<Rasterizer::AffineTransform>& ctms,
                             std::vector<Rasterizer::Path>& paths) {
@@ -105,11 +105,12 @@ struct RasterizerTrueType {
         }
         int base, ascent, descent, lineGap, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
-        float s, width, height, lineHeight, space, x, y;
+        float s, width, height, lineHeight, space, beginx, x, y;
         s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         width = (bounds.ux - bounds.lx) / s;
         height = ascent - descent, lineHeight = height + lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
+        beginx = left ? width : 0;
         base = (int)paths.size();
         len = (int)glyphs.size();
         x = y = i = 0;

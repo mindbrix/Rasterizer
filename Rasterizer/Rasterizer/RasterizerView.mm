@@ -93,7 +93,7 @@
 	if (font.set(data.bytes, nsFont.fontName.UTF8String) != 0) {
 		uint8_t bgra[4] = { 0, 0, 0, 255 };
 		if (string)
-        	RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+        	RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), false, string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
 		else
         	RasterizerTrueType::writeGlyphGrid(font, float(nsFont.pointSize), bgra,  _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
 	}
