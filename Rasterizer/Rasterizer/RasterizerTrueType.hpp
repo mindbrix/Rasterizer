@@ -75,12 +75,12 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static void writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str,
+    static Rasterizer::Bounds writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, const char *str,
                             std::vector<uint32_t>& bgras,
                             std::vector<Rasterizer::AffineTransform>& ctms,
                             std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
-            return;
+            return Rasterizer::Bounds(0.f, 0.f, 0.f, 0.f);
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ';
         const int NL = -1, SP = -2;
@@ -103,13 +103,14 @@ struct RasterizerTrueType {
             if (step)
                 glyphs.emplace_back(codepoint == sp ? SP : codepoint == nl ? NL : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
-        int ascent, descent, lineGap, leftSideBearing;
+        int base, ascent, descent, lineGap, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
         float s, width, height, lineHeight, space, x, y;
         s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         width = (bounds.ux - bounds.lx) / s;
         height = ascent - descent, lineHeight = height + lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
+        base = (int)paths.size();
         len = (int)glyphs.size();
         x = y = i = 0;
         do {
@@ -141,6 +142,14 @@ struct RasterizerTrueType {
                     paths.emplace_back(font.glyphPath(glyphs[j]));
                 }
         } while (i < len);
+        
+        float lx = FLT_MAX, ly = FLT_MAX, ux = -FLT_MAX, uy = -FLT_MAX;
+        for (i = base; i < paths.size(); i++) {
+            Rasterizer::Bounds b = paths[i].sequence->bounds.transform(ctms[i]);
+            lx = lx < b.lx ? lx : b.lx, ly = ly < b.ly ? ly : b.ly;
+            ux = ux > b.ux ? ux : b.ux, uy = uy > b.uy ? uy : b.uy;
+        }
+        return Rasterizer::Bounds(lx, ly, ux, uy);
     }
     static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
                                std::vector<uint32_t>& bgras,
