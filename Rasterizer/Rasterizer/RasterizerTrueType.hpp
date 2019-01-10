@@ -137,9 +137,14 @@ struct RasterizerTrueType {
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
                     bgras.emplace_back(*((uint32_t *)bgra));
+                    paths.emplace_back(font.glyphPath(glyphs[j]));
+                    Rasterizer::Bounds gb = paths.back().sequence->bounds;
+                    if (x == 0)
+                        x += -gb.lx;
                     ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
                     x += *advance;
-                    paths.emplace_back(font.glyphPath(glyphs[j]));
+//                    Rasterizer::Bounds b = gb.transform(ctms.back());
+//                    assert(b.lx >= bounds.lx);
                 }
         } while (i < len);
         
