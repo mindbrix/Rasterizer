@@ -956,7 +956,7 @@ struct Rasterizer {
         vec4f src4 = { src0, src1, src2, 255.f }, alpha4 = { alpha, alpha, alpha, alpha }, mul4 = alpha4 * src4, dst4, one4 = { 1.f, 1.f, 1.f, 1.f };
         if (*((uint32_t *)dst)) {
             dst4 = { float(dst[0]), float(dst[1]), float(dst[2]), float(dst[3]) };
-            mul4 = mul4 + dst4 * (one4 - alpha4);
+            mul4 += dst4 * (one4 - alpha4);
         }
         *((vec4b *)dst) = __builtin_convertvector (mul4, vec4b);
 #else
