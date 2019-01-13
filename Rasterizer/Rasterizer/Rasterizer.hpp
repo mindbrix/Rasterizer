@@ -511,28 +511,6 @@ struct Rasterizer {
                 if (scale < 0.f)
                     tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
                 dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
-#ifdef RASTERIZER_SIMD
-                {
-                    iy0 = floorf(y0);
-                    delta = deltas + size_t(iy0 * stride);
-                    const vec4f ramp4 = { 0.f, 1.f, 2.f, 3.f }, three4 = { 3.f, 3.f, 3.f, 3.f }, zero4 = { 0.f, 0.f, 0.f, 0.f }, one4 = { 1.f, 1.f, 1.f, 1.f };
-                    vec4f iy4 = { iy0, iy0, iy0, iy0 };
-                    vec4f y04 = { y0, y0, y0, y0 }, y14 = { y1, y1, y1, y1 }, x04 = { x0, x0, x0, x0 }, x14 = { x1, x1, x1, x1 };
-                    vec4f t4, sy4, sx4;
-                    for (iy4 += ramp4; iy4[0] < y1; iy4 += three4) {
-                        t4 = (iy4 - y04) / (y14 - y04);
-                        t4 = _mm_min_ps(t4, one4);
-                        t4 = _mm_max_ps(t4, zero4);
-                        sy4 = t4 * (y14 - y04) + y04;
-                        sx4 = t4 * (x14 - x04) + x04;
-                        
-                        sx0 = sx4[0], sy0 = sy4[0];
-                        for (int i = 1; sy0 < y1 && i < 3; i++, sx0 = sx1, sy0 = sy1, delta += stride) {
-                            sx1 = sx4[i], sy1 = sy4[i];
-                        }
-                    }
-                }
-#endif
                 for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = deltas + size_t(iy0 * stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += stride) {
                     iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
                     lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
