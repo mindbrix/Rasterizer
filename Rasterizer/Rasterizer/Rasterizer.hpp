@@ -210,6 +210,10 @@ struct Rasterizer {
             size_t width, height;
             Bounds sheet, strip;
         };
+        struct Colorant {
+            Colorant() {}
+            AffineTransform ctm;
+        };
         struct Index {
             Index() {}
             Index(size_t iy, size_t idx, size_t begin, size_t end) : iy(uint32_t(iy)), idx(uint32_t(idx)), begin(uint32_t(begin)), end(uint32_t(end)) {}
