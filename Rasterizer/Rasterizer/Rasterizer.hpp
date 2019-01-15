@@ -260,8 +260,10 @@ struct Rasterizer {
         GPU::Paint clearColor;
     };
     struct Context {
-        static void writeContextsToBuffer(Context *contexts, size_t count, uint32_t *bgras, size_t pathsCount, Buffer& buffer) {
-            size_t size, i, j, k, kend, begin, end, qend, q;
+        static void writeContextsToBuffer(Context *contexts, size_t count, uint32_t *bgras,
+                                          std::vector<Rasterizer::AffineTransform>& ctms,
+                                          std::vector<Rasterizer::Path>& paths, Buffer& buffer) {
+            size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
             size = pathsCount * sizeof(GPU::Paint);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
