@@ -218,6 +218,7 @@ struct Rasterizer {
         struct Paint {
             Paint() {}
             Paint(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
+            Paint(int i) : src0((i >> 16) & 0xFF), src1((i >> 8) & 0xFF), src2(i & 0xFF), src3(0) {}
             uint8_t src0, src1, src2, src3;
         };
         struct Quad {
