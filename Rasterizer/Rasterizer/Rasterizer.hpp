@@ -265,7 +265,7 @@ struct Rasterizer {
                                           std::vector<Path>& paths,
                                           std::vector<GPU::Colorant>& colorants, Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
-            size = pathsCount * sizeof(GPU::Paint);
+            size = pathsCount * sizeof(GPU::Paint) + colorants.size() * sizeof(GPU::Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             
@@ -279,6 +279,13 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
             begin = end;
             
+            end += colorants.size() * sizeof(GPU::Colorant);
+            if (begin != end) {
+                memcpy(buffer.data.base + begin, & colorants[0], colorants.size() * sizeof(GPU::Colorant));
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
+                begin = end;
+            }
+
             Context *ctx;
             size_t opaquesBegin = begin;
             for (ctx = contexts, i = 0; i < count; i++, ctx++) {
