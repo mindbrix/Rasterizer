@@ -156,7 +156,7 @@
     clipPath.sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    buffer->clearColor = Rasterizer::GPU::Paint(_svgData ? svg : font);
+    buffer->clearColor = Rasterizer::GPU::Colorant(_svgData ? svg : font);
     RasterizerCoreGraphics::drawTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 

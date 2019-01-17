@@ -305,9 +305,8 @@ struct RasterizerCoreGraphics {
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
             }
-            std::vector<Rasterizer::GPU::Colorant> colorants;
             if (buffer)
-                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, testScene.scene.ctms, testScene.scene.paths, colorants, *buffer);
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, testScene.scene.ctms, testScene.scene.paths, *buffer);
         }
     }
 };

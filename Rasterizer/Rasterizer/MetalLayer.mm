@@ -160,22 +160,19 @@
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
     uint32_t reverse, pathCount;
-    size_t paintsOffset = 0, colorantsOffset = 0;
+    size_t colorantsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-			case Rasterizer::Buffer::Entry::kPaints:
-				pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Paint));
-                paintsOffset = entry.begin;
-				break;
-            case Rasterizer::Buffer::Entry::kColorants:
+			case Rasterizer::Buffer::Entry::kColorants:
+                pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Colorant));
                 colorantsOffset = entry.begin;
                 break;
             case Rasterizer::Buffer::Entry::kOpaques:
 				[commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:paintsOffset atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 reverse = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
@@ -192,7 +189,7 @@
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                 [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:paintsOffset atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
@@ -207,7 +204,7 @@
             case Rasterizer::Buffer::Entry::kQuads:
 				[commandEncoder setDepthStencilState:_quadsDepthState];
                 [commandEncoder setRenderPipelineState:_quadsPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:paintsOffset atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];

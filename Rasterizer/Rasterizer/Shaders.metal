@@ -11,8 +11,13 @@ using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
-struct Paint {
-    unsigned char src0, src1, src2, src3;
+struct AffineTransform {
+    float a, b, c, d, tx, ty;
+};
+
+struct Colorant {
+    uint8_t src0, src1, src2, src3;
+    AffineTransform ctm;
 };
 
 struct Quad {
@@ -53,7 +58,7 @@ struct OpaquesVertex
     float4 color;
 };
 
-vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -63,7 +68,7 @@ vertex OpaquesVertex opaques_vertex_main(device Paint *paints [[buffer(0)]], dev
     float y = select(quad.ly, quad.uy, vid >> 1) / *height * 2.0 - 1.0;
     float z = (quad.idx * 2 + 2) / float(*pathCount * 2 + 2);
     
-    device Paint& paint = paints[quad.idx];
+    device Colorant& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
     
     OpaquesVertex vert;
@@ -88,7 +93,7 @@ struct EdgesVertex
     float x6, y6, x7, y7;
 };
 
-vertex EdgesVertex edges_vertex_main(device Paint *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
+vertex EdgesVertex edges_vertex_main(device Colorant *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
@@ -147,7 +152,7 @@ struct QuadsVertex
     bool even, solid;
 };
 
-vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -158,7 +163,7 @@ vertex QuadsVertex quads_vertex_main(device Paint *paints [[buffer(0)]], device 
     float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
     bool solid = quad.ox == kSolidQuad;
     
-    device Paint& paint = paints[quad.idx];
+    device Colorant& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;

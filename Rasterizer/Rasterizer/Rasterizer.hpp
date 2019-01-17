@@ -210,20 +210,16 @@ struct Rasterizer {
             size_t width, height;
             Bounds sheet, strip;
         };
-        struct Colorant {
-            Colorant() {}
-            AffineTransform ctm;
-        };
         struct Index {
             Index() {}
             Index(size_t iy, size_t idx, size_t begin, size_t end) : iy(uint32_t(iy)), idx(uint32_t(idx)), begin(uint32_t(begin)), end(uint32_t(end)) {}
             uint32_t iy, idx, begin, end;
         };
-        struct Paint {
-            Paint() {}
-            Paint(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
-            Paint(int i) : src0((i >> 16) & 0xFF), src1((i >> 8) & 0xFF), src2(i & 0xFF), src3(0) {}
+        struct Colorant {
+            Colorant() {}
+            Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f) {}
             uint8_t src0, src1, src2, src3;
+            AffineTransform ctm;
         };
         struct Quad {
             Quad() {}
@@ -257,35 +253,28 @@ struct Rasterizer {
         };
         Pages<uint8_t> data;
         Row<Entry> entries;
-        GPU::Paint clearColor;
+        GPU::Colorant clearColor;
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, uint32_t *bgras,
                                           std::vector<AffineTransform>& ctms,
                                           std::vector<Path>& paths,
-                                          std::vector<GPU::Colorant>& colorants, Buffer& buffer) {
+                                          Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
-            size = pathsCount * sizeof(GPU::Paint) + colorants.size() * sizeof(GPU::Colorant);
+            size = pathsCount * sizeof(GPU::Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             
             buffer.data.alloc(size);
             begin = end = 0;
             
-            end += pathsCount * sizeof(GPU::Paint);
-            GPU::Paint *dst = (GPU::Paint *)(buffer.data.base + begin);
+            end += pathsCount * sizeof(GPU::Colorant);
+            GPU::Colorant *dst = (GPU::Colorant *)(buffer.data.base + begin);
             for (size_t idx = 0; idx < pathsCount; idx++)
-                new (dst++) GPU::Paint((uint8_t *)& bgras[idx]);
-            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kPaints, begin, end);
+                new (dst++) GPU::Colorant((uint8_t *)& bgras[idx]);
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             begin = end;
             
-            end += colorants.size() * sizeof(GPU::Colorant);
-            if (begin != end) {
-                memcpy(buffer.data.base + begin, & colorants[0], colorants.size() * sizeof(GPU::Colorant));
-                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
-                begin = end;
-            }
-
             Context *ctx;
             size_t opaquesBegin = begin;
             for (ctx = contexts, i = 0; i < count; i++, ctx++) {
