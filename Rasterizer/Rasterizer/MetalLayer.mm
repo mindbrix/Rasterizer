@@ -191,7 +191,6 @@
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                 [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];

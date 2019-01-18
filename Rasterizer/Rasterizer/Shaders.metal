@@ -93,7 +93,7 @@ struct EdgesVertex
     float x6, y6, x7, y7;
 };
 
-vertex EdgesVertex edges_vertex_main(device Colorant *paints [[buffer(0)]], device Edge *edges [[buffer(1)]],
+vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
