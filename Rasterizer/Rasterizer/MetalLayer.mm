@@ -165,6 +165,8 @@
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
+            case Rasterizer::Buffer::Entry::kShapes:
+                break;
 			case Rasterizer::Buffer::Entry::kColorants:
                 pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Colorant));
                 colorantsOffset = entry.begin;
