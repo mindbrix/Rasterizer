@@ -174,7 +174,6 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.even = false;
     vert.solid = solid;
     return vert;
-     
 }
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
@@ -182,4 +181,36 @@ fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<flo
     float winding = vert.solid ? 1.0 : vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
     float alpha = abs(winding);
     return vert.color * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
+}
+
+#pragma mark - Shapes
+
+struct ShapesVertex
+{
+    float4 position [[position]];
+    float4 color;
+    float u, v;
+};
+
+vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
+                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                     uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    device Colorant& shape = shapes[iid];
+    device AffineTransform& ctm = shape.ctm;
+    float ix = vid & 1, iy = vid >> 1;
+    float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
+    float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
+    float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0;
+    
+    ShapesVertex vert;
+    vert.position = float4(x, y, 1.0, 1.0);
+    vert.color = float4(r * a, g * a, b * a, a);
+    vert.u = ix, vert.v = iy;
+    return vert;
+}
+
+fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
+{
+    return vert.color;
 }
