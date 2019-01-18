@@ -218,6 +218,7 @@ struct Rasterizer {
         struct Colorant {
             Colorant() {}
             Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f) {}
+            Colorant(uint8_t *src, AffineTransform ctm) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(ctm) {}
             uint8_t src0, src1, src2, src3;
             AffineTransform ctm;
         };
