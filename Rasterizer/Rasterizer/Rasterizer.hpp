@@ -256,12 +256,13 @@ struct Rasterizer {
         GPU::Colorant clearColor;
     };
     struct Context {
-        static void writeContextsToBuffer(Context *contexts, size_t count, uint32_t *bgras,
+        static void writeContextsToBuffer(Context *contexts, size_t count, size_t colorantsSize,
+                                          uint32_t *bgras,
                                           std::vector<AffineTransform>& ctms,
                                           std::vector<Path>& paths,
                                           Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
-            size = pathsCount * sizeof(GPU::Colorant);
+            size = colorantsSize + pathsCount * sizeof(GPU::Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             

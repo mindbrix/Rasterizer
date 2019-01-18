@@ -306,7 +306,7 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
             }
             if (buffer)
-                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, bgras, testScene.scene.ctms, testScene.scene.paths, *buffer);
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, 0, bgras, testScene.scene.ctms, testScene.scene.paths, *buffer);
         }
     }
 };
