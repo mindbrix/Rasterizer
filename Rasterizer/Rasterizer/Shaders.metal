@@ -191,6 +191,7 @@ struct ShapesVertex
     float4 color;
     float u, v;
     float d0, d1, d2, d3;
+    uint type;
 };
 
 vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
@@ -223,10 +224,19 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     vert.d2 = (vx * -ctm.b - vy * -ctm.a) * rab + 0.5;
     vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
     vert.d3 = (vx * -ctm.d - vy * -ctm.c) * rcd + 0.5;
+    vert.type = 0;
     return vert;
 }
 
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
-    return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
+    switch (vert.type) {
+        case 0:
+            return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
+        case 1: {
+            float d = vert.d0 + vert.d2, r = d * 0.5, x = r - min(vert.d0, vert.d2), y = r - min(vert.d1, vert.d3);
+            return vert.color * saturate(r - sqrt(x * x + y * y));
+        }
+    }
+    return { 1.0, 0.0, 0.0, 1.0 };
 }
