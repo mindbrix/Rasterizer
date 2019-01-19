@@ -216,11 +216,13 @@ struct Rasterizer {
             uint32_t iy, idx, begin, end;
         };
         struct Colorant {
+            enum Type { kNull = 0, kRect, kCircle };
             Colorant() {}
-            Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f) {}
-            Colorant(uint8_t *src, AffineTransform ctm) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(ctm) {}
+            Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f), type(kNull)  {}
+            Colorant(uint8_t *src, AffineTransform ctm, int type) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(ctm), type(type) {}
             uint8_t src0, src1, src2, src3;
             AffineTransform ctm;
+            int type;
         };
         struct Quad {
             Quad() {}
