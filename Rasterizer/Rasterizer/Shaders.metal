@@ -16,6 +16,7 @@ struct AffineTransform {
 };
 
 struct Colorant {
+    enum Type { kNull = 0, kRect, kCircle };
     uint8_t src0, src1, src2, src3;
     AffineTransform ctm;
     int type;
@@ -232,9 +233,9 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
     switch (vert.type) {
-        case 0:
+        case Colorant::kRect:
             return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
-        case 1: {
+        case Colorant::kCircle: {
             float d = vert.d0 + vert.d2, r = d * 0.5, x = r - min(vert.d0, vert.d2), y = r - min(vert.d1, vert.d3);
             return vert.color * saturate(r - sqrt(x * x + y * y));
         }

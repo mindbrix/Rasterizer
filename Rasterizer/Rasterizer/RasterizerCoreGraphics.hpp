@@ -320,7 +320,7 @@ struct RasterizerCoreGraphics {
                     a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
                     for (int i = 0; i < shapesCount; i++, dst++) {
                         ix = sx * float(i % dim), iy = sy * float(i / dim);
-                        new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty), i & 1);
+                        new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty), i & 1 ? Rasterizer::GPU::Colorant::kCircle : Rasterizer::GPU::Colorant::kRect);
                     }
                     new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kShapes, begin, end);
                 }
