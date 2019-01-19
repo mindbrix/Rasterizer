@@ -205,7 +205,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
     float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
     float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0;
-    float rab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
+    float rab = copysign(rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), det), rcd = copysign(rsqrt(ctm.c * ctm.c + ctm.d * ctm.d), det);
     float vx, vy;
     ShapesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
