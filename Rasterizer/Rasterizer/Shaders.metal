@@ -18,6 +18,7 @@ struct AffineTransform {
 struct Colorant {
     uint8_t src0, src1, src2, src3;
     AffineTransform ctm;
+    int type;
 };
 
 struct Quad {
@@ -224,7 +225,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     vert.d2 = (vx * -ctm.b - vy * -ctm.a) * rab + 0.5;
     vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
     vert.d3 = (vx * -ctm.d - vy * -ctm.c) * rcd + 0.5;
-    vert.type = 0;
+    vert.type = shape.type;
     return vert;
 }
 
