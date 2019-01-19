@@ -316,7 +316,7 @@ struct RasterizerCoreGraphics {
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
                     int dim = ceilf(sqrtf((float)shapesCount));
                     float w, h, a, b, c, d, ix, iy, sx, sy, size = 10.f, phi = 1.618f;
-                    w = 0.1f, h = size, sx = 100.f * phi, sy = phi;
+                    w = size, h = size, sx = phi, sy = phi;
                     a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
                     for (int i = 0; i < shapesCount; i++, dst++) {
                         ix = sx * float(i % dim), iy = sy * float(i / dim);
