@@ -218,7 +218,9 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+        Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
+        
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -314,7 +316,7 @@ struct RasterizerCoreGraphics {
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
                     int dim = ceilf(sqrtf((float)shapesCount));
                     float w, h, a, b, c, d, ix, iy, sx, sy, size = 10.f, phi = 1.618f;
-                    w = 1.f, h = size, sx = 10.f * phi, sy = phi;
+                    w = 0.1f, h = size, sx = 100.f * phi, sy = phi;
                     a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
                     for (int i = 0; i < shapesCount; i++, dst++) {
                         ix = sx * float(i % dim), iy = sy * float(i / dim);
