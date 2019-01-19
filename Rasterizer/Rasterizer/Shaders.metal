@@ -200,7 +200,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     device Colorant& shape = shapes[iid];
     device AffineTransform& ctm = shape.ctm;
     float det = ctm.a * ctm.d - ctm.b * ctm.c;
-    float lab = sqrt(ctm.a * ctm.a + ctm.b * ctm.b), lcd = abs(det) / lab;
+    float lab = sqrt(ctm.a * ctm.a + ctm.b * ctm.b), lcd = sqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) / (lab * lcd));
     float sine = sqrt(1.0 - cosine * cosine);
     float dilation = 0.7071067812 / sine;
