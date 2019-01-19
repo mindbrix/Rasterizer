@@ -190,6 +190,7 @@ struct ShapesVertex
     float4 position [[position]];
     float4 color;
     float u, v;
+    float d0, d1, d2, d3;
 };
 
 vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
@@ -198,20 +199,30 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
 {
     device Colorant& shape = shapes[iid];
     device AffineTransform& ctm = shape.ctm;
-    float dilation = 0.7071 * rsqrt(abs(ctm.a * ctm.d - ctm.b * ctm.c));
+    float det = ctm.a * ctm.d - ctm.b * ctm.c;
+    float dilation = 0.7071067812 * rsqrt(abs(det));
     float ix = vid & 1 ? 1.0 + dilation : -dilation, iy = vid >> 1 ? 1.0 + dilation : -dilation;
     float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
     float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
     float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0;
-    
+    float rab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
+    float vx, vy;
     ShapesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.u = ix, vert.v = iy;
+    vx = ctm.tx - dx, vy = ctm.ty - dy;
+    vert.d0 = (vx * ctm.b - vy * ctm.a) * rab + 0.5;
+    vx = (ctm.tx + ctm.a) - dx, vy = (ctm.ty + ctm.b) - dy;
+    vert.d1 = (vx * ctm.d - vy * ctm.c) * rcd + 0.5;
+    vx = (ctm.tx + ctm.a + ctm.c) - dx, vy = (ctm.ty + ctm.b + ctm.d) - dy;
+    vert.d2 = (vx * -ctm.b - vy * -ctm.a) * rab + 0.5;
+    vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
+    vert.d3 = (vx * -ctm.d - vy * -ctm.c) * rcd + 0.5;
     return vert;
 }
 
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
-    return vert.color;
+    return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
 }
