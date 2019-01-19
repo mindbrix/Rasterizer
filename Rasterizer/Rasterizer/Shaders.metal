@@ -198,7 +198,8 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
 {
     device Colorant& shape = shapes[iid];
     device AffineTransform& ctm = shape.ctm;
-    float ix = vid & 1, iy = vid >> 1;
+    float dilation = 0.7071 * rsqrt(abs(ctm.a * ctm.d - ctm.b * ctm.c));
+    float ix = vid & 1 ? 1.0 + dilation : -dilation, iy = vid >> 1 ? 1.0 + dilation : -dilation;
     float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
     float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
     float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0;
