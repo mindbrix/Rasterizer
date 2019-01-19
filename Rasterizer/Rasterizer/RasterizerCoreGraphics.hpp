@@ -308,10 +308,10 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
             }
             if (buffer) {
-                size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant), begin, end;
+                size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant);
                 Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesSize, bgras, testScene.scene.ctms, testScene.scene.paths, *buffer);
                 if (shapesCount) {
-                    begin = (buffer->entries.base + buffer->entries.end - 1)->end, end = begin + shapesSize;
+                    size_t begin = (buffer->entries.base + buffer->entries.end - 1)->begin;
                     Rasterizer::GPU::Colorant *dst = (Rasterizer::GPU::Colorant *)(buffer->data.base + begin);
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
                     int dim = ceilf(sqrtf((float)shapesCount));
@@ -322,7 +322,6 @@ struct RasterizerCoreGraphics {
                         ix = sx * float(i % dim), iy = sy * float(i / dim);
                         new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty), i & 1 ? Rasterizer::GPU::Colorant::kCircle : Rasterizer::GPU::Colorant::kRect);
                     }
-                    new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kShapes, begin, end);
                 }
             }
         }

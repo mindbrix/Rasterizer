@@ -331,6 +331,8 @@ struct Rasterizer {
                 for (j = 0; j < ctx->segments.size(); j++)
                     ctx->segments[j].empty();
             }
+            if (shapesSize)
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapes, begin, begin + shapesSize);
         }
         Context() {}
         void setBitmap(Bitmap bm) {
