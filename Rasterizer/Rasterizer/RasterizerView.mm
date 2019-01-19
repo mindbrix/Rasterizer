@@ -18,6 +18,7 @@
 @property(nonatomic) RasterizerCoreGraphics::Scene textScene;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useMetal;
+@property(nonatomic) size_t shapesCount;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 
@@ -115,6 +116,9 @@
     if (event.keyCode == 8) {
         _useClip = !_useClip;
         [self redraw];
+    } else if (event.keyCode == 1) {
+        _shapesCount = _shapesCount ? 0 : 10000;
+        [self redraw];
     } else if (event.keyCode == 46) {
         _useMetal = !_useMetal;
         [self toggleTimer];
@@ -157,8 +161,7 @@
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::GPU::Colorant(_svgData ? svg : font);
-    size_t shapesCount = 10000;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, shapesCount, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, _shapesCount, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 
 #pragma mark - CALayerDelegate
