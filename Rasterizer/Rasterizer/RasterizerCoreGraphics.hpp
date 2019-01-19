@@ -313,12 +313,12 @@ struct RasterizerCoreGraphics {
                     Rasterizer::GPU::Colorant *dst = (Rasterizer::GPU::Colorant *)(buffer->data.base + begin);
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
                     int dim = ceilf(sqrtf((float)shapesCount));
-                    float w, h, a, b, c, d, ix, iy, s;
-                    w = h = 10.f, s = 1.618f;
+                    float w, h, a, b, c, d, ix, iy, sx, sy, size = 10.f, phi = 1.618f;
+                    w = size, h = size, sx = phi, sy = phi;
                     a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
                     for (int i = 0; i < shapesCount; i++, dst++) {
-                        ix = i % dim, iy = i / dim;
-                        new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ctm.tx + s * (ix * a + iy * c), ctm.ty + s * (ix * b +  iy * d)));
+                        ix = sx * float(i % dim), iy = sy * float(i / dim);
+                        new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty));
                     }
                     new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kShapes, begin, end);
                 }
