@@ -352,7 +352,7 @@ struct Rasterizer {
             emptyClip();
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
-                segments.resize(size), clipcells.resize(size), clipcovers.resize(size);
+                segments.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t begin, size_t end) {
             paths += begin;
@@ -367,33 +367,26 @@ struct Rasterizer {
                     float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
                     if (stride * h < deltas.size()) {
                         writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
-                        writeDeltas(& deltas[0], stride, clipped, even, src, & bitmap, & clipcells[0]);
+                        writeDeltas(& deltas[0], stride, clipped, even, src, & bitmap);
                     } else {
                         writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                        writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap, & clipcells[0], & clipcovers[0]);
+                        writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap);
                     }
                 } else {
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clipped, even, src, iz, & gpu, & clipcells[0]);
+                    writeSegments(& segments[0], clipped, even, src, iz, & gpu);
                 }
             }
         }
         void emptyClip() {
             clip = device;
-            for (int i = 0; i < clipcells.size(); i++)
-                clipcells[i].empty(), clipcovers[i].empty();
         }
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl);
         }
         void intersectClip(Path& path, AffineTransform ctm, bool even) {
-            if (path.sequence && path.sequence->bounds.lx != FLT_MAX) {
+            if (path.sequence && path.sequence->bounds.lx != FLT_MAX)
                 clip = path.sequence->bounds.transform(ctm).integral().intersect(clip);
-                if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                    writePath(path, ctm, clip, nullptr, 0, & segments[0]);
-                    writeSegmentsToClip(& segments[0], clip, even, & deltas[0], clip.ux - clip.lx + 1.f, & clipcells[0], & clipcovers[0]);
-                }
-            }
         }
         Bitmap bitmap;
         GPU gpu;
@@ -401,8 +394,6 @@ struct Rasterizer {
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
-        std::vector<Row<Bounds>> clipcells;
-        std::vector<Row<float>> clipcovers;
     };
     
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
@@ -739,16 +730,14 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells) {
-        float fly, fuy, fy0, fy1, sly, suy, clx, cux;
+    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
+        float fly, fuy, fy0, fy1, sly, suy;
         fly = floorf(clip.ly * Context::krfh) * Context::kfh, fuy = ceilf(clip.uy * Context::krfh) * Context::kfh;
-        for (clipcells += size_t(clip.ly * Context::krfh), fy0 = fly; fy0 < fuy; fy0 = fy1, clipcells++) {
+        for (fy0 = fly; fy0 < fuy; fy0 = fy1) {
             fy1 = fy0 + Context::kfh;
             sly = clip.ly < fy0 ? fy0 : clip.ly > fy1 ? fy1 : clip.ly;
             suy = clip.uy < fy0 ? fy0 : clip.uy > fy1 ? fy1 : clip.uy;
-            clx = clipcells->end ? clipcells->base->lx : clip.lx;
-            cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
-            writeDeltas(deltas, stride, Bounds(clip.lx, sly, clip.ux, suy), clx, cux, even, src, bitmap, nullptr);
+            writeDeltas(deltas, stride, Bounds(clip.lx, sly, clip.ux, suy), clip.lx, clip.ux, even, src, bitmap, nullptr);
             deltas += size_t(suy - sly) * stride;
         }
     }
@@ -790,68 +779,21 @@ struct Rasterizer {
         for (int i = n - 1; i >= 0; i--)
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
-    static void writeSegmentsToClip(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, Row<Bounds> *clipcells, Row<float> *clipcovers) {
-        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
-        short counts0[256], counts1[256];
-        float ly, uy, scale, cover, lx, ux, x, y, *delta;
-        uint8_t a, src[4];
-        Segment *segment;
-        Row<Segment::Index> indices;    Segment::Index *index;
-        for (segments += ily, clipcells += ily, clipcovers += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++, clipcovers++) {
-            ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-            uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            if (segments->end == 0)
-                new (clipcells->alloc(1)) Bounds(0.f, ly, 0.f, uy);
-            else {
-                for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
-                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
-                else
-                    std::sort(indices.base, indices.base + indices.end);
-                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
-                    if (index->x > ux) {
-                        a = 255.5f * alphaForCover(cover, even);
-                        if (a == 0 || a == 255) {
-                            new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
-                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
-                            lx = ux, ux = index->x;
-                            if (a == 255) {
-                                for (delta = deltas, y = ly; y < uy; y++, delta += stride)
-                                    *delta = cover;
-                                new (clipcells->alloc(1)) Bounds(lx, ly, ux, uy);
-                            }
-                            lx = ux;
-                        }
-                    }
-                    segment = segments->base + index->i;
-                    cover += (segment->y1 - segment->y0) * scale;
-                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
-                    writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
-                }
-                new (clipcells->alloc(1)) Bounds(lx, ly, -ux, uy);
-                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), lx, ux, even, src, nullptr, clipcovers->alloc((ux - lx) * (uy - ly)));
-                indices.empty();
-                segments->empty();
-            }
-        }
-    }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu, Row<Bounds> *clipcells) {
+    
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
         short counts0[256], counts1[256];
-        float ly, uy, clx, cux, scale, cover, winding, lx, ux, qlx, qux, x, ox, oy;
+        float ly, uy, scale, cover, winding, lx, ux, qlx, qux, x, ox, oy;
         Segment *segment;
         Row<Segment::Index>& indices = gpu->indices;    Segment::Index *index;
-        for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
+        for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            clx = clipcells->end ? clipcells->base->lx : clip.lx;
-            cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
             count = segments->end - segments->idx;
             if (count) {
                 if (clip.ux - clip.lx < 16.f) {
-                    qlx = clip.lx < clx ? clx : clip.lx > cux ? cux : clip.lx;
-                    qux = clip.ux < clx ? clx : clip.ux > cux ? cux : clip.ux;
+                    qlx = clip.lx;
+                    qux = clip.ux;
                     if (qlx != qux) {
                         for (index = indices.alloc(count), i = 0; i < count; i++, index++)
                             new (index) Segment::Index(0.f, i);
@@ -873,7 +815,7 @@ struct Rasterizer {
                         if (index->x > ux) {
                             uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (a == 0 || a == 255) {
-                                qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                                qlx = lx, qux = ux;
                                 if (qlx != qux) {
                                     gpu->allocator.alloc(qux - qlx, ox, oy);
                                     new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, ox, oy, iz, cover);
@@ -883,7 +825,7 @@ struct Rasterizer {
                                 begin = i;
                                 if (a == 255) {
                                     lx = ux, ux = index->x;
-                                    qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                                    qlx = lx, qux = ux;
                                     if (qlx != qux) {
                                         if (src[3] == 255)
                                             new (gpu->opaques.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, iz, 1.f);
@@ -899,7 +841,7 @@ struct Rasterizer {
                         winding += (segment->y1 - segment->y0) * scale;
                         x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
-                    qlx = lx < clx ? clx : lx > cux ? cux : lx, qux = ux < clx ? clx : ux > cux ? cux : ux;
+                    qlx = lx, qux = ux;
                     if (qlx != qux) {
                         gpu->allocator.alloc(qux - qlx, ox, oy);
                         new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, ox, oy, iz, cover);
@@ -912,17 +854,15 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap, Row<Bounds> *clipcells, Row<float> *clipcovers) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, float *deltas, uint32_t stride, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, clx, cux, scale, cover, lx, ux, x, y, *delta;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
-        for (segments += ily, clipcells += ily, iy = ily; iy < iuy; iy++, segments++, clipcells++) {
+        for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            clx = clipcells->end ? clipcells->base->lx : clip.lx;
-            cux = clipcells->end ? fabsf((clipcells->base + clipcells->end - 1)->ux) : clip.ux;
             if (segments->end) {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
@@ -934,9 +874,9 @@ struct Rasterizer {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clx, cux, even, src, bitmap, nullptr);
-                            lx = ux, lx = lx < clx ? clx : lx > cux ? cux : lx;
-                            ux = index->x, ux = ux < clx ? clx : ux > cux ? cux : ux;
+                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clip.lx, clip.ux, even, src, bitmap, nullptr);
+                            lx = ux;
+                            ux = index->x;
                             if (a == 255)
                                 for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
                                     *delta = cover;
@@ -955,7 +895,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clx, cux, even, src, bitmap, nullptr);
+                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), clip.lx, clip.ux, even, src, bitmap, nullptr);
                 indices.empty();
                 segments->empty();
             }
