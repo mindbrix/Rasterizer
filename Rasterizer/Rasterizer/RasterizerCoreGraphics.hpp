@@ -314,14 +314,24 @@ struct RasterizerCoreGraphics {
                     size_t begin = (buffer->entries.base + buffer->entries.end - 1)->begin;
                     Rasterizer::GPU::Colorant *dst = (Rasterizer::GPU::Colorant *)(buffer->data.base + begin);
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
-                    int dim = ceilf(sqrtf((float)shapesCount));
-                    float w, h, a, b, c, d, ix, iy, sx, sy, size = 10.f, phi = 1.618f;
-                    w = size, h = size, sx = phi, sy = phi;
-                    a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
+                    const float sine = 0.675487257694284f, cosine = -0.737371659811154f, size = 1.f * sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
+                    float vx = ctm.a, vy = ctm.b, x, y, s;
                     for (int i = 0; i < shapesCount; i++, dst++) {
-                        ix = sx * float(i % dim), iy = sy * float(i / dim);
-                        new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty), i & 1 ? Rasterizer::GPU::Colorant::kCircle : Rasterizer::GPU::Colorant::kRect);
+                        s = sqrtf(i);
+                        new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(size, 0.f, 0.f, size, ctm.tx + s * vx - 1.f, ctm.ty + s * vy - 1.f), Rasterizer::GPU::Colorant::kCircle);
+                        x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
+                        vx = x, vy = y;
                     }
+//                    {
+//                        int dim = ceilf(sqrtf((float)shapesCount));
+//                        float w, h, a, b, c, d, ix, iy, sx, sy, size = 10.f, phi = 1.618f;
+//                        w = size, h = size, sx = phi, sy = phi;
+//                        a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
+//                        for (int i = 0; i < shapesCount; i++, dst++) {
+//                            ix = sx * float(i % dim), iy = sy * float(i / dim);
+//                            new (dst) Rasterizer::GPU::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty), i & 1 ? Rasterizer::GPU::Colorant::kCircle : Rasterizer::GPU::Colorant::kRect);
+//                        }
+//                    }
                 }
             }
         }

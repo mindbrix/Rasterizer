@@ -117,7 +117,7 @@
         _useClip = !_useClip;
         [self redraw];
     } else if (event.keyCode == 1) {
-        _shapesCount = _shapesCount ? 0 : 10000;
+        _shapesCount = _shapesCount ? 0 : 100000;
         [self redraw];
     } else if (event.keyCode == 46) {
         _useMetal = !_useMetal;
