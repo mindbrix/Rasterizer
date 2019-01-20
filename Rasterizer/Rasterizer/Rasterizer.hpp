@@ -182,7 +182,7 @@ struct Rasterizer {
         Pages() : size(0), base(nullptr) {}
         ~Pages() { if (base) free(base); }
         T *alloc(size_t n) {
-            if (size < n) {
+            if (size < n || size / n > 2) {
                 size = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
                 if (base)
                     free(base);
