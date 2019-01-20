@@ -783,7 +783,7 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
         short counts0[256], counts1[256];
-        float ly, uy, scale, cover, winding, lx, ux, qlx, qux, x, ox, oy;
+        float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         Segment *segment;
         Row<Segment::Index>& indices = gpu->indices;    Segment::Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
@@ -792,16 +792,12 @@ struct Rasterizer {
             count = segments->end - segments->idx;
             if (count) {
                 if (clip.ux - clip.lx < 16.f) {
-                    qlx = clip.lx;
-                    qux = clip.ux;
-                    if (qlx != qux) {
-                        for (index = indices.alloc(count), i = 0; i < count; i++, index++)
-                            new (index) Segment::Index(0.f, i);
-                        gpu->allocator.alloc(qux - qlx, ox, oy);
-                        new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, ox, oy, iz, 0.f);
-                        new (gpu->quadIndices.alloc(1)) GPU::Index(iy, segments->idx, indices.idx, indices.end);
-                        gpu->edgeInstances += (indices.end - indices.idx + kSegmentsCount - 1) / kSegmentsCount;
-                    }
+                    for (index = indices.alloc(count), i = 0; i < count; i++, index++)
+                        new (index) Segment::Index(0.f, i);
+                    gpu->allocator.alloc(clip.ux - clip.lx, ox, oy);
+                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, 0.f);
+                    new (gpu->quadIndices.alloc(1)) GPU::Index(iy, segments->idx, indices.idx, indices.end);
+                    gpu->edgeInstances += (indices.end - indices.idx + kSegmentsCount - 1) / kSegmentsCount;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                         new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
@@ -815,22 +811,20 @@ struct Rasterizer {
                         if (index->x > ux) {
                             uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (a == 0 || a == 255) {
-                                qlx = lx, qux = ux;
-                                if (qlx != qux) {
-                                    gpu->allocator.alloc(qux - qlx, ox, oy);
-                                    new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, ox, oy, iz, cover);
+                                if (lx != ux) {
+                                    gpu->allocator.alloc(ux - lx, ox, oy);
+                                    new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover);
                                     new (gpu->quadIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
                                     gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                                 }
                                 begin = i;
                                 if (a == 255) {
                                     lx = ux, ux = index->x;
-                                    qlx = lx, qux = ux;
-                                    if (qlx != qux) {
+                                    if (lx != ux) {
                                         if (src[3] == 255)
-                                            new (gpu->opaques.alloc(1)) GPU::Quad(qlx, ly, qux, uy, 0.f, 0.f, iz, 1.f);
+                                            new (gpu->opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, 1.f);
                                         else
-                                            new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, kSolidQuad, 0.f, iz, 1.f);
+                                            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, kSolidQuad, 0.f, iz, 1.f);
                                     }
                                 }
                                 lx = ux = index->x;
@@ -841,10 +835,9 @@ struct Rasterizer {
                         winding += (segment->y1 - segment->y0) * scale;
                         x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
-                    qlx = lx, qux = ux;
-                    if (qlx != qux) {
-                        gpu->allocator.alloc(qux - qlx, ox, oy);
-                        new (gpu->quads.alloc(1)) GPU::Quad(qlx, ly, qux, uy, ox, oy, iz, cover);
+                    if (lx != ux) {
+                        gpu->allocator.alloc(ux - lx, ox, oy);
+                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover);
                         new (gpu->quadIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
                         gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                     }
