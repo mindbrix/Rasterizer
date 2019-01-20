@@ -731,9 +731,6 @@ struct Rasterizer {
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
     static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
-        writeDeltas(deltas, stride, clip, even, src, bitmap, nullptr);
-    }
-    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap, float *covers) {
         if (clip.lx == clip.ux)
             for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
                 *deltas = 0.f;
@@ -747,12 +744,8 @@ struct Rasterizer {
                 for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
-                    if (alpha > 0.003921568627f) {
-                        if (bitmap)
-                            writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
-                        else
-                            *covers++ = alpha;
-                    }
+                    if (alpha > 0.003921568627f)
+                        writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
                 }
         }
     }
@@ -859,7 +852,7 @@ struct Rasterizer {
                     if (index->x > ux) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
-                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
+                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                             lx = ux;
                             ux = index->x;
                             if (a == 255)
@@ -880,7 +873,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
-                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap, nullptr);
+                writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
