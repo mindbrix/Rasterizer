@@ -168,14 +168,24 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     
     device Colorant& paint = paints[quad.idx];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
+    //device AffineTransform& ctm = paint.ctm;
+    //AffineTransform ctm = { 1e3, 0, 0, 1e3, 1e2, 1e2 };
+    AffineTransform ctm = { 1e6, 0, 0, 1e6, -5e5, -5e5 };
+    float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
+    float det = ctm.a * ctm.d - ctm.b * ctm.c;
+    float vx, vy;
     
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.d0 = 1;
-    vert.d1 = 1;
-    vert.d2 = 1;
-    vert.d3 = 1;
+    vx = ctm.tx - dx, vy = ctm.ty - dy;
+    vert.d0 = (vx * ctm.b - vy * ctm.a) * copysign(rlab, det) + 0.5;
+    vx = (ctm.tx + ctm.a) - dx, vy = (ctm.ty + ctm.b) - dy;
+    vert.d1 = (vx * ctm.d - vy * ctm.c) * copysign(rlcd, det) + 0.5;
+    vx = (ctm.tx + ctm.a + ctm.c) - dx, vy = (ctm.ty + ctm.b + ctm.d) - dy;
+    vert.d2 = (vx * -ctm.b - vy * -ctm.a) * copysign(rlab, det) + 0.5;
+    vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
+    vert.d3 = (vx * -ctm.d - vy * -ctm.c) * copysign(rlcd, det) + 0.5;
     vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.cover;
     vert.even = false;
