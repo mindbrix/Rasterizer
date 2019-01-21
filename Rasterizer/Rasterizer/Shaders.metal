@@ -149,6 +149,7 @@ struct QuadsVertex
 {
     float4 position [[position]];
     float4 color;
+    float d0, d1, d2, d3;
     float u, v;
     float cover;
     bool even, solid;
@@ -171,6 +172,10 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     QuadsVertex vert;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
+    vert.d0 = 1;
+    vert.d1 = 1;
+    vert.d2 = 1;
+    vert.d3 = 1;
     vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.cover;
     vert.even = false;
@@ -180,9 +185,10 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
+    float clip = saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
     float winding = vert.solid ? 1.0 : vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
     float alpha = abs(winding);
-    return vert.color * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
+    return vert.color * clip * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
 }
 
 #pragma mark - Shapes
