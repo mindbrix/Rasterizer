@@ -47,6 +47,13 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
+    struct Clip {
+        Clip() {}
+        Clip(size_t begin, size_t end, AffineTransform ctm, Bounds bounds) : begin(begin), end(end), ctm(ctm), bounds(bounds) {}
+        size_t begin, end;
+        AffineTransform ctm;
+        Bounds bounds;
+    };
     struct Sequence {
         struct Atom {
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCapacity = 15 };
