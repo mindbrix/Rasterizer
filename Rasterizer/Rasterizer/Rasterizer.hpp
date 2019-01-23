@@ -362,27 +362,27 @@ struct Rasterizer {
                 segments.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, Clip *clips, size_t clipSize, size_t begin, size_t end) {
-            paths += begin;
-            for (size_t iz = begin; iz < end; iz++, paths++)
-                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
-                    drawPath(*paths, ctms[iz], even, (uint8_t *)& bgras[iz], iz);
+            paths += begin, ctms += begin;
+            for (size_t iz = begin; iz < end; iz++, paths++, ctms++)
+                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX) {
+                    Bounds clipped = paths->sequence->bounds.transform(*ctms).integral().intersect(clip);
+                    if (clipped.lx != clipped.ux && clipped.ly != clipped.uy)
+                        drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped);
+                }
         }
-        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz) {
-            Bounds clipped = path.sequence->bounds.transform(ctm).integral().intersect(clip);
-            if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-                if (bitmap.width) {
-                    float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
-                    if (stride * h < deltas.size()) {
-                        writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
-                        writeDeltas(& deltas[0], stride, clipped, even, src, & bitmap);
-                    } else {
-                        writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                        writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap);
-                    }
+        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped) {
+            if (bitmap.width) {
+                float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
+                if (stride * h < deltas.size()) {
+                    writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
+                    writeDeltas(& deltas[0], stride, clipped, even, src, & bitmap);
                 } else {
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clipped, even, src, iz, & gpu);
+                    writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap);
                 }
+            } else {
+                writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
+                writeSegments(& segments[0], clipped, even, src, iz, & gpu);
             }
         }
         void emptyClip() {
