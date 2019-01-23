@@ -37,7 +37,7 @@ struct Rasterizer {
                 ux < other.lx ? other.lx : ux > other.ux ? other.ux : ux, uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy
             };
         }
-        Bounds transform(AffineTransform t) {
+        Bounds transform(AffineTransform t) const {
             float w = ux - lx, h = uy - ly, a = t.a * w, b = t.b * w, c = t.c * h, d = t.d * h;
             float tx = lx * t.a + ly * t.c + t.tx, ty = lx * t.b + ly * t.d + t.ty;
             return {
@@ -362,6 +362,9 @@ struct Rasterizer {
                 segments.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, const Clip *clips, size_t clipSize, size_t begin, size_t end) {
+            if (clips && clipSize) {
+                intersectClip(clips->bounds.transform(clips->ctm).integral());
+            }
             paths += begin, ctms += begin;
             for (size_t iz = begin; iz < end; iz++, paths++, ctms++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX) {

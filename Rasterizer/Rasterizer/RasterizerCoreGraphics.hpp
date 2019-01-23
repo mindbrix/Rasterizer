@@ -272,8 +272,6 @@ struct RasterizerCoreGraphics {
                     for (i = 0; i < divisions; i++) {
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
                         testScene.contexts[i].intersectClip(clip);
-                        if (clipPath)
-                            testScene.contexts[i].intersectClip(*clipPath, ctm, false);
                     }
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                         testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), b[idx], b[idx + 1]);
@@ -286,8 +284,6 @@ struct RasterizerCoreGraphics {
                         testScene.contexts[count].setBitmap(bitmap);
                         testScene.contexts[count].intersectClip(clip);
                         testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
-                        if (clipPath)
-                            testScene.contexts[count].intersectClip(*clipPath, ctm, false);
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
@@ -299,8 +295,6 @@ struct RasterizerCoreGraphics {
                 if (buffer)
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
                 testScene.contexts[0].intersectClip(clip);
-                if (clipPath)
-                    testScene.contexts[0].intersectClip(*clipPath, ctm, false);
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
             }
             if (buffer) {
