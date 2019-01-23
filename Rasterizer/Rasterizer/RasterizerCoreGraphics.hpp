@@ -268,10 +268,7 @@ struct RasterizerCoreGraphics {
                         begins[i] = p;
                     }
                     for (i = 0; i < divisions; i++) {
-                        if (buffer)
-                            testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
-                        else
-                            testScene.contexts[i].setBitmap(bitmap);
+                        testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
                         testScene.contexts[i].intersectClip(clip);
                         if (clipPath)
                             testScene.contexts[i].intersectClip(*clipPath, ctm, false);
@@ -284,10 +281,7 @@ struct RasterizerCoreGraphics {
                     slice = (bitmap.height + testScene.contexts.size() - 1) / testScene.contexts.size(), slice = slice < 64 ? 64 : slice;
                     for (count = ly = 0; ly < bitmap.height; ly = uy) {
                         uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
-                        if (buffer)
-                            testScene.contexts[count].setGPU(bitmap.width, bitmap.height);
-                        else
-                            testScene.contexts[count].setBitmap(bitmap);
+                        testScene.contexts[count].setBitmap(bitmap);
                         testScene.contexts[count].intersectClip(clip);
                         testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
                         if (clipPath)
