@@ -252,7 +252,9 @@ struct RasterizerCoreGraphics {
             testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert(& testScene.scene.bgras[0], pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
-            
+            std::vector<Rasterizer::Clip> clips;
+            if (clipPath)
+                clips.emplace_back(0, pathsCount, ctm, clipPath->sequence->bounds);
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
                 if (buffer) {
                     Rasterizer::Path *paths = & testScene.scene.paths[0];
@@ -274,7 +276,7 @@ struct RasterizerCoreGraphics {
                             testScene.contexts[i].intersectClip(*clipPath, ctm, false);
                     }
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, nullptr, 0, b[idx], b[idx + 1]);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), b[idx], b[idx + 1]);
                     });
                     count = divisions;
                 } else {
@@ -289,7 +291,7 @@ struct RasterizerCoreGraphics {
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, nullptr, 0, 0, pathsCount);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
                     });
                 }
             } else {
@@ -299,7 +301,7 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].intersectClip(clip);
                 if (clipPath)
                     testScene.contexts[0].intersectClip(*clipPath, ctm, false);
-                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, nullptr, 0, 0, pathsCount);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
             }
             if (buffer) {
                 size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant);
