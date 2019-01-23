@@ -365,7 +365,6 @@ struct Rasterizer {
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, const Clip *clips, size_t clipSize, size_t begin, size_t end) {
             if (clips && clipSize) {
-                float w = clips->bounds.ux - clips->bounds.lx, h = clips->bounds.uy - clips->bounds.ly;
                 AffineTransform ctm = clips->bounds.unit(clips->ctm);
                 intersectClip(clips->bounds.transform(clips->ctm).integral());
             }
