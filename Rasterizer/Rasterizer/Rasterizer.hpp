@@ -366,7 +366,7 @@ struct Rasterizer {
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, const Clip *clips, size_t clipSize, size_t begin, size_t end) {
             if (clips && clipSize) {
                 AffineTransform ctm = clips->bounds.unit(clips->ctm);
-                intersectClip(clips->bounds.transform(clips->ctm).integral());
+                intersectClip(clips->bounds.transform(clips->ctm));
             }
             paths += begin, ctms += begin;
             for (size_t iz = begin; iz < end; iz++, paths++, ctms++)
@@ -395,7 +395,7 @@ struct Rasterizer {
             clip = device;
         }
         void intersectClip(Bounds cl) {
-            clip = clip.intersect(cl);
+            clip = clip.intersect(cl.integral());
         }
         void intersectClip(Path& path, AffineTransform ctm, bool even) {
             if (path.sequence && path.sequence->bounds.lx != FLT_MAX)
