@@ -380,23 +380,20 @@ struct Rasterizer {
                 intersectClip(clips->bounds.transform(clips->ctm));
             }
             size_t iz;
-            AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *unit = units;
+            AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
             paths += begin, ctms += begin;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, unit++)
-                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
-                    *unit = paths->sequence->bounds.unit(*ctms);
-            paths -= (end - begin), ctms -= (end - begin), unit = units;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, unit++, cl++)
-                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
-                    *cl = ctm.concat(*unit);
-            paths -= (end - begin), ctms -= (end - begin), unit = units, cl = cls;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, unit++, cl++)
+            for (iz = begin; iz < end; iz++, paths++, ctms++, un++)
+                *un = paths->sequence->bounds.unit(*ctms);
+            paths -= (end - begin), ctms -= (end - begin), un = units;
+            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
+                *cl = ctm.concat(*un);
+            paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls;
+            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX) {
-                    AffineTransform& t = *unit;
                     Bounds clipped = {
-                        t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f),
-                        t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f)
+                        un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
+                        un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
                     };
                     clipped = clipped.integral().intersect(clip);
                     if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
