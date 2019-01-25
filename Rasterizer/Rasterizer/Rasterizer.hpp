@@ -402,7 +402,7 @@ struct Rasterizer {
                             cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f)
                         };
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
-//                        if (!hit)
+                        if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
                             drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped);
                     }
                 }
