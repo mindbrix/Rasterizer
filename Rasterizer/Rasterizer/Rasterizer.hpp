@@ -374,7 +374,7 @@ struct Rasterizer {
                 segments.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, const Clip *clips, size_t clipSize, size_t begin, size_t end) {
-            AffineTransform ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+            AffineTransform ctm = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
             if (clips && clipSize) {
                 ctm = clips->bounds.unit(clips->ctm).invert();
                 intersectClip(clips->bounds.transform(clips->ctm));
@@ -402,7 +402,8 @@ struct Rasterizer {
                             cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f)
                         };
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
-                        drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped);
+//                        if (!hit)
+                            drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped);
                     }
                 }
             free(units), free(cls);
