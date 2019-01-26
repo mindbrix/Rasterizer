@@ -299,7 +299,7 @@ struct RasterizerCoreGraphics {
             }
             if (buffer) {
                 size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant);
-                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesSize, bgras, testScene.scene.ctms, testScene.scene.paths, *buffer);
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesSize, bgras, testScene.scene.ctms, testScene.scene.paths, & clips[0], clips.size(), *buffer);
                 if (shapesCount) {
                     size_t begin = (buffer->entries.base + buffer->entries.end - 1)->begin;
                     Rasterizer::GPU::Colorant *dst = (Rasterizer::GPU::Colorant *)(buffer->data.base + begin);

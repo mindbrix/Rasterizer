@@ -173,8 +173,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     
-    //device AffineTransform& ctm = paint.ctm;
-    AffineTransform ctm = { 1e6, 0, 0, 1e6, -5e5, -5e5 };
+    device AffineTransform& ctm = paint.ctm;
     if (ctm.a == 0.0 && ctm.b == 0.0)
         vert.d0 = vert.d1 = vert.d2 = vert.d3 = 1.0;
     else {

@@ -282,6 +282,7 @@ struct Rasterizer {
                                           uint32_t *bgras,
                                           std::vector<AffineTransform>& ctms,
                                           std::vector<Path>& paths,
+                                          const Clip *clips, size_t clipSize,
                                           Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
             size = shapesSize + pathsCount * sizeof(GPU::Colorant);
@@ -291,13 +292,17 @@ struct Rasterizer {
             buffer.data.alloc(size);
             begin = end = 0;
             
+            AffineTransform ctm = { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f };
+            if (clips && clipSize)
+                ctm = clips->bounds.unit(clips->ctm);
+                
             end += pathsCount * sizeof(GPU::Colorant);
             GPU::Colorant *dst = (GPU::Colorant *)(buffer.data.base + begin);
             for (size_t idx = 0; idx < pathsCount; idx++)
-                new (dst++) GPU::Colorant((uint8_t *)& bgras[idx]);
+                new (dst++) GPU::Colorant((uint8_t *)& bgras[idx], ctm, GPU::Colorant::kRect);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             begin = end;
-            
+        
             Context *ctx;
             size_t opaquesBegin = begin;
             for (ctx = contexts, i = 0; i < count; i++, ctx++) {
@@ -403,12 +408,12 @@ struct Rasterizer {
                         };
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped);
+                            drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped, true);
                     }
                 }
             free(units), free(cls);
         }
-        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped) {
+        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped, bool hit) {
             if (bitmap.width) {
                 float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
@@ -420,7 +425,7 @@ struct Rasterizer {
                 }
             } else {
                 writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                writeSegments(& segments[0], clipped, even, src, iz, & gpu);
+                writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
             }
         }
         void emptyClip() {
@@ -810,7 +815,7 @@ struct Rasterizer {
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
     
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, GPU *gpu) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
         short counts0[256], counts1[256];
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
@@ -851,7 +856,7 @@ struct Rasterizer {
                                 if (a == 255) {
                                     lx = ux, ux = index->x;
                                     if (lx != ux) {
-                                        if (src[3] == 255)
+                                        if (src[3] == 255 && !hit)
                                             new (gpu->opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, 1.f);
                                         else
                                             new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, kSolidQuad, 0.f, iz, 1.f);
