@@ -843,7 +843,7 @@ struct Rasterizer {
                         std::sort(indices.base + indices.idx, indices.base + indices.end);
                     
                     for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
-                        if (index->x > ux) {
+                        if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                             uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (a == 0 || a == 255) {
                                 if (lx != ux) {
@@ -899,7 +899,7 @@ struct Rasterizer {
                 else
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
-                    if (index->x > ux) {
+                    if (index->x > ux && cover - floorf(cover) < 1e-6f) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
                         if (a == 0 || a == 255) {
                             writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);

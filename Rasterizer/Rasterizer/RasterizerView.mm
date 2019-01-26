@@ -157,7 +157,6 @@
     Rasterizer::AffineTransform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     Rasterizer::Path clipPath;
-    clipPath.sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::GPU::Colorant(_svgData ? svg : font);
@@ -174,7 +173,6 @@
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
     Rasterizer::Path clipPath;
-    clipPath.sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
     RasterizerCoreGraphics::drawTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, 0, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }
 

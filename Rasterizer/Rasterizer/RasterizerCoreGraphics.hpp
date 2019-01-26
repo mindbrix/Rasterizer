@@ -218,6 +218,8 @@ struct RasterizerCoreGraphics {
     
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
+        if (clipPath)
+            clipPath->sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
         
         testScene.contexts[0].setBitmap(bitmap);
         testScene.contexts[0].intersectClip(clip);
