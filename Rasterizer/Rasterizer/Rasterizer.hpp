@@ -845,26 +845,24 @@ struct Rasterizer {
                     for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                         if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                             uint8_t a = 255.5f * alphaForCover(winding, even);
-                            if (a == 0 || a == 255) {
-                                if (lx != ux) {
-                                    gpu->allocator.alloc(ux - lx, ox, oy);
-                                    new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover);
-                                    new (gpu->quadIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
-                                    gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
-                                }
-                                begin = i;
-                                if (a == 255) {
-                                    lx = ux, ux = index->x;
-                                    if (lx != ux) {
-                                        if (src[3] == 255 && !hit)
-                                            new (gpu->opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, 1.f);
-                                        else
-                                            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, kSolidQuad, 0.f, iz, 1.f);
-                                    }
-                                }
-                                lx = ux = index->x;
-                                cover = winding;
+                            if (lx != ux) {
+                                gpu->allocator.alloc(ux - lx, ox, oy);
+                                new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover);
+                                new (gpu->quadIndices.alloc(1)) GPU::Index(iy, segments->idx, begin, i);
+                                gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                             }
+                            begin = i;
+                            if (a == 255) {
+                                lx = ux, ux = index->x;
+                                if (lx != ux) {
+                                    if (src[3] == 255 && !hit)
+                                        new (gpu->opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, 1.f);
+                                    else
+                                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, kSolidQuad, 0.f, iz, 1.f);
+                                }
+                            }
+                            lx = ux = index->x;
+                            cover = winding;
                         }
                         segment = segments->base + segments->idx + index->i;
                         winding += (segment->y1 - segment->y0) * scale;
@@ -901,22 +899,19 @@ struct Rasterizer {
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux && cover - floorf(cover) < 1e-6f) {
                         uint8_t a = 255.5f * alphaForCover(cover, even);
-                        if (a == 0 || a == 255) {
-                            writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
-                            lx = ux;
-                            ux = index->x;
-                            if (a == 255)
-                                for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
-                                    *delta = cover;
-                                    uint8_t *dst = bitmap->pixelAddress(lx, y);
-                                    if (src[3] == 255)
-                                        memset_pattern4(dst, src, (ux - lx) * bitmap->bytespp);
-                                    else
-                                        for (size_t x = lx; x < ux; x++, dst += bitmap->bytespp)
-                                            writePixel(src0, src1, src2, srcAlpha, dst);
-                                }
-                            lx = ux = index->x;
-                        }
+                        writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
+                        lx = ux, ux = index->x;
+                        if (a == 255)
+                            for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
+                                *delta = cover;
+                                uint8_t *dst = bitmap->pixelAddress(lx, y);
+                                if (src[3] == 255)
+                                    memset_pattern4(dst, src, (ux - lx) * bitmap->bytespp);
+                                else
+                                    for (size_t x = lx; x < ux; x++, dst += bitmap->bytespp)
+                                        writePixel(src0, src1, src2, srcAlpha, dst);
+                            }
+                        lx = ux = index->x;
                     }
                     segment = segments->base + index->i;
                     cover += (segment->y1 - segment->y0) * scale;
