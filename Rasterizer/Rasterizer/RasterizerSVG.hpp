@@ -51,8 +51,7 @@ struct RasterizerSVG {
                     scene.bgras.emplace_back(bgraFromPaint(shape->stroke));
                     
                     Rasterizer::Path s;
-                    if (shape->fill.type == NSVG_PAINT_NONE)
-                        writePath(shape, image->height, s);
+                    writePath(shape, image->height, s);
                     CGMutablePathRef path = CGPathCreateMutable();
                     RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
                     CGLineCap cap = shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound;
