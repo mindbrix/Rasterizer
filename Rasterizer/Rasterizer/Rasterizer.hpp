@@ -844,7 +844,6 @@ struct Rasterizer {
                     
                     for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                         if (index->x > ux && winding - floorf(winding) < 1e-6f) {
-                            uint8_t a = 255.5f * alphaForCover(winding, even);
                             if (lx != ux) {
                                 gpu->allocator.alloc(ux - lx, ox, oy);
                                 new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover);
@@ -852,7 +851,7 @@ struct Rasterizer {
                                 gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                             }
                             begin = i;
-                            if (a == 255) {
+                            if (alphaForCover(winding, even) > 0.998f) {
                                 lx = ux, ux = index->x;
                                 if (lx != ux) {
                                     if (src[3] == 255 && !hit)
@@ -898,10 +897,9 @@ struct Rasterizer {
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux && cover - floorf(cover) < 1e-6f) {
-                        uint8_t a = 255.5f * alphaForCover(cover, even);
                         writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                         lx = ux, ux = index->x;
-                        if (a == 255)
+                        if (alphaForCover(cover, even) > 0.998f)
                             for (delta = deltas, y = ly; y < uy; y++, delta += stride) {
                                 *delta = cover;
                                 uint8_t *dst = bitmap->pixelAddress(lx, y);
