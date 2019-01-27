@@ -30,8 +30,8 @@ struct Rasterizer {
             if (det == 0.f)
                 return *this;
             return {
-                d * recip,                            -b * recip,
-                -c * recip,                           a * recip,
+                d * recip,                      -b * recip,
+                -c * recip,                     a * recip,
                 (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
             };
         }
