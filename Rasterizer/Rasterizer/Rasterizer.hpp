@@ -388,31 +388,31 @@ struct Rasterizer {
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
+            Bounds *cbs = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cb = cbs;
             paths += begin, ctms += begin;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
             paths -= (end - begin), ctms -= (end - begin), un = units;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
                 *cl = ctm.concat(*un);
-            paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
-                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX) {
-                    Bounds clipped = {
-                        un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
-                        un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
-                    };
-                    clipped = clipped.integral().intersect(clip);
-                    if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-                        Bounds clu = {
+            un = units;
+            for (iz = begin; iz < end; iz++, un++, cb++)
+                *cb = Bounds(
+                     un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
+                     un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
+                ).integral().intersect(clip);
+            paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls, cb = cbs;
+            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, cb++)
+                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
+                    if (cb->lx != cb->ux && cb->ly != cb->uy) {
+                        Bounds clu(
                             cl->tx + (cl->a < 0.f ? cl->a : 0.f) + (cl->c < 0.f ? cl->c : 0.f), cl->ty + (cl->b < 0.f ? cl->b : 0.f) + (cl->d < 0.f ? cl->d : 0.f),
-                            cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f)
-                        };
+                            cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f));
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, clipped, hit);
+                            drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, *cb, hit);
                     }
-                }
-            free(units), free(cls);
+            free(units), free(cls), free(cbs);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped, bool hit) {
             if (bitmap.width) {
