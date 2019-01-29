@@ -37,6 +37,22 @@ struct Edge {
     Segment segments[kSegmentsCount];
 };
 
+float4 distances(AffineTransform ctm, float dx, float dy) {
+    float rlab, rlcd, det, vx, vy;
+    float4 d;
+    rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
+    det = ctm.a * ctm.d - ctm.b * ctm.c;
+    vx = ctm.tx - dx, vy = ctm.ty - dy;
+    d.x = (vx * ctm.b - vy * ctm.a) * copysign(rlab, det) + 0.5;
+    vx = (ctm.tx + ctm.a) - dx, vy = (ctm.ty + ctm.b) - dy;
+    d.y = (vx * ctm.d - vy * ctm.c) * copysign(rlcd, det) + 0.5;
+    vx = (ctm.tx + ctm.a + ctm.c) - dx, vy = (ctm.ty + ctm.b + ctm.d) - dy;
+    d.z = (vx * -ctm.b - vy * -ctm.a) * copysign(rlab, det) + 0.5;
+    vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
+    d.w = (vx * -ctm.d - vy * -ctm.c) * copysign(rlcd, det) + 0.5;
+    return d;
+}
+
 float edgeWinding(float x0, float y0, float x1, float y1) {
     float sy0 = saturate(y0), sy1 = saturate(y1);
     float coverage = sy1 - sy0;
@@ -171,17 +187,8 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     if (ctm.a == 0.0 && ctm.b == 0.0)
         vert.d0 = vert.d1 = vert.d2 = vert.d3 = 1.0;
     else {
-        float rlab, rlcd, det, vx, vy;
-        rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
-        det = ctm.a * ctm.d - ctm.b * ctm.c;
-        vx = ctm.tx - dx, vy = ctm.ty - dy;
-        vert.d0 = (vx * ctm.b - vy * ctm.a) * copysign(rlab, det) + 0.5;
-        vx = (ctm.tx + ctm.a) - dx, vy = (ctm.ty + ctm.b) - dy;
-        vert.d1 = (vx * ctm.d - vy * ctm.c) * copysign(rlcd, det) + 0.5;
-        vx = (ctm.tx + ctm.a + ctm.c) - dx, vy = (ctm.ty + ctm.b + ctm.d) - dy;
-        vert.d2 = (vx * -ctm.b - vy * -ctm.a) * copysign(rlab, det) + 0.5;
-        vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
-        vert.d3 = (vx * -ctm.d - vy * -ctm.c) * copysign(rlcd, det) + 0.5;
+        float4 d = distances(ctm, dx, dy);
+        vert.d0 = d.x, vert.d1 = d.y, vert.d2 = d.z, vert.d3 = d.w;
         vert.u = u - du, vert.v = v - dv;
     }
     vert.cover = quad.cover;
@@ -223,20 +230,13 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
     float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
     float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0;
-    float det = ctm.a * ctm.d - ctm.b * ctm.c;
-    float vx, vy;
+    
     ShapesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.u = ix, vert.v = iy;
-    vx = ctm.tx - dx, vy = ctm.ty - dy;
-    vert.d0 = (vx * ctm.b - vy * ctm.a) * copysign(rlab, det) + 0.5;
-    vx = (ctm.tx + ctm.a) - dx, vy = (ctm.ty + ctm.b) - dy;
-    vert.d1 = (vx * ctm.d - vy * ctm.c) * copysign(rlcd, det) + 0.5;
-    vx = (ctm.tx + ctm.a + ctm.c) - dx, vy = (ctm.ty + ctm.b + ctm.d) - dy;
-    vert.d2 = (vx * -ctm.b - vy * -ctm.a) * copysign(rlab, det) + 0.5;
-    vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
-    vert.d3 = (vx * -ctm.d - vy * -ctm.c) * copysign(rlcd, det) + 0.5;
+    float4 d = distances(ctm, dx, dy);
+    vert.d0 = d.x, vert.d1 = d.y, vert.d2 = d.z, vert.d3 = d.w;
     vert.type = shape.type;
     return vert;
 }
