@@ -243,13 +243,16 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
 
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
+    float shape = -1.0;
     switch (vert.type) {
         case Colorant::kRect:
-            return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
+            shape = saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
+            break;
         case Colorant::kCircle: {
             float d = vert.d0 + vert.d2, r = d * 0.5, x = r - min(vert.d0, vert.d2), y = r - min(vert.d1, vert.d3);
-            return vert.color * saturate(r - sqrt(x * x + y * y));
+            shape = saturate(r - sqrt(x * x + y * y));
+            break;
         }
     }
-    return { 1.0, 0.0, 0.0, 1.0 };
+    return shape < 0.0 ? float4(1.0, 0.0, 0.0, 1.0) : shape * vert.color;
 }
