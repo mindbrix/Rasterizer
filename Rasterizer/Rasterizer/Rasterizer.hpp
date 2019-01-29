@@ -435,10 +435,6 @@ struct Rasterizer {
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl.integral());
         }
-        void intersectClip(Path& path, AffineTransform ctm, bool even) {
-            if (path.sequence && path.sequence->bounds.lx != FLT_MAX)
-                clip = path.sequence->bounds.transform(ctm).integral().intersect(clip);
-        }
         Bitmap bitmap;
         GPU gpu;
         Bounds device, clip;

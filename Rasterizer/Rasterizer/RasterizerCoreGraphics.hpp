@@ -227,8 +227,6 @@ struct RasterizerCoreGraphics {
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
                 RasterizerCoreGraphics::writeSceneToCGScene(testScene.scene, testScene.cgscene);
-            if (clipPath)
-                testScene.contexts[0].intersectClip(*clipPath, ctm, false);
             for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
                 Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
                 Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(testScene.cgscene.ctms[i]);
