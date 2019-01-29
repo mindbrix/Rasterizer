@@ -157,23 +157,21 @@
     Rasterizer::AffineTransform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     Rasterizer::Path clipPath;
-    Rasterizer::Bounds clip(0.f, 0.f, bitmap.width, bitmap.height);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::GPU::Colorant(_svgData ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, clip, _useClip ? &clipPath : nullptr, _shapesCount, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _shapesCount, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    CGRect clip = CGRectApplyAffineTransform(CGContextGetClipBoundingBox(ctx), CGContextGetCTM(ctx));
     CGContextConcatCTM(ctx, self.CTM);
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData ? 0xCCCCCCCC : 0xFFFFFFFF);
     Rasterizer::Path clipPath;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, RasterizerCoreGraphics::boundsFromCGRect(clip), _useClip ? &clipPath : nullptr, 0, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, 0, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }
 
 - (void)setSvgData:(NSData *)svgData {

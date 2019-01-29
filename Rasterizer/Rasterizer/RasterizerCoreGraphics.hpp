@@ -218,13 +218,12 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Bounds clip, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         if (clipPath)
             clipPath->sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
         
         testScene.contexts[0].setBitmap(bitmap);
-        testScene.contexts[0].intersectClip(clip);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
                 RasterizerCoreGraphics::writeSceneToCGScene(testScene.scene, testScene.cgscene);
@@ -271,10 +270,9 @@ struct RasterizerCoreGraphics {
                             count += paths[p++].sequence->atoms.size();
                         begins[i] = p;
                     }
-                    for (i = 0; i < divisions; i++) {
+                    for (i = 0; i < divisions; i++)
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
-                        testScene.contexts[i].intersectClip(clip);
-                    }
+                    
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                         testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), b[idx], b[idx + 1]);
                     });
@@ -284,7 +282,6 @@ struct RasterizerCoreGraphics {
                     for (count = ly = 0; ly < bitmap.height; ly = uy) {
                         uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                         testScene.contexts[count].setBitmap(bitmap);
-                        testScene.contexts[count].intersectClip(clip);
                         testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
                         count++;
                     }
@@ -296,7 +293,6 @@ struct RasterizerCoreGraphics {
                 count = 1;
                 if (buffer)
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
-                testScene.contexts[0].intersectClip(clip);
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
             }
             if (buffer) {
