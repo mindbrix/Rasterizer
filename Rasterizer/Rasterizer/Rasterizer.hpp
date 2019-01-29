@@ -378,12 +378,14 @@ struct Rasterizer {
                 segments.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, const Clip *clips, size_t clipSize, size_t begin, size_t end) {
-            AffineTransform ctm = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
+            AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
+            const AffineTransform *ctm = & nullclip;
             if (clips && clipSize) {
                 if (bitmap.width == 0)
-                    ctm = clips->ctm;
+                    ctm = & clips->ctm;
                 intersectClip(clips->bounds);
             }
+            const Bounds *clipbounds = & clip;
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
@@ -393,13 +395,13 @@ struct Rasterizer {
                 *un = paths->sequence->bounds.unit(*ctms);
             paths -= (end - begin), ctms -= (end - begin), un = units;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
-                *cl = ctm.concat(*un);
+                *cl = (*ctm).concat(*un);
             un = units;
             for (iz = begin; iz < end; iz++, un++, cb++)
                 *cb = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
-                ).integral().intersect(clip);
+                ).integral().intersect(*clipbounds);
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls, cb = cbs;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, cb++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
