@@ -372,8 +372,7 @@ struct Rasterizer {
             gpu.allocator.init(width, height);
         }
         void setDevice(Bounds dev) {
-            device = dev;
-            emptyClip();
+            device = clip = dev;
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
@@ -428,9 +427,6 @@ struct Rasterizer {
                 writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                 writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
             }
-        }
-        void emptyClip() {
-            clip = device;
         }
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl.integral());
