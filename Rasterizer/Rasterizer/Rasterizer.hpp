@@ -61,7 +61,7 @@ struct Rasterizer {
     };
     struct Clip {
         Clip() {}
-        Clip(size_t begin, size_t end, AffineTransform ctm, Bounds bounds) : begin(begin), end(end), ctm(ctm), bounds(bounds) {}
+        Clip(size_t begin, size_t end, AffineTransform _ctm, Bounds _bounds) : begin(begin), end(end), ctm(_bounds.unit(_ctm).invert()), bounds(_bounds.transform(_ctm)) {}
         size_t begin, end;
         AffineTransform ctm;
         Bounds bounds;
@@ -294,7 +294,7 @@ struct Rasterizer {
             
             AffineTransform ctm = { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f };
             if (clips && clipSize)
-                ctm = clips->bounds.unit(clips->ctm);
+                ctm = clips->ctm.invert();
                 
             end += pathsCount * sizeof(GPU::Colorant);
             GPU::Colorant *dst = (GPU::Colorant *)(buffer.data.base + begin);
@@ -381,8 +381,8 @@ struct Rasterizer {
             AffineTransform ctm = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
             if (clips && clipSize) {
                 if (bitmap.width == 0)
-                    ctm = clips->bounds.unit(clips->ctm).invert();
-                intersectClip(clips->bounds.transform(clips->ctm));
+                    ctm = clips->ctm;
+                intersectClip(clips->bounds);
             }
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
