@@ -223,7 +223,7 @@ struct RasterizerCoreGraphics {
         if (clipPath)
             clipPath->sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
         
-        testScene.contexts[0].setBitmap(bitmap);
+        testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
                 RasterizerCoreGraphics::writeSceneToCGScene(testScene.scene, testScene.cgscene);
@@ -268,9 +268,10 @@ struct RasterizerCoreGraphics {
                             count += paths[p++].sequence->atoms.size();
                         begins[i] = p;
                     }
-                    for (i = 0; i < divisions; i++)
+                    for (i = 0; i < divisions; i++) {
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
-                    
+                        testScene.contexts[i].setClips(clips);
+                    }
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                         testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), b[idx], b[idx + 1]);
                     });
@@ -279,8 +280,8 @@ struct RasterizerCoreGraphics {
                     slice = (bitmap.height + testScene.contexts.size() - 1) / testScene.contexts.size(), slice = slice < 64 ? 64 : slice;
                     for (count = ly = 0; ly < bitmap.height; ly = uy) {
                         uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
-                        testScene.contexts[count].setBitmap(bitmap);
-                        testScene.contexts[count].intersectClip(Rasterizer::Bounds(0, ly, bitmap.width, uy));
+                        testScene.contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
+                        testScene.contexts[count].setClips(clips);
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
@@ -289,8 +290,10 @@ struct RasterizerCoreGraphics {
                 }
             } else {
                 count = 1;
-                if (buffer)
+                if (buffer) {
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
+                    testScene.contexts[0].setClips(clips);
+                }
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
             }
             if (buffer) {

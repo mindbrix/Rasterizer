@@ -359,9 +359,10 @@ struct Rasterizer {
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapes, begin, begin + shapesSize);
         }
         Context() {}
-        void setBitmap(Bitmap bm) {
+        void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
             setDevice(Bounds(0.f, 0.f, bm.width, bm.height));
+            intersectClip(cl);
             deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
@@ -433,10 +434,16 @@ struct Rasterizer {
         void intersectClip(Bounds cl) {
             clip = clip.intersect(cl.integral());
         }
+        void setClips(std::vector<Clip>& cls) {
+            clips.resize(0);
+            for (Clip& cl : cls)
+                clips.emplace_back(cl);
+        }
         Bitmap bitmap;
         GPU gpu;
         Bounds device, clip;
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
+        std::vector<Clip> clips;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
     };
