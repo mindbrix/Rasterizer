@@ -273,7 +273,7 @@ struct RasterizerCoreGraphics {
                         testScene.contexts[i].setClips(clips);
                     }
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), b[idx], b[idx + 1]);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, b[idx], b[idx + 1]);
                     });
                     count = divisions;
                 } else {
@@ -285,7 +285,7 @@ struct RasterizerCoreGraphics {
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
                     });
                 }
             } else {
@@ -294,7 +294,7 @@ struct RasterizerCoreGraphics {
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
                     testScene.contexts[0].setClips(clips);
                 }
-                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, & clips[0], clips.size(), 0, pathsCount);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
             }
             if (buffer) {
                 size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant);

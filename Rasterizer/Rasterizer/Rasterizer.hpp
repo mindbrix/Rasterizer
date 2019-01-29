@@ -378,13 +378,13 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size);
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, const Clip *clips, size_t clipSize, size_t begin, size_t end) {
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t begin, size_t end) {
             AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
             const AffineTransform *ctm = & nullclip;
-            if (clips && clipSize) {
+            if (clips.size()) {
                 if (bitmap.width == 0)
-                    ctm = & clips->ctm;
-                intersectClip(clips->bounds);
+                    ctm = & clips[0].ctm;
+                intersectClip(clips[0].bounds);
             }
             const Bounds *clipbounds = & clip;
             size_t iz;
