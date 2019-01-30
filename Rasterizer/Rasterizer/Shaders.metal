@@ -227,7 +227,7 @@ struct ShapesVertex
     float4 position [[position]];
     float4 color;
     float u, v;
-    float4 d;
+    float4 d, clip;
     uint type;
 };
 
@@ -253,6 +253,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     vert.color = float4(r * a, g * a, b * a, a);
     vert.u = ix, vert.v = iy;
     vert.d = distances(ctm, dx, dy);
+    vert.clip = distances(*clip, dx, dy);
     vert.type = shape.type;
     return vert;
 }
@@ -260,5 +261,6 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
     float shape = shapeAlpha(vert.d, vert.type);
-    return shape < 0.0 ? float4(1.0, 0.0, 0.0, 1.0) : shape * vert.color;
+    float clip = saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+    return shape < 0.0 ? float4(1.0, 0.0, 0.0, 1.0) : shape * clip * vert.color;
 }

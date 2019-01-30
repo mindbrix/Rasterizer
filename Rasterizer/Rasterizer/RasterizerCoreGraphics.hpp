@@ -295,13 +295,22 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
             }
             if (buffer) {
-                size_t shapesSize = sizeof(Rasterizer::AffineTransform) + shapesCount * sizeof(Rasterizer::GPU::Colorant);
+                size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant);
+                if (shapesCount)
+                    shapesSize += sizeof(Rasterizer::AffineTransform);
+                
                 Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesSize, bgras, testScene.scene.ctms, testScene.scene.paths, & clips[0], clips.size(), *buffer);
                 if (shapesCount) {
-                    size_t begin = (buffer->entries.base + buffer->entries.end - 1)->end, end = begin + sizeof(Rasterizer::AffineTransform);
+                    Rasterizer::AffineTransform nullclip = { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f };
+                    size_t begin = (buffer->entries.base + buffer->entries.end - 1)->end, end = begin;
+                    
+                    end = begin + sizeof(Rasterizer::AffineTransform);
+                    *((Rasterizer::AffineTransform *)(buffer->data.base + begin)) = clipPath ? clips[0].ctm.invert() : nullclip;
                     new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kClip, begin, end);
+                    
                     begin = end, end = begin + shapesCount * sizeof(Rasterizer::GPU::Colorant);
                     new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kShapes, begin, end);
+                    
                     Rasterizer::GPU::Colorant *dst = (Rasterizer::GPU::Colorant *)(buffer->data.base + begin);
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
                     if (1) {
