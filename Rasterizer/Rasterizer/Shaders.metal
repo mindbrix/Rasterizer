@@ -53,6 +53,21 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     return d;
 }
 
+float shapeAlpha(float4 d, int type) {
+    float alpha = -1.0;
+    switch (type) {
+        case Colorant::kRect:
+            alpha = saturate(d.x) * saturate(d.y) * saturate(d.z) * saturate(d.w);
+            break;
+        case Colorant::kCircle: {
+            float r = (d.x + d.z) * 0.5, x = r - min(d.x, d.z), y = r - min(d.y, d.w);
+            alpha = saturate(r - sqrt(x * x + y * y));
+            break;
+        }
+    }
+    return alpha;
+}
+
 float edgeWinding(float x0, float y0, float x1, float y1) {
     float sy0 = saturate(y0), sy1 = saturate(y1);
     float coverage = sy1 - sy0;
@@ -212,7 +227,7 @@ struct ShapesVertex
     float4 position [[position]];
     float4 color;
     float u, v;
-    float d0, d1, d2, d3;
+    float4 d;
     uint type;
 };
 
@@ -235,24 +250,13 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     vert.position = float4(x, y, 1.0, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.u = ix, vert.v = iy;
-    float4 d = distances(ctm, dx, dy);
-    vert.d0 = d.x, vert.d1 = d.y, vert.d2 = d.z, vert.d3 = d.w;
+    vert.d = distances(ctm, dx, dy);
     vert.type = shape.type;
     return vert;
 }
 
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
-    float shape = -1.0;
-    switch (vert.type) {
-        case Colorant::kRect:
-            shape = saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
-            break;
-        case Colorant::kCircle: {
-            float d = vert.d0 + vert.d2, r = d * 0.5, x = r - min(vert.d0, vert.d2), y = r - min(vert.d1, vert.d3);
-            shape = saturate(r - sqrt(x * x + y * y));
-            break;
-        }
-    }
+    float shape = shapeAlpha(vert.d, vert.type);
     return shape < 0.0 ? float4(1.0, 0.0, 0.0, 1.0) : shape * vert.color;
 }
