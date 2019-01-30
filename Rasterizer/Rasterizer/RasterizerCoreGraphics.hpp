@@ -220,9 +220,6 @@ struct RasterizerCoreGraphics {
     
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
-        if (clipPath)
-            clipPath->sequence->addBounds(Rasterizer::Bounds(100, 100, 200, 200));
-        
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
@@ -243,6 +240,10 @@ struct RasterizerCoreGraphics {
         } else {
             size_t pathsCount = testScene.scene.paths.size();
             size_t slice, ly, uy, count;
+            std::vector<Rasterizer::Clip> clips;
+            if (clipPath)
+                clips.emplace_back(0, pathsCount, ctm, Rasterizer::Bounds(100, 100, 200, 200));
+            
             Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
@@ -251,9 +252,6 @@ struct RasterizerCoreGraphics {
             testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert(& testScene.scene.bgras[0], pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
-            std::vector<Rasterizer::Clip> clips;
-            if (clipPath)
-                clips.emplace_back(0, pathsCount, ctm, clipPath->sequence->bounds);
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
                 if (buffer) {
                     Rasterizer::Path *paths = & testScene.scene.paths[0];
