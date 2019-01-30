@@ -301,7 +301,7 @@ struct RasterizerCoreGraphics {
                     size_t begin = (buffer->entries.base + buffer->entries.end - 1)->begin;
                     Rasterizer::GPU::Colorant *dst = (Rasterizer::GPU::Colorant *)(buffer->data.base + begin);
                     uint8_t bgra[4] = { 0, 0, 0, 255 };
-                    if (0) {
+                    if (1) {
                         const float sine = 0.675490294261524f, cosine = -0.73736887807832f, size = sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
                         float vx = ctm.a, vy = ctm.b, x, y, s;
                         for (int i = 0; i < shapesCount; i++, dst++) {
