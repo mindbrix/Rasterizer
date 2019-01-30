@@ -236,7 +236,12 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Colorant& shape = shapes[iid];
-    device AffineTransform& ctm = shape.ctm;
+    AffineTransform ctm = shape.ctm;
+    float area = min(1.0, 0.166 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
+    if (area < 1.0) {
+        float s = rsqrt(area);
+        ctm = { ctm.a * s, ctm.b * s, ctm.c * s, ctm.d * s, ctm.tx - 0.5 * (s - 1.0) * (ctm.a + ctm.c), ctm.ty - 0.5 * (s - 1.0) * (ctm.b + ctm.d) };
+    }
     float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
     float dilation = 0.7071067812 * rsqrt(1.0 - cosine * cosine);
@@ -244,7 +249,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
     float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
     float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
-    float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0;
+    float r = shape.src2 / 255.0, g = shape.src1 / 255.0, b = shape.src0 / 255.0, a = shape.src3 / 255.0 * area;
     
     ShapesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
