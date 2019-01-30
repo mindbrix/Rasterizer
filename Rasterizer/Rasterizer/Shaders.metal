@@ -237,14 +237,10 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
 {
     device Colorant& shape = shapes[iid];
     AffineTransform ctm = shape.ctm;
-    float area = min(1.0, 0.166 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
-    if (area < 1.0) {
-        float s = rsqrt(area);
-        ctm = { ctm.a * s, ctm.b * s, ctm.c * s, ctm.d * s, ctm.tx - 0.5 * (s - 1.0) * (ctm.a + ctm.c), ctm.ty - 0.5 * (s - 1.0) * (ctm.b + ctm.d) };
-    }
+    float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
     float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
-    float dilation = 0.7071067812 * rsqrt(1.0 - cosine * cosine);
+    float dilation = (1.0 + 0.5 * (rsqrt(area) - 1.0)) * 0.7071067812 * rsqrt(1.0 - cosine * cosine);
     float tx = dilation * rlab, ty = dilation * rlcd;
     float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
     float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
