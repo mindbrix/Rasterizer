@@ -362,7 +362,7 @@ struct Rasterizer {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
             setDevice(Bounds(0.f, 0.f, bm.width, bm.height));
-            intersectClip(cl);
+            clip = clip.intersect(cl.integral());
             deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
@@ -430,9 +430,6 @@ struct Rasterizer {
                 writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                 writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
             }
-        }
-        void intersectClip(Bounds cl) {
-            clip = clip.intersect(cl.integral());
         }
         void setClips(std::vector<Clip>& cls) {
             clips.resize(0);
