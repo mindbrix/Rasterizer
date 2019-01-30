@@ -437,7 +437,7 @@ struct Rasterizer {
         void setClips(std::vector<Clip>& cls) {
             clips.resize(0);
             for (Clip& cl : cls)
-                clips.emplace_back(cl);
+                clips.emplace_back(cl), clips.back().bounds = clips.back().bounds.integral().intersect(clip);
         }
         Bitmap bitmap;
         GPU gpu;
