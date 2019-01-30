@@ -374,6 +374,7 @@ struct Rasterizer {
         }
         void setDevice(Bounds dev) {
             device = clip = dev;
+            clips.resize(0);
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
@@ -432,7 +433,6 @@ struct Rasterizer {
             }
         }
         void setClips(std::vector<Clip>& cls) {
-            clips.resize(0);
             for (Clip& cl : cls)
                 clips.emplace_back(cl), clips.back().bounds = clips.back().bounds.integral().intersect(clip);
         }
