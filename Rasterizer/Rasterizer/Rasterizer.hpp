@@ -267,7 +267,7 @@ struct Rasterizer {
     };
     struct Buffer {
         struct Entry {
-            enum Type { kEdges, kColorants, kShapes, kQuads, kOpaques };
+            enum Type { kEdges, kColorants, kShapes, kQuads, kOpaques, kClip };
             Entry() {}
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
@@ -355,8 +355,6 @@ struct Rasterizer {
                 for (j = 0; j < ctx->segments.size(); j++)
                     ctx->segments[j].empty();
             }
-            if (shapesSize)
-                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapes, begin, begin + shapesSize);
         }
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {

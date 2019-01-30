@@ -233,6 +233,7 @@ struct ShapesVertex
 
 vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                       constant AffineTransform *clip [[buffer(14)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Colorant& shape = shapes[iid];

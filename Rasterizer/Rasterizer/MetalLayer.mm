@@ -168,15 +168,20 @@
     uint32_t reverse, pathCount;
     size_t colorantsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
+    Rasterizer::AffineTransform clip;
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
+            case Rasterizer::Buffer::Entry::kClip:
+                clip = *((Rasterizer::AffineTransform *)(buffer->data.base + entry.begin));
+                break;
             case Rasterizer::Buffer::Entry::kShapes:
                 [commandEncoder setDepthStencilState:_quadsDepthState];
                 [commandEncoder setRenderPipelineState:_shapesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
+                [commandEncoder setVertexBytes:& clip length:sizeof(clip) atIndex:14];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
