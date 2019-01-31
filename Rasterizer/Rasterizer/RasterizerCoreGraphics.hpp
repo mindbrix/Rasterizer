@@ -306,7 +306,7 @@ struct RasterizerCoreGraphics {
                     
                     end = begin + sizeof(Rasterizer::AffineTransform);
                     *((Rasterizer::AffineTransform *)(buffer->data.base + begin)) = clipPath ? clips[0].ctm.invert() : nullclip;
-                    new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kClip, begin, end);
+                    new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kShapeClip, begin, end);
                     
                     begin = end, end = begin + shapesCount * sizeof(Rasterizer::GPU::Colorant);
                     new (buffer->entries.alloc(1)) Rasterizer::Buffer::Entry(Rasterizer::Buffer::Entry::kShapes, begin, end);

@@ -172,7 +172,7 @@
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Rasterizer::Buffer::Entry::kClip:
+            case Rasterizer::Buffer::Entry::kShapeClip:
                 clip = *((Rasterizer::AffineTransform *)(buffer->data.base + entry.begin));
                 break;
             case Rasterizer::Buffer::Entry::kShapes:
