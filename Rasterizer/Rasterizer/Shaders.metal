@@ -211,7 +211,7 @@ fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<flo
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
     }
-    return vert.color * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w) * alpha;
+    return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
 }
 
 #pragma mark - Shapes
