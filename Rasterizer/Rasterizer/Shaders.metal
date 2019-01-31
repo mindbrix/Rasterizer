@@ -171,7 +171,7 @@ struct QuadsVertex
 {
     float4 position [[position]];
     float4 color;
-    float d0, d1, d2, d3;
+    float4 clip;
     float u, v;
     float cover;
     bool even, solid;
@@ -196,13 +196,8 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.color = float4(r * a, g * a, b * a, a);
     
     device AffineTransform& ctm = paint.ctm;
-    if (ctm.a == 0.0 && ctm.b == 0.0)
-        vert.d0 = vert.d1 = vert.d2 = vert.d3 = 1.0;
-    else {
-        float4 d = distances(ctm, dx, dy);
-        vert.d0 = d.x, vert.d1 = d.y, vert.d2 = d.z, vert.d3 = d.w;
-        vert.u = u - du, vert.v = v - dv;
-    }
+    vert.clip = distances(ctm, dx, dy);
+    vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.cover;
     vert.even = false;
     vert.solid = solid;
@@ -216,7 +211,7 @@ fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<flo
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
     }
-    return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3) * alpha;
+    return vert.color * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w) * alpha;
 }
 
 #pragma mark - Shapes
