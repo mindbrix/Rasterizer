@@ -211,10 +211,12 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float clip = saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3);
-    float winding = vert.solid ? 1.0 : vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x;
-    float alpha = abs(winding);
-    return vert.color * clip * (vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha)));
+    float alpha = 1.0;
+    if (!vert.solid) {
+        alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
+        alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
+    }
+    return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.d2) * saturate(vert.d3) * alpha;
 }
 
 #pragma mark - Shapes
