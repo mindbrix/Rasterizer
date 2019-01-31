@@ -295,7 +295,7 @@ struct Rasterizer {
             AffineTransform ctm = { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f };
             if (clips && clipSize)
                 ctm = clips->ctm.invert();
-                
+            
             end += pathsCount * sizeof(GPU::Colorant);
             GPU::Colorant *dst = (GPU::Colorant *)(buffer.data.base + begin);
             for (size_t idx = 0; idx < pathsCount; idx++)
@@ -354,6 +354,14 @@ struct Rasterizer {
                 ctx->gpu.empty();
                 for (j = 0; j < ctx->segments.size(); j++)
                     ctx->segments[j].empty();
+            }
+            if (shapesCount) {
+                end = begin + sizeof(AffineTransform);
+                *((AffineTransform *)(buffer.data.base + begin)) = ctm;
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapeClip, begin, end);
+                
+                begin = end, end = begin + shapesCount * sizeof(GPU::Colorant);
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapes, begin, end);
             }
         }
         Context() {}
