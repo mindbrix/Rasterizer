@@ -245,7 +245,7 @@ struct Rasterizer {
         };
         struct Cell {
             Cell() {}
-            Cell(float lx, float ly, float ux, float uy, float ox, float oy,float(cover))
+            Cell(float lx, float ly, float ux, float uy, float ox, float oy, float cover)
             : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), cover(cover) {}
             short lx, ly, ux, uy, ox, oy;
             float cover;
