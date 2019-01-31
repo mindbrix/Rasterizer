@@ -24,7 +24,7 @@ struct Colorant {
 
 struct Quad {
     short lx, ly, ux, uy, ox, oy;
-    unsigned int idx;
+    unsigned int iz;
     float cover;
 };
 
@@ -99,9 +99,9 @@ vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], 
     device Quad& quad = quads[*reverse - 1 - iid];
     float x = select(quad.lx, quad.ux, vid & 1) / *width * 2.0 - 1.0;
     float y = select(quad.ly, quad.uy, vid >> 1) / *height * 2.0 - 1.0;
-    float z = (quad.idx * 2 + 2) / float(*pathCount * 2 + 2);
+    float z = (quad.iz * 2 + 2) / float(*pathCount * 2 + 2);
     
-    device Colorant& paint = paints[quad.idx];
+    device Colorant& paint = paints[quad.iz];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
     
     OpaquesVertex vert;
@@ -185,10 +185,10 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     device Quad& quad = quads[iid];
     float dx = select(quad.lx, quad.ux, vid & 1), u = dx / *width, du = (quad.lx - quad.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(quad.ly, quad.uy, vid >> 1), v = dy / *height, dv = (quad.ly - quad.oy) / *height, y = v * 2.0 - 1.0;
-    float z = (quad.idx * 2 + 1) / float(*pathCount * 2 + 2);
+    float z = (quad.iz * 2 + 1) / float(*pathCount * 2 + 2);
     bool solid = quad.ox == kSolidQuad;
     
-    device Colorant& paint = paints[quad.idx];
+    device Colorant& paint = paints[quad.iz];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
 
     QuadsVertex vert;

@@ -245,10 +245,10 @@ struct Rasterizer {
         };
         struct Quad {
             Quad() {}
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t idx, float(cover))
-            : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), idx((uint32_t)idx), cover(cover) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, float(cover))
+            : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), iz((uint32_t)iz), cover(cover) {}
             short lx, ly, ux, uy, ox, oy;
-            uint32_t idx;
+            uint32_t iz;
             float cover;
         };
         struct Edge {
