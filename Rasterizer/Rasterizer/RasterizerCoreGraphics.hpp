@@ -295,9 +295,7 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, bgras, 0, pathsCount);
             }
             if (buffer) {
-                size_t shapesSize = shapesCount * sizeof(Rasterizer::GPU::Colorant);
-                if (shapesCount)
-                    shapesSize += sizeof(Rasterizer::AffineTransform);
+                size_t shapesSize = (shapesCount != 0) * sizeof(Rasterizer::AffineTransform) + shapesCount * sizeof(Rasterizer::GPU::Colorant);
                 
                 Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesSize, bgras, testScene.scene.ctms, testScene.scene.paths, & clips[0], clips.size(), *buffer);
                 if (shapesCount) {
