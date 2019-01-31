@@ -22,10 +22,18 @@ struct Colorant {
     int type;
 };
 
-struct Quad {
+struct Cell {
     short lx, ly, ux, uy, ox, oy;
-    unsigned int iz;
     float cover;
+};
+
+struct Quad {
+    enum Type { kNull = 0, kRect, kCircle, kCell };
+    union {
+        Cell cell;
+        Colorant colorant;
+    };
+    uint32_t iz;
 };
 
 struct Segment {
@@ -97,11 +105,11 @@ vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], 
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[*reverse - 1 - iid];
-    float x = select(quad.lx, quad.ux, vid & 1) / *width * 2.0 - 1.0;
-    float y = select(quad.ly, quad.uy, vid >> 1) / *height * 2.0 - 1.0;
-    float z = (quad.iz * 2 + 2) / float(*pathCount * 2 + 2);
+    float x = select(quad.cell.lx, quad.cell.ux, vid & 1) / *width * 2.0 - 1.0;
+    float y = select(quad.cell.ly, quad.cell.uy, vid >> 1) / *height * 2.0 - 1.0;
+    float z = ((quad.iz & 0xFFFFFF) * 2 + 2) / float(*pathCount * 2 + 2);
     
-    device Colorant& paint = paints[quad.iz];
+    device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
     
     OpaquesVertex vert;
@@ -128,7 +136,7 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Edge& edge = edges[iid];
-    device Quad& quad = edge.quad;
+    device Cell& cell = edge.quad.cell;
     device Segment *segments = edge.segments;
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
@@ -140,12 +148,12 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
             suy = max(suy, max(s.y0, s.y1));
         }
     }
-    slx = max(floor(slx), float(quad.lx)), sly = floor(sly), suy = ceil(suy);
-    float lx = quad.ox + slx - quad.lx, ux = quad.ox + quad.ux - quad.lx;
-    float ly = quad.oy + sly - quad.ly, uy = quad.oy + suy - quad.ly;
+    slx = max(floor(slx), float(cell.lx)), sly = floor(sly), suy = ceil(suy);
+    float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
+    float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
-    float tx = -(quad.lx - quad.ox) - (dx - 0.5), ty = -(quad.ly - quad.oy) - (dy - 0.5);
+    float tx = -(cell.lx - cell.ox) - (dx - 0.5), ty = -(cell.ly - cell.oy) - (dy - 0.5);
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
@@ -183,12 +191,14 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    float dx = select(quad.lx, quad.ux, vid & 1), u = dx / *width, du = (quad.lx - quad.ox) / *width, x = u * 2.0 - 1.0;
-    float dy = select(quad.ly, quad.uy, vid >> 1), v = dy / *height, dv = (quad.ly - quad.oy) / *height, y = v * 2.0 - 1.0;
-    float z = (quad.iz * 2 + 1) / float(*pathCount * 2 + 2);
-    bool solid = quad.ox == kSolidQuad;
+    device Cell& cell = quad.cell;
     
-    device Colorant& paint = paints[quad.iz];
+    float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
+    float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
+    float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
+    bool solid = cell.ox == kSolidQuad;
+    
+    device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
 
     QuadsVertex vert;
@@ -198,7 +208,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     device AffineTransform& ctm = paint.ctm;
     vert.clip = distances(ctm, dx, dy);
     vert.u = u - du, vert.v = v - dv;
-    vert.cover = quad.cover;
+    vert.cover = cell.cover;
     vert.even = false;
     vert.solid = solid;
     return vert;

@@ -243,13 +243,24 @@ struct Rasterizer {
             AffineTransform ctm;
             int type;
         };
-        struct Quad {
-            Quad() {}
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, float(cover))
-            : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), iz((uint32_t)iz), cover(cover) {}
+        struct Cell {
+            Cell() {}
+            Cell(float lx, float ly, float ux, float uy, float ox, float oy,float(cover))
+            : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy), cover(cover) {}
             short lx, ly, ux, uy, ox, oy;
-            uint32_t iz;
             float cover;
+        };
+        struct Quad {
+            enum Type { kNull = 0, kRect, kCircle, kCell };
+            Quad() {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, float cover)
+            : cell(lx, ly, ux, uy, ox, oy, cover), iz((uint32_t)iz | kCell << 24) {}
+            Quad(Colorant colorant, size_t iz, int type) : colorant(colorant), iz((uint32_t)iz | type << 24) {}
+            union {
+                Cell cell;
+                Colorant colorant;
+            };
+            uint32_t iz;
         };
         struct Edge {
             Quad quad;
@@ -319,14 +330,14 @@ struct Rasterizer {
                 GPU::Index *index = ctx->gpu.quadIndices.base;
                 while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                     for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
-                        if (ctx->gpu.quads.base[qend].oy == 0 && ctx->gpu.quads.base[qend].ox == 0)
+                        if (ctx->gpu.quads.base[qend].cell.oy == 0 && ctx->gpu.quads.base[qend].cell.ox == 0)
                             break;
                     
                     GPU::Quad *quad = ctx->gpu.quads.base + ctx->gpu.quads.idx;
                     GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
                     Segment *segments, *ds;   Segment::Index *is;
                     for (q = ctx->gpu.quads.idx; q < qend; q++, quad++) {
-                        if (quad->ox != kSolidQuad) {
+                        if (quad->cell.ox != kSolidQuad) {
                             end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                             segments = ctx->segments[index->iy].base + index->idx;
                             is = ctx->gpu.indices.base + index->begin;
