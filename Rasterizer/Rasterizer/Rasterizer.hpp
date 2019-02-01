@@ -66,6 +66,15 @@ struct Rasterizer {
         AffineTransform ctm;
         Bounds bounds;
     };
+    struct Colorant {
+        enum Type { kNull = 0, kRect, kCircle };
+        Colorant() {}
+        Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f), type(kNull)  {}
+        Colorant(uint8_t *src, AffineTransform ctm, int type) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(ctm), type(type) {}
+        uint8_t src0, src1, src2, src3;
+        AffineTransform ctm;
+        int type;
+    };
     struct Sequence {
         struct Atom {
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCapacity = 15 };
@@ -234,15 +243,6 @@ struct Rasterizer {
             Index(size_t iy, size_t idx, size_t begin, size_t end) : iy(uint32_t(iy)), idx(uint32_t(idx)), begin(uint32_t(begin)), end(uint32_t(end)) {}
             uint32_t iy, idx, begin, end;
         };
-        struct Colorant {
-            enum Type { kNull = 0, kRect, kCircle };
-            Colorant() {}
-            Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f), type(kNull)  {}
-            Colorant(uint8_t *src, AffineTransform ctm, int type) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(ctm), type(type) {}
-            uint8_t src0, src1, src2, src3;
-            AffineTransform ctm;
-            int type;
-        };
         struct Cell {
             Cell() {}
             Cell(float lx, float ly, float ux, float uy, float ox, float oy, float cover)
@@ -286,7 +286,7 @@ struct Rasterizer {
         };
         Pages<uint8_t> data;
         Row<Entry> entries;
-        GPU::Colorant clearColor;
+        Colorant clearColor;
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, size_t shapesCount,
@@ -296,7 +296,7 @@ struct Rasterizer {
                                           const Clip *clips, size_t clipSize,
                                           Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
-            size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(GPU::Colorant) + pathsCount * sizeof(GPU::Colorant);
+            size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(Colorant) + pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             
@@ -307,10 +307,10 @@ struct Rasterizer {
             if (clips && clipSize)
                 ctm = clips->ctm.invert();
             
-            end += pathsCount * sizeof(GPU::Colorant);
-            GPU::Colorant *dst = (GPU::Colorant *)(buffer.data.base + begin);
+            end += pathsCount * sizeof(Colorant);
+            Colorant *dst = (Colorant *)(buffer.data.base + begin);
             for (size_t idx = 0; idx < pathsCount; idx++)
-                new (dst++) GPU::Colorant((uint8_t *)& bgras[idx], ctm, GPU::Colorant::kRect);
+                new (dst++) Colorant((uint8_t *)& bgras[idx], ctm, Colorant::kRect);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             begin = end;
         
@@ -371,7 +371,7 @@ struct Rasterizer {
                 *((AffineTransform *)(buffer.data.base + begin)) = ctm;
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapeClip, begin, end);
                 
-                begin = end, end = begin + shapesCount * sizeof(GPU::Colorant);
+                begin = end, end = begin + shapesCount * sizeof(Colorant);
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapes, begin, end);
             }
         }

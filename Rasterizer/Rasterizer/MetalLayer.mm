@@ -185,11 +185,11 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Colorant)
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::Colorant)
                                   baseInstance:0];
                 break;
 			case Rasterizer::Buffer::Entry::kColorants:
-                pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Colorant));
+                pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::Colorant));
                 colorantsOffset = entry.begin;
                 break;
             case Rasterizer::Buffer::Entry::kOpaques:
