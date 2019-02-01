@@ -41,7 +41,7 @@ struct Segment {
 };
 
 struct Edge {
-    Quad quad;
+    Cell cell;
     Segment segments[kSegmentsCount];
 };
 
@@ -136,7 +136,7 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Edge& edge = edges[iid];
-    device Cell& cell = edge.quad.cell;
+    device Cell& cell = edge.cell;
     device Segment *segments = edge.segments;
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
