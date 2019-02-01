@@ -280,7 +280,7 @@ struct Rasterizer {
         Colorant clearColor;
     };
     struct Context {
-        static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f }; }
+        static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
         static void writeContextsToBuffer(Context *contexts, size_t count, size_t shapesCount,
                                           Path *paths,
