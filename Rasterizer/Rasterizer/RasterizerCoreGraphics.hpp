@@ -293,7 +293,7 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, 0, pathsCount);
             }
             if (buffer) {
-                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesCount, colorants, testScene.scene.ctms, testScene.scene.paths, *buffer);
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesCount, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), *buffer);
                 if (shapesCount) {
                     size_t begin = (buffer->entries.base + buffer->entries.end - 1)->begin;
                     Rasterizer::Colorant *dst = (Rasterizer::Colorant *)(buffer->data.base + begin);

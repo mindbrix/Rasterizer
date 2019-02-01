@@ -283,11 +283,12 @@ struct Rasterizer {
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f }; }
         
         static void writeContextsToBuffer(Context *contexts, size_t count, size_t shapesCount,
+                                          Path *paths,
+                                          AffineTransform *ctms,
                                           Colorant *colorants,
-                                          std::vector<AffineTransform>& ctms,
-                                          std::vector<Path>& paths,
+                                          size_t pathsCount,
                                           Buffer& buffer) {
-            size_t size, i, j, jend, begin, end, qend, q, pathsCount = paths.size();
+            size_t size, i, j, jend, begin, end, qend, q;
             size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(Colorant) + pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
