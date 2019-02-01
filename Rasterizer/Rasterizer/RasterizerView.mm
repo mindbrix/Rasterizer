@@ -58,12 +58,12 @@
 
 - (void)initLayer:(BOOL)useMetal {
     [self setWantsLayer:YES];
+    CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
     if (useMetal)
         [self setLayer:[MetalLayer layer]];
     else
         [self setLayer:[CALayer layer]];
-    
-    self.layer.contentsScale = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+    self.layer.contentsScale = scale;
     self.layer.bounds = self.bounds;
     self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
@@ -123,6 +123,10 @@
         _useMetal = !_useMetal;
         [self toggleTimer];
         [self initLayer:_useMetal];
+        [self redraw];
+    } else if (event.keyCode == 15) {
+        CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
+        self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
         [self redraw];
     } else {
         [super keyDown:event];
