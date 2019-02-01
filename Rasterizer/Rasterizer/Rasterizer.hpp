@@ -398,13 +398,10 @@ struct Rasterizer {
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
             AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
-            const AffineTransform *ctm = & nullclip;
-            const Bounds *clipbounds = & clip;
-            if (clips.size()) {
-                if (bitmap.width == 0)
-                    ctm = & clips[0].ctm;
-                clipbounds = & clips[0].bounds;
-            }
+            AffineTransform clip0 = bitmap.width ? nullclip : colorants->ctm.invert();
+            Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(clip);
+            const AffineTransform *ctm = & clip0;
+            const Bounds *clipbounds = & bounds0;
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
