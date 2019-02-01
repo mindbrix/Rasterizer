@@ -396,7 +396,7 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size);
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, uint32_t *bgras, size_t begin, size_t end) {
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
             AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
             const AffineTransform *ctm = & nullclip;
             const Bounds *clipbounds = & clip;
@@ -430,7 +430,7 @@ struct Rasterizer {
                             cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f));
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, even, (uint8_t *)& bgras[iz], iz, *cb, hit);
+                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *cb, hit);
                     }
             free(units), free(cls), free(cbs);
         }
