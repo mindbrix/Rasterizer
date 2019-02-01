@@ -293,7 +293,6 @@ struct Rasterizer {
                                           Colorant *colorants,
                                           std::vector<AffineTransform>& ctms,
                                           std::vector<Path>& paths,
-                                          const Clip *clips, size_t clipSize,
                                           Buffer& buffer) {
             size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
             size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(Colorant) + pathsCount * sizeof(Colorant);
@@ -302,10 +301,6 @@ struct Rasterizer {
             
             buffer.data.alloc(size);
             begin = end = 0;
-            
-            AffineTransform ctm = { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f };
-            if (clips && clipSize)
-                ctm = clips->ctm.invert();
             
             end += pathsCount * sizeof(Colorant);
             memcpy(buffer.data.base + begin, colorants, pathsCount * sizeof(Colorant));
@@ -366,7 +361,7 @@ struct Rasterizer {
             }
             if (shapesCount) {
                 end = begin + sizeof(AffineTransform);
-                *((AffineTransform *)(buffer.data.base + begin)) = ctm;
+                *((AffineTransform *)(buffer.data.base + begin)) = colorants->ctm;
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapeClip, begin, end);
                 
                 begin = end, end = begin + shapesCount * sizeof(Colorant);
