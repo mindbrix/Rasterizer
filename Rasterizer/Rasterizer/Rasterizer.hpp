@@ -397,6 +397,8 @@ struct Rasterizer {
                 segments.resize(size);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
+            if (begin == end)
+                return;
             AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
             AffineTransform clip0 = bitmap.width ? nullclip : colorants->ctm.invert();
             Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(clip);
