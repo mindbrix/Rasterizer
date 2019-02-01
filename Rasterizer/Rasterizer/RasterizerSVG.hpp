@@ -39,7 +39,7 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            int limit = 60000;
+            int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
                     scene.bgras.emplace_back(bgraFromPaint(shape->fill));
