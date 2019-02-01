@@ -240,10 +240,7 @@ struct RasterizerCoreGraphics {
         } else {
             size_t pathsCount = testScene.scene.paths.size();
             size_t slice, ly, uy, count;
-            std::vector<Rasterizer::Clip> clips;
-            if (clipPath)
-                clips.emplace_back(0, pathsCount, ctm, Rasterizer::Bounds(100, 100, 200, 200));
-            
+        
             Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
@@ -276,7 +273,6 @@ struct RasterizerCoreGraphics {
                     }
                     for (i = 0; i < divisions; i++) {
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
-                        testScene.contexts[i].setClips(clips);
                     }
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                         testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, b[idx], b[idx + 1]);
@@ -287,7 +283,6 @@ struct RasterizerCoreGraphics {
                     for (count = ly = 0; ly < bitmap.height; ly = uy) {
                         uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                         testScene.contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
-                        testScene.contexts[count].setClips(clips);
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
@@ -298,7 +293,6 @@ struct RasterizerCoreGraphics {
                 count = 1;
                 if (buffer) {
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
-                    testScene.contexts[0].setClips(clips);
                 }
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, 0, pathsCount);
             }

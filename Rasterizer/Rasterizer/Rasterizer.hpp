@@ -59,13 +59,6 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
-    struct Clip {
-        Clip() {}
-        Clip(size_t begin, size_t end, AffineTransform _ctm, Bounds _bounds) : begin(begin), end(end), ctm(_bounds.unit(_ctm).invert()), bounds(_bounds.transform(_ctm)) {}
-        size_t begin, end;
-        AffineTransform ctm;
-        Bounds bounds;
-    };
     struct Colorant {
         enum Type { kNull = 0, kRect, kCircle };
         Colorant() {}
@@ -384,7 +377,6 @@ struct Rasterizer {
         }
         void setDevice(Bounds dev) {
             device = clip = dev;
-            clips.resize(0);
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
@@ -441,15 +433,10 @@ struct Rasterizer {
                 writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
             }
         }
-        void setClips(std::vector<Clip>& cls) {
-            for (Clip& cl : cls)
-                clips.emplace_back(cl), clips.back().bounds = clips.back().bounds.integral().intersect(clip);
-        }
         Bitmap bitmap;
         GPU gpu;
         Bounds device, clip;
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
-        std::vector<Clip> clips;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
     };
