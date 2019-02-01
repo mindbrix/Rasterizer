@@ -287,7 +287,7 @@ struct Rasterizer {
                                           std::vector<AffineTransform>& ctms,
                                           std::vector<Path>& paths,
                                           Buffer& buffer) {
-            size_t size, i, j, k, kend, begin, end, qend, q, pathsCount = paths.size();
+            size_t size, i, j, jend, begin, end, qend, q, pathsCount = paths.size();
             size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(Colorant) + pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
@@ -328,11 +328,13 @@ struct Rasterizer {
                             segments = ctx->segments[index->iy].base + index->idx;
                             is = ctx->gpu.indices.base + index->begin;
                             for (j = index->begin; j < index->end; j += kSegmentsCount, dst++) {
-                                dst->quad = *quad;
-                                for (ds = dst->segments, k = j, kend = j + kSegmentsCount; k < index->end && k < kend; k++, is++)
-                                    *ds++ = segments[is->i];
-                                if (k < kend)
-                                    memset(ds, 0, (kend - k) * sizeof(Segment));
+                                dst->quad = *quad, ds = dst->segments;
+                                *ds++ = segments[is->i], is++;
+                                jend = j + kSegmentsCount, jend = jend < index->end ? jend : index->end;
+                                if (jend - j > 1) {
+                                    *ds = segments[is->i], is++;
+                                } else
+                                    new (ds) Segment(0.f, 0.f, 0.f, 0.f);
                             }
                             index++;
                         }
