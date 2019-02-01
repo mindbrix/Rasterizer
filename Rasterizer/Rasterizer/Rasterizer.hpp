@@ -389,8 +389,6 @@ struct Rasterizer {
             AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
             AffineTransform clip0 = bitmap.width ? nullclip : colorants->ctm.invert();
             Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(clip);
-            const AffineTransform *ctm = & clip0;
-            const Bounds *clipbounds = & bounds0;
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
@@ -400,13 +398,13 @@ struct Rasterizer {
                 *un = paths->sequence->bounds.unit(*ctms);
             paths -= (end - begin), ctms -= (end - begin), un = units;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
-                *cl = (*ctm).concat(*un);
+                *cl = (clip0).concat(*un);
             un = units;
             for (iz = begin; iz < end; iz++, un++, cb++)
                 *cb = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
-                ).integral().intersect(*clipbounds);
+                ).integral().intersect(bounds0);
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls, cb = cbs;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, cb++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
