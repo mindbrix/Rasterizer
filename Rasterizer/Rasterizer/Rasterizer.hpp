@@ -290,7 +290,7 @@ struct Rasterizer {
     };
     struct Context {
         static void writeContextsToBuffer(Context *contexts, size_t count, size_t shapesCount,
-                                          uint32_t *bgras,
+                                          Colorant *colorants,
                                           std::vector<AffineTransform>& ctms,
                                           std::vector<Path>& paths,
                                           const Clip *clips, size_t clipSize,
@@ -308,9 +308,7 @@ struct Rasterizer {
                 ctm = clips->ctm.invert();
             
             end += pathsCount * sizeof(Colorant);
-            Colorant *dst = (Colorant *)(buffer.data.base + begin);
-            for (size_t idx = 0; idx < pathsCount; idx++)
-                new (dst++) Colorant((uint8_t *)& bgras[idx], ctm, Colorant::kRect);
+            memcpy(buffer.data.base + begin, colorants, pathsCount * sizeof(Colorant));
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             begin = end;
         
