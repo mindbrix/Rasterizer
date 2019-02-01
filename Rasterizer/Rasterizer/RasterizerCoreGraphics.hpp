@@ -303,7 +303,7 @@ struct RasterizerCoreGraphics {
                         float vx = ctm.a, vy = ctm.b, x, y, s;
                         for (int i = 0; i < shapesCount; i++, dst++) {
                             s = sqrtf(i);
-                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(size, 0.f, 0.f, size, ctm.tx + s * vx - 1.f, ctm.ty + s * vy - 1.f));
+                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(size, 0.f, 0.f, size, ctm.tx + s * vx - 0.5f * size, ctm.ty + s * vy - 0.5f * size));
                             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
                             vx = x, vy = y;
                         }
