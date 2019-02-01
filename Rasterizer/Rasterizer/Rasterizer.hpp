@@ -288,7 +288,7 @@ struct Rasterizer {
                                           Colorant *colorants,
                                           size_t pathsCount,
                                           Buffer& buffer) {
-            size_t size, i, j, jend, begin, end, qend, q;
+            size_t size, i, j, begin, end, qend, q;
             size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(Colorant) + pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
@@ -322,20 +322,19 @@ struct Rasterizer {
                     
                     GPU::Quad *quad = ctx->gpu.quads.base + ctx->gpu.quads.idx;
                     GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
-                    Segment *segments, *ds;   Segment::Index *is;
+                    Segment *segments; Segment::Index *is;
                     for (q = ctx->gpu.quads.idx; q < qend; q++, quad++) {
                         if (quad->cell.ox != kSolidQuad) {
                             end += (index->end - index->begin + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                             segments = ctx->segments[index->iy].base + index->idx;
                             is = ctx->gpu.indices.base + index->begin;
                             for (j = index->begin; j < index->end; j += kSegmentsCount, dst++) {
-                                dst->cell = quad->cell, ds = dst->segments;
-                                *ds++ = segments[is->i], is++;
-                                jend = j + kSegmentsCount, jend = jend < index->end ? jend : index->end;
-                                if (jend - j > 1) {
-                                    *ds = segments[is->i], is++;
-                                } else
-                                    new (ds) Segment(0.f, 0.f, 0.f, 0.f);
+                                dst->cell = quad->cell;
+                                dst->segments[0] = segments[is->i], is++;
+                                if (j + 1 < index->end)
+                                    dst->segments[1] = segments[is->i], is++;
+                                else
+                                    new (& dst->segments[1]) Segment(0.f, 0.f, 0.f, 0.f);
                             }
                             index++;
                         }
