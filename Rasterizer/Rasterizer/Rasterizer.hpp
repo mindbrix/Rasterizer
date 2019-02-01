@@ -391,17 +391,15 @@ struct Rasterizer {
             AffineTransform clip0 = bitmap.width ? nullclip().invert() : colorants->ctm.invert();
             Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(clip);
             size_t iz;
-            AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;
+            AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
             Bounds *cbs = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cb = cbs;
             paths += begin, ctms += begin;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, un++)
+            for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
-            paths -= (end - begin), ctms -= (end - begin), un = units;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++)
+            for (un = units, iz = begin; iz < end; iz++, un++, cl++)
                 *cl = (clip0).concat(*un);
-            un = units;
-            for (iz = begin; iz < end; iz++, un++, cb++)
+            for (un = units, iz = begin; iz < end; iz++, un++, cb++)
                 *cb = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
