@@ -330,7 +330,7 @@ struct Rasterizer {
                             segments = ctx->segments[index->iy].base + index->idx;
                             is = ctx->gpu.indices.base + index->begin;
                             for (j = index->begin; j < index->end; j += kSegmentsCount, dst++) {
-                                dst->quad = *quad, ds = dst->segments;
+                                dst->quad.cell = quad->cell, ds = dst->segments;
                                 *ds++ = segments[is->i], is++;
                                 jend = j + kSegmentsCount, jend = jend < index->end ? jend : index->end;
                                 if (jend - j > 1) {
