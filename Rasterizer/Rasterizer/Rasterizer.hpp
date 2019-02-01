@@ -282,6 +282,8 @@ struct Rasterizer {
         Colorant clearColor;
     };
     struct Context {
+        static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f }; }
+        
         static void writeContextsToBuffer(Context *contexts, size_t count, size_t shapesCount,
                                           Colorant *colorants,
                                           std::vector<AffineTransform>& ctms,
@@ -386,8 +388,7 @@ struct Rasterizer {
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
             if (begin == end)
                 return;
-            AffineTransform nullclip = { 1e-12f, 0.f, 0.f, 1e-12f, 0.5f, 0.5f };
-            AffineTransform clip0 = bitmap.width ? nullclip : colorants->ctm.invert();
+            AffineTransform clip0 = bitmap.width ? nullclip().invert() : colorants->ctm.invert();
             Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(clip);
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un = units;

@@ -251,9 +251,7 @@ struct RasterizerCoreGraphics {
             CGColorSpaceRelease(srcSpace);
             
             Rasterizer::Colorant *colorants = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colorants;
-            Rasterizer::AffineTransform clip = { 1e12f, 0.f, 0.f, 1e12f, 5e-11f, 5e-11f };
-            if (clipPath)
-                clip = Rasterizer::Bounds(100, 100, 200, 200).unit(ctm);
+            Rasterizer::AffineTransform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip, Rasterizer::Colorant::kRect);
             
