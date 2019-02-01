@@ -271,9 +271,8 @@ struct RasterizerCoreGraphics {
                             count += paths[p++].sequence->atoms.size();
                         begins[i] = p;
                     }
-                    for (i = 0; i < divisions; i++) {
+                    for (i = 0; i < divisions; i++)
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
-                    }
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                         testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, b[idx], b[idx + 1]);
                     });
@@ -291,9 +290,8 @@ struct RasterizerCoreGraphics {
                 }
             } else {
                 count = 1;
-                if (buffer) {
+                if (buffer)
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
-                }
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, 0, pathsCount);
             }
             if (buffer) {
