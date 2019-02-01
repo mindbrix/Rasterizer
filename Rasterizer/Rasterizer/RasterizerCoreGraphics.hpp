@@ -253,7 +253,7 @@ struct RasterizerCoreGraphics {
             Rasterizer::Colorant *colorants = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colorants;
             Rasterizer::AffineTransform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
             for (int i = 0; i < pathsCount; i++, dst++)
-                new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip, Rasterizer::Colorant::kRect);
+                new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip);
             
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
                 if (buffer) {
@@ -303,7 +303,7 @@ struct RasterizerCoreGraphics {
                         float vx = ctm.a, vy = ctm.b, x, y, s;
                         for (int i = 0; i < shapesCount; i++, dst++) {
                             s = sqrtf(i);
-                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(size, 0.f, 0.f, size, ctm.tx + s * vx - 1.f, ctm.ty + s * vy - 1.f), Rasterizer::Colorant::kCircle);
+                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(size, 0.f, 0.f, size, ctm.tx + s * vx - 1.f, ctm.ty + s * vy - 1.f));
                             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
                             vx = x, vy = y;
                         }
@@ -314,7 +314,7 @@ struct RasterizerCoreGraphics {
                         a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
                         for (int i = 0; i < shapesCount; i++, dst++) {
                             ix = sx * float(i % dim), iy = sy * float(i / dim);
-                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty), i & 1 ? Rasterizer::Colorant::kCircle : Rasterizer::Colorant::kRect);
+                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty));
                         }
                     }
                 }

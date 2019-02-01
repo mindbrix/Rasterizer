@@ -16,10 +16,8 @@ struct AffineTransform {
 };
 
 struct Colorant {
-    enum Type { kNull = 0, kRect, kCircle };
     uint8_t src0, src1, src2, src3;
     AffineTransform ctm;
-    int type;
 };
 
 struct Cell {
@@ -59,21 +57,6 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
     d.w = (vx * -ctm.d - vy * -ctm.c) * copysign(rlcd, det) + 0.5;
     return d;
-}
-
-float shapeAlpha(float4 d, int type) {
-    float alpha = -1.0;
-    switch (type) {
-        case Colorant::kRect:
-            alpha = saturate(d.x) * saturate(d.y) * saturate(d.z) * saturate(d.w);
-            break;
-        case Colorant::kCircle: {
-            float r = (d.x + d.z) * 0.5, x = r - min(d.x, d.z), y = r - min(d.y, d.w);
-            alpha = saturate(r - sqrt(x * x + y * y));
-            break;
-        }
-    }
-    return alpha;
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
@@ -232,7 +215,6 @@ struct ShapesVertex
     float4 color;
     float u, v;
     float4 d, clip;
-    uint type;
 };
 
 vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
@@ -258,13 +240,13 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *shapes [[buffer(1)]],
     vert.u = ix, vert.v = iy;
     vert.d = distances(ctm, dx, dy);
     vert.clip = distances(*clip, dx, dy);
-    vert.type = shape.type;
     return vert;
 }
 
 fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
-    float shape = shapeAlpha(vert.d, vert.type);
+    float r = (vert.d.x + vert.d.z) * 0.5, x = r - min(vert.d.x, vert.d.z), y = r - min(vert.d.y, vert.d.w);
+    float shape = saturate(r - sqrt(x * x + y * y));
     float clip = saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
     return shape < 0.0 ? float4(1.0, 0.0, 0.0, 1.0) : shape * clip * vert.color;
 }
