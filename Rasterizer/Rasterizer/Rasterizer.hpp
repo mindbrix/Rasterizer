@@ -743,22 +743,18 @@ struct Rasterizer {
         ax = x3 - x0 + 3.f * (x1 - x2), bx = 3.f * (x2 + x0) - 6.f * x1;
         ay = y3 - y0 + 3.f * (y1 - y2), by = 3.f * (y2 + y0) - 6.f * y1;
         s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by), a = s * s + t * t;
-        if (a < 0.1f)
-            writeLine(x0, y0, x3, y3, deltas, stride, segments);
-        else {
-            count = a < 16.f ? 3.f : 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, px0 = px1 = x0, py0 = py1 = y0;
-            float h2, h3, f3x, f2x, f1x, f3y, f2y, f1y;
-            h2 = dt * dt, h3 = h2 * dt;
-            f3x = 6.f * ax * h3, f2x = f3x + 2.f * bx * h2, f1x = ax * h3 + bx * h2 + 3.f * (x1 - x0) * dt;
-            f3y = 6.f * ay * h3, f2y = f3y + 2.f * by * h2, f1y = ay * h3 + by * h2 + 3.f * (y1 - y0) * dt;
-            while (--count) {
-                px1 += f1x, f1x += f2x, f2x += f3x;
-                py1 += f1y, f1y += f2y, f2y += f3y;
-                writeLine(px0, py0, px1, py1, deltas, stride, segments);
-                px0 = px1, py0 = py1;
-            }
-            writeLine(px0, py0, x3, y3, deltas, stride, segments);
+        count = a < 0.1f ? 1.f : a < 16.f ? 3.f : 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, px0 = px1 = x0, py0 = py1 = y0;
+        float h2, h3, f3x, f2x, f1x, f3y, f2y, f1y;
+        h2 = dt * dt, h3 = h2 * dt;
+        f3x = 6.f * ax * h3, f2x = f3x + 2.f * bx * h2, f1x = ax * h3 + bx * h2 + 3.f * (x1 - x0) * dt;
+        f3y = 6.f * ay * h3, f2y = f3y + 2.f * by * h2, f1y = ay * h3 + by * h2 + 3.f * (y1 - y0) * dt;
+        while (--count) {
+            px1 += f1x, f1x += f2x, f2x += f3x;
+            py1 += f1y, f1y += f2y, f2y += f3y;
+            writeLine(px0, py0, px1, py1, deltas, stride, segments);
+            px0 = px1, py0 = py1;
         }
+        writeLine(px0, py0, x3, y3, deltas, stride, segments);
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
