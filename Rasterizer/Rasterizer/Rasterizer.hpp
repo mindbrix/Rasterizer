@@ -390,29 +390,29 @@ struct Rasterizer {
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
-            Bounds *cbs = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cb = cbs;
+            Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = clips;
             paths += begin, ctms += begin;
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
             for (un = units, iz = begin; iz < end; iz++, un++, cl++)
                 *cl = (clip0).concat(*un);
-            for (un = units, iz = begin; iz < end; iz++, un++, cb++)
-                *cb = Bounds(
+            for (un = units, iz = begin; iz < end; iz++, un++, clipped++)
+                *clipped = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
                 ).integral().intersect(bounds0);
-            paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls, cb = cbs;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, cb++)
+            paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls, clipped = clips;
+            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
-                    if (cb->lx != cb->ux && cb->ly != cb->uy) {
+                    if (clipped->lx != clipped->ux && clipped->ly != clipped->uy) {
                         Bounds clu(
                             cl->tx + (cl->a < 0.f ? cl->a : 0.f) + (cl->c < 0.f ? cl->c : 0.f), cl->ty + (cl->b < 0.f ? cl->b : 0.f) + (cl->d < 0.f ? cl->d : 0.f),
                             cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f));
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *cb, hit);
+                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clipped, hit);
                     }
-            free(units), free(cls), free(cbs);
+            free(units), free(cls), free(clips);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped, bool hit) {
             if (bitmap.width) {
