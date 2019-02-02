@@ -366,7 +366,7 @@ struct Rasterizer {
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
-            clip = Bounds(0.f, 0.f, bm.width, bm.height).intersect(cl.integral());
+            device = Bounds(0.f, 0.f, bm.width, bm.height).intersect(cl.integral());
             size_t size = ceilf(float(bm.height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
@@ -375,7 +375,7 @@ struct Rasterizer {
         }
         void setGPU(size_t width, size_t height) {
             bitmap = Bitmap();
-            clip = Bounds(0.f, 0.f, width, height);
+            device = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
@@ -386,7 +386,7 @@ struct Rasterizer {
             if (begin == end)
                 return;
             AffineTransform clip0 = bitmap.width ? nullclip().invert() : colorants->ctm.invert();
-            Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(clip);
+            Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(device);
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
@@ -431,7 +431,7 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         GPU gpu;
-        Bounds clip;
+        Bounds device;
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
