@@ -739,18 +739,14 @@ struct Rasterizer {
         }
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
         float s, t, a, count, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
         s = fabsf(x3 - x0 + 3.f * (x1 - x2)) + fabsf(3.f * (x2 + x0) - 6.f * x1);
         t = fabsf(y3 - y0 + 3.f * (y1 - y2)) + fabsf(3.f * (y2 + y0) - 6.f * y1);
         a = s * s + t * t;
         if (a < 0.1f)
             writeLine(x0, y0, x3, y3, deltas, stride, segments);
-        else if (a < 8.f) {
-            px0 = (x0 + x3) * 0.125f + (x1 + x2) * 0.375f, py0 = (y0 + y3) * 0.125f + (y1 + y2) * 0.375f;
-            writeLine(x0, y0, px0, py0, deltas, stride, segments);
-            writeLine(px0, py0, x3, y3, deltas, stride, segments);
-        } else if (a < 16.f) {
+        else if (a < 16.f) {
+            const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
             px0 = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3, py0 = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
             px1 = x0 * w3 + x1 * w2 + x2 * w1 + x3 * w0, py1 = y0 * w3 + y1 * w2 + y2 * w1 + y3 * w0;
             writeLine(x0, y0, px0, py0, deltas, stride, segments);
