@@ -385,23 +385,23 @@ struct Rasterizer {
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
             if (begin == end)
                 return;
-            AffineTransform clip0 = bitmap.width ? nullclip().invert() : colorants->ctm.invert();
-            Bounds bounds0 = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(device);
+            AffineTransform clip = bitmap.width ? nullclip().invert() : colorants->ctm.invert();
+            Bounds dev = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(device);
             size_t iz;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
-            AffineTransform *cls = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = cls;
-            Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = clips;
+            AffineTransform *clips = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = clips;
+            Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
             paths += begin, ctms += begin;
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
             for (un = units, iz = begin; iz < end; iz++, un++, cl++)
-                *cl = (clip0).concat(*un);
+                *cl = (clip).concat(*un);
             for (un = units, iz = begin; iz < end; iz++, un++, clipped++)
                 *clipped = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
-                ).integral().intersect(bounds0);
-            paths -= (end - begin), ctms -= (end - begin), un = units, cl = cls, clipped = clips;
+                ).integral().intersect(dev);
+            paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
                     if (clipped->lx != clipped->ux && clipped->ly != clipped->uy) {
@@ -412,7 +412,7 @@ struct Rasterizer {
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
                             drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clipped, hit);
                     }
-            free(units), free(cls), free(clips);
+            free(units), free(clips), free(devices);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped, bool hit) {
             if (bitmap.width) {
