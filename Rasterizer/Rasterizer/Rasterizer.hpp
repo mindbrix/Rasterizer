@@ -739,7 +739,7 @@ struct Rasterizer {
         }
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float s, t, a, count, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
+        float s, t, a, count, px0, py0, px1, py1, dt;
         s = fabsf(x3 - x0 + 3.f * (x1 - x2)) + fabsf(3.f * (x2 + x0) - 6.f * x1);
         t = fabsf(y3 - y0 + 3.f * (y1 - y2)) + fabsf(3.f * (y2 + y0) - 6.f * y1);
         a = s * s + t * t;
@@ -753,10 +753,16 @@ struct Rasterizer {
             writeLine(px0, py0, px1, py1, deltas, stride, segments);
             writeLine(px1, py1, x3, y3, deltas, stride, segments);
         } else {
-            count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f, px0 = x0, py0 = y0;
+            count = 4.f + floorf(sqrtf(sqrtf(a - 16.f))), dt = 1.f / count, t = 0.f, px0 = px1 = x0, py0 = py1 = y0;
+            float ax, bx, cx, ay, by, cy, h2, h3, f3x, f2x, f1x, f3y, f2y, f1y;
+            ax = x3 - x0 + 3.f * (x1 - x2), bx = 3.f * (x2 + x0) - 6.f * x1, cx = 3.f * (x1 - x0);
+            ay = y3 - y0 + 3.f * (y1 - y2), by = 3.f * (y2 + y0) - 6.f * y1, cy = 3.f * (y1 - y0);
+            h2 = dt * dt, h3 = h2 * dt;
+            f3x = 6.f * ax * h3, f2x = f3x + 2.f * bx * h2, f1x = ax * h3 + bx * h2 + cx * dt;
+            f3y = 6.f * ay * h3, f2y = f3y + 2.f * by * h2, f1y = ay * h3 + by * h2 + cy * dt;
             while (--count) {
-                t += dt, s = 1.f - t, pw0 = s * s * s, pw1 = 3.f * s * s * t, pw2 = 3.f * s * t * t, pw3 = t * t * t;
-                px1 = x0 * pw0 + x1 * pw1 + x2 * pw2 + x3 * pw3, py1 = y0 * pw0 + y1 * pw1 + y2 * pw2 + y3 * pw3;
+                px1 += f1x, f1x += f2x, f2x += f3x;
+                py1 += f1y, f1y += f2y, f2y += f3y;
                 writeLine(px0, py0, px1, py1, deltas, stride, segments);
                 px0 = px1, py0 = py1;
             }
