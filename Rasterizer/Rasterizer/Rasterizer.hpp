@@ -740,10 +740,10 @@ struct Rasterizer {
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, uint32_t stride, Row<Segment> *segments) {
         const float w0 = 8.0 / 27.0, w1 = 4.0 / 9.0, w2 = 2.0 / 9.0, w3 = 1.0 / 27.0;
-        float cx, bx, ax, cy, by, ay, count, s, t, a, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-        s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by), a = s * s + t * t;
+        float s, t, a, count, px0, py0, px1, py1, dt, pw0, pw1, pw2, pw3;
+        s = fabsf(x3 - x0 + 3.f * (x1 - x2)) + fabsf(3.f * (x2 + x0) - 6.f * x1);
+        t = fabsf(y3 - y0 + 3.f * (y1 - y2)) + fabsf(3.f * (y2 + y0) - 6.f * y1);
+        a = s * s + t * t;
         if (a < 0.1f)
             writeLine(x0, y0, x3, y3, deltas, stride, segments);
         else if (a < 8.f) {
