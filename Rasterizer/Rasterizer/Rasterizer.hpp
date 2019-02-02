@@ -378,7 +378,7 @@ struct Rasterizer {
             gpu.allocator.init(width, height);
         }
         void setDevice(Bounds dev) {
-            device = clip = dev;
+            clip = dev;
             size_t size = ceilf((dev.uy - dev.ly) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
@@ -432,7 +432,7 @@ struct Rasterizer {
         }
         Bitmap bitmap;
         GPU gpu;
-        Bounds device, clip;
+        Bounds clip;
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
