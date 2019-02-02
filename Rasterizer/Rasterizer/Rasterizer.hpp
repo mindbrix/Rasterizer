@@ -366,22 +366,21 @@ struct Rasterizer {
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
-            setDevice(Bounds(0.f, 0.f, bm.width, bm.height));
-            clip = clip.intersect(cl.integral());
+            clip = Bounds(0.f, 0.f, bm.width, bm.height).intersect(cl.integral());
+            size_t size = ceilf(float(bm.height) * krfh);
+            if (segments.size() != size)
+                segments.resize(size);
             deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
         void setGPU(size_t width, size_t height) {
             bitmap = Bitmap();
-            setDevice(Bounds(0.f, 0.f, width, height));
-            gpu.width = width, gpu.height = height;
-            gpu.allocator.init(width, height);
-        }
-        void setDevice(Bounds dev) {
-            clip = dev;
-            size_t size = ceilf((dev.uy - dev.ly) * krfh);
+            clip = Bounds(0.f, 0.f, width, height);
+            size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
+            gpu.width = width, gpu.height = height;
+            gpu.allocator.init(width, height);
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
             if (begin == end)
