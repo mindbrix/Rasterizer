@@ -534,7 +534,7 @@ struct Rasterizer {
                     new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
                     int s, ds;
-                    float iy0, iy1, sx0, sy0, sx1, sy1, dx, dy;
+                    float iy0, iy1, sx1, sy1, dx, dy;
                     if (y0 < y1) {
                         iy0 = floorf(y0 * Context::krfh), iy1 = ceilf(y1 * Context::krfh);
                         s = iy0, ds = 1;
@@ -548,14 +548,13 @@ struct Rasterizer {
                     }
                     dx = dy / (y1 - y0) * (x1 - x0);
                     sx1 = (sy1 - y0) / dy * dx + x0;
-                    sx0 = x0, sy0 = y0;
                     while (++iy0 != iy1) {
                         sx1 += dx, sy1 += dy;
-                        new (segments[s].alloc(1)) Segment(sx0, sy0, sx1, sy1);
-                        sx0 = sx1, sy0 = sy1;
+                        new (segments[s].alloc(1)) Segment(x0, y0, sx1, sy1);
+                        x0 = sx1, y0 = sy1;
                         s += ds;
                     }
-                    new (segments[s].alloc(1)) Segment(sx0, sy0, x1, y1);
+                    new (segments[s].alloc(1)) Segment(x0, y0, x1, y1);
                 }
             } else {
                 float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
