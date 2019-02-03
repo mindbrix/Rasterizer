@@ -646,19 +646,16 @@ struct Rasterizer {
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float ax, ay, count, a, dt, f2x, f1x, f2y, f1y, px0, py0, px1, py1;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
-        if (a < 0.1f)
-            writeLine(x0, y0, x2, y2, deltas, stride, segments);
-        else {
-            count = a < 8.f ? 2.f : 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, px0 = px1 = x0, py0 = py1 = y0;
-            ax = ax * dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
-            ay = ay * dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
-            while (--count) {
-                px1 += f1x, f1x += f2x, py1 += f1y, f1y += f2y;
-                writeLine(px0, py0, px1, py1, deltas, stride, segments);
-                px0 = px1, py0 = py1;
-            }
-            writeLine(px0, py0, x2, y2, deltas, stride, segments);
+        count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 3.f + floorf(sqrtf(sqrtf(a - 8.f)));
+        dt = 1.f / count, px0 = px1 = x0, py0 = py1 = y0;
+        ax = ax * dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
+        ay = ay * dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
+        while (--count) {
+            px1 += f1x, f1x += f2x, py1 += f1y, f1y += f2y;
+            writeLine(px0, py0, px1, py1, deltas, stride, segments);
+            px0 = px1, py0 = py1;
         }
+        writeLine(px0, py0, x2, y2, deltas, stride, segments);
     }
     static void solveCubic(double A, double B, double C, double D, float& t0, float& t1, float& t2) {
         if (fabs(D) < 1e-3)
