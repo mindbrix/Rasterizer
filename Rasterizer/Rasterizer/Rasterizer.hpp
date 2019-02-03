@@ -747,8 +747,7 @@ struct Rasterizer {
         f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + 3.f * (x1 - x0) * dt;
         f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + 3.f * (y1 - y0) * dt;
         while (--count) {
-            px1 += f1x, f1x += f2x, f2x += f3x;
-            py1 += f1y, f1y += f2y, f2y += f3y;
+            px1 += f1x, f1x += f2x, f2x += f3x, py1 += f1y, f1y += f2y, f2y += f3y;
             writeLine(px0, py0, px1, py1, deltas, stride, segments);
             px0 = px1, py0 = py1;
         }
