@@ -639,18 +639,16 @@ struct Rasterizer {
         }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ax, ay, count, a, dt, s, t, px0, py0, px1, py1;
+        float ax, ay, count, a, dt, f2x, f1x, f2y, f1y, px0, py0, px1, py1;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
         if (a < 0.1f)
             writeLine(x0, y0, x2, y2, deltas, stride, segments);
-        else if (a < 8.f) {
-            px0 = (x0 + x2) * 0.25f + x1 * 0.5f, py0 = (y0 + y2) * 0.25f + y1 * 0.5f;
-            writeLine(x0, y0, px0, py0, deltas, stride, segments);
-            writeLine(px0, py0, x2, y2, deltas, stride, segments);
-        } else {
-            count = 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, t = 0.f, px0 = x0, py0 = y0;
+        else {
+            count = a < 8.f ? 2.f : 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count, px0 = px1 = x0, py0 = py1 = y0;
+            ax = ax * dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
+            ay = ay * dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
             while (--count) {
-                t += dt, s = 1.f - t, px1 = x0 * s * s + x1 * 2.f * s * t + x2 * t * t, py1 = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                px1 += f1x, f1x += f2x, py1 += f1y, f1y += f2y;
                 writeLine(px0, py0, px1, py1, deltas, stride, segments);
                 px0 = px1, py0 = py1;
             }
