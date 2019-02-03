@@ -533,18 +533,14 @@ struct Rasterizer {
                 if (floorf(iy0) == floorf(iy1))
                     new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
+                    float sy1, dy, sx1, dx;
                     int s, ds, count;
-                    float sx1, sy1, dx, dy;
                     if (y0 < y1) {
-                        iy0 = floorf(iy0), iy1 = ceilf(iy1);
+                        iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * Context::kfh, dy = Context::kfh;
                         s = iy0, ds = 1;
-                        sy1 = iy0 * Context::kfh;
-                        dy = Context::kfh;
                     } else {
-                        iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh);
+                        iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh), sy1 = iy1 * Context::kfh, dy = -Context::kfh;
                         s = iy1 - 1.f, ds = -1;
-                        sy1 = iy1 * Context::kfh;
-                        dy = -Context::kfh;
                     }
                     count = iy1 - iy0;
                     dx = dy / (y1 - y0) * (x1 - x0);
