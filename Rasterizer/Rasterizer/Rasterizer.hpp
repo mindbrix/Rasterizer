@@ -533,17 +533,15 @@ struct Rasterizer {
                 if (floorf(iy0) == floorf(iy1))
                     new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
-                    int ds;
+                    int s, ds;
                     float count, sx0, sy0, sx1, sy1, dx, dy;
                     if (y0 < y1) {
-                        segments += size_t(y0 * Context::krfh);
-                        ds = 1;
+                        s = int(y0 * Context::krfh), ds = 1;
                         count = ceilf(y1 * Context::krfh) - floorf(y0 * Context::krfh);
                         sy1 = floorf(y0 * Context::krfh) * Context::kfh;
                         dy = Context::kfh;
                     } else {
-                        segments += size_t((y0 - 1e-12) * Context::krfh);
-                        ds = -1;
+                        s = int((y0 - 1e-12) * Context::krfh), ds = -1;
                         count = ceilf(y0 * Context::krfh) - floorf(y1 * Context::krfh);
                         sy1 = ceilf(y0 * Context::krfh) * Context::kfh;
                         dy = -Context::kfh;
@@ -553,11 +551,11 @@ struct Rasterizer {
                     sx0 = x0, sy0 = y0;
                     while (--count) {
                         sx1 += dx, sy1 += dy;
-                        new (segments->alloc(1)) Segment(sx0, sy0, sx1, sy1);
+                        new (segments[s].alloc(1)) Segment(sx0, sy0, sx1, sy1);
                         sx0 = sx1, sy0 = sy1;
-                        segments += ds;
+                        s += ds;
                     }
-                    new (segments->alloc(1)) Segment(sx0, sy0, x1, y1);
+                    new (segments[s].alloc(1)) Segment(sx0, sy0, x1, y1);
                 }
             } else {
                 float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
