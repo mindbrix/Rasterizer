@@ -554,53 +554,6 @@ struct Rasterizer {
                     new (segments[s].alloc(1)) Segment(x0, y0, x1, y1);
                 }
             } else {
-                if (0) {
-                    int s, ds, ycount, xcount;
-                    float i0, i1, sy1, dy, sx1, dx, sx0, sy0;
-                    if (y0 < y1) {
-                        sy1 = i0 = floorf(y0), i1 = ceilf(y1), dy = 1.f;
-                        s = i0 * stride, ds = stride;
-                    } else {
-                        i0 = floorf(y1), sy1 = i1 = ceilf(y0), dy = -1.f;
-                        s = (i1 - 1.f) * stride, ds = -stride;
-                    }
-                    ycount = i1 - i0;
-                    dx = dy / (y1 - y0) * (x1 - x0);
-                    sx1 = (sy1 - y0) / dy * dx + x0;
-                    float pts[ycount * 2 + 2], *pt = pts;
-                    *pt++ = x0, *pt++ = y0;
-                    while (--ycount)
-                        sx1 += dx, sy1 += dy, *pt++ = sx1, *pt++ = sy1;
-                    *pt++ = x1, *pt++ = y1;
-                    
-                    float scale = copysign(1.f, y1 - y0), clx, cux, cx0, cx1, cy0, cy1, *delta, cover, area, last;
-                    ycount = i1 - i0;
-                    delta = deltas + s;
-                    pt = pts, sx0 = *pt++, sy0 = *pt++;
-                    for (; ycount--; sx0 = sx1, sy0 = sy1, delta += ds) {
-                        sx1 = *pt++, sy1 = *pt++;
-                        
-                        clx = sx0 < sx1 ? sx0 : sx1, cux = sx0 > sx1 ? sx0 : sx1;
-                        i0 = floorf(clx), i1 = ceilf(cux);
-                        xcount = i1 - i0, xcount = xcount ?: 1;
-                        cx0 = clx, dy = 1.f / (x1 - x0) * (y1 - y0), cy0 = sy0;
-                        cx1 = i0, cy1 = (cx1 - x0) * dy + y0;
-                        last = 0.f;
-                        while (--xcount) {
-                            cx1 += 1.f, cy1 += dy;
-                            cover = (cy1 - cy0) * scale, area = (cx1 - (cx0 + cx1) * 0.5f);
-                            delta[int(cx0)] += cover * area + last;
-                            last = cover * (1.f - area);
-                            cx0 = cx1, cy0 = cy1;
-                        }
-                        cx1 += 1.f;
-                        cover = (sy1 - cy0) * scale, area = (cx1 - (cx0 + cux) * 0.5f);
-                        delta[int(cx0)] += cover * area + last;
-                        if (cx1 < stride)
-                            delta[int(cx1)] += cover * (1.f - area);
-                    }
-                    return;
-                }
                 float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
                 if (scale < 0.f)
                     tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
