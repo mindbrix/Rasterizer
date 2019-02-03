@@ -533,20 +533,31 @@ struct Rasterizer {
                 if (floorf(iy0) == floorf(iy1))
                     new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else {
-                    float ily, fly, fuy, dx, dy, fy0, fy1, sy0, sy1, t0, t1;
-                    if (y0 < y1)
-                        ily = floorf(iy0), fly = ily * Context::kfh, fuy = ceilf(iy1) * Context::kfh;
-                    else
-                        ily = floorf(iy1), fly = ily * Context::kfh, fuy = ceilf(iy0) * Context::kfh;
-                    dx = x1 - x0, dy = y1 - y0;
-                    for (segments += size_t(ily), fy0 = fly; fy0 < fuy; fy0 = fy1, segments++) {
-                        fy1 = fy0 + Context::kfh;
-                        sy0 = y0 < fy0 ? fy0 : y0 > fy1 ? fy1 : y0;
-                        sy1 = y1 < fy0 ? fy0 : y1 > fy1 ? fy1 : y1;
-                        t0 = (sy0 - y0) / dy, t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
-                        t1 = (sy1 - y0) / dy, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
-                        new (segments->alloc(1)) Segment(t0 * dx + x0, sy0, t1 * dx + x0, sy1);
+                    int ds;
+                    float count, sx0, sy0, sx1, sy1, dx, dy;
+                    if (y0 < y1) {
+                        segments += size_t(y0 * Context::krfh);
+                        ds = 1;
+                        count = ceilf(y1 * Context::krfh) - floorf(y0 * Context::krfh);
+                        sy1 = floorf(y0 * Context::krfh) * Context::kfh;
+                        dy = Context::kfh;
+                    } else {
+                        segments += size_t((y0 - 1e-12) * Context::krfh);
+                        ds = -1;
+                        count = ceilf(y0 * Context::krfh) - floorf(y1 * Context::krfh);
+                        sy1 = ceilf(y0 * Context::krfh) * Context::kfh;
+                        dy = -Context::kfh;
                     }
+                    dx = dy / (y1 - y0) * (x1 - x0);
+                    sx1 = (sy1 - y0) / dy * dx + x0;
+                    sx0 = x0, sy0 = y0;
+                    while (--count) {
+                        sx1 += dx, sy1 += dy;
+                        new (segments->alloc(1)) Segment(sx0, sy0, sx1, sy1);
+                        sx0 = sx1, sy0 = sy1;
+                        segments += ds;
+                    }
+                    new (segments->alloc(1)) Segment(sx0, sy0, x1, y1);
                 }
             } else {
                 float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
