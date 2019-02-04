@@ -401,23 +401,6 @@ struct Rasterizer {
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
                 ).integral().intersect(dev);
-            float w, h, area, atoms;
-            paths -= (end - begin);
-            for (atoms = 0.f, un = units, clipped = devices, iz = begin; iz < end; iz++, un++, paths++, clipped++) {
-                w = clipped->ux - clipped->lx, h = clipped->uy - clipped->ly, area = w * h;
-                if (area && paths->sequence && paths->sequence->bounds.lx != FLT_MAX) {
-                    atoms += paths->sequence->atoms.size();
-                    /*
-                     float line, a, quadratic, s, t, cubic;
-                    line = ceilf(clipped->uy * Context::krfh) - floorf(clipped->ly * Context::krfh);
-                    a = 4.f * w * w + h * h;
-                    quadratic = 2.f * line + (a < 0.1f ? 1.f : a < 8.f ? 2.f : 3.f + floorf(sqrtf(sqrtf(a - 8.f))));
-                    s = 4.f * w, t = 3.f * h, a = s * s + t * t;
-                    cubic = 3.f * line + (a < 0.1f ? 1.f : a < 16.f ? 3.f : 4.f + floorf(sqrtf(sqrtf(a - 16.f))));
-                     */
-                }
-                
-            }
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
