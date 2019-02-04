@@ -147,14 +147,11 @@ struct Rasterizer {
             sequence = new Sequence();
         }
         Path(const Path& other) {
-            if (this != & other) {
-                this->~Path();
-                if ((sequence = other.sequence))
-                    sequence->refCount++;
-            }
+            if (this != & other)
+                sequence = other.sequence, sequence->refCount++;
         }
         ~Path() {
-            if (sequence && --(sequence->refCount) == 0)
+            if (--(sequence->refCount) == 0)
                 delete sequence;
         }
         Sequence *sequence = nullptr;
