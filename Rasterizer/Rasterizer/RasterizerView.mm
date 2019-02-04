@@ -17,7 +17,7 @@
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
 @property(nonatomic) RasterizerCoreGraphics::Scene textScene;
 @property(nonatomic) BOOL useClip;
-@property(nonatomic) BOOL useMetal;
+@property(nonatomic) BOOL useCPU;
 @property(nonatomic) size_t shapesCount;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
@@ -33,7 +33,7 @@
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    [self initLayer:_useMetal];
+    [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
 	[self writeGlyphs:self.font string:nil];
     return self;
@@ -56,10 +56,10 @@
     [self.layer setNeedsDisplay];
 }
 
-- (void)initLayer:(BOOL)useMetal {
+- (void)initLayer:(BOOL)useCPU {
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    if (useMetal)
+    if (!useCPU)
         [self setLayer:[MetalLayer layer]];
     else
         [self setLayer:[CALayer layer]];
@@ -68,7 +68,7 @@
     self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    if (useMetal) {
+    if (!useCPU) {
         MetalLayer *layer = (MetalLayer *)self.layer;
         layer.layerDelegate = self;
     } else {
@@ -120,9 +120,9 @@
         _shapesCount = _shapesCount ? 0 : 100000;
         [self redraw];
     } else if (event.keyCode == 46) {
-        _useMetal = !_useMetal;
+        _useCPU = !_useCPU;
         [self toggleTimer];
-        [self initLayer:_useMetal];
+        [self initLayer:_useCPU];
         [self redraw];
     } else if (event.keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
