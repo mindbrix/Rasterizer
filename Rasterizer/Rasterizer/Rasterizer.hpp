@@ -401,6 +401,12 @@ struct Rasterizer {
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
                 ).integral().intersect(dev);
+            float area, atoms;
+            paths -= (end - begin);
+            for (atoms = 0.f, un = units, clipped = devices, iz = begin; iz < end; iz++, un++, paths++, clipped++) {
+                area = (clipped->ux - clipped->lx) * (clipped->uy - clipped->ly);
+                atoms += float(area != 0.f) * (paths->sequence && paths->sequence->bounds.lx != FLT_MAX ? float(paths->sequence->atoms.size()) : 0.f);
+            }
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
                 if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
