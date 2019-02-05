@@ -593,32 +593,32 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, uy, lx, ux, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         if (ly < clip.uy && uy > clip.ly) {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-            A = y0 + y2 - y1 - y1, B = 2.f * (y1 - y0), C = y0;
+            ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
+            ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
             int end = 0;
             if (clip.ly >= ly && clip.ly < uy)
-                solveQuadratic(A, B, C - clip.ly, ts[end], ts[end + 1]), end += 2;
+                solveQuadratic(ay, by, y0 - clip.ly, ts[end], ts[end + 1]), end += 2;
             if (clip.uy >= ly && clip.uy < uy)
-                solveQuadratic(A, B, C - clip.uy, ts[end], ts[end + 1]), end += 2;
-            A = x0 + x2 - x1 - x1, B = 2.f * (x1 - x0), C = x0;
+                solveQuadratic(ay, by, y0 - clip.uy, ts[end], ts[end + 1]), end += 2;
             if (clip.lx >= lx && clip.lx < ux)
-                solveQuadratic(A, B, C - clip.lx, ts[end], ts[end + 1]), end += 2;
+                solveQuadratic(ax, bx, x0 - clip.lx, ts[end], ts[end + 1]), end += 2;
             if (clip.ux >= lx && clip.ux < ux)
-                solveQuadratic(A, B, C - clip.ux, ts[end], ts[end + 1]), end += 2;
+                solveQuadratic(ax, bx, x0 - clip.ux, ts[end], ts[end + 1]), end += 2;
             if (end < 8)
                 ts[end] = 0.f, ts[end + 1] = 1.f, end += 2;
             std::sort(& ts[0], & ts[end]);
             for (int i = 0; i < end - 1; i++)
                 if (ts[i] != ts[i + 1]) {
-                    t = (ts[i] + ts[i + 1]) * 0.5f, s = 1.f - t;
-                    y = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                    t = (ts[i] + ts[i + 1]) * 0.5f;
+                    y = (ay * t + by) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
-                        x = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
+                        x = (ax * t + bx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
                         t = ts[i + 1], s = 1.f - t;
                         x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
