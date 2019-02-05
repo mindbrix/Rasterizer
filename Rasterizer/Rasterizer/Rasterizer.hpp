@@ -681,31 +681,30 @@ struct Rasterizer {
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
         if (ly < clip.uy && uy > clip.ly) {
-            float A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
+            float cy, by, ay, cx, bx, ax, ts[12], t, s, x, y, vx, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
             float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-            B = 3.f * (y1 - y0), A = 3.f * (y2 - y1) - B, D = y3 - y0 - B - A, C = y0;
+            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
             int end = 0;
             if (clip.ly >= ly && clip.ly < uy)
-                solveCubic(A, B, C - clip.ly, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
+                solveCubic(by, cy, y0 - clip.ly, ay, ts[end], ts[end + 1], ts[end + 2]), end += 3;
             if (clip.uy >= ly && clip.uy < uy)
-                solveCubic(A, B, C - clip.uy, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
-            B = 3.f * (x1 - x0), A = 3.f * (x2 - x1) - B, D = x3 - x0 - B - A, C = x0;
+                solveCubic(by, cy, y0 - clip.uy, ay, ts[end], ts[end + 1], ts[end + 2]), end += 3;
             if (clip.lx >= lx && clip.lx < ux)
-                solveCubic(A, B, C - clip.lx, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
+                solveCubic(bx, cx, x0 - clip.lx, ax, ts[end], ts[end + 1], ts[end + 2]), end += 3;
             if (clip.ux >= lx && clip.ux < ux)
-                solveCubic(A, B, C - clip.ux, D, ts[end], ts[end + 1], ts[end + 2]), end += 3;
+                solveCubic(bx, cx, x0 - clip.ux, ax, ts[end], ts[end + 1], ts[end + 2]), end += 3;
             if (end < 12)
                 ts[end] = 0.f, ts[end + 1] = 1.f, end += 2;
             std::sort(& ts[0], & ts[end]);
             for (int i = 0; i < end - 1; i++)
                 if (ts[i] != ts[i + 1]) {
-                    t = (ts[i] + ts[i + 1]) * 0.5f, s = 1.f - t;
-                    w0 = s * s * s, w1 = 3.f * s * s * t, w2 = 3.f * s * t * t, w3 = t * t * t;
-                    y = y0 * w0 + y1 * w1 + y2 * w2 + y3 * w3;
+                    t = (ts[i] + ts[i + 1]) * 0.5f;
+                    y = ((ay * t + by) * t + cy) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
-                        x = x0 * w0 + x1 * w1 + x2 * w2 + x3 * w3;
+                        x = ((ax * t + bx) * t + cx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
                         t = ts[i + 1], s = 1.f - t;
                         x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x23 = x2 * s + x3 * t;
