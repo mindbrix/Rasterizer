@@ -593,10 +593,10 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, cly, uy, cuy, lx, ux, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
-        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-        if (cly != cuy) {
+        float ly, uy, lx, ux, A, B, C, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
+        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
+        if (ly < clip.uy && uy > clip.ly) {
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
             A = y0 + y2 - y1 - y1, B = 2.f * (y1 - y0), C = y0;
@@ -677,10 +677,10 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1, t2 = t2 < 0.f ? 0.f : t2 > 1.f ? 1.f : t2;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, cly, uy, cuy, lx, ux;
-        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3, cly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3, cuy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-        if (cly != cuy) {
+        float ly, uy, lx, ux;
+        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
+        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
+        if (ly < clip.uy && uy > clip.ly) {
             float A, B, C, D, ts[12], t, s, w0, w1, w2, w3, x, y, vx, x01, x12, x23, x012, x123, x0123, y01, y12, y23, y012, y123, y0123;
             float tx01, tx12, tx23, tx012, tx123, tx0123, ty01, ty12, ty23, ty012, ty123, ty0123;
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
@@ -751,6 +751,14 @@ struct Rasterizer {
             px0 = px1, py0 = py1;
         }
         writeLine(px0, py0, x3, y3, deltas, stride, segments);
+//        while (count--) {
+//            if (count)
+//                px1 += f1x, f1x += f2x, f2x += f3x, py1 += f1y, f1y += f2y, f2y += f3y;
+//            else
+//                px1 = x3, py1 = y3;
+//            writeLine(px0, py0, px1, py1, deltas, stride, segments);
+//            px0 = px1, py0 = py1;
+//        }
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
