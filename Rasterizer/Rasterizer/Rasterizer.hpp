@@ -593,7 +593,7 @@ struct Rasterizer {
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t, s, x, y, vx, x01, x12, x012, y01, y12, y012, tx01, tx12, ty01, ty12, tx012, ty012;
+        float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         if (ly < clip.uy && uy > clip.ly) {
@@ -620,21 +620,18 @@ struct Rasterizer {
                     if (y >= clip.ly && y < clip.uy) {
                         x = (ax * t + bx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
-                        t = ts[i + 1], s = 1.f - t;
-                        x01 = x0 * s + x1 * t, x12 = x1 * s + x2 * t, x012 = x01 * s + x12 * t;
-                        y01 = y0 * s + y1 * t, y12 = y1 * s + y2 * t, y012 = y01 * s + y12 * t;
-                        t = ts[i] / ts[i + 1], s = 1.f - t;
-                        ty01 = y0 * s + y01 * t, ty12 = y01 * s + y012 * t, ty012 = ty01 * s + ty12 * t;
-                        ty012 = ty012 < clip.ly ? clip.ly : ty012 > clip.uy ? clip.uy : ty012;
-                        y012 = y012 < clip.ly ? clip.ly : y012 > clip.uy ? clip.uy : y012;
+                        t = ts[i], tx0 = (ax * t + bx) * t + x0, ty0 = (ay * t + by) * t + y0;
+                        t = ts[i + 1], tx2 = (ax * t + bx) * t + x0, ty2 = (ay * t + by) * t + y0;
+                        tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
+                        ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
+                        ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
                         if (visible) {
-                            tx01 = x0 * s + x01 * t, tx12 = x01 * s + x012 * t, tx012 = tx01 * s + tx12 * t;
-                            tx012 = tx012 < clip.lx ? clip.lx : tx012 > clip.ux ? clip.ux : tx012;
-                            x012 = x012 < clip.lx ? clip.lx : x012 > clip.ux ? clip.ux : x012;
-                            writeQuadratic(tx012, ty012, tx12, ty12, x012, y012, deltas, stride, segments);
-                        } else {
+                            tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
+                            tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
+                            writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, deltas, stride, segments);
+                       } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
-                            writeLine(vx, ty012, vx, y012, deltas, stride, segments);
+                            writeLine(vx, ty0, vx, ty2, deltas, stride, segments);
                         }
                     }
                 }
