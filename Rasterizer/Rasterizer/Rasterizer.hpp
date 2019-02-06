@@ -678,7 +678,7 @@ struct Rasterizer {
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
         if (ly < clip.uy && uy > clip.ly) {
-            float cy, by, ay, cx, bx, ax, ts[12], t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, _cx, _dx, _cy, _dy;
+            float cy, by, ay, cx, bx, ax, ts[12], t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
             lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
@@ -706,19 +706,19 @@ struct Rasterizer {
                         const float m0 = 3.f * u * v * v, m1 = 3.f * v * u * u, rdet = 1.f / (m0 * m0 - m1 * m1);
                         t = ts[i];
                         tx0 = ((ax * t + bx) * t + cx) * t + x0, ty0 = ((ay * t + by) * t + cy) * t + y0;
-                        t = v * ts[i] + u * ts[i + 1];
-                        tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
-                        t = u * ts[i] + v * ts[i + 1];
-                        tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
                         t = ts[i + 1];
                         tx3 = ((ax * t + bx) * t + cx) * t + x0, ty3 = ((ay * t + by) * t + cy) * t + y0;
-                        _cx = tx1 - (v3 * tx0 + u3 * tx3), _cy = ty1 - (v3 * ty0 + u3 * ty3);
-                        _dx = tx2 - (u3 * tx0 + v3 * tx3), _dy = ty2 - (u3 * ty0 + v3 * ty3);
-                        tx1 = rdet * (_cx * m0 + _dx * -m1), ty1 = rdet * (_cy * m0 + _dy * -m1);
-                        tx2 = rdet * (_cx * -m1 + _dx * m0), ty2 = rdet * (_cy * -m1 + _dy * m0);
                         ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                         ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
                         if (visible) {
+                            t = v * ts[i] + u * ts[i + 1];
+                            tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
+                            t = u * ts[i] + v * ts[i + 1];
+                            tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
+                            fx = tx1 - (v3 * tx0 + u3 * tx3), fy = ty1 - (v3 * ty0 + u3 * ty3);
+                            gx = tx2 - (u3 * tx0 + v3 * tx3), gy = ty2 - (u3 * ty0 + v3 * ty3);
+                            tx1 = rdet * (fx * m0 + gx * -m1), ty1 = rdet * (fy * m0 + gy * -m1);
+                            tx2 = rdet * (fx * -m1 + gx * m0), ty2 = rdet * (fy * -m1 + gy * m0);
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                             writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, deltas, stride, segments);
