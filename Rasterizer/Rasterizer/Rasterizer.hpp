@@ -702,8 +702,7 @@ struct Rasterizer {
                     if (y >= clip.ly && y < clip.uy) {
                         x = ((ax * t + bx) * t + cx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
-                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
-                        const float m0 = 3.f * u * v * v, m1 = 3.f * v * u * u, rdet = 1.f / (m0 * m0 - m1 * m1);
+                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
                         t = ts[i];
                         tx0 = ((ax * t + bx) * t + cx) * t + x0, ty0 = ((ay * t + by) * t + cy) * t + y0;
                         t = ts[i + 1];
@@ -717,8 +716,8 @@ struct Rasterizer {
                             tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
                             fx = tx1 - (v3 * tx0 + u3 * tx3), fy = ty1 - (v3 * ty0 + u3 * ty3);
                             gx = tx2 - (u3 * tx0 + v3 * tx3), gy = ty2 - (u3 * ty0 + v3 * ty3);
-                            tx1 = rdet * (fx * m0 + gx * -m1), ty1 = rdet * (fy * m0 + gy * -m1);
-                            tx2 = rdet * (fx * -m1 + gx * m0), ty2 = rdet * (fy * -m1 + gy * m0);
+                            tx1 = fx * m0 + gx * -m1, ty1 = fy * m0 + gy * -m1;
+                            tx2 = fx * -m1 + gx * m0, ty2 = fy * -m1 + gy * m0;
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                             writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, deltas, stride, segments);
