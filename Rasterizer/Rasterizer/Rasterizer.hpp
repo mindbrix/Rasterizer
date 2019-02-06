@@ -655,10 +655,11 @@ struct Rasterizer {
         if (fabs(D) < 1e-3)
             solveQuadratic(A, B, C, t0, t1), t2 = FLT_MAX;
         else {
-            double a3, p, q, q2, u1, v1, p3, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
-            A /= D, B /= D, C /= D, a3 = A / 3;
-            p = (3.0 * B - A * A) / 3.0, p3 = p / 3.0, q = (2 * A * A * A - 9.0 * A * B + 27.0 * C) / 27.0, q2 = q / 2.0;
-            discriminant = q2 * q2 + p3 * p3 * p3;
+            const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
+            double a3, p, q, q2, u1, v1, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
+            A /= D, B /= D, C /= D, a3 = A * third;
+            p = B - A * A * third, q = wq0 * A * A * A - third * A * B + C, q2 = q / 2.0;
+            discriminant = q2 * q2 + p * p * p / 27.0;
             if (discriminant < 0) {
                 mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
                 phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
