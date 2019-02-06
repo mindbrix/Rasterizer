@@ -122,45 +122,16 @@ struct Rasterizer {
             if (dx * dx + dy * dy < 1e-6f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
-                const float precision = 10.3923048454f * 1e-2f; // 18/sqrt(3);
-                float x0, y0, x1, y1, x2, y2, x3, y3, s, tcubed, t;
-                float n01, n12, n23, n012, n123, n0123, cpx, cpy;
-                x0 = px, y0 = py, x1 = cx0, y1 = cy0, x2 = cx1, y2 = cy1, x3 = x, y3 = y;
-                do {
-                    dx = 3.f * (x1 - x2) - x0 + x3, dy = 3.f * (y1 - y2) - y0 + y3;
-                    s = dx * dx + dy * dy;
-                    tcubed = s < 1e-6f ? 1.f : precision / sqrt(s);
-                    if (tcubed > 0.999999f)
-                        break;
-                    t = 1.f / ceilf(1.f / cbrtf(tcubed)), s = 1.f - t;
-                    
-                    n01 = s * x0 + t * x1, n12 = s * x1 + t * x2, n23 = s * x2 + t * x3;
-                    n012 = s * n01 + t * n12, n123 = s * n12 + t * n23;
-                    n0123 = s * n012 + t * n123;
-                    cpx = (3.f * (n012 + n01) - x0 - n0123) * 0.25f;
-                    x0 = n0123, x1 = n123, x2 = n23;
-                    
-                    n01 = s * y0 + t * y1, n12 = s * y1 + t * y2, n23 = s * y2 + t * y3;
-                    n012 = s * n01 + t * n12, n123 = s * n12 + t * n23;
-                    n0123 = s * n012 + t * n123;
-                    cpy = (3.f * (n012 + n01) - y0 - n0123) * 0.25f;
-                    y0 = n0123, y1 = n123, y2 = n23;
-                    
-                    quadTo(cpx, cpy, x0, y0);
-                    
-                } while (1);
-                quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
-                
-//                float *points = alloc(Atom::kCubic, 3);
-//                bounds.lx = bounds.lx < cx0 ? bounds.lx : cx0, bounds.ly = bounds.ly < cy0 ? bounds.ly : cy0;
-//                bounds.ux = bounds.ux > cx0 ? bounds.ux : cx0, bounds.uy = bounds.uy > cy0 ? bounds.uy : cy0;
-//                *points++ = cx0, *points++ = cy0;
-//                bounds.lx = bounds.lx < cx1 ? bounds.lx : cx1, bounds.ly = bounds.ly < cy1 ? bounds.ly : cy1;
-//                bounds.ux = bounds.ux > cx1 ? bounds.ux : cx1, bounds.uy = bounds.uy > cy1 ? bounds.uy : cy1;
-//                *points++ = cx1, *points++ = cy1;
-//                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
-//                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
-//                px = *points++ = x, py = *points++ = y;
+                float *points = alloc(Atom::kCubic, 3);
+                bounds.lx = bounds.lx < cx0 ? bounds.lx : cx0, bounds.ly = bounds.ly < cy0 ? bounds.ly : cy0;
+                bounds.ux = bounds.ux > cx0 ? bounds.ux : cx0, bounds.uy = bounds.uy > cy0 ? bounds.uy : cy0;
+                *points++ = cx0, *points++ = cy0;
+                bounds.lx = bounds.lx < cx1 ? bounds.lx : cx1, bounds.ly = bounds.ly < cy1 ? bounds.ly : cy1;
+                bounds.ux = bounds.ux > cx1 ? bounds.ux : cx1, bounds.uy = bounds.uy > cy1 ? bounds.uy : cy1;
+                *points++ = cx1, *points++ = cy1;
+                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
+                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
+                px = *points++ = x, py = *points++ = y;
             }
         }
         void close() {
