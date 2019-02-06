@@ -746,14 +746,6 @@ struct Rasterizer {
             px0 = px1, py0 = py1;
         }
         writeLine(px0, py0, x3, y3, deltas, stride, segments);
-//        while (count--) {
-//            if (count)
-//                px1 += f1x, f1x += f2x, f2x += f3x, py1 += f1y, f1y += f2y, f2y += f3y;
-//            else
-//                px1 = x3, py1 = y3;
-//            writeLine(px0, py0, px1, py1, deltas, stride, segments);
-//            px0 = px1, py0 = py1;
-//        }
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
