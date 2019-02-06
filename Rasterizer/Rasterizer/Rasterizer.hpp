@@ -119,7 +119,7 @@ struct Rasterizer {
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
             float dx, dy;
             dx = 3.f * (cx0 - cx1) - px + x, dy = 3.f * (cy0 - cy1) - py + y;
-            if (dx * dx + dy * dy < 1e-6f)
+            if (dx * dx + dy * dy < 1e-4f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
                 float *points = alloc(Atom::kCubic, 3);
