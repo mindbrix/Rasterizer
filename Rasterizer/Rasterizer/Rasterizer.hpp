@@ -102,7 +102,7 @@ struct Rasterizer {
             float ax, ay, bx, by, det, dot;
             ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy;
             det = ax * by - ay * bx, dot = ax * bx + ay * by;
-            if (fabsf(det) < 1e-6f) {
+            if (fabsf(det) < 1e-4f) {
                 if (dot < 0.f && det)
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
                 lineTo(x, y);
