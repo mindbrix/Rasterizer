@@ -702,7 +702,6 @@ struct Rasterizer {
                     if (y >= clip.ly && y < clip.uy) {
                         x = ((ax * t + bx) * t + cx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
-                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
                         t = ts[i];
                         tx0 = ((ax * t + bx) * t + cx) * t + x0, ty0 = ((ay * t + by) * t + cy) * t + y0;
                         t = ts[i + 1];
@@ -710,12 +709,13 @@ struct Rasterizer {
                         ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                         ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
                         if (visible) {
+                            const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
                             t = v * ts[i] + u * ts[i + 1];
                             tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
                             t = u * ts[i] + v * ts[i + 1];
                             tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
-                            fx = tx1 - (v3 * tx0 + u3 * tx3), fy = ty1 - (v3 * ty0 + u3 * ty3);
-                            gx = tx2 - (u3 * tx0 + v3 * tx3), gy = ty2 - (u3 * ty0 + v3 * ty3);
+                            fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
+                            gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
                             tx1 = fx * m0 + gx * -m1, ty1 = fy * m0 + gy * -m1;
                             tx2 = fx * -m1 + gx * m0, ty2 = fy * -m1 + gy * m0;
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
