@@ -22,13 +22,19 @@ struct Colorant {
 
 struct Cell {
     short lx, ly, ux, uy, ox, oy;
+};
+
+struct SuperCell {
+    Cell cell;
     float cover;
+    short iy, count;
+    uint32_t idx, begin;
 };
 
 struct Quad {
     enum Type { kNull = 0, kRect, kCircle, kCell };
     union {
-        Cell cell;
+        SuperCell super;
         Colorant colorant;
     };
     uint32_t iz;
@@ -88,8 +94,9 @@ vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], 
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[*reverse - 1 - iid];
-    float x = select(quad.cell.lx, quad.cell.ux, vid & 1) / *width * 2.0 - 1.0;
-    float y = select(quad.cell.ly, quad.cell.uy, vid >> 1) / *height * 2.0 - 1.0;
+    device Cell& cell = quad.super.cell;
+    float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
+    float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
     float z = ((quad.iz & 0xFFFFFF) * 2 + 2) / float(*pathCount * 2 + 2);
     
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
@@ -174,7 +181,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    device Cell& cell = quad.cell;
+    device Cell& cell = quad.super.cell;
     
     float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
@@ -191,7 +198,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     device AffineTransform& ctm = paint.ctm;
     vert.clip = distances(ctm, dx, dy);
     vert.u = u - du, vert.v = v - dv;
-    vert.cover = cell.cover;
+    vert.cover = quad.super.cover;
     vert.even = false;
     vert.solid = solid;
     return vert;
