@@ -234,8 +234,8 @@ struct Rasterizer {
         };
         struct SuperCell {
             SuperCell() {}
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, size_t iy, size_t idx, size_t begin, size_t end)
-            : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(short(iy)), count(short(end - begin)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, size_t iy, size_t idx, size_t begin, size_t count)
+            : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(short(iy)), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
             Cell cell;
             float cover;
             short iy, count;
@@ -325,12 +325,12 @@ struct Rasterizer {
                         if (quad->super.cell.ox != kSolidQuad) {
                             end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                             segments = ctx->segments[quad->super.iy].base + quad->super.idx;
-                            is = ctx->gpu.indices.base + quad->super.begin;
-                            for (j = quad->super.begin, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
+                            is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
+                            for (j = is ? quad->super.begin : 0, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
                                 dst->cell = quad->super.cell;
-                                dst->segments[0] = segments[is->i], is++;
+                                dst->segments[0] = segments[is ? is++->i : j];
                                 if (j + 1 < jend)
-                                    dst->segments[1] = segments[is->i], is++;
+                                    dst->segments[1] = segments[is ? is++->i : j + 1];
                                 else
                                     new (& dst->segments[1]) Segment(0.f, 0.f, 0.f, 0.f);
                             }
@@ -798,11 +798,9 @@ struct Rasterizer {
             count = segments->end - segments->idx;
             if (count) {
                 if (clip.ux - clip.lx < 16.f) {
-                    for (index = indices.alloc(count), i = 0; i < count; i++, index++)
-                        new (index) Segment::Index(0.f, i);
                     gpu->allocator.alloc(clip.ux - clip.lx, ox, oy);
-                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, 0.f, iy, segments->idx, indices.idx, indices.end);
-                    gpu->edgeInstances += (indices.end - indices.idx + kSegmentsCount - 1) / kSegmentsCount;
+                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, 0.f, iy, segments->idx, 0xFFFFFF, count);
+                    gpu->edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                         new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
@@ -816,7 +814,7 @@ struct Rasterizer {
                         if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                             if (lx != ux) {
                                 gpu->allocator.alloc(ux - lx, ox, oy);
-                                new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover, iy, segments->idx, begin, i);
+                                new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover, iy, segments->idx, begin, i - begin);
                                 gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                             }
                             begin = i;
@@ -838,7 +836,7 @@ struct Rasterizer {
                     }
                     if (lx != ux) {
                         gpu->allocator.alloc(ux - lx, ox, oy);
-                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover, iy, segments->idx, begin, i);
+                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, cover, iy, segments->idx, begin, i - begin);
                         gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                     }
                 }
