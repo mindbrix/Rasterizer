@@ -736,9 +736,9 @@ struct Rasterizer {
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         s = fabsf(ax) + fabsf(bx), t = fabsf(ay) + fabsf(by), a = s * s + t * t;
         count = a < 0.1f ? 1.f : a < 16.f ? 3.f : 4.f + floorf(sqrtf(sqrtf(a - 16.f)));
-        dt = 1.f / count, dt2 = dt * dt, ax = ax * dt2 * dt, ay = ay * dt2 * dt, bx = bx * dt2, by = by * dt2;
-        f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
-        f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+        dt = 1.f / count, dt2 = dt * dt;
+        bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+        by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
         px0 = px1 = x0, py0 = py1 = y0;
         while (--count) {
             px1 += f1x, f1x += f2x, f2x += f3x, py1 += f1y, f1y += f2y, f2y += f3y;
