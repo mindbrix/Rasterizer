@@ -656,13 +656,13 @@ struct Rasterizer {
             solveQuadratic(A, B, C, t0, t1), t2 = FLT_MAX;
         else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
-            double a3, p, q, q2, u1, v1, discriminant, mp3, mp33, r, t, cosphi, phi, crtr, sd;
-            A /= D, B /= D, C /= D, a3 = A * third;
-            p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C, q2 = q / 2.0;
+            double  p, q, q2, u1, v1, a3, discriminant, sd;
+            A /= D, B /= D, C /= D, p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C;
+            q2 = q * 0.5, a3 = A * third;
             discriminant = q2 * q2 + p * p * p / 27.0;
             if (discriminant < 0) {
-                mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
-                phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
+                double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
+                double phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
                 t0 = crtr * cos(phi / 3) - a3, t1 = crtr * cos((phi + 2 * M_PI) / 3) - a3, t2 = crtr * cos((phi + 4 * M_PI) / 3) - a3;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
