@@ -69,5 +69,12 @@ struct RasterizerSVG {
             nsvgDelete(image);
         }
         free(data);
+        
+        uint8_t bgra[4] = { 0, 0, 255, 255 };
+        Rasterizer::Path shape(1);
+        shape.sequence->units[0] = { 200.f, 0.f, 0.f, 200.f, 100.f, 100.f };
+        scene.bgras.emplace_back(*((uint32_t *)bgra));
+        scene.paths.emplace_back(shape);
+        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
     }
 };
