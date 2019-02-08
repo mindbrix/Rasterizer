@@ -186,15 +186,13 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     bool solid = type == Quad::kSolidCell;
-    dx = type == Quad::kRect || type == Quad::kCircle ? 0.0 : dx;
-    dy = type == Quad::kRect || type == Quad::kCircle ? 0.0 : dy;
     
     float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
 
     QuadsVertex vert;
-    vert.position = float4(x, y, z, 1.0);
+    vert.position = type == Quad::kRect || type == Quad::kCircle ? float4(0.0, 0.0, 0.0, 1.0) : float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     
     device AffineTransform& ctm = paint.ctm;
