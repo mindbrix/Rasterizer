@@ -434,7 +434,6 @@ struct Rasterizer {
                     GPU::Quad *dst = gpu.quads.alloc(path.sequence->end);
                     for (int i = 0; i < path.sequence->end; i++, dst++)
                         new (dst) GPU::Quad(ctm.concat(path.sequence->units[i]), iz, GPU::Quad::kCircle);
-                    gpu.quads.end = gpu.quads.idx;
                 } else {
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
