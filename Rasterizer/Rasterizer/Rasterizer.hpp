@@ -325,7 +325,7 @@ struct Rasterizer {
                     GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
                     Segment *segments; Segment::Index *is;
                     for (q = ctx->gpu.quads.idx; q < qend; q++, quad++) {
-                        if (quad->super.cell.ox != kSolidQuad) {
+                        if (quad->iz >> 24 == GPU::Quad::kCell) {
                             end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                             segments = ctx->segments[quad->super.iy].base + quad->super.idx;
                             is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
