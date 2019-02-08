@@ -403,7 +403,7 @@ struct Rasterizer {
                 ).integral().intersect(dev);
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
-                if (paths->sequence && paths->sequence->bounds.lx != FLT_MAX)
+                if (paths->sequence->ctms || paths->sequence->bounds.lx != FLT_MAX)
                     if (clipped->lx != clipped->ux && clipped->ly != clipped->uy) {
                         Bounds clu(
                             cl->tx + (cl->a < 0.f ? cl->a : 0.f) + (cl->c < 0.f ? cl->c : 0.f), cl->ty + (cl->b < 0.f ? cl->b : 0.f) + (cl->d < 0.f ? cl->d : 0.f),
