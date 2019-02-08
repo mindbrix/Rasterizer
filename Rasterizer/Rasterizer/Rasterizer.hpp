@@ -245,10 +245,10 @@ struct Rasterizer {
             uint32_t idx, begin;
         };
         struct Quad {
-            enum Type { kNull = 0, kRect, kCircle, kCell };
+            enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell };
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, float cover, size_t iy, size_t idx, size_t begin, size_t end)
-            : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | kCell << 24) {}
+            : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | (ox == kSolidQuad ? kSolidCell : kCell) << 24) {}
             Quad(Colorant colorant, size_t iz, int type) : colorant(colorant), iz((uint32_t)iz | type << 24) {}
             union {
                 SuperCell super;
@@ -416,6 +416,8 @@ struct Rasterizer {
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped, bool hit) {
             if (bitmap.width) {
+                if (path.sequence->ctms)
+                    return;
                 float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
                     writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
@@ -425,8 +427,12 @@ struct Rasterizer {
                     writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap);
                 }
             } else {
-                writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
+                if (path.sequence->ctms) {
+                    ;
+                } else {
+                    writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
+                    writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
+                }
             }
         }
         Bitmap bitmap;

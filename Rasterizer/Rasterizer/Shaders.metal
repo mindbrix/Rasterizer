@@ -32,7 +32,7 @@ struct SuperCell {
 };
 
 struct Quad {
-    enum Type { kNull = 0, kRect, kCircle, kCell };
+    enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell };
     union {
         SuperCell super;
         Colorant colorant;
@@ -186,7 +186,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
-    bool solid = cell.ox == kSolidQuad;
+    bool solid = quad.iz >> 24 == Quad::kSolidCell;
     
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
