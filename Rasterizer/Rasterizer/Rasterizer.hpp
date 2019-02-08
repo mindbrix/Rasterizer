@@ -73,7 +73,9 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), refCount(1) {}
+        Sequence() : end(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), ctms(nullptr), refCount(1) {}
+        Sequence(size_t count) : end(0), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), ctms((AffineTransform *)malloc(count * sizeof(ctms[0]))), refCount(1) {}
+        ~Sequence() { if (ctms) free(ctms); }
         
         float *alloc(Atom::Type type, size_t size) {
             if (end + size > Atom::kCapacity)
@@ -140,6 +142,7 @@ struct Rasterizer {
         size_t refCount, end;
         std::vector<Atom> atoms;
         float px, py;
+        AffineTransform *ctms;
         Bounds bounds;
     };
     struct Path {
