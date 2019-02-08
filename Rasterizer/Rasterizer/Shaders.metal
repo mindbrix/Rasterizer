@@ -35,7 +35,7 @@ struct Quad {
     enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell };
     union {
         SuperCell super;
-        Colorant colorant;
+        AffineTransform unit;
     };
     uint32_t iz;
 };

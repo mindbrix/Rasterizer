@@ -74,7 +74,7 @@ struct Rasterizer {
             uint8_t     types[8];
         };
         Sequence() : end(Atom::kCapacity), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), ctms(nullptr), refCount(1) {}
-        Sequence(size_t count) : end(0), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), ctms((AffineTransform *)malloc(count * sizeof(ctms[0]))), refCount(1) {}
+        Sequence(size_t count) : end(count), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), ctms((AffineTransform *)malloc(count * sizeof(ctms[0]))), refCount(1) {}
         ~Sequence() { if (ctms) free(ctms); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -249,10 +249,10 @@ struct Rasterizer {
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, float cover, size_t iy, size_t idx, size_t begin, size_t end)
             : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | (ox == kSolidQuad ? kSolidCell : kCell) << 24) {}
-            Quad(Colorant colorant, size_t iz, int type) : colorant(colorant), iz((uint32_t)iz | type << 24) {}
+            Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
             union {
                 SuperCell super;
-                Colorant colorant;
+                AffineTransform unit;
             };
             uint32_t iz;
         };
@@ -428,7 +428,10 @@ struct Rasterizer {
                 }
             } else {
                 if (path.sequence->ctms) {
-                    ;
+                    GPU::Quad *dst = gpu.quads.alloc(path.sequence->end);
+                    for (int i = 0; i < path.sequence->end; i++, dst++)
+                        new (dst) GPU::Quad(ctm.concat(path.sequence->ctms[i]), iz, GPU::Quad::kCircle);
+                    gpu.quads.end = gpu.quads.idx;
                 } else {
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
