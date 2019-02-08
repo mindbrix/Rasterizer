@@ -70,9 +70,18 @@ struct RasterizerSVG {
         }
         free(data);
         
-        uint8_t bgra[4] = { 0, 0, 255, 255 };
-        Rasterizer::Path shape(1);
-        shape.sequence->units[0] = { 200.f, 0.f, 0.f, 200.f, 100.f, 100.f };
+        uint8_t bgra[4] = { 0, 0, 0, 255 };
+        size_t count = 100000;
+        Rasterizer::Path shape(count);
+        Rasterizer::AffineTransform ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, *dst = shape.sequence->units;
+        const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
+        float vx = ctm.a, vy = ctm.b, x, y, s;
+        for (int i = 0; i < count; i++, dst++) {
+            s = sqrtf(i);
+            new (dst) Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, s * vx - 0.5f, s * vy - 0.5f);
+            x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
+            vx = x, vy = y;
+        }
         scene.bgras.emplace_back(*((uint32_t *)bgra));
         scene.paths.emplace_back(shape);
         scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
