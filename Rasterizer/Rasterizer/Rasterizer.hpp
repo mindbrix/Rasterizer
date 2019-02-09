@@ -383,10 +383,18 @@ struct Rasterizer {
             AffineTransform clip = bitmap.width ? nullclip().invert() : colorants->ctm.invert();
             Bounds dev = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants->ctm).integral().intersect(device);
             size_t iz;
+            bool *flags = (bool *)malloc((end) * sizeof(bool)), *flag = flags;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             AffineTransform *clips = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = clips;
             Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
             paths += begin, ctms += begin;
+            
+            AffineTransform test = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
+            Colorant *col = colorants;
+            for (iz = 0; iz < end; iz++, flag++, col++)
+                if (col->ctm.a != test.a || col->ctm.b != test.b || col->ctm.c != test.c || col->ctm.d != test.d || col->ctm.tx != test.tx || col->ctm.ty != test.ty)
+                    *flag = true, test = colorants->ctm;
+            
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
             for (un = units, iz = begin; iz < end; iz++, un++, cl++)
@@ -407,7 +415,7 @@ struct Rasterizer {
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
                             drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clipped, hit);
                     }
-            free(units), free(clips), free(devices);
+            free(flags), free(units), free(clips), free(devices);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clipped, bool hit) {
             if (bitmap.width) {
