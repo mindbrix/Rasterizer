@@ -391,7 +391,7 @@ struct Rasterizer {
             Colorant *col = colorants;
             for (iz = 0; iz < end; iz++, col++)
                 if (col->ctm.a != test.a || col->ctm.b != test.b || col->ctm.c != test.c || col->ctm.d != test.d || col->ctm.tx != test.tx || col->ctm.ty != test.ty)
-                    flags[iz] = true, test = colorants->ctm;
+                    flags[iz] = true, test = col->ctm;
             int i;
             for (i = (int)begin; i >= 0; i--)
                 if (flags[i])
