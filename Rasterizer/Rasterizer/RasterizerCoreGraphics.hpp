@@ -218,7 +218,7 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, size_t shapesCount, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -292,31 +292,7 @@ struct RasterizerCoreGraphics {
                 testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, 0, pathsCount);
             }
             if (buffer) {
-                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, shapesCount, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), *buffer);
-                if (shapesCount) {
-                    size_t begin = (buffer->entries.base + buffer->entries.end - 1)->begin;
-                    Rasterizer::Colorant *dst = (Rasterizer::Colorant *)(buffer->data.base + begin);
-                    uint8_t bgra[4] = { 0, 0, 0, 255 };
-                    if (1) {
-                        const float sine = 0.675490294261524f, cosine = -0.73736887807832f, size = sqrtf(fabsf(ctm.a * ctm.d - ctm.b * ctm.c));
-                        float vx = ctm.a, vy = ctm.b, x, y, s;
-                        for (int i = 0; i < shapesCount; i++, dst++) {
-                            s = sqrtf(i);
-                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(size, 0.f, 0.f, size, ctm.tx + s * vx - 0.5f * size, ctm.ty + s * vy - 0.5f * size));
-                            x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
-                            vx = x, vy = y;
-                        }
-                    } else {
-                        int dim = ceilf(sqrtf((float)shapesCount));
-                        float w, h, a, b, c, d, ix, iy, sx, sy, size = 10.f, phi = 1.6180339887f;
-                        w = size, h = size, sx = phi, sy = phi;
-                        a = ctm.a * w, b = ctm.b * w, c = ctm.c * h, d = ctm.d * h;
-                        for (int i = 0; i < shapesCount; i++, dst++) {
-                            ix = sx * float(i % dim), iy = sy * float(i / dim);
-                            new (dst) Rasterizer::Colorant(bgra, Rasterizer::AffineTransform(a, b, c, d, ix * a + iy * c + ctm.tx, ix * b + iy * d + ctm.ty));
-                        }
-                    }
-                }
+                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), *buffer);
             }
         }
     }

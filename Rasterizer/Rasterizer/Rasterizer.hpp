@@ -274,7 +274,7 @@ struct Rasterizer {
     };
     struct Buffer {
         struct Entry {
-            enum Type { kEdges, kColorants, kShapes, kQuads, kOpaques, kShapeClip };
+            enum Type { kEdges, kColorants, kQuads, kOpaques };
             Entry() {}
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
@@ -287,14 +287,14 @@ struct Rasterizer {
     struct Context {
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
-        static void writeContextsToBuffer(Context *contexts, size_t count, size_t shapesCount,
+        static void writeContextsToBuffer(Context *contexts, size_t count,
                                           Path *paths,
                                           AffineTransform *ctms,
                                           Colorant *colorants,
                                           size_t pathsCount,
                                           Buffer& buffer) {
             size_t size, i, j, begin, end, qend, q, jend;
-            size = (shapesCount != 0) * sizeof(AffineTransform) + shapesCount * sizeof(Colorant) + pathsCount * sizeof(Colorant);
+            size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
             
@@ -356,14 +356,6 @@ struct Rasterizer {
                 ctx->gpu.empty();
                 for (j = 0; j < ctx->segments.size(); j++)
                     ctx->segments[j].empty();
-            }
-            if (shapesCount) {
-                end = begin + sizeof(AffineTransform);
-                *((AffineTransform *)(buffer.data.base + begin)) = colorants->ctm;
-                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapeClip, begin, end);
-                
-                begin = end, end = begin + shapesCount * sizeof(Colorant);
-                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kShapes, begin, end);
             }
         }
         Context() {}

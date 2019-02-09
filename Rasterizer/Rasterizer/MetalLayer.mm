@@ -23,7 +23,6 @@
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadsPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> shapesPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> quadsDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
 @property (nonatomic) id <MTLTexture> depthTexture;
@@ -75,11 +74,6 @@
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quads_fragment_main"];
     descriptor.label = @"quads";
     self.quadsPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"shapes_vertex_main"];
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"shapes_fragment_main"];
-    descriptor.label = @"shapes";
-    self.shapesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
@@ -172,23 +166,7 @@
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Rasterizer::Buffer::Entry::kShapeClip:
-                clip = *((Rasterizer::AffineTransform *)(buffer->data.base + entry.begin));
-                break;
-            case Rasterizer::Buffer::Entry::kShapes:
-                [commandEncoder setDepthStencilState:_quadsDepthState];
-                [commandEncoder setRenderPipelineState:_shapesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
-                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
-                [commandEncoder setVertexBytes:& clip length:sizeof(clip) atIndex:14];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                   vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::Colorant)
-                                  baseInstance:0];
-                break;
-			case Rasterizer::Buffer::Entry::kColorants:
+            case Rasterizer::Buffer::Entry::kColorants:
                 pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::Colorant));
                 colorantsOffset = entry.begin;
                 break;
