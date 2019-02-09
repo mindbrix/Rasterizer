@@ -188,13 +188,13 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;
-    vert.color = float4(r * a, g * a, b * a, a);
     
     if (type == Quad::kSolidCell || type == Quad::kCell) {
         device Cell& cell = quad.super.cell;
         float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
         float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
         vert.position = float4(x, y, z, 1.0);
+        vert.color = float4(r * a, g * a, b * a, a);
         vert.clip = distances(paint.ctm, dx, dy);
         vert.shape = 1.0;
         vert.u = u - du, vert.v = v - dv;
@@ -212,6 +212,8 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
         float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
         float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
         vert.position = float4(x, y, z, 1.0);
+        a *= sqrt(area);
+        vert.color = float4(r * a, g * a, b * a, a);
         vert.clip = distances(paint.ctm, dx, dy);
         vert.shape = distances(ctm, dx, dy);
         vert.u = 0.0, vert.v = 0.0;
