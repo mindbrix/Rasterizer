@@ -381,7 +381,7 @@ struct Rasterizer {
             if (begin == end)
                 return;
             size_t iz;
-            bool *flags = (bool *)malloc((end) * sizeof(bool)), *flag = flags;
+            bool *flags = (bool *)malloc((end) * sizeof(bool));
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             AffineTransform *clips = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = clips;
             Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
@@ -389,9 +389,9 @@ struct Rasterizer {
             
             AffineTransform test = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Colorant *col = colorants;
-            for (iz = 0; iz < end; iz++, flag++, col++)
+            for (iz = 0; iz < end; iz++, col++)
                 if (col->ctm.a != test.a || col->ctm.b != test.b || col->ctm.c != test.c || col->ctm.d != test.d || col->ctm.tx != test.tx || col->ctm.ty != test.ty)
-                    *flag = true, test = colorants->ctm;
+                    flags[iz] = true, test = colorants->ctm;
             int i;
             for (i = (int)begin; i >= 0; i--)
                 if (flags[i])
@@ -401,13 +401,19 @@ struct Rasterizer {
             
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
-            for (un = units, iz = begin; iz < end; iz++, un++, cl++)
+            for (un = units, iz = begin; iz < end; iz++, un++, cl++) {
+                if (flags[iz])
+                    inv = bitmap.width ? nullclip().invert() : colorants[iz].ctm.invert();
                 *cl = (inv).concat(*un);
-            for (un = units, iz = begin; iz < end; iz++, un++, clipped++)
+            }
+            for (un = units, iz = begin; iz < end; iz++, un++, clipped++) {
+                if (flags[iz])
+                    dev = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants[iz].ctm).integral().intersect(device);
                 *clipped = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
                 ).integral().intersect(dev);
+            }
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
                 if (paths->sequence->units || paths->sequence->bounds.lx != FLT_MAX)
