@@ -235,13 +235,3 @@ fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<flo
     float shape = saturate(r - sqrt(x * x + y * y));
     return vert.color * alpha * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
 }
-
-#pragma mark - Shapes
-
-struct ShapesVertex
-{
-    float4 position [[position]];
-    float4 color;
-    float u, v;
-    float4 d, clip;
-};
