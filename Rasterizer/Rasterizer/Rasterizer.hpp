@@ -396,13 +396,13 @@ struct Rasterizer {
             for (i = (int)begin; i >= 0; i--)
                 if (flags[i])
                     break;
-            AffineTransform clip = bitmap.width ? nullclip().invert() : colorants[i].ctm.invert();
+            AffineTransform inv = bitmap.width ? nullclip().invert() : colorants[i].ctm.invert();
             Bounds dev = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants[i].ctm).integral().intersect(device);
             
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
             for (un = units, iz = begin; iz < end; iz++, un++, cl++)
-                *cl = (clip).concat(*un);
+                *cl = (inv).concat(*un);
             for (un = units, iz = begin; iz < end; iz++, un++, clipped++)
                 *clipped = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
