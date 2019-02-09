@@ -231,7 +231,7 @@ fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<flo
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
     }
-    float r = (vert.shape.x + vert.shape.z) * 0.5, x = r - min(vert.shape.x, vert.shape.z), y = r - min(vert.shape.y, vert.shape.w);
+    float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5), x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
     float shape = saturate(r - sqrt(x * x + y * y));
     return vert.color * alpha * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
 }
