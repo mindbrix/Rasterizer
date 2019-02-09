@@ -22,12 +22,12 @@ struct RasterizerSVG {
         return *((uint32_t *)bgra);
     }
     
-    static void writePath(NSVGshape *shape, float height, Rasterizer::Path p) {
+    static void writePath(NSVGshape *shape, Rasterizer::Path p) {
         float *pts;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            for (pts = path->pts, p.sequence->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
-                p.sequence->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
+            for (pts = path->pts, p.sequence->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
+                p.sequence->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
             if (path->closed)
                 p.sequence->close();
         }
@@ -39,7 +39,7 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            /**/
+            /*
             uint8_t bgra[4] = { 0, 0, 0, 255 };
             size_t count = 100000;
             Rasterizer::Path shape(count);
@@ -58,20 +58,20 @@ struct RasterizerSVG {
             scene.bgras.emplace_back(*((uint32_t *)bgra));
             scene.paths.emplace_back(shape);
             scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
-            
+            */
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
                     scene.bgras.emplace_back(bgraFromPaint(shape->fill));
                     scene.paths.emplace_back();
-                    writePath(shape, image->height, scene.paths.back());
-                    scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
+                    writePath(shape, scene.paths.back());
+                    scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     scene.bgras.emplace_back(bgraFromPaint(shape->stroke));
                     
                     Rasterizer::Path s;
-                    writePath(shape, image->height, s);
+                    writePath(shape, s);
                     CGMutablePathRef path = CGPathCreateMutable();
                     RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
                     CGLineCap cap = shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound;
@@ -82,7 +82,7 @@ struct RasterizerSVG {
                     RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
                     CGPathRelease(path);
                     CGPathRelease(stroked);
-                    scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
+                    scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
             }
             // Delete
