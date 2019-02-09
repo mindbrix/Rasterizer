@@ -274,7 +274,7 @@ struct Rasterizer {
     };
     struct Buffer {
         struct Entry {
-            enum Type { kEdges, kColorants, kQuads, kOpaques };
+            enum Type { kColorants, kEdges, kQuads, kOpaques };
             Entry() {}
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
