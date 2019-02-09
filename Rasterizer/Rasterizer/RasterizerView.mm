@@ -74,6 +74,7 @@
     } else {
         self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
         self.layer.delegate = self;
+        self.layer.magnificationFilter = kCAFilterNearest;
     }
 }
 
