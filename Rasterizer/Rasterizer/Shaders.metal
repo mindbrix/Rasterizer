@@ -172,7 +172,7 @@ struct QuadsVertex
     float4 clip, shape;
     float u, v;
     float cover;
-    bool even, solid;
+    bool even, solid, circle;
 };
 
 vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
@@ -201,6 +201,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
         vert.cover = quad.super.cover;
         vert.even = false;
         vert.solid = type == Quad::kSolidCell;
+        vert.circle = false;
     } else if (type == Quad::kRect || type == Quad::kCircle) {
         AffineTransform ctm = quad.unit;
         float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
@@ -216,10 +217,8 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
         vert.color = float4(r * a, g * a, b * a, a);
         vert.clip = distances(paint.ctm, dx, dy);
         vert.shape = distances(ctm, dx, dy);
-        vert.u = 0.0, vert.v = 0.0;
-        vert.cover = 0.0;
-        vert.even = false;
         vert.solid = true;
+        vert.circle = type == Quad::kCircle;
     }
     return vert;
 }
@@ -231,7 +230,7 @@ fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<flo
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
     }
-    float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5), x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
+    float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle)), x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
     float shape = saturate(r - sqrt(x * x + y * y));
     return vert.color * alpha * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
 }
