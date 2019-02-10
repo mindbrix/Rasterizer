@@ -298,7 +298,6 @@ struct Rasterizer {
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
             buffer.data.alloc(size);
-            
             begin = end = 0;
             
             end += pathsCount * sizeof(Colorant);
@@ -307,7 +306,7 @@ struct Rasterizer {
             begin = end;
             
             for (idx = begin, i = 0; i < count; i++) {
-                end += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);;
+                end += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
                 if (idx != end) {
                     memcpy(buffer.data.base + idx, contexts[i].gpu.opaques.base, end - idx);
                     idx = end;
@@ -373,7 +372,6 @@ struct Rasterizer {
                         new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
                         begin = end;
                     }
-                    
                     ctx->gpu.quads.idx = qend;
                 }
                 ctx->gpu.empty();
