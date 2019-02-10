@@ -32,7 +32,7 @@ struct SuperCell {
 };
 
 struct Quad {
-    enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell };
+    enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
     union {
         SuperCell super;
         AffineTransform unit;

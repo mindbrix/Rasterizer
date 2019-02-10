@@ -248,7 +248,7 @@ struct Rasterizer {
             uint32_t idx, begin;
         };
         struct Quad {
-            enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell };
+            enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, float cover, size_t iy, size_t idx, size_t begin, size_t end)
             : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | (ox == kSolidQuad ? kSolidCell : kCell) << 24) {}
@@ -348,7 +348,7 @@ struct Rasterizer {
                     }
                     quad = ctx->gpu.quads.base;
                     for (qbegin = begin, idx = j = ctx->gpu.quads.idx; j < qend; j++) {
-                        if (quad[j].iz >> 24 == GPU::Quad::kRect) {
+                        if (quad[j].iz >> 24 == GPU::Quad::kShapes) {
                             if (j != idx) {
                                 end += (j - idx) * sizeof(GPU::Quad);
                                 memcpy(buffer.data.base + qbegin, ctx->gpu.quads.base + idx, end - qbegin);
@@ -463,7 +463,7 @@ struct Rasterizer {
             } else {
                 if (path.sequence->units) {
                     gpu.shapesCount += path.sequence->end;
-                    new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kRect);
+                    new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {
                     writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
