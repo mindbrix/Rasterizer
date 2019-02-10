@@ -186,7 +186,6 @@ struct Rasterizer {
     template<typename T>
     struct Row {
         Row() : end(0), size(0), idx(0) {}
-        size_t bytes() const { return end * sizeof(T); }
         void empty() { end = idx = 0; }
         inline T *alloc(size_t n) {
             size_t i = end;
@@ -297,7 +296,7 @@ struct Rasterizer {
             size_t size, i, j, begin, end, qend, q, qbegin, jend, jidx, iz;
             size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
-                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + contexts[i].gpu.shapesCount * sizeof(GPU::Quad) + contexts[i].gpu.quads.bytes() + contexts[i].gpu.opaques.bytes();
+                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
             
             buffer.data.alloc(size);
             begin = end = 0;
@@ -310,7 +309,7 @@ struct Rasterizer {
             Context *ctx;
             size_t opaquesBegin = begin;
             for (ctx = contexts, i = 0; i < count; i++, ctx++) {
-                end += ctx->gpu.opaques.bytes();
+                end += ctx->gpu.opaques.end  * sizeof(GPU::Quad);;
                 if (begin != end) {
                     memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
                     begin = end;
