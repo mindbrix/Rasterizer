@@ -851,11 +851,10 @@ struct Rasterizer {
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             count = segments->end - segments->idx;
             if (count) {
-                if (1) {
+                if (0) {
                     gpu->outlinesCount += count;
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, 0, 0, iz, GPU::Quad::kOutlines, 0.f, iy, segments->idx, 0xFFFFFF, count);
-                }
-                else if (clip.ux - clip.lx < 32.f) {
+                } else if (clip.ux - clip.lx < 32.f) {
                     gpu->allocator.alloc(clip.ux - clip.lx, ox, oy);
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kCell, 0.f, iy, segments->idx, 0xFFFFFF, count);
                     gpu->edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
