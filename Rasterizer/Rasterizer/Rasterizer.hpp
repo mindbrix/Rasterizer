@@ -293,12 +293,12 @@ struct Rasterizer {
                                           Colorant *colorants,
                                           size_t pathsCount,
                                           Buffer& buffer) {
-            size_t size, i, j, begin, end, qend, q, qbegin, jend, jidx, iz;
+            size_t size, i, j, begin, end, idx, qend, q, qbegin, jend, jidx, iz;
             size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
-            
             buffer.data.alloc(size);
+            
             begin = end = 0;
             
             end += pathsCount * sizeof(Colorant);
@@ -306,19 +306,20 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             begin = end;
             
-            Context *ctx;
-            size_t opaquesBegin = begin;
-            for (ctx = contexts, i = 0; i < count; i++, ctx++) {
-                end += ctx->gpu.opaques.end  * sizeof(GPU::Quad);;
-                if (begin != end) {
-                    memcpy(buffer.data.base + begin, ctx->gpu.opaques.base, end - begin);
-                    begin = end;
+            for (idx = begin, i = 0; i < count; i++) {
+                end += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);;
+                if (idx != end) {
+                    memcpy(buffer.data.base + idx, contexts[i].gpu.opaques.base, end - idx);
+                    idx = end;
                 }
             }
-            if (opaquesBegin != end)
-                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, opaquesBegin, end);
+            if (begin != end) {
+                new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
+                begin = end;
+            }
             
-            for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+            for (i = 0; i < count; i++) {
+                Context *ctx = & contexts[i];
                 while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                     GPU::Quad *quad = ctx->gpu.quads.base;
                     for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
