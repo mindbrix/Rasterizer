@@ -263,11 +263,11 @@ struct Rasterizer {
             Cell cell;
             Segment segments[kSegmentsCount];
         };
-        GPU() : edgeInstances(0), shapesCount(0) {}
+        GPU() : edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
-            edgeInstances = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty();
+            edgeInstances = outlinesCount = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty();
         }
-        size_t width, height, edgeInstances, shapesCount;
+        size_t width, height, edgeInstances, outlinesCount, shapesCount;
         Allocator allocator;
         Row<Segment::Index> indices;
         Row<Quad> quads, opaques;
@@ -296,7 +296,7 @@ struct Rasterizer {
             size_t size, i, j, begin, end, idx, qend, q, qbegin, jend, iz;
             size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
-                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
+                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
             buffer.data.alloc(size);
             begin = end = 0;
             
@@ -842,6 +842,7 @@ struct Rasterizer {
             count = segments->end - segments->idx;
             if (count) {
                 if (0) {
+                    gpu->outlinesCount += count;
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, 0, 0, iz, GPU::Quad::kOutlines, 0.f, iy, segments->idx, 0xFFFFFF, count);
                 }
                 else if (clip.ux - clip.lx < 32.f) {
