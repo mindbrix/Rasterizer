@@ -348,7 +348,7 @@ struct Rasterizer {
                     }
                     quad = ctx->gpu.quads.base;
                     for (qbegin = begin, idx = j = ctx->gpu.quads.idx; j < qend; j++) {
-                        if (quad[j].iz >> 24 == GPU::Quad::kShapes) {
+                        if (quad[j].iz >> 24 == GPU::Quad::kShapes || quad[j].iz >> 24 == GPU::Quad::kOutlines) {
                             if (j != idx) {
                                 end += (j - idx) * sizeof(GPU::Quad);
                                 memcpy(buffer.data.base + qbegin, ctx->gpu.quads.base + idx, end - qbegin);
@@ -356,11 +356,21 @@ struct Rasterizer {
                             }
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + qbegin);
                             iz = quad[j].iz & 0xFFFFFF;
-                            Path& path = paths[iz];
-                            AffineTransform ctm = quad[j].unit;
-                            for (int k = 0; k < path.sequence->end; k++, dst++)
-                                new (dst) GPU::Quad(ctm.concat(path.sequence->units[k]), iz, path.sequence->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
-                            end += path.sequence->end * sizeof(GPU::Quad);
+                            if (quad[j].iz >> 24 == GPU::Quad::kShapes) {
+                                Path& path = paths[iz];
+                                AffineTransform ctm = quad[j].unit;
+                                for (int k = 0; k < path.sequence->end; k++, dst++)
+                                    new (dst) GPU::Quad(ctm.concat(path.sequence->units[k]), iz, path.sequence->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
+                                end += path.sequence->end * sizeof(GPU::Quad);
+                            } else {
+                                Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx;
+                                float dx, dy, l, nx, ny;
+                                for (int k = 0; k < quad[j].super.count; k++, s++, dst++) {
+                                    dx = s->x1 - s->x0, dy = s->y1 - s->y0, l = sqrtf(dx * dx + dy * dy), nx = dx / l, ny = dy / l;
+                                    new (dst) GPU::Quad(AffineTransform(ny, -nx, dx, dy, s->x0 - ny * 0.5f, s->y0 + nx * 0.5f), iz, GPU::Quad::kRect);
+                                }
+                                end += quad[j].super.count * sizeof(GPU::Quad);
+                            }
                             qbegin = end, idx = j + 1;
                         }
                     }
@@ -425,7 +435,7 @@ struct Rasterizer {
             for (un = units, iz = begin; iz < end; iz++, un++, cl++) {
                 if (flags[iz])
                     inv = bitmap.width ? nullclip().invert() : colorants[iz].ctm.invert();
-                *cl = (inv).concat(*un);
+                *cl = inv.concat(*un);
             }
             for (un = units, iz = begin; iz < end; iz++, un++, clipped++) {
                 if (flags[iz])
@@ -841,7 +851,7 @@ struct Rasterizer {
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             count = segments->end - segments->idx;
             if (count) {
-                if (0) {
+                if (1) {
                     gpu->outlinesCount += count;
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, 0, 0, iz, GPU::Quad::kOutlines, 0.f, iy, segments->idx, 0xFFFFFF, count);
                 }
