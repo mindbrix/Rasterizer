@@ -39,7 +39,7 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            /**/
+            /*
             uint8_t bgra[4] = { 0, 0, 0, 255 };
             size_t count = 100000;
             Rasterizer::Path shape(count);
@@ -56,7 +56,7 @@ struct RasterizerSVG {
             scene.bgras.emplace_back(*((uint32_t *)bgra));
             scene.paths.emplace_back(shape);
             scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
-            
+            */
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {

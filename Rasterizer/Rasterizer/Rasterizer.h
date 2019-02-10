@@ -8,4 +8,3 @@
 
 #define kFatHeight 8
 #define kSegmentsCount 2
-#define kSolidQuad 32767
