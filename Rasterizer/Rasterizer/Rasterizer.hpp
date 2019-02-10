@@ -293,7 +293,7 @@ struct Rasterizer {
                                           Colorant *colorants,
                                           size_t pathsCount,
                                           Buffer& buffer) {
-            size_t size, i, j, begin, end, idx, qend, q, qbegin, jend, iz;
+            size_t size, i, j, begin, end, idx, qend, q, qidx, jend, iz;
             size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
@@ -348,27 +348,26 @@ struct Rasterizer {
                         begin = end;
                     }
                     quad = ctx->gpu.quads.base;
-                    qbegin = begin;
-                    for (idx = j = ctx->gpu.quads.idx; j < qend; j++) {
+                    for (qidx = begin, idx = j = ctx->gpu.quads.idx; j < qend; j++) {
                         if (quad[j].iz >> 24 == GPU::Quad::kRect) {
                             if (j != idx) {
                                 end += (j - idx) * sizeof(GPU::Quad);
-                                memcpy(buffer.data.base + qbegin, ctx->gpu.quads.base + idx, end - qbegin);
-                                qbegin = end;
+                                memcpy(buffer.data.base + qidx, ctx->gpu.quads.base + idx, end - qidx);
+                                qidx = end;
                             }
-                            GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + qbegin);
+                            GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + qidx);
                             iz = quad[j].iz & 0xFFFFFF;
                             Path& path = paths[iz];
                             AffineTransform ctm = quad[j].unit;
                             for (int k = 0; k < path.sequence->end; k++, dst++)
                                 new (dst) GPU::Quad(ctm.concat(path.sequence->units[k]), iz, path.sequence->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                             end += path.sequence->end * sizeof(GPU::Quad);
-                            qbegin = end, idx = j + 1;
+                            qidx = end, idx = j + 1;
                         }
                     }
                     if (j != idx) {
                         end += (j - idx) * sizeof(GPU::Quad);
-                        memcpy(buffer.data.base + qbegin, ctx->gpu.quads.base + idx, end - qbegin);
+                        memcpy(buffer.data.base + qidx, ctx->gpu.quads.base + idx, end - qidx);
                     }
                     if (begin != end) {
                         new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kQuads, begin, end);
