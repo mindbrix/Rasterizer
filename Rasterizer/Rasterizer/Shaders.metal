@@ -169,10 +169,10 @@ struct QuadsVertex
 {
     float4 position [[position]];
     float4 color;
-    float4 clip, shape;
+    float4 clip;
     float u, v;
     float cover;
-    bool even, solid, circle;
+    bool even, solid;
 };
 
 vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
@@ -188,49 +188,72 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;
-    
-    if (type == Quad::kSolidCell || type == Quad::kCell) {
-        device Cell& cell = quad.super.cell;
-        float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
-        float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
-        vert.position = float4(x, y, z, 1.0);
-        vert.color = float4(r * a, g * a, b * a, a);
-        vert.clip = distances(paint.ctm, dx, dy);
-        vert.shape = 1.0;
-        vert.u = u - du, vert.v = v - dv;
-        vert.cover = quad.super.cover;
-        vert.even = false;
-        vert.solid = type == Quad::kSolidCell;
-        vert.circle = false;
-    } else if (type == Quad::kRect || type == Quad::kCircle) {
-        AffineTransform ctm = quad.unit;
-        float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
-        float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
-        float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
-        float dilation = (1.0 + 0.5 * (rsqrt(area) - 1.0)) * 0.7071067812 * rsqrt(1.0 - cosine * cosine);
-        float tx = dilation * rlab, ty = dilation * rlcd;
-        float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
-        float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
-        float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
-        vert.position = float4(x, y, z, 1.0);
-        a *= sqrt(area);
-        vert.color = float4(r * a, g * a, b * a, a);
-        vert.clip = distances(paint.ctm, dx, dy);
-        vert.shape = distances(ctm, dx, dy);
-        vert.solid = true;
-        vert.circle = type == Quad::kCircle;
-    }
+    device Cell& cell = quad.super.cell;
+    float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
+    float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
+    vert.position = float4(x, y, z, 1.0);
+    vert.color = float4(r * a, g * a, b * a, a);
+    vert.clip = distances(paint.ctm, dx, dy);
+    vert.u = u - du, vert.v = v - dv;
+    vert.cover = quad.super.cover;
+    vert.even = false;
+    vert.solid = type == Quad::kSolidCell;
     return vert;
 }
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float alpha = 1.0;
+    float alpha = 1.0, shape = 1.0;
     if (!vert.solid) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
     }
+    return vert.color * alpha * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+}
+
+#pragma mark - Shapes
+
+struct ShapesVertex
+{
+    float4 position [[position]];
+    float4 color;
+    float4 clip, shape;
+    bool circle;
+};
+
+vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                     constant uint *pathCount [[buffer(13)]],
+                                     uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    device Quad& quad = quads[iid];
+    device AffineTransform& ctm = quad.unit;
+    uint32_t type = quad.iz >> 24;
+    float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
+    float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
+    float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
+    float dilation = (1.0 + 0.5 * (rsqrt(area) - 1.0)) * 0.7071067812 * rsqrt(1.0 - cosine * cosine);
+    float tx = dilation * rlab, ty = dilation * rlcd;
+    float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
+    float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
+    float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
+    
+    float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
+    device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
+    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * area;
+    
+    ShapesVertex vert;
+    vert.position = float4(x, y, z, 1.0);
+    vert.color = float4(r * a, g * a, b * a, a);
+    vert.clip = distances(paint.ctm, dx, dy);
+    vert.shape = distances(ctm, dx, dy);
+    vert.circle = type == Quad::kCircle;
+    return vert;
+}
+
+fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
+{
     float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle)), x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
     float shape = saturate(r - sqrt(x * x + y * y));
-    return vert.color * alpha * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+    return vert.color * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
 }
