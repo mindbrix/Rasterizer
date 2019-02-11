@@ -229,7 +229,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
 {
     device Quad& quad = quads[iid];
     device AffineTransform& ctm = quad.unit;
-    uint32_t type = quad.iz >> 24;
+    
     float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
     float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
@@ -248,7 +248,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
     vert.shape = distances(ctm, dx, dy);
-    vert.circle = type == Quad::kCircle;
+    vert.circle = quad.iz >> 24 == Quad::kCircle;
     return vert;
 }
 
