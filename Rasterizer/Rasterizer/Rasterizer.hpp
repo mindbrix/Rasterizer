@@ -541,7 +541,7 @@ struct Rasterizer {
                     new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {
                     if (1) {
-                        writePath(path, ctm, clipped, writeOutlineSegment, nullptr, 0, & segments[0]);
+                        writePath(path, ctm, Bounds(clipped.lx - 1.f, clipped.ly - 1.f, clipped.ux + 1.f, clipped.uy + 1.f), writeOutlineSegment, nullptr, 0, & segments[0]);
                         size_t count = segments[0].end - segments[0].idx;
                         if (count) {
                             gpu.outlinesCount += count;
