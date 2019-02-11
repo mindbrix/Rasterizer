@@ -581,6 +581,9 @@ struct Rasterizer {
                 }
         }
     }
+    static void writeSegments(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
+        new (segments->alloc(1)) Segment(x0, y0, x1, y1);
+    }
     static void writeLine(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
         if (y0 == y1)
             return;
@@ -846,6 +849,17 @@ struct Rasterizer {
     
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
+        if (0) {
+            count = segments->end - segments->idx;
+            assert(count < 32767);
+            if (count) {
+                gpu->outlinesCount += count;
+                new (gpu->quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, 0.f, 0, segments->idx, 0xFFFFFF, count);
+                segments->idx = segments->end;
+            }
+            return;
+        }
+        
         short counts0[256], counts1[256];
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         Segment *segment;
@@ -855,10 +869,7 @@ struct Rasterizer {
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             count = segments->end - segments->idx;
             if (count) {
-                if (0) {
-                    gpu->outlinesCount += count;
-                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, 0, 0, iz, GPU::Quad::kOutlines, 0.f, iy, segments->idx, 0xFFFFFF, count);
-                } else if (clip.ux - clip.lx < 32.f) {
+                if (clip.ux - clip.lx < 32.f) {
                     gpu->allocator.alloc(clip.ux - clip.lx, ox, oy);
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kCell, 0.f, iy, segments->idx, 0xFFFFFF, count);
                     gpu->edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
