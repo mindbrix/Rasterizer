@@ -228,8 +228,11 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    device AffineTransform& ctm = quad.unit;
-    
+    AffineTransform ctm = quad.unit;
+    if (quad.iz >> 24 == Quad::kOutlines) {
+        float dx = ctm.c - ctm.a, dy = ctm.d - ctm.b, rl = rsqrt(dx * dx + dy * dy), nx = dx * rl, ny = dy * rl;
+        ctm = { ny, -nx, dx, dy, ctm.a - ny * 0.5f, ctm.b + nx * 0.5f };
+    }
     float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
     float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
