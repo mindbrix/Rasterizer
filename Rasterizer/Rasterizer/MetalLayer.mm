@@ -52,9 +52,9 @@
     depthStencilDescriptor.depthWriteEnabled = YES;
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreaterEqual;
     self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-	depthStencilDescriptor.depthWriteEnabled = NO;
+    depthStencilDescriptor.depthWriteEnabled = NO;
     self.quadsDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-	
+    
     MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
     descriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
     descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
@@ -177,7 +177,7 @@
                 colorantsOffset = entry.begin;
                 break;
             case Rasterizer::Buffer::Entry::kOpaques:
-				[commandEncoder setDepthStencilState:_opaquesDepthState];
+                [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
@@ -208,7 +208,7 @@
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 break;
             case Rasterizer::Buffer::Entry::kQuads:
-				[commandEncoder setDepthStencilState:_quadsDepthState];
+                [commandEncoder setDepthStencilState:_quadsDepthState];
                 [commandEncoder setRenderPipelineState:_quadsPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
