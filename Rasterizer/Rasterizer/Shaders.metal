@@ -252,7 +252,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     return vert;
 }
 
-fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
+fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
 {
     float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle)), x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
     float shape = saturate(r - sqrt(x * x + y * y));
