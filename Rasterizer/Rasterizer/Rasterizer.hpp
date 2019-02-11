@@ -284,6 +284,67 @@ struct Rasterizer {
         Row<Entry> entries;
         Colorant clearColor;
     };
+    typedef void (*Function)(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments);
+    static void writeOutlineSegment(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
+        new (segments->alloc(1)) Segment(x0, y0, x1, y1);
+    }
+    static void writeClippedSegment(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
+        if (y0 == y1)
+            return;
+        float iy0 = y0 * Context::krfh, iy1 = y1 * Context::krfh;
+        if (floorf(iy0) == floorf(iy1))
+            new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
+        else {
+            float sy1, dy, sx1, dx;
+            int s, ds, count;
+            if (y0 < y1) {
+                iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * Context::kfh, dy = Context::kfh;
+                s = iy0, ds = 1;
+            } else {
+                iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh), sy1 = iy1 * Context::kfh, dy = -Context::kfh;
+                s = iy1 - 1.f, ds = -1;
+            }
+            count = iy1 - iy0;
+            dx = dy / (y1 - y0) * (x1 - x0);
+            sx1 = (sy1 - y0) / dy * dx + x0;
+            while (--count) {
+                sx1 += dx, sy1 += dy;
+                new (segments[s].alloc(1)) Segment(x0, y0, sx1, sy1);
+                x0 = sx1, y0 = sy1;
+                s += ds;
+            }
+            new (segments[s].alloc(1)) Segment(x0, y0, x1, y1);
+        }
+    }
+    static void writeDeltaSegment(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
+        if (y0 == y1)
+            return;
+        float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
+        if (scale < 0.f)
+            tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
+        dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
+        for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = deltas + size_t(iy0 * stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += stride) {
+            iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
+            lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
+            ix0 = floorf(lx), ix1 = ix0 + 1.f;
+            if (lx >= ix0 && ux <= ix1) {
+                cover = (sy1 - sy0) * scale, area = (ix1 - (ux + lx) * 0.5f);
+                delta[int(ix0)] += cover * area;
+                if (area < 1.f && ix1 < stride)
+                    delta[int(ix1)] += cover * (1.f - area);
+            } else {
+                dydx = fabsf(dy / dx);
+                for (last = 0.f, cx0 = lx, cy0 = sy0; ix0 <= ux; ix0 = ix1, cx0 = cx1, cy0 = cy1) {
+                    ix1 = ix0 + 1.f, cx1 = ux < ix1 ? ux : ix1, cy1 = sy0 + (cx1 - lx) * dydx;
+                    cover = (cy1 - cy0) * scale, area = (ix1 - (cx0 + cx1) * 0.5f);
+                    delta[int(ix0)] += cover * area + last;
+                    last = cover * (1.f - area);
+                }
+                if (ix0 < stride)
+                    delta[int(ix0)] += last;
+            }
+        }
+    }
     struct Context {
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
@@ -372,11 +433,11 @@ struct Rasterizer {
                                 Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx;
                                 GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                                 float dx, dy, l, nx, ny;
-                                for (int k = 0; k < quad[j].super.count; k++, s++, dst++) {
+                                for (int k = 0; k < quad[j].super.begin; k++, s++, dst++) {
                                     dx = s->x1 - s->x0, dy = s->y1 - s->y0, l = sqrtf(dx * dx + dy * dy), nx = dx / l, ny = dy / l;
                                     new (dst) GPU::Quad(AffineTransform(ny, -nx, dx, dy, s->x0 - ny * 0.5f, s->y0 + nx * 0.5f), iz, GPU::Quad::kRect);
                                 }
-                                entry->end += quad[j].super.count * sizeof(GPU::Quad);
+                                entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                             } else
                                 entry->end += sizeof(GPU::Quad);
                         }
@@ -468,10 +529,10 @@ struct Rasterizer {
                     return;
                 float w = clipped.ux - clipped.lx, h = clipped.uy - clipped.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
-                    writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), & deltas[0], stride, nullptr);
+                    writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clipped.lx, ctm.ty - clipped.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, & deltas[0], stride, nullptr);
                     writeDeltas(& deltas[0], stride, clipped, even, src, & bitmap);
                 } else {
-                    writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
+                    writePath(path, ctm, clipped, writeClippedSegment, nullptr, 0, & segments[0]);
                     writeSegments(& segments[0], clipped, even, & deltas[0], stride, src, & bitmap);
                 }
             } else {
@@ -479,8 +540,18 @@ struct Rasterizer {
                     gpu.shapesCount += path.sequence->end;
                     new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {
-                    writePath(path, ctm, clipped, nullptr, 0, & segments[0]);
-                    writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
+                    if (1) {
+                        writePath(path, ctm, clipped, writeOutlineSegment, nullptr, 0, & segments[0]);
+                        size_t count = segments[0].end - segments[0].idx;
+                        if (count) {
+                            gpu.outlinesCount += count;
+                            new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, 0.f, 0, segments[0].idx, count, 0);
+                            segments[0].idx = segments[0].end;
+                        }
+                    } else {
+                        writePath(path, ctm, clipped, writeClippedSegment, nullptr, 0, & segments[0]);
+                        writeSegments(& segments[0], clipped, even, src, iz, hit, & gpu);
+                    }
                 }
             }
         }
@@ -492,7 +563,7 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     
-    static void writePath(Path& path, AffineTransform ctm, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
         for (Sequence::Atom& atom : path.sequence->atoms)
@@ -502,9 +573,9 @@ struct Rasterizer {
                     case Sequence::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
                             if (f0 || fs)
-                                writeClippedLine(x0, y0, sx, sy, clip, deltas, stride, segments);
+                                writeClippedLine(x0, y0, sx, sy, clip, function, deltas, stride, segments);
                             else
-                                writeLine(x0, y0, sx, sy, deltas, stride, segments);
+                                (*function)(x0, y0, sx, sy, deltas, stride, segments);
                         }
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -514,9 +585,9 @@ struct Rasterizer {
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         if (f0 || f1)
-                            writeClippedLine(x0, y0, x1, y1, clip, deltas, stride, segments);
+                            writeClippedLine(x0, y0, x1, y1, clip, function, deltas, stride, segments);
                         else
-                            writeLine(x0, y0, x1, y1, deltas, stride, segments);
+                            (*function)(x0, y0, x1, y1, deltas, stride, segments);
                         x0 = x1, y0 = y1, f0 = f1;
                         index++;
                         break;
@@ -526,9 +597,9 @@ struct Rasterizer {
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                         f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                         if (f0 || f1 || f2)
-                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, deltas, stride, segments);
+                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, function, deltas, stride, segments);
                         else
-                            writeQuadratic(x0, y0, x1, y1, x2, y2, deltas, stride, segments);
+                            writeQuadratic(x0, y0, x1, y1, x2, y2, function, deltas, stride, segments);
                         x0 = x2, y0 = y2, f0 = f2;
                         index += 2;
                         break;
@@ -540,9 +611,9 @@ struct Rasterizer {
                         x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                         f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
                         if (f0 || f1 || f2 || f3)
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, deltas, stride, segments);
+                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, function, deltas, stride, segments);
                         else
-                            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, deltas, stride, segments);
+                            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, deltas, stride, segments);
                         x0 = x3, y0 = y3, f0 = f3;
                         index += 3;
                         break;
@@ -553,12 +624,12 @@ struct Rasterizer {
             }
         if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
             if (f0 || fs)
-                writeClippedLine(x0, y0, sx, sy, clip, deltas, stride, segments);
+                writeClippedLine(x0, y0, sx, sy, clip, function, deltas, stride, segments);
             else
-                writeLine(x0, y0, sx, sy, deltas, stride, segments);
+                (*function)(x0, y0, sx, sy, deltas, stride, segments);
         }
     }
-    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
         if (sy0 != sy1) {
             float dx = x1 - x0, dy = y1 - y0, ty0 = (sy0 - y0) / dy, ty1 = (sy1 - y0) / dy, tx0, tx1, sx0, sx1, mx, vx;
@@ -573,71 +644,12 @@ struct Rasterizer {
                     if (mx >= clip.lx && mx < clip.ux) {
                         sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                        writeLine(sx0, sy0, sx1, sy1, deltas, stride, segments);
+                        (*function)(sx0, sy0, sx1, sy1, deltas, stride, segments);
                     } else {
                         vx = mx < clip.lx ? clip.lx : clip.ux;
-                        writeLine(vx, sy0, vx, sy1, deltas, stride, segments);
+                        (*function)(vx, sy0, vx, sy1, deltas, stride, segments);
                     }
                 }
-        }
-    }
-    static void writeSegments(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        new (segments->alloc(1)) Segment(x0, y0, x1, y1);
-    }
-    static void writeLine(float x0, float y0, float x1, float y1, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        if (y0 == y1)
-            return;
-        if (segments) {
-            float iy0 = y0 * Context::krfh, iy1 = y1 * Context::krfh;
-            if (floorf(iy0) == floorf(iy1))
-                new (segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
-            else {
-                float sy1, dy, sx1, dx;
-                int s, ds, count;
-                if (y0 < y1) {
-                    iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * Context::kfh, dy = Context::kfh;
-                    s = iy0, ds = 1;
-                } else {
-                    iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh), sy1 = iy1 * Context::kfh, dy = -Context::kfh;
-                    s = iy1 - 1.f, ds = -1;
-                }
-                count = iy1 - iy0;
-                dx = dy / (y1 - y0) * (x1 - x0);
-                sx1 = (sy1 - y0) / dy * dx + x0;
-                while (--count) {
-                    sx1 += dx, sy1 += dy;
-                    new (segments[s].alloc(1)) Segment(x0, y0, sx1, sy1);
-                    x0 = sx1, y0 = sy1;
-                    s += ds;
-                }
-                new (segments[s].alloc(1)) Segment(x0, y0, x1, y1);
-            }
-        } else {
-            float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
-            if (scale < 0.f)
-                tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-            dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
-            for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = deltas + size_t(iy0 * stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += stride) {
-                iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
-                lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
-                ix0 = floorf(lx), ix1 = ix0 + 1.f;
-                if (lx >= ix0 && ux <= ix1) {
-                    cover = (sy1 - sy0) * scale, area = (ix1 - (ux + lx) * 0.5f);
-                    delta[int(ix0)] += cover * area;
-                    if (area < 1.f && ix1 < stride)
-                        delta[int(ix1)] += cover * (1.f - area);
-                } else {
-                    dydx = fabsf(dy / dx);
-                    for (last = 0.f, cx0 = lx, cy0 = sy0; ix0 <= ux; ix0 = ix1, cx0 = cx1, cy0 = cy1) {
-                        ix1 = ix0 + 1.f, cx1 = ux < ix1 ? ux : ix1, cy1 = sy0 + (cx1 - lx) * dydx;
-                        cover = (cy1 - cy0) * scale, area = (ix1 - (cx0 + cx1) * 0.5f);
-                        delta[int(ix0)] += cover * area + last;
-                        last = cover * (1.f - area);
-                    }
-                    if (ix0 < stride)
-                        delta[int(ix0)] += last;
-                }
-            }
         }
     }
     static void solveQuadratic(double A, double B, double C, float& t0, float& t1) {
@@ -653,7 +665,7 @@ struct Rasterizer {
         }
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
@@ -689,16 +701,16 @@ struct Rasterizer {
                         if (visible) {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
-                            writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, deltas, stride, segments);
+                            writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, deltas, stride, segments);
                        } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
-                            writeLine(vx, ty0, vx, ty2, deltas, stride, segments);
+                            (*function)(vx, ty0, vx, ty2, deltas, stride, segments);
                         }
                     }
                 }
         }
     }
-    static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y, px0, px1, py0, py1;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
         count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 3.f + floorf(sqrtf(sqrtf(a - 8.f))), dt = 1.f / count;
@@ -707,10 +719,10 @@ struct Rasterizer {
         px0 = px1 = x0, py0 = py1 = y0;
         while (--count) {
             px1 += f1x, f1x += f2x, py1 += f1y, f1y += f2y;
-            writeLine(px0, py0, px1, py1, deltas, stride, segments);
+            (*function)(px0, py0, px1, py1, deltas, stride, segments);
             px0 = px1, py0 = py1;
         }
-        writeLine(px0, py0, x2, y2, deltas, stride, segments);
+        (*function)(px0, py0, x2, y2, deltas, stride, segments);
     }
     static void solveCubic(double A, double B, double C, double D, float& t0, float& t1, float& t2) {
         if (fabs(D) < 1e-3)
@@ -735,7 +747,7 @@ struct Rasterizer {
         }
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1, t2 = t2 < 0.f ? 0.f : t2 > 1.f ? 1.f : t2;
     }
-    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float ly, uy, lx, ux;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -782,16 +794,16 @@ struct Rasterizer {
                             tx2 = fx * -m1 + gx * m0, ty2 = fy * -m1 + gy * m0;
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
-                            writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, deltas, stride, segments);
+                            writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, deltas, stride, segments);
                         } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
-                            writeLine(vx, ty0, vx, ty3, deltas, stride, segments);
+                            (*function)(vx, ty0, vx, ty3, deltas, stride, segments);
                         }
                     }
                 }
         }
     }
-    static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float *deltas, uint32_t stride, Row<Segment> *segments) {
+    static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
         float cx, bx, ax, cy, by, ay, s, t, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, px0, px1, py0, py1;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
@@ -803,10 +815,10 @@ struct Rasterizer {
         px0 = px1 = x0, py0 = py1 = y0;
         while (--count) {
             px1 += f1x, f1x += f2x, f2x += f3x, py1 += f1y, f1y += f2y, f2y += f3y;
-            writeLine(px0, py0, px1, py1, deltas, stride, segments);
+            (*function)(px0, py0, px1, py1, deltas, stride, segments);
             px0 = px1, py0 = py1;
         }
-        writeLine(px0, py0, x3, y3, deltas, stride, segments);
+        (*function)(px0, py0, x3, y3, deltas, stride, segments);
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
@@ -849,17 +861,6 @@ struct Rasterizer {
     
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
-        if (0) {
-            count = segments->end - segments->idx;
-            assert(count < 32767);
-            if (count) {
-                gpu->outlinesCount += count;
-                new (gpu->quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, 0.f, 0, segments->idx, 0xFFFFFF, count);
-                segments->idx = segments->end;
-            }
-            return;
-        }
-        
         short counts0[256], counts1[256];
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         Segment *segment;
@@ -952,7 +953,7 @@ struct Rasterizer {
                     segment = segments->base + index->i;
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
-                    writeLine(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
+                    writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, deltas, stride, nullptr);
                 }
                 writeDeltas(deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
                 indices.empty();
