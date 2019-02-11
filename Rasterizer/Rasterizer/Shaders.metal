@@ -50,18 +50,19 @@ struct Edge {
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {
-    float rlab, rlcd, det, vx, vy;
+    float det, rlab, rlcd, vx, vy;
     float4 d;
-    rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     det = ctm.a * ctm.d - ctm.b * ctm.c;
+    rlab = copysign(rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), det);
+    rlcd = copysign(rsqrt(ctm.c * ctm.c + ctm.d * ctm.d), det);
     vx = ctm.tx - dx, vy = ctm.ty - dy;
-    d.x = (vx * ctm.b - vy * ctm.a) * copysign(rlab, det) + 0.5;
+    d.x = (vx * ctm.b - vy * ctm.a) * rlab + 0.5;
     vx = (ctm.tx + ctm.a) - dx, vy = (ctm.ty + ctm.b) - dy;
-    d.y = (vx * ctm.d - vy * ctm.c) * copysign(rlcd, det) + 0.5;
+    d.y = (vx * ctm.d - vy * ctm.c) * rlcd + 0.5;
     vx = (ctm.tx + ctm.a + ctm.c) - dx, vy = (ctm.ty + ctm.b + ctm.d) - dy;
-    d.z = (vx * -ctm.b - vy * -ctm.a) * copysign(rlab, det) + 0.5;
+    d.z = (vx * -ctm.b - vy * -ctm.a) * rlab + 0.5;
     vx = (ctm.tx + ctm.c) - dx, vy = (ctm.ty + ctm.d) - dy;
-    d.w = (vx * -ctm.d - vy * -ctm.c) * copysign(rlcd, det) + 0.5;
+    d.w = (vx * -ctm.d - vy * -ctm.c) * rlcd + 0.5;
     return d;
 }
 
@@ -203,12 +204,12 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
 
 fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float alpha = 1.0, shape = 1.0;
+    float alpha = 1.0;
     if (!vert.solid) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
     }
-    return vert.color * alpha * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+    return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
 }
 
 #pragma mark - Shapes
