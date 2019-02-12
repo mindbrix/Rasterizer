@@ -431,8 +431,9 @@ struct Rasterizer {
                                           AffineTransform *ctms,
                                           Colorant *colorants,
                                           size_t pathsCount,
+                                          size_t *begins,
                                           Buffer& buffer) {
-            size_t size, i, begin, end, idx, begins[count];
+            size_t size, i, begin, end, idx;
             size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
@@ -459,8 +460,6 @@ struct Rasterizer {
                 begins[i] = begin;
                 begin += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
             }
-            for (i = 0; i < count; i++)
-                writeContextToBuffer(& contexts[i], paths, ctms, colorants, begins[i], buffer);
         }
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
