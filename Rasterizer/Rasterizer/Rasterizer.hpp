@@ -537,7 +537,7 @@ struct Rasterizer {
                     gpu.shapesCount += path.sequence->end;
                     new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {
-                    if (1) {
+                    if (0) {
                         writePath(path, ctm, Bounds(clip.lx - 1.f, clip.ly - 1.f, clip.ux + 1.f, clip.uy + 1.f), writeOutlineSegment, nullptr, 0, & segments[0]);
                         size_t count = segments[0].end - segments[0].idx;
                         if (count) {
@@ -627,9 +627,12 @@ struct Rasterizer {
         }
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, float *deltas, uint32_t stride, Row<Segment> *segments) {
-        float sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-        if (sy0 != sy1) {
-            float dx = x1 - x0, dy = y1 - y0, ty0 = (sy0 - y0) / dy, ty1 = (sy1 - y0) / dy, tx0, tx1, sx0, sx1, mx, vx;
+        float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        if (ly < clip.uy && uy > clip.ly && (ly != uy || function == writeOutlineSegment)) {
+            float sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+            float dx = x1 - x0, dy = y1 - y0, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
+            ty0 = dy == 0.f ? 0.f : (sy0 - y0) / dy;
+            ty1 = dy == 0.f ? 1.f : (sy1 - y0) / dy;
             tx0 = dx == 0.f ? 0.f : (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
             tx1 = dx == 0.f ? 1.f : (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
             float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
