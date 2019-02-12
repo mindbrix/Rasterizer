@@ -348,7 +348,7 @@ struct Rasterizer {
     struct Context {
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
-        static size_t writeContextToBuffer(Context *ctx,
+        static void writeContextToBuffer(Context *ctx,
                                            Path *paths,
                                            AffineTransform *ctms,
                                            Colorant *colorants,
@@ -425,7 +425,6 @@ struct Rasterizer {
             ctx->gpu.empty();
             for (j = 0; j < ctx->segments.size(); j++)
                 ctx->segments[j].empty();
-            return end;
         }
         static void writeContextsToBuffer(Context *contexts, size_t count,
                                           Path *paths,
@@ -433,7 +432,7 @@ struct Rasterizer {
                                           Colorant *colorants,
                                           size_t pathsCount,
                                           Buffer& buffer) {
-            size_t size, i, begin, end, idx;
+            size_t size, i, begin, end, idx, begins[count];
             size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
@@ -456,8 +455,12 @@ struct Rasterizer {
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
                 begin = end;
             }
+            for (i = 0; i < count; i++) {
+                begins[i] = begin;
+                begin += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
+            }
             for (i = 0; i < count; i++)
-                begin = end = writeContextToBuffer(& contexts[i], paths, ctms, colorants, begin, buffer);
+                writeContextToBuffer(& contexts[i], paths, ctms, colorants, begins[i], buffer);
         }
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
