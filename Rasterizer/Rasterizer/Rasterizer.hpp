@@ -486,7 +486,7 @@ struct Rasterizer {
             gpu.width = width, gpu.height = height;
             gpu.allocator.init(width, height);
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, size_t begin, size_t end) {
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, float width, size_t begin, size_t end) {
             if (begin == end)
                 return;
             size_t iz;
@@ -532,11 +532,11 @@ struct Rasterizer {
                             cl->tx + (cl->a > 0.f ? cl->a : 0.f) + (cl->c > 0.f ? cl->c : 0.f), cl->ty + (cl->b > 0.f ? cl->b : 0.f) + (cl->d > 0.f ? cl->d : 0.f));
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clipped, hit);
+                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clipped, hit, width);
                     }
             free(flags), free(units), free(clips), free(devices);
         }
-        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit) {
+        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             if (bitmap.width) {
                 if (path.sequence->units)
                     return;
@@ -553,7 +553,7 @@ struct Rasterizer {
                     gpu.shapesCount += path.sequence->end;
                     new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {
-                    if (0) {
+                    if (width) {
                         writePath(path, ctm, Bounds(clip.lx - 1.f, clip.ly - 1.f, clip.ux + 1.f, clip.uy + 1.f), writeOutlineSegment, nullptr, 0, & segments[0]);
                         size_t count = segments[0].end - segments[0].idx;
                         if (count) {

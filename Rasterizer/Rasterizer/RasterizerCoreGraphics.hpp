@@ -218,7 +218,7 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -271,7 +271,7 @@ struct RasterizerCoreGraphics {
                     for (i = 0; i < divisions; i++)
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, b[idx], b[idx + 1]);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, useOutline ? 1.f : 0.f, b[idx], b[idx + 1]);
                     });
                     count = divisions;
                 } else {
@@ -282,14 +282,14 @@ struct RasterizerCoreGraphics {
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, 0, pathsCount);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, useOutline ? 1.f : 0.f, 0, pathsCount);
                     });
                 }
             } else {
                 count = 1;
                 if (buffer)
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
-                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, 0, pathsCount);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, useOutline ? 1.f : 0.f, 0, pathsCount);
             }
             if (buffer) {
                 std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
