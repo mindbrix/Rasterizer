@@ -230,7 +230,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     device Quad& quad = quads[iid];
     AffineTransform ctm = quad.unit;
     if (quad.iz >> 24 == Quad::kOutlines) {
-        float dx = ctm.c - ctm.a, dy = ctm.d - ctm.b, rl = rsqrt(dx * dx + dy * dy), nx = dx * rl, ny = dy * rl;
+        float dx = ctm.c - ctm.a, dy = ctm.d - ctm.b, rl = ctm.tx * rsqrt(dx * dx + dy * dy), nx = dx * rl, ny = dy * rl;
         ctm = { ny, -nx, dx, dy, ctm.a - ny * 0.5f, ctm.b + nx * 0.5f };
     }
     float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));

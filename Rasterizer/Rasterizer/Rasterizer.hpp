@@ -414,7 +414,7 @@ struct Rasterizer {
                             Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx;
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                             for (int k = 0; k < quad[j].super.begin; k++, s++, dst++)
-                                new (dst) GPU::Quad(AffineTransform(s->x0, s->y0, s->x1, s->y1, 0.f, 0.f), iz, GPU::Quad::kOutlines);
+                                new (dst) GPU::Quad(AffineTransform(s->x0, s->y0, s->x1, s->y1, quad[j].super.cover, 0.f), iz, GPU::Quad::kOutlines);
                             entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                         } else
                             entry->end += sizeof(GPU::Quad);
@@ -558,7 +558,7 @@ struct Rasterizer {
                         size_t count = segments[0].end - segments[0].idx;
                         if (count) {
                             gpu.outlinesCount += count;
-                            new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, 0.f, 0, segments[0].idx, count, 0);
+                            new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, segments[0].idx, count, 0);
                             segments[0].idx = segments[0].end;
                         }
                     } else {

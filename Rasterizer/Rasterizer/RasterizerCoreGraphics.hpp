@@ -254,6 +254,7 @@ struct RasterizerCoreGraphics {
             Rasterizer::AffineTransform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip);
+            float width = useOutline ? 2.f : 0.f;
             
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
                 if (buffer) {
@@ -271,7 +272,7 @@ struct RasterizerCoreGraphics {
                     for (i = 0; i < divisions; i++)
                         testScene.contexts[i].setGPU(bitmap.width, bitmap.height);
                     dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, useOutline ? 1.f : 0.f, b[idx], b[idx + 1]);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, width, b[idx], b[idx + 1]);
                     });
                     count = divisions;
                 } else {
@@ -282,14 +283,14 @@ struct RasterizerCoreGraphics {
                         count++;
                     }
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, useOutline ? 1.f : 0.f, 0, pathsCount);
+                        testScene.contexts[idx].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, width, 0, pathsCount);
                     });
                 }
             } else {
                 count = 1;
                 if (buffer)
                     testScene.contexts[0].setGPU(bitmap.width, bitmap.height);
-                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, useOutline ? 1.f : 0.f, 0, pathsCount);
+                testScene.contexts[0].drawPaths(& testScene.scene.paths[0], ctms, false, colorants, width, 0, pathsCount);
             }
             if (buffer) {
                 std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
