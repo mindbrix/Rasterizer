@@ -167,7 +167,7 @@ struct Rasterizer {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
         Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp)
         : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
-        void clear(uint32_t pixel) { memset_pattern4(data, & pixel, stride * height); }
+        void clear(uint8_t *src) { memset_pattern4(data, src, stride * height); }
         inline uint8_t *pixelAddress(short x, short y) { return data + stride * (height - 1 - y) + x * bytespp; }
         uint8_t *data;
         size_t width, height, stride, bpp, bytespp;
@@ -353,11 +353,10 @@ struct Rasterizer {
                                            AffineTransform *ctms,
                                            Colorant *colorants,
                                            size_t begin,
-                                           std::vector<Buffer::Entry>& es,
+                                           std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
             size_t j, end, qend, q, jend, iz;
             std::vector<size_t> idxes;
-            Buffer::Entry *entries, *entry;
             
             end = begin;
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
@@ -384,7 +383,7 @@ struct Rasterizer {
                     }
                 }
                 if (begin != end) {
-                    es.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
+                    entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
                     begin = end;
                 }
                 
@@ -395,11 +394,12 @@ struct Rasterizer {
                     
                     qtype = quad[0].iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                     
-                    es.emplace_back(type, begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & es.back();
+                    Buffer::Entry *entry;
+                    entries.emplace_back(type, begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
                     for (j = 0, jend = qend - ctx->gpu.quads.idx; j < jend; j++) {
                         qtype = quad[j].iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                         if (type != entry->type)
-                            es.emplace_back(type, entry->end, entry->end), idxes.emplace_back(ctx->gpu.quads.idx), entry = & es.back();
+                            entries.emplace_back(type, entry->end, entry->end), idxes.emplace_back(ctx->gpu.quads.idx + j), entry = & entries.back();
                            
                         if (qtype == GPU::Quad::kShapes) {
                             iz = quad[j].iz & 0xFFFFFF;
@@ -423,7 +423,6 @@ struct Rasterizer {
                     ctx->gpu.quads.idx = qend;
                 }
             }
-            entries = & es[0];
             for (int k = 0; k < idxes.size(); k++) {
                 if (entries[k].type == Buffer::Entry::kQuads)
                     memcpy(buffer.data.base + entries[k].begin, ctx->gpu.quads.base + idxes[k], entries[k].end - entries[k].begin);
