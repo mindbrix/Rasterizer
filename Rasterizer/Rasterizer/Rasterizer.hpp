@@ -40,6 +40,10 @@ struct Rasterizer {
     struct Bounds {
         Bounds() {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
+        Bounds(AffineTransform t) {
+            lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
+            ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
+        }
         Bounds integral() { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
         Bounds intersect(Bounds other) {
             return {
@@ -517,7 +521,7 @@ struct Rasterizer {
             }
             for (un = units, iz = begin; iz < end; iz++, un++, clipped++) {
                 if (flags[iz])
-                    dev = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants[iz].ctm).integral().intersect(device);
+                    dev = Bounds(colorants[iz].ctm).integral().intersect(device);
                 *clipped = Bounds(
                      un->tx + (un->a < 0.f ? un->a : 0.f) + (un->c < 0.f ? un->c : 0.f), un->ty + (un->b < 0.f ? un->b : 0.f) + (un->d < 0.f ? un->d : 0.f),
                      un->tx + (un->a > 0.f ? un->a : 0.f) + (un->c > 0.f ? un->c : 0.f), un->ty + (un->b > 0.f ? un->b : 0.f) + (un->d > 0.f ? un->d : 0.f)
