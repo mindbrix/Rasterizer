@@ -490,7 +490,8 @@ struct Rasterizer {
             if (begin == end)
                 return;
             size_t iz;
-            bool *flags = (bool *)malloc((end) * sizeof(bool));
+            bool *flags = (bool *)malloc(end * sizeof(bool));
+            bzero(flags, end * sizeof(bool));
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             AffineTransform *clips = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *cl = clips;
             Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
