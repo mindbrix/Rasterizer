@@ -494,7 +494,6 @@ struct Rasterizer {
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cl = clips;
             Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
-            paths += begin, ctms += begin;
             
             AffineTransform test = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Colorant *col = colorants + begin;
@@ -502,15 +501,15 @@ struct Rasterizer {
                 if (col->ctm.a != test.a || col->ctm.b != test.b || col->ctm.c != test.c || col->ctm.d != test.d || col->ctm.tx != test.tx || col->ctm.ty != test.ty)
                     *flag = true, test = col->ctm;
             
-            AffineTransform inv = nullclip().invert();
-            Bounds dev = device;
-            for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
+            for (un = units, paths += begin, ctms += begin, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
+            AffineTransform inv = nullclip().invert();
             for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, cl++) {
                 if (*flag)
                     inv = bitmap.width ? inv : colorants[iz].ctm.invert();
                 *cl = Bounds(inv.concat(*un));
             }
+            Bounds dev = device;
             for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, clipped++) {
                 if (*flag)
                     dev = Bounds(colorants[iz].ctm).integral().intersect(device);
