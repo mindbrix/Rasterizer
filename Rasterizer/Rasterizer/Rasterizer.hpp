@@ -492,8 +492,8 @@ struct Rasterizer {
             bool *flags = (bool *)malloc((end - begin) * sizeof(bool)), *flag = flags;
             bzero(flags, (end - begin) * sizeof(bool));
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
-            Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cl = clips;
-            Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
+            Bounds *clus = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cl = clus;
+            Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clip = clips;
             
             AffineTransform t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Colorant *col = colorants + begin;
@@ -510,20 +510,20 @@ struct Rasterizer {
                 *cl = Bounds(inv.concat(*un));
             }
             Bounds dev = device;
-            for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, clipped++) {
+            for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, clip++) {
                 if (*flag)
                     dev = Bounds(colorants[iz].ctm).integral().intersect(device);
-                *clipped = Bounds(*un).integral().intersect(dev);
+                *clip = Bounds(*un).integral().intersect(dev);
             }
-            paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
+            paths -= (end - begin), ctms -= (end - begin), un = units, cl = clus, clip = clips;
+            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clip++)
                 if (paths->sequence->shapes || paths->sequence->bounds.lx != FLT_MAX)
-                    if (clipped->lx != clipped->ux && clipped->ly != clipped->uy) {
+                    if (clip->lx != clip->ux && clip->ly != clip->uy) {
                         bool hit = cl->lx < 0.f || cl->ux > 1.f || cl->ly < 0.f || cl->uy > 1.f;
                         if (cl->ux >= 0.f && cl->lx < 1.f && cl->uy >= 0.f && cl->ly < 1.f)
-                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clipped, hit, width);
+                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clip, hit, width);
                     }
-            free(flags), free(units), free(clips), free(devices);
+            free(flags), free(units), free(clus), free(clips);
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             if (bitmap.width) {
