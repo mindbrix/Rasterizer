@@ -489,34 +489,30 @@ struct Rasterizer {
             if (begin == end)
                 return;
             size_t iz;
-            bool *flags = (bool *)malloc(end * sizeof(bool));
-            bzero(flags, end * sizeof(bool));
+            bool *flags = (bool *)malloc((end - begin) * sizeof(bool)), *flag = flags;
+            bzero(flags, (end - begin) * sizeof(bool));
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cl = clips;
             Bounds *devices = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clipped = devices;
             paths += begin, ctms += begin;
             
             AffineTransform test = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
-            Colorant *col = colorants;
-            for (iz = 0; iz < end; iz++, col++)
+            Colorant *col = colorants + begin;
+            for (iz = begin; iz < end; iz++, col++, flag++)
                 if (col->ctm.a != test.a || col->ctm.b != test.b || col->ctm.c != test.c || col->ctm.d != test.d || col->ctm.tx != test.tx || col->ctm.ty != test.ty)
-                    flags[iz] = true, test = col->ctm;
-            int i;
-            for (i = (int)begin; i >= 0; i--)
-                if (flags[i])
-                    break;
-            AffineTransform inv = bitmap.width ? nullclip().invert() : colorants[i].ctm.invert();
-            Bounds dev = Bounds(colorants[i].ctm).integral().intersect(device);
+                    *flag = true, test = col->ctm;
             
+            AffineTransform inv = nullclip().invert();
+            Bounds dev = device;
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
-            for (un = units, iz = begin; iz < end; iz++, un++, cl++) {
-                if (flags[iz])
-                    inv = bitmap.width ? nullclip().invert() : colorants[iz].ctm.invert();
+            for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, cl++) {
+                if (*flag)
+                    inv = bitmap.width ? inv : colorants[iz].ctm.invert();
                 *cl = Bounds(inv.concat(*un));
             }
-            for (un = units, iz = begin; iz < end; iz++, un++, clipped++) {
-                if (flags[iz])
+            for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, clipped++) {
+                if (*flag)
                     dev = Bounds(colorants[iz].ctm).integral().intersect(device);
                 *clipped = Bounds(*un).integral().intersect(dev);
             }
