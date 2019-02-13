@@ -73,9 +73,9 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), units(nullptr), circles(nullptr), refCount(1) {}
-        Sequence(size_t count) : shapesCount(count), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), units((AffineTransform *)malloc(count * sizeof(units[0]))), circles((bool *)malloc(count * sizeof(bool))), refCount(1) {}
-        ~Sequence() { if (units) free(units), free(circles); }
+        Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(1) {}
+        Sequence(size_t count) : shapesCount(count), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), shapes((AffineTransform *)malloc(count * sizeof(shapes[0]))), circles((bool *)malloc(count * sizeof(bool))), refCount(1) {}
+        ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
             if (end + size > Atom::kCapacity)
@@ -142,7 +142,7 @@ struct Rasterizer {
         size_t refCount, end, shapesCount;
         std::vector<Atom> atoms;
         float px, py;
-        AffineTransform *units;
+        AffineTransform *shapes;
         bool *circles;
         Bounds bounds;
     };
@@ -407,7 +407,7 @@ struct Rasterizer {
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                             AffineTransform ctm = quad[j].unit;
                             for (int k = 0; k < path.sequence->shapesCount; k++, dst++)
-                                new (dst) GPU::Quad(ctm.concat(path.sequence->units[k]), iz, path.sequence->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
+                                new (dst) GPU::Quad(ctm.concat(path.sequence->shapes[k]), iz, path.sequence->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                             entry->end += path.sequence->shapesCount * sizeof(GPU::Quad);
                         } else if (qtype == GPU::Quad::kOutlines) {
                             iz = quad[j].iz & 0xFFFFFF;
@@ -522,7 +522,7 @@ struct Rasterizer {
             }
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = clips, clipped = devices;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clipped++)
-                if (paths->sequence->units || paths->sequence->bounds.lx != FLT_MAX)
+                if (paths->sequence->shapes || paths->sequence->bounds.lx != FLT_MAX)
                     if (clipped->lx != clipped->ux && clipped->ly != clipped->uy) {
                         bool hit = cl->lx < 0.f || cl->ux > 1.f || cl->ly < 0.f || cl->uy > 1.f;
                         if (cl->ux >= 0.f && cl->lx < 1.f && cl->uy >= 0.f && cl->ly < 1.f)
@@ -532,7 +532,7 @@ struct Rasterizer {
         }
         void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             if (bitmap.width) {
-                if (path.sequence->units)
+                if (path.sequence->shapes)
                     return;
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
@@ -543,7 +543,7 @@ struct Rasterizer {
                     writeSegments(& segments[0], clip, even, & deltas[0], stride, src, & bitmap);
                 }
             } else {
-                if (path.sequence->units) {
+                if (path.sequence->shapes) {
                     gpu.shapesCount += path.sequence->shapesCount;
                     new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {

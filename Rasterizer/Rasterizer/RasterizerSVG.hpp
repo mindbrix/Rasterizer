@@ -36,7 +36,7 @@ struct RasterizerSVG {
         uint8_t bgra[4] = { 0, 0, 0, 255 };
         size_t count = 100000;
         Rasterizer::Path shape(count);
-        Rasterizer::AffineTransform *dst = shape.sequence->units;
+        Rasterizer::AffineTransform *dst = shape.sequence->shapes;
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s;
         for (int i = 0; i < count; i++, dst++) {
@@ -56,7 +56,7 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            //writePhyllotaxis(scene);
+            writePhyllotaxis(scene);
             
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {

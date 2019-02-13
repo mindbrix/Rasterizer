@@ -266,12 +266,12 @@ struct RasterizerCoreGraphics {
                     Rasterizer::Path *paths = & testScene.scene.paths[0];
                     size_t divisions = testScene.contexts.size(), total, p, i;
                     for (total = p = 0; p < pathsCount; p++)
-                        total += paths[p].sequence->atoms.size() ?: (paths[p].sequence->units ? paths[p].sequence->end >> 4 : 0);
+                        total += paths[p].sequence->atoms.size() ?: (paths[p].sequence->shapes ? paths[p].sequence->end >> 4 : 0);
                     size_t begins[divisions + 1], target, *b = begins;
                     begins[0] = 0, begins[divisions] = pathsCount;
                     for (count = p = 0, i = 1; i < divisions; i++) {
                         for (target = total * i / divisions; count < target; p++)
-                            count += paths[p].sequence->atoms.size() ?: (paths[p].sequence->units ? paths[p].sequence->end >> 4: 0);
+                            count += paths[p].sequence->atoms.size() ?: (paths[p].sequence->shapes ? paths[p].sequence->end >> 4: 0);
                         begins[i] = p;
                     }
                     for (i = 0; i < divisions; i++)
