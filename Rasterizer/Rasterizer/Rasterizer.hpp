@@ -44,19 +44,15 @@ struct Rasterizer {
             lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
             ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
         }
-        Bounds integral() { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
-        Bounds intersect(Bounds other) {
+        Bounds integral() const { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
+        Bounds intersect(Bounds other) const {
             return {
                 lx < other.lx ? other.lx : lx > other.ux ? other.ux : lx, ly < other.ly ? other.ly : ly > other.uy ? other.uy : ly,
                 ux < other.lx ? other.lx : ux > other.ux ? other.ux : ux, uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy
             };
         }
-        Bounds transform(AffineTransform ctm) const {
-            AffineTransform t = unit(ctm);
-            return {
-                t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f),
-                t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f)
-            };
+        inline Bounds transform(AffineTransform ctm) const {
+            return Bounds(unit(ctm));
         }
         inline AffineTransform unit(AffineTransform t) const {
             return { t.a * (ux - lx), t.b * (ux - lx), t.c * (uy - ly), t.d * (uy - ly), lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty };
@@ -510,7 +506,7 @@ struct Rasterizer {
                 if (flags[i])
                     break;
             AffineTransform inv = bitmap.width ? nullclip().invert() : colorants[i].ctm.invert();
-            Bounds dev = Bounds(0.f, 0.f, 1.f, 1.f).transform(colorants[i].ctm).integral().intersect(device);
+            Bounds dev = Bounds(colorants[i].ctm).integral().intersect(device);
             
             for (un = units, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->sequence->bounds.unit(*ctms);
