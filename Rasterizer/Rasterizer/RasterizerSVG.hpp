@@ -56,7 +56,7 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            writePhyllotaxis(scene);
+            //writePhyllotaxis(scene);
             
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
