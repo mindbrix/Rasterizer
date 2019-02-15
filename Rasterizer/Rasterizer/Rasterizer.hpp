@@ -244,7 +244,7 @@ struct Rasterizer {
             uint32_t idx, begin;
         };
         struct Outline {
-            Outline(float x0, float y0, float x1, float y1, float width, size_t prev, size_t next) : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(short(prev)), next(short(next)) {}
+            Outline(float x0, float y0, float x1, float y1, float width, int prev, int next) : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(short(prev)), next(short(next)) {}
             float x0, y0, x1, y1, width;
             short prev, next;
         };
@@ -253,7 +253,7 @@ struct Rasterizer {
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, size_t iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
-            Quad(Segment *s, float width, size_t prev, size_t next, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width, prev, next), iz((uint32_t)iz | type << 24) {}
+            Quad(Segment *s, float width, int prev, int next, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width, prev, next), iz((uint32_t)iz | type << 24) {}
             union {
                 SuperCell super;
                 AffineTransform unit;
@@ -419,11 +419,12 @@ struct Rasterizer {
                             iz = quad[j].iz & 0xFFFFFF;
                             Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx, *is = s, *es = s + quad[j].super.begin;
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
+                            int k, offset;
                             do {
                                 while (is < es && is->x0 != FLT_MAX)
                                     is++;
-                                for (is++; s < is; s++, dst++)
-                                    new (dst) GPU::Quad(s, quad[j].super.cover, 0, 0, iz, GPU::Quad::kOutlines);
+                                for (is++, offset = (int)(is - s - 1), k = 0; s < is; k++, s++, dst++)
+                                    new (dst) GPU::Quad(s, quad[j].super.cover, k == 0 ? offset : -1, k == offset ? -offset : 1, iz, GPU::Quad::kOutlines);
                             } while (is < es);
                             entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                         } else
