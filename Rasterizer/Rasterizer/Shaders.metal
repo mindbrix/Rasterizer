@@ -240,8 +240,8 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         device Outline& p = quads[iid + o.prev].outline;
         device Outline& n = quads[iid + o.next].outline;
         float2 no = normalize(float2(o.x1 - o.x0, o.y1 - o.y0));
-        float2 np = normalize(float2(p.x1 - p.x0, p.y1 - p.y0));
-        float2 nn = normalize(float2(n.x1 - n.x0, n.y1 - n.y0));
+        float2 np = o.x0 != p.x1 || o.y0 != p.y1 ? no : normalize(float2(p.x1 - p.x0, p.y1 - p.y0));
+        float2 nn = o.x1 != n.x0 || o.y1 != n.y0 ? no : normalize(float2(n.x1 - n.x0, n.y1 - n.y0));
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float s = 0.5 * (o.width + 0.7071067812);
         float spo = s / max(0.25, tpo.y * np.y + tpo.x * np.x);
