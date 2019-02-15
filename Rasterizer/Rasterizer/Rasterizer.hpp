@@ -421,10 +421,8 @@ struct Rasterizer {
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                             for (dst0 = dst; s < es; s++, dst++) {
                                 new (dst) GPU::Quad(s, quad[j].super.cover, iz, GPU::Quad::kOutlines);
-                                if (s->x0 == FLT_MAX) {
-                                    int offset = (int)(dst - dst0 - 1);
-                                    dst0->outline.prev = offset, (dst - 1)->outline.next = -offset, dst0 = dst + 1;
-                                }
+                                if (s->x0 == FLT_MAX)
+                                    dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                             }
                             entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                         } else
