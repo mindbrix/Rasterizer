@@ -237,24 +237,21 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, size_t iy, size_t idx, size_t begin, size_t count)
-            : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(short(iy)), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, size_t iy, size_t idx, size_t begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(short(iy)), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
             Cell cell;
             float cover;
             short iy, count;
             uint32_t idx, begin;
         };
         struct Outline {
-            Outline(float x0, float y0, float x1, float y1, float width, size_t prev, size_t next)
-            : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(short(prev)), next(short(next)) {}
+            Outline(float x0, float y0, float x1, float y1, float width, size_t prev, size_t next) : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(short(prev)), next(short(next)) {}
             float x0, y0, x1, y1, width;
             short prev, next;
         };
         struct Quad {
             enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
             Quad() {}
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, size_t iy, size_t idx, size_t begin, size_t end)
-            : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, size_t iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
             Quad(Segment *s, float width, size_t prev, size_t next, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width, prev, next), iz((uint32_t)iz | type << 24) {}
             union {
@@ -420,10 +417,14 @@ struct Rasterizer {
                             entry->end += path.sequence->shapesCount * sizeof(GPU::Quad);
                         } else if (qtype == GPU::Quad::kOutlines) {
                             iz = quad[j].iz & 0xFFFFFF;
-                            Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx;
+                            Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx, *is = s, *es = s + quad[j].super.begin;
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
-                            for (int k = 0; k < quad[j].super.begin; k++, s++, dst++)
-                                new (dst) GPU::Quad(s, quad[j].super.cover, 0, 0, iz, GPU::Quad::kOutlines);
+                            do {
+                                while (is < es && is->x0 != FLT_MAX)
+                                    is++;
+                                for (is++; s < is; s++, dst++)
+                                    new (dst) GPU::Quad(s, quad[j].super.cover, 0, 0, iz, GPU::Quad::kOutlines);
+                            } while (is < es);
                             entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                         } else
                             entry->end += sizeof(GPU::Quad);
@@ -590,6 +591,8 @@ struct Rasterizer {
                             else
                                 (*function)(x0, y0, sx, sy, info);
                         }
+                        if (sx != FLT_MAX && function == writeOutlineSegment)
+                            (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
                         index++;
@@ -641,6 +644,8 @@ struct Rasterizer {
             else
                 (*function)(x0, y0, sx, sy, info);
         }
+        if (sx != FLT_MAX && function == writeOutlineSegment)
+            (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
