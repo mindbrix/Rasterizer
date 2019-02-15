@@ -459,7 +459,6 @@ struct Rasterizer {
             for (idx = begin = end, i = 0; i < count; i++)
                 if ((size = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
                     memcpy(buffer.data.base + idx, contexts[i].gpu.opaques.base, size), idx = end = end + size;
-
             if (begin != end)
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
             
