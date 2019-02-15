@@ -30,12 +30,16 @@ struct SuperCell {
     short iy, count;
     uint32_t idx, begin;
 };
-
+struct Outline {
+    float x0, y0, x1, y1, width;
+    short prev, next;
+};
 struct Quad {
     enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
     union {
         SuperCell super;
         AffineTransform unit;
+        Outline outline;
     };
     uint32_t iz;
 };
@@ -230,8 +234,9 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     device Quad& quad = quads[iid];
     AffineTransform ctm = quad.unit;
     if (quad.iz >> 24 == Quad::kOutlines) {
-        float dx = ctm.c - ctm.a, dy = ctm.d - ctm.b, rl = ctm.tx * rsqrt(dx * dx + dy * dy), nx = dx * rl, ny = dy * rl;
-        ctm = { ny, -nx, dx, dy, ctm.a - ny * 0.5f, ctm.b + nx * 0.5f };
+        device Outline& o = quad.outline;
+        float dx = o.x1 - o.x0, dy = o.y1 - o.y0, rl = o.width * rsqrt(dx * dx + dy * dy), nx = dx * rl, ny = dy * rl;
+        ctm = { ny, -nx, dx, dy, o.x0 - ny * 0.5f, o.y0 + nx * 0.5f };
     }
     float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
     float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);

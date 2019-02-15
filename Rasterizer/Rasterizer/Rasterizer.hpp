@@ -233,13 +233,10 @@ struct Rasterizer {
             Bounds sheet, strip;
         };
         struct Cell {
-            Cell() {}
-            Cell(float lx, float ly, float ux, float uy, float ox, float oy)
-            : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
+            Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell() {}
             SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, size_t iy, size_t idx, size_t begin, size_t count)
             : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(short(iy)), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
             Cell cell;
@@ -247,15 +244,23 @@ struct Rasterizer {
             short iy, count;
             uint32_t idx, begin;
         };
+        struct Outline {
+            Outline(float x0, float y0, float x1, float y1, float width, size_t prev, size_t next)
+            : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(short(prev)), next(short(next)) {}
+            float x0, y0, x1, y1, width;
+            short prev, next;
+        };
         struct Quad {
             enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, size_t iy, size_t idx, size_t begin, size_t end)
             : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
+            Quad(Segment *s, float width, size_t prev, size_t next, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width, prev, next), iz((uint32_t)iz | type << 24) {}
             union {
                 SuperCell super;
                 AffineTransform unit;
+                Outline outline;
             };
             uint32_t iz;
         };
@@ -418,7 +423,7 @@ struct Rasterizer {
                             Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx;
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                             for (int k = 0; k < quad[j].super.begin; k++, s++, dst++)
-                                new (dst) GPU::Quad(AffineTransform(s->x0, s->y0, s->x1, s->y1, quad[j].super.cover, 0.f), iz, GPU::Quad::kOutlines);
+                                new (dst) GPU::Quad(s, quad[j].super.cover, 0, 0, iz, GPU::Quad::kOutlines);
                             entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                         } else
                             entry->end += sizeof(GPU::Quad);
