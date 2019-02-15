@@ -120,7 +120,6 @@ struct EdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3;
-    float w0, w1, w2, w3;
 };
 
 vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
@@ -153,42 +152,14 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
     vert.x1 = segments[0].x1 + tx, vert.y1 = segments[0].y1 + ty;
     vert.x2 = segments[1].x0 + tx, vert.y2 = segments[1].y0 + ty;
     vert.x3 = segments[1].x1 + tx, vert.y3 = segments[1].y1 + ty;
-    if (1) {
-        float vx, vy, py, a0, a1, w0, w1;
-        vx = vert.x1 - vert.x0, vy = vert.y1 - vert.y0;
-        py = float(vx * vy > 0.0);
-        a0 = sign(vert.y1 - vert.y0) * (vx * (1.0 - py - vert.y0) - vy * (1.0 - vert.x0));
-        a1 = sign(vert.y1 - vert.y0) * (vx * (py - vert.y0) - vy * -vert.x0);
-        w0 = vx > 0.0 ? vert.y0 : vert.y1, w0 = vx * vy > 0.0 ? w0 : 1.0 - w0;
-        w1 = vx < 0.0 ? vert.y0 : vert.y1, w1 = vx * vy < 0.0 ? w1 : 1.0 - w1;
-        vert.x0 = -a0 / (a1 - a0);
-        vert.x1 = sign(vert.y1 - vert.y0);
-        vert.w0 = w0, vert.w1 = w1;
-        
-        vx = vert.x3 - vert.x2, vy = vert.y3 - vert.y2;
-        py = float(vx * vy > 0.0);
-        a0 = sign(vert.y3 - vert.y2) * (vx * (1.0 - py - vert.y2) - vy * (1.0 - vert.x2));
-        a1 = sign(vert.y3 - vert.y2) * (vx * (py - vert.y2) - vy * -vert.x2);
-        w0 = vx > 0.0 ? vert.y2 : vert.y3, w0 = vx * vy > 0.0 ? w0 : 1.0 - w0;
-        w1 = vx < 0.0 ? vert.y2 : vert.y3, w1 = vx * vy < 0.0 ? w1 : 1.0 - w1;
-        vert.x2 = -a0 / (a1 - a0);
-        vert.x3 = sign(vert.y3 - vert.y2);
-        vert.w2 = w0, vert.w3 = w1;
-    }
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     float winding = 0;
-    //winding += smoothstep(saturate(vert.w0) * 0.5, 1.0 - saturate(vert.w1) * 0.5, vert.x0) * (saturate(vert.y1) - saturate(vert.y0));
-    //winding += smoothstep(saturate(vert.w2) * 0.5, 1.0 - saturate(vert.w3) * 0.5, vert.x2) * (saturate(vert.y3) - saturate(vert.y2));
-    
-    
-    winding += smoothstep(0.0, 1.0, vert.x0) * (saturate(vert.y1) - saturate(vert.y0));
-    winding += smoothstep(0.0, 1.0, vert.x2) * (saturate(vert.y3) - saturate(vert.y2));
-    //winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
-    //winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
+    winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
+    winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
     return float4(winding);
 }
 
