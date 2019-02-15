@@ -286,9 +286,7 @@ struct Rasterizer {
     };
     struct Info {
         Info(float *deltas, uint32_t stride, Row<Segment> *segments) : deltas(deltas), stride(stride), segments(segments) {}
-        float *deltas;
-        uint32_t stride;
-        Row<Segment> *segments;
+        float *deltas; uint32_t stride; Row<Segment> *segments;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
