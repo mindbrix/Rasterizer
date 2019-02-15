@@ -233,20 +233,24 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
 {
     device Quad& quad = quads[iid];
     AffineTransform ctm = quad.unit;
+    
+    float area = 1.0, dx, dy;
     if (quad.iz >> 24 == Quad::kOutlines) {
         device Outline& o = quad.outline;
+        device Outline& p = quads[iid + o.prev].outline;
+        device Outline& n = quads[iid + o.next].outline;
         float dx = o.x1 - o.x0, dy = o.y1 - o.y0, rl = o.width * rsqrt(dx * dx + dy * dy), nx = dx * rl, ny = dy * rl;
         ctm = { ny, -nx, dx, dy, o.x0 - ny * 0.5f, o.y0 + nx * 0.5f };
     }
-    float area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
+    area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
     float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
     float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
     float dilation = (1.0 + 0.5 * (rsqrt(area) - 1.0)) * 0.7071067812 * rsqrt(1.0 - cosine * cosine);
     float tx = dilation * rlab, ty = dilation * rlcd;
     float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
-    float dx = ix * ctm.a + iy * ctm.c + ctm.tx, u = dx / *width, x = u * 2.0 - 1.0;
-    float dy = ix * ctm.b + iy * ctm.d + ctm.ty, v = dy / *height, y = v * 2.0 - 1.0;
+    dx = ix * ctm.a + iy * ctm.c + ctm.tx, dy = ix * ctm.b + iy * ctm.d + ctm.ty;
     
+    float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * area;
