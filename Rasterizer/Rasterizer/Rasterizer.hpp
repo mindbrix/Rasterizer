@@ -417,15 +417,15 @@ struct Rasterizer {
                             entry->end += path.sequence->shapesCount * sizeof(GPU::Quad);
                         } else if (qtype == GPU::Quad::kOutlines) {
                             iz = quad[j].iz & 0xFFFFFF;
-                            Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx, *is = s, *es = s + quad[j].super.begin;
-                            GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
-                            int k, offset;
-                            do {
-                                while (is < es && is->x0 != FLT_MAX)
-                                    is++;
-                                for (is++, offset = (int)(is - s - 1), k = 0; s < is; k++, s++, dst++)
-                                    new (dst) GPU::Quad(s, quad[j].super.cover, k == 0 ? offset : -1, k == offset ? -offset : 1, iz, GPU::Quad::kOutlines);
-                            } while (is < es);
+                            Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx, *es = s + quad[j].super.begin;
+                            GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
+                            for (dst0 = dst; s < es; s++, dst++) {
+                                new (dst) GPU::Quad(s, quad[j].super.cover, -1, 1, iz, GPU::Quad::kOutlines);
+                                if (s->x0 == FLT_MAX) {
+                                    int offset = (int)(dst - dst0 - 1);
+                                    dst0->outline.prev = offset, (dst - 1)->outline.next = -offset, dst0 = dst + 1;
+                                }
+                            }
                             entry->end += quad[j].super.begin * sizeof(GPU::Quad);
                         } else
                             entry->end += sizeof(GPU::Quad);
