@@ -244,7 +244,7 @@ struct Rasterizer {
             uint32_t idx, begin;
         };
         struct Outline {
-            Outline(float x0, float y0, float x1, float y1, float width, int prev, int next) : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(short(prev)), next(short(next)) {}
+            Outline(float x0, float y0, float x1, float y1, float width) : x0(x0), y0(y0), x1(x1), y1(y1), width(width), prev(-1), next(1) {}
             float x0, y0, x1, y1, width;
             short prev, next;
         };
@@ -253,7 +253,7 @@ struct Rasterizer {
             Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, size_t iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
-            Quad(Segment *s, float width, int prev, int next, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width, prev, next), iz((uint32_t)iz | type << 24) {}
+            Quad(Segment *s, float width, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width), iz((uint32_t)iz | type << 24) {}
             union {
                 SuperCell super;
                 AffineTransform unit;
@@ -420,7 +420,7 @@ struct Rasterizer {
                             Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx, *es = s + quad[j].super.begin;
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                             for (dst0 = dst; s < es; s++, dst++) {
-                                new (dst) GPU::Quad(s, quad[j].super.cover, -1, 1, iz, GPU::Quad::kOutlines);
+                                new (dst) GPU::Quad(s, quad[j].super.cover, iz, GPU::Quad::kOutlines);
                                 if (s->x0 == FLT_MAX) {
                                     int offset = (int)(dst - dst0 - 1);
                                     dst0->outline.prev = offset, (dst - 1)->outline.next = -offset, dst0 = dst + 1;
