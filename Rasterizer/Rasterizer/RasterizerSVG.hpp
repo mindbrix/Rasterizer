@@ -91,7 +91,7 @@ struct RasterizerSVG {
             // Delete
             nsvgDelete(image);
             
-            addPathToScene(shape, bgra, scene);
+            //addPathToScene(shape, bgra, scene);
             //addPathToScene(createPhyllotaxisPath(), bgra, scene);
         }
         free(data);
