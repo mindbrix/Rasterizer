@@ -275,7 +275,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
-    vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);//distances(ctm, dx, dy);//
+    vert.shape = quad.iz >> 24 == Quad::kOutlines ? float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1) : distances(ctm, dx, dy);
     vert.circle = quad.iz >> 24 == Quad::kCircle;
     return vert;
 }
