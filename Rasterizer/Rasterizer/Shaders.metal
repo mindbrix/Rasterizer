@@ -234,17 +234,19 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     device Quad& quad = quads[iid];
     AffineTransform ctm = quad.unit;
     
-    float area = 1.0, dx, dy;
+    float area = 1.0, visible = 1.0, dx, dy;
     if (quad.iz >> 24 == Quad::kOutlines) {
         device Outline& o = quad.outline;
         device Outline& p = quads[iid + o.prev].outline;
         device Outline& n = quads[iid + o.next].outline;
-        float2 no = normalize(float2(o.x1 - o.x0, o.y1 - o.y0));
-        float2 np = normalize(float2(p.x1 - p.x0, p.y1 - p.y0));
-        float2 nn = normalize(float2(n.x1 - n.x0, n.y1 - n.y0));
+        float2 vo = float2(o.x1 - o.x0, o.y1 - o.y0);
+        float2 vp = float2(p.x1 - p.x0, p.y1 - p.y0);
+        float2 vn = float2(n.x1 - n.x0, n.y1 - n.y0);
+        float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        float2 no = vo * ro, np = vp * rp, nn = vn * rn;
         float cpo = dot(np, no), con = dot(no, nn);
-        np = o.x0 != p.x1 || o.y0 != p.y1 || cpo < -0.984807753012208 ? no : np;
-        nn = o.x1 != n.x0 || o.y1 != n.y0 || con < -0.984807753012208 ? no : nn;
+        np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 || cpo < -0.984807753012208 ? no : np;
+        nn = rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 || con < -0.984807753012208 ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float s = 0.5 * (o.width + 0.7071067812);
         float spo = s / max(0.25, tpo.y * np.y + tpo.x * np.x);
@@ -253,8 +255,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         // -y, x
         dx = select(o.x0 - tpo.y * spo * sgn, o.x1 - ton.y * son * sgn, vid >> 1);
         dy = select(o.y0 + tpo.x * spo * sgn, o.y1 + ton.x * son * sgn, vid >> 1);
-    
-        dx *= float(o.x0 != FLT_MAX), dy *= float(o.x0 != FLT_MAX);
+        visible = float(o.x0 != FLT_MAX && ro < 1e2);
     } else {
         area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
         float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
@@ -270,7 +271,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * area;
     
     ShapesVertex vert;
-    vert.position = float4(x, y, z, 1.0);
+    vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
     vert.shape = 1.0;// distances(ctm, dx, dy);
