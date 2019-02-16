@@ -32,16 +32,12 @@ struct RasterizerSVG {
                 p.sequence->close();
         }
     }
-    static void writeBounds(RasterizerCoreGraphics::Scene& scene, Rasterizer::Bounds bounds) {
-        uint8_t bgra[4] = { 0, 0, 0, 255 };
-        Rasterizer::Path shape;
-        shape.sequence->addBounds(bounds);
+    static void addPathToScene(Rasterizer::Path path, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
         scene.bgras.emplace_back(*((uint32_t *)bgra));
-        scene.paths.emplace_back(shape);
+        scene.paths.emplace_back(path);
         scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
     }
-    static void writePhyllotaxis(RasterizerCoreGraphics::Scene& scene) {
-        uint8_t bgra[4] = { 0, 0, 0, 255 };
+    static Rasterizer::Path createPhyllotaxisPath() {
         size_t count = 100000;
         Rasterizer::Path shape(count);
         Rasterizer::AffineTransform *dst = shape.sequence->shapes;
@@ -54,9 +50,7 @@ struct RasterizerSVG {
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
-        scene.bgras.emplace_back(*((uint32_t *)bgra));
-        scene.paths.emplace_back(shape);
-        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
+        return shape;
     }
     static void writeScene(const void *bytes, size_t size, RasterizerCoreGraphics::Scene& scene) {
         char *data = (char *)malloc(size + 1);
@@ -64,7 +58,9 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            //writePhyllotaxis(scene);
+            uint8_t bgra[4] = { 0, 0, 0, 255 };
+            Rasterizer::Path shape;
+            shape.sequence->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
             
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
@@ -95,7 +91,8 @@ struct RasterizerSVG {
             // Delete
             nsvgDelete(image);
             
-            writeBounds(scene, Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
+            addPathToScene(shape, bgra, scene);
+            //addPathToScene(createPhyllotaxisPath(), bgra, scene);
         }
         free(data);
     }
