@@ -32,6 +32,14 @@ struct RasterizerSVG {
                 p.sequence->close();
         }
     }
+    static void writeBounds(RasterizerCoreGraphics::Scene& scene, Rasterizer::Bounds bounds) {
+        uint8_t bgra[4] = { 0, 0, 0, 255 };
+        Rasterizer::Path shape;
+        shape.sequence->addBounds(bounds);
+        scene.bgras.emplace_back(*((uint32_t *)bgra));
+        scene.paths.emplace_back(shape);
+        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
+    }
     static void writePhyllotaxis(RasterizerCoreGraphics::Scene& scene) {
         uint8_t bgra[4] = { 0, 0, 0, 255 };
         size_t count = 100000;
@@ -86,6 +94,8 @@ struct RasterizerSVG {
             }
             // Delete
             nsvgDelete(image);
+            
+            writeBounds(scene, Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
         }
         free(data);
     }
