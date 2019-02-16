@@ -234,7 +234,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     device Quad& quad = quads[iid];
     AffineTransform ctm = quad.unit;
     
-    float area = 1.0, visible = 1.0, dx, dy;
+    float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (quad.iz >> 24 == Quad::kOutlines) {
         device Outline& o = quad.outline;
         device Outline& p = quads[iid + o.prev].outline;
@@ -248,7 +248,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 || cpo < -0.984807753012208 ? no : np;
         nn = rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 || con < -0.984807753012208 ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float s = 0.5 * (o.width + 0.7071067812);
+        float s = 0.5 * o.width + 0.7071067812;
         float spo = s / max(0.25, tpo.y * np.y + tpo.x * np.x);
         float son = s / max(0.25, ton.y * no.y + ton.x * no.x);
         float sgn = vid & 1 ? -1.0 : 1.0;
