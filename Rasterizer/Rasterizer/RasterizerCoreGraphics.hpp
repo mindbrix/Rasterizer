@@ -300,7 +300,7 @@ struct RasterizerCoreGraphics {
             if (buffer) {
                 std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
                 size_t begins[count], *b = begins;
-                Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), begins, *buffer);
+                size_t size = Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), begins, *buffer);
                 if (count == 1)
                     Rasterizer::Context::writeContextToBuffer(& testScene.contexts[0], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[0], e[0], *buffer);
                 else {
@@ -308,10 +308,11 @@ struct RasterizerCoreGraphics {
                         Rasterizer::Context::writeContextToBuffer(& testScene.contexts[idx], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[idx], e[idx], *buffer);
                     });
                 }
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
                     for (auto entry : e[i])
                         *(buffer->entries.alloc(1)) = entry;
-                }
+                size_t end = buffer->entries.base[buffer->entries.end - 1].end;
+                assert(size >= end);
             }
         }
     }
