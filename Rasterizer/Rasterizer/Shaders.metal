@@ -244,9 +244,8 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         float2 vn = float2(n.x1 - n.x0, n.y1 - n.y0);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
-        float cpo = dot(np, no), con = dot(no, nn);
-        np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 || cpo < -0.984807753012208 ? no : np;
-        nn = rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 || con < -0.984807753012208 ? no : nn;
+        np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 ? no : np;
+        nn = rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float s = 0.5 * o.width + 0.7071067812;
         float spo = s / max(0.25, tpo.y * np.y + tpo.x * np.x);
