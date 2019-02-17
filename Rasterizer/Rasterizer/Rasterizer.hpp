@@ -440,7 +440,7 @@ struct Rasterizer {
             for (j = 0; j < ctx->segments.size(); j++)
                 ctx->segments[j].empty();
         }
-        static void writeContextsToBuffer(Context *contexts, size_t count,
+        static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                           Path *paths,
                                           AffineTransform *ctms,
                                           Colorant *colorants,
@@ -462,10 +462,11 @@ struct Rasterizer {
             if (begin != end)
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
             
-            for (begin = end, i = 0; i < count; i++) {
-                begins[i] = begin;
-                begin += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
+            for (size = end, i = 0; i < count; i++) {
+                begins[i] = size;
+                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
             }
+            return size;
         }
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
