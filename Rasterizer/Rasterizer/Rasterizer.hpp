@@ -662,15 +662,14 @@ struct Rasterizer {
         }
     }
     static void solveQuadratic(double A, double B, double C, float& t0, float& t1) {
-        double d, r;
         if (fabs(A) < 1e-3)
             t0 = -C / B, t1 = FLT_MAX;
         else {
-            d = B * B - 4.0 * A * C;
+            double d = B * B - 4.0 * A * C, r = sqrt(d);
             if (d < 0)
                 t0 = t1 = FLT_MAX;
             else
-                r = sqrt(d), t0 = (-B + r) * 0.5 / A, t1 = (-B - r) * 0.5 / A;
+                t0 = (-B + r) * 0.5 / A, t1 = (-B - r) * 0.5 / A;
         }
         t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
     }
