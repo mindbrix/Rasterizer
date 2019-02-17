@@ -388,24 +388,19 @@ struct Rasterizer {
                         }
                     }
                 }
-                if (begin != end) {
+                if (begin != end)
                     entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
-                    begin = end;
-                }
+                begin = end;
                 
                 if (ctx->gpu.quads.idx != qend) {
                     quad = ctx->gpu.quads.base + ctx->gpu.quads.idx;
-                    Buffer::Entry::Type type;
-                    int qtype;
-                    
-                    qtype = quad[0].iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
-                    
+                    int qtype = quad[0].iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                     Buffer::Entry *entry;
-                    entries.emplace_back(type, begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
+                    entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
                     for (j = 0, jend = qend - ctx->gpu.quads.idx; j < jend; j++) {
                         qtype = quad[j].iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                         if (type != entry->type)
-                            end = entry->end, entries.emplace_back(type, end, end), idxes.emplace_back(ctx->gpu.quads.idx + j), entry = & entries.back();
+                            end = entry->end, entries.emplace_back(Buffer::Entry::Type(type), end, end), idxes.emplace_back(ctx->gpu.quads.idx + j), entry = & entries.back();
                            
                         if (qtype == GPU::Quad::kShapes) {
                             iz = quad[j].iz & 0xFFFFFF;
