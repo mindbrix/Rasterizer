@@ -447,9 +447,14 @@ struct Rasterizer {
                                           size_t pathsCount,
                                           size_t *begins,
                                           Buffer& buffer) {
-            size_t size, i, begin, end, idx;
-            for (size = pathsCount * sizeof(Colorant), i = 0; i < count; i++)
-                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end + contexts[i].gpu.opaques.end) * sizeof(GPU::Quad);
+            size_t size, sz, i, begin, end, idx;
+            size = pathsCount * sizeof(Colorant);
+            for (i = 0; i < count; i++)
+                size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
+            for (i = 0; i < count; i++) {
+                begins[i] = size;
+                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
+            }
             buffer.data.alloc(size);
             
             begin = 0, end = pathsCount * sizeof(Colorant);
@@ -457,15 +462,10 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             
             for (idx = begin = end, i = 0; i < count; i++)
-                if ((size = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
-                    memcpy(buffer.data.base + idx, contexts[i].gpu.opaques.base, size), idx = end = end + size;
+                if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
+                    memcpy(buffer.data.base + idx, contexts[i].gpu.opaques.base, sz), idx = end = end + sz;
             if (begin != end)
                 new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
-            
-            for (size = end, i = 0; i < count; i++) {
-                begins[i] = size;
-                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
-            }
             return size;
         }
         Context() {}
