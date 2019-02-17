@@ -654,7 +654,7 @@ struct Rasterizer {
                         sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                         (*function)(sx0, sy0, sx1, sy1, info);
-                    } else {
+                    } else if (function != writeOutlineSegment) {
                         vx = mx < clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, sy0, vx, sy1, info);
                     }
@@ -711,7 +711,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
                             writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
-                       } else {
+                       } else if (function != writeOutlineSegment) {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty2, info);
                         }
@@ -804,7 +804,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                             writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
-                        } else {
+                        } else if (function != writeOutlineSegment) {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty3, info);
                         }
