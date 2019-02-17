@@ -448,7 +448,7 @@ struct Rasterizer {
                                           size_t *begins,
                                           Buffer& buffer) {
             size_t size, sz, i, begin, end, idx;
-            size = pathsCount * sizeof(Colorant);
+            begin = 0, end = size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
             for (i = 0; i < count; i++) {
@@ -457,7 +457,6 @@ struct Rasterizer {
             }
             buffer.data.alloc(size);
             
-            begin = 0, end = pathsCount * sizeof(Colorant);
             memcpy(buffer.data.base, colorants, end);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             
