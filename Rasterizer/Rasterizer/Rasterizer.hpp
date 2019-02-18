@@ -655,20 +655,18 @@ struct Rasterizer {
                 }
         }
     }
-    static void solveQuadratic(double A, double B, double C, float& t0, float& t1) {
+    static int solveQuadratic(double A, double B, double C, float *ts, int end) {
         if (fabs(A) < 1e-3)
-            t0 = -C / B, t1 = FLT_MAX;
+            ts[end++] = -C / B;
         else {
             double d = B * B - 4.0 * A * C, r = sqrt(d);
-            if (d < 0)
-                t0 = t1 = FLT_MAX;
-            else
-                t0 = (-B + r) * 0.5 / A, t1 = (-B - r) * 0.5 / A;
+            if (d >= 0)
+                ts[end++] = (-B + r) * 0.5 / A, ts[end++] = (-B - r) * 0.5 / A;
         }
-        t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0, t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
+        return end;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, Function function, Info *info) {
-        float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
+        float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
         if (ly < clip.uy && uy > clip.ly) {
@@ -678,25 +676,27 @@ struct Rasterizer {
             ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
             int end = 0;
             if (clip.ly >= ly && clip.ly < uy)
-                solveQuadratic(ay, by, y0 - clip.ly, ts[end], ts[end + 1]), end += 2;
+                end = solveQuadratic(ay, by, y0 - clip.ly, ts, end);
             if (clip.uy >= ly && clip.uy < uy)
-                solveQuadratic(ay, by, y0 - clip.uy, ts[end], ts[end + 1]), end += 2;
+                end = solveQuadratic(ay, by, y0 - clip.uy, ts, end);
             if (clip.lx >= lx && clip.lx < ux)
-                solveQuadratic(ax, bx, x0 - clip.lx, ts[end], ts[end + 1]), end += 2;
+                end = solveQuadratic(ax, bx, x0 - clip.lx, ts, end);
             if (clip.ux >= lx && clip.ux < ux)
-                solveQuadratic(ax, bx, x0 - clip.ux, ts[end], ts[end + 1]), end += 2;
+                end = solveQuadratic(ax, bx, x0 - clip.ux, ts, end);
             if (end < 8)
-                ts[end] = 0.f, ts[end + 1] = 1.f, end += 2;
+                ts[end++] = 0.f, ts[end++] = 1.f;
             std::sort(& ts[0], & ts[end]);
-            for (int i = 0; i < end - 1; i++)
-                if (ts[i] != ts[i + 1]) {
-                    t = (ts[i] + ts[i + 1]) * 0.5f;
+            for (int i = 0; i < end - 1; i++) {
+                t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
+                t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
+                if (t0 != t1) {
+                    t = (t0 + t1) * 0.5f;
                     y = (ay * t + by) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
                         x = (ax * t + bx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
-                        t = ts[i], tx0 = (ax * t + bx) * t + x0, ty0 = (ay * t + by) * t + y0;
-                        t = ts[i + 1], tx2 = (ax * t + bx) * t + x0, ty2 = (ay * t + by) * t + y0;
+                        tx0 = (ax * t0 + bx) * t0 + x0, ty0 = (ay * t0 + by) * t0 + y0;
+                        tx2 = (ax * t1 + bx) * t1 + x0, ty2 = (ay * t1 + by) * t1 + y0;
                         tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
                         ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                         ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
@@ -710,6 +710,7 @@ struct Rasterizer {
                         }
                     }
                 }
+            }
         }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, Info *info) {
@@ -727,9 +728,12 @@ struct Rasterizer {
         (*function)(px0, py0, x2, y2, info);
     }
     static void solveCubic(double A, double B, double C, double D, float& t0, float& t1, float& t2) {
-        if (fabs(D) < 1e-3)
-            solveQuadratic(A, B, C, t0, t1), t2 = FLT_MAX;
-        else {
+        if (fabs(D) < 1e-3) {
+            float *ts = & t0;
+            int end = solveQuadratic(A, B, C, ts, 0);
+            while (end++ < 3)
+                ts[end] = FLT_MAX;
+        }  else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
             double  p, q, q2, u1, v1, a3, discriminant, sd;
             A /= D, B /= D, C /= D, p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C;
