@@ -303,21 +303,16 @@ struct Rasterizer {
         else {
             float sy1, dy, sx1, dx;
             int s, ds, count;
-            if (y0 < y1) {
-                iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * Context::kfh, dy = Context::kfh;
-                s = iy0, ds = 1;
-            } else {
-                iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh), sy1 = iy1 * Context::kfh, dy = -Context::kfh;
-                s = iy1 - 1.f, ds = -1;
-            }
+            if (y0 < y1)
+                iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * Context::kfh, dy = Context::kfh, s = iy0, ds = 1;
+            else
+                iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh), sy1 = iy1 * Context::kfh, dy = -Context::kfh, s = iy1 - 1.f, ds = -1;
             count = iy1 - iy0;
-            dx = dy / (y1 - y0) * (x1 - x0);
-            sx1 = (sy1 - y0) / dy * dx + x0;
+            dx = dy / (y1 - y0) * (x1 - x0), sx1 = (sy1 - y0) / dy * dx + x0;
             while (--count) {
                 sx1 += dx, sy1 += dy;
                 new (info->segments[s].alloc(1)) Segment(x0, y0, sx1, sy1);
-                x0 = sx1, y0 = sy1;
-                s += ds;
+                x0 = sx1, y0 = sy1, s += ds;
             }
             new (info->segments[s].alloc(1)) Segment(x0, y0, x1, y1);
         }
