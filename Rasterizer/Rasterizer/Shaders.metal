@@ -254,7 +254,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         // -y, x
         dx = select(o.x0 - tpo.y * spo * sgn, o.x1 - ton.y * son * sgn, vid >> 1);
         dy = select(o.y0 + tpo.x * spo * sgn, o.y1 + ton.x * son * sgn, vid >> 1);
-        d0 = 0.5 - 0.7071067812, d1 = o.width + 0.5 + 0.7071067812;
+        d0 = -0.2071067812, d1 = o.width + 1.27071067812;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
     } else {
         area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
