@@ -659,9 +659,9 @@ struct Rasterizer {
         if (fabs(A) < 1e-3)
             ts[end++] = -C / B;
         else {
-            double d = B * B - 4.0 * A * C, r, denom;
+            double d = B * B - 4.0 * A * C, r;
             if (d >= 0)
-                r = sqrt(d), denom = 0.5 / A, ts[end++] = (-B + r) * denom, ts[end++] = (-B - r) * denom;
+                r = sqrt(d), ts[end++] = (-B + r) * 0.5 / A, ts[end++] = (-B - r) * 0.5 / A;
         }
         return end;
     }
