@@ -806,7 +806,7 @@ struct Rasterizer {
         }
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, Info *info) {
-        float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, px0, px1, py0, py1;
+        float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         a = ax * ax + ay * ay + bx * bx + by * by;
@@ -814,13 +814,13 @@ struct Rasterizer {
         dt = 1.f / count, dt2 = dt * dt;
         bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
         by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
-        px0 = px1 = x0, py0 = py1 = y0;
+        x1 = x0, y1 = y0;
         while (--count) {
-            px1 += f1x, f1x += f2x, f2x += f3x, py1 += f1y, f1y += f2y, f2y += f3y;
-            (*function)(px0, py0, px1, py1, info);
-            px0 = px1, py0 = py1;
+            x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
+            (*function)(x0, y0, x1, y1, info);
+            x0 = x1, y0 = y1;
         }
-        (*function)(px0, py0, x3, y3, info);
+        (*function)(x0, y0, x3, y3, info);
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
