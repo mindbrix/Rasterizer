@@ -549,14 +549,19 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        Bounds dev = path.sequence->hash ? Bounds(path.sequence->bounds.unit(ctm)).integral() : clip;
-                        if (path.sequence->hash && !hit && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+                        bool cacheable = false;
+                        if (path.sequence->hash) {
+                            Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
+                            float dot = ctm.a * ctm.c + ctm.b * ctm.d;
+                            float ratio = (ctm.a * ctm.a + ctm.b * ctm.b) / (ctm.c * ctm.c + ctm.d * ctm.d);
+                            cacheable = dot == 0.f && ratio == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                        }
+                        if (cacheable) {
                             Row<Segment> *sgmnts;
-                            AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                             auto it = cache.find(path.sequence->hash);
+                            AffineTransform m = it == cache.end() ? AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f) : ctm.concat(it->second.ctm.invert());
                             if (it != cache.end()) {
                                 sgmnts = & it->second.segments;
-                                m = ctm.concat(it->second.ctm.invert());
                             } else {
                                 auto entry = cache.emplace(path.sequence->hash, Entry(ctm));
                                 sgmnts = & entry.first->second.segments;
