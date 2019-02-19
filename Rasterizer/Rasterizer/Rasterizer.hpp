@@ -12,6 +12,7 @@ typedef uint8_t vec4b __attribute__((vector_size(4)));
 
 #import "Rasterizer.h"
 #import <vector>
+#import <unordered_map>
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
@@ -347,6 +348,12 @@ struct Rasterizer {
         }
     }
     struct Context {
+        struct Entry {
+            Entry() {}
+            Entry(AffineTransform ctm) : ctm(ctm) {}
+            AffineTransform ctm;
+            Row<Segment> segments;
+        };
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
         static void writeContextToBuffer(Context *ctx,
@@ -475,6 +482,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.width = width, gpu.height = height;
             gpu.allocator.init(width, height);
+            cache.clear();
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, float width, size_t begin, size_t end) {
             if (begin == end)
@@ -541,8 +549,34 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
-                        writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
+                        if (0 && path.sequence->hash && !hit) {
+                            Row<Segment> *sgmnts;
+                            AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                            auto it = cache.find(path.sequence->hash);
+                            if (it != cache.end()) {
+                                sgmnts = & it->second.segments;
+                                m = ctm.concat(it->second.ctm.invert());
+                            } else {
+                                auto entry = cache.emplace(path.sequence->hash, Entry(ctm));
+                                assert(entry.second);
+                                sgmnts = & entry.first->second.segments;
+                                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
+                            }
+                            Info info(nullptr, 0, & segments[0]);
+                            Segment *s = sgmnts->base;
+                            float x0, y0, x1, y1;
+                            for (int i = 0; i < sgmnts->end; i++, s++) {
+                                if (s->x0 != FLT_MAX) {
+                                    x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
+                                    x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                                    writeClippedSegment(x0, y0, x1, y1, & info);
+                                }
+                            }
+                            writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
+                        } else {
+                            writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
+                            writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
+                        }
                     }
                 }
             }
@@ -553,6 +587,7 @@ struct Rasterizer {
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
+        std::unordered_map<size_t, Entry> cache;
     };
     
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
