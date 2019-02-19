@@ -558,8 +558,7 @@ struct Rasterizer {
                             if ((cached = dot == 0.f && ab / cd == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy)) {
                                 auto it = cache.find(path.sequence->hash);
                                 if (it == cache.end()) {
-                                    auto entry = cache.emplace(path.sequence->hash, Entry(ctm));
-                                    sgmnts = & entry.first->second.segments;
+                                    sgmnts = & cache.emplace(path.sequence->hash, Entry(ctm)).first->second.segments;
                                     writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
                                 } else if ((cached = ab / (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) == 1.f)) {
                                     sgmnts = & it->second.segments;
@@ -589,11 +588,9 @@ struct Rasterizer {
                                     }
                                 }
                             }
-                            writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
-                        } else {
+                        } else
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
-                            writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
-                        }
+                        writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
                     }
                 }
             }
