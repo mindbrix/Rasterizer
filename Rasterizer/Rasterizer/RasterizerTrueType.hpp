@@ -117,10 +117,12 @@ struct RasterizerTrueType {
                 }
             return 0;
         }
-        Rasterizer::Path glyphPath(int glyph) {
-            auto it = cache.find(glyph);
-            if (it != cache.end())
-                return it->second;
+        Rasterizer::Path glyphPath(int glyph, bool cacheable) {
+            if (cacheable) {
+                auto it = cache.find(glyph);
+                if (it != cache.end())
+                    return it->second;
+            }
             Rasterizer::Path path;
             stbtt_vertex *vertices, *vertex;
             int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
@@ -141,7 +143,10 @@ struct RasterizerTrueType {
                             break;
                     }
                 stbtt_FreeShape(& info, vertices);
-                cache.emplace(glyph, path);
+                if (cacheable) {
+                    cache.emplace(glyph, path);
+                    path.sequence->hash = (size_t(crc) << 32) | glyph;
+                }
             }
             return path;
         }
@@ -215,7 +220,7 @@ struct RasterizerTrueType {
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
                     bgras.emplace_back(*((uint32_t *)bgra));
-                    paths.emplace_back(font.glyphPath(glyphs[j]));
+                    paths.emplace_back(font.glyphPath(glyphs[j], true));
                     Rasterizer::Bounds gb = paths.back().sequence->bounds;
                     if (x == beginx) {
                         if (left)
@@ -251,7 +256,7 @@ struct RasterizerTrueType {
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
                 bgras.emplace_back(*((uint32_t *)bgra));
                 ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
-                paths.emplace_back(font.glyphPath(glyph));
+                paths.emplace_back(font.glyphPath(glyph, false));
             }
     }
 };
