@@ -574,11 +574,9 @@ struct Rasterizer {
                                 size_t iy = clip.ly * Context::krfh;
                                 Segment *dst = segments[iy].alloc(sgmnts->end);
                                 for (int i = 0; i < sgmnts->end; i++, s++) {
-                                    if (s->x0 != FLT_MAX) {
-                                        x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
-                                        x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                                        new (dst++) Segment(x0, y0, x1, y1);
-                                    }
+                                    y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                                    if (s->x0 != FLT_MAX && y0 != y1)
+                                        new (dst++) Segment(s->x0 * m.a + s->y0 * m.c + m.tx, y0, s->x1 * m.a + s->y1 * m.c + m.tx, y1);
                                 }
                                 segments[iy].end = dst - segments[iy].base;
                             } else {
