@@ -549,51 +549,55 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        bool cached = false;
-                        Row<Segment> *sgmnts = nullptr;
-                        AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        if (path.sequence->hash) {
-                            Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
-                            float dot = ctm.a * ctm.c + ctm.b * ctm.d, ab = ctm.a * ctm.a + ctm.b * ctm.b, cd = ctm.c * ctm.c + ctm.d * ctm.d;
-                            if ((cached = dot == 0.f && ab / cd == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy)) {
-                                auto it = cache.find(path.sequence->hash);
-                                if (it == cache.end()) {
-                                    sgmnts = & cache.emplace(path.sequence->hash, Entry(ctm)).first->second.segments;
-                                    writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
-                                } else if ((cached = ab / (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) == 1.f)) {
-                                    sgmnts = & it->second.segments;
-                                    m = ctm.concat(it->second.ctm.invert());
-                                }
-                            }
-                        }
-                        if (cached) {
-                            Segment *s = sgmnts->base;
-                            float x0, y0, x1, y1;
-                            if (floorf(clip.ly * Context::krfh) == floorf(clip.uy * Context::krfh)) {
-                                size_t iy = clip.ly * Context::krfh;
-                                Segment *dst = segments[iy].alloc(sgmnts->end);
-                                for (int i = 0; i < sgmnts->end; i++, s++) {
-                                    y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                                    if (s->x0 != FLT_MAX && y0 != y1)
-                                        new (dst++) Segment(s->x0 * m.a + s->y0 * m.c + m.tx, y0, s->x1 * m.a + s->y1 * m.c + m.tx, y1);
-                                }
-                                segments[iy].end = dst - segments[iy].base;
-                            } else {
-                                Info info(nullptr, 0, & segments[0]);
-                                for (int i = 0; i < sgmnts->end; i++, s++) {
-                                    if (s->x0 != FLT_MAX) {
-                                        x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
-                                        x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                                        writeClippedSegment(x0, y0, x1, y1, & info);
-                                    }
-                                }
-                            }
-                        } else
+                        if (path.sequence->hash == 0 || !writeCachedPath(path, ctm, clip))
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
                         writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
                     }
                 }
             }
+        }
+        bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip) {
+            bool cached = false;
+            Row<Segment> *sgmnts = nullptr;
+            AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+            if (path.sequence->hash) {
+                Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
+                float dot = ctm.a * ctm.c + ctm.b * ctm.d, ab = ctm.a * ctm.a + ctm.b * ctm.b, cd = ctm.c * ctm.c + ctm.d * ctm.d;
+                if ((cached = dot == 0.f && ab / cd == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy)) {
+                    auto it = cache.find(path.sequence->hash);
+                    if (it == cache.end()) {
+                        sgmnts = & cache.emplace(path.sequence->hash, Entry(ctm)).first->second.segments;
+                        writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
+                    } else if ((cached = ab / (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) == 1.f)) {
+                        sgmnts = & it->second.segments;
+                        m = ctm.concat(it->second.ctm.invert());
+                    }
+                }
+            }
+            if (cached) {
+                Segment *s = sgmnts->base;
+                float x0, y0, x1, y1;
+                if (floorf(clip.ly * Context::krfh) == floorf(clip.uy * Context::krfh)) {
+                    size_t iy = clip.ly * Context::krfh;
+                    Segment *dst = segments[iy].alloc(sgmnts->end);
+                    for (int i = 0; i < sgmnts->end; i++, s++) {
+                        y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                        if (s->x0 != FLT_MAX && y0 != y1)
+                            new (dst++) Segment(s->x0 * m.a + s->y0 * m.c + m.tx, y0, s->x1 * m.a + s->y1 * m.c + m.tx, y1);
+                    }
+                    segments[iy].end = dst - segments[iy].base;
+                } else {
+                    Info info(nullptr, 0, & segments[0]);
+                    for (int i = 0; i < sgmnts->end; i++, s++) {
+                        if (s->x0 != FLT_MAX) {
+                            x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
+                            x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                            writeClippedSegment(x0, y0, x1, y1, & info);
+                        }
+                    }
+                }
+            }
+            return cached;
         }
         Bitmap bitmap;
         GPU gpu;
