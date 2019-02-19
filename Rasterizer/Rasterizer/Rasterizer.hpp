@@ -549,24 +549,29 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        bool cacheable = false;
+                        bool cached = false;
+                        Row<Segment> *sgmnts = nullptr;
+                        AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         if (path.sequence->hash) {
                             Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
                             float dot = ctm.a * ctm.c + ctm.b * ctm.d;
                             float ratio = (ctm.a * ctm.a + ctm.b * ctm.b) / (ctm.c * ctm.c + ctm.d * ctm.d);
-                            cacheable = dot == 0.f && ratio == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
-                        }
-                        if (cacheable) {
-                            Row<Segment> *sgmnts;
-                            auto it = cache.find(path.sequence->hash);
-                            AffineTransform m = it == cache.end() ? AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f) : ctm.concat(it->second.ctm.invert());
-                            if (it != cache.end()) {
-                                sgmnts = & it->second.segments;
-                            } else {
-                                auto entry = cache.emplace(path.sequence->hash, Entry(ctm));
-                                sgmnts = & entry.first->second.segments;
-                                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
+                            if (dot == 0.f && ratio == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+                                auto it = cache.find(path.sequence->hash);
+                                if (it == cache.end()) {
+                                    auto entry = cache.emplace(path.sequence->hash, Entry(ctm));
+                                    sgmnts = & entry.first->second.segments;
+                                    writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
+                                    cached = true;
+                                } else {
+                                    ratio = (ctm.a * ctm.a + ctm.b * ctm.b) / (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b);
+                                    cached = ratio == 1.f;
+                                    sgmnts = & it->second.segments;
+                                    m = ctm.concat(it->second.ctm.invert());
+                                }
                             }
+                        }
+                        if (cached) {
                             Segment *s = sgmnts->base;
                             float x0, y0, x1, y1;
                             if (floorf(clip.ly * Context::krfh) == floorf(clip.uy * Context::krfh)) {
