@@ -549,7 +549,8 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        if (0 && path.sequence->hash && !hit) {
+                        Bounds dev = path.sequence->hash ? Bounds(path.sequence->bounds.unit(ctm)).integral() : clip;
+                        if (path.sequence->hash && !hit && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                             Row<Segment> *sgmnts;
                             AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                             auto it = cache.find(path.sequence->hash);
@@ -558,7 +559,6 @@ struct Rasterizer {
                                 m = ctm.concat(it->second.ctm.invert());
                             } else {
                                 auto entry = cache.emplace(path.sequence->hash, Entry(ctm));
-                                assert(entry.second);
                                 sgmnts = & entry.first->second.segments;
                                 writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
                             }
