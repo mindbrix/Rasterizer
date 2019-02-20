@@ -156,12 +156,12 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static Rasterizer::Bounds writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, bool left, const char *str,
+    static Rasterizer::Path writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, bool left, const char *str,
                             std::vector<uint32_t>& bgras,
                             std::vector<Rasterizer::AffineTransform>& ctms,
                             std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
-            return Rasterizer::Bounds(0.f, 0.f, 0.f, 0.f);
+            return Rasterizer::Path();
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ';
         const int NL = -1, SP = -2;
@@ -236,13 +236,17 @@ struct RasterizerTrueType {
                 }
         } while (i < len);
         
+        Rasterizer::Path shapes(paths.size() - base);
+        Rasterizer::AffineTransform *dst = shapes.sequence->shapes;
         float lx = FLT_MAX, ly = FLT_MAX, ux = -FLT_MAX, uy = -FLT_MAX;
-        for (i = base; i < paths.size(); i++) {
-            Rasterizer::Bounds b = paths[i].sequence->bounds.transform(ctms[i]);
+        for (i = base; i < paths.size(); i++, dst++) {
+            *dst = paths[i].sequence->bounds.unit(ctms[i]);
+            Rasterizer::Bounds b(*dst);
             lx = lx < b.lx ? lx : b.lx, ly = ly < b.ly ? ly : b.ly;
             ux = ux > b.ux ? ux : b.ux, uy = uy > b.uy ? uy : b.uy;
         }
-        return Rasterizer::Bounds(lx, ly, ux, uy);
+        shapes.sequence->bounds = Rasterizer::Bounds(lx, ly, ux, uy);
+        return shapes;
     }
     static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
                                std::vector<uint32_t>& bgras,
