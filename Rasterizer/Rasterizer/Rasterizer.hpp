@@ -75,7 +75,7 @@ struct Rasterizer {
             uint8_t     types[8];
         };
         Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(1), hash(0) {}
-        Sequence(size_t count) : shapesCount(count), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), shapes((AffineTransform *)malloc(count * sizeof(shapes[0]))), circles((bool *)malloc(count * sizeof(bool))), refCount(1), hash(0) {}
+        Sequence(size_t count) : shapesCount(count), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), shapes((AffineTransform *)calloc(count, sizeof(shapes[0]))), circles((bool *)calloc(count, sizeof(bool))), refCount(1), hash(0) {}
         ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
