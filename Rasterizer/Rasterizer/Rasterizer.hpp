@@ -188,6 +188,7 @@ struct Rasterizer {
     struct Row {
         Row() : end(0), size(0), idx(0) {}
         void empty() { end = idx = 0; }
+        void reset() { size = end = idx = 0, elems = std::vector<T>(); }
         inline T *alloc(size_t n) {
             size_t i = end;
             end += n;
@@ -204,6 +205,7 @@ struct Rasterizer {
         const size_t kPageSize = 4096;
         Pages() : size(0), base(nullptr) {}
         ~Pages() { if (base) free(base); }
+        void reset() { size = 0, ~Pages(), base = nullptr; }
         T *alloc(size_t n) {
             if (size < n) {
                 size = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
