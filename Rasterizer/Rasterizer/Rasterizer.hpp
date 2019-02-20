@@ -351,7 +351,7 @@ struct Rasterizer {
         Entry() {}
         Entry(AffineTransform ctm) : ctm(ctm) {}
         AffineTransform ctm;
-        Row<Segment> segments;
+        size_t begin, end;
     };
     struct Context {
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
@@ -568,22 +568,25 @@ struct Rasterizer {
     static bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache) {
         if (path.sequence->hash == 0)
             return false;
-        Row<Segment> *row = nullptr;
+        Entry *e = nullptr;
         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
         Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
         float dot = ctm.a * ctm.c + ctm.b * ctm.d, ab = ctm.a * ctm.a + ctm.b * ctm.b, cd = ctm.c * ctm.c + ctm.d * ctm.d;
         if (dot == 0.f && ab == cd && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
             auto it = cache.find(path.sequence->hash);
             if (it == cache.end()) {
-                row = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second.segments;
-                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, row));
+                e = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
+                e->begin = info.segments->idx;
+                writePath(path, ctm, clip, writeOutlineSegment, info);
+                e->end = info.segments->end;
+                info.segments->idx = info.segments->end;
             } else if (fabsf(ab * (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) - 1.f) < 1e-6f) {
-                row = & it->second.segments;
+                e = & it->second;
                 m = ctm.concat(it->second.ctm);
             }
         }
-        if (row) {
-            Segment *s = row->base, *send = s + row->end;
+        if (e) {
+            Segment *s = info.segments->base + e->begin, *send = info.segments->base + e->end;
             float x0, y0, x1, y1, iy0, iy1;
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < send; s++, x0 = x1, y0 = y1, iy0 = iy1) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
@@ -596,7 +599,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        return row != nullptr;
+        return e != nullptr;
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
