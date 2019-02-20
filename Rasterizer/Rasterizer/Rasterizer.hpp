@@ -577,11 +577,9 @@ struct Rasterizer {
             if (it == cache.end()) {
                 row = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second.segments;
                 writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, row));
-            } else {
-                if (fabsf(ab * (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) - 1.f) < 1e-6f) {
-                    row = & it->second.segments;
-                    m = ctm.concat(it->second.ctm);
-                }
+            } else if (fabsf(ab * (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) - 1.f) < 1e-6f) {
+                row = & it->second.segments;
+                m = ctm.concat(it->second.ctm);
             }
         }
         if (row) {
