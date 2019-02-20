@@ -347,13 +347,13 @@ struct Rasterizer {
             }
         }
     }
+    struct Entry {
+        Entry() {}
+        Entry(AffineTransform ctm) : ctm(ctm) {}
+        AffineTransform ctm;
+        Row<Segment> segments;
+    };
     struct Context {
-        struct Entry {
-            Entry() {}
-            Entry(AffineTransform ctm) : ctm(ctm) {}
-            AffineTransform ctm;
-            Row<Segment> segments;
-        };
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
         static void writeContextToBuffer(Context *ctx,
@@ -549,55 +549,12 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        if (path.sequence->hash == 0 || !writeCachedPath(path, ctm, clip))
+                        if (!writeCachedPath(path, ctm, clip, Info(nullptr, 0, & segments[0]), cache))
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
                         writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
                     }
                 }
             }
-        }
-        bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip) {
-            bool cached = false;
-            Row<Segment> *sgmnts = nullptr;
-            AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-            if (path.sequence->hash) {
-                Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
-                float dot = ctm.a * ctm.c + ctm.b * ctm.d, ab = ctm.a * ctm.a + ctm.b * ctm.b, cd = ctm.c * ctm.c + ctm.d * ctm.d;
-                if ((cached = dot == 0.f && ab / cd == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy)) {
-                    auto it = cache.find(path.sequence->hash);
-                    if (it == cache.end()) {
-                        sgmnts = & cache.emplace(path.sequence->hash, Entry(ctm)).first->second.segments;
-                        writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, sgmnts));
-                    } else if ((cached = ab / (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) == 1.f)) {
-                        sgmnts = & it->second.segments;
-                        m = ctm.concat(it->second.ctm.invert());
-                    }
-                }
-            }
-            if (cached) {
-                Segment *s = sgmnts->base;
-                float x0, y0, x1, y1;
-                if (floorf(clip.ly * Context::krfh) == floorf(clip.uy * Context::krfh)) {
-                    size_t iy = clip.ly * Context::krfh;
-                    Segment *dst = segments[iy].alloc(sgmnts->end);
-                    for (int i = 0; i < sgmnts->end; i++, s++) {
-                        y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                        if (s->x0 != FLT_MAX && y0 != y1)
-                            new (dst++) Segment(s->x0 * m.a + s->y0 * m.c + m.tx, y0, s->x1 * m.a + s->y1 * m.c + m.tx, y1);
-                    }
-                    segments[iy].end = dst - segments[iy].base;
-                } else {
-                    Info info(nullptr, 0, & segments[0]);
-                    for (int i = 0; i < sgmnts->end; i++, s++) {
-                        if (s->x0 != FLT_MAX) {
-                            x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
-                            x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                            writeClippedSegment(x0, y0, x1, y1, & info);
-                        }
-                    }
-                }
-            }
-            return cached;
         }
         Bitmap bitmap;
         GPU gpu;
@@ -608,6 +565,49 @@ struct Rasterizer {
         std::unordered_map<size_t, Entry> cache;
     };
     
+    static bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache) {
+        if (path.sequence->hash == 0)
+            return false;
+        Row<Segment> *row = nullptr;
+        AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+        Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
+        float dot = ctm.a * ctm.c + ctm.b * ctm.d, ab = ctm.a * ctm.a + ctm.b * ctm.b, cd = ctm.c * ctm.c + ctm.d * ctm.d;
+        if (dot == 0.f && ab / cd == 1.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+            auto it = cache.find(path.sequence->hash);
+            if (it == cache.end()) {
+                row = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second.segments;
+                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, row));
+            } else {
+                if (fabsf(ab * (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) - 1.f) < 1e-6f) {
+                    row = & it->second.segments;
+                    m = ctm.concat(it->second.ctm);
+                }
+            }
+        }
+        if (row) {
+            Segment *s = row->base;
+            float x0, y0, x1, y1;
+            if (floorf(clip.ly * Context::krfh) == floorf(clip.uy * Context::krfh)) {
+                size_t iy = clip.ly * Context::krfh;
+                Segment *dst = info.segments[iy].alloc(row->end);
+                for (int i = 0; i < row->end; i++, s++) {
+                    y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                    if (s->x0 != FLT_MAX && y0 != y1)
+                        new (dst++) Segment(s->x0 * m.a + s->y0 * m.c + m.tx, y0, s->x1 * m.a + s->y1 * m.c + m.tx, y1);
+                }
+                info.segments[iy].end = dst - info.segments[iy].base;
+            } else {
+                for (int i = 0; i < row->end; i++, s++) {
+                    if (s->x0 != FLT_MAX) {
+                        x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
+                        x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                        writeClippedSegment(x0, y0, x1, y1, & info);
+                    }
+                }
+            }
+        }
+        return row != nullptr;
+    }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
