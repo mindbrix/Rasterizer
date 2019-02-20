@@ -32,11 +32,6 @@ struct RasterizerSVG {
                 p.sequence->close();
         }
     }
-    static void addPathToScene(Rasterizer::Path path, uint8_t *bgra, RasterizerCoreGraphics::Scene& scene) {
-        scene.bgras.emplace_back(*((uint32_t *)bgra));
-        scene.paths.emplace_back(path);
-        scene.ctms.emplace_back(1, 0, 0, 1, 0, 0);
-    }
     static Rasterizer::Path createPhyllotaxisPath() {
         size_t count = 100000;
         Rasterizer::Path shape(count);
@@ -91,10 +86,10 @@ struct RasterizerSVG {
             if (0) {
                 Rasterizer::Path shape;
                 shape.sequence->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
-                addPathToScene(shape, bgra, scene);
+                scene.addPath(shape, Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
             if (0) {
-                addPathToScene(createPhyllotaxisPath(), bgra, scene);
+                scene.addPath(createPhyllotaxisPath(), Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
         }
         free(data);
