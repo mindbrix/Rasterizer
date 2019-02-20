@@ -58,10 +58,6 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            uint8_t bgra[4] = { 0, 0, 0, 255 };
-            Rasterizer::Path shape;
-            shape.sequence->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
-            
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
@@ -91,8 +87,15 @@ struct RasterizerSVG {
             // Delete
             nsvgDelete(image);
             
-            //addPathToScene(shape, bgra, scene);
-            //addPathToScene(createPhyllotaxisPath(), bgra, scene);
+            uint8_t bgra[4] = { 0, 0, 0, 255 };
+            if (0) {
+                Rasterizer::Path shape;
+                shape.sequence->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
+                addPathToScene(shape, bgra, scene);
+            }
+            if (0) {
+                addPathToScene(createPhyllotaxisPath(), bgra, scene);
+            }
         }
         free(data);
     }
