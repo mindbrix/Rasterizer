@@ -348,7 +348,6 @@ struct Rasterizer {
         }
     }
     struct Entry {
-        Entry() {}
         Entry(AffineTransform ctm) : ctm(ctm) {}
         AffineTransform ctm;
         size_t begin, end;
