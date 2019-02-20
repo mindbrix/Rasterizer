@@ -583,23 +583,13 @@ struct Rasterizer {
             }
         }
         if (row) {
-            Segment *s = row->base, *send = s + row->end, *dst;
+            Segment *s = row->base, *send = s + row->end;
             float x0, y0, x1, y1;
-            if (floorf(clip.ly * Context::krfh) == floorf(clip.uy * Context::krfh)) {
-                size_t iy = clip.ly * Context::krfh;
-                for (dst = info.segments[iy].alloc(row->end); s < send; s++) {
-                    y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                    if (s->x0 != FLT_MAX && y0 != y1)
-                        new (dst++) Segment(s->x0 * m.a + s->y0 * m.c + m.tx, y0, s->x1 * m.a + s->y1 * m.c + m.tx, y1);
-                }
-                info.segments[iy].end = dst - info.segments[iy].base;
-            } else {
-                for (; s < send; s++) {
-                    if (s->x0 != FLT_MAX) {
-                        x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
-                        x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
-                        writeClippedSegment(x0, y0, x1, y1, & info);
-                    }
+            for (; s < send; s++) {
+                if (s->x0 != FLT_MAX) {
+                    x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
+                    x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                    writeClippedSegment(x0, y0, x1, y1, & info);
                 }
             }
         }
