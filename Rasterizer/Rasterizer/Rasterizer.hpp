@@ -564,7 +564,11 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        if (!writeCachedPath(path, ctm, clip, Info(nullptr, 0, & segments[0]), cache, cacheSegments))
+                        AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                        Entry *e = writeCachedPath(path, ctm, clip, Info(nullptr, 0, & segments[0]), cache, cacheSegments, m);
+                        if (e && e->begin != e->end)
+                            writeCachedOutline(cacheSegments.base + e->begin, cacheSegments.base + e->end, m, Info(nullptr, 0, & segments[0]));
+                        else
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
                         writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
                     }
@@ -593,11 +597,10 @@ struct Rasterizer {
                 x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
         }
     }
-    static bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, Row<Segment>& cacheSegments) {
-        if (path.sequence->hash == 0)
-            return false;
+    static Entry *writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, Row<Segment>& cacheSegments, AffineTransform& m) {
         Entry *e = nullptr;
-        AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+        if (path.sequence->hash == 0)
+            return e;
         Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
         if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
             auto it = cache.find(path.sequence->hash);
@@ -612,9 +615,7 @@ struct Rasterizer {
                     e = & it->second;
             }
         }
-        if (e && e->begin != e->end)
-            writeCachedOutline(cacheSegments.base + e->begin, cacheSegments.base + e->end, m, info);
-        return e != nullptr;
+        return e;
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
