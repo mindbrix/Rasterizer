@@ -221,19 +221,20 @@ struct Rasterizer {
     struct GPU {
         struct Allocator {
             void init(size_t w, size_t h) {
-                width = w, height = h, strip = sheet = Bounds(0.f, 0.f, 0.f, 0.f);
+                width = w, height = h, sheet = strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
             }
-            void alloc(float w, float& ox, float& oy) {
-                if (strip.ux - strip.lx < w) {
-                    if (sheet.uy - sheet.ly < Context::kfh)
+            void alloc(float w, float h, float& ox, float& oy) {
+                Bounds& b = h == Context::kfh ? strip : fast;
+                if (b.ux - b.lx < w) {
+                    if (sheet.uy - sheet.ly < h)
                         sheet = Bounds(0.f, 0.f, width, height);
-                    strip = sheet;
-                    strip.uy = sheet.ly + Context::kfh, sheet.ly = strip.uy;
+                    b = sheet;
+                    b.uy = sheet.ly + h, sheet.ly = b.uy;
                 }
-                ox = strip.lx, strip.lx += w, oy = strip.ly;
+                ox = b.lx, b.lx += w, oy = b.ly;
             }
             size_t width, height;
-            Bounds sheet, strip;
+            Bounds sheet, strip, fast;
         };
         struct Cell {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
@@ -929,7 +930,7 @@ struct Rasterizer {
             count = segments->end - segments->idx;
             if (count) {
                 if (clip.ux - clip.lx < 32.f) {
-                    gpu->allocator.alloc(clip.ux - clip.lx, ox, oy);
+                    gpu->allocator.alloc(clip.ux - clip.lx, Context::kfh, ox, oy);
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kCell, 0.f, iy, segments->idx, 0xFFFFFF, count);
                     gpu->edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
                 } else {
@@ -944,7 +945,7 @@ struct Rasterizer {
                     for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                         if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                             if (lx != ux) {
-                                gpu->allocator.alloc(ux - lx, ox, oy);
+                                gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
                                 new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kCell, cover, iy, segments->idx, begin, i - begin);
                                 gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                             }
@@ -966,7 +967,7 @@ struct Rasterizer {
                         x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     }
                     if (lx != ux) {
-                        gpu->allocator.alloc(ux - lx, ox, oy);
+                        gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
                         new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kCell, cover, iy, segments->idx, begin, i - begin);
                         gpu->edgeInstances += (i - begin + kSegmentsCount - 1) / kSegmentsCount;
                     }
