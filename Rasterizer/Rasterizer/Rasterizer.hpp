@@ -418,7 +418,7 @@ struct Rasterizer {
                 for (q = ctx->gpu.quads.idx, quad += q; q < qend; q++, quad++) {
                     if (quad->iz >> 24 == GPU::Quad::kCell) {
                         end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
-                        sbase = quad->super.iy == -1 ? 0 : sbegins[quad->super.iy] + quad->super.idx;
+                        sbase = (quad->super.iy == -1 ? 0 : sbegins[quad->super.iy]) + quad->super.idx;
                         is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
                         for (j = is ? quad->super.begin : 0, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
                             dst->cell = quad->super.cell;
