@@ -565,7 +565,7 @@ struct Rasterizer {
                         }
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        Entry *e = writeCachedPath(path, ctm, clip, Info(nullptr, 0, & segments[0]), cache, cacheSegments, m);
+                        Entry *e = writeCachedPath(path, ctm, clip, Info(nullptr, 0, & cacheSegments), cache, m);
                         if (e && e->begin != e->end)
                             writeCachedOutline(cacheSegments.base + e->begin, cacheSegments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                         else
@@ -597,7 +597,7 @@ struct Rasterizer {
                 x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
         }
     }
-    static Entry *writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, Row<Segment>& cacheSegments, AffineTransform& m) {
+    static Entry *writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, AffineTransform& m) {
         Entry *e = nullptr;
         if (path.sequence->hash == 0)
             return e;
@@ -606,9 +606,9 @@ struct Rasterizer {
             auto it = cache.find(path.sequence->hash);
             if (it == cache.end()) {
                 e = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
-                e->begin = cacheSegments.idx;
-                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & cacheSegments));
-                cacheSegments.idx = e->end = cacheSegments.end;
+                e->begin = info.segments->idx;
+                writePath(path, ctm, clip, writeOutlineSegment, info);
+                info.segments->idx = e->end = info.segments->end;
             } else {
                 m = ctm.concat(it->second.ctm);
                 if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
