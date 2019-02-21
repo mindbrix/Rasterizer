@@ -364,7 +364,7 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, qend, q, jend, iz, sbegins[ctx->segments.size()], size, sbase, sidx;
+            size_t end = begin, j, qend, q, jend, iz, sbegins[ctx->segments.size()], size, sbase;
             std::vector<size_t> idxes;
             
             for (size = j = 0; j < ctx->segments.size(); j++)
@@ -384,23 +384,19 @@ struct Rasterizer {
                         break;
                 
                 GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
-                Segment *segments; Segment::Index *is;
+                Segment::Index *is;
                 for (q = ctx->gpu.quads.idx, quad += q; q < qend; q++, quad++) {
                     if (quad->iz >> 24 == GPU::Quad::kCell) {
                         end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
-                        segments = ctx->segments[quad->super.iy].base + quad->super.idx;
                         sbase = sbegins[quad->super.iy] + quad->super.idx;
                         is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
                         for (j = is ? quad->super.begin : 0, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
                             dst->cell = quad->super.cell;
-                            sidx = is ? is++->i : j;
-                            dst->idxes[0] = uint32_t(sbase + sidx);
-                            if (j + 1 < jend) {
-                                sidx = is ? is++->i : j + 1;
-                                dst->idxes[1] = uint32_t(sbase + sidx);
-                            } else {
+                            dst->idxes[0] = uint32_t(sbase + (is ? is++->i : j));
+                            if (j + 1 < jend)
+                                dst->idxes[1] = uint32_t(sbase + (is ? is++->i : j + 1));
+                            else
                                 dst->idxes[1] = 0xFFFFFFFF;
-                            }
                         }
                     }
                 }
