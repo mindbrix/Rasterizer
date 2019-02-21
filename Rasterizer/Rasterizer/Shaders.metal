@@ -133,9 +133,11 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
 {
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
-    device Segment& s0 = segments[edge.i0];
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
+    Segment s0 = segments[edge.i0];
     Segment s1 = edge.d1 == 0 ? null : segments[edge.i0 + edge.d1];
+    s0 = s0.x0 == FLT_MAX ? null : s0;
+    s1 = s1.x0 == FLT_MAX ? null : s1;
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     if (s0.y0 != s0.y1) {
