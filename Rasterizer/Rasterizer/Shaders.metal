@@ -50,7 +50,7 @@ struct Segment {
 
 struct Edge {
     Cell cell;
-    uint32_t idxes[kSegmentsCount];
+    uint32_t i0, i1;
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {
@@ -132,9 +132,9 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
 {
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
-    device Segment& s0 = segments[edge.idxes[0]];
+    device Segment& s0 = segments[edge.i0];
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
-    Segment s1 = edge.idxes[1] == 0xFFFFFFFF ? null : segments[edge.idxes[1]];
+    Segment s1 = edge.i1 == 0xFFFFFFFF ? null : segments[edge.i1];
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     if (s0.y0 != s0.y1) {
