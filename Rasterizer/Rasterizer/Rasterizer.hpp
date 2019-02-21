@@ -352,11 +352,17 @@ struct Rasterizer {
             }
         }
     }
-    struct Entry {
-        Entry(AffineTransform ctm) : ctm(ctm) {}
-        AffineTransform ctm;
-        size_t begin, end;
+    struct Cache {
+        struct Entry {
+            Entry(AffineTransform ctm) : ctm(ctm) {}
+            AffineTransform ctm;
+            size_t begin, end;
+        };
+        void empty() { entries.clear();  segments.empty();}
+        std::unordered_map<size_t, Entry> entries;
+        Row<Segment> segments;
     };
+    
     struct Context {
         static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
@@ -497,7 +503,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.width = width, gpu.height = height;
             gpu.allocator.init(width, height);
-            cache.clear();  cacheSegments.empty();
+            cache.empty();
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, float width, size_t begin, size_t end) {
             if (begin == end)
@@ -565,9 +571,9 @@ struct Rasterizer {
                         }
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        Entry *e = writeCachedPath(path, ctm, clip, Info(nullptr, 0, & cacheSegments), cache, m);
+                        Cache::Entry *e = writeCachedPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), cache, m);
                         if (e && e->begin != e->end)
-                            writeCachedOutline(cacheSegments.base + e->begin, cacheSegments.base + e->end, m, Info(nullptr, 0, & segments[0]));
+                            writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                         else
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
                         writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
@@ -581,7 +587,7 @@ struct Rasterizer {
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
-        std::unordered_map<size_t, Entry> cache;    Row<Segment> cacheSegments;
+        Cache cache;
     };
     
     static void writeCachedOutline(Segment *s, Segment *send, AffineTransform m, Info info) {
@@ -597,15 +603,15 @@ struct Rasterizer {
                 x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
         }
     }
-    static Entry *writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, AffineTransform& m) {
-        Entry *e = nullptr;
+    static Cache::Entry *writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, Cache& cache, AffineTransform& m) {
+        Cache::Entry *e = nullptr;
         if (path.sequence->hash == 0)
             return e;
         Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
         if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-            auto it = cache.find(path.sequence->hash);
-            if (it == cache.end()) {
-                e = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
+            auto it = cache.entries.find(path.sequence->hash);
+            if (it == cache.entries.end()) {
+                e = & cache.entries.emplace(path.sequence->hash, Cache::Entry(ctm.invert())).first->second;
                 e->begin = info.segments->idx;
                 writePath(path, ctm, clip, writeOutlineSegment, info);
                 info.segments->idx = e->end = info.segments->end;
