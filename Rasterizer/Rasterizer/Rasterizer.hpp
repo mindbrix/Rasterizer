@@ -583,17 +583,17 @@ struct Rasterizer {
         Entry *e = nullptr;
         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
         Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
-        float dot = ctm.a * ctm.c + ctm.b * ctm.d, ab = ctm.a * ctm.a + ctm.b * ctm.b, cd = ctm.c * ctm.c + ctm.d * ctm.d;
-        if (dot == 0.f && ab == cd && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+        if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
             auto it = cache.find(path.sequence->hash);
             if (it == cache.end()) {
                 e = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
                 e->begin = cacheSegments.idx;
                 writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & cacheSegments));
                 cacheSegments.idx = e->end = cacheSegments.end;
-            } else if (fabsf(ab * (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) - 1.f) < 1e-6f) {
-                e = & it->second;
+            } else {
                 m = ctm.concat(it->second.ctm);
+                if (m.a == m.d && m.b == -m.c && m.a * m.a + m.b * m.b == 1.f)
+                    e = & it->second;
             }
         }
         if (e && e->begin != e->end) {
