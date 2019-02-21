@@ -611,16 +611,16 @@ struct Rasterizer {
         Cache cache;
     };
     
-    static void writeCachedOutline(Segment *s, Segment *send, AffineTransform m, Info info) {
+    static void writeCachedOutline(Segment *s, Segment *end, AffineTransform m, Info info) {
         float x0, y0, x1, y1, iy0, iy1;
-        for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < send; s++, x0 = x1, y0 = y1, iy0 = iy1) {
+        for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
             x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             if (s->x0 != FLT_MAX) {
                 if (iy0 == iy1 && y0 != y1)
                     new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                 else
                     writeClippedSegment(x0, y0, x1, y1, & info);
-            } else if (s < send - 1)
+            } else if (s < end - 1)
                 x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
         }
     }
