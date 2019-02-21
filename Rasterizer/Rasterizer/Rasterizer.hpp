@@ -266,7 +266,8 @@ struct Rasterizer {
         };
         struct Edge {
             Cell cell;
-            uint32_t i0, i1;
+            uint32_t i0;
+            short d1, im;
         };
         GPU() : edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
@@ -394,9 +395,9 @@ struct Rasterizer {
                             dst->cell = quad->super.cell;
                             dst->i0 = uint32_t(sbase + (is ? is++->i : j));
                             if (j + 1 < jend)
-                                dst->i1 = uint32_t(sbase + (is ? is++->i : j + 1));
+                                dst->d1 = short(sbase + (is ? is++->i : j + 1) - dst->i0);
                             else
-                                dst->i1 = 0xFFFFFFFF;
+                                dst->d1 = 0;
                         }
                     }
                 }
