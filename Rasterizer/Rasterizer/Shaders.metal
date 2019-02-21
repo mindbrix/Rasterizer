@@ -126,15 +126,15 @@ struct EdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3;
 };
 
-vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *_segments [[buffer(2)]],
+vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
-    device Segment& s0 = _segments[edge.idxes[0]];
+    device Segment& s0 = segments[edge.idxes[0]];
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
-    Segment s1 = edge.idxes[1] == 0xFFFFFFFF ? null : _segments[edge.idxes[1]];
+    Segment s1 = edge.idxes[1] == 0xFFFFFFFF ? null : segments[edge.idxes[1]];
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     if (s0.y0 != s0.y1) {
