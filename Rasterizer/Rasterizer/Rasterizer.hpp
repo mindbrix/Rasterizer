@@ -224,6 +224,7 @@ struct Rasterizer {
                 width = w, height = h, sheet = strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
             }
             void alloc(float w, float h, float& ox, float& oy) {
+                h = h > Context::kfh ? h : Context::kfh;
                 Bounds& b = h == Context::kfh ? strip : fast;
                 if (b.ux - b.lx < w) {
                     if (sheet.uy - sheet.ly < h)
