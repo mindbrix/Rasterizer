@@ -50,7 +50,7 @@ struct Segment {
 
 struct Edge {
     Cell cell;
-    Segment segments[kSegmentsCount];
+    uint32_t idxes[kSegmentsCount];
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {
@@ -126,22 +126,26 @@ struct EdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3;
 };
 
-vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
+vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *_segments [[buffer(2)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
-    device Segment *segments = edge.segments;
+    device Segment& s0 = _segments[edge.idxes[0]];
+    const Segment null = { 0.0, 0.0, 0.0, 0.0 };
+    Segment s1 = edge.idxes[1] == 0xFFFFFFFF ? null : _segments[edge.idxes[1]];
     
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    for (int i = 0; i < kSegmentsCount; i++) {
-        device Segment& s = segments[i];
-        if (s.y0 != s.y1) {
-            slx = min(slx, min(s.x0, s.x1));
-            sly = min(sly, min(s.y0, s.y1));
-            suy = max(suy, max(s.y0, s.y1));
-        }
+    if (s0.y0 != s0.y1) {
+        slx = min(slx, min(s0.x0, s0.x1));
+        sly = min(sly, min(s0.y0, s0.y1));
+        suy = max(suy, max(s0.y0, s0.y1));
+    }
+    if (s1.y0 != s1.y1) {
+        slx = min(slx, min(s1.x0, s1.x1));
+        sly = min(sly, min(s1.y0, s1.y1));
+        suy = max(suy, max(s1.y0, s1.y1));
     }
     slx = max(floor(slx), float(cell.lx)), sly = floor(sly), suy = ceil(suy);
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
@@ -152,10 +156,10 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]],
     
     EdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 = segments[0].x0 + tx, vert.y0 = segments[0].y0 + ty;
-    vert.x1 = segments[0].x1 + tx, vert.y1 = segments[0].y1 + ty;
-    vert.x2 = segments[1].x0 + tx, vert.y2 = segments[1].y0 + ty;
-    vert.x3 = segments[1].x1 + tx, vert.y3 = segments[1].y1 + ty;
+    vert.x0 = s0.x0 + tx, vert.y0 = s0.y0 + ty;
+    vert.x1 = s0.x1 + tx, vert.y1 = s0.y1 + ty;
+    vert.x2 = s1.x0 + tx, vert.y2 = s1.y0 + ty;
+    vert.x3 = s1.x1 + tx, vert.y3 = s1.y1 + ty;
     return vert;
 }
 

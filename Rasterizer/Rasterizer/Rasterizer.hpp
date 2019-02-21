@@ -266,7 +266,7 @@ struct Rasterizer {
         };
         struct Edge {
             Cell cell;
-            Segment segments[kSegmentsCount];
+            uint32_t idxes[kSegmentsCount];
         };
         GPU() : edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
@@ -279,7 +279,7 @@ struct Rasterizer {
     };
     struct Buffer {
         struct Entry {
-            enum Type { kColorants, kEdges, kQuads, kOpaques, kShapes };
+            enum Type { kColorants, kEdges, kQuads, kOpaques, kShapes, kSegments };
             Entry() {}
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
@@ -364,8 +364,19 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, qend, q, jend, iz;
+            size_t end = begin, j, qend, q, jend, iz, sbegins[ctx->segments.size()], size, sbase, sidx;
             std::vector<size_t> idxes;
+            
+            for (size = j = 0; j < ctx->segments.size(); j++)
+                sbegins[j] = size, size += ctx->segments[j].end;
+            if (size) {
+                Segment *dst = (Segment *)(buffer.data.base + begin);
+                for (j = 0; j < ctx->segments.size(); j++)
+                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
+                end = begin + size * sizeof(Segment);
+                entries.emplace_back(Buffer::Entry::kSegments, begin, end), idxes.emplace_back(0);
+                begin = end;
+            }
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 GPU::Quad *quad = ctx->gpu.quads.base;
                 for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
@@ -378,14 +389,18 @@ struct Rasterizer {
                     if (quad->iz >> 24 == GPU::Quad::kCell) {
                         end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                         segments = ctx->segments[quad->super.iy].base + quad->super.idx;
+                        sbase = sbegins[quad->super.iy] + quad->super.idx;
                         is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
                         for (j = is ? quad->super.begin : 0, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
                             dst->cell = quad->super.cell;
-                            dst->segments[0] = segments[is ? is++->i : j];
-                            if (j + 1 < jend)
-                                dst->segments[1] = segments[is ? is++->i : j + 1];
-                            else
-                                new (& dst->segments[1]) Segment(0.f, 0.f, 0.f, 0.f);
+                            sidx = is ? is++->i : j;
+                            dst->idxes[0] = uint32_t(sbase + sidx);
+                            if (j + 1 < jend) {
+                                sidx = is ? is++->i : j + 1;
+                                dst->idxes[1] = uint32_t(sbase + sidx);
+                            } else {
+                                dst->idxes[1] = 0xFFFFFFFF;
+                            }
                         }
                     }
                 }
@@ -443,13 +458,15 @@ struct Rasterizer {
                                           size_t pathsCount,
                                           size_t *begins,
                                           Buffer& buffer) {
-            size_t size, sz, i, begin, end, idx;
+            size_t size, sz, i, j, begin, end, idx;
             begin = 0, end = size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
             for (i = 0; i < count; i++) {
                 begins[i] = size;
                 size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad);
+                for (j = 0; j < contexts[i].segments.size(); j++)
+                    size += contexts[i].segments[j].end * sizeof(Segment);
             }
             buffer.data.alloc(size);
             
