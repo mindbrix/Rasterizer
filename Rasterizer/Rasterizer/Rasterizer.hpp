@@ -483,7 +483,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.width = width, gpu.height = height;
             gpu.allocator.init(width, height);
-            cache.clear();
+            cache.clear();  cacheSegments.empty();
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, float width, size_t begin, size_t end) {
             if (begin == end)
@@ -550,7 +550,7 @@ struct Rasterizer {
                             segments[0].idx = segments[0].end;
                         }
                     } else {
-                        if (!writeCachedPath(path, ctm, clip, Info(nullptr, 0, & segments[0]), cache))
+                        if (!writeCachedPath(path, ctm, clip, Info(nullptr, 0, & segments[0]), cache, cacheSegments))
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
                         writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
                     }
@@ -563,10 +563,10 @@ struct Rasterizer {
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
-        std::unordered_map<size_t, Entry> cache;
+        std::unordered_map<size_t, Entry> cache;    Row<Segment> cacheSegments;
     };
     
-    static bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache) {
+    static bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, Row<Segment>& cacheSegments) {
         if (path.sequence->hash == 0)
             return false;
         Entry *e = nullptr;
@@ -577,17 +577,16 @@ struct Rasterizer {
             auto it = cache.find(path.sequence->hash);
             if (it == cache.end()) {
                 e = & cache.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
-                e->begin = info.segments->idx;
-                writePath(path, ctm, clip, writeOutlineSegment, info);
-                e->end = info.segments->end;
-                info.segments->idx = info.segments->end;
+                e->begin = cacheSegments.idx;
+                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & cacheSegments));
+                cacheSegments.idx = e->end = cacheSegments.end;
             } else if (fabsf(ab * (it->second.ctm.a * it->second.ctm.a + it->second.ctm.b * it->second.ctm.b) - 1.f) < 1e-6f) {
                 e = & it->second;
                 m = ctm.concat(it->second.ctm);
             }
         }
-        if (e) {
-            Segment *s = info.segments->base + e->begin, *send = info.segments->base + e->end;
+        if (e && e->begin != e->end) {
+            Segment *s = cacheSegments.base + e->begin, *send = cacheSegments.base + e->end;
             float x0, y0, x1, y1, iy0, iy1;
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < send; s++, x0 = x1, y0 = y1, iy0 = iy1) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
