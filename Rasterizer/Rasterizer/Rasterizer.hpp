@@ -242,7 +242,7 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, size_t iy, size_t idx, size_t begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(short(iy)), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, short iy, size_t idx, size_t begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(iy), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
             Cell cell;
             float cover;
             short iy, count;
@@ -256,7 +256,7 @@ struct Rasterizer {
         struct Quad {
             enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
             Quad() {}
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, size_t iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width), iz((uint32_t)iz | type << 24) {}
             union {
@@ -418,7 +418,7 @@ struct Rasterizer {
                 for (q = ctx->gpu.quads.idx, quad += q; q < qend; q++, quad++) {
                     if (quad->iz >> 24 == GPU::Quad::kCell) {
                         end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
-                        sbase = sbegins[quad->super.iy] + quad->super.idx;
+                        sbase = quad->super.iy == -1 ? 0 : sbegins[quad->super.iy] + quad->super.idx;
                         is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
                         for (j = is ? quad->super.begin : 0, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
                             dst->cell = quad->super.cell;
@@ -593,11 +593,22 @@ struct Rasterizer {
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         Cache::Entry *e = cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
-                        if (e && e->begin != e->end)
-                            writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
-                        else
+                        bool seg = true;
+                        if (e && e->begin != e->end) {
+                            if (1 || clip.uy - clip.ly > kFastHeight)
+                                writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
+                            else {
+                                size_t count = e->end - e->begin;
+                                float ox, oy;
+                                gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
+                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, 0.f, -1, e->begin, 0xFFFFFF, count);
+                                gpu.edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
+                                seg = false;
+                            }
+                        } else
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
-                        writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
+                        if (seg)
+                            writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
                     }
                 }
             }
@@ -929,8 +940,8 @@ struct Rasterizer {
     }
     
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU *gpu) {
-        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, count, i, begin;
-        short counts0[256], counts1[256];
+        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
+        short counts0[256], counts1[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         Segment *segment;
         Row<Segment::Index>& indices = gpu->indices;    Segment::Index *index;
