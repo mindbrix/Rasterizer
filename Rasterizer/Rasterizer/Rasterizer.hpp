@@ -358,7 +358,28 @@ struct Rasterizer {
             AffineTransform ctm;
             size_t begin, end;
         };
-        void empty() { entries.clear();  segments.empty();}
+        void empty() { entries.clear();  segments.empty(); }
+        
+        Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, Info info, AffineTransform& m) {
+            Entry *e = nullptr;
+            if (path.sequence->hash == 0)
+                return e;
+            Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
+            if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+                auto it = entries.find(path.sequence->hash);
+                if (it == entries.end()) {
+                    e = & entries.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
+                    e->begin = info.segments->idx;
+                    writePath(path, ctm, clip, writeOutlineSegment, info);
+                    info.segments->idx = e->end = info.segments->end;
+                } else {
+                    m = ctm.concat(it->second.ctm);
+                    if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
+                        e = & it->second;
+                }
+            }
+            return e;
+        }
         std::unordered_map<size_t, Entry> entries;
         Row<Segment> segments;
     };
@@ -571,7 +592,7 @@ struct Rasterizer {
                         }
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        Cache::Entry *e = writeCachedPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), cache, m);
+                        Cache::Entry *e = cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
                         if (e && e->begin != e->end)
                             writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                         else
@@ -602,26 +623,6 @@ struct Rasterizer {
             } else if (s < send - 1)
                 x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
         }
-    }
-    static Cache::Entry *writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, Cache& cache, AffineTransform& m) {
-        Cache::Entry *e = nullptr;
-        if (path.sequence->hash == 0)
-            return e;
-        Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
-        if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-            auto it = cache.entries.find(path.sequence->hash);
-            if (it == cache.entries.end()) {
-                e = & cache.entries.emplace(path.sequence->hash, Cache::Entry(ctm.invert())).first->second;
-                e->begin = info.segments->idx;
-                writePath(path, ctm, clip, writeOutlineSegment, info);
-                info.segments->idx = e->end = info.segments->end;
-            } else {
-                m = ctm.concat(it->second.ctm);
-                if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                    e = & it->second;
-            }
-        }
-        return e;
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
