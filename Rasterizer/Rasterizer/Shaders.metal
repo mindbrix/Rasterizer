@@ -51,7 +51,7 @@ struct Segment {
 struct Edge {
     Cell cell;
     uint32_t i0;
-    short d1, im;
+    short d1, iy;
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {

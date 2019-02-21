@@ -358,7 +358,7 @@ struct Rasterizer {
             AffineTransform ctm;
             size_t begin, end;
         };
-        void empty() { entries.clear();  segments.empty(); }
+        void empty() { entries.clear(), ms.empty(), segments.empty(); }
         
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
@@ -381,7 +381,7 @@ struct Rasterizer {
             return e;
         }
         std::unordered_map<size_t, Entry> entries;
-        Row<Segment> segments;
+        Row<Segment> ms, segments;
     };
     
     struct Context {
@@ -600,10 +600,12 @@ struct Rasterizer {
                             if (1 || clip.uy - clip.ly > kFastHeight)
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                             else {
+                                short iy = -short(cache.ms.end + 1);
+                                new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                                 size_t count = e->end - e->begin;
                                 float ox, oy;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, 0.f, -1, e->begin, 0xFFFFFF, count);
+                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, 0.f, iy, e->begin, 0xFFFFFF, count);
                                 gpu.edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
                                 seg = false;
                             }
