@@ -364,10 +364,8 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t j, end, qend, q, jend, iz;
+            size_t end = begin, j, qend, q, jend, iz;
             std::vector<size_t> idxes;
-            
-            end = begin;
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 GPU::Quad *quad = ctx->gpu.quads.base;
                 for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
