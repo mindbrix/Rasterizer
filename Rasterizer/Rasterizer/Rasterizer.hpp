@@ -580,6 +580,19 @@ struct Rasterizer {
         std::unordered_map<size_t, Entry> cache;    Row<Segment> cacheSegments;
     };
     
+    static void writeCachedOutline(Segment *s, Segment *send, AffineTransform m, Info info) {
+        float x0, y0, x1, y1, iy0, iy1;
+        for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < send; s++, x0 = x1, y0 = y1, iy0 = iy1) {
+            x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+            if (s->x0 != FLT_MAX) {
+                if (iy0 == iy1 && y0 != y1)
+                    new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
+                else
+                    writeClippedSegment(x0, y0, x1, y1, & info);
+            } else if (s < send - 1)
+                x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+        }
+    }
     static bool writeCachedPath(Path& path, AffineTransform ctm, Bounds clip, Info info, std::unordered_map<size_t, Entry>& cache, Row<Segment>& cacheSegments) {
         if (path.sequence->hash == 0)
             return false;
@@ -595,24 +608,12 @@ struct Rasterizer {
                 cacheSegments.idx = e->end = cacheSegments.end;
             } else {
                 m = ctm.concat(it->second.ctm);
-                if (m.a == m.d && m.b == -m.c && m.a * m.a + m.b * m.b == 1.f)
+                if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
                     e = & it->second;
             }
         }
-        if (e && e->begin != e->end) {
-            Segment *s = cacheSegments.base + e->begin, *send = cacheSegments.base + e->end;
-            float x0, y0, x1, y1, iy0, iy1;
-            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < send; s++, x0 = x1, y0 = y1, iy0 = iy1) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
-                if (s->x0 != FLT_MAX) {
-                    if (iy0 == iy1 && y0 != y1)
-                        new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
-                    else
-                        writeClippedSegment(x0, y0, x1, y1, & info);
-                } else if (s < send - 1)
-                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
-            }
-        }
+        if (e && e->begin != e->end)
+            writeCachedOutline(cacheSegments.base + e->begin, cacheSegments.base + e->end, m, info);
         return e != nullptr;
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
