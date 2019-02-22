@@ -608,11 +608,11 @@ struct Rasterizer {
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         Cache::Entry *e = !(path.sequence->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
-                        bool seg = true;
                         if (e && e->begin != e->end) {
-                            if (clip.uy - clip.ly > kFastHeight)
+                            if (clip.uy - clip.ly > kFastHeight) {
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
-                            else {
+                                writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
+                            } else {
                                 float iy = 0.f;
                                 if (path.sequence->hash) {
                                     iy = -float(cache.ms.end + 1);
@@ -623,12 +623,11 @@ struct Rasterizer {
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                                 new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, iy, -1, e->begin, 0xFFFFFF, count);
                                 gpu.edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
-                                seg = false;
                             }
-                        } else
+                        } else {
                             writePath(path, ctm, clip, writeClippedSegment, Info(nullptr, 0, & segments[0]));
-                        if (seg)
                             writeSegments(& segments[0], clip, even, src, iz, hit, & gpu);
+                        }
                     }
                 }
             }
