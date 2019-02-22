@@ -163,8 +163,8 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0)
             return Rasterizer::Path();
         int i, j, begin, step, len, codepoint;
-        const char nl = '\n', sp = ' ';
-        const int NL = -1, SP = -2;
+        const char nl = '\n', sp = ' ', tab = '\t';
+        const int NL = -1, SP = -2, TAB = -3;
         const uint8_t *utf8 = (uint8_t *)str;
         std::vector<int> glyphs;
         for (step = 1, codepoint = i = 0; step; i += step) {
@@ -182,7 +182,7 @@ struct RasterizerTrueType {
                 if (utf8[i + j] == 0)
                     step = 0;
             if (step)
-                glyphs.emplace_back(codepoint == sp ? SP : codepoint == nl ? NL : stbtt_FindGlyphIndex(& font.info, codepoint));
+                glyphs.emplace_back(codepoint == sp ? SP : codepoint == nl ? NL : codepoint == tab ? TAB : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
         int base, ascent, descent, lineGap, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
@@ -197,15 +197,15 @@ struct RasterizerTrueType {
         x = beginx;
         y = i = 0;
         do {
-            while (i < len && (glyphs[i] == SP || glyphs[i] == NL)) {
+            while (i < len && (glyphs[i] == SP || glyphs[i] == NL || glyphs[i] == TAB)) {
                 if (glyphs[i] == NL)
                     x = beginx, y -= lineHeight;
                 else
-                    x += left ? -space : space;
+                    x += (glyphs[i] == TAB ? 4 : 1) * (left ? -space : space);
                 i++;
             }
             begin = i;
-            while (i < len && glyphs[i] != SP && glyphs[i] != NL)
+            while (i < len && glyphs[i] != SP && glyphs[i] != NL && glyphs[i] != TAB)
                 i++;
             int advances[i - begin], *advance = advances, total = 0;
             bzero(advances, sizeof(advances));
