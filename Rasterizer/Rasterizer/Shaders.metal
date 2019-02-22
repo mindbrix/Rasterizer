@@ -134,11 +134,21 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
-    Segment s0 = segments[edge.i0];
-    Segment s1 = edge.d1 == 0 ? null : segments[edge.i0 + edge.d1];
-    s0 = s0.x0 == FLT_MAX ? null : s0;
-    s1 = s1.x0 == FLT_MAX ? null : s1;
+    Segment s0 = segments[edge.i0].x0 == FLT_MAX ? null : segments[edge.i0];
+    Segment s1 = edge.d1 == 0 || segments[edge.i0 + edge.d1].x0 == FLT_MAX ? null : segments[edge.i0 + edge.d1];
     
+    if (edge.iy < 0) {
+        Segment sm = segments[-edge.iy - 1];
+        float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, x, y;
+        x = a * s0.x0 - b * s0.y0 + sm.x0, y = b * s0.x0 + a * s0.y0 + sm.y0;
+        s0.x0 = x, s0.y0 = y;
+        x = a * s0.x1 - b * s0.y1 + sm.x0, y = b * s0.x1 + a * s0.y1 + sm.y0;
+        s0.x1 = x, s0.y1 = y;
+        x = a * s1.x0 - b * s1.y0 + sm.x0, y = b * s1.x0 + a * s1.y0 + sm.y0;
+        s1.x0 = x, s1.y0 = y;
+        x = a * s1.x1 - b * s1.y1 + sm.x0, y = b * s1.x1 + a * s1.y1 + sm.y0;
+        s1.x1 = x, s1.y1 = y;
+    }
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     if (s0.y0 != s0.y1) {
         slx = min(slx, min(s0.x0, s0.x1));
