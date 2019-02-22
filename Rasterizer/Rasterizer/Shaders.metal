@@ -50,8 +50,8 @@ struct Segment {
 
 struct Edge {
     Cell cell;
-    uint32_t i0;
-    short d1, iy;
+    uint32_t i0, i1;
+    int iy;
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {
@@ -135,7 +135,7 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     device Cell& cell = edge.cell;
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
     Segment s0 = segments[edge.i0].x0 == FLT_MAX ? null : segments[edge.i0];
-    Segment s1 = edge.d1 == 0 || segments[edge.i0 + edge.d1].x0 == FLT_MAX ? null : segments[edge.i0 + edge.d1];
+    Segment s1 = edge.i1 == 0xFFFFFF || segments[edge.i1].x0 == FLT_MAX ? null : segments[edge.i1];
     
     if (edge.iy < 0) {
         Segment sm = segments[-edge.iy - 1];
@@ -217,7 +217,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
     vert.u = u - du, vert.v = v - dv;
-    vert.cover = quad.super.cover;
+    vert.cover = quad.super.iy < 0 ? 0.0 : quad.super.cover;
     vert.even = false;
     vert.solid = type == Quad::kSolidCell;
     return vert;

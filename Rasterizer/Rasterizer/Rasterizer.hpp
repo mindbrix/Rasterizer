@@ -268,8 +268,8 @@ struct Rasterizer {
         };
         struct Edge {
             Cell cell;
-            uint32_t i0;
-            short d1, iy;
+            uint32_t i0, i1;
+            int iy;
         };
         GPU() : edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
@@ -425,14 +425,14 @@ struct Rasterizer {
                         end += (quad->super.count + kSegmentsCount - 1) / kSegmentsCount * sizeof(GPU::Edge);
                         sbase = (quad->super.iy < 0 ? ctx->cache.ms.end : sbegins[quad->super.iy]) + quad->super.idx;
                         is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
-                        short iy = quad->super.iy;
+                        int iy = quad->super.iy < 0 ? quad->super.cover : 0;
                         for (j = is ? quad->super.begin : 0, jend = j + quad->super.count; j < jend; j += kSegmentsCount, dst++) {
                             dst->cell = quad->super.cell;
                             dst->i0 = uint32_t(sbase + (is ? is++->i : j));
                             if (j + 1 < jend)
-                                dst->d1 = short(sbase + (is ? is++->i : j + 1) - dst->i0);
+                                dst->i1 = uint32_t(sbase + (is ? is++->i : j + 1));
                             else
-                                dst->d1 = 0;
+                                dst->i1 = 0xFFFFFF;
                             dst->iy = iy;
                         }
                     }
@@ -605,12 +605,12 @@ struct Rasterizer {
                             if (clip.uy - clip.ly > kFastHeight)
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                             else {
-                                short iy = -short(cache.ms.end + 1);
+                                float iy = -float(cache.ms.end + 1);
                                 new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                                 size_t count = e->end - e->begin;
                                 float ox, oy;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, 0.f, iy, e->begin, 0xFFFFFF, count);
+                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, iy, -1, e->begin, 0xFFFFFF, count);
                                 gpu.edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
                                 seg = false;
                             }
