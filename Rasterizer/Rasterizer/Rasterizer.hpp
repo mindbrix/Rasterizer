@@ -224,11 +224,11 @@ struct Rasterizer {
                 width = w, height = h, sheet = strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
             }
             void alloc(float w, float h, float& ox, float& oy) {
-                h = h > Context::kfh ? h : Context::kfh;
-                Bounds& b = h == Context::kfh ? strip : fast;
+                h = h > Context::kfh ? kFastHeight : Context::kfh;
+                Bounds& b = h > Context::kfh ? fast : strip;
                 if (b.ux - b.lx < w) {
                     if (sheet.uy - sheet.ly < h)
-                        sheet = Bounds(0.f, 0.f, width, height);
+                        sheet = Bounds(0.f, 0.f, width, height), strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
                     b = sheet;
                     b.uy = sheet.ly + h, sheet.ly = b.uy;
                 }
@@ -602,7 +602,7 @@ struct Rasterizer {
                         Cache::Entry *e = cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
                         bool seg = true;
                         if (e && e->begin != e->end) {
-                            if (1 || clip.uy - clip.ly > kFastHeight)
+                            if (clip.uy - clip.ly > kFastHeight)
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                             else {
                                 short iy = -short(cache.ms.end + 1);
