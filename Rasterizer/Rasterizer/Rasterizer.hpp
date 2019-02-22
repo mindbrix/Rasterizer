@@ -354,33 +354,41 @@ struct Rasterizer {
     }
     struct Cache {
         struct Entry {
+            Entry() : begin(0), end(0) {}
             Entry(AffineTransform ctm) : ctm(ctm) {}
             AffineTransform ctm;
             size_t begin, end;
         };
-        void empty() { entries.clear(), ms.empty(), segments.empty(); }
+        void empty() { entries.clear(), outlines.resize(0), ms.empty(), segments.empty(); }
         
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
-            if (path.sequence->hash == 0)
-                return e;
             Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                auto it = entries.find(path.sequence->hash);
-                if (it == entries.end()) {
-                    e = & entries.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
+                if (path.sequence->hash == 0) {
+                    outlines.emplace_back();
+                    e = & outlines.back();
                     e->begin = info.segments->idx;
                     writePath(path, ctm, clip, writeOutlineSegment, info);
                     info.segments->idx = e->end = info.segments->end;
                 } else {
-                    m = ctm.concat(it->second.ctm);
-                    if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                        e = & it->second;
+                    auto it = entries.find(path.sequence->hash);
+                    if (it == entries.end()) {
+                        e = & entries.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
+                        e->begin = info.segments->idx;
+                        writePath(path, ctm, clip, writeOutlineSegment, info);
+                        info.segments->idx = e->end = info.segments->end;
+                    } else {
+                        m = ctm.concat(it->second.ctm);
+                        if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
+                            e = & it->second;
+                    }
                 }
             }
             return e;
         }
         std::unordered_map<size_t, Entry> entries;
+        std::vector<Entry> outlines;
         Row<Segment> ms, segments;
     };
     
@@ -599,14 +607,17 @@ struct Rasterizer {
                         }
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        Cache::Entry *e = cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
+                        Cache::Entry *e = !(path.sequence->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
                         bool seg = true;
                         if (e && e->begin != e->end) {
                             if (clip.uy - clip.ly > kFastHeight)
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, Info(nullptr, 0, & segments[0]));
                             else {
-                                float iy = -float(cache.ms.end + 1);
-                                new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
+                                float iy = 0.f;
+                                if (path.sequence->hash) {
+                                    iy = -float(cache.ms.end + 1);
+                                    new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
+                                }
                                 size_t count = e->end - e->begin;
                                 float ox, oy;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
