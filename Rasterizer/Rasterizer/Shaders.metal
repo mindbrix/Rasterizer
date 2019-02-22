@@ -285,7 +285,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * area;
+    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * sqrt(area);
     
     ShapesVertex vert;
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
