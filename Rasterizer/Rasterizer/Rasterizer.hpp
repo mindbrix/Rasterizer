@@ -74,7 +74,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(1), hash(0) {}
+        Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(0), hash(0) {}
         ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -152,14 +152,15 @@ struct Rasterizer {
     };
     template<typename T>
     struct Ref {
-        Ref() : ref(new T()) {}
+        Ref()                               { ref = new T(), ref->refCount = 1; }
         Ref(const Ref& other)               { assign(other); }
         Ref& operator= (const Ref other)    { assign(other); return *this; }
-        ~Ref() { if (ref && --(ref->refCount) == 0) delete ref; }
+        ~Ref()                              { if (ref && --(ref->refCount) == 0) delete ref; }
         void assign(const Ref& other) {
             if (this != & other) {
                 this->~Ref();
-                if ((ref = other.ref))  ref->refCount++;
+                if ((ref = other.ref))
+                    ref->refCount++;
             }
         }
         T *ref = nullptr;
@@ -186,7 +187,7 @@ struct Rasterizer {
     };
     template<typename T>
     struct Memory {
-        Memory() : refCount(1), size(16), addr((T *)malloc(size * sizeof(T))) {}
+        Memory() : refCount(0), size(16), addr((T *)malloc(size * sizeof(T))) {}
         ~Memory() { free(addr); }
         void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
         size_t refCount, size;
