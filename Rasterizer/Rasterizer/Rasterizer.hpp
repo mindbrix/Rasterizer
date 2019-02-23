@@ -75,7 +75,6 @@ struct Rasterizer {
             uint8_t     types[8];
         };
         Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(1), hash(0) {}
-        Sequence(size_t count) : shapesCount(count), px(0), py(0), bounds(-5e11f, -5e11f, 5e11f, 5e11f), shapes((AffineTransform *)calloc(count, sizeof(shapes[0]))), circles((bool *)calloc(count, sizeof(bool))), refCount(1), hash(0) {}
         ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -84,6 +83,10 @@ struct Rasterizer {
             atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
             end += size;
             return atoms.back().points + (end - size) * 2;
+        }
+        void allocShapes(size_t count) {
+            shapesCount = count, bounds = Bounds(-5e11f, -5e11f, 5e11f, 5e11f);
+            shapes = (AffineTransform *)calloc(count, sizeof(shapes[0])), circles = (bool *)calloc(count, sizeof(bool));
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
         
@@ -149,7 +152,6 @@ struct Rasterizer {
     };
     struct Path {
         Path() : sequence(new Sequence()) {}
-        Path(size_t count) : sequence(new Sequence(count)) {}
         Path(const Path& other) { assign(other); }
         Path& operator= (const Path other)    { assign(other); return *this; }
         ~Path() { if (sequence && --(sequence->refCount) == 0)  delete sequence; }

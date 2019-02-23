@@ -34,18 +34,19 @@ struct RasterizerSVG {
     }
     static Rasterizer::Path createPhyllotaxisPath() {
         size_t count = 100000;
-        Rasterizer::Path shape(count);
-        Rasterizer::AffineTransform *dst = shape.sequence->shapes;
+        Rasterizer::Path shapes;
+        shapes.sequence->allocShapes(count);
+        Rasterizer::AffineTransform *dst = shapes.sequence->shapes;
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s;
         for (int i = 0; i < count; i++, dst++) {
-            shape.sequence->circles[i] = i & 1;
+            shapes.sequence->circles[i] = i & 1;
             s = sqrtf(i);
             new (dst) Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, s * vx - 0.5f, s * vy - 0.5f);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
-        return shape;
+        return shapes;
     }
     static void writeScene(const void *bytes, size_t size, RasterizerCoreGraphics::Scene& scene) {
         char *data = (char *)malloc(size + 1);
@@ -88,7 +89,7 @@ struct RasterizerSVG {
                 shape.sequence->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
                 scene.addPath(shape, Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
-            if (0) {
+            if (1) {
                 scene.addPath(createPhyllotaxisPath(), Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
         }
