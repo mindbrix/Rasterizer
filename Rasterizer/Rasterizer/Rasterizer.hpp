@@ -185,18 +185,32 @@ struct Rasterizer {
         float x0, y0, x1, y1;
     };
     template<typename T>
+    struct Ref {
+        Ref() : ref(new T()) {}
+        Ref(const Ref& other) { if (this != & other) ref = other.ref, ref->refCount++; }
+        ~Ref() { if (--(ref->refCount) == 0) delete ref; }
+        T *ref = nullptr;
+    };
+    template<typename T>
+    struct Memory {
+        Memory() : refCount(1), size(16), addr((T *)malloc(size * sizeof(T))) {}
+        ~Memory() { free(addr); }
+        void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
+        size_t refCount, size;
+        T *addr;
+    };
+    template<typename T>
     struct Row {
-        Row() : end(0), size(0), idx(0) {}
+        Row() : end(0), size(memory.ref->size), idx(0), base(memory.ref->addr) {}
         void empty() { end = idx = 0; }
-        void reset() { size = end = idx = 0, elems = std::vector<T>(); }
         inline T *alloc(size_t n) {
             size_t i = end;
             end += n;
             if (size < end)
-                size = end, elems.resize(size), base = & elems[0];
+                size = end * 1.5, memory.ref->resize(size), base = memory.ref->addr;
             return base + i;
         }
-        std::vector<T> elems;
+        Ref<Memory<T>> memory;
         size_t end, size, idx;
         T *base;
     };
