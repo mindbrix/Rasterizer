@@ -174,10 +174,8 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct Segment {
-        Segment() {}
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         struct Index {
-            Index() {}
             Index(short x, short i) : x(x), i(i) {}
             short x, i;
             inline bool operator< (const Index& other) const { return x < other.x; }
@@ -269,7 +267,6 @@ struct Rasterizer {
         };
         struct Quad {
             enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
-            Quad() {}
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s->x0, s->y0, s->x1, s->y1, width), iz((uint32_t)iz | type << 24) {}
@@ -297,7 +294,6 @@ struct Rasterizer {
     struct Buffer {
         struct Entry {
             enum Type { kColorants, kEdges, kQuads, kOpaques, kShapes, kSegments };
-            Entry() {}
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
             size_t begin, end;
