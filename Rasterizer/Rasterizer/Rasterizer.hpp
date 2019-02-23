@@ -152,7 +152,7 @@ struct Rasterizer {
         Path(size_t count) : sequence(new Sequence(count)) {}
         Path(const Path& other) { if (this != & other)  sequence = other.sequence, sequence->refCount++; }
         ~Path() { if (--(sequence->refCount) == 0)  delete sequence; }
-        Sequence *sequence = nullptr;
+        Sequence *sequence;
     };
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
@@ -177,7 +177,7 @@ struct Rasterizer {
         Ref() : ref(new T()) {}
         Ref(const Ref& other) { if (this != & other) ref = other.ref, ref->refCount++; }
         ~Ref() { if (--(ref->refCount) == 0) delete ref; }
-        T *ref = nullptr;
+        T *ref;
     };
     template<typename T>
     struct Memory {
