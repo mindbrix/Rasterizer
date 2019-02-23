@@ -153,14 +153,14 @@ struct Rasterizer {
     template<typename T>
     struct Ref {
         Ref()                               { ref = new T(), ref->refCount = 1; }
+        ~Ref()                              { if (--(ref->refCount) == 0) delete ref; }
         Ref(const Ref& other)               { assign(other); }
         Ref& operator= (const Ref other)    { assign(other); return *this; }
-        ~Ref()                              { if (ref && --(ref->refCount) == 0) delete ref; }
         void assign(const Ref& other) {
             if (this != & other) {
-                this->~Ref();
-                if ((ref = other.ref))
-                    ref->refCount++;
+                if (ref)
+                    this->~Ref();
+                ref = other.ref, ref->refCount++;
             }
         }
         T *ref = nullptr;
