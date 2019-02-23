@@ -84,7 +84,7 @@ struct Rasterizer {
             end += size;
             return atoms.back().points + (end - size) * 2;
         }
-        void allocShapes(size_t count) {
+        void addShapes(size_t count) {
             shapesCount = count, bounds = Bounds(-5e11f, -5e11f, 5e11f, 5e11f);
             shapes = (AffineTransform *)calloc(count, sizeof(shapes[0])), circles = (bool *)calloc(count, sizeof(bool));
         }

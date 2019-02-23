@@ -237,7 +237,7 @@ struct RasterizerTrueType {
         } while (i < len);
         
         Rasterizer::Path shapes;
-        shapes.ref->allocShapes(paths.size() - base);
+        shapes.ref->addShapes(paths.size() - base);
         if (0)
             memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
         Rasterizer::AffineTransform *dst = shapes.ref->shapes;

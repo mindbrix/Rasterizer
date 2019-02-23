@@ -35,7 +35,7 @@ struct RasterizerSVG {
     static Rasterizer::Path createPhyllotaxisPath() {
         size_t count = 100000;
         Rasterizer::Path shapes;
-        shapes.ref->allocShapes(count);
+        shapes.ref->addShapes(count);
         Rasterizer::AffineTransform *dst = shapes.ref->shapes;
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s;
