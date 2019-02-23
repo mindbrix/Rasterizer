@@ -20,6 +20,10 @@ struct Colorant {
     AffineTransform ctm;
 };
 
+struct Segment {
+    float x0, y0, x1, y1;
+};
+
 struct Cell {
     short lx, ly, ux, uy, ox, oy;
 };
@@ -31,7 +35,8 @@ struct SuperCell {
     uint32_t idx, begin;
 };
 struct Outline {
-    float x0, y0, x1, y1, width;
+    Segment s;
+    float width;
     short prev, next;
 };
 struct Quad {
@@ -43,11 +48,6 @@ struct Quad {
     };
     uint32_t iz;
 };
-
-struct Segment {
-    float x0, y0, x1, y1;
-};
-
 struct Edge {
     Cell cell;
     uint32_t i0, i1;
@@ -253,9 +253,9 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (quad.iz >> 24 == Quad::kOutlines) {
-        device Outline& o = quad.outline;
-        device Outline& p = quads[iid + o.prev].outline;
-        device Outline& n = quads[iid + o.next].outline;
+        device Segment& o = quad.outline.s;
+        device Segment& p = quads[iid + quad.outline.prev].outline.s;
+        device Segment& n = quads[iid + quad.outline.next].outline.s;
         float2 vo = float2(o.x1 - o.x0, o.y1 - o.y0);
         float2 vp = float2(p.x1 - p.x0, p.y1 - p.y0);
         float2 vn = float2(n.x1 - n.x0, n.y1 - n.y0);
@@ -264,14 +264,14 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 ? no : np;
         nn = rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float s = 0.5 * o.width + 0.7071067812;
+        float s = 0.5 * quad.outline.width + 0.7071067812;
         float spo = s / max(0.25, tpo.y * np.y + tpo.x * np.x);
         float son = s / max(0.25, ton.y * no.y + ton.x * no.x);
         float sgn = vid & 1 ? -1.0 : 1.0;
         // -y, x
         dx = select(o.x0 - tpo.y * spo * sgn, o.x1 - ton.y * son * sgn, vid >> 1);
         dy = select(o.y0 + tpo.x * spo * sgn, o.y1 + ton.x * son * sgn, vid >> 1);
-        d0 = -0.2071067812, d1 = o.width + 1.27071067812;
+        d0 = -0.2071067812, d1 = quad.outline.width + 1.27071067812;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
     } else {
         area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
