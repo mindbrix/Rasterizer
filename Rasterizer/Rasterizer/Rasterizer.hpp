@@ -150,18 +150,22 @@ struct Rasterizer {
         bool *circles;
         Bounds bounds;
     };
-    struct Path {
-        Path() : sequence(new Sequence()) {}
-        Path(const Path& other) { assign(other); }
-        Path& operator= (const Path other)    { assign(other); return *this; }
-        ~Path() { if (sequence && --(sequence->refCount) == 0)  delete sequence; }
-        void assign(const Path& other) {
+    template<typename T>
+    struct Ref {
+        Ref() : ref(new T()) {}
+        Ref(const Ref& other)               { assign(other); }
+        Ref& operator= (const Ref other)    { assign(other); return *this; }
+        ~Ref() { if (ref && --(ref->refCount) == 0) delete ref; }
+        void assign(const Ref& other) {
             if (this != & other) {
-                this->~Path();
-                if ((sequence = other.sequence))  sequence->refCount++;
+                this->~Ref();
+                if ((ref = other.ref))  ref->refCount++;
             }
         }
-        Sequence *sequence = nullptr;
+        T *ref = nullptr;
+    };
+    struct Path {
+        Ref<Sequence> sequence;
     };
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
@@ -180,20 +184,6 @@ struct Rasterizer {
             inline bool operator< (const Index& other) const { return x < other.x; }
         };
         float x0, y0, x1, y1;
-    };
-    template<typename T>
-    struct Ref {
-        Ref() : ref(new T()) {}
-        Ref(const Ref& other)               { assign(other); }
-        Ref& operator= (const Ref other)    { assign(other); return *this; }
-        ~Ref() { if (ref && --(ref->refCount) == 0) delete ref; }
-        void assign(const Ref& other) {
-            if (this != & other) {
-                this->~Ref();
-                if ((ref = other.ref))  ref->refCount++;
-            }
-        }
-        T *ref = nullptr;
     };
     template<typename T>
     struct Memory {
@@ -380,16 +370,16 @@ struct Rasterizer {
             Entry *e = nullptr;
             Bounds dev = Bounds(unit).integral();
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                if (path.sequence->hash == 0) {
+                if (path.sequence.ref->hash == 0) {
                     outlines.emplace_back();
                     e = & outlines.back();
                     e->begin = info.segments->idx;
                     writePath(path, ctm, clip, writeOutlineSegment, info);
                     info.segments->idx = e->end = info.segments->end;
                 } else {
-                    auto it = entries.find(path.sequence->hash);
+                    auto it = entries.find(path.sequence.ref->hash);
                     if (it == entries.end()) {
-                        e = & entries.emplace(path.sequence->hash, Entry(ctm.invert())).first->second;
+                        e = & entries.emplace(path.sequence.ref->hash, Entry(ctm.invert())).first->second;
                         e->begin = info.segments->idx;
                         writePath(path, ctm, clip, writeOutlineSegment, info);
                         info.segments->idx = e->end = info.segments->end;
@@ -479,9 +469,9 @@ struct Rasterizer {
                             Path& path = paths[iz];
                             GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                             AffineTransform ctm = quad[j].unit;
-                            for (int k = 0; k < path.sequence->shapesCount; k++, dst++)
-                                new (dst) GPU::Quad(ctm.concat(path.sequence->shapes[k]), iz, path.sequence->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
-                            entry->end += path.sequence->shapesCount * sizeof(GPU::Quad);
+                            for (int k = 0; k < path.sequence.ref->shapesCount; k++, dst++)
+                                new (dst) GPU::Quad(ctm.concat(path.sequence.ref->shapes[k]), iz, path.sequence.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
+                            entry->end += path.sequence.ref->shapesCount * sizeof(GPU::Quad);
                         } else if (qtype == GPU::Quad::kOutlines) {
                             iz = quad[j].iz & 0xFFFFFF;
                             Segment *s = ctx->segments[quad[j].super.iy].base + quad[j].super.idx, *es = s + quad[j].super.begin;
@@ -572,7 +562,7 @@ struct Rasterizer {
                     *flag = true, t = col->ctm;
             
             for (un = units, paths += begin, ctms += begin, iz = begin; iz < end; iz++, paths++, ctms++, un++)
-                *un = paths->sequence->bounds.unit(*ctms);
+                *un = paths->sequence.ref->bounds.unit(*ctms);
             AffineTransform inv = nullclip().invert();
             for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, cl++) {
                 if (*flag)
@@ -587,7 +577,7 @@ struct Rasterizer {
             }
             paths -= (end - begin), ctms -= (end - begin), un = units, cl = clus, clip = clips;
             for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clip++)
-                if (paths->sequence->shapes || paths->sequence->bounds.lx != FLT_MAX)
+                if (paths->sequence.ref->shapes || paths->sequence.ref->bounds.lx != FLT_MAX)
                     if (clip->lx != clip->ux && clip->ly != clip->uy) {
                         bool hit = cl->lx < 0.f || cl->ux > 1.f || cl->ly < 0.f || cl->uy > 1.f;
                         if (cl->ux >= 0.f && cl->lx < 1.f && cl->uy >= 0.f && cl->ly < 1.f)
@@ -598,7 +588,7 @@ struct Rasterizer {
         void drawPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             Info sgmnts(nullptr, 0, & segments[0]);
             if (bitmap.width) {
-                if (path.sequence->shapes)
+                if (path.sequence.ref->shapes)
                     return;
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 if (stride * h < deltas.size()) {
@@ -609,8 +599,8 @@ struct Rasterizer {
                     writeSegments(sgmnts.segments, clip, even, Info(& deltas[0], stride, nullptr), stride, src, & bitmap);
                 }
             } else {
-                if (path.sequence->shapes) {
-                    gpu.shapesCount += path.sequence->shapesCount;
+                if (path.sequence.ref->shapes) {
+                    gpu.shapesCount += path.sequence.ref->shapesCount;
                     new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
                 } else {
                     if (width) {
@@ -623,14 +613,14 @@ struct Rasterizer {
                         }
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        Cache::Entry *e = !(path.sequence->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
+                        Cache::Entry *e = !(path.sequence.ref->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
                         if (e && e->begin != e->end) {
                             if (clip.uy - clip.ly > kFastHeight) {
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, sgmnts);
                                 writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                             } else {
                                 float iy = 0.f;
-                                if (path.sequence->hash) {
+                                if (path.sequence.ref->hash) {
                                     iy = -float(cache.ms.end + 1);
                                     new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                                 }
@@ -673,7 +663,7 @@ struct Rasterizer {
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
-        for (Sequence::Atom& atom : path.sequence->atoms)
+        for (Sequence::Atom& atom : path.sequence.ref->atoms)
             for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Sequence::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 float *p = atom.points + index * 2;
                 switch (type) {

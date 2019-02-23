@@ -118,19 +118,19 @@ struct RasterizerCoreGraphics {
         void apply(const CGPathElement *element) {
             switch (element->type) {
                 case kCGPathElementMoveToPoint:
-                    p.sequence->moveTo(float(element->points[0].x), float(element->points[0].y));
+                    p.sequence.ref->moveTo(float(element->points[0].x), float(element->points[0].y));
                     break;
                 case kCGPathElementAddLineToPoint:
-                    p.sequence->lineTo(float(element->points[0].x), float(element->points[0].y));
+                    p.sequence.ref->lineTo(float(element->points[0].x), float(element->points[0].y));
                     break;
                 case kCGPathElementAddQuadCurveToPoint:
-                    p.sequence->quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
+                    p.sequence.ref->quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
                     break;
                 case kCGPathElementAddCurveToPoint:
-                    p.sequence->cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
+                    p.sequence.ref->cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
                     break;
                 case kCGPathElementCloseSubpath:
-                    p.sequence->close();
+                    p.sequence.ref->close();
                     break;
             }
         }
@@ -146,7 +146,7 @@ struct RasterizerCoreGraphics {
     
     static void writePathToCGPath(Rasterizer::Path p, CGMutablePathRef path) {
         float *points;
-        for (Rasterizer::Sequence::Atom& atom : p.sequence->atoms) {
+        for (Rasterizer::Sequence::Atom& atom : p.sequence.ref->atoms) {
             size_t index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
@@ -198,10 +198,10 @@ struct RasterizerCoreGraphics {
     }
     static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
         for (int i = 0; i < scene.paths.size(); i++)
-            if (scene.paths[i].sequence) {
+            if (scene.paths[i].sequence.ref) {
                 cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
                 cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
-                cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].sequence->bounds));
+                cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].sequence.ref->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
                 writePathToCGPath(scene.paths[i], path);
                 cgscene.paths.emplace_back(CGPathCreateCopy(path));
@@ -271,12 +271,12 @@ struct RasterizerCoreGraphics {
                     Rasterizer::Path *paths = & testScene.scene.paths[0];
                     size_t divisions = testScene.contexts.size(), total, p, i;
                     for (total = p = 0; p < pathsCount; p++)
-                        total += paths[p].sequence->atoms.size() ?: (paths[p].sequence->shapes ? paths[p].sequence->end >> 4 : 0);
+                        total += paths[p].sequence.ref->atoms.size() ?: (paths[p].sequence.ref->shapes ? paths[p].sequence.ref->end >> 4 : 0);
                     size_t begins[divisions + 1], target, *b = begins;
                     begins[0] = 0, begins[divisions] = pathsCount;
                     for (count = p = 0, i = 1; i < divisions; i++) {
                         for (target = total * i / divisions; count < target; p++)
-                            count += paths[p].sequence->atoms.size() ?: (paths[p].sequence->shapes ? paths[p].sequence->end >> 4: 0);
+                            count += paths[p].sequence.ref->atoms.size() ?: (paths[p].sequence.ref->shapes ? paths[p].sequence.ref->end >> 4: 0);
                         begins[i] = p;
                     }
                     for (i = 0; i < divisions; i++)

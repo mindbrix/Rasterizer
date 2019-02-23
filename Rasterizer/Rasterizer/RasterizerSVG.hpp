@@ -26,21 +26,21 @@ struct RasterizerSVG {
         float *pts;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            for (pts = path->pts, p.sequence->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
-                p.sequence->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
+            for (pts = path->pts, p.sequence.ref->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
+                p.sequence.ref->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
             if (path->closed)
-                p.sequence->close();
+                p.sequence.ref->close();
         }
     }
     static Rasterizer::Path createPhyllotaxisPath() {
         size_t count = 100000;
         Rasterizer::Path shapes;
-        shapes.sequence->allocShapes(count);
-        Rasterizer::AffineTransform *dst = shapes.sequence->shapes;
+        shapes.sequence.ref->allocShapes(count);
+        Rasterizer::AffineTransform *dst = shapes.sequence.ref->shapes;
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s;
         for (int i = 0; i < count; i++, dst++) {
-            shapes.sequence->circles[i] = i & 1;
+            shapes.sequence.ref->circles[i] = i & 1;
             s = sqrtf(i);
             new (dst) Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, s * vx - 0.5f, s * vy - 0.5f);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
@@ -86,10 +86,10 @@ struct RasterizerSVG {
             uint8_t bgra[4] = { 0, 0, 0, 255 };
             if (0) {
                 Rasterizer::Path shape;
-                shape.sequence->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
+                shape.sequence.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
                 scene.addPath(shape, Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
-            if (1) {
+            if (0) {
                 scene.addPath(createPhyllotaxisPath(), Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
         }

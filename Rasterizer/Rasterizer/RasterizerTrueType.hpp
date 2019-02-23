@@ -130,22 +130,22 @@ struct RasterizerTrueType {
                 for (vertex = vertices, i = 0; i < nverts; i++, vertex++)
                     switch (vertex->type) {
                         case STBTT_vmove:
-                            path.sequence->moveTo(vertex->x, vertex->y);
+                            path.sequence.ref->moveTo(vertex->x, vertex->y);
                             break;
                         case STBTT_vline:
-                            path.sequence->lineTo(vertex->x, vertex->y);
+                            path.sequence.ref->lineTo(vertex->x, vertex->y);
                             break;
                         case STBTT_vcurve:
-                            path.sequence->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
+                            path.sequence.ref->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
                             break;
                         case STBTT_vcubic:
-                            path.sequence->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
+                            path.sequence.ref->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
                             break;
                     }
                 stbtt_FreeShape(& info, vertices);
                 if (cacheable) {
                     cache.emplace(glyph, path);
-                    path.sequence->hash = (size_t(crc) << 32) | glyph;
+                    path.sequence.ref->hash = (size_t(crc) << 32) | glyph;
                 }
             }
             return path;
@@ -221,7 +221,7 @@ struct RasterizerTrueType {
                 if (*advance) {
                     bgras.emplace_back(*((uint32_t *)bgra));
                     paths.emplace_back(font.glyphPath(glyphs[j], true));
-                    Rasterizer::Bounds gb = paths.back().sequence->bounds;
+                    Rasterizer::Bounds gb = paths.back().sequence.ref->bounds;
                     if (x == beginx) {
                         if (left)
                             x += *advance - gb.ux;
@@ -237,18 +237,18 @@ struct RasterizerTrueType {
         } while (i < len);
         
         Rasterizer::Path shapes;
-        shapes.sequence->allocShapes(paths.size() - base);
+        shapes.sequence.ref->allocShapes(paths.size() - base);
         if (0)
-            memset(shapes.sequence->circles, 0x01, shapes.sequence->shapesCount * sizeof(bool));
-        Rasterizer::AffineTransform *dst = shapes.sequence->shapes;
+            memset(shapes.sequence.ref->circles, 0x01, shapes.sequence.ref->shapesCount * sizeof(bool));
+        Rasterizer::AffineTransform *dst = shapes.sequence.ref->shapes;
         float lx = FLT_MAX, ly = FLT_MAX, ux = -FLT_MAX, uy = -FLT_MAX;
         for (i = base; i < paths.size(); i++, dst++) {
-            *dst = paths[i].sequence->bounds.unit(ctms[i]);
+            *dst = paths[i].sequence.ref->bounds.unit(ctms[i]);
             Rasterizer::Bounds b(*dst);
             lx = lx < b.lx ? lx : b.lx, ly = ly < b.ly ? ly : b.ly;
             ux = ux > b.ux ? ux : b.ux, uy = uy > b.uy ? uy : b.uy;
         }
-        shapes.sequence->bounds = Rasterizer::Bounds(lx, ly, ux, uy);
+        shapes.sequence.ref->bounds = Rasterizer::Bounds(lx, ly, ux, uy);
         return shapes;
     }
     static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
