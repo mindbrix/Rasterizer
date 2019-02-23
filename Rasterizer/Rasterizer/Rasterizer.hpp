@@ -370,9 +370,9 @@ struct Rasterizer {
         };
         void empty() { entries.clear(), outlines.resize(0), ms.empty(), segments.empty(); }
         
-        Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, Info info, AffineTransform& m) {
+        Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
-            Bounds dev = Bounds(path.sequence->bounds.unit(ctm)).integral();
+            Bounds dev = Bounds(unit).integral();
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                 if (path.sequence->hash == 0) {
                     outlines.emplace_back();
@@ -585,11 +585,11 @@ struct Rasterizer {
                     if (clip->lx != clip->ux && clip->ly != clip->uy) {
                         bool hit = cl->lx < 0.f || cl->ux > 1.f || cl->ly < 0.f || cl->uy > 1.f;
                         if (cl->ux >= 0.f && cl->lx < 1.f && cl->uy >= 0.f && cl->ly < 1.f)
-                            drawPath(*paths, *ctms, even, & colorants[iz].src0, iz, *clip, hit, width);
+                            drawPath(*paths, *ctms, *un, even, & colorants[iz].src0, iz, *clip, hit, width);
                     }
             free(flags), free(units), free(clus), free(clips);
         }
-        void drawPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
+        void drawPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             Info sgmnts(nullptr, 0, & segments[0]);
             if (bitmap.width) {
                 if (path.sequence->shapes)
@@ -617,7 +617,7 @@ struct Rasterizer {
                         }
                     } else {
                         AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        Cache::Entry *e = !(path.sequence->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, clip, Info(nullptr, 0, & cache.segments), m);
+                        Cache::Entry *e = !(path.sequence->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
                         if (e && e->begin != e->end) {
                             if (clip.uy - clip.ly > kFastHeight) {
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, sgmnts);
