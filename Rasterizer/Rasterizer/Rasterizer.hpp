@@ -150,9 +150,16 @@ struct Rasterizer {
     struct Path {
         Path() : sequence(new Sequence()) {}
         Path(size_t count) : sequence(new Sequence(count)) {}
-        Path(const Path& other) { if (this != & other)  sequence = other.sequence, sequence->refCount++; }
-        ~Path() { if (--(sequence->refCount) == 0)  delete sequence; }
-        Sequence *sequence;
+        Path(const Path& other) { assign(other); }
+        Path& operator= (const Path other)    { assign(other); return *this; }
+        ~Path() { if (sequence && --(sequence->refCount) == 0)  delete sequence; }
+        void assign(const Path& other) {
+            if (this != & other) {
+                this->~Path();
+                if ((sequence = other.sequence))  sequence->refCount++;
+            }
+        }
+        Sequence *sequence = nullptr;
     };
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
@@ -175,9 +182,16 @@ struct Rasterizer {
     template<typename T>
     struct Ref {
         Ref() : ref(new T()) {}
-        Ref(const Ref& other) { if (this != & other) ref = other.ref, ref->refCount++; }
-        ~Ref() { if (--(ref->refCount) == 0) delete ref; }
-        T *ref;
+        Ref(const Ref& other)               { assign(other); }
+        Ref& operator= (const Ref other)    { assign(other); return *this; }
+        ~Ref() { if (ref && --(ref->refCount) == 0) delete ref; }
+        void assign(const Ref& other) {
+            if (this != & other) {
+                this->~Ref();
+                if ((ref = other.ref))  ref->refCount++;
+            }
+        }
+        T *ref = nullptr;
     };
     template<typename T>
     struct Memory {
