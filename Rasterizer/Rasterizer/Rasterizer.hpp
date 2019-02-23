@@ -148,20 +148,10 @@ struct Rasterizer {
         Bounds bounds;
     };
     struct Path {
-        Path() {
-            sequence = new Sequence();
-        }
-        Path(size_t count) {
-            sequence = new Sequence(count);
-        }
-        Path(const Path& other) {
-            if (this != & other)
-                sequence = other.sequence, sequence->refCount++;
-        }
-        ~Path() {
-            if (--(sequence->refCount) == 0)
-                delete sequence;
-        }
+        Path() : sequence(new Sequence()) {}
+        Path(size_t count) : sequence(new Sequence(count)) {}
+        Path(const Path& other) { if (this != & other)  sequence = other.sequence, sequence->refCount++; }
+        ~Path() { if (--(sequence->refCount) == 0)  delete sequence; }
         Sequence *sequence = nullptr;
     };
     struct Bitmap {
