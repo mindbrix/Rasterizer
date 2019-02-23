@@ -241,8 +241,7 @@ struct Rasterizer {
                 if (b.ux - b.lx < w) {
                     if (sheet.uy - sheet.ly < h)
                         sheet = Bounds(0.f, 0.f, width, height), strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
-                    b = sheet;
-                    b.uy = sheet.ly + h, sheet.ly = b.uy;
+                    b.lx = sheet.lx, b.ly = sheet.ly, b.ux = sheet.ux, b.uy = sheet.ly + h, sheet.ly = b.uy;
                 }
                 ox = b.lx, b.lx += w, oy = b.ly;
             }
