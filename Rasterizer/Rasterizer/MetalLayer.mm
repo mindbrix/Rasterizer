@@ -167,7 +167,7 @@
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
     uint32_t reverse, pathCount;
-    size_t colorantsOffset = 0, segmentsOffset = 0;
+    size_t colorantsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
     Rasterizer::AffineTransform clip;
     for (size_t i = 0; i < buffer->entries.end; i++) {
@@ -179,6 +179,9 @@
                 break;
             case Rasterizer::Buffer::Entry::kSegments:
                 segmentsOffset = entry.begin;
+                break;
+            case Rasterizer::Buffer::Entry::kEdgeCells:
+                edgeCellsOffset = entry.begin;
                 break;
             case Rasterizer::Buffer::Entry::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
