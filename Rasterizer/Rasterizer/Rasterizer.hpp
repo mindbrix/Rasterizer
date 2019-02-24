@@ -365,14 +365,13 @@ struct Rasterizer {
             AffineTransform ctm;
             size_t begin, end;
         };
-        void empty() { entries.clear(), outlines.resize(0), ms.empty(), segments.empty(); }
+        void empty() { entries.clear(), ms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
             Bounds dev = Bounds(unit).integral();
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                 if (path.ref->hash == 0) {
-                    outlines.emplace_back();
-                    e = & outlines.back();
+                    e = & outline;
                     e->begin = info.segments->idx;
                     writePath(path, ctm, clip, writeOutlineSegment, info);
                     info.segments->idx = e->end = info.segments->end;
@@ -393,7 +392,7 @@ struct Rasterizer {
             return e;
         }
         std::unordered_map<size_t, Entry> entries;
-        std::vector<Entry> outlines;
+        Entry outline;
         Row<Segment> ms, segments;
     };
     
