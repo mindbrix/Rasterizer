@@ -278,6 +278,16 @@ struct Rasterizer {
             int iy, base;
             uint16_t i0, i1;
         };
+        /*
+        struct EdgeCell {
+            Cell cell;
+            int iy, base;
+        };
+        struct EdgeInstance {
+            int idx;
+            uint16_t i0, i1;
+        };
+        */
         GPU() : edges(0), edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
             edges = edgeInstances = outlinesCount = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty();
@@ -439,14 +449,21 @@ struct Rasterizer {
                             base += ctx->cache.ms.end, iy = quad->super.cover;
                         else
                             base += sbegins[quad->super.iy];
-                        Segment::Index *is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
-                        for (j = 0, jend = quad->super.count; j < jend; j++, dst++) {
-                            dst->cell = quad->super.cell, dst->iy = iy, dst->base = base;
-                            dst->i0 = uint16_t(is ? is++->i : j);
-                            if (++j < jend)
-                                dst->i1 = uint16_t(is ? is++->i : j);
-                            else
-                                dst->i1 = 0xFFFF;
+                        if (quad->super.begin == 0xFFFFFF) {
+                            for (j = 0; j < quad->super.count; dst++)
+                                dst->cell = quad->super.cell, dst->iy = iy, dst->base = base, dst->i0 = j++, dst->i1 = j++;
+                            if (quad->super.count & 1)
+                                (dst - 1)->i1 = 0xFFFF;
+                        } else {
+                            Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
+                            for (j = 0, jend = quad->super.count; j < jend; j++, dst++) {
+                                dst->cell = quad->super.cell, dst->iy = iy, dst->base = base;
+                                dst->i0 = uint16_t(is++->i);
+                                if (++j < jend)
+                                    dst->i1 = uint16_t(is++->i);
+                                else
+                                    dst->i1 = 0xFFFF;
+                            }
                         }
                     }
                 }
