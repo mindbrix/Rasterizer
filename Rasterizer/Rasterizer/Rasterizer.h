@@ -8,4 +8,3 @@
 
 #define kFatHeight 8
 #define kFastHeight 32
-#define kSegmentsCount 2
