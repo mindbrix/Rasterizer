@@ -53,6 +53,14 @@ struct Edge {
     int iy, base;
     uint16_t i0, i1;
 };
+struct EdgeCell {
+    Cell cell;
+    int iy, base;
+};
+struct EdgeInstance {
+    int idx;
+    uint16_t i0, i1;
+};
 
 float4 distances(AffineTransform ctm, float dx, float dy) {
     float det, rlab, rlcd, vx, vy;
@@ -128,18 +136,25 @@ struct EdgesVertex
 };
 
 vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
+                                     device EdgeCell *edgeCells [[buffer(3)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
+    const Segment null = { 0.0, 0.0, 0.0, 0.0 };
+    /*
+    device EdgeInstance& edge = edgeInstances[iid];
+    device EdgeCell& edgeCell = edgeCells[edge.idx];
+    device Cell& cell = edgeCell.cell;
+    int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1, iy = edgeCell.iy;
+    */
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
-    const Segment null = { 0.0, 0.0, 0.0, 0.0 };
-    int i0 = edge.base + edge.i0, i1 = edge.base + edge.i1;
+    int i0 = edge.base + edge.i0, i1 = edge.base + edge.i1, iy = edge.iy;
     Segment s0 = segments[i0].x0 == FLT_MAX ? null : segments[i0];
     Segment s1 = edge.i1 == 0xFFFF || segments[i1].x0 == FLT_MAX ? null : segments[i1];
     
-    if (edge.iy < 0) {
-        Segment sm = segments[-edge.iy - 1];
+    if (iy < 0) {
+        Segment sm = segments[-iy - 1];
         float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, x, y;
         x = a * s0.x0 - b * s0.y0 + sm.x0, y = b * s0.x0 + a * s0.y0 + sm.y0;
         s0.x0 = x, s0.y0 = y;

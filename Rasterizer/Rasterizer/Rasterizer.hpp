@@ -278,7 +278,6 @@ struct Rasterizer {
             int iy, base;
             uint16_t i0, i1;
         };
-        /*
         struct EdgeCell {
             Cell cell;
             int iy, base;
@@ -287,7 +286,6 @@ struct Rasterizer {
             int idx;
             uint16_t i0, i1;
         };
-        */
         GPU() : edgeCells(0), edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
             edgeCells = edgeInstances = outlinesCount = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty();
