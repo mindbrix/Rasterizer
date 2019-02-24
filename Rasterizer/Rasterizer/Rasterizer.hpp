@@ -620,13 +620,12 @@ struct Rasterizer {
                                 writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, sgmnts);
                                 writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                             } else {
-                                float iy = 0.f;
+                                float ox, oy, iy = 0.f;
                                 if (path.ref->hash) {
                                     iy = -float(cache.ms.end + 1);
                                     new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                                 }
                                 size_t count = e->end - e->begin;
-                                float ox, oy;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                                 new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kCell, iy, -1, e->begin, 0xFFFFFF, count);
                                 gpu.edgeInstances += (count + kSegmentsCount - 1) / kSegmentsCount;
