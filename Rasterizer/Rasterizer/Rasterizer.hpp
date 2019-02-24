@@ -563,12 +563,10 @@ struct Rasterizer {
             if (begin == end)
                 return;
             size_t iz;
-            AffineTransform t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Colorant *col = colorants + begin;
-            AffineTransform inv = nullclip().invert();
+            AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds dev = device;
-            paths += begin, ctms += begin;
-            for (iz = begin; iz < end; iz++, paths++, ctms++)
+            for (paths += begin, ctms += begin, iz = begin; iz < end; iz++, paths++, ctms++)
                 if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX) {
                     if (col->ctm.a != t.a || col->ctm.b != t.b || col->ctm.c != t.c || col->ctm.d != t.d || col->ctm.tx != t.tx || col->ctm.ty != t.ty) {
                         dev = Bounds(colorants[iz].ctm).integral().intersect(device), inv = bitmap.width ? inv : colorants[iz].ctm.invert();
