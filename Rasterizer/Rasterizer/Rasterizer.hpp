@@ -366,7 +366,6 @@ struct Rasterizer {
             size_t begin, end;
         };
         void empty() { entries.clear(), outlines.resize(0), ms.empty(), segments.empty(); }
-        
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
             Bounds dev = Bounds(unit).integral();
