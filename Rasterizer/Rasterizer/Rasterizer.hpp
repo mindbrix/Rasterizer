@@ -273,11 +273,6 @@ struct Rasterizer {
             };
             uint32_t iz;
         };
-        struct Edge {
-            Cell cell;
-            int iy, base;
-            uint16_t i0, i1;
-        };
         struct EdgeCell {
             Cell cell;
             int iy, base;
@@ -444,7 +439,6 @@ struct Rasterizer {
                             count++;
                     size = count * sizeof(GPU::EdgeCell);
                     
-                    /*
                     GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin);
                     end += size;
                     if (begin != end)
@@ -478,34 +472,7 @@ struct Rasterizer {
                             }
                             idx++, cell++;
                         }
-                     */
                 }
-                GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
-                for (quad = q0; quad < qidx; quad++)
-                    if (quad->iz >> 24 == GPU::Quad::kCell) {
-                        end += (quad->super.count + 1) / 2 * sizeof(GPU::Edge);
-                        int base = quad->super.idx, iy = 0;
-                        if (quad->super.iy < 0)
-                            base += ctx->cache.ms.end, iy = quad->super.cover;
-                        else
-                            base += sbegins[quad->super.iy];
-                        if (quad->super.begin == 0xFFFFFF) {
-                            for (j = 0; j < quad->super.count; dst++)
-                                dst->cell = quad->super.cell, dst->iy = iy, dst->base = base, dst->i0 = j++, dst->i1 = j++;
-                            if (quad->super.count & 1)
-                                (dst - 1)->i1 = 0xFFFF;
-                        } else {
-                            Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
-                            for (j = 0; j < quad->super.count; j++, dst++) {
-                                dst->cell = quad->super.cell, dst->iy = iy, dst->base = base;
-                                dst->i0 = uint16_t(is++->i);
-                                if (++j < quad->super.count)
-                                    dst->i1 = uint16_t(is++->i);
-                                else
-                                    dst->i1 = 0xFFFF;
-                            }
-                        }
-                    }
                 if (begin != end)
                     entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
                 begin = end;
@@ -564,8 +531,7 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                //size += gpu.edgeInstances * sizeof(GPU::EdgeInstance) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlinesCount + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + (gpu.outlinesCount + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::EdgeInstance) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlinesCount + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
