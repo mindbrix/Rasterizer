@@ -559,25 +559,22 @@ struct Rasterizer {
             gpu.allocator.init(width, height);
             cache.empty();
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colorants, float width, size_t begin, size_t end) {
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colors, float width, size_t begin, size_t end) {
             if (begin == end)
                 return;
             size_t iz;
-            Colorant *col = colorants + begin;
             AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds dev = device;
-            for (paths += begin, ctms += begin, iz = begin; iz < end; iz++, paths++, ctms++)
+            for (paths += begin, ctms += begin, colors += begin, iz = begin; iz < end; iz++, paths++, ctms++)
                 if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX) {
-                    if (col->ctm.a != t.a || col->ctm.b != t.b || col->ctm.c != t.c || col->ctm.d != t.d || col->ctm.tx != t.tx || col->ctm.ty != t.ty) {
-                        dev = Bounds(colorants[iz].ctm).integral().intersect(device), inv = bitmap.width ? inv : colorants[iz].ctm.invert();
-                        t = col->ctm;
-                    }
+                    if (colors->ctm.a != t.a || colors->ctm.b != t.b || colors->ctm.c != t.c || colors->ctm.d != t.d || colors->ctm.tx != t.tx || colors->ctm.ty != t.ty)
+                        dev = Bounds(colors->ctm).integral().intersect(device), inv = bitmap.width ? inv : colors->ctm.invert(), t = colors->ctm;
                     AffineTransform unit = paths->ref->bounds.unit(*ctms);
                     Bounds clip = Bounds(unit).integral().intersect(dev);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, unit, even, & colorants[iz].src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width);
+                            drawPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width);
                     }
                 }
         }
