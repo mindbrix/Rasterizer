@@ -26,7 +26,7 @@ struct Rasterizer {
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
-        AffineTransform invert() const {
+        inline AffineTransform invert() const {
             float det = a * d - b * c, recip = 1.f / det;
             if (det == 0.f)
                 return *this;
