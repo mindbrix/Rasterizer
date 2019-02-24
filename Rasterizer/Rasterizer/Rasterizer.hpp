@@ -576,9 +576,8 @@ struct Rasterizer {
                     Bounds clip = Bounds(unit).integral().intersect(dev);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         Bounds clu = Bounds(inv.concat(unit));
-                        bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, unit, even, & colorants[iz].src0, iz, clip, hit, width);
+                            drawPath(*paths, *ctms, unit, even, & colorants[iz].src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width);
                     }
                 }
         }
