@@ -134,8 +134,9 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
-    Segment s0 = segments[edge.base + edge.i0].x0 == FLT_MAX ? null : segments[edge.base + edge.i0];
-    Segment s1 = edge.i1 == 0xFFFF || segments[edge.base + edge.i1].x0 == FLT_MAX ? null : segments[edge.base + edge.i1];
+    int i0 = edge.base + edge.i0, i1 = edge.base + edge.i1;
+    Segment s0 = segments[i0].x0 == FLT_MAX ? null : segments[i0];
+    Segment s1 = edge.i1 == 0xFFFF || segments[i1].x0 == FLT_MAX ? null : segments[i1];
     
     if (edge.iy < 0) {
         Segment sm = segments[-edge.iy - 1];
