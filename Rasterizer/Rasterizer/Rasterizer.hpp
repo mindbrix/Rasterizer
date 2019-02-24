@@ -416,7 +416,7 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, jend, iz, sbegins[ctx->segments.size()], size;
+            size_t end = begin, j, iz, sbegins[ctx->segments.size()], size;
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
             
@@ -456,10 +456,10 @@ struct Rasterizer {
                                 (dst - 1)->i1 = 0xFFFF;
                         } else {
                             Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
-                            for (j = 0, jend = quad->super.count; j < jend; j++, dst++) {
+                            for (j = 0; j < quad->super.count; j++, dst++) {
                                 dst->cell = quad->super.cell, dst->iy = iy, dst->base = base;
                                 dst->i0 = uint16_t(is++->i);
-                                if (++j < jend)
+                                if (++j < quad->super.count)
                                     dst->i1 = uint16_t(is++->i);
                                 else
                                     dst->i1 = 0xFFFF;
