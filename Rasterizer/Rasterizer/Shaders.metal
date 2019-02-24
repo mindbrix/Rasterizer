@@ -50,8 +50,8 @@ struct Quad {
 };
 struct Edge {
     Cell cell;
-    int iy;
-    uint32_t i0, i1;
+    int iy, base;
+    uint16_t i0, i1;
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {
@@ -134,8 +134,8 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     device Edge& edge = edges[iid];
     device Cell& cell = edge.cell;
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
-    Segment s0 = segments[edge.i0].x0 == FLT_MAX ? null : segments[edge.i0];
-    Segment s1 = edge.i1 == 0xFFFFFF || segments[edge.i1].x0 == FLT_MAX ? null : segments[edge.i1];
+    Segment s0 = segments[edge.base + edge.i0].x0 == FLT_MAX ? null : segments[edge.base + edge.i0];
+    Segment s1 = edge.i1 == 0xFFFF || segments[edge.base + edge.i1].x0 == FLT_MAX ? null : segments[edge.base + edge.i1];
     
     if (edge.iy < 0) {
         Segment sm = segments[-edge.iy - 1];
