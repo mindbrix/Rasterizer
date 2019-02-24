@@ -565,7 +565,7 @@ struct Rasterizer {
             size_t iz;
             AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds dev = device;
-            for (paths += begin, ctms += begin, colors += begin, iz = begin; iz < end; iz++, paths++, ctms++)
+            for (paths += begin, ctms += begin, colors += begin, iz = begin; iz < end; iz++, paths++, ctms++, colors++)
                 if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX) {
                     if (memcmp(& colors->ctm, & t, sizeof(AffineTransform)))
                         dev = Bounds(colors->ctm).integral().intersect(device), inv = bitmap.width ? inv : colors->ctm.invert(), t = colors->ctm;
