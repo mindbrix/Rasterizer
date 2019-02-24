@@ -563,19 +563,17 @@ struct Rasterizer {
             if (begin == end)
                 return;
             size_t iz;
-            bool *flags = (bool *)calloc(end - begin, sizeof(bool)), *flag = flags;
             AffineTransform t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Colorant *col = colorants + begin;
-            for (iz = begin; iz < end; iz++, col++, flag++)
-                if (col->ctm.a != t.a || col->ctm.b != t.b || col->ctm.c != t.c || col->ctm.d != t.d || col->ctm.tx != t.tx || col->ctm.ty != t.ty)
-                    *flag = true, t = col->ctm;
             AffineTransform inv = nullclip().invert();
             Bounds dev = device;
             paths += begin, ctms += begin;
-            for (flag = flags, iz = begin; iz < end; iz++, paths++, ctms++, flag++)
+            for (iz = begin; iz < end; iz++, paths++, ctms++)
                 if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX) {
-                    if (*flag)
+                    if (col->ctm.a != t.a || col->ctm.b != t.b || col->ctm.c != t.c || col->ctm.d != t.d || col->ctm.tx != t.tx || col->ctm.ty != t.ty) {
                         dev = Bounds(colorants[iz].ctm).integral().intersect(device), inv = bitmap.width ? inv : colorants[iz].ctm.invert();
+                        t = col->ctm;
+                    }
                     AffineTransform un = paths->ref->bounds.unit(*ctms);
                     Bounds clip = Bounds(un).integral().intersect(dev);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
@@ -585,7 +583,6 @@ struct Rasterizer {
                             drawPath(*paths, *ctms, un, even, & colorants[iz].src0, iz, clip, hit, width);
                     }
                 }
-            free(flags);
         }
         void drawPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             Info sgmnts(nullptr, 0, & segments[0]);
