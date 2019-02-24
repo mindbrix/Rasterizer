@@ -360,7 +360,7 @@ struct Rasterizer {
     }
     struct Cache {
         struct Entry {
-            Entry() : begin(0), end(0) {}
+            Entry() {}
             Entry(AffineTransform ctm) : ctm(ctm) {}
             AffineTransform ctm;
             size_t begin, end;
