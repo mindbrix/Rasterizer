@@ -362,6 +362,12 @@ struct Rasterizer {
         struct Entry {
             Entry() {}
             Entry(AffineTransform ctm) : ctm(ctm) {}
+            Entry *writeOutlines(Path& path, AffineTransform ctm, Bounds clip, Info info) {
+                begin = info.segments->idx;
+                writePath(path, ctm, clip, writeOutlineSegment, info);
+                info.segments->idx = end = info.segments->end;
+                return this;
+            }
             AffineTransform ctm;
             size_t begin, end;
         };
@@ -370,18 +376,13 @@ struct Rasterizer {
             Entry *e = nullptr;
             Bounds dev = Bounds(unit).integral();
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                if (path.ref->hash == 0) {
-                    e = & outline;
-                    e->begin = info.segments->idx;
-                    writePath(path, ctm, clip, writeOutlineSegment, info);
-                    info.segments->idx = e->end = info.segments->end;
-                } else {
+                if (path.ref->hash == 0)
+                    e = outline.writeOutlines(path, ctm, clip, info);
+                else {
                     auto it = entries.find(path.ref->hash);
                     if (it == entries.end()) {
                         e = & entries.emplace(path.ref->hash, Entry(ctm.invert())).first->second;
-                        e->begin = info.segments->idx;
-                        writePath(path, ctm, clip, writeOutlineSegment, info);
-                        info.segments->idx = e->end = info.segments->end;
+                        e->writeOutlines(path, ctm, clip, info);
                     } else {
                         m = ctm.concat(it->second.ctm);
                         if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
