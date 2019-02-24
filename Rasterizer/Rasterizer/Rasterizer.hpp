@@ -406,7 +406,7 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, qend, q, jend, iz, sbegins[ctx->segments.size()], size;
+            size_t end = begin, j, qend, jend, iz, sbegins[ctx->segments.size()], size;
             std::vector<size_t> idxes;
             
             size = ctx->cache.segments.end + ctx->cache.ms.end;
@@ -425,14 +425,14 @@ struct Rasterizer {
                 begin = end;
             }
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
-                GPU::Quad *quad = ctx->gpu.quads.base;
-                for (qend = ctx->gpu.quads.idx + 1; qend < ctx->gpu.quads.end; qend++)
-                    if (quad[qend].iz >> 24 == GPU::Quad::kCell && quad[qend].super.cell.oy == 0 && quad[qend].super.cell.ox == 0)
+                GPU::Quad *quad, *qidx, *q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, *q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
+                for (qidx = q0 + 1; qidx < q1; qidx++)
+                    if (qidx->iz >> 24 == GPU::Quad::kCell && qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
                         break;
-                
+                qend = qidx - ctx->gpu.quads.base;
                 GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
                 Segment::Index *is;
-                for (q = ctx->gpu.quads.idx, quad += q; q < qend; q++, quad++) {
+                for (quad = q0; quad < qidx; quad++) {
                     if (quad->iz >> 24 == GPU::Quad::kCell) {
                         end += (quad->super.count + 1) / 2 * sizeof(GPU::Edge);
                         int base = quad->super.idx, iy = 0;
@@ -456,7 +456,7 @@ struct Rasterizer {
                 begin = end;
                 
                 if (ctx->gpu.quads.idx != qend) {
-                    quad = ctx->gpu.quads.base + ctx->gpu.quads.idx;
+                    GPU::Quad *quad = ctx->gpu.quads.base + ctx->gpu.quads.idx;
                     int qtype = quad[0].iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                     Buffer::Entry *entry;
                     entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
