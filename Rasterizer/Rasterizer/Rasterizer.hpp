@@ -380,10 +380,9 @@ struct Rasterizer {
                     e = outline.writeOutlines(path, ctm, clip, info);
                 else {
                     auto it = entries.find(path.ref->hash);
-                    if (it == entries.end()) {
-                        e = & entries.emplace(path.ref->hash, Entry(ctm.invert())).first->second;
-                        e->writeOutlines(path, ctm, clip, info);
-                    } else {
+                    if (it == entries.end())
+                        e = entries.emplace(path.ref->hash, Entry(ctm.invert())).first->second.writeOutlines(path, ctm, clip, info);
+                    else {
                         m = ctm.concat(it->second.ctm);
                         if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
                             e = & it->second;
