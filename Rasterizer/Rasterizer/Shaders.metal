@@ -50,8 +50,8 @@ struct Quad {
 };
 struct Edge {
     Cell cell;
-    uint32_t i0, i1;
     int iy;
+    uint32_t i0, i1;
 };
 
 float4 distances(AffineTransform ctm, float dx, float dy) {

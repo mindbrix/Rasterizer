@@ -275,8 +275,8 @@ struct Rasterizer {
         };
         struct Edge {
             Cell cell;
-            uint32_t i0, i1;
             int iy;
+            uint32_t i0, i1;
         };
         GPU() : edgeInstances(0), outlinesCount(0), shapesCount(0) {}
         void empty() {
@@ -440,14 +440,13 @@ struct Rasterizer {
                         sbase = (quad->super.iy < 0 ? ctx->cache.ms.end : sbegins[quad->super.iy]) + quad->super.idx;
                         is = quad->super.begin == 0xFFFFFF ? nullptr : ctx->gpu.indices.base + quad->super.begin;
                         int iy = quad->super.iy < 0 ? quad->super.cover : 0;
-                        for (j = 0, jend = quad->super.count; j < jend; dst++) {
-                            dst->cell = quad->super.cell;
+                        for (j = 0, jend = quad->super.count; j < jend; j++, dst++) {
+                            dst->cell = quad->super.cell, dst->iy = iy;
                             dst->i0 = uint32_t(sbase + (is ? is++->i : j));
                             if (++j < jend)
                                 dst->i1 = uint32_t(sbase + (is ? is++->i : j));
                             else
                                 dst->i1 = 0xFFFFFF;
-                            dst->iy = iy, j++;
                         }
                     }
                 }
