@@ -46,7 +46,7 @@ struct Rasterizer {
             ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
         }
         Bounds integral() const { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
-        Bounds intersect(Bounds other) const {
+        inline Bounds intersect(Bounds other) const {
             return {
                 lx < other.lx ? other.lx : lx > other.ux ? other.ux : lx, ly < other.ly ? other.ly : ly > other.uy ? other.uy : ly,
                 ux < other.lx ? other.lx : ux > other.ux ? other.ux : ux, uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy
@@ -566,14 +566,12 @@ struct Rasterizer {
             bool *flags = (bool *)calloc(end - begin, sizeof(bool)), *flag = flags;
             AffineTransform *units = (AffineTransform *)malloc((end - begin) * sizeof(AffineTransform)), *un;
             Bounds *clus = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *cl = clus;
-            Bounds *clips = (Bounds *)malloc((end - begin) * sizeof(Bounds)), *clip = clips;
             
             AffineTransform t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Colorant *col = colorants + begin;
             for (iz = begin; iz < end; iz++, col++, flag++)
                 if (col->ctm.a != t.a || col->ctm.b != t.b || col->ctm.c != t.c || col->ctm.d != t.d || col->ctm.tx != t.tx || col->ctm.ty != t.ty)
                     *flag = true, t = col->ctm;
-            
             for (un = units, paths += begin, ctms += begin, iz = begin; iz < end; iz++, paths++, ctms++, un++)
                 *un = paths->ref->bounds.unit(*ctms);
             AffineTransform inv = nullclip().invert();
@@ -583,20 +581,19 @@ struct Rasterizer {
                 *cl = Bounds(inv.concat(*un));
             }
             Bounds dev = device;
-            for (un = units, flag = flags, iz = begin; iz < end; iz++, un++, flag++, clip++) {
-                if (*flag)
-                    dev = Bounds(colorants[iz].ctm).integral().intersect(device);
-                *clip = Bounds(*un).integral().intersect(dev);
-            }
-            paths -= (end - begin), ctms -= (end - begin), un = units, cl = clus, clip = clips;
-            for (iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, clip++)
-                if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX)
-                    if (clip->lx != clip->ux && clip->ly != clip->uy) {
+            paths -= (end - begin), ctms -= (end - begin), un = units, cl = clus;
+            for (flag = flags, iz = begin; iz < end; iz++, paths++, ctms++, un++, cl++, flag++)
+                if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX) {
+                    if (*flag)
+                        dev = Bounds(colorants[iz].ctm).integral().intersect(device);
+                    Bounds clip = Bounds(*un).integral().intersect(dev);
+                    if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         bool hit = cl->lx < 0.f || cl->ux > 1.f || cl->ly < 0.f || cl->uy > 1.f;
                         if (cl->ux >= 0.f && cl->lx < 1.f && cl->uy >= 0.f && cl->ly < 1.f)
-                            drawPath(*paths, *ctms, *un, even, & colorants[iz].src0, iz, *clip, hit, width);
+                            drawPath(*paths, *ctms, *un, even, & colorants[iz].src0, iz, clip, hit, width);
                     }
-            free(flags), free(units), free(clus), free(clips);
+                }
+            free(flags), free(units), free(clus);
         }
         void drawPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
             Info sgmnts(nullptr, 0, & segments[0]);
