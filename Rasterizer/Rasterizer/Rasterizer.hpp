@@ -572,13 +572,13 @@ struct Rasterizer {
                         dev = Bounds(colorants[iz].ctm).integral().intersect(device), inv = bitmap.width ? inv : colorants[iz].ctm.invert();
                         t = col->ctm;
                     }
-                    AffineTransform un = paths->ref->bounds.unit(*ctms);
-                    Bounds clip = Bounds(un).integral().intersect(dev);
+                    AffineTransform unit = paths->ref->bounds.unit(*ctms);
+                    Bounds clip = Bounds(unit).integral().intersect(dev);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                        Bounds clu = Bounds(inv.concat(un));
+                        Bounds clu = Bounds(inv.concat(unit));
                         bool hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                            drawPath(*paths, *ctms, un, even, & colorants[iz].src0, iz, clip, hit, width);
+                            drawPath(*paths, *ctms, unit, even, & colorants[iz].src0, iz, clip, hit, width);
                     }
                 }
         }
