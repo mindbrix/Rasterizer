@@ -414,7 +414,7 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, iz, sbegins[ctx->segments.size()], size;
+            size_t end = begin, j, iz, sbegins[ctx->segments.size()], size, count, idx;
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
             
@@ -438,8 +438,50 @@ struct Rasterizer {
                 for (qidx = q0 + 1; qidx < q1; qidx++)
                     if (qidx->iz >> 24 == GPU::Quad::kCell && qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
                         break;
+                {
+                    for (count = 0, quad = q0; quad < qidx; quad++)
+                        if (quad->iz >> 24 == GPU::Quad::kCell)
+                            count++;
+                    size = count * sizeof(GPU::EdgeCell);
+                    
+                    /*
+                    GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin);
+                    end += size;
+                    if (begin != end)
+                        entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
+                    begin = end;
+                    
+                    GPU::EdgeInstance *edge = (GPU::EdgeInstance *)(buffer.data.base + begin);
+                    for (idx = 0, quad = q0; quad < qidx; quad++)
+                        if (quad->iz >> 24 == GPU::Quad::kCell) {
+                            end += (quad->super.count + 1) / 2 * sizeof(GPU::EdgeInstance);
+                            int base = quad->super.idx, iy = 0;
+                            if (quad->super.iy < 0)
+                                base += ctx->cache.ms.end, iy = quad->super.cover;
+                            else
+                                base += sbegins[quad->super.iy];
+                            cell->cell = quad->super.cell, cell->iy = iy, cell->base = base;
+                            if (quad->super.begin == 0xFFFFFF) {
+                                for (j = 0; j < quad->super.count; edge++)
+                                    edge->idx = int(idx), edge->i0 = j++, edge->i1 = j++;
+                                if (quad->super.count & 1)
+                                    (edge - 1)->i1 = 0xFFFF;
+                            } else {
+                                Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
+                                for (j = 0; j < quad->super.count; j++, edge++) {
+                                    edge->idx = int(idx), edge->i0 = uint16_t(is++->i);
+                                    if (++j < quad->super.count)
+                                        edge->i1 = uint16_t(is++->i);
+                                    else
+                                        edge->i1 = 0xFFFF;
+                                }
+                            }
+                            idx++, cell++;
+                        }
+                     */
+                }
                 GPU::Edge *dst = (GPU::Edge *)(buffer.data.base + begin);
-                for (quad = q0; quad < qidx; quad++) {
+                for (quad = q0; quad < qidx; quad++)
                     if (quad->iz >> 24 == GPU::Quad::kCell) {
                         end += (quad->super.count + 1) / 2 * sizeof(GPU::Edge);
                         int base = quad->super.idx, iy = 0;
@@ -464,7 +506,6 @@ struct Rasterizer {
                             }
                         }
                     }
-                }
                 if (begin != end)
                     entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
                 begin = end;
@@ -521,7 +562,10 @@ struct Rasterizer {
                 size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
             for (i = 0; i < count; i++) {
                 begins[i] = size;
-                size += contexts[i].gpu.edgeInstances * sizeof(GPU::Edge) + (contexts[i].gpu.outlinesCount + contexts[i].gpu.shapesCount + contexts[i].gpu.quads.end) * sizeof(GPU::Quad) + (contexts[i].cache.segments.end + contexts[i].cache.ms.end) * sizeof(Segment);
+                GPU& gpu = contexts[i].gpu;
+                Cache& cache = contexts[i].cache;
+                //size += gpu.edgeInstances * sizeof(GPU::EdgeInstance) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlinesCount + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + (gpu.outlinesCount + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
