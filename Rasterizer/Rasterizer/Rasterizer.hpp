@@ -438,12 +438,11 @@ struct Rasterizer {
                         else
                             cellCount++, edgeCount += (qidx->super.count + 1) / 2;
                     }
-                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin);
                 end += cellCount * sizeof(GPU::EdgeCell);
-                if (begin != end)
-                    entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
+                entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
+                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin);
+                GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + end);
                 begin = end;
-                GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
                 
                 end += edgeCount * sizeof(GPU::Edge);
                 entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
