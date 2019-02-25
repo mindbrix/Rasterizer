@@ -262,7 +262,7 @@ struct Rasterizer {
             short prev, next;
         };
         struct Quad {
-            enum Type { kNull = 0, kRect, kCircle, kEdge, kSolidCell, kShapes, kOutlines, kOpaque };
+            enum Type { kRect, kCircle, kEdge, kSolidCell, kShapes, kOutlines, kOpaque };
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type << 24) {}
