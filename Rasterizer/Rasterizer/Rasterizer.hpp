@@ -431,14 +431,14 @@ struct Rasterizer {
             }
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
-                size_t cellCount = 1, edgeCount = q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
+                size_t cellCount = 1, edgeCount = kUseFast && q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = kUseFast && q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
                 for (qidx = q0 + 1; qidx < q1; qidx++)
                     if (qidx->iz & GPU::Quad::kEdge) {
                         if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
                             break;
                         else {
                             cellCount++;
-                            if (qidx->super.iy < 0)
+                            if (kUseFast && qidx->super.iy < 0)
                                 fastCount += (qidx->super.count + 3) / 4;
                             else
                                 edgeCount += (qidx->super.count + 1) / 2;
@@ -467,7 +467,7 @@ struct Rasterizer {
                             base += sbegins[quad->super.iy];
                         cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
                         
-                        if (quad->super.iy < 0) {
+                        if (kUseFast && quad->super.iy < 0) {
                             for (j = 0; j < quad->super.count; j += 4, fast++)
                                 fast->idx = idx, fast->i0 = j, fast->i1 = j + 4 > quad->super.count ? quad->super.count : j + 4;
                         } else {
@@ -637,8 +637,10 @@ struct Rasterizer {
                                 size_t count = e->end - e->begin;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                                 new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, 0xFFFFFF, count);
-                                //gpu.edgeCells++, gpu.edgeInstances += (count + 1) / 2;
-                                gpu.edgeCells++, gpu.edgeInstances += (count + 3) / 4;
+                                if (kUseFast)
+                                    gpu.edgeCells++, gpu.edgeInstances += (count + 3) / 4;
+                                else
+                                    gpu.edgeCells++, gpu.edgeInstances += (count + 1) / 2;
                             }
                         } else {
                             writePath(path, ctm, clip, writeClippedSegment, sgmnts);
