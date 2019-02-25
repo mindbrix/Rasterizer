@@ -281,11 +281,11 @@ struct Rasterizer {
             int idx;
             uint16_t i0, i1;
         };
-        GPU() : edgeCells(0), edgeInstances(0), outlinesCount(0), shapesCount(0) {}
+        GPU() : edgeCells(0), edgeInstances(0), shapesCount(0) {}
         void empty() {
-            edgeCells = edgeInstances = outlinesCount = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty();
+            edgeCells = edgeInstances = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty();
         }
-        size_t width, height, edgeCells, edgeInstances, outlinesCount, shapesCount;
+        size_t width, height, edgeCells, edgeInstances, shapesCount;
         Allocator allocator;
         Row<Segment::Index> indices;
         Row<Quad> quads, opaques;
@@ -529,7 +529,7 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlinesCount + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
@@ -606,7 +606,6 @@ struct Rasterizer {
                         writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
                         size_t count = gpu.outlines.end - gpu.outlines.idx;
                         if (count > 1) {
-                            gpu.outlinesCount += count;
                             new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.idx, count, 0);
                             gpu.outlines.idx = gpu.outlines.end;
                         }
