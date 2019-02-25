@@ -127,7 +127,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct FastEdgesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7;
 };
 
 vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
@@ -140,33 +140,35 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.idx];
     device Cell& cell = edgeCell.cell;
-    int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1;
-    Segment s0 = segments[i0].x0 == FLT_MAX ? null : segments[i0];
-    Segment s1 = edge.i1 == 0xFFFF || segments[i1].x0 == FLT_MAX ? null : segments[i1];
-    
+    float a = 1.0, b = 0.0, _tx = 0.0, _ty = 0.0;
     if (edgeCell.im < 0) {
-        Segment sm = segments[-edgeCell.im - 1];
-        float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, x, y;
-        x = a * s0.x0 - b * s0.y0 + sm.x0, y = b * s0.x0 + a * s0.y0 + sm.y0;
-        s0.x0 = x, s0.y0 = y;
-        x = a * s0.x1 - b * s0.y1 + sm.x0, y = b * s0.x1 + a * s0.y1 + sm.y0;
-        s0.x1 = x, s0.y1 = y;
-        x = a * s1.x0 - b * s1.y0 + sm.x0, y = b * s1.x0 + a * s1.y0 + sm.y0;
-        s1.x0 = x, s1.y0 = y;
-        x = a * s1.x1 - b * s1.y1 + sm.x0, y = b * s1.x1 + a * s1.y1 + sm.y0;
-        s1.x1 = x, s1.y1 = y;
+        device Segment& sm = segments[-edgeCell.im - 1];
+        a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, _tx = sm.x0, _ty = sm.y0;
     }
+    Segment ss[kFastSegments];
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    if (s0.y0 != s0.y1) {
-        slx = min(slx, min(s0.x0, s0.x1));
-        sly = min(sly, min(s0.y0, s0.y1));
-        suy = max(suy, max(s0.y0, s0.y1));
+    for (int i = edge.i0; i < edge.i1; i++) {
+        device Segment& s = segments[edgeCell.base + i];
+        thread Segment& dst = ss[i];
+        if (s.x0 == FLT_MAX)
+            dst = null;
+        else {
+            dst = {
+                a * s.x0 - b * s.y0 + _tx, b * s.x0 + a * s.y0 + _ty,
+                a * s.x1 - b * s.y1 + _tx, b * s.x1 + a * s.y1 + _ty
+            };
+            if (dst.y0 != dst.y1)
+                slx = min(slx, min(dst.x0, dst.x1)), sly = min(sly, min(dst.y0, dst.y1)), suy = max(suy, max(dst.y0, dst.y1));
+        }
     }
-    if (s1.y0 != s1.y1) {
-        slx = min(slx, min(s1.x0, s1.x1));
-        sly = min(sly, min(s1.y0, s1.y1));
-        suy = max(suy, max(s1.y0, s1.y1));
+    if (slx == FLT_MAX) {
+        FastEdgesVertex vert;
+        vert.position = float4(0.0, 0.0, 0.0, 1.0);
+        return vert;
     }
+    for (int i = edge.i1; i < kFastSegments; i++)
+        ss[i] = null;
+    
     slx = max(floor(slx), float(cell.lx)), sly = floor(sly), suy = ceil(suy);
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
@@ -176,10 +178,14 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     
     FastEdgesVertex vert;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 = s0.x0 + tx, vert.y0 = s0.y0 + ty;
-    vert.x1 = s0.x1 + tx, vert.y1 = s0.y1 + ty;
-    vert.x2 = s1.x0 + tx, vert.y2 = s1.y0 + ty;
-    vert.x3 = s1.x1 + tx, vert.y3 = s1.y1 + ty;
+    vert.x0 = ss[0].x0 + tx, vert.y0 = ss[0].y0 + ty;
+    vert.x1 = ss[0].x1 + tx, vert.y1 = ss[0].y1 + ty;
+    vert.x2 = ss[1].x0 + tx, vert.y2 = ss[1].y0 + ty;
+    vert.x3 = ss[1].x1 + tx, vert.y3 = ss[1].y1 + ty;
+    vert.x4 = ss[2].x0 + tx, vert.y4 = ss[2].y0 + ty;
+    vert.x5 = ss[2].x1 + tx, vert.y5 = ss[2].y1 + ty;
+    vert.x6 = ss[3].x0 + tx, vert.y6 = ss[3].y0 + ty;
+    vert.x7 = ss[3].x1 + tx, vert.y7 = ss[3].y1 + ty;
     return vert;
 }
 
@@ -188,6 +194,8 @@ fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
     float winding = 0;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
+    winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
+    winding += edgeWinding(vert.x6, vert.y6, vert.x7, vert.y7);
     return float4(winding);
 }
 
