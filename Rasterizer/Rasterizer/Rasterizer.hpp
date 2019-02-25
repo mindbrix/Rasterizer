@@ -480,10 +480,10 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
                 for (quad = q0; quad < qidx; quad++) {
                     type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+                    iz = quad->iz & 0xFFFFFF;
                     if (type != entry->type)
                         end = entry->end, entries.emplace_back(Buffer::Entry::Type(type), end, end), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
                     if (quad->iz & GPU::Quad::kShapes) {
-                        iz = quad->iz & 0xFFFFFF;
                         Path& path = paths[iz];
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                         AffineTransform ctm = quad->unit;
@@ -491,7 +491,6 @@ struct Rasterizer {
                             new (dst) GPU::Quad(ctm.concat(path.ref->shapes[k]), iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                     } else if (quad->iz & GPU::Quad::kOutlines) {
-                        iz = quad->iz & 0xFFFFFF;
                         Segment *src = ctx->gpu.outlines.base + quad->super.idx, *es = src + quad->super.begin;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                         for (dst0 = dst; src < es; src++, dst++) {
