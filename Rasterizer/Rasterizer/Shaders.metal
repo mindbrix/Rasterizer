@@ -40,7 +40,7 @@ struct Outline {
     short prev, next;
 };
 struct Quad {
-    enum Type { kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines, kOpaque };
+    enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30 };
     union {
         SuperCell super;
         AffineTransform unit;
@@ -210,8 +210,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Quad& quad = quads[iid];
-    uint32_t type = quad.iz >> 24;
-    
+
     float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
@@ -226,7 +225,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.super.iy < 0 ? 0.0 : quad.super.cover;
     vert.even = false;
-    vert.solid = type == Quad::kSolidCell;
+    vert.solid = quad.iz & Quad::kSolidCell;
     return vert;
 }
 
@@ -259,7 +258,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     AffineTransform ctm = quad.unit;
     
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
-    if (quad.iz >> 24 == Quad::kOutlines) {
+    if (quad.iz & Quad::kOutlines) {
         device Segment& o = quad.outline.s;
         device Segment& p = quads[iid + quad.outline.prev].outline.s;
         device Segment& n = quads[iid + quad.outline.next].outline.s;
@@ -298,8 +297,8 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
-    vert.shape = quad.iz >> 24 == Quad::kOutlines ? float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1) : distances(ctm, dx, dy);
-    vert.circle = quad.iz >> 24 == Quad::kCircle;
+    vert.shape = quad.iz & Quad::kOutlines ? float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1) : distances(ctm, dx, dy);
+    vert.circle = quad.iz & Quad::kCircle;
     return vert;
 }
 

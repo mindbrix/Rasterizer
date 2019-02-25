@@ -262,10 +262,10 @@ struct Rasterizer {
             short prev, next;
         };
         struct Quad {
-            enum Type { kRect, kCircle, kEdge, kSolidCell, kShapes, kOutlines, kOpaque };
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type << 24) {}
-            Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type << 24) {}
-            Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type << 24) {}
+            enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30 };
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type) {}
+            Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
+            Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             union {
                 SuperCell super;
                 AffineTransform unit;
@@ -432,7 +432,7 @@ struct Rasterizer {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
                 size_t cellCount = 1, edgeCount = (q0->super.count + 1) / 2;
                 for (qidx = q0 + 1; qidx < q1; qidx++)
-                    if (qidx->iz >> 24 == GPU::Quad::kEdge) {
+                    if (qidx->iz & GPU::Quad::kEdge) {
                         if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
                             break;
                         else
@@ -451,7 +451,7 @@ struct Rasterizer {
                 begin = end;
                 
                 for (idx = 0, quad = q0; quad < qidx; quad++)
-                    if (quad->iz >> 24 == GPU::Quad::kEdge) {
+                    if (quad->iz & GPU::Quad::kEdge) {
                         int base = quad->super.idx, im = 0;
                         if (quad->super.iy < 0)
                             base += ctx->cache.ms.end, im = quad->super.cover;
@@ -475,14 +475,14 @@ struct Rasterizer {
                         }
                         idx++, cell++;
                     }
-                int qtype = q0->iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+                int qtype = q0->iz, type = qtype & GPU::Quad::kShapes || qtype & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
                 entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
                 for (quad = q0; quad < qidx; quad++) {
-                    qtype = quad->iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+                    qtype = quad->iz, type = qtype & GPU::Quad::kShapes || qtype & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                     if (type != entry->type)
                         end = entry->end, entries.emplace_back(Buffer::Entry::Type(type), end, end), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
-                    if (qtype == GPU::Quad::kShapes) {
+                    if (qtype & GPU::Quad::kShapes) {
                         iz = quad->iz & 0xFFFFFF;
                         Path& path = paths[iz];
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
@@ -490,7 +490,7 @@ struct Rasterizer {
                         for (int k = 0; k < path.ref->shapesCount; k++, dst++)
                             new (dst) GPU::Quad(ctm.concat(path.ref->shapes[k]), iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
-                    } else if (qtype == GPU::Quad::kOutlines) {
+                    } else if (qtype & GPU::Quad::kOutlines) {
                         iz = quad->iz & 0xFFFFFF;
                         Segment *s = ctx->segments[quad->super.iy].base + quad->super.idx, *es = s + quad->super.begin;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
