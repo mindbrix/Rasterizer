@@ -40,7 +40,7 @@ struct Outline {
     short prev, next;
 };
 struct Quad {
-    enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines };
+    enum Type { kNull = 0, kRect, kCircle, kCell, kSolidCell, kShapes, kOutlines, kOpaque };
     union {
         SuperCell super;
         AffineTransform unit;
