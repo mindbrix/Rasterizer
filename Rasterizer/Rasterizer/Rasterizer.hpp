@@ -275,7 +275,7 @@ struct Rasterizer {
         };
         struct EdgeCell {
             Cell cell;
-            int iy, base;
+            int im, base;
         };
         struct Edge {
             int idx;
@@ -449,12 +449,12 @@ struct Rasterizer {
                     for (idx = 0, quad = q0; quad < qidx; quad++)
                         if (quad->iz >> 24 == GPU::Quad::kCell) {
                             end += (quad->super.count + 1) / 2 * sizeof(GPU::Edge);
-                            int base = quad->super.idx, iy = 0;
+                            int base = quad->super.idx, im = 0;
                             if (quad->super.iy < 0)
-                                base += ctx->cache.ms.end, iy = quad->super.cover;
+                                base += ctx->cache.ms.end, im = quad->super.cover;
                             else
                                 base += sbegins[quad->super.iy];
-                            cell->cell = quad->super.cell, cell->iy = iy, cell->base = base;
+                            cell->cell = quad->super.cell, cell->im = im, cell->base = base;
                             if (quad->super.begin == 0xFFFFFF) {
                                 for (j = 0; j < quad->super.count; edge++)
                                     edge->idx = int(idx), edge->i0 = j++, edge->i1 = j++;
