@@ -473,10 +473,9 @@ struct Rasterizer {
                             idx++, cell++;
                         }
                 }
-                if (begin != end)
-                    entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
+                entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
+                entries.emplace_back(Buffer::Entry::kFastEdges, end, end), idxes.emplace_back(0);
                 begin = end;
-                entries.emplace_back(Buffer::Entry::kFastEdges, begin, end), idxes.emplace_back(0);
                 
                 int qtype = q0->iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
