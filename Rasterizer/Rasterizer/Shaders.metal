@@ -52,7 +52,7 @@ struct EdgeCell {
     Cell cell;
     int iy, base;
 };
-struct EdgeInstance {
+struct Edge {
     int idx;
     uint16_t i0, i1;
 };
@@ -130,14 +130,14 @@ struct EdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3;
 };
 
-vertex EdgesVertex edges_vertex_main(device EdgeInstance *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
+vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
                                      device EdgeCell *edgeCells [[buffer(3)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const Segment null = { 0.0, 0.0, 0.0, 0.0 };
     
-    device EdgeInstance& edge = edges[iid];
+    device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.idx];
     device Cell& cell = edgeCell.cell;
     int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1, iy = edgeCell.iy;
