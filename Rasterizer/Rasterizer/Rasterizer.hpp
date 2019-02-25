@@ -468,8 +468,8 @@ struct Rasterizer {
                         cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
                         
                         if (kUseFast && quad->super.iy < 0) {
-                            for (j = 0; j < quad->super.count; j += 4, fast++)
-                                fast->idx = idx, fast->i0 = j, fast->i1 = j + 4;
+                            for (j = 0; j < quad->super.count; fast++)
+                                fast->idx = idx, fast->i0 = j, j += 4, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
                             if (quad->super.begin == 0xFFFFFF) {
