@@ -475,14 +475,14 @@ struct Rasterizer {
                         }
                         idx++, cell++;
                     }
-                int qtype = q0->iz, type = qtype & GPU::Quad::kShapes || qtype & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+                int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
                 entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
                 for (quad = q0; quad < qidx; quad++) {
-                    qtype = quad->iz, type = qtype & GPU::Quad::kShapes || qtype & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+                    type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                     if (type != entry->type)
                         end = entry->end, entries.emplace_back(Buffer::Entry::Type(type), end, end), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
-                    if (qtype & GPU::Quad::kShapes) {
+                    if (quad->iz & GPU::Quad::kShapes) {
                         iz = quad->iz & 0xFFFFFF;
                         Path& path = paths[iz];
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
@@ -490,7 +490,7 @@ struct Rasterizer {
                         for (int k = 0; k < path.ref->shapesCount; k++, dst++)
                             new (dst) GPU::Quad(ctm.concat(path.ref->shapes[k]), iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
-                    } else if (qtype & GPU::Quad::kOutlines) {
+                    } else if (quad->iz & GPU::Quad::kOutlines) {
                         iz = quad->iz & 0xFFFFFF;
                         Segment *s = ctx->segments[quad->super.iy].base + quad->super.idx, *es = s + quad->super.begin;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
