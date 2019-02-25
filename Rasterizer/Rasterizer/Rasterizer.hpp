@@ -410,7 +410,7 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, iz, sbegins[ctx->segments.size()], size, idx;
+            size_t end = begin, j, iz, sbegins[ctx->segments.size()], size;
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
             
@@ -431,49 +431,57 @@ struct Rasterizer {
             }
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
-                size_t cellCount = 1, edgeCount = (q0->super.count + 1) / 2;
+                size_t cellCount = 1, edgeCount = 0 && q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = 0 && q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
                 for (qidx = q0 + 1; qidx < q1; qidx++)
                     if (qidx->iz & GPU::Quad::kEdge) {
                         if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
                             break;
-                        else
-                            cellCount++, edgeCount += (qidx->super.count + 1) / 2;
+                        else {
+                            cellCount++;
+                            if (0 && q0->super.iy < 0)
+                                fastCount += (qidx->super.count + 1) / 2;
+                            else
+                                edgeCount += (qidx->super.count + 1) / 2;
+                        }
                     }
                 end += cellCount * sizeof(GPU::EdgeCell);
                 entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
-                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin);
-                GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + end);
+                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
                 begin = end;
                 
                 end += edgeCount * sizeof(GPU::Edge);
                 entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
-                entries.emplace_back(Buffer::Entry::kFastEdges, end, end), idxes.emplace_back(0);
+                GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
+                begin = end;
+                end += fastCount * sizeof(GPU::Edge);
+                entries.emplace_back(Buffer::Entry::kFastEdges, begin, end), idxes.emplace_back(0);
+                GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
                 begin = end;
                 
-                for (idx = 0, quad = q0; quad < qidx; quad++)
+                for (quad = q0; quad < qidx; quad++)
                     if (quad->iz & GPU::Quad::kEdge) {
                         int base = quad->super.idx, im = 0;
                         if (quad->super.iy < 0)
                             base += ctx->cache.ms.end, im = quad->super.cover;
                         else
                             base += sbegins[quad->super.iy];
-                        cell->cell = quad->super.cell, cell->im = im, cell->base = base;
+                        int idx = int(cell - c0);
+                        cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
                         if (quad->super.begin == 0xFFFFFF) {
                             for (j = 0; j < quad->super.count; edge++)
-                                edge->idx = int(idx), edge->i0 = j++, edge->i1 = j++;
+                                edge->idx = idx, edge->i0 = j++, edge->i1 = j++;
                             if (quad->super.count & 1)
                                 (edge - 1)->i1 = 0xFFFF;
                         } else {
                             Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
                             for (j = 0; j < quad->super.count; j++, edge++) {
-                                edge->idx = int(idx), edge->i0 = uint16_t(is++->i);
+                                edge->idx = idx, edge->i0 = uint16_t(is++->i);
                                 if (++j < quad->super.count)
                                     edge->i1 = uint16_t(is++->i);
                                 else
                                     edge->i1 = 0xFFFF;
                             }
                         }
-                        idx++, cell++;
                     }
                 int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
