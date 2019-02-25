@@ -135,7 +135,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    const Segment null = { 0.0, 0.0, 0.0, 0.0 };
+    FastEdgesVertex vert;
     
     device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.idx];
@@ -145,52 +145,41 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
         device Segment& sm = segments[-edgeCell.im - 1];
         a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, _tx = sm.x0, _ty = sm.y0;
     }
-    Segment ss[kFastSegments];
-    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    for (int i = edge.i0; i < edge.i1; i++) {
-        device Segment& s = segments[edgeCell.base + i];
-        thread Segment& dst = ss[i];
-        if (s.x0 == FLT_MAX)
-            dst = null;
-        else {
-            dst = {
-                a * s.x0 - b * s.y0 + _tx, b * s.x0 + a * s.y0 + _ty,
-                a * s.x1 - b * s.y1 + _tx, b * s.x1 + a * s.y1 + _ty
-            };
-            if (dst.y0 != dst.y1)
-                slx = min(slx, min(dst.x0, dst.x1)), sly = min(sly, min(dst.y0, dst.y1)), suy = max(suy, max(dst.y0, dst.y1));
-        }
-    }
-    if (slx == FLT_MAX) {
-        FastEdgesVertex vert;
-        vert.position = float4(0.0, 0.0, 0.0, 1.0);
-        return vert;
-    }
-    for (int i = edge.i1; i < kFastSegments; i++)
-        ss[i] = null;
     
+    thread float *dst = & vert.x0;
+    device Segment *s = & segments[edgeCell.base + edge.i0];
+    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
+    for (int i = 0; i < kFastSegments; i++, s++, dst += 4) {
+        float visible = s->x0 != FLT_MAX && i + edge.i0 < edge.i1;
+        dst[0] = visible * (a * s->x0 - b * s->y0 + _tx), dst[1] = visible * (b * s->x0 + a * s->y0 + _ty);
+        dst[2] = visible * (a * s->x1 - b * s->y1 + _tx), dst[3] = visible * (b * s->x1 + a * s->y1 + _ty);
+        if (dst[1] != dst[3])
+            slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
+    }
     slx = max(floor(slx), float(cell.lx)), sly = floor(sly), suy = ceil(suy);
+    
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float tx = -(cell.lx - cell.ox) - (dx - 0.5), ty = -(cell.ly - cell.oy) - (dy - 0.5);
     
-    FastEdgesVertex vert;
-    vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 = ss[0].x0 + tx, vert.y0 = ss[0].y0 + ty;
-    vert.x1 = ss[0].x1 + tx, vert.y1 = ss[0].y1 + ty;
-    vert.x2 = ss[1].x0 + tx, vert.y2 = ss[1].y0 + ty;
-    vert.x3 = ss[1].x1 + tx, vert.y3 = ss[1].y1 + ty;
-    vert.x4 = ss[2].x0 + tx, vert.y4 = ss[2].y0 + ty;
-    vert.x5 = ss[2].x1 + tx, vert.y5 = ss[2].y1 + ty;
-    vert.x6 = ss[3].x0 + tx, vert.y6 = ss[3].y0 + ty;
-    vert.x7 = ss[3].x1 + tx, vert.y7 = ss[3].y1 + ty;
+    vert.position = slx != FLT_MAX ? float4(x, y, 1.0, 1.0) : float4(0.0, 0.0, 0.0, 1.0);
+    
+    vert.x0 += tx, vert.y0 += ty;
+    vert.x1 += tx, vert.y1 += ty;
+    vert.x2 += tx, vert.y2 += ty;
+    vert.x3 += tx, vert.y3 += ty;
+    vert.x4 += tx, vert.y4 += ty;
+    vert.x5 += tx, vert.y5 += ty;
+    vert.x6 += tx, vert.y6 += ty;
+    vert.x7 += tx, vert.y7 += ty;
     return vert;
 }
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
+    //return float4(0.25);
     float winding = 0;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);

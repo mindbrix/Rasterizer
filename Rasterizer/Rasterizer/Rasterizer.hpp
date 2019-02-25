@@ -431,15 +431,15 @@ struct Rasterizer {
             }
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
-                size_t cellCount = 1, edgeCount = 0 && q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = 0 && q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
+                size_t cellCount = 1, edgeCount = q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
                 for (qidx = q0 + 1; qidx < q1; qidx++)
                     if (qidx->iz & GPU::Quad::kEdge) {
                         if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
                             break;
                         else {
                             cellCount++;
-                            if (0 && q0->super.iy < 0)
-                                fastCount += (qidx->super.count + 1) / 2;
+                            if (qidx->super.iy < 0)
+                                fastCount += (qidx->super.count + 3) / 4;
                             else
                                 edgeCount += (qidx->super.count + 1) / 2;
                         }
@@ -460,26 +460,31 @@ struct Rasterizer {
                 
                 for (quad = q0; quad < qidx; quad++)
                     if (quad->iz & GPU::Quad::kEdge) {
-                        int base = quad->super.idx, im = 0;
+                        int base = quad->super.idx, im = 0, idx = int(cell - c0);
                         if (quad->super.iy < 0)
                             base += ctx->cache.ms.end, im = quad->super.cover;
                         else
                             base += sbegins[quad->super.iy];
-                        int idx = int(cell - c0);
                         cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
-                        if (quad->super.begin == 0xFFFFFF) {
-                            for (j = 0; j < quad->super.count; edge++)
-                                edge->idx = idx, edge->i0 = j++, edge->i1 = j++;
-                            if (quad->super.count & 1)
-                                (edge - 1)->i1 = 0xFFFF;
+                        
+                        if (quad->super.iy < 0) {
+                            for (j = 0; j < quad->super.count; j += 4, fast++)
+                                fast->idx = idx, fast->i0 = j, fast->i1 = j + 4 > quad->super.count ? quad->super.count : j + 4;
                         } else {
-                            Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
-                            for (j = 0; j < quad->super.count; j++, edge++) {
-                                edge->idx = idx, edge->i0 = uint16_t(is++->i);
-                                if (++j < quad->super.count)
-                                    edge->i1 = uint16_t(is++->i);
-                                else
-                                    edge->i1 = 0xFFFF;
+                            if (quad->super.begin == 0xFFFFFF) {
+                                for (j = 0; j < quad->super.count; edge++)
+                                    edge->idx = idx, edge->i0 = j++, edge->i1 = j++;
+                                if (quad->super.count & 1)
+                                    (edge - 1)->i1 = 0xFFFF;
+                            } else {
+                                Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
+                                for (j = 0; j < quad->super.count; j++, edge++) {
+                                    edge->idx = idx, edge->i0 = uint16_t(is++->i);
+                                    if (++j < quad->super.count)
+                                        edge->i1 = uint16_t(is++->i);
+                                    else
+                                        edge->i1 = 0xFFFF;
+                                }
                             }
                         }
                     }
@@ -632,8 +637,8 @@ struct Rasterizer {
                                 size_t count = e->end - e->begin;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                                 new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, 0xFFFFFF, count);
-                                gpu.edgeCells++, gpu.edgeInstances += (count + 1) / 2;
-                               // gpu.edgeCells++, gpu.edgeInstances += (count + 3) / 4;
+                                //gpu.edgeCells++, gpu.edgeInstances += (count + 1) / 2;
+                                gpu.edgeCells++, gpu.edgeInstances += (count + 3) / 4;
                             }
                         } else {
                             writePath(path, ctm, clip, writeClippedSegment, sgmnts);
