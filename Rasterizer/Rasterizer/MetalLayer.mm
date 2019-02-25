@@ -21,6 +21,7 @@
 @property (nonatomic) id <MTLBuffer> mtlBuffer0;
 @property (nonatomic) id <MTLBuffer> mtlBuffer1;
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadsPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> shapesPipelineState;
@@ -90,6 +91,10 @@
     descriptor.label = @"edges";
     self.edgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_fragment_main"];
+    descriptor.label = @"fast edges";
+    self.fastEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
 
@@ -200,9 +205,13 @@
                                   baseInstance:0];
                 break;
             case Rasterizer::Buffer::Entry::kEdges:
-                [commandEncoder endEncoding];
-                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
-                [commandEncoder setRenderPipelineState:_edgesPipelineState];
+            case Rasterizer::Buffer::Entry::kFastEdges:
+                if (entry.type == Rasterizer::Buffer::Entry::kEdges) {
+                    [commandEncoder endEncoding];
+                    commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
+                    [commandEncoder setRenderPipelineState:_edgesPipelineState];
+                } else
+                    [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];
@@ -215,12 +224,10 @@
                                      instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Edge)
                                       baseInstance:0];
                 }
-                break;
-            case Rasterizer::Buffer::Entry::kFastEdges:
-                if (entry.end - entry.begin)
-                    ;
-                [commandEncoder endEncoding];
-                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+                if (entry.type == Rasterizer::Buffer::Entry::kFastEdges) {
+                    [commandEncoder endEncoding];
+                    commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+                }
                 break;
             case Rasterizer::Buffer::Entry::kQuads:
                 [commandEncoder setDepthStencilState:_quadsDepthState];
