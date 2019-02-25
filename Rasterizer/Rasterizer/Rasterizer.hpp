@@ -492,11 +492,11 @@ struct Rasterizer {
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                     } else if (quad->iz & GPU::Quad::kOutlines) {
                         iz = quad->iz & 0xFFFFFF;
-                        Segment *s = ctx->segments[quad->super.iy].base + quad->super.idx, *es = s + quad->super.begin;
+                        Segment *src = ctx->segments[quad->super.iy].base + quad->super.idx, *es = src + quad->super.begin;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
-                        for (dst0 = dst; s < es; s++, dst++) {
-                            new (dst) GPU::Quad(s, quad->super.cover, iz, GPU::Quad::kOutlines);
-                            if (s->x0 == FLT_MAX && dst - dst0 > 1)
+                        for (dst0 = dst; src < es; src++, dst++) {
+                            new (dst) GPU::Quad(src, quad->super.cover, iz, GPU::Quad::kOutlines);
+                            if (src->x0 == FLT_MAX && dst - dst0 > 1)
                                 dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                         }
                         entry->end += quad->super.begin * sizeof(GPU::Quad);
