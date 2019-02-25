@@ -50,7 +50,7 @@ struct Quad {
 };
 struct EdgeCell {
     Cell cell;
-    int iy, base;
+    int im, base;
 };
 struct Edge {
     int idx;
@@ -140,12 +140,12 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.idx];
     device Cell& cell = edgeCell.cell;
-    int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1, iy = edgeCell.iy;
+    int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1;
     Segment s0 = segments[i0].x0 == FLT_MAX ? null : segments[i0];
     Segment s1 = edge.i1 == 0xFFFF || segments[i1].x0 == FLT_MAX ? null : segments[i1];
     
-    if (iy < 0) {
-        Segment sm = segments[-iy - 1];
+    if (edgeCell.im < 0) {
+        Segment sm = segments[-edgeCell.im - 1];
         float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, x, y;
         x = a * s0.x0 - b * s0.y0 + sm.x0, y = b * s0.x0 + a * s0.y0 + sm.y0;
         s0.x0 = x, s0.y0 = y;
