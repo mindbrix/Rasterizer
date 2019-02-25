@@ -292,7 +292,7 @@ struct Rasterizer {
     };
     struct Buffer {
         struct Entry {
-            enum Type { kColorants, kEdgeCells, kEdges, kQuads, kOpaques, kShapes, kSegments };
+            enum Type { kColorants, kEdgeCells, kEdges, kFastEdges, kQuads, kOpaques, kShapes, kSegments };
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
             size_t begin, end;
@@ -476,6 +476,7 @@ struct Rasterizer {
                 if (begin != end)
                     entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
                 begin = end;
+                entries.emplace_back(Buffer::Entry::kFastEdges, begin, end), idxes.emplace_back(0);
                 
                 int qtype = q0->iz >> 24, type = qtype == GPU::Quad::kShapes || qtype == GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;

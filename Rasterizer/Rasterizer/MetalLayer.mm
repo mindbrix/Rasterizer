@@ -203,16 +203,22 @@
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                 [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:edgeCellsOffset atIndex:3];
-                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
-                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                   vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Edge)
-                                  baseInstance:0];
+                if (entry.end - entry.begin) {
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:edgeCellsOffset atIndex:3];
+                    [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
+                    [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
+                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                                       vertexStart:0
+                                       vertexCount:4
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Edge)
+                                      baseInstance:0];
+                }
+                break;
+            case Rasterizer::Buffer::Entry::kFastEdges:
+                if (entry.end - entry.begin)
+                    ;
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 break;
