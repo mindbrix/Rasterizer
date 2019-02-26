@@ -166,20 +166,15 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     
     vert.position = slx != FLT_MAX ? float4(x, y, 1.0, 1.0) : float4(0.0, 0.0, 0.0, 1.0);
     
-    vert.x0 += tx, vert.y0 += ty;
-    vert.x1 += tx, vert.y1 += ty;
-    vert.x2 += tx, vert.y2 += ty;
-    vert.x3 += tx, vert.y3 += ty;
-    vert.x4 += tx, vert.y4 += ty;
-    vert.x5 += tx, vert.y5 += ty;
-    vert.x6 += tx, vert.y6 += ty;
-    vert.x7 += tx, vert.y7 += ty;
+    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
+    vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
+    vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty;
+    vert.x6 += tx, vert.y6 += ty, vert.x7 += tx, vert.y7 += ty;
     return vert;
 }
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    //return float4(0.25);
     float winding = 0;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
@@ -245,10 +240,8 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     float tx = -(cell.lx - cell.ox) - (dx - 0.5), ty = -(cell.ly - cell.oy) - (dy - 0.5);
     
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 += tx, vert.y0 += ty;
-    vert.x1 += tx, vert.y1 += ty;
-    vert.x2 += tx, vert.y2 += ty;
-    vert.x3 += tx, vert.y3 += ty;
+    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
+    vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
     return vert;
 }
 
