@@ -154,14 +154,14 @@ struct Rasterizer {
     struct Ref {
         Ref()                               { ref = new T(), ref->refCount = 1; }
         ~Ref()                              { if (--(ref->refCount) == 0) delete ref; }
-        Ref(const Ref& other)               { assign(other); }
-        Ref& operator= (const Ref other)    { assign(other); return *this; }
-        void assign(const Ref& other) {
+        Ref(const Ref& other)               { *this = other; }
+        Ref& operator= (const Ref& other)   {
             if (this != & other) {
                 if (ref)
                     this->~Ref();
                 ref = other.ref, ref->refCount++;
             }
+            return *this;
         }
         T *ref = nullptr;
     };
