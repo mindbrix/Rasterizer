@@ -473,7 +473,7 @@ struct Rasterizer {
                                 fast->ic = ic, fast->i0 = j, j += 4, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
-                            if (quad->super.begin == 0xFFFFFF) {
+                            if (quad->super.begin == kNoIndices) {
                                 for (j = 0; j < quad->super.count; edge++)
                                     edge->ic = ic, edge->i0 = j++, edge->i1 = j++;
                                 if (quad->super.count & 1)
@@ -638,7 +638,7 @@ struct Rasterizer {
                                 }
                                 size_t count = e->end - e->begin;
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, 0xFFFFFF, count);
+                                new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, kNoIndices, count);
                                 gpu.edgeCells++, gpu.edgeInstances += (count + 3) / 4;
                             }
                         } else {
@@ -988,7 +988,7 @@ struct Rasterizer {
             if (count) {
                 if (clip.ux - clip.lx < 32.f) {
                     gpu->allocator.alloc(clip.ux - clip.lx, Context::kfh, ox, oy);
-                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, iy, segments->idx, 0xFFFFFF, count);
+                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, iy, segments->idx, kNoIndices, count);
                     gpu->edgeCells++, gpu->edgeInstances += (count + 1) / 2;
                 } else {
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
