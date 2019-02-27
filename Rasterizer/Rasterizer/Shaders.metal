@@ -31,7 +31,8 @@ struct Cell {
 struct SuperCell {
     Cell cell;
     float cover;
-    short iy, count;
+    short iy;
+    uint16_t count;
     uint32_t idx, begin;
 };
 struct Outline {

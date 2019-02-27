@@ -249,10 +249,11 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, short iy, size_t idx, size_t begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(iy), count(short(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, short iy, size_t idx, size_t begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(iy), count(uint16_t(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
             Cell cell;
             float cover;
-            short iy, count;
+            short iy;
+            uint16_t count;
             uint32_t idx, begin;
         };
         struct Outline {
@@ -263,7 +264,7 @@ struct Rasterizer {
         };
         struct Quad {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30 };
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t end) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, end), iz((uint32_t)iz | type) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, count), iz((uint32_t)iz | type) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             union {
@@ -634,7 +635,6 @@ struct Rasterizer {
                                     new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                                 }
                                 size_t count = e->end - e->begin;
-                                assert(count < 65536);
                                 gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                                 new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, 0xFFFFFF, count);
                                 gpu.edgeCells++, gpu.edgeInstances += (count + 3) / 4;
