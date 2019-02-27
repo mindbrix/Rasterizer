@@ -179,8 +179,8 @@ struct Rasterizer {
     struct Segment {
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         struct Index {
-            Index(short x, short i) : x(x), i(i) {}
-            short x, i;
+            Index(uint16_t x, uint16_t i) : x(x), i(i) {}
+            uint16_t x, i;
             inline bool operator< (const Index& other) const { return x < other.x; }
         };
         float x0, y0, x1, y1;
