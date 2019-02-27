@@ -75,15 +75,6 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     return d;
 }
 
-float edgeWinding(float x0, float dx2, float dy, float tx0, float ty0, float tx1, float ty1) {
-    ty0 = saturate(ty0), ty1 = saturate(ty1);
-    float dty = max(1e-12, ty1 - ty0);
-    float ta0 = max(ty0, tx0), ta1 = min(ty1, tx1);
-    //float area = (fma(ta0, dx, x0) + fma(ta1, dx, x0)) * 0.5;
-    float t0 = (ta0 - ty0) / dty, t1 = (ta1 - ty0) / dty;
-    return (dty * dy) * (t1 - ((t1 - t0) * fma(ta0 + ta1, dx2, x0)));
-}
-
 float edgeWinding(float x0, float y0, float x1, float y1) {
     float sy0 = saturate(y0), sy1 = saturate(y1);
     float coverage = sy1 - sy0;
@@ -201,6 +192,7 @@ struct EdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3;
+    float tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3;
 };
 
 vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
@@ -241,12 +233,33 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
     vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
     
+    float t0, t1;
+    t0 = -vert.x0 / (vert.x1 - vert.x0), t1 = (1.0 - vert.x0) / (vert.x1 - vert.x0);
+    vert.tx0 = min(t0, t1), vert.tx1 = max(t0, t1);
+    t0 = -vert.y0 / (vert.y1 - vert.y0), t1 = (1.0 - vert.y0) / (vert.y1 - vert.y0);
+    vert.ty0 = min(t0, t1), vert.ty1 = max(t0, t1);
+    t0 = -vert.x2 / (vert.x3 - vert.x2), t1 = (1.0 - vert.x2) / (vert.x3 - vert.x2);
+    vert.tx2 = min(t0, t1), vert.tx3 = max(t0, t1);
+    t0 = -vert.y2 / (vert.y3 - vert.y2), t1 = (1.0 - vert.y2) / (vert.y3 - vert.y2);
+    vert.ty2 = min(t0, t1), vert.ty3 = max(t0, t1);
+
     return vert;
+}
+
+float edgeWinding(float x0, float dx2, float dy, float tx0, float _ty0, float tx1, float _ty1) {
+    float ty0 = saturate(_ty0), ty1 = saturate(_ty1);
+    float dty = max(1e-12, ty1 - ty0);
+    float ta0 = max(ty0, tx0), ta1 = min(ty1, tx1);
+    float t0 = min(1.0, (ta0 - ty0) / dty), t1 = min(1.0, (ta1 - ty0) / dty);
+    return (dty * dy) * (t1 - ((t1 - t0) * fma(ta0 + ta1, dx2, x0)));
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     float winding = 0;
+   // winding += edgeWinding(vert.x0, 0.5 * (vert.x1 - vert.x0), vert.y1 - vert.y0, vert.tx0, vert.ty0, vert.tx1, vert.ty1);
+  //  winding += edgeWinding(vert.x2, 0.5 * (vert.x3 - vert.x2), vert.y3 - vert.y2, vert.tx2, vert.ty2, vert.tx3, vert.ty3);
+    
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
     return float4(winding);
