@@ -79,7 +79,8 @@ float edgeWinding(float x0, float dx, float dy, float tx0, float ty0, float tx1,
     ty0 = saturate(ty0), ty1 = saturate(ty1);
     float dty = max(1e-12, ty1 - ty0);
     float ta0 = max(ty0, tx0), ta1 = min(ty1, tx1);
-    float area = (fma(ta0, dx, x0) + fma(ta1, dx, x0)) * 0.5;
+    float area = fma(ta0 + ta1, dx * 0.5, x0);
+    //float area = (fma(ta0, dx, x0) + fma(ta1, dx, x0)) * 0.5;
     float t0 = (ta0 - ty0) / dty, t1 = (ta1 - ty0) / dty;
     return (dty * dy) * (t1 - ((t1 - t0) * area));
 }
