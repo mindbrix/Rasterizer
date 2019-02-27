@@ -192,6 +192,7 @@ struct EdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3;
+    float w0, w1, w2, w3;
 };
 
 vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
@@ -232,18 +233,24 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
     vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
     
-    float vx, vy, py, a0, a1;
+    float vx, vy, py, a0, a1, w0, w1;
     vx = vert.x1 - vert.x0, vy = vert.y1 - vert.y0;
     py = float(vx * vy > 0.0);
     a0 = vx * (1.0 - py - vert.y0) - vy * (1.0 - vert.x0);
     a1 = vx * (py - vert.y0) - vy * -vert.x0;
     vert.x0 = -a0 / (a1 - a0);
+    w0 = vx > 0.0 ? vert.y0 : vert.y1, w0 = vx * vy > 0.0 ? w0 : 1.0 - w0;
+    w1 = vx < 0.0 ? vert.y0 : vert.y1, w1 = vx * vy < 0.0 ? w1 : 1.0 - w1;
+    vert.w0 = w0, vert.w1 = w1;
     
     vx = vert.x3 - vert.x2, vy = vert.y3 - vert.y2;
     py = float(vx * vy > 0.0);
     a0 = vx * (1.0 - py - vert.y2) - vy * (1.0 - vert.x2);
     a1 = vx * (py - vert.y2) - vy * -vert.x2;
     vert.x2 = -a0 / (a1 - a0);
+    w0 = vx > 0.0 ? vert.y2 : vert.y3, w0 = vx * vy > 0.0 ? w0 : 1.0 - w0;
+    w1 = vx < 0.0 ? vert.y2 : vert.y3, w1 = vx * vy < 0.0 ? w1 : 1.0 - w1;
+    vert.w2 = w0, vert.w3 = w1;
     
     return vert;
 }
@@ -251,8 +258,8 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     float winding = 0;
-    winding += smoothstep(0.0, 1.0, vert.x0) * (saturate(vert.y1) - saturate(vert.y0));
-    winding += smoothstep(0.0, 1.0, vert.x2) * (saturate(vert.y3) - saturate(vert.y2));
+    winding += smoothstep(saturate(vert.w0) * 0.5, 1.0 - saturate(vert.w1) * 0.5, vert.x0) * (saturate(vert.y1) - saturate(vert.y0));
+    winding += smoothstep(saturate(vert.w2) * 0.5, 1.0 - saturate(vert.w3) * 0.5, vert.x2) * (saturate(vert.y3) - saturate(vert.y2));
     return float4(winding);
 }
 
