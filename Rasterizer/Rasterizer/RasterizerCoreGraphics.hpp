@@ -177,8 +177,7 @@ struct RasterizerCoreGraphics {
             }
         }
     }
-    static CGPathRef createStrokedPath(CGPathRef path, CGFloat width, CGLineCap cap, CGLineJoin join, CGFloat limit) {
-        CGFloat scale = 10;
+    static CGPathRef createStrokedPath(CGPathRef path, CGFloat width, CGLineCap cap, CGLineJoin join, CGFloat limit, CGFloat scale) {
         CGAffineTransform scaleUp = { scale, 0, 0, scale, 0, 0 };
         CGAffineTransform scaleDown = { 1.0 / scale, 0, 0, 1.0 / scale, 0, 0 };
         CGPathRef scaledUp = CGPathCreateCopyByTransformingPath(path, & scaleUp);
