@@ -209,14 +209,6 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     vert.x0 = f0 * s0.x0, vert.y0 = f0 * s0.y0, vert.x1 = f0 * s0.x1, vert.y1 = f0 * s0.y1;
     vert.x2 = f1 * s1.x0, vert.y2 = f1 * s1.y0, vert.x3 = f1 * s1.x1, vert.y3 = f1 * s1.y1;
     
-    if (edgeCell.im < 0) {
-        device Segment& sm = segments[-edgeCell.im - 1];
-        float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, x, y;
-        x = a * vert.x0 - b * vert.y0 + sm.x0, y = b * vert.x0 + a * vert.y0 + sm.y0, vert.x0 = x, vert.y0 = y;
-        x = a * vert.x1 - b * vert.y1 + sm.x0, y = b * vert.x1 + a * vert.y1 + sm.y0, vert.x1 = x, vert.y1 = y;
-        x = a * vert.x2 - b * vert.y2 + sm.x0, y = b * vert.x2 + a * vert.y2 + sm.y0, vert.x2 = x, vert.y2 = y;
-        x = a * vert.x3 - b * vert.y3 + sm.x0, y = b * vert.x3 + a * vert.y3 + sm.y0, vert.x3 = x, vert.y3 = y;
-    }
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     if (vert.y0 != vert.y1) {
         slx = min(slx, min(vert.x0, vert.x1));
