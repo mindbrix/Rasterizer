@@ -432,7 +432,9 @@ struct Rasterizer {
             }
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
-                size_t cellCount = 1, edgeCount = q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
+                size_t cellCount = 0, edgeCount = 0, fastCount = 0;
+                if (q0->iz & GPU::Quad::kEdge)
+                    cellCount = 1, edgeCount = q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = q0->super.iy < 0 ? (q0->super.count + 3) / 4 : 0;
                 for (qidx = q0 + 1; qidx < q1; qidx++)
                     if (qidx->iz & GPU::Quad::kEdge) {
                         if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
