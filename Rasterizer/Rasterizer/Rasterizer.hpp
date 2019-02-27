@@ -477,7 +477,7 @@ struct Rasterizer {
                                 for (j = 0; j < quad->super.count; edge++)
                                     edge->ic = ic, edge->i0 = j++, edge->i1 = j++;
                                 if (quad->super.count & 1)
-                                    (edge - 1)->i1 = 0xFFFF;
+                                    (edge - 1)->i1 = kNullIndex;
                             } else {
                                 Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
                                 for (j = 0; j < quad->super.count; j++, edge++) {
@@ -485,7 +485,7 @@ struct Rasterizer {
                                     if (++j < quad->super.count)
                                         edge->i1 = uint16_t(is++->i);
                                     else
-                                        edge->i1 = 0xFFFF;
+                                        edge->i1 = kNullIndex;
                                 }
                             }
                         }

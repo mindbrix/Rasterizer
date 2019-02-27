@@ -9,3 +9,4 @@
 #define kFatHeight 8
 #define kFastHeight 32
 #define kFastSegments 4
+#define kNullIndex 0xFFFF

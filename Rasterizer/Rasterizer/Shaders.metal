@@ -206,7 +206,7 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1;
     device Segment& s0 = segments[i0];
     device Segment& s1 = segments[i1];
-    float f0 = s0.x0 != FLT_MAX, f1 = edge.i1 != 0xFFFF && s1.x0 != FLT_MAX;
+    float f0 = s0.x0 != FLT_MAX, f1 = edge.i1 != kNullIndex && s1.x0 != FLT_MAX;
     vert.x0 = f0 * s0.x0, vert.y0 = f0 * s0.y0, vert.x1 = f0 * s0.x1, vert.y1 = f0 * s0.y1;
     vert.x2 = f1 * s1.x0, vert.y2 = f1 * s1.y0, vert.x3 = f1 * s1.x1, vert.y3 = f1 * s1.y1;
     
