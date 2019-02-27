@@ -278,7 +278,7 @@ struct Rasterizer {
             int im, base;
         };
         struct Edge {
-            int idx;
+            int ic;
             uint16_t i0, i1;
         };
         GPU() : edgeCells(0), edgeInstances(0), shapesCount(0) {}
@@ -467,18 +467,18 @@ struct Rasterizer {
                         cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
                         if (quad->super.iy < 0) {
                             for (j = 0; j < quad->super.count; fast++)
-                                fast->idx = ic, fast->i0 = j, j += 4, fast->i1 = j;
+                                fast->ic = ic, fast->i0 = j, j += 4, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
                             if (quad->super.begin == 0xFFFFFF) {
                                 for (j = 0; j < quad->super.count; edge++)
-                                    edge->idx = ic, edge->i0 = j++, edge->i1 = j++;
+                                    edge->ic = ic, edge->i0 = j++, edge->i1 = j++;
                                 if (quad->super.count & 1)
                                     (edge - 1)->i1 = 0xFFFF;
                             } else {
                                 Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
                                 for (j = 0; j < quad->super.count; j++, edge++) {
-                                    edge->idx = ic, edge->i0 = uint16_t(is++->i);
+                                    edge->ic = ic, edge->i0 = uint16_t(is++->i);
                                     if (++j < quad->super.count)
                                         edge->i1 = uint16_t(is++->i);
                                     else

@@ -53,7 +53,7 @@ struct EdgeCell {
     int im, base;
 };
 struct Edge {
-    int idx;
+    int ic;
     uint16_t i0, i1;
 };
 
@@ -138,7 +138,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     FastEdgesVertex vert;
     
     device Edge& edge = edges[iid];
-    device EdgeCell& edgeCell = edgeCells[edge.idx];
+    device EdgeCell& edgeCell = edgeCells[edge.ic];
     device Cell& cell = edgeCell.cell;
     float a = 1.0, b = 0.0, _tx = 0.0, _ty = 0.0;
     if (edgeCell.im < 0) {
@@ -200,7 +200,7 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
 {
     EdgesVertex vert;
     device Edge& edge = edges[iid];
-    device EdgeCell& edgeCell = edgeCells[edge.idx];
+    device EdgeCell& edgeCell = edgeCells[edge.ic];
     device Cell& cell = edgeCell.cell;
     int i0 = edgeCell.base + edge.i0, i1 = edgeCell.base + edge.i1;
     device Segment& s0 = segments[i0];
