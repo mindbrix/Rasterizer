@@ -75,13 +75,13 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     return d;
 }
 
-float edgeWinding(float x0, float y0, float x1, float y1, float tx0, float ty0, float tx1, float ty1) {
+float edgeWinding(float x0, float dx, float dy, float tx0, float ty0, float tx1, float ty1) {
     ty0 = saturate(ty0), ty1 = saturate(ty1);
     float dty = max(1e-12, ty1 - ty0);
     float ta0 = max(ty0, min(tx0, tx1)), ta1 = min(ty1, max(tx0, tx1));
-    float area = (fma(ta0, x1 - x0, x0) + fma(ta1, x1 - x0, x0)) * 0.5;
+    float area = (fma(ta0, dx, x0) + fma(ta1, dx, x0)) * 0.5;
     float t0 = (ta0 - ty0) / dty, t1 = (ta1 - ty0) / dty;
-    return (dty * (y1 - y0)) * (t1 - ((t1 - t0) * area));
+    return (dty * dy) * (t1 - ((t1 - t0) * area));
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
