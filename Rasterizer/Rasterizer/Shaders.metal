@@ -233,22 +233,20 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
     vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
     
-    float vx, vy, py, a0, a1;
+    float vx, vy, py, a0;
     vx = vert.x1 - vert.x0, vy = vert.y1 - vert.y0;
     py = float(vx * vy > 0.0);
     a0 = vx * (1.0 - py - vert.y0) - vy * (1.0 - vert.x0);
-    a1 = vx * (py - vert.y0) - vy * -vert.x0;
-    vert.d0 = -a0 / (a1 - a0);
-    vert.x0 = vx > 0.0 ? vert.y0 : vert.y1, vert.x0 = vx * vy > 0.0 ? vert.x0 : 1.0 - vert.x0;
-    vert.x1 = vx < 0.0 ? vert.y0 : vert.y1, vert.x1 = vx * vy < 0.0 ? vert.x1 : 1.0 - vert.x1;
+    vert.d0 = -a0 / (vx * (2.0 * py - 1.0) + vy);
+    vert.x0 = vx > 0.0 ? vert.y0 : vert.y1, vert.x0 = py != 0.0 ? vert.x0 : 1.0 - vert.x0;
+    vert.x1 = vx < 0.0 ? vert.y0 : vert.y1, vert.x1 = py == 0.0 ? vert.x1 : 1.0 - vert.x1;
     
     vx = vert.x3 - vert.x2, vy = vert.y3 - vert.y2;
     py = float(vx * vy > 0.0);
     a0 = vx * (1.0 - py - vert.y2) - vy * (1.0 - vert.x2);
-    a1 = vx * (py - vert.y2) - vy * -vert.x2;
-    vert.d1 = -a0 / (a1 - a0);
-    vert.x2 = vx > 0.0 ? vert.y2 : vert.y3, vert.x2 = vx * vy > 0.0 ? vert.x2 : 1.0 - vert.x2;
-    vert.x3 = vx < 0.0 ? vert.y2 : vert.y3, vert.x3 = vx * vy < 0.0 ? vert.x3 : 1.0 - vert.x3;
+    vert.d1 = -a0 / (vx * (2.0 * py - 1.0) + vy);
+    vert.x2 = vx > 0.0 ? vert.y2 : vert.y3, vert.x2 = py != 0.0 ? vert.x2 : 1.0 - vert.x2;
+    vert.x3 = vx < 0.0 ? vert.y2 : vert.y3, vert.x3 = py == 0.0 ? vert.x3 : 1.0 - vert.x3;
     
     return vert;
 }
