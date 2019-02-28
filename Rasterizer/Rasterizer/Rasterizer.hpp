@@ -249,12 +249,12 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, short iy, size_t idx, size_t begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(iy), count(uint16_t(count)), idx(uint32_t(idx)), begin(uint32_t(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, short iy, size_t idx, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(cover), iy(iy), count(uint16_t(count)), idx(int(idx)), begin(int(begin)) {}
             Cell cell;
             float cover;
             short iy;
             uint16_t count;
-            uint32_t idx, begin;
+            int idx, begin;
         };
         struct Outline {
             Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
@@ -264,7 +264,7 @@ struct Rasterizer {
         };
         struct Quad {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30 };
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, size_t begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, count), iz((uint32_t)iz | type) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, short iy, size_t idx, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, count), iz((uint32_t)iz | type) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             union {

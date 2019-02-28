@@ -10,4 +10,4 @@
 #define kFastHeight 32
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
-#define kNoIndices 0xFFFFFF
+#define kNoIndices -1
