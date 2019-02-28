@@ -11,7 +11,7 @@ typedef uint8_t vec4b __attribute__((vector_size(4)));
 #endif
 
 #import "Rasterizer.h"
-#import "crc32.h"
+#import "crc64.h"
 #import <vector>
 #import <unordered_map>
 #pragma clang diagnostic ignored "-Wcomma"

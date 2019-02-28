@@ -11,7 +11,6 @@
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #import "stb_truetype.h"
-#import "crc32.h"
 
 struct RasterizerTrueType {
     struct Font {

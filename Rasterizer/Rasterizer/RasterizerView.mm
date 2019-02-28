@@ -97,7 +97,7 @@
 		uint8_t bgra[4] = { 0, 0, 0, 255 };
         if (string) {
             Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), false, string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
-            if (0) {
+            if ((0)) {
                 _testScene.scene.empty();
                 _testScene.scene.addPath(shapes, Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }

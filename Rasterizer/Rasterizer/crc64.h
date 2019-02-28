@@ -1,5 +1,5 @@
 //
-//  crc32.h
+//  crc64.h
 //  Rasterizer
 //
 //  Created by Nigel Barber on 28/02/2019.

@@ -1,11 +1,11 @@
 //
-//  crc32.c
+//  crc64.c
 //  Rasterizer
 //
 //  Created by Nigel Barber on 28/02/2019.
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
-#include "crc32.h"
+#include "crc64.h"
 
 static const uint64_t crc64_tab[256] = {
     UINT64_C(0x0000000000000000), UINT64_C(0x7ad870c830358979),
