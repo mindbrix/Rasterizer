@@ -30,8 +30,7 @@ struct Cell {
 
 struct SuperCell {
     Cell cell;
-    float cover;
-    short iy;
+    short cover, im, iy;
     uint16_t count;
     int idx, begin;
 };
