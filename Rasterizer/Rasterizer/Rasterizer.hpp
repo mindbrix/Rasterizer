@@ -110,9 +110,7 @@ struct Rasterizer {
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
-            float ax, ay, bx, by, det, dot;
-            ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy;
-            det = ax * by - ay * bx, dot = ax * bx + ay * by;
+            float ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy, det = ax * by - ay * bx, dot = ax * bx + ay * by;
             if (fabsf(det) < 1e-4f) {
                 if (dot < 0.f && det)
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
@@ -124,8 +122,7 @@ struct Rasterizer {
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
-            float dx, dy;
-            dx = 3.f * (cx0 - cx1) - px + x, dy = 3.f * (cy0 - cy1) - py + y;
+            float dx = 3.f * (cx0 - cx1) - px + x, dy = 3.f * (cy0 - cy1) - py + y;
             if (dx * dx + dy * dy < 1e-4f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
@@ -416,7 +413,6 @@ struct Rasterizer {
             }
         }
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1;
-        
         std::vector<std::vector<Entry>> es;
         size_t grid[kGridSize];
         Entry outline;
