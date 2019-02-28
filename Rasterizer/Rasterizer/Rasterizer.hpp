@@ -368,37 +368,30 @@ struct Rasterizer {
         void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ctms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr;
-            if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
-                Bounds dev = Bounds(unit).integral();
-                if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                    if (path.ref->hash == 0) {
-                        writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), outline);
-                        e = & outline;
-                    } else {
-                        Entry *srch = nullptr;
-                        uint16_t& idx = grid[path.ref->hash & kGridMask];
-                        if (idx == 0)
-                            idx = chunks.end, new (chunks.alloc(1)) Chunk();
-                        else {
-                            Chunk *chunk = chunks.base + idx;
-                            do {
-                                for (int i = 0; i < chunk->end && srch == nullptr; i++)
-                                    if (chunk->entries[i].hash == path.ref->hash)
-                                        srch = & chunk->entries[i];
-                            } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
-                        }
-                        if (srch == nullptr) {
-                            Chunk *chunk = chunks.base + idx;
-                            if (chunk->end == kChunkSize)
-                                chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
-                            e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
-                            writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
-                        } else {
-                            m = ctm.concat(srch->ctm);
-                            if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                                e = srch;
-                        }
-                    }
+            Bounds dev = Bounds(unit).integral();
+            if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+                Entry *srch = nullptr;
+                uint16_t& idx = grid[path.ref->hash & kGridMask];
+                if (idx == 0)
+                    idx = chunks.end, new (chunks.alloc(1)) Chunk();
+                else {
+                    Chunk *chunk = chunks.base + idx;
+                    do {
+                        for (int i = 0; i < chunk->end && srch == nullptr; i++)
+                            if (chunk->entries[i].hash == path.ref->hash)
+                                srch = & chunk->entries[i];
+                    } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
+                }
+                if (srch == nullptr) {
+                    Chunk *chunk = chunks.base + idx;
+                    if (chunk->end == kChunkSize)
+                        chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
+                    e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
+                    writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
+                } else {
+                    m = ctm.concat(srch->ctm);
+                    if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
+                        e = srch;
                 }
             }
             return e;
