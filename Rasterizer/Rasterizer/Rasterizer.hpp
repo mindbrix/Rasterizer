@@ -371,7 +371,7 @@ struct Rasterizer {
                         e = & outline;
                     } else {
                         Entry *srch = nullptr;
-                        size_t& idx = grid[path.ref->hash & kGridMask];
+                        uint16_t& idx = grid[path.ref->hash & kGridMask];
                         if (idx)
                             for (auto& cmp : es[idx])
                                 if (cmp.hash == path.ref->hash) {
@@ -414,7 +414,7 @@ struct Rasterizer {
         }
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1;
         std::vector<std::vector<Entry>> es;
-        size_t grid[kGridSize];
+        uint16_t grid[kGridSize];
         Entry outline;
         Row<Segment> ms, segments;
     };
