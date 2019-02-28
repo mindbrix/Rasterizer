@@ -85,7 +85,7 @@ struct Rasterizer {
             return atoms.back().points + (end - size) * 2;
         }
         void update(Atom::Type type, size_t size, float *p) {
-            counts[type]++, crc = ::crc64(crc + type, p, size * 2 * sizeof(float));
+            counts[type]++, crc = hash = ::crc64(crc + type, p, size * 2 * sizeof(float));
             while (size--) {
                 bounds.lx = bounds.lx < *p ? bounds.lx : *p, bounds.ux = bounds.ux > *p ? bounds.ux : *p, p++,
                 bounds.ly = bounds.ly < *p ? bounds.ly : *p, bounds.uy = bounds.uy > *p ? bounds.uy : *p, p++;
@@ -360,7 +360,11 @@ struct Rasterizer {
             size_t hash, begin, end;
             AffineTransform ctm;
         };
-        void empty() { es.resize(1), bzero(grid, sizeof(grid)), ms.empty(), segments.empty(); }
+        struct Chunk {
+            Entry entries[4];
+            size_t end = 0, next = 0;
+        };
+        void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr;
             if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
@@ -372,16 +376,24 @@ struct Rasterizer {
                     } else {
                         Entry *srch = nullptr;
                         uint16_t& idx = grid[path.ref->hash & kGridMask];
-                        if (idx)
-                            for (auto& cmp : es[idx])
-                                if (cmp.hash == path.ref->hash) {
-                                    srch = & cmp;
-                                    break;
-                                }
+                        if (idx) {
+                            Chunk *chunk = chunks.base + idx;
+                            do {
+                                for (int i = 0; i < chunk->end && srch == nullptr; i++)
+                                    if (chunk->entries[i].hash == path.ref->hash)
+                                        srch = & chunk->entries[i];
+                            } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
+                        } else {
+                            idx = chunks.end;
+                            new (chunks.alloc(1)) Chunk();
+                        }
                         if (srch == nullptr) {
-                            idx = es.size(), es.emplace_back();
-                            es[idx].emplace_back(path.ref->hash, ctm.invert());
-                            e = & es[idx].back();
+                            Chunk *chunk = chunks.base + idx;
+                            if (chunk->end == 4) {
+                                chunk->next = chunks.end;
+                                chunk = new (chunks.alloc(1)) Chunk();
+                            }
+                            e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
                             writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
                         } else {
                             m = ctm.concat(srch->ctm);
@@ -413,7 +425,8 @@ struct Rasterizer {
             }
         }
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1;
-        std::vector<std::vector<Entry>> es;
+        
+        Row<Chunk> chunks;
         uint16_t grid[kGridSize];
         Entry outline;
         Row<Segment> ms, segments;
