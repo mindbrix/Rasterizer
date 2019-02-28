@@ -20,6 +20,7 @@
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* MetalLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
+		E9C2E72922280F000023B714 /* crc32.c in Sources */ = {isa = PBXBuildFile; fileRef = E9C2E72822280F000023B714 /* crc32.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +53,8 @@
 		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		E9A7FA84218FAB380031FD4E /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = nanosvg.h; path = ../../../nanosvg/src/nanosvg.h; sourceTree = "<group>"; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
+		E9C2E72722280F000023B714 /* crc32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = crc32.h; sourceTree = "<group>"; };
+		E9C2E72822280F000023B714 /* crc32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = crc32.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +99,8 @@
 			children = (
 				E9A7FA84218FAB380031FD4E /* nanosvg.h */,
 				E963FF6E21DF5A29007C1327 /* stb_truetype.h */,
+				E9C2E72722280F000023B714 /* crc32.h */,
+				E9C2E72822280F000023B714 /* crc32.c */,
 				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCoreGraphics.hpp */,
@@ -199,6 +204,7 @@
 				E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */,
 				E920A5BB21767B7900F52C25 /* VGAffineTransform.m in Sources */,
 				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
+				E9C2E72922280F000023B714 /* crc32.c in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
 				E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
