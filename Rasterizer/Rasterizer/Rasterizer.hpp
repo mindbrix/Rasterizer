@@ -377,16 +377,15 @@ struct Rasterizer {
                     } else {
                         Entry *srch = nullptr;
                         uint16_t& idx = grid[path.ref->hash & kGridMask];
-                        if (idx) {
+                        if (idx == 0)
+                            idx = chunks.end, new (chunks.alloc(1)) Chunk();
+                        else {
                             Chunk *chunk = chunks.base + idx;
                             do {
                                 for (int i = 0; i < chunk->end && srch == nullptr; i++)
                                     if (chunk->entries[i].hash == path.ref->hash)
                                         srch = & chunk->entries[i];
                             } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
-                        } else {
-                            idx = chunks.end;
-                            new (chunks.alloc(1)) Chunk();
                         }
                         if (srch == nullptr) {
                             Chunk *chunk = chunks.base + idx;
