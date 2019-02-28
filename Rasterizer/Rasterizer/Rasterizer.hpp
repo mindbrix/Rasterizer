@@ -74,14 +74,14 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(0), hash(0) {}
+        Sequence() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(0), hash(0) {}
         ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
             if (end + size > Atom::kCapacity)
                 end = 0, atoms.emplace_back();
             atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
-            end += size;
+            end += size, atomsCount += size;
             return atoms.back().points + (end - size) * 2;
         }
         void addShapes(size_t count) {
@@ -143,7 +143,7 @@ struct Rasterizer {
         void close() {
             alloc(Atom::kClose, 1);
         }
-        size_t refCount, end, shapesCount, hash;
+        size_t refCount, atomsCount, shapesCount, hash, end;
         std::vector<Atom> atoms;
         float px, py;
         AffineTransform *shapes;
@@ -586,7 +586,7 @@ struct Rasterizer {
             AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds dev = device;
             for (paths += begin, ctms += begin, colors += begin, iz = begin; iz < end; iz++, paths++, ctms++, colors++)
-                if (paths->ref->shapes || paths->ref->bounds.lx != FLT_MAX) {
+                if (paths->ref->shapesCount || paths->ref->atomsCount > 2) {
                     if (memcmp(& colors->ctm, & t, sizeof(AffineTransform)))
                         dev = Bounds(colors->ctm).integral().intersect(device), inv = bitmap.width ? inv : colors->ctm.invert(), t = colors->ctm;
                     AffineTransform unit = paths->ref->bounds.unit(*ctms);
