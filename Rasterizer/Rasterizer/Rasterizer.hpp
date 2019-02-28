@@ -618,7 +618,7 @@ struct Rasterizer {
                             if (bitmap.width)
                                 writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, *ctms, dev, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
+                                writeGPUPath(*paths, *ctms, even, & colors->src0, iz, dev, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
                         }
                     }
                 }
@@ -641,7 +641,7 @@ struct Rasterizer {
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
         }
     }
-    static void writeGPUPath(Path& path, AffineTransform ctm, Bounds dev, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
+    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds dev, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
         if (path.ref->shapes) {
             gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
