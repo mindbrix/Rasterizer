@@ -369,7 +369,7 @@ struct Rasterizer {
             size_t hash, begin, end;
             AffineTransform ctm;
         };
-        void empty() { es.resize(1), grid.resize(kGridSize), bzero(& grid[0], kGridSize * sizeof(grid[0])), ms.empty(), segments.empty(); }
+        void empty() { es.resize(1), bzero(grid, sizeof(grid)), ms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr;
             if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
@@ -418,7 +418,7 @@ struct Rasterizer {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1;
         
         std::vector<std::vector<Entry>> es;
-        std::vector<size_t> grid;
+        size_t grid[kGridSize];
         Entry outline;
         Row<Segment> ms, segments;
     };
