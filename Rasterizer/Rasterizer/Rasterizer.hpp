@@ -85,6 +85,12 @@ struct Rasterizer {
             end += size, atomsCount += size;
             return atoms.back().points + (end - size) * 2;
         }
+        void updateBounds(float *p, size_t size) {
+            while (size--) {
+                bounds.lx = bounds.lx < *p ? bounds.lx : *p, bounds.ux = bounds.ux > *p ? bounds.ux : *p, p++,
+                bounds.ly = bounds.ly < *p ? bounds.ly : *p, bounds.uy = bounds.uy > *p ? bounds.uy : *p, p++;
+            }
+        }
         void addShapes(size_t count) {
             shapesCount = count, bounds = Bounds(-5e11f, -5e11f, 5e11f, 5e11f);
             shapes = (AffineTransform *)calloc(count, sizeof(shapes[0])), circles = (bool *)calloc(count, sizeof(bool));
@@ -93,16 +99,14 @@ struct Rasterizer {
         
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
-            bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
-            bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
             px = *points++ = x, py = *points++ = y, crc = ::crc64(crc + Atom::kMove, points - 2, 2 * sizeof(float));
+            updateBounds(points - 2, 1);
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
                 float *points = alloc(Atom::kLine, 1);
-                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
-                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y, crc = ::crc64(crc + Atom::kLine, points - 2, 2 * sizeof(float));
+                updateBounds(points - 2, 1);
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -115,12 +119,9 @@ struct Rasterizer {
                 lineTo(x, y);
             } else {
                 float *points = alloc(Atom::kQuadratic, 2);
-                bounds.lx = bounds.lx < cx ? bounds.lx : cx, bounds.ly = bounds.ly < cy ? bounds.ly : cy;
-                bounds.ux = bounds.ux > cx ? bounds.ux : cx, bounds.uy = bounds.uy > cy ? bounds.uy : cy;
                 *points++ = cx, *points++ = cy;
-                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
-                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y, crc = ::crc64(crc + Atom::kQuadratic, points - 4, 4 * sizeof(float));
+                updateBounds(points - 4, 2);
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -130,15 +131,9 @@ struct Rasterizer {
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
                 float *points = alloc(Atom::kCubic, 3);
-                bounds.lx = bounds.lx < cx0 ? bounds.lx : cx0, bounds.ly = bounds.ly < cy0 ? bounds.ly : cy0;
-                bounds.ux = bounds.ux > cx0 ? bounds.ux : cx0, bounds.uy = bounds.uy > cy0 ? bounds.uy : cy0;
-                *points++ = cx0, *points++ = cy0;
-                bounds.lx = bounds.lx < cx1 ? bounds.lx : cx1, bounds.ly = bounds.ly < cy1 ? bounds.ly : cy1;
-                bounds.ux = bounds.ux > cx1 ? bounds.ux : cx1, bounds.uy = bounds.uy > cy1 ? bounds.uy : cy1;
-                *points++ = cx1, *points++ = cy1;
-                bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
-                bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
+                *points++ = cx0, *points++ = cy0, *points++ = cx1, *points++ = cy1;
                 px = *points++ = x, py = *points++ = y, crc = ::crc64(crc + Atom::kCubic, points - 6, 6 * sizeof(float));
+                updateBounds(points - 6, 3);
             }
         }
         void close() {
