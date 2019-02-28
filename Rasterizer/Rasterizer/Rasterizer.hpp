@@ -363,7 +363,7 @@ struct Rasterizer {
         };
         struct Chunk {
             Entry entries[kChunkSize];
-            size_t end = 0, next = 0;
+            uint32_t end = 0, next = 0;
         };
         void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, AffineTransform& m) {
@@ -390,7 +390,7 @@ struct Rasterizer {
                         if (srch == nullptr) {
                             Chunk *chunk = chunks.base + idx;
                             if (chunk->end == kChunkSize)
-                                chunk->next = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
+                                chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
                             e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
                             writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
                         } else {
