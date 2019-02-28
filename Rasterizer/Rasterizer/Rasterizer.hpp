@@ -370,13 +370,13 @@ struct Rasterizer {
             AffineTransform ctm;
         };
         void empty() { es.resize(1), grid.resize(kGridSize), bzero(& grid[0], kGridSize * sizeof(grid[0])), ms.empty(), segments.empty(); }
-        Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, Info info, AffineTransform& m) {
+        Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr;
             if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
                 Bounds dev = Bounds(unit).integral();
                 if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                     if (path.ref->hash == 0)
-                        e = outline.writeOutlines(path, ctm, clip, info);
+                        e = outline.writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments));
                     else {
                         Entry *srch = nullptr;
                         size_t& idx = grid[path.ref->hash & kGridMask];
@@ -390,7 +390,7 @@ struct Rasterizer {
                             idx = es.size(), es.emplace_back();
                             es[idx].emplace_back(path.ref->hash, ctm.invert());
                             e = & es[idx].back();
-                            e->writeOutlines(path, ctm, clip, info);
+                            e->writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments));
                         } else {
                             m = ctm.concat(srch->ctm);
                             if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
@@ -658,7 +658,7 @@ struct Rasterizer {
                 }
             } else {
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                Cache::Entry *e = cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
+                Cache::Entry *e = cache.addPath(path, ctm, unit, clip, m);
                 if (e && e->begin != e->end) {
                     if (clip.uy - clip.ly > kFastHeight) {
                         cache.writeCachedOutline(e, m, sgmnts);
