@@ -11,6 +11,7 @@ typedef uint8_t vec4b __attribute__((vector_size(4)));
 #endif
 
 #import "Rasterizer.h"
+#import "crc32.h"
 #import <vector>
 #import <unordered_map>
 #pragma clang diagnostic ignored "-Wcomma"
@@ -74,7 +75,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(0), hash(0) {}
+        Sequence() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), crc(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(0), hash(0) {}
         ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -95,6 +96,7 @@ struct Rasterizer {
             bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
             bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
             px = *points++ = x, py = *points++ = y;
+            crc = ::crc32(crc + Atom::kMove, points - 2, 2 * sizeof(float));
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
@@ -102,6 +104,7 @@ struct Rasterizer {
                 bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
                 bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
+                crc = ::crc32(crc + Atom::kLine, points - 2, 2 * sizeof(float));
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -120,6 +123,7 @@ struct Rasterizer {
                 bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
                 bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
+                crc = ::crc32(crc + Atom::kQuadratic, points - 4, 4 * sizeof(float));
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -138,13 +142,16 @@ struct Rasterizer {
                 bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
                 bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
+                crc = ::crc32(crc + Atom::kCubic, points - 6, 6 * sizeof(float));
             }
         }
         void close() {
             alloc(Atom::kClose, 1);
+            crc = crc + Atom::kClose;
         }
         size_t refCount, atomsCount, shapesCount, hash, end;
         std::vector<Atom> atoms;
+        uint32_t crc;
         float px, py;
         AffineTransform *shapes;
         bool *circles;

@@ -16,7 +16,7 @@
 struct RasterizerTrueType {
     struct Font {
         Font() { empty(); }
-        void empty() { monospace = space = 0.f, bzero(& info, sizeof(info)), cache.clear(), crc = 0; }
+        void empty() { monospace = space = 0.f, bzero(& info, sizeof(info)), cache.clear(); }
         int set(const void *bytes, const char *name) {
             const unsigned char *ttf_buffer = (const unsigned char *)bytes;
             int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
@@ -37,7 +37,6 @@ struct RasterizerTrueType {
                             if (widths[0] == widths[1] && widths[1] == widths[2])
                                 monospace = widths[0];
                             space = widths[2];
-                            crc = ::crc32(info.numGlyphs, n, length * sizeof(*n));
                             return 1;
                         }
                     }
@@ -72,13 +71,12 @@ struct RasterizerTrueType {
                 stbtt_FreeShape(& info, vertices);
                 if (cacheable) {
                     cache.emplace(glyph, path);
-                    path.ref->hash = (size_t(crc) << 32) | glyph;
+                    path.ref->hash = path.ref->crc;
                 }
             }
             return path;
         }
         std::unordered_map<int, Rasterizer::Path> cache;
-        uint32_t crc;
         float monospace, space;
         stbtt_fontinfo info;
     };
