@@ -372,28 +372,30 @@ struct Rasterizer {
         void empty() { es.resize(1), grid.resize(kGridSize), bzero(& grid[0], kGridSize * sizeof(grid[0])), ms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
-            Bounds dev = Bounds(unit).integral();
-            if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                if (path.ref->hash == 0)
-                    e = outline.writeOutlines(path, ctm, clip, info);
-                else {
-                    Entry *srch = nullptr;
-                    size_t& idx = grid[path.ref->hash & kGridMask];
-                    if (idx)
-                        for (auto& t : es[idx])
-                            if (t.hash == path.ref->hash) {
-                                srch = & t;
-                                break;
-                            }
-                    if (srch == nullptr) {
-                        idx = es.size(), es.emplace_back();
-                        es[idx].emplace_back(path.ref->hash, ctm.invert());
-                        e = & es[idx].back();
-                        e->writeOutlines(path, ctm, clip, info);
-                    } else {
-                        m = ctm.concat(srch->ctm);
-                        if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                            e = srch;
+            if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
+                Bounds dev = Bounds(unit).integral();
+                if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
+                    if (path.ref->hash == 0)
+                        e = outline.writeOutlines(path, ctm, clip, info);
+                    else {
+                        Entry *srch = nullptr;
+                        size_t& idx = grid[path.ref->hash & kGridMask];
+                        if (idx)
+                            for (auto& t : es[idx])
+                                if (t.hash == path.ref->hash) {
+                                    srch = & t;
+                                    break;
+                                }
+                        if (srch == nullptr) {
+                            idx = es.size(), es.emplace_back();
+                            es[idx].emplace_back(path.ref->hash, ctm.invert());
+                            e = & es[idx].back();
+                            e->writeOutlines(path, ctm, clip, info);
+                        } else {
+                            m = ctm.concat(srch->ctm);
+                            if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
+                                e = srch;
+                        }
                     }
                 }
             }
@@ -656,7 +658,7 @@ struct Rasterizer {
                 }
             } else {
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                Cache::Entry *e = !(path.ref->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
+                Cache::Entry *e = cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
                 if (e && e->begin != e->end) {
                     if (clip.uy - clip.ly > kFastHeight) {
                         cache.writeCachedOutline(e, m, sgmnts);
