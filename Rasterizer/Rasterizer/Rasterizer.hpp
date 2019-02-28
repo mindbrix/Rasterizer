@@ -598,47 +598,10 @@ struct Rasterizer {
                             if (bitmap.width)
                                 writeBitmapPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts);
+                                writeGPUPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
                         }
                     }
                 }
-        }
-        void writeGPUPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width, Info sgmnts) {
-            if (path.ref->shapes) {
-                gpu.shapesCount += path.ref->shapesCount;
-                new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
-            } else {
-                if (width) {
-                    writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
-                    size_t count = gpu.outlines.end - gpu.outlines.idx;
-                    if (count > 1) {
-                        new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.idx, int(count), 0);
-                        gpu.outlines.idx = gpu.outlines.end;
-                    }
-                } else {
-                    AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                    Cache::Entry *e = !(path.ref->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
-                    if (e && e->begin != e->end) {
-                        if (clip.uy - clip.ly > kFastHeight) {
-                            writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, sgmnts);
-                            writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
-                        } else {
-                            float ox, oy, im = 0.f;
-                            if (path.ref->hash) {
-                                im = -float(cache.ms.end + 1);
-                                new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
-                            }
-                            size_t count = e->end - e->begin;
-                            gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                            new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, kNoIndices, count);
-                            gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
-                        }
-                    } else {
-                        writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-                        writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
-                    }
-                }
-            }
         }
         Bitmap bitmap;
         GPU gpu;
@@ -648,7 +611,6 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
         Cache cache;
     };
-    
     static void writeCachedOutline(Segment *s, Segment *end, AffineTransform m, Info info) {
         float x0, y0, x1, y1, iy0, iy1;
         for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
@@ -670,6 +632,43 @@ struct Rasterizer {
         } else {
             writePath(path, ctm, clip, writeClippedSegment, sgmnts);
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
+        }
+    }
+    static void writeGPUPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
+        if (path.ref->shapes) {
+            gpu.shapesCount += path.ref->shapesCount;
+            new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
+        } else {
+            if (width) {
+                writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
+                size_t count = gpu.outlines.end - gpu.outlines.idx;
+                if (count > 1) {
+                    new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.idx, int(count), 0);
+                    gpu.outlines.idx = gpu.outlines.end;
+                }
+            } else {
+                AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                Cache::Entry *e = !(path.ref->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
+                if (e && e->begin != e->end) {
+                    if (clip.uy - clip.ly > kFastHeight) {
+                        writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, sgmnts);
+                        writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
+                    } else {
+                        float ox, oy, im = 0.f;
+                        if (path.ref->hash) {
+                            im = -float(cache.ms.end + 1);
+                            new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
+                        }
+                        size_t count = e->end - e->begin;
+                        gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
+                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, kNoIndices, count);
+                        gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
+                    }
+                } else {
+                    writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+                    writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
+                }
+            }
         }
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
