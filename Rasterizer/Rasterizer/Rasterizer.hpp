@@ -395,6 +395,20 @@ struct Rasterizer {
             }
             return e;
         }
+        void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
+            float x0, y0, x1, y1, iy0, iy1;
+            Segment *s = segments.base + e->begin, *end = segments.base + e->end;
+            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
+                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+                if (s->x0 != FLT_MAX) {
+                    if (iy0 == iy1 && y0 != y1)
+                        new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
+                    else
+                        writeClippedSegment(x0, y0, x1, y1, & info);
+                } else if (s < end - 1)
+                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+            }
+        }
         std::unordered_map<size_t, Entry> entries;
         Entry outline;
         Row<Segment> ms, segments;
@@ -611,19 +625,6 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
         Cache cache;
     };
-    static void writeCachedOutline(Segment *s, Segment *end, AffineTransform m, Info info) {
-        float x0, y0, x1, y1, iy0, iy1;
-        for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
-            x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
-            if (s->x0 != FLT_MAX) {
-                if (iy0 == iy1 && y0 != y1)
-                    new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
-                else
-                    writeClippedSegment(x0, y0, x1, y1, & info);
-            } else if (s < end - 1)
-                x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
-        }
-    }
     static void writeBitmapPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
         if (stride * h < deltasSize) {
@@ -651,7 +652,7 @@ struct Rasterizer {
                 Cache::Entry *e = !(path.ref->hash || clip.uy - clip.ly <= kFastHeight) ? nullptr : cache.addPath(path, ctm, unit, clip, Info(nullptr, 0, & cache.segments), m);
                 if (e && e->begin != e->end) {
                     if (clip.uy - clip.ly > kFastHeight) {
-                        writeCachedOutline(cache.segments.base + e->begin, cache.segments.base + e->end, m, sgmnts);
+                        cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
                         float ox, oy, im = 0.f;
