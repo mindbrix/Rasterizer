@@ -596,22 +596,12 @@ struct Rasterizer {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
-                                writeBitmapPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, sgmnts);
+                                writeBitmapPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
                             else
                                 writeGPUPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts);
                         }
                     }
                 }
-        }
-        void writeBitmapPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, Info sgmnts) {
-            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-            if (stride * h < deltas.size()) {
-                writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(& deltas[0], stride, nullptr));
-                writeDeltas(& deltas[0], stride, clip, even, src, & bitmap);
-            } else {
-                writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-                writeSegments(sgmnts.segments, clip, even, Info(& deltas[0], stride, nullptr), stride, src, & bitmap);
-            }
         }
         void writeGPUPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width, Info sgmnts) {
             if (path.ref->shapes) {
@@ -670,6 +660,16 @@ struct Rasterizer {
                     writeClippedSegment(x0, y0, x1, y1, & info);
             } else if (s < end - 1)
                 x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+        }
+    }
+    static void writeBitmapPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
+        float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+        if (stride * h < deltasSize) {
+            writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride, nullptr));
+            writeDeltas(deltas, stride, clip, even, src, bm);
+        } else {
+            writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+            writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
         }
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
