@@ -96,7 +96,7 @@ struct Rasterizer {
             bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
             bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
             px = *points++ = x, py = *points++ = y;
-            crc = ::crc32(crc + Atom::kMove, points - 2, 2 * sizeof(float));
+            crc = ::crc64(crc + Atom::kMove, points - 2, 2 * sizeof(float));
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
@@ -104,7 +104,7 @@ struct Rasterizer {
                 bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
                 bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
-                crc = ::crc32(crc + Atom::kLine, points - 2, 2 * sizeof(float));
+                crc = ::crc64(crc + Atom::kLine, points - 2, 2 * sizeof(float));
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -123,7 +123,7 @@ struct Rasterizer {
                 bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
                 bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
-                crc = ::crc32(crc + Atom::kQuadratic, points - 4, 4 * sizeof(float));
+                crc = ::crc64(crc + Atom::kQuadratic, points - 4, 4 * sizeof(float));
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -142,7 +142,7 @@ struct Rasterizer {
                 bounds.lx = bounds.lx < x ? bounds.lx : x, bounds.ly = bounds.ly < y ? bounds.ly : y;
                 bounds.ux = bounds.ux > x ? bounds.ux : x, bounds.uy = bounds.uy > y ? bounds.uy : y;
                 px = *points++ = x, py = *points++ = y;
-                crc = ::crc32(crc + Atom::kCubic, points - 6, 6 * sizeof(float));
+                crc = ::crc64(crc + Atom::kCubic, points - 6, 6 * sizeof(float));
             }
         }
         void close() {
@@ -151,7 +151,7 @@ struct Rasterizer {
         }
         size_t refCount, atomsCount, shapesCount, hash, end;
         std::vector<Atom> atoms;
-        uint32_t crc;
+        uint64_t crc;
         float px, py;
         AffineTransform *shapes;
         bool *circles;
