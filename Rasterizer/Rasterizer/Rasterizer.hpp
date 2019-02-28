@@ -357,12 +357,6 @@ struct Rasterizer {
         struct Entry {
             Entry() {}
             Entry(size_t hash, AffineTransform ctm) : hash(hash), ctm(ctm) {}
-            Entry *writeOutlines(Path& path, AffineTransform ctm, Bounds clip, Info info) {
-                begin = info.segments->idx;
-                writePath(path, ctm, clip, writeOutlineSegment, info);
-                info.segments->idx = end = info.segments->end;
-                return this;
-            }
             size_t hash, begin, end;
             AffineTransform ctm;
         };
@@ -372,9 +366,10 @@ struct Rasterizer {
             if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
                 Bounds dev = Bounds(unit).integral();
                 if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                    if (path.ref->hash == 0)
-                        e = outline.writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments));
-                    else {
+                    if (path.ref->hash == 0) {
+                        writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), outline);
+                        e = & outline;
+                    } else {
                         Entry *srch = nullptr;
                         size_t& idx = grid[path.ref->hash & kGridMask];
                         if (idx)
@@ -387,7 +382,7 @@ struct Rasterizer {
                             idx = es.size(), es.emplace_back();
                             es[idx].emplace_back(path.ref->hash, ctm.invert());
                             e = & es[idx].back();
-                            e->writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments));
+                            writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
                         } else {
                             m = ctm.concat(srch->ctm);
                             if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
@@ -397,6 +392,11 @@ struct Rasterizer {
                 }
             }
             return e;
+        }
+        void writeOutlines(Path& path, AffineTransform ctm, Bounds clip, Info info, Entry& e) {
+            e.begin = info.segments->idx;
+            writePath(path, ctm, clip, writeOutlineSegment, info);
+            info.segments->idx = e.end = info.segments->end;
         }
         void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
