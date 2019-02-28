@@ -354,6 +354,7 @@ struct Rasterizer {
         }
     }
     struct Cache {
+        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
             Entry(size_t hash, AffineTransform ctm) : hash(hash), ctm(ctm) {}
@@ -361,7 +362,7 @@ struct Rasterizer {
             AffineTransform ctm;
         };
         struct Chunk {
-            Entry entries[4];
+            Entry entries[kChunkSize];
             size_t end = 0, next = 0;
         };
         void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ms.empty(), segments.empty(); }
@@ -389,7 +390,7 @@ struct Rasterizer {
                         }
                         if (srch == nullptr) {
                             Chunk *chunk = chunks.base + idx;
-                            if (chunk->end == 4)
+                            if (chunk->end == kChunkSize)
                                 chunk->next = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
                             e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
                             writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
@@ -422,8 +423,6 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1;
-        
         Row<Chunk> chunks;
         uint16_t grid[kGridSize];
         Entry outline;
