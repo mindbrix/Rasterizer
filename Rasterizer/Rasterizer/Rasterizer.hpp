@@ -389,10 +389,8 @@ struct Rasterizer {
                         }
                         if (srch == nullptr) {
                             Chunk *chunk = chunks.base + idx;
-                            if (chunk->end == 4) {
-                                chunk->next = chunks.end;
-                                chunk = new (chunks.alloc(1)) Chunk();
-                            }
+                            if (chunk->end == 4)
+                                chunk->next = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
                             e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
                             writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
                         } else {
