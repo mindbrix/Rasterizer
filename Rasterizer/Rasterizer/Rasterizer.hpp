@@ -13,7 +13,6 @@ typedef uint8_t vec4b __attribute__((vector_size(4)));
 #import "Rasterizer.h"
 #import "crc64.h"
 #import <vector>
-#import <unordered_map>
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
@@ -360,17 +359,17 @@ struct Rasterizer {
     struct Cache {
         struct Entry {
             Entry() {}
-            Entry(AffineTransform ctm) : ctm(ctm) {}
+            Entry(size_t hash, AffineTransform ctm) : hash(hash), ctm(ctm) {}
             Entry *writeOutlines(Path& path, AffineTransform ctm, Bounds clip, Info info) {
                 begin = info.segments->idx;
                 writePath(path, ctm, clip, writeOutlineSegment, info);
                 info.segments->idx = end = info.segments->end;
                 return this;
             }
+            size_t hash, begin, end;
             AffineTransform ctm;
-            size_t begin, end;
         };
-        void empty() { entries.clear(), ms.empty(), segments.empty(); }
+        void empty() { es.resize(1), grid.resize(kGridSize), bzero(& grid[0], kGridSize * sizeof(grid[0])), ms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, Info info, AffineTransform& m) {
             Entry *e = nullptr;
             Bounds dev = Bounds(unit).integral();
@@ -378,13 +377,23 @@ struct Rasterizer {
                 if (path.ref->hash == 0)
                     e = outline.writeOutlines(path, ctm, clip, info);
                 else {
-                    auto it = entries.find(path.ref->hash);
-                    if (it == entries.end())
-                        e = entries.emplace(path.ref->hash, Entry(ctm.invert())).first->second.writeOutlines(path, ctm, clip, info);
-                    else {
-                        m = ctm.concat(it->second.ctm);
+                    Entry *srch = nullptr;
+                    size_t& idx = grid[path.ref->hash & kGridMask];
+                    if (idx)
+                        for (auto& t : es[idx])
+                            if (t.hash == path.ref->hash) {
+                                srch = & t;
+                                break;
+                            }
+                    if (srch == nullptr) {
+                        idx = es.size(), es.emplace_back();
+                        es[idx].emplace_back(path.ref->hash, ctm.invert());
+                        e = & es[idx].back();
+                        e->writeOutlines(path, ctm, clip, info);
+                    } else {
+                        m = ctm.concat(srch->ctm);
                         if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                            e = & it->second;
+                            e = srch;
                     }
                 }
             }
@@ -404,7 +413,10 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        std::unordered_map<size_t, Entry> entries;
+        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1;
+        
+        std::vector<std::vector<Entry>> es;
+        std::vector<size_t> grid;
         Entry outline;
         Row<Segment> ms, segments;
     };
