@@ -85,7 +85,8 @@ struct Rasterizer {
             end += size, atomsCount += size;
             return atoms.back().points + (end - size) * 2;
         }
-        void updateBounds(float *p, size_t size) {
+        void update(Atom::Type type, size_t size, float *p) {
+            crc = ::crc64(crc + type, p, size * 2 * sizeof(float));
             while (size--) {
                 bounds.lx = bounds.lx < *p ? bounds.lx : *p, bounds.ux = bounds.ux > *p ? bounds.ux : *p, p++,
                 bounds.ly = bounds.ly < *p ? bounds.ly : *p, bounds.uy = bounds.uy > *p ? bounds.uy : *p, p++;
@@ -99,14 +100,14 @@ struct Rasterizer {
         
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
-            px = points[0] = x, py = points[1] = y, crc = ::crc64(crc + Atom::kMove, points, 2 * sizeof(float));
-            updateBounds(points, 1);
+            px = points[0] = x, py = points[1] = y;
+            update(Atom::kMove, 1, points);
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
                 float *points = alloc(Atom::kLine, 1);
-                px = points[0] = x, py = points[1] = y, crc = ::crc64(crc + Atom::kLine, points, 2 * sizeof(float));
-                updateBounds(points, 1);
+                px = points[0] = x, py = points[1] = y;
+                update(Atom::kLine, 1, points);
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -119,9 +120,8 @@ struct Rasterizer {
                 lineTo(x, y);
             } else {
                 float *points = alloc(Atom::kQuadratic, 2);
-                points[0] = cx, points[1] = cy;
-                px = points[2] = x, py = points[3] = y, crc = ::crc64(crc + Atom::kQuadratic, points, 4 * sizeof(float));
-                updateBounds(points, 2);
+                points[0] = cx, points[1] = cy, px = points[2] = x, py = points[3] = y;
+                update(Atom::kQuadratic, 2, points);
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -131,9 +131,8 @@ struct Rasterizer {
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
                 float *points = alloc(Atom::kCubic, 3);
-                points[0] = cx0, points[1] = cy0, points[2] = cx1, points[3] = cy1;
-                px = points[4] = x, py = points[5] = y, crc = ::crc64(crc + Atom::kCubic, points, 6 * sizeof(float));
-                updateBounds(points, 3);
+                points[0] = cx0, points[1] = cy0, points[2] = cx1, points[3] = cy1, px = points[4] = x, py = points[5] = y;
+                update(Atom::kCubic, 3, points);
             }
         }
         void close() {
