@@ -373,9 +373,9 @@ struct Rasterizer {
                         Entry *srch = nullptr;
                         size_t& idx = grid[path.ref->hash & kGridMask];
                         if (idx)
-                            for (auto& t : es[idx])
-                                if (t.hash == path.ref->hash) {
-                                    srch = & t;
+                            for (auto& cmp : es[idx])
+                                if (cmp.hash == path.ref->hash) {
+                                    srch = & cmp;
                                     break;
                                 }
                         if (srch == nullptr) {
