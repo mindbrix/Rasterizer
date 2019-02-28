@@ -132,7 +132,7 @@ struct Rasterizer {
             }
         }
         void close() {
-            alloc(Atom::kClose, 1), crc = crc + Atom::kClose;
+            alloc(Atom::kClose, 1), update(Atom::kClose, 0, nullptr);
         }
         size_t refCount, atomsCount, shapesCount, crc, hash, end, counts[Atom::kClose + 1];
         std::vector<Atom> atoms;
