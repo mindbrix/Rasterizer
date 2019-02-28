@@ -621,7 +621,7 @@ struct Rasterizer {
                         writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
                         size_t count = gpu.outlines.end - gpu.outlines.idx;
                         if (count > 1) {
-                            new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.idx, count, 0);
+                            new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.idx, int(count), 0);
                             gpu.outlines.idx = gpu.outlines.end;
                         }
                     } else {
@@ -1004,7 +1004,7 @@ struct Rasterizer {
                         if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                             if (lx != ux) {
                                 gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
-                                new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, begin, i - begin);
+                                new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, int(begin), i - begin);
                                 gpu->edgeCells++, gpu->edgeInstances += (i - begin + 1) / 2;
                             }
                             begin = i;
@@ -1026,7 +1026,7 @@ struct Rasterizer {
                     }
                     if (lx != ux) {
                         gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
-                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, begin, i - begin);
+                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, int(begin), i - begin);
                         gpu->edgeCells++, gpu->edgeInstances += (i - begin + 1) / 2;
                     }
                 }
