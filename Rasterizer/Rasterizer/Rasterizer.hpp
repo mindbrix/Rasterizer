@@ -365,7 +365,7 @@ struct Rasterizer {
             Entry entries[kChunkSize];
             uint32_t end = 0, next = 0;
         };
-        void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ms.empty(), segments.empty(); }
+        void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ctms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform unit, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr;
             if (path.ref->hash || clip.uy - clip.ly <= kFastHeight) {
@@ -425,7 +425,7 @@ struct Rasterizer {
         Row<Chunk> chunks;
         uint16_t grid[kGridSize];
         Entry outline;
-        Row<Segment> ms, segments;
+        Row<Segment> ctms, segments;
     };
     
     struct Context {
@@ -442,15 +442,15 @@ struct Rasterizer {
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
             
-            size = ctx->cache.segments.end + ctx->cache.ms.end;
+            size = ctx->cache.segments.end + ctx->cache.ctms.end;
             for (j = 0; j < ctx->segments.size(); j++)
                 sbegins[j] = size, size += ctx->segments[j].end;
             if (size) {
                 Segment *dst = (Segment *)(buffer.data.base + begin);
-                if (ctx->cache.ms.end)
-                    memcpy(dst, ctx->cache.ms.base, ctx->cache.ms.end * sizeof(Segment));
+                if (ctx->cache.ctms.end)
+                    memcpy(dst, ctx->cache.ctms.base, ctx->cache.ctms.end * sizeof(Segment));
                 if (ctx->cache.segments.end)
-                    memcpy(dst + ctx->cache.ms.end, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
+                    memcpy(dst + ctx->cache.ctms.end, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
                 for (j = 0; j < ctx->segments.size(); j++)
                     memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
                 end = begin + size * sizeof(Segment);
@@ -492,7 +492,7 @@ struct Rasterizer {
                     if (quad->iz & GPU::Quad::kEdge) {
                         int base = quad->super.idx, im = 0, ic = int(cell - c0);
                         if (quad->super.iy < 0)
-                            base += ctx->cache.ms.end, im = quad->super.cover;
+                            base += ctx->cache.ctms.end, im = quad->super.cover;
                         else
                             base += sbegins[quad->super.iy];
                         cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
@@ -571,7 +571,7 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ms.end) * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
@@ -671,8 +671,8 @@ struct Rasterizer {
                     } else {
                         float ox, oy, im = 0.f;
                         if (path.ref->hash) {
-                            im = -float(cache.ms.end + 1);
-                            new (cache.ms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
+                            im = -float(cache.ctms.end + 1);
+                            new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         }
                         size_t count = e->end - e->begin;
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
