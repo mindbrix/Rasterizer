@@ -585,6 +585,7 @@ struct Rasterizer {
             size_t iz;
             AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds dev = device;
+            Info sgmnts(nullptr, 0, & segments[0]);
             for (paths += begin, ctms += begin, colors += begin, iz = begin; iz < end; iz++, paths++, ctms++, colors++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
                     if (memcmp(& colors->ctm, & t, sizeof(AffineTransform)))
@@ -595,15 +596,14 @@ struct Rasterizer {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
-                                writeBitmapPath(*paths, *ctms, unit, even, & colors->src0, iz, clip);
+                                writeBitmapPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, sgmnts);
                             else
-                                writeGPUPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width);
+                                writeGPUPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts);
                         }
                     }
                 }
         }
-        void writeBitmapPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip) {
-            Info sgmnts(nullptr, 0, & segments[0]);
+        void writeBitmapPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, Info sgmnts) {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             if (stride * h < deltas.size()) {
                 writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(& deltas[0], stride, nullptr));
@@ -613,8 +613,7 @@ struct Rasterizer {
                 writeSegments(sgmnts.segments, clip, even, Info(& deltas[0], stride, nullptr), stride, src, & bitmap);
             }
         }
-        void writeGPUPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width) {
-            Info sgmnts(nullptr, 0, & segments[0]);
+        void writeGPUPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, bool hit, float width, Info sgmnts) {
             if (path.ref->shapes) {
                 gpu.shapesCount += path.ref->shapesCount;
                 new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
