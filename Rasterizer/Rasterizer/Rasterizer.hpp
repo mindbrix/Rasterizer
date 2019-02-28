@@ -386,7 +386,9 @@ struct Rasterizer {
                     if (chunk->end == kChunkSize)
                         chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
                     e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
-                    writeOutlines(path, ctm, clip, Info(nullptr, 0, & segments), *e);
+                    e->begin = segments.idx;
+                    writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
+                    segments.idx = e->end = segments.end;
                 } else {
                     m = ctm.concat(srch->ctm);
                     if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
@@ -394,11 +396,6 @@ struct Rasterizer {
                 }
             }
             return e;
-        }
-        void writeOutlines(Path& path, AffineTransform ctm, Bounds clip, Info info, Entry& e) {
-            e.begin = info.segments->idx;
-            writePath(path, ctm, clip, writeOutlineSegment, info);
-            info.segments->idx = e.end = info.segments->end;
         }
         void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
