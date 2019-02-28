@@ -617,7 +617,7 @@ struct Rasterizer {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
-                                writeBitmapPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
+                                writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
                             else
                                 writeGPUPath(*paths, *ctms, unit, even, & colors->src0, iz, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
                         }
@@ -632,7 +632,7 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
         Cache cache;
     };
-    static void writeBitmapPath(Path& path, AffineTransform ctm, AffineTransform unit, bool even, uint8_t *src, size_t iz, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
+    static void writeBitmapPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
         if (stride * h < deltasSize) {
             writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride, nullptr));
