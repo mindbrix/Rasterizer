@@ -178,11 +178,10 @@ struct Rasterizer {
     };
     template<typename T>
     struct Memory {
-        Memory() : refCount(0), size(16), addr((T *)malloc(size * sizeof(T))) {}
-        ~Memory() { free(addr); }
+        ~Memory() { if (addr) free(addr); }
         void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
-        size_t refCount, size;
-        T *addr;
+        size_t refCount = 0, size = 0;
+        T *addr = nullptr;
     };
     template<typename T>
     struct Row {
