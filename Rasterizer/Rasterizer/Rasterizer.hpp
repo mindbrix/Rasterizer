@@ -382,7 +382,7 @@ struct Rasterizer {
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, bool simple, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
             if (simple)
-                e = & outline;
+                e = chunks.base->entries;
             else {
                 uint16_t& idx = grid[path.ref->hash & kGridMask];
                 if (idx == 0)
@@ -420,7 +420,6 @@ struct Rasterizer {
         }
         Row<Chunk> chunks;
         uint16_t grid[kGridSize];
-        Entry outline;
         Row<Segment> ctms, segments;
     };
     
