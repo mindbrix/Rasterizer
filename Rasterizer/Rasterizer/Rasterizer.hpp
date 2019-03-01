@@ -353,30 +353,6 @@ struct Rasterizer {
             }
         }
     }
-    struct Binner {
-        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
-        struct Chunk {
-            uint16_t entries[kChunkSize];
-            uint32_t end = 0, next = 0;
-        };
-        Binner() { bzero(grid, sizeof(grid)), bzero(mask, sizeof(mask)); }
-        void empty() { chunks.empty(), chunks.alloc(1); }
-        void add(float x, uint16_t i) {
-            uint16_t ix = uint16_t(x);
-            uint16_t& idx = grid[ix];
-            if (idx == 0)
-                idx = chunks.end, new (chunks.alloc(1)) Chunk();
-            mask[ix / 8] |= 1 << ix & 0x7;
-            Chunk *chunk = chunks.base + idx;
-            if (chunk->end == kChunkSize)
-                chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
-            *(chunk->entries + chunk->end++) = i;
-        }
-        Row<Chunk> chunks;
-        uint16_t grid[kGridSize];
-        uint8_t mask[kGridSize / 8];
-    };
-    
     struct Cache {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
@@ -639,7 +615,7 @@ struct Rasterizer {
                             if (bitmap.width)
                                 writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, *ctms, even, & colors->src0, iz, dev, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, binner, cache);
+                                writeGPUPath(*paths, *ctms, even, & colors->src0, iz, dev, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
                         }
                     }
                 }
@@ -650,7 +626,6 @@ struct Rasterizer {
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
-        Binner binner;
         Cache cache;
     };
     static void writeBitmapPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
@@ -663,7 +638,7 @@ struct Rasterizer {
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
         }
     }
-    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds dev, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Binner& binner, Cache& cache) {
+    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds dev, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
         if (path.ref->shapes) {
             gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
@@ -681,7 +656,7 @@ struct Rasterizer {
                 if (e && e->begin != e->end) {
                     if (clip.uy - clip.ly > kFastHeight) {
                         cache.writeCachedOutline(e, m, sgmnts);
-                        writeSegments(sgmnts.segments, clip, even, src, iz, hit, binner, & gpu);
+                        writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
                         float ox, oy;
                         int im = -int(cache.ctms.end + 1);
@@ -693,7 +668,7 @@ struct Rasterizer {
                     }
                 } else {
                     writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-                    writeSegments(sgmnts.segments, clip, even, src, iz, hit, binner, & gpu);
+                    writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                 }
             }
         }
@@ -1002,7 +977,7 @@ struct Rasterizer {
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
     
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, Binner& binner, GPU *gpu) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
         short counts0[256], counts1[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
@@ -1018,10 +993,6 @@ struct Rasterizer {
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, iy, segments->idx, kNoIndices, count);
                     gpu->edgeCells++, gpu->edgeInstances += (count + 1) / 2;
                 } else {
-                    binner.empty();
-                    for (segment = segments->base + segments->idx, i = 0; i < count; i++, segment++)
-                        binner.add(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                    
                     for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                         new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                     
