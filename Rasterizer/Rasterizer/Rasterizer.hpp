@@ -240,7 +240,7 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, size_t idx, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(cover)), count(uint16_t(count)), iy(iy), idx(int(idx)), begin(int(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, size_t idx, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), idx(int(idx)), begin(int(begin)) {}
             Cell cell;
             short cover;
             uint16_t count;
