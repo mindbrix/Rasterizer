@@ -70,7 +70,7 @@ struct RasterizerTrueType {
                 stbtt_FreeShape(& info, vertices);
                 if (cacheable) {
                     cache.emplace(glyph, path);
-                    path.ref->hash = path.ref->crc;
+                    path.ref->isGlyph = true;
                 }
             }
             return path;

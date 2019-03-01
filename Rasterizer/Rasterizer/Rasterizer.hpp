@@ -74,7 +74,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), crc(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Sequence() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Sequence() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -85,7 +85,7 @@ struct Rasterizer {
             return atoms.back().points + (end - size) * 2;
         }
         void update(Atom::Type type, size_t size, float *p) {
-            counts[type]++, crc = hash = ::crc64(crc + type, p, size * 2 * sizeof(float));
+            counts[type]++, hash = ::crc64(hash + type, p, size * 2 * sizeof(float));
             while (size--) {
                 bounds.lx = bounds.lx < *p ? bounds.lx : *p, bounds.ux = bounds.ux > *p ? bounds.ux : *p, p++,
                 bounds.ly = bounds.ly < *p ? bounds.ly : *p, bounds.uy = bounds.uy > *p ? bounds.uy : *p, p++;
@@ -134,11 +134,11 @@ struct Rasterizer {
         void close() {
             alloc(Atom::kClose, 1), update(Atom::kClose, 0, nullptr);
         }
-        size_t refCount, atomsCount, shapesCount, crc, hash, end, counts[Atom::kClose + 1];
+        size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kClose + 1];
         std::vector<Atom> atoms;
         float px, py;
         AffineTransform *shapes;
-        bool *circles;
+        bool *circles, isGlyph;
         Bounds bounds;
     };
     template<typename T>
