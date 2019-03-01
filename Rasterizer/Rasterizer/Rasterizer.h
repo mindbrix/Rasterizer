@@ -11,4 +11,3 @@
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kNoIndices -16277216
-#define kUseIndices 0
