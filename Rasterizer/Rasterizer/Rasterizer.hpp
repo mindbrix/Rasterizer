@@ -654,8 +654,8 @@ struct Rasterizer {
             } else {
                 bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                 bool fast = clip.uy - clip.ly <= kFastHeight;
-                bool simple = path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
                 if (unclipped) {
+                    bool simple = !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
                     AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                     Cache::Entry *e = cache.addPath(path, ctm, clip, m);
                     if (!fast) {
