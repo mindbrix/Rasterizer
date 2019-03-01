@@ -657,13 +657,11 @@ struct Rasterizer {
                     gpu.outlines.idx = gpu.outlines.end;
                 }
             } else {
-                bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
-                bool fast = clip.uy - clip.ly <= kFastHeight;
-                if (unclipped) {
+                if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                     bool simple = !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
                     AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                     Cache::Entry *e = cache.addPath(path, ctm, clip, simple, m);
-                    if (!fast) {
+                    if (clip.uy - clip.ly > kFastHeight) {
                         cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
