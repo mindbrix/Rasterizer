@@ -366,25 +366,30 @@ struct Rasterizer {
             uint32_t end = 0, next = 0;
         };
         void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ctms.empty(), segments.empty(); }
+        Entry *alloc(Chunk *chunk) {
+            if (chunk->end == kChunkSize)
+                chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
+            return chunk->entries + chunk->end++;
+        }
+        Entry *find(Chunk *chunk, size_t hash) {
+            Entry *srch = nullptr;
+            do {
+                for (int i = 0; i < chunk->end && srch == nullptr; i++)
+                    if (chunk->entries[i].hash == hash)
+                        srch = & chunk->entries[i];
+            } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
+            return srch;
+        }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds dev, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                 uint16_t& idx = grid[path.ref->hash & kGridMask];
                 if (idx == 0)
                     idx = chunks.end, new (chunks.alloc(1)) Chunk();
-                else {
-                    Chunk *chunk = chunks.base + idx;
-                    do {
-                        for (int i = 0; i < chunk->end && srch == nullptr; i++)
-                            if (chunk->entries[i].hash == path.ref->hash)
-                                srch = & chunk->entries[i];
-                    } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
-                }
+                else
+                    srch = find(chunks.base + idx, path.ref->hash);
                 if (srch == nullptr) {
-                    Chunk *chunk = chunks.base + idx;
-                    if (chunk->end == kChunkSize)
-                        chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
-                    e = new (chunk->entries + chunk->end++) Entry(path.ref->hash, ctm.invert());
+                    e = new (alloc(chunks.base + idx)) Entry(path.ref->hash, ctm.invert());
                     e->begin = segments.idx;
                     writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
                     segments.idx = e->end = segments.end;
