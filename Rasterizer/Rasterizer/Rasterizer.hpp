@@ -372,13 +372,12 @@ struct Rasterizer {
             return chunk->entries + chunk->end++;
         }
         Entry *find(Chunk *chunk, size_t hash) {
-            Entry *srch = nullptr;
             do {
-                for (int i = 0; i < chunk->end && srch == nullptr; i++)
+                for (int i = 0; i < chunk->end; i++)
                     if (chunk->entries[i].hash == hash)
-                        srch = & chunk->entries[i];
-            } while (srch == nullptr && chunk->next && (chunk = chunks.base + chunk->next));
-            return srch;
+                        return & chunk->entries[i];
+            } while (chunk->next && (chunk = chunks.base + chunk->next));
+            return nullptr;
         }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds dev, Bounds clip, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
