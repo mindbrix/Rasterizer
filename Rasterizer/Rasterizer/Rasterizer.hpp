@@ -359,16 +359,18 @@ struct Rasterizer {
             uint16_t entries[kChunkSize];
             uint32_t end = 0, next = 0;
         };
-        void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), bzero(mask, sizeof(mask)); }
+        Binner() { bzero(grid, sizeof(grid)), bzero(mask, sizeof(mask)); }
+        void empty() { chunks.empty(), chunks.alloc(1); }
         void add(float x, uint16_t i) {
-            uint16_t& idx = grid[size_t(x)];
+            uint16_t ix = uint16_t(x);
+            uint16_t& idx = grid[ix];
             if (idx == 0)
                 idx = chunks.end, new (chunks.alloc(1)) Chunk();
-            mask[idx / (8 * sizeof(uint64_t))] |= 1 << idx & 0x3F;
+            mask[ix / (8 * sizeof(uint64_t))] |= 1 << ix & 0x3F;
             Chunk *chunk = chunks.base + idx;
             if (chunk->end == kChunkSize)
                 chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
-            new (chunk->entries + chunk->end++) uint16_t(i);
+            *(chunk->entries + chunk->end++) = i;
         }
         Row<Chunk> chunks;
         uint16_t grid[kGridSize];
@@ -1016,21 +1018,6 @@ struct Rasterizer {
                     new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, iy, segments->idx, kNoIndices, count);
                     gpu->edgeCells++, gpu->edgeInstances += (count + 1) / 2;
                 } else {
-                    if ((0)) {
-                        size_t idx, step;
-                        float t, rw = 1.f / (clip.ux - clip.lx);
-                        for (index = indices.alloc(count), memset(index, 0xFF, count * sizeof(*index)), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++) {
-                            lx = segment->x0 < segment->x1 ? segment->x0 : segment->x1;
-                            t = (lx - clip.lx) * rw, t = t > 0.999f ? 0.999f : t, idx = t * count;
-                            if (index[idx].x != 0xFFFF) {
-                                step = lx < index[idx].x ? count - 1 : 1;
-                                do
-                                    idx = (idx + step) % count;
-                                while (index[idx].x != 0xFFFF);
-                            }
-                            new (index + idx) Segment::Index(lx, i);
-                        }
-                    }
                     binner.empty();
                     for (segment = segments->base + segments->idx, i = 0; i < count; i++, segment++)
                         binner.add(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
