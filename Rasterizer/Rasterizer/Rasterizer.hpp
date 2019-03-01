@@ -367,9 +367,8 @@ struct Rasterizer {
         };
         void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ctms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds dev, Bounds clip, AffineTransform& m) {
-            Entry *e = nullptr;
+            Entry *e = nullptr, *srch = nullptr;
             if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                Entry *srch = nullptr;
                 uint16_t& idx = grid[path.ref->hash & kGridMask];
                 if (idx == 0)
                     idx = chunks.end, new (chunks.alloc(1)) Chunk();
