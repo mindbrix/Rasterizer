@@ -140,12 +140,8 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.ic];
     device Cell& cell = edgeCell.cell;
-    float a = 1.0, b = 0.0, _tx = 0.0, _ty = 0.0;
-    if (edgeCell.im < 0) {
-        device Segment& sm = segments[-edgeCell.im - 1];
-        a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, _tx = sm.x0, _ty = sm.y0;
-    }
-    
+    device Segment& sm = segments[-edgeCell.im - 1];
+    float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, _tx = sm.x0, _ty = sm.y0;
     thread float *dst = & vert.x0;
     device Segment *s = & segments[edgeCell.base + edge.i0];
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
@@ -274,7 +270,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
     vert.u = u - du, vert.v = v - dv;
-    vert.cover = quad.super.iy < 0 ? 0.0 : quad.super.cover;
+    vert.cover = quad.super.cover;
     vert.even = false;
     vert.solid = quad.iz & Quad::kSolidCell;
     return vert;

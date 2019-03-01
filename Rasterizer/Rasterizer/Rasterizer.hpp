@@ -481,7 +481,7 @@ struct Rasterizer {
                     if (quad->iz & GPU::Quad::kEdge) {
                         int base = quad->super.idx, im = 0, ic = int(cell - c0);
                         if (quad->super.iy < 0)
-                            base += ctx->cache.ctms.end, im = quad->super.cover;
+                            base += ctx->cache.ctms.end, im = quad->super.iy;
                         else
                             base += sbegins[quad->super.iy];
                         cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
@@ -658,14 +658,12 @@ struct Rasterizer {
                         cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
-                        float ox, oy, im = 0.f;
-                        if (path.ref->hash) {
-                            im = -float(cache.ctms.end + 1);
-                            new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
-                        }
+                        float ox, oy;
+                        int im = -int(cache.ctms.end + 1);
+                        new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         size_t count = e->end - e->begin;
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, im, -1, e->begin, kNoIndices, count);
+                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, e->begin, kNoIndices, count);
                         gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
                     }
                 } else {
