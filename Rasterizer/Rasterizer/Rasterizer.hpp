@@ -381,27 +381,26 @@ struct Rasterizer {
         }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, bool simple, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
-            if (simple) {
+            if (simple)
                 e = & outline;
-                e->begin = segments.idx;
-                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
-                segments.idx = e->end = segments.end;
-            } else {
+            else {
                 uint16_t& idx = grid[path.ref->hash & kGridMask];
                 if (idx == 0)
                     idx = chunks.end, new (chunks.alloc(1)) Chunk();
                 else
                     srch = find(chunks.base + idx, path.ref->hash);
-                if (srch == nullptr) {
+                if (srch == nullptr)
                     e = new (alloc(chunks.base + idx)) Entry(path.ref->hash, ctm.invert());
-                    e->begin = segments.idx;
-                    writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
-                    segments.idx = e->end = segments.end;
-                } else {
+                else {
                     m = ctm.concat(srch->ctm);
                     if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
                         e = srch;
                 }
+            }
+            if (srch == nullptr) {
+                e->begin = segments.idx;
+                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
+                segments.idx = e->end = segments.end;
             }
             return e;
         }
