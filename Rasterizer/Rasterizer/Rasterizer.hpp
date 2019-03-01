@@ -366,7 +366,7 @@ struct Rasterizer {
             uint16_t& idx = grid[ix];
             if (idx == 0)
                 idx = chunks.end, new (chunks.alloc(1)) Chunk();
-            mask[ix / (8 * sizeof(uint64_t))] |= 1 << ix & 0x3F;
+            mask[ix / 8] |= 1 << ix & 0x7;
             Chunk *chunk = chunks.base + idx;
             if (chunk->end == kChunkSize)
                 chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
@@ -374,7 +374,7 @@ struct Rasterizer {
         }
         Row<Chunk> chunks;
         uint16_t grid[kGridSize];
-        uint64_t mask[kGridSize / (8 * sizeof(uint64_t))];
+        uint8_t mask[kGridSize / 8];
     };
     
     struct Cache {
