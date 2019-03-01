@@ -396,8 +396,6 @@ struct Rasterizer {
                 if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
                     e = srch;
             }
-            assert(e);
-            assert(e->end - e->begin > 2);
             return e;
         }
         void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
