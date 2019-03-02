@@ -448,7 +448,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        Grid grid0, grid1, *grid = & grid0;
+        Grid grid0, grid1, *grid = & grid0, *backGrid = & grid1;;
         Row<Segment> ctms, segments;
     };
     
@@ -653,7 +653,7 @@ struct Rasterizer {
                         }
                     }
                 }
-            cache.grid->compact(cache.grid1);
+            cache.grid->compact(*cache.backGrid);
         }
         Bitmap bitmap;
         GPU gpu;
