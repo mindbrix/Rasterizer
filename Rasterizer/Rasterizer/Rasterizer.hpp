@@ -373,7 +373,7 @@ struct Rasterizer {
                     for (int i = 0; i < chunk->end; i++)
                         if (chunk->hits[i]) {
                             Chunk *ch = dst.chunk(chunk->hashes[i]);
-                            *(dst.alloc(ch, chunk->hashes[i])) = chunk->entries[i];
+                            *(dst.alloc(ch, chunk->hashes[i], false)) = chunk->entries[i];
                         }
             }
             void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
@@ -384,12 +384,12 @@ struct Rasterizer {
                     idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
                 return chunk;
             }
-            Entry *alloc(Chunk *chunk, size_t hash) {
+            Entry *alloc(Chunk *chunk, size_t hash, bool hit) {
                 if (chunk->end == kChunkSize) {
                     uint16_t& idx = grid[chunk->hashes[0] & kGridMask], next = idx;
                     idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
                 }
-                chunk->hashes[chunk->end] = hash, chunk->hits[chunk->end] = true;
+                chunk->hashes[chunk->end] = hash, chunk->hits[chunk->end] = hit;
                 return chunk->entries + chunk->end++;
             }
             Entry *find(Chunk *chunk, size_t hash) {
@@ -419,7 +419,7 @@ struct Rasterizer {
                 Chunk *chunk = grid.chunk(path.ref->hash);
                 srch = grid.find(chunk, path.ref->hash);
                 if (srch == nullptr)
-                    e = new (grid.alloc(chunk, path.ref->hash)) Entry(ctm.invert());
+                    e = new (grid.alloc(chunk, path.ref->hash, true)) Entry(ctm.invert());
                 else {
                     m = ctm.concat(srch->ctm);
                     if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
