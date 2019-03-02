@@ -367,14 +367,18 @@ struct Rasterizer {
             uint32_t end = 0, next = 0;
         };
         struct Grid {
-            void compact(Grid& dst) {
+            size_t compact(Grid& dst) {
+                size_t count = 0;
                 dst.empty();
                 for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
                     for (int i = 0; i < chunk->end; i++)
                         if (chunk->hits[i]) {
+                            Entry& entry = chunk->entries[i];
                             Chunk *ch = dst.chunk(chunk->hashes[i]);
-                            *(dst.alloc(ch, chunk->hashes[i], false)) = chunk->entries[i];
+                            *(dst.alloc(ch, chunk->hashes[i], false)) = entry;
+                            count += entry.end - entry.begin;
                         }
+                return count;
             }
             void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
             Chunk *chunk(size_t hash) {
