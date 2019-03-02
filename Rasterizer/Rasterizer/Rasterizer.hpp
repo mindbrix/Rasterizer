@@ -411,16 +411,16 @@ struct Rasterizer {
             uint16_t grid[kGridSize];
         };
         
-        void empty() { grid.empty(), ctms.empty(), segments.empty(); }
+        void empty() { grid->empty(), ctms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, bool simple, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
             if (simple)
-                e = grid.chunks.base->entries;
+                e = grid->chunks.base->entries;
             else {
-                Chunk *chunk = grid.chunk(path.ref->hash);
-                srch = grid.find(chunk, path.ref->hash);
+                Chunk *chunk = grid->chunk(path.ref->hash);
+                srch = grid->find(chunk, path.ref->hash);
                 if (srch == nullptr)
-                    e = new (grid.alloc(chunk, path.ref->hash, true)) Entry(ctm.invert());
+                    e = new (grid->alloc(chunk, path.ref->hash, true)) Entry(ctm.invert());
                 else {
                     m = ctm.concat(srch->ctm);
                     if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
@@ -448,7 +448,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        Grid grid, grid0;
+        Grid grid0, grid1, *grid = & grid0;
         Row<Segment> ctms, segments;
     };
     
@@ -653,7 +653,7 @@ struct Rasterizer {
                         }
                     }
                 }
-            cache.grid.compact(cache.grid0);
+            cache.grid->compact(cache.grid1);
         }
         Bitmap bitmap;
         GPU gpu;
