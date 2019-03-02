@@ -222,7 +222,7 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, Rasterizer::Buffer *backBuffer) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -304,12 +304,12 @@ struct RasterizerCoreGraphics {
             if (buffer) {
                 std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
                 size_t begins[count], *b = begins;
-                size_t size = Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), begins, *buffer);
+                size_t size = Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), begins, *buffer, *backBuffer);
                 if (count == 1)
-                    Rasterizer::Context::writeContextToBuffer(& testScene.contexts[0], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[0], e[0], *buffer);
+                    Rasterizer::Context::writeContextToBuffer(& testScene.contexts[0], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[0], e[0], *buffer, *backBuffer);
                 else {
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        Rasterizer::Context::writeContextToBuffer(& testScene.contexts[idx], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[idx], e[idx], *buffer);
+                        Rasterizer::Context::writeContextToBuffer(& testScene.contexts[idx], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[idx], e[idx], *buffer, *backBuffer);
                     });
                 }
                 for (int i = 0; i < count; i++)

@@ -460,7 +460,7 @@ struct Rasterizer {
                                            Colorant *colorants,
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
-                                           Buffer& buffer) {
+                                           Buffer& buffer, Buffer& backBuffer) {
             size_t end = begin, j, iz, sbegins[ctx->segments.size()], size;
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
@@ -585,7 +585,7 @@ struct Rasterizer {
                                           Colorant *colorants,
                                           size_t pathsCount,
                                           size_t *begins,
-                                          Buffer& buffer) {
+                                          Buffer& buffer, Buffer& backBuffer) {
             size_t size, sz, i, j, begin, end, idx;
             begin = 0, end = size = pathsCount * sizeof(Colorant);
             for (i = 0; i < count; i++)
