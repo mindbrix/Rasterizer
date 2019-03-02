@@ -515,12 +515,9 @@ struct Rasterizer {
                 
                 for (quad = q0; quad < qidx; quad++)
                     if (quad->iz & GPU::Quad::kEdge) {
-                        int base = quad->super.idx, im = 0, ic = int(cell - c0);
-                        if (quad->super.iy < 0)
-                            base += ctx->cache.ctms.end, im = quad->super.iy;
-                        else
-                            base += sbegins[quad->super.iy];
-                        cell->cell = quad->super.cell, cell->im = im, cell->base = base, cell++;
+                        size_t base = quad->super.iy < 0 ? ctx->cache.ctms.end : sbegins[quad->super.iy];
+                        int im = quad->super.iy < 0 ? quad->super.iy : 0, ic = int(cell - c0);
+                        cell->cell = quad->super.cell, cell->im = im, cell->base = int(base + quad->super.idx), cell++;
                         if (enable && quad->super.iy < 0) {
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += 4, fast->i1 = j;
