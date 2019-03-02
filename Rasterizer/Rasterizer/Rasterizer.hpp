@@ -81,11 +81,11 @@ struct Rasterizer {
             if (end + size > Atom::kCapacity)
                 end = 0, atoms.emplace_back();
             atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
-            end += size, atomsCount += size;
+            end += size;
             return atoms.back().points + (end - size) * 2;
         }
         void update(Atom::Type type, size_t size, float *p) {
-            counts[type]++, hash = ::crc64(hash + type, p, size * 2 * sizeof(float));
+            atomsCount += size, counts[type]++, hash = ::crc64(hash + type, p, size * 2 * sizeof(float));
             while (size--) {
                 bounds.lx = bounds.lx < *p ? bounds.lx : *p, bounds.ux = bounds.ux > *p ? bounds.ux : *p, p++,
                 bounds.ly = bounds.ly < *p ? bounds.ly : *p, bounds.uy = bounds.uy > *p ? bounds.uy : *p, p++;
@@ -132,7 +132,7 @@ struct Rasterizer {
             }
         }
         void close() {
-            alloc(Atom::kClose, 1), update(Atom::kClose, 0, nullptr);
+            update(Atom::kClose, 1, alloc(Atom::kClose, 1));
         }
         size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kClose + 1];
         std::vector<Atom> atoms;
