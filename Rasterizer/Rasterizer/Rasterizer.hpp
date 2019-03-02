@@ -448,7 +448,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        size_t backCount;
+        size_t backCount = 0;
         Grid grid0, grid1, *grid = & grid0, *backGrid = & grid1;
         Row<Segment> ctms, segments;
     };
@@ -596,7 +596,7 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end) * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end + cache.backCount) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
