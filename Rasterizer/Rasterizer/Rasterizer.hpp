@@ -379,8 +379,10 @@ struct Rasterizer {
         Entry *find(Chunk *chunk, size_t hash) {
             do {
                 for (int i = 0; i < chunk->end; i++)
-                    if (chunk->entries[i].hash == hash)
+                    if (chunk->entries[i].hash == hash) {
+                        chunk->entries[i].hit = true;
                         return & chunk->entries[i];
+                    }
             } while (chunk->next && (chunk = chunks.base + chunk->next));
             return nullptr;
         }
