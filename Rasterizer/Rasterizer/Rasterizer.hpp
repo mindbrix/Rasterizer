@@ -402,10 +402,6 @@ struct Rasterizer {
                 } while (chunk->next && (chunk = chunks.base + chunk->next));
                 return nullptr;
             }
-            void unhit() {
-                for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
-                    bzero(chunk->hits, sizeof(chunk->hits));
-            }
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
