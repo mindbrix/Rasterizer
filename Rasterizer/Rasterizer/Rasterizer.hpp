@@ -357,7 +357,7 @@ struct Rasterizer {
         struct Entry {
             Entry() {}
             Entry(AffineTransform ctm) : ctm(ctm) {}
-            uint32_t begin, end;
+            int begin, end;
             AffineTransform ctm;
         };
         struct Chunk {
@@ -423,9 +423,9 @@ struct Rasterizer {
                 }
             }
             if (srch == nullptr) {
-                e->begin = uint32_t(segments.idx);
+                e->begin = int(segments.idx);
                 writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
-                segments.idx = e->end = uint32_t(segments.end);
+                segments.idx = e->end = int(segments.end);
             }
             return e;
         }
