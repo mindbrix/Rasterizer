@@ -365,39 +365,51 @@ struct Rasterizer {
             Entry entries[kChunkSize];
             uint32_t end = 0, next = 0;
         };
-        void unhit() {
-            for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
-                for (int i = 0; i < chunk->end; i++)
-                    chunk->entries[i].hit = false;
-        }
-        void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ctms.empty(), segments.empty(); }
-        Entry *alloc(Chunk *chunk) {
-            if (chunk->end == kChunkSize)
-                chunk->next = uint32_t(chunks.end), chunk = new (chunks.alloc(1)) Chunk();
-            return chunk->entries + chunk->end++;
-        }
-        Entry *find(Chunk *chunk, size_t hash) {
-            do {
-                for (int i = 0; i < chunk->end; i++)
-                    if (chunk->entries[i].hash == hash) {
-                        chunk->entries[i].hit = true;
-                        return & chunk->entries[i];
-                    }
-            } while (chunk->next && (chunk = chunks.base + chunk->next));
-            return nullptr;
-        }
+        struct Grid {
+            void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
+            Chunk *chunk(size_t hash) {
+                uint16_t& idx = grid[hash & kGridMask];
+                Chunk *chunk = chunks.base + idx;
+                if (idx == 0)
+                    idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
+                return chunk;
+            }
+            Entry *alloc(Chunk *chunk) {
+                if (chunk->end == kChunkSize) {
+                    uint16_t& idx = grid[chunk->entries->hash & kGridMask], next = idx;
+                    idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
+                }
+                return chunk->entries + chunk->end++;
+            }
+            Entry *find(Chunk *chunk, size_t hash) {
+                do {
+                    for (int i = 0; i < chunk->end; i++)
+                        if (chunk->entries[i].hash == hash) {
+                            chunk->entries[i].hit = true;
+                            return & chunk->entries[i];
+                        }
+                } while (chunk->next && (chunk = chunks.base + chunk->next));
+                return nullptr;
+            }
+            void unhit() {
+                for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
+                    for (int i = 0; i < chunk->end; i++)
+                        chunk->entries[i].hit = false;
+            }
+            Row<Chunk> chunks;
+            uint16_t grid[kGridSize];
+        };
+        
+        void empty() { grid.empty(), ctms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, bool simple, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
             if (simple)
-                e = chunks.base->entries;
+                e = grid.chunks.base->entries;
             else {
-                uint16_t& idx = grid[path.ref->hash & kGridMask];
-                if (idx == 0)
-                    idx = chunks.end, new (chunks.alloc(1)) Chunk();
-                else
-                    srch = find(chunks.base + idx, path.ref->hash);
+                Chunk *chunk = grid.chunk(path.ref->hash);
+                srch = grid.find(chunk, path.ref->hash);
                 if (srch == nullptr)
-                    e = new (alloc(chunks.base + idx)) Entry(path.ref->hash, ctm.invert());
+                    e = new (grid.alloc(chunk)) Entry(path.ref->hash, ctm.invert());
                 else {
                     m = ctm.concat(srch->ctm);
                     if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
@@ -425,8 +437,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        Row<Chunk> chunks;
-        uint16_t grid[kGridSize];
+        Grid grid;
         Row<Segment> ctms, segments;
     };
     
@@ -631,7 +642,7 @@ struct Rasterizer {
                         }
                     }
                 }
-            cache.unhit();
+            cache.grid.unhit();
         }
         Bitmap bitmap;
         GPU gpu;
