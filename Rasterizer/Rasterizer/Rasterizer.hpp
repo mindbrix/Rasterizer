@@ -604,7 +604,6 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size);
             gpu.allocator.init(width, height);
-            cache.unhit();
             cache.empty();
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colors, float width, size_t begin, size_t end) {
@@ -630,6 +629,7 @@ struct Rasterizer {
                         }
                     }
                 }
+            cache.unhit();
         }
         Bitmap bitmap;
         GPU gpu;
