@@ -367,19 +367,6 @@ struct Rasterizer {
             uint32_t end = 0, next = 0;
         };
         struct Grid {
-            void compact(Grid& dst) {
-                backCount = 0;
-                dst.empty();
-                for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
-                    for (int i = 0; i < chunk->end; i++)
-                        if (chunk->hits[i]) {
-                            Entry& entry = chunk->entries[i];
-                            Chunk *ch = dst.chunk(chunk->hashes[i]);
-                            *(dst.alloc(ch, chunk->hashes[i], false)) = entry;
-                            if (entry.end < 0)
-                                backCount += entry.begin - entry.end;
-                        }
-            }
             void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
             Chunk *chunk(size_t hash) {
                 uint16_t& idx = grid[hash & kGridMask];
@@ -406,11 +393,24 @@ struct Rasterizer {
                 } while (chunk->next && (chunk = chunks.base + chunk->next));
                 return nullptr;
             }
-            size_t backCount;
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
         
+        void compact() {
+            backCount = 0, backGrid->empty();
+            for (Chunk *chunk = grid->chunks.base + 1, *end = grid->chunks.base + grid->chunks.end; chunk < end; chunk++)
+                for (int i = 0; i < chunk->end; i++)
+                    if (chunk->hits[i]) {
+                        Entry& entry = chunk->entries[i];
+                        Chunk *ch = backGrid->chunk(chunk->hashes[i]);
+                        *(backGrid->alloc(ch, chunk->hashes[i], false)) = entry;
+                        if (entry.end < 0)
+                            backCount += entry.begin - entry.end;
+                    }
+            Grid *tmp;
+            tmp = grid, grid = backGrid, backGrid = tmp;
+        }
         void empty() { grid->empty(), ctms.empty(), segments.empty(); }
         Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, bool simple, AffineTransform& m) {
             Entry *e = nullptr, *srch = nullptr;
@@ -448,7 +448,8 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        Grid grid0, grid1, *grid = & grid0, *backGrid = & grid1;;
+        size_t backCount;
+        Grid grid0, grid1, *grid = & grid0, *backGrid = & grid1;
         Row<Segment> ctms, segments;
     };
     
@@ -653,7 +654,7 @@ struct Rasterizer {
                         }
                     }
                 }
-            cache.grid->compact(*cache.backGrid);
+            cache.compact();
         }
         Bitmap bitmap;
         GPU gpu;
