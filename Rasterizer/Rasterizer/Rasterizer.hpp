@@ -356,7 +356,8 @@ struct Rasterizer {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
-            Entry(size_t hash, AffineTransform ctm) : hash(hash), ctm(ctm) {}
+            Entry(size_t hash, AffineTransform ctm) : hit(true), hash(hash), ctm(ctm) {}
+            bool hit;
             size_t hash, begin, end;
             AffineTransform ctm;
         };
@@ -364,6 +365,11 @@ struct Rasterizer {
             Entry entries[kChunkSize];
             uint32_t end = 0, next = 0;
         };
+        void unhit() {
+            for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
+                for (int i = 0; i < chunk->end; i++)
+                    chunk->entries[i].hit = false;
+        }
         void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)), ctms.empty(), segments.empty(); }
         Entry *alloc(Chunk *chunk) {
             if (chunk->end == kChunkSize)
@@ -598,6 +604,7 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size);
             gpu.allocator.init(width, height);
+            cache.unhit();
             cache.empty();
         }
         void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colors, float width, size_t begin, size_t end) {
