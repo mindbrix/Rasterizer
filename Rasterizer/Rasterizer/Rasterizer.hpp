@@ -356,13 +356,14 @@ struct Rasterizer {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
-            Entry(size_t hash, AffineTransform ctm) : hit(true), hash(hash), ctm(ctm) {}
-            bool hit;
-            size_t hash, begin, end;
+            Entry(AffineTransform ctm) : ctm(ctm) {}
+            size_t begin, end;
             AffineTransform ctm;
         };
         struct Chunk {
             Entry entries[kChunkSize];
+            size_t hashes[kChunkSize];
+            bool hits[kChunkSize];
             uint32_t end = 0, next = 0;
         };
         struct Grid {
@@ -374,18 +375,19 @@ struct Rasterizer {
                     idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
                 return chunk;
             }
-            Entry *alloc(Chunk *chunk) {
+            Entry *alloc(Chunk *chunk, size_t hash) {
                 if (chunk->end == kChunkSize) {
-                    uint16_t& idx = grid[chunk->entries->hash & kGridMask], next = idx;
+                    uint16_t& idx = grid[chunk->hashes[0] & kGridMask], next = idx;
                     idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
                 }
+                chunk->hashes[chunk->end] = hash, chunk->hits[chunk->end] = true;
                 return chunk->entries + chunk->end++;
             }
             Entry *find(Chunk *chunk, size_t hash) {
                 do {
                     for (int i = 0; i < chunk->end; i++)
-                        if (chunk->entries[i].hash == hash) {
-                            chunk->entries[i].hit = true;
+                        if (chunk->hashes[i] == hash) {
+                            chunk->hits[i] = true;
                             return & chunk->entries[i];
                         }
                 } while (chunk->next && (chunk = chunks.base + chunk->next));
@@ -393,8 +395,7 @@ struct Rasterizer {
             }
             void unhit() {
                 for (Chunk *chunk = chunks.base + 1, *end = chunks.base + chunks.end; chunk < end; chunk++)
-                    for (int i = 0; i < chunk->end; i++)
-                        chunk->entries[i].hit = false;
+                    bzero(chunk->hits, sizeof(chunk->hits));
             }
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
@@ -409,7 +410,7 @@ struct Rasterizer {
                 Chunk *chunk = grid.chunk(path.ref->hash);
                 srch = grid.find(chunk, path.ref->hash);
                 if (srch == nullptr)
-                    e = new (grid.alloc(chunk)) Entry(path.ref->hash, ctm.invert());
+                    e = new (grid.alloc(chunk, path.ref->hash)) Entry(ctm.invert());
                 else {
                     m = ctm.concat(srch->ctm);
                     if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
