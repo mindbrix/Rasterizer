@@ -275,7 +275,7 @@ struct Rasterizer {
         void empty() {
             edgeCells = edgeInstances = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty();
         }
-        size_t width, height, edgeCells, edgeInstances, shapesCount;
+        size_t edgeCells, edgeInstances, shapesCount;
         Allocator allocator;
         Row<Segment::Index> indices;
         Row<Quad> quads, opaques;
@@ -597,7 +597,6 @@ struct Rasterizer {
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
-            gpu.width = width, gpu.height = height;
             gpu.allocator.init(width, height);
             cache.empty();
         }
