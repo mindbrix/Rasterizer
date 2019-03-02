@@ -376,7 +376,8 @@ struct Rasterizer {
                             Entry& entry = chunk->entries[i];
                             Chunk *ch = dst.chunk(chunk->hashes[i]);
                             *(dst.alloc(ch, chunk->hashes[i], false)) = entry;
-                            count += entry.end - entry.begin;
+                            if (entry.end < 0)
+                                count += entry.begin - entry.end;
                         }
                 return count;
             }
