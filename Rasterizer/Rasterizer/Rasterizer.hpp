@@ -1024,48 +1024,41 @@ struct Rasterizer {
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             count = segments->end - segments->idx;
             if (count) {
-                if (clip.ux - clip.lx < 32.f) {
-                    gpu->allocator.alloc(clip.ux - clip.lx, Context::kfh, ox, oy);
-                    new (gpu->quads.alloc(1)) GPU::Quad(clip.lx, ly, clip.ux, uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, iy, segments->idx, kNoIndices, count);
-                    gpu->edgeCells++, gpu->edgeInstances += (count + 1) / 2;
-                } else {
-                    for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
-                        new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                    
-                    if (indices.end - indices.idx > 32)
-                        radixSort((uint32_t *)indices.base + indices.idx, indices.end - indices.idx, counts0, counts1);
-                    else
-                        std::sort(indices.base + indices.idx, indices.base + indices.end);
-                    
-                    for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
-                        if (index->x > ux && winding - floorf(winding) < 1e-6f) {
-                            if (lx != ux) {
-                                gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
-                                new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, int(begin), i - begin);
-                                gpu->edgeCells++, gpu->edgeInstances += (i - begin + 1) / 2;
-                            }
-                            begin = i;
-                            if (alphaForCover(winding, even) > 0.998f) {
-                                lx = ux, ux = index->x;
-                                if (lx != ux) {
-                                    if (src[3] == 255 && !hit)
-                                        new (gpu->opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
-                                    else
-                                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
-                                }
-                            }
-                            lx = ux = index->x;
-                            cover = winding;
+                for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
+                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                if (indices.end - indices.idx > 32)
+                    radixSort((uint32_t *)indices.base + indices.idx, indices.end - indices.idx, counts0, counts1);
+                else
+                    std::sort(indices.base + indices.idx, indices.base + indices.end);
+                
+                for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
+                    if (index->x > ux && winding - floorf(winding) < 1e-6f) {
+                        if (lx != ux) {
+                            gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
+                            new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, int(begin), i - begin);
+                            gpu->edgeCells++, gpu->edgeInstances += (i - begin + 1) / 2;
                         }
-                        segment = segments->base + segments->idx + index->i;
-                        winding += (segment->y1 - segment->y0) * scale;
-                        x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
+                        begin = i;
+                        if (alphaForCover(winding, even) > 0.998f) {
+                            lx = ux, ux = index->x;
+                            if (lx != ux) {
+                                if (src[3] == 255 && !hit)
+                                    new (gpu->opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
+                                else
+                                    new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
+                            }
+                        }
+                        lx = ux = index->x;
+                        cover = winding;
                     }
-                    if (lx != ux) {
-                        gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
-                        new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, int(begin), i - begin);
-                        gpu->edgeCells++, gpu->edgeInstances += (i - begin + 1) / 2;
-                    }
+                    segment = segments->base + segments->idx + index->i;
+                    winding += (segment->y1 - segment->y0) * scale;
+                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
+                }
+                if (lx != ux) {
+                    gpu->allocator.alloc(ux - lx, Context::kfh, ox, oy);
+                    new (gpu->quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, segments->idx, int(begin), i - begin);
+                    gpu->edgeCells++, gpu->edgeInstances += (i - begin + 1) / 2;
                 }
                 indices.idx = indices.end;
                 segments->idx = segments->end;
