@@ -573,6 +573,7 @@ struct Rasterizer {
                     memcpy(buffer.data.base + entries[k].begin, ctx->gpu.quads.base + idxes[k], entries[k].end - entries[k].begin);
             }
             ctx->gpu.empty();
+            ctx->cache.backData = buffer.data.base;
             for (j = 0; j < ctx->segments.size(); j++)
                 ctx->segments[j].empty();
         }
@@ -594,7 +595,6 @@ struct Rasterizer {
                 size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end + cache.backCount) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
-                cache.backData = buffer.data.base;
             }
             buffer.data.alloc(size);
             
