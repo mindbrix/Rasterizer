@@ -516,14 +516,17 @@ struct Rasterizer {
                 
                 for (quad = q0; quad < qidx; quad++)
                     if (quad->iz & GPU::Quad::kEdge) {
-                        size_t base = quad->super.iy < 0 ? ctx->cache.ctms.end : sbegins[quad->super.iy];
-                        int im = quad->super.iy < 0 ? quad->super.iy : 0, ic = int(cell - c0);
-                        cell->cell = quad->super.cell, cell->im = im, cell->base = int(base + quad->super.end), cell++;
+                        cell->cell = quad->super.cell;
+                        int ic = int(cell - c0);
                         if (quad->super.iy < 0) {
+                            cell->im = quad->super.iy;
+                            cell->base = int(ctx->cache.ctms.end + quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
+                            cell->im = 0;
+                            cell->base = int(sbegins[quad->super.iy] + quad->super.end);
                             Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
                             for (j = 0; j < quad->super.count; j++, edge++) {
                                 edge->ic = ic, edge->i0 = uint16_t(is++->i);
@@ -533,6 +536,7 @@ struct Rasterizer {
                                     edge->i1 = kNullIndex;
                             }
                         }
+                        cell++;
                     }
                 int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
