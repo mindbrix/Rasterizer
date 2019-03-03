@@ -477,11 +477,11 @@ struct Rasterizer {
                     memcpy(dst, ctx->cache.ctms.base, ctx->cache.ctms.end * sizeof(Segment));
                 if (ctx->cache.segments.end)
                     memcpy(dst + ctx->cache.ctms.end, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
+                for (j = 0; j < ctx->segments.size(); j++)
+                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
                 if (ctx->cache.segments.end || ctx->cache.backCount) {
                     ;
                 }
-                for (j = 0; j < ctx->segments.size(); j++)
-                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
                 end = begin + size * sizeof(Segment);
                 entries.emplace_back(Buffer::Entry::kSegments, begin, end), idxes.emplace_back(0);
                 begin = end;
