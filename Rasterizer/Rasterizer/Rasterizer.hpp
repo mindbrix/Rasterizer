@@ -524,7 +524,7 @@ struct Rasterizer {
                         cell->cell = quad->super.cell, cell->im = im, cell->base = int(base + quad->super.end), cell++;
                         if (enable && quad->super.iy < 0) {
                             for (j = 0; j < quad->super.count; fast++)
-                                fast->ic = ic, fast->i0 = j, j += 4, fast->i1 = j;
+                                fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
                             Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
