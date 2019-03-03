@@ -239,7 +239,7 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, size_t idx, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), end(int(idx)), begin(int(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, size_t end, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), begin(int(begin)), end(int(end)) {}
             Cell cell;
             short cover;
             uint16_t count;
@@ -253,7 +253,7 @@ struct Rasterizer {
         };
         struct Quad {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30 };
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, int iy, size_t idx, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, idx, begin, count), iz((uint32_t)iz | type) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, int iy, size_t end, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             union {
@@ -556,14 +556,14 @@ struct Rasterizer {
                             new (dst) GPU::Quad(ctm.concat(path.ref->shapes[k]), iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                     } else if (quad->iz & GPU::Quad::kOutlines) {
-                        Segment *src = ctx->gpu.outlines.base + quad->super.end, *es = src + quad->super.begin;
+                        Segment *src = ctx->gpu.outlines.base + quad->super.begin, *es = ctx->gpu.outlines.base + quad->super.end;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                         for (dst0 = dst; src < es; src++, dst++) {
                             new (dst) GPU::Quad(src, quad->super.cover, iz, GPU::Quad::kOutlines);
                             if (src->x0 == FLT_MAX && dst - dst0 > 1)
                                 dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                         }
-                        entry->end += quad->super.begin * sizeof(GPU::Quad);
+                        entry->end += (quad->super.end - quad->super.begin) * sizeof(GPU::Quad);
                     } else
                         entry->end += sizeof(GPU::Quad);
                 }
@@ -678,9 +678,8 @@ struct Rasterizer {
         } else {
             if (width) {
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
-                size_t count = gpu.outlines.end - gpu.outlines.idx;
-                if (count > 1) {
-                    new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.idx, int(count), 0);
+                if (gpu.outlines.end - gpu.outlines.idx > 1) {
+                    new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, gpu.outlines.end, int(gpu.outlines.idx), 0);
                     gpu.outlines.idx = gpu.outlines.end;
                 }
             } else {
