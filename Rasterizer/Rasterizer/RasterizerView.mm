@@ -158,7 +158,7 @@
 
 #pragma mark - LayerDelegate
 
-- (void)writeBuffer:(Rasterizer::Buffer *)buffer backBuffer:(Rasterizer::Buffer *)backBuffer forLayer:(CALayer *)layer {
+- (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
     if (_testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kCoreGraphics)
         return;
         
@@ -170,7 +170,7 @@
     Rasterizer::Path clipPath;
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, backBuffer);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
 }
 
 #pragma mark - CALayerDelegate
@@ -183,7 +183,7 @@
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
     Rasterizer::Path clipPath;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, nullptr);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }
 
 - (void)setSvgData:(NSData *)svgData {

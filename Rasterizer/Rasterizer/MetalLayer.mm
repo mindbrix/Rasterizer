@@ -109,10 +109,10 @@
 
 - (void)draw {
     _odd = !_odd;
-    Rasterizer::Buffer *buffer = _odd ? & _buffer1 : & _buffer0, *backBuffer = _odd ? & _buffer0 : & _buffer1;
+    Rasterizer::Buffer *buffer = _odd ? & _buffer1 : & _buffer0;
     buffer->entries.empty();
-    if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:backBuffer:forLayer:)])
-        [self.layerDelegate writeBuffer:buffer backBuffer:backBuffer forLayer:self];
+    if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
+        [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
     if (drawable == nil) {

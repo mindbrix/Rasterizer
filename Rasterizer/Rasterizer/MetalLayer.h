@@ -10,7 +10,7 @@
 #import "RasterizerCoreGraphics.hpp"
 
 @protocol LayerDelegate <NSObject>
-- (void)writeBuffer:(Rasterizer::Buffer *)buffer backBuffer:(Rasterizer::Buffer *)backBuffer forLayer:(CALayer *)layer;
+- (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer;
 @end
 
 
