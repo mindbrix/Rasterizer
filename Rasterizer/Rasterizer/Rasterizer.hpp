@@ -489,16 +489,13 @@ struct Rasterizer {
             while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
                 size_t cellCount = 0, edgeCount = 0, fastCount = 0;
-                bool enable = kFastSegments == 4;
-                if (q0->iz & GPU::Quad::kEdge)
-                    cellCount = 1, edgeCount = enable && q0->super.iy < 0 ? 0 : (q0->super.count + 1) / 2, fastCount = enable && q0->super.iy < 0 ? (q0->super.count + kFastSegments - 1) / kFastSegments : 0;
-                for (qidx = q0 + 1; qidx < q1; qidx++)
+                for (qidx = q0; qidx < q1; qidx++)
                     if (qidx->iz & GPU::Quad::kEdge) {
-                        if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0)
+                        if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0 && qidx != q0)
                             break;
                         else {
                             cellCount++;
-                            if (enable && qidx->super.iy < 0)
+                            if (qidx->super.iy < 0)
                                 fastCount += (qidx->super.count + kFastSegments - 1) / kFastSegments;
                             else
                                 edgeCount += (qidx->super.count + 1) / 2;
@@ -522,7 +519,7 @@ struct Rasterizer {
                         size_t base = quad->super.iy < 0 ? ctx->cache.ctms.end : sbegins[quad->super.iy];
                         int im = quad->super.iy < 0 ? quad->super.iy : 0, ic = int(cell - c0);
                         cell->cell = quad->super.cell, cell->im = im, cell->base = int(base + quad->super.end), cell++;
-                        if (enable && quad->super.iy < 0) {
+                        if (quad->super.iy < 0) {
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
@@ -694,7 +691,7 @@ struct Rasterizer {
                         new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         size_t count = e->end - e->begin;
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, e->begin, 0, count);
+                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, e->begin, -1, count);
                         gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
                     }
                 } else {
