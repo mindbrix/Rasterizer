@@ -449,6 +449,7 @@ struct Rasterizer {
             }
         }
         size_t backCount = 0;
+        uint8_t *backData = nullptr;
         Grid grid0, grid1, *grid = & grid0, *backGrid = & grid1;
         Row<Segment> ctms, segments;
     };
@@ -596,6 +597,7 @@ struct Rasterizer {
                 size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end + cache.backCount) * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
+                cache.backData = buffer.data.base;
             }
             buffer.data.alloc(size);
             
