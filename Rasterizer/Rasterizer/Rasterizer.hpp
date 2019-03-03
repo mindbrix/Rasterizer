@@ -527,7 +527,11 @@ struct Rasterizer {
                         int ic = int(cell - c0);
                         if (quad->super.iy < 0) {
                             cell->im = quad->super.iy;
-                            cell->base = int(ctx->cache.ctms.end + quad->super.end);
+                            if (quad->super.end < 0) {
+                                Cache::Entry *e = ctx->cache.grid->entry(-quad->super.end);
+                                cell->base = int(ctx->cache.ctms.end + e->begin);
+                            } else
+                                cell->base = int(ctx->cache.ctms.end + quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
@@ -698,13 +702,13 @@ struct Rasterizer {
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
                         float ox, oy;
-                        int im = -int(cache.ctms.end + 1), index = cache.grid->index(e);
-                        Cache::Entry *tst = cache.grid->entry(index);
-                        assert(e == tst);
+                        int im = -int(cache.ctms.end + 1), index = simple ? e->begin : -cache.grid->index(e);
+                        if (!simple)
+                            assert(e == cache.grid->entry(-index));
                         new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         size_t count = e->end - e->begin;
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, e->begin, -1, count);
+                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
                         gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
                     }
                 } else {
