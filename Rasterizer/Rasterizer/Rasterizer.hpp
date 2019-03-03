@@ -393,6 +393,13 @@ struct Rasterizer {
                 } while (chunk->next && (chunk = chunks.base + chunk->next));
                 return nullptr;
             }
+            Entry *entry(int index) {
+                return & chunks.base[index >> 8].entries[index & 0xFF];
+            }
+            int index(Entry *e) {
+                size_t ic = ((uint8_t *)e - (uint8_t *)chunks.base) / sizeof(Chunk);
+                return int(ic << 8 | (e - chunks.base[ic].entries));
+            }
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
@@ -691,7 +698,9 @@ struct Rasterizer {
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
                         float ox, oy;
-                        int im = -int(cache.ctms.end + 1);
+                        int im = -int(cache.ctms.end + 1), index = cache.grid->index(e);
+                        Cache::Entry *tst = cache.grid->entry(index);
+                        assert(e == tst);
                         new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         size_t count = e->end - e->begin;
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
