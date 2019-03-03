@@ -32,7 +32,7 @@ struct SuperCell {
     Cell cell;
     short cover;
     uint16_t count;
-    int iy, idx, begin;
+    int iy, begin, end;
 };
 struct Outline {
     Segment s;

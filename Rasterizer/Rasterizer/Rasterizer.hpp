@@ -239,11 +239,11 @@ struct Rasterizer {
             short lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, size_t idx, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), idx(int(idx)), begin(int(begin)) {}
+            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, size_t idx, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), end(int(idx)), begin(int(begin)) {}
             Cell cell;
             short cover;
             uint16_t count;
-            int iy, idx, begin;
+            int iy, begin, end;
         };
         struct Outline {
             Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
@@ -517,7 +517,7 @@ struct Rasterizer {
                     if (quad->iz & GPU::Quad::kEdge) {
                         size_t base = quad->super.iy < 0 ? ctx->cache.ctms.end : sbegins[quad->super.iy];
                         int im = quad->super.iy < 0 ? quad->super.iy : 0, ic = int(cell - c0);
-                        cell->cell = quad->super.cell, cell->im = im, cell->base = int(base + quad->super.idx), cell++;
+                        cell->cell = quad->super.cell, cell->im = im, cell->base = int(base + quad->super.end), cell++;
                         if (enable && quad->super.iy < 0) {
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += 4, fast->i1 = j;
@@ -556,7 +556,7 @@ struct Rasterizer {
                             new (dst) GPU::Quad(ctm.concat(path.ref->shapes[k]), iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                     } else if (quad->iz & GPU::Quad::kOutlines) {
-                        Segment *src = ctx->gpu.outlines.base + quad->super.idx, *es = src + quad->super.begin;
+                        Segment *src = ctx->gpu.outlines.base + quad->super.end, *es = src + quad->super.begin;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                         for (dst0 = dst; src < es; src++, dst++) {
                             new (dst) GPU::Quad(src, quad->super.cover, iz, GPU::Quad::kOutlines);
