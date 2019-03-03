@@ -418,6 +418,23 @@ struct Rasterizer {
             Grid *tmp;
             tmp = grid, grid = backGrid, backGrid = tmp;
         }
+        void write(uint8_t *data, size_t begin) {
+            assert(data != backData);
+            uint8_t *src;
+            size_t size;
+            for (Chunk *chunk = grid->chunks.base + 1, *end = grid->chunks.base + grid->chunks.end; chunk < end; chunk++)
+                for (int i = 0; i < chunk->end; i++) {
+                    Entry& entry = chunk->entries[i];
+                    if (entry.end < 0)
+                        src = backData - entry.begin, size = entry.begin - entry.end;
+                    else
+                        src = (uint8_t *)& segments.base[entry.begin], size = (entry.end - entry.begin) * sizeof(Segment);
+                    memcpy(data + begin, src, size);
+                    entry.begin = -int(begin);
+                    begin += size;
+                    entry.end = -int(begin);
+                }
+        }
         void empty() { grid->empty(), ctms.empty(), segments.empty(); }
         
         Entry *writeSimple(Path& path, AffineTransform ctm) {
@@ -472,7 +489,7 @@ struct Rasterizer {
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
-            size_t end = begin, j, iz, sbegins[ctx->segments.size()], size;
+            size_t start = begin, end = begin, j, iz, sbegins[ctx->segments.size()], size;
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
             
@@ -487,9 +504,8 @@ struct Rasterizer {
                     memcpy(dst + ctx->cache.ctms.end, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
                 for (j = 0; j < ctx->segments.size(); j++)
                     memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
-                if (ctx->cache.segments.end || ctx->cache.backCount) {
-                    ;
-                }
+                if (ctx->cache.segments.end || ctx->cache.backCount)
+                    ;// ctx->cache.write(buffer.data.base, begin);
                 end = begin + size * sizeof(Segment);
                 entries.emplace_back(Buffer::Entry::kSegments, begin, end), idxes.emplace_back(0);
                 begin = end;
@@ -531,6 +547,7 @@ struct Rasterizer {
                             if (quad->super.end < 0) {
                                 Cache::Entry *e = ctx->cache.grid->entry(-quad->super.end);
                                 cell->base = int(ctx->cache.ctms.end + e->begin);
+                               // cell->base = int(-e->begin - start) / sizeof(Segment);
                             } else
                                 cell->base = int(ctx->cache.ctms.end + quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
