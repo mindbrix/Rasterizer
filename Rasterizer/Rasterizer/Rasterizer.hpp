@@ -419,27 +419,28 @@ struct Rasterizer {
             tmp = grid, grid = backGrid, backGrid = tmp;
         }
         void empty() { grid->empty(), ctms.empty(), segments.empty(); }
-        Entry *addPath(Path& path, AffineTransform ctm, Bounds clip, bool simple, AffineTransform& m) {
-            Entry *e = nullptr, *srch = nullptr;
-            if (simple)
-                e = grid->chunks.base->entries;
-            else {
-                Chunk *chunk = grid->chunk(path.ref->hash);
-                srch = grid->find(chunk, path.ref->hash);
-                if (srch == nullptr)
-                    e = new (grid->alloc(chunk, path.ref->hash, true)) Entry(ctm.invert());
-                else {
-                    m = ctm.concat(srch->ctm);
-                    if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                        e = srch;
-                }
-            }
+        
+        Entry *writeSimple(Path& path, AffineTransform ctm) {
+            writeSegments(path, ctm, grid->chunks.base->entries);
+            return grid->chunks.base->entries;
+        }
+        Entry *addPath(Path& path, AffineTransform ctm, bool simple, AffineTransform& m) {
+            Chunk *chunk = grid->chunk(path.ref->hash);
+            Entry *e = nullptr, *srch = grid->find(chunk, path.ref->hash);
             if (srch == nullptr) {
-                e->begin = int(segments.idx);
-                writePath(path, ctm, clip, writeOutlineSegment, Info(nullptr, 0, & segments));
-                segments.idx = e->end = int(segments.end);
+                e = new (grid->alloc(chunk, path.ref->hash, true)) Entry(ctm.invert());
+                writeSegments(path, ctm, e);
+            } else {
+                m = ctm.concat(srch->ctm);
+                if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
+                    e = srch;
             }
             return e;
+        }
+        void writeSegments(Path& path, AffineTransform ctm, Entry *e) {
+            e->begin = int(segments.idx);
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(nullptr, 0, & segments));
+            segments.idx = e->end = int(segments.end);
         }
         void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
@@ -696,15 +697,13 @@ struct Rasterizer {
                 if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                     bool simple = !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
                     AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                    Cache::Entry *e = cache.addPath(path, ctm, clip, simple, m);
+                    Cache::Entry *e = simple ? cache.writeSimple(path, ctm) : cache.addPath(path, ctm, simple, m);
                     if (clip.uy - clip.ly > kFastHeight) {
                         cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
                         float ox, oy;
                         int im = -int(cache.ctms.end + 1), index = simple ? e->begin : -cache.grid->index(e);
-                        if (!simple)
-                            assert(e == cache.grid->entry(-index));
                         new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         size_t count = e->end - e->begin;
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
