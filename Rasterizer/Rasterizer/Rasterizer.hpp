@@ -618,13 +618,14 @@ struct Rasterizer {
                         device = Bounds(colors->ctm).integral().intersect(bounds), inv = bitmap.width ? inv : colors->ctm.invert(), t = colors->ctm;
                     AffineTransform unit = paths->ref->bounds.unit(*ctms);
                     Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device);
+                    bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
                                 writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, *ctms, even, & colors->src0, iz, dev, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
+                                writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
                         }
                     }
                 }
@@ -647,7 +648,7 @@ struct Rasterizer {
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
         }
     }
-    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, Bounds dev, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
+    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
         if (path.ref->shapes) {
             gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
@@ -661,7 +662,7 @@ struct Rasterizer {
             } else {
                 Cache::Entry *e = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool fast = false, unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                bool fast = false;
                 if (path.ref->isGlyph && unclipped)
                     e = cache.findPath(path, ctm, m);
                 if (e) {
