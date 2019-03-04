@@ -424,7 +424,7 @@ struct Rasterizer {
             writeSegments(path, ctm, grid->chunks.base->entries);
             return grid->chunks.base->entries;
         }
-        Entry *addPath(Path& path, AffineTransform ctm, AffineTransform& m) {
+        Entry *findPath(Path& path, AffineTransform ctm, AffineTransform& m) {
             Chunk *chunk = grid->chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
@@ -726,7 +726,7 @@ struct Rasterizer {
                 if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
                     bool simple = false;// !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
                     AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                    Cache::Entry *e = simple ? cache.writeSimple(path, ctm) : cache.addPath(path, ctm, m);
+                    Cache::Entry *e = simple ? cache.writeSimple(path, ctm) : cache.findPath(path, ctm, m);
                     if (cache.enable && e == nullptr)
                         e = cache.writeSimple(path, ctm);
                     if (clip.uy - clip.ly > kFastHeight) {
