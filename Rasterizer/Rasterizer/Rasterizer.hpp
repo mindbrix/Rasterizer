@@ -399,7 +399,7 @@ struct Rasterizer {
             Chunk *chunk = grid->chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
-                Entry *e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
+                e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
                 e->begin = int(segments.idx);
                 writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(nullptr, 0, & segments));
                 segments.idx = e->end = int(segments.end);
