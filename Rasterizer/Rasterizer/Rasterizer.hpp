@@ -434,9 +434,7 @@ struct Rasterizer {
                 m = ctm.concat(srch->ctm);
                 if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f) {
                     chunk = grid->chunk(srch);
-                    size_t i = srch - chunk->entries;
-                    assert(i < kChunkSize);
-                    e = srch, chunk->hits[i] = true;
+                    e = srch, chunk->hits[srch - chunk->entries] = true;
                 }
             }
             return e;
@@ -723,14 +721,21 @@ struct Rasterizer {
                     gpu.outlines.idx = gpu.outlines.end;
                 }
             } else {
-                if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                    bool simple = false;// !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
-                    AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                    Cache::Entry *e = simple ? cache.writeSimple(path, ctm) : cache.findPath(path, ctm, m);
-                    if (cache.enable && e == nullptr)
-                        e = cache.writeSimple(path, ctm);
+                Cache::Entry *e = nullptr;
+                AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                bool simple = !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
+                if (simple && unclipped)
+                    e = cache.writeSimple(path, ctm);
+                else if (unclipped) {
+                    Cache::Entry *srch = cache.findPath(path, ctm, m);
+                    if (srch)
+                        e = srch;
+                    else
+                        m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                }
+                if (e) {
                     if (clip.uy - clip.ly > kFastHeight) {
-                        //m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
