@@ -661,18 +661,20 @@ struct Rasterizer {
             } else {
                 Cache::Entry *e = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                if (path.ref->isGlyph && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy)
+                bool fast = false, unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                if (path.ref->isGlyph && unclipped)
                     e = cache.findPath(path, ctm, m);
                 if (e) {
-                    if (clip.uy - clip.ly > kFastHeight) {
+                    fast = clip.uy - clip.ly <= kFastHeight;
+                    if (!fast)
                         cache.writeCachedOutline(e, m, sgmnts);
-                        writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
-                    } else
-                        writeFast(e->begin, e->end, iz, clip, m, gpu, cache);
-                } else {
+                } else
                     writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+                
+                if (fast)
+                    writeFast(e->begin, e->end, iz, clip, m, gpu, cache);
+                else
                     writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
-                }
             }
         }
     }
