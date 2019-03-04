@@ -663,7 +663,7 @@ struct Rasterizer {
                 Cache::Entry *e = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool fast = false, slow = clip.uy - clip.ly > kFastHeight;
-                if (unclipped && (path.ref->isGlyph || !slow))
+                if (!slow || (path.ref->isGlyph && unclipped))
                     e = cache.findPath(path, ctm, m);
                 if (e) {
                     fast = !slow;
@@ -684,7 +684,6 @@ struct Rasterizer {
         int im = -int(cache.ctms.end + 1), index = begin;
         new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
         size_t count = end - begin;
-        assert(count < 65535);
         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
         new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
         gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;

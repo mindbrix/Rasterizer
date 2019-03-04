@@ -152,7 +152,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
         if (dst[1] != dst[3])
             slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
     }
-    slx = floor(slx), sly = floor(sly), suy = ceil(suy);
+    slx = clamp(short(slx), cell.lx, cell.ux), sly = clamp(short(sly), cell.ly, cell.uy), suy = clamp(short(ceil(suy)), cell.ly, cell.uy);
     
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
