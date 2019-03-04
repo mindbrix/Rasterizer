@@ -667,22 +667,24 @@ struct Rasterizer {
                     if (clip.uy - clip.ly > kFastHeight) {
                         cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
-                    } else {
-                        float ox, oy;
-                        int im = -int(cache.ctms.end + 1), index = e->begin;
-                        new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
-                        size_t count = e->end < 0 ? (e->begin - e->end) / sizeof(Segment) : e->end - e->begin;
-                        assert(count < 65535);
-                        gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
-                        gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
-                    }
+                    } else
+                        writeFast(e->begin, e->end, iz, clip, m, gpu, cache);
                 } else {
                     writePath(path, ctm, clip, writeClippedSegment, sgmnts);
                     writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                 }
             }
         }
+    }
+    static void writeFast(int begin, int end, size_t iz, Bounds clip, AffineTransform m, GPU& gpu, Cache& cache) {
+        float ox, oy;
+        int im = -int(cache.ctms.end + 1), index = begin;
+        new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
+        size_t count = end - begin;
+        assert(count < 65535);
+        gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
+        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
+        gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
