@@ -410,11 +410,6 @@ struct Rasterizer {
             }
             return e;
         }
-        void writeSegments(Path& path, AffineTransform ctm, Entry *e) {
-            e->begin = int(segments.idx);
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(nullptr, 0, & segments));
-            segments.idx = e->end = int(segments.end);
-        }
         void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
             Segment *s = segments.base + e->begin, *end = segments.base + e->end;
