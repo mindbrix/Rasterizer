@@ -5,11 +5,6 @@
 //  Created by Nigel Barber on 17/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#ifdef RASTERIZER_SIMD
-typedef float vec4f __attribute__((vector_size(16)));
-typedef uint8_t vec4b __attribute__((vector_size(4)));
-#endif
-
 #import "Rasterizer.h"
 #import "crc64.h"
 #import <vector>
@@ -1083,6 +1078,9 @@ struct Rasterizer {
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
 #ifdef RASTERIZER_SIMD
+        typedef float vec4f __attribute__((vector_size(16)));
+        typedef uint8_t vec4b __attribute__((vector_size(4)));
+
         vec4f src4 = { src0, src1, src2, 255.f }, alpha4 = { alpha, alpha, alpha, alpha }, mul4 = alpha4 * src4, one4 = { 1.f, 1.f, 1.f, 1.f };
         vec4b bgra = { dst[0], dst[1], dst[2], dst[3] };
         mul4 += __builtin_convertvector(bgra, vec4f) * (one4 - alpha4);
