@@ -648,7 +648,7 @@ struct Rasterizer {
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
         }
     }
-    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info sgmnts, GPU& gpu, Cache& cache) {
+    static void writeGPUPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu, Cache& cache) {
         if (path.ref->shapes) {
             gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
@@ -660,22 +660,19 @@ struct Rasterizer {
                     gpu.outlines.idx = gpu.outlines.end;
                 }
             } else {
-                Cache::Entry *e = nullptr;
+                Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool fast = false, slow = clip.uy - clip.ly > kFastHeight;
+                bool slow = clip.uy - clip.ly > kFastHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
-                    e = cache.findPath(path, ctm, m);
-                if (e) {
-                    fast = !slow;
-                    if (slow)
-                        cache.writeCachedOutline(e, m, sgmnts);
-                } else
-                    writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-                
-                if (fast)
-                    writeFast(e->begin, e->end, iz, clip, m, gpu, cache);
+                    entry = cache.findPath(path, ctm, m);
+                if (entry == nullptr)
+                    writePath(path, ctm, clip, writeClippedSegment, segments);
+                else if (slow)
+                    cache.writeCachedOutline(entry, m, segments);
+                if (entry && !slow)
+                    writeFast(entry->begin, entry->end, iz, clip, m, gpu, cache);
                 else
-                    writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
+                    writeSegments(segments.segments, clip, even, src, iz, hit, & gpu);
             }
         }
     }
