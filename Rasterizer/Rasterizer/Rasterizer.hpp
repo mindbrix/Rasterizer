@@ -662,12 +662,12 @@ struct Rasterizer {
             } else {
                 Cache::Entry *e = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool fast = false;
-                if (path.ref->isGlyph && unclipped)
+                bool fast = false, slow = clip.uy - clip.ly > kFastHeight;
+                if (unclipped && (path.ref->isGlyph || !slow))
                     e = cache.findPath(path, ctm, m);
                 if (e) {
-                    fast = clip.uy - clip.ly <= kFastHeight;
-                    if (!fast)
+                    fast = !slow;
+                    if (slow)
                         cache.writeCachedOutline(e, m, sgmnts);
                 } else
                     writePath(path, ctm, clip, writeClippedSegment, sgmnts);
