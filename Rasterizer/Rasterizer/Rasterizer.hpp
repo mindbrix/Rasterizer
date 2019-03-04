@@ -395,16 +395,14 @@ struct Rasterizer {
         };
         void empty() { grid->empty(), ctms.empty(), segments.empty(); }
         
-        Entry *writeSimple(Path& path, AffineTransform ctm) {
-            writeSegments(path, ctm, grid->chunks.base->entries);
-            return grid->chunks.base->entries;
-        }
-        Entry *findPath(Path& path, AffineTransform ctm, AffineTransform& m) {
+        Entry *getPath(Path& path, AffineTransform ctm, AffineTransform& m) {
             Chunk *chunk = grid->chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
-                e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
-                writeSegments(path, ctm, e);
+                Entry *e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
+                e->begin = int(segments.idx);
+                writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(nullptr, 0, & segments));
+                segments.idx = e->end = int(segments.end);
             } else {
                 m = ctm.concat(srch->ctm);
                 if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
@@ -423,7 +421,6 @@ struct Rasterizer {
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
                 if (s->x0 != FLT_MAX) {
-                    assert(iy0 >= 0.f && iy1 >= 0.f);
                     if (iy0 == iy1 && y0 != y1)
                         new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                     else
@@ -664,7 +661,7 @@ struct Rasterizer {
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kFastHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
-                    entry = cache.findPath(path, ctm, m);
+                    entry = cache.getPath(path, ctm, m);
                 if (entry == nullptr)
                     writePath(path, ctm, clip, writeClippedSegment, segments);
                 else if (slow)
