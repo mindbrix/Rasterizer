@@ -371,10 +371,9 @@ struct Rasterizer {
             void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
             Chunk *chunk(size_t hash) {
                 uint16_t& idx = grid[hash & kGridMask];
-                Chunk *chunk = chunks.base + idx;
                 if (idx == 0)
-                    idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk();
-                return chunk;
+                    idx = chunks.end, new (chunks.alloc(1)) Chunk();
+                return chunks.base + idx;
             }
             Entry *alloc(Chunk *chunk, size_t hash, bool hit) {
                 if (chunk->end == kChunkSize) {
@@ -399,25 +398,27 @@ struct Rasterizer {
                 size_t ic = ((uint8_t *)e - (uint8_t *)chunks.base) / sizeof(Chunk);
                 return int(ic << 8 | (e - chunks.base[ic].entries));
             }
+            Chunk *chunk(Entry *entry) {
+                return & chunks.base[index(entry) >> 8];
+            }
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
         
-        void compact() {
-            backCount = 0, backGrid->empty();
-            for (Chunk *chunk = grid->chunks.base + 1, *end = grid->chunks.base + grid->chunks.end; chunk < end; chunk++)
+        void count() {
+            backCount = 0;
+            for (Chunk *chunk = grid->chunks.base + 1, *end = grid->chunks.base + grid->chunks.end; chunk < end; chunk++) {
                 for (int i = 0; i < chunk->end; i++)
-                    if (chunk->hits[i]) {
-                        Entry& entry = chunk->entries[i];
-                        Chunk *ch = backGrid->chunk(chunk->hashes[i]);
-                        *(backGrid->alloc(ch, chunk->hashes[i], false)) = entry;
-                        if (entry.end < 0)
-                            backCount += entry.begin - entry.end;
-                    }
+                    if (chunk->hits[i] && chunk->entries[i].end < 0)
+                        backCount += chunk->entries[i].begin - chunk->entries[i].end;
+            }
+        }
+        void swap(uint8_t *back) {
+            backData = back;
             Grid *tmp;
             tmp = grid, grid = backGrid, backGrid = tmp;
         }
-        void empty() { if (!enable) grid->empty(), ctms.empty(), segments.empty(); }
+        void empty() { if (!enable) grid->empty();  ctms.empty(), segments.empty(); }
         
         Entry *writeSimple(Path& path, AffineTransform ctm) {
             writeSegments(path, ctm, grid->chunks.base->entries);
@@ -425,14 +426,18 @@ struct Rasterizer {
         }
         Entry *addPath(Path& path, AffineTransform ctm, AffineTransform& m) {
             Chunk *chunk = grid->chunk(path.ref->hash);
-            Entry *e = nullptr, *srch = grid->find(chunk, path.ref->hash);
+            Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
                 e = new (grid->alloc(chunk, path.ref->hash, true)) Entry(ctm.invert());
                 writeSegments(path, ctm, e);
             } else {
                 m = ctm.concat(srch->ctm);
-                if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
-                    e = srch, chunk->hits[e - chunk->entries] = true;
+                if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f) {
+                    chunk = grid->chunk(srch);
+                    size_t i = srch - chunk->entries;
+                    assert(i < kChunkSize);
+                    e = srch, chunk->hits[i] = true;
+                }
             }
             return e;
         }
@@ -443,10 +448,12 @@ struct Rasterizer {
         }
         void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
-            Segment *s = segments.base + e->begin, *end = segments.base + e->end;
+            Segment *s = e->end < 0 ? (Segment *)(backData - e->begin) : segments.base + e->begin;
+            Segment *end = e->end < 0 ? (Segment *)(backData - e->end) : segments.base + e->end;
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
                 if (s->x0 != FLT_MAX) {
+                    assert(iy0 >= 0.f && iy1 >= 0.f);
                     if (iy0 == iy1 && y0 != y1)
                         new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                     else
@@ -455,7 +462,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
             }
         }
-        bool enable = false;
+        bool enable = true;
         size_t backCount = 0;
         uint8_t *backData = nullptr;
         Grid grid0, grid1, *grid = & grid0, *backGrid = & grid1;
@@ -489,16 +496,22 @@ struct Rasterizer {
                     memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
                 if (ctx->cache.enable) {
                     size_t sz, bg = begin + size * sizeof(Segment);
+                    ctx->cache.backGrid->empty();
                     for (Cache::Chunk *chunk = ctx->cache.grid->chunks.base + 1, *end = ctx->cache.grid->chunks.base + ctx->cache.grid->chunks.end; chunk < end; chunk++)
                         for (int i = 0; i < chunk->end; i++) {
-                            Cache::Entry& entry = chunk->entries[i];
-                            if (entry.end < 0) {
-                                sz = entry.begin - entry.end;
-                                memcpy(buffer.data.base + bg, ctx->cache.backData - entry.begin, sz);
-                                entry.begin = -int(bg), bg += sz, entry.end = -int(bg);
-                            } else {
-                                entry.begin = -int(begin + (ctx->cache.ctms.end + entry.begin) * sizeof(Segment));
-                                entry.end = -int(begin + (ctx->cache.ctms.end + entry.end) * sizeof(Segment));
+                            if (chunk->hits[i]) {
+                                Cache::Entry& entry = chunk->entries[i];
+                                if (entry.end < 0) {
+                                    sz = entry.begin - entry.end;
+                                    memcpy(buffer.data.base + bg, ctx->cache.backData - entry.begin, sz);
+                                    entry.begin = -int(bg), bg += sz, entry.end = -int(bg);
+                                } else {
+                                    sz = (entry.end - entry.begin) * sizeof(Segment);
+                                    entry.begin = -int(begin + (ctx->cache.ctms.end + entry.begin) * sizeof(Segment));
+                                    entry.end = -int(begin + (ctx->cache.ctms.end + entry.end) * sizeof(Segment));
+                                }
+                                Cache::Chunk *ch = ctx->cache.backGrid->chunk(chunk->hashes[i]);
+                                *(ctx->cache.backGrid->alloc(ch, chunk->hashes[i], false)) = entry;
                             }
                         }
                 }
@@ -542,9 +555,10 @@ struct Rasterizer {
                             cell->im = quad->super.iy;
                             if (quad->super.end < 0) {
                                 Cache::Entry *e = ctx->cache.grid->entry(-quad->super.end);
-                                if (ctx->cache.enable)
+                                if (ctx->cache.enable) {
+                                    assert(e->end < 0);
                                     cell->base = int(-e->begin - start) / sizeof(Segment);
-                                else
+                                } else
                                     cell->base = int(ctx->cache.ctms.end + e->begin);
                             } else
                                 cell->base = int(ctx->cache.ctms.end + quad->super.end);
@@ -600,7 +614,7 @@ struct Rasterizer {
                     memcpy(buffer.data.base + entries[k].begin, ctx->gpu.quads.base + idxes[k], entries[k].end - entries[k].begin);
             }
             ctx->gpu.empty();
-            ctx->cache.backData = buffer.data.base;
+            ctx->cache.swap(buffer.data.base);
             for (j = 0; j < ctx->segments.size(); j++)
                 ctx->segments[j].empty();
         }
@@ -619,7 +633,8 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end + cache.backCount) * sizeof(Segment);
+                cache.count();
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end) * sizeof(Segment) + cache.backCount;
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
@@ -677,7 +692,6 @@ struct Rasterizer {
                         }
                     }
                 }
-            cache.compact();
         }
         Bitmap bitmap;
         GPU gpu;
@@ -710,12 +724,13 @@ struct Rasterizer {
                 }
             } else {
                 if (dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy) {
-                    bool simple = !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
+                    bool simple = false;// !path.ref->isGlyph && path.ref->counts[Sequence::Atom::kQuadratic] == 0 && path.ref->counts[Sequence::Atom::kCubic] == 0 && path.ref->counts[Sequence::Atom::kLine] < 8;
                     AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                     Cache::Entry *e = simple ? cache.writeSimple(path, ctm) : cache.addPath(path, ctm, m);
                     if (cache.enable && e == nullptr)
                         e = cache.writeSimple(path, ctm);
                     if (clip.uy - clip.ly > kFastHeight) {
+                        //m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         cache.writeCachedOutline(e, m, sgmnts);
                         writeSegments(sgmnts.segments, clip, even, src, iz, hit, & gpu);
                     } else {
@@ -723,6 +738,7 @@ struct Rasterizer {
                         int im = -int(cache.ctms.end + 1), index = simple ? e->begin : -cache.grid->index(e);
                         new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
                         size_t count = e->end < 0 ? (e->begin - e->end) / sizeof(Segment) : e->end - e->begin;
+                        assert(count < 65535);
                         gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                         new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
                         gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
