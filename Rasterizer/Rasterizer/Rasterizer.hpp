@@ -668,15 +668,6 @@ struct Rasterizer {
             }
         }
     }
-    static void writeFast(int begin, int end, size_t iz, Bounds clip, AffineTransform m, GPU& gpu, Cache& cache) {
-        float ox, oy;
-        int im = -int(cache.ctms.end + 1), index = begin;
-        new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
-        size_t count = end - begin;
-        gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
-        gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
-    }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
@@ -980,7 +971,15 @@ struct Rasterizer {
         for (int i = n - 1; i >= 0; i--)
             x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
     }
-    
+    static void writeFast(int begin, int end, size_t iz, Bounds clip, AffineTransform m, GPU& gpu, Cache& cache) {
+        float ox, oy;
+        int im = -int(cache.ctms.end + 1), index = begin;
+        new (cache.ctms.alloc(1)) Segment(m.tx, m.ty, m.tx + m.a, m.ty + m.b);
+        size_t count = end - begin;
+        gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
+        new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, im, index, -1, count);
+        gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
+    }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU *gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
         short counts0[256], counts1[256], iy;
