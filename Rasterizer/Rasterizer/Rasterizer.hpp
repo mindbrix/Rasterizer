@@ -745,10 +745,16 @@ struct Rasterizer {
             sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
             sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
             dx = x1 - x0, dy = y1 - y0;
-            ty0 = dy == 0.f ? 0.f : (sy0 - y0) / dy;
-            ty1 = dy == 0.f ? 1.f : (sy1 - y0) / dy;
-            tx0 = dx == 0.f ? 0.f : (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
-            tx1 = dx == 0.f ? 1.f : (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
+            if (dy == 0.f)
+                ty0 = 0.f, ty1 = 1.f;
+            else
+                ty0 = (sy0 - y0) / dy, ty1 = (sy1 - y0) / dy;
+            if (dx == 0.f)
+                tx0 = 0.f, tx1 = 1.f;
+            else {
+                tx0 = (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
+                tx1 = (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
+            }
             float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
             for (int i = 0; i < 3; i++)
                 if (ts[i] != ts[i + 1]) {
