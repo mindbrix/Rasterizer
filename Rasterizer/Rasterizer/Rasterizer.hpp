@@ -477,30 +477,6 @@ struct Rasterizer {
                 GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
                 begin = end;
                 
-                for (quad = q0; quad < qidx; quad++)
-                    if (quad->iz & GPU::Quad::kEdge) {
-                        cell->cell = quad->super.cell;
-                        int ic = int(cell - c0);
-                        if (quad->super.iy < 0) {
-                            cell->im = quad->super.iy;
-                            cell->base = int(quad->super.end);
-                            for (j = 0; j < quad->super.count; fast++)
-                                fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                            (fast - 1)->i1 = quad->super.count;
-                        } else {
-                            cell->im = 0;
-                            cell->base = int(sbegins[quad->super.iy] + quad->super.end);
-                            Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
-                            for (j = 0; j < quad->super.count; j++, edge++) {
-                                edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                if (++j < quad->super.count)
-                                    edge->i1 = uint16_t(is++->i);
-                                else
-                                    edge->i1 = kNullIndex;
-                            }
-                        }
-                        cell++;
-                    }
                 int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
                 entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
@@ -524,8 +500,32 @@ struct Rasterizer {
                                 dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                         }
                         entry->end += (quad->super.end - quad->super.begin) * sizeof(GPU::Quad);
-                    } else
+                    } else  {
                         entry->end += sizeof(GPU::Quad);
+                        if (quad->iz & GPU::Quad::kEdge) {
+                            cell->cell = quad->super.cell;
+                            int ic = int(cell - c0);
+                            if (quad->super.iy < 0) {
+                                cell->im = quad->super.iy;
+                                cell->base = int(quad->super.end);
+                                for (j = 0; j < quad->super.count; fast++)
+                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                (fast - 1)->i1 = quad->super.count;
+                            } else {
+                                cell->im = 0;
+                                cell->base = int(sbegins[quad->super.iy] + quad->super.end);
+                                Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
+                                for (j = 0; j < quad->super.count; j++, edge++) {
+                                    edge->ic = ic, edge->i0 = uint16_t(is++->i);
+                                    if (++j < quad->super.count)
+                                        edge->i1 = uint16_t(is++->i);
+                                    else
+                                        edge->i1 = kNullIndex;
+                                }
+                            }
+                            cell++;
+                        }
+                    }
                 }
                 begin = end = entry->end;
                 ctx->gpu.quads.idx = qidx - ctx->gpu.quads.base;
