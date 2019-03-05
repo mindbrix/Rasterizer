@@ -172,7 +172,7 @@
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
     uint32_t reverse, pathCount;
-    size_t colorantsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
+    size_t colorantsOffset = 0, affineTransformsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
     Rasterizer::AffineTransform clip;
     for (size_t i = 0; i < buffer->entries.end; i++) {
@@ -181,6 +181,9 @@
             case Rasterizer::Buffer::Entry::kColorants:
                 pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::Colorant));
                 colorantsOffset = entry.begin;
+                break;
+            case Rasterizer::Buffer::Entry::kAffineTransforms:
+                affineTransformsOffset = entry.begin;
                 break;
             case Rasterizer::Buffer::Entry::kSegments:
                 segmentsOffset = entry.begin;
@@ -210,8 +213,10 @@
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                } else
+                } else {
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
+                }
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];

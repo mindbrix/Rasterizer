@@ -131,7 +131,7 @@ struct FastEdgesVertex
 };
 
 vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
-                                     device EdgeCell *edgeCells [[buffer(3)]],
+                                     device EdgeCell *edgeCells [[buffer(3)]], device AffineTransform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
