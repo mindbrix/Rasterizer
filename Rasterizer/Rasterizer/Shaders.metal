@@ -12,6 +12,9 @@ using namespace metal;
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
 struct AffineTransform {
+    AffineTransform concat(AffineTransform t) const {
+        return { t.a * a + t.b * c, t.a * b + t.b * d, t.c * a + t.d * c, t.c * b + t.d * d, t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty };
+    }
     float a, b, c, d, tx, ty;
 };
 
@@ -301,13 +304,11 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
+    ShapesVertex vert;
     device Quad& quad = quads[iid];
-    AffineTransform ctm = quad.unit;
-    
-    AffineTransform m = { 1, 0, 0, 1, 0, 0 };
-    //device AffineTransform& m = affineTransforms[quad.iz & 0xFFFFFF];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (quad.iz & Quad::kOutlines) {
+        AffineTransform m = { 1, 0, 0, 1, 0, 0 };
         device Segment& o = quad.outline.s;
         device Segment& p = quads[iid + quad.outline.prev].outline.s;
         device Segment& n = quads[iid + quad.outline.next].outline.s;
@@ -333,7 +334,10 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         dy = select(y0 + tpo.x * spo * sgn, y1 + ton.x * son * sgn, vid >> 1);
         d0 = -0.2071067812, d1 = quad.outline.width + 1.27071067812;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
+        vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
+        AffineTransform m = affineTransforms[quad.iz & 0xFFFFFF];
+        AffineTransform ctm = m.concat(quad.unit);
         area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
         float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
         float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
@@ -341,17 +345,16 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         float tx = dilation * rlab, ty = dilation * rlcd;
         float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
         dx = ix * ctm.a + iy * ctm.c + ctm.tx, dy = ix * ctm.b + iy * ctm.d + ctm.ty;
+        vert.shape = distances(ctm, dx, dy);
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
     device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * sqrt(area);
     
-    ShapesVertex vert;
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(paint.ctm, dx, dy);
-    vert.shape = quad.iz & Quad::kOutlines ? float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1) : distances(ctm, dx, dy);
     vert.circle = quad.iz & Quad::kCircle;
     return vert;
 }

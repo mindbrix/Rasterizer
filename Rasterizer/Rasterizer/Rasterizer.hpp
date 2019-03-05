@@ -513,9 +513,8 @@ struct Rasterizer {
                     if (quad->iz & GPU::Quad::kShapes) {
                         Path& path = paths[iz];
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
-                        AffineTransform& ctm = ctms[iz];
                         for (int k = 0; k < path.ref->shapesCount; k++, dst++)
-                            new (dst) GPU::Quad(ctm.concat(path.ref->shapes[k]), iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
+                            new (dst) GPU::Quad(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                     } else if (quad->iz & GPU::Quad::kOutlines) {
                         Segment *src = ctx->gpu.outlines.base + quad->super.begin, *es = ctx->gpu.outlines.base + quad->super.end;

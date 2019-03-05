@@ -32,8 +32,7 @@ struct RasterizerSVG {
                 p.ref->close();
         }
     }
-    static Rasterizer::Path createPhyllotaxisPath() {
-        size_t count = 100000;
+    static Rasterizer::Path createPhyllotaxisPath(size_t count) {
         Rasterizer::Path shapes;
         shapes.ref->addShapes(count);
         Rasterizer::AffineTransform *dst = shapes.ref->shapes;
@@ -91,7 +90,7 @@ struct RasterizerSVG {
                 scene.addPath(shape, Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
             if (0) {
-                scene.addPath(createPhyllotaxisPath(), Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
+                scene.addPath(createPhyllotaxisPath(100000), Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
         }
         free(data);
