@@ -630,10 +630,10 @@ struct Rasterizer {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
         if (stride * h < deltasSize) {
             writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride, nullptr));
-            writeDeltas(deltas, stride, clip, even, src, bm);
+            writeDeltas(Info(deltas, stride, nullptr), clip, even, src, bm);
         } else {
             writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-            writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), stride, src, bm);
+            writeSegments(sgmnts.segments, clip, even, Info(deltas, stride, nullptr), src, bm);
         }
     }
     static void writeGPUPath(Path& path, AffineTransform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu, Cache& cache) {
@@ -1012,7 +1012,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info del, uint32_t stride, uint8_t *src, Bitmap *bitmap) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
         short counts0[256], counts1[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
@@ -1030,10 +1030,10 @@ struct Rasterizer {
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux && cover - floorf(cover) < 1e-6f) {
-                        writeDeltas(del.deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
+                        writeDeltas(del, Bounds(lx, ly, ux, uy), even, src, bitmap);
                         lx = ux, ux = index->x;
                         if (alphaForCover(cover, even) > 0.998f)
-                            for (delta = del.deltas, y = ly; y < uy; y++, delta += stride) {
+                            for (delta = del.deltas, y = ly; y < uy; y++, delta += del.stride) {
                                 *delta = cover;
                                 uint8_t *dst = bitmap->pixelAddress(lx, y);
                                 if (src[3] == 255)
@@ -1049,20 +1049,21 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, & del);
                 }
-                writeDeltas(del.deltas, stride, Bounds(lx, ly, ux, uy), even, src, bitmap);
+                writeDeltas(del, Bounds(lx, ly, ux, uy), even, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
         }
     }
-    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
+    static void writeDeltas(Info del, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
+        float *deltas = del.deltas;
         if (clip.lx == clip.ux)
-            for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
+            for (float y = clip.ly; y < clip.uy; y++, deltas += del.stride)
                 *deltas = 0.f;
         else {
             uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap->stride, *delta = 0.f)
+            for (y = clip.ly; y < clip.uy; y++, deltas += del.stride, pixelAddress -= bitmap->stride, *delta = 0.f)
                 for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
