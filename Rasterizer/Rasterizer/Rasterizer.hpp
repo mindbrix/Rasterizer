@@ -1060,13 +1060,10 @@ struct Rasterizer {
             for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
                 *deltas = 0.f;
         else {
-            uint8_t *pixelAddress = nullptr, *pixel;
-            size_t bstride = 0, bytespp = 0;
-            if (bitmap)
-                pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), bstride = bitmap->stride, bytespp = bitmap->bytespp;
+            uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bstride, *delta = 0.f)
-                for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bytespp) {
+            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bitmap->stride, *delta = 0.f)
+                for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
                     if (alpha > 0.003921568627f)
