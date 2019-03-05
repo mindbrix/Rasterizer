@@ -644,10 +644,9 @@ struct Rasterizer {
         } else {
             if (width) {
                 writePath(path, *ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
-                if (gpu.outlines.end - gpu.outlines.idx > 1) {
+                if (gpu.outlines.end - gpu.outlines.idx > 1)
                     new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, int(gpu.outlines.end), int(gpu.outlines.idx), 0);
-                    gpu.outlines.idx = gpu.outlines.end;
-                }
+                gpu.outlines.idx = gpu.outlines.end;
             } else {
                 Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
