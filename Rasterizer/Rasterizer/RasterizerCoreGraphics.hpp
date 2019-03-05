@@ -38,7 +38,41 @@ struct RasterizerCoreGraphics {
         std::vector<CGAffineTransform> ctms;
         std::vector<CGPathRef> paths;
     };
-    
+    static void writeCGSceneToScene(CGScene& cgscene, Scene& scene) {
+        for (int i = 0; i < cgscene.paths.size(); i++) {
+            scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
+            scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
+            scene.paths.emplace_back();
+            writeCGPathToPath(cgscene.paths[i], scene.paths.back());
+        }
+    }
+    static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
+        for (int i = 0; i < scene.paths.size(); i++)
+            if (scene.paths[i].ref) {
+                cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
+                cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
+                cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
+                CGMutablePathRef path = CGPathCreateMutable();
+                writePathToCGPath(scene.paths[i], path);
+                cgscene.paths.emplace_back(CGPathCreateCopy(path));
+                CGPathRelease(path);
+            }
+    }
+    static void drawCGScene(CGScene& scene, const Rasterizer::AffineTransform ctm, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+        for (size_t i = 0; i < scene.paths.size(); i++) {
+            Rasterizer::Bounds b = boundsFromCGRect(scene.bounds[i]);
+            Rasterizer::AffineTransform t = transformFromCGAffineTransform(scene.ctms[i]);
+            Rasterizer::Bounds clip = b.transform(ctm.concat(t)).integral().intersect(bounds);
+            if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                CGContextSaveGState(ctx);
+                CGContextSetFillColorWithColor(ctx, scene.colors[i]);
+                CGContextConcatCTM(ctx, scene.ctms[i]);
+                CGContextAddPath(ctx, scene.paths[i]);
+                CGContextFillPath(ctx);
+                CGContextRestoreGState(ctx);
+            }
+        }
+    }
     struct BGRAColorConverter {
         BGRAColorConverter() : converter(nullptr) { reset(); }
         ~BGRAColorConverter() { reset(); }
@@ -112,7 +146,6 @@ struct RasterizerCoreGraphics {
     static CGRect CGRectFromBounds(Rasterizer::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
-    
     struct CGPathApplier {
         CGPathApplier(Rasterizer::Path path) : p(path) {}
         void apply(const CGPathElement *element) {
@@ -187,26 +220,6 @@ struct RasterizerCoreGraphics {
         CGPathRelease(stroked);
         return scaledDown;
     }
-    static void writeCGSceneToScene(CGScene& cgscene, Scene& scene) {
-        for (int i = 0; i < cgscene.paths.size(); i++) {
-            scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
-            scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
-            scene.paths.emplace_back();
-            writeCGPathToPath(cgscene.paths[i], scene.paths.back());
-        }
-    }
-    static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
-        for (int i = 0; i < scene.paths.size(); i++)
-            if (scene.paths[i].ref) {
-                cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
-                cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
-                cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
-                CGMutablePathRef path = CGPathCreateMutable();
-                writePathToCGPath(scene.paths[i], path);
-                cgscene.paths.emplace_back(CGPathCreateCopy(path));
-                CGPathRelease(path);
-            }
-    }
     
     struct CGTestScene {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
@@ -216,8 +229,8 @@ struct RasterizerCoreGraphics {
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;
         Scene scene;
-        RasterizerCoreGraphics::CGScene cgscene;
-        RasterizerCoreGraphics::BGRAColorConverter converter;
+        CGScene cgscene;
+        BGRAColorConverter converter;
         CGFloat dimension;
         CGFloat phi;
     };
@@ -227,20 +240,8 @@ struct RasterizerCoreGraphics {
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
-                RasterizerCoreGraphics::writeSceneToCGScene(testScene.scene, testScene.cgscene);
-            for (size_t i = 0; i < testScene.cgscene.paths.size(); i++) {
-                Rasterizer::Bounds bounds = RasterizerCoreGraphics::boundsFromCGRect(testScene.cgscene.bounds[i]);
-                Rasterizer::AffineTransform t = RasterizerCoreGraphics::transformFromCGAffineTransform(testScene.cgscene.ctms[i]);
-                Rasterizer::Bounds clipped = bounds.transform(ctm.concat(t)).integral().intersect(testScene.contexts[0].bounds);
-                if (clipped.lx != clipped.ux && clipped.ly != clipped.uy) {
-                    CGContextSaveGState(ctx);
-                    CGContextSetFillColorWithColor(ctx, testScene.cgscene.colors[i]);
-                    CGContextConcatCTM(ctx, testScene.cgscene.ctms[i]);
-                    CGContextAddPath(ctx, testScene.cgscene.paths[i]);
-                    CGContextFillPath(ctx);
-                    CGContextRestoreGState(ctx);
-                }
-            }
+                writeSceneToCGScene(testScene.scene, testScene.cgscene);
+            drawCGScene(testScene.cgscene, ctm, testScene.contexts[0].bounds, ctx);
         } else {
             size_t pathsCount = testScene.scene.paths.size();
             size_t slice, ly, uy, count;
