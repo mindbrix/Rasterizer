@@ -938,25 +938,6 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
-        if (clip.lx == clip.ux)
-            for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
-                *deltas = 0.f;
-        else {
-            uint8_t *pixelAddress = nullptr, *pixel;
-            size_t bstride = 0, bytespp = 0;
-            if (bitmap)
-                pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), bstride = bitmap->stride, bytespp = bitmap->bytespp;
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
-            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bstride, *delta = 0.f)
-                for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bytespp) {
-                    if (*delta)
-                        cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
-                    if (alpha > 0.003921568627f)
-                        writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
-                }
-        }
-    }
     static void radixSort(uint32_t *in, short n, short *counts0, short *counts1) {
         uint32_t x, tmp[n];
         memset(counts0, 0, sizeof(short) * 256);
@@ -1072,6 +1053,25 @@ struct Rasterizer {
                 indices.empty();
                 segments->empty();
             }
+        }
+    }
+    static void writeDeltas(float *deltas, uint32_t stride, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
+        if (clip.lx == clip.ux)
+            for (float y = clip.ly; y < clip.uy; y++, deltas += stride)
+                *deltas = 0.f;
+        else {
+            uint8_t *pixelAddress = nullptr, *pixel;
+            size_t bstride = 0, bytespp = 0;
+            if (bitmap)
+                pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), bstride = bitmap->stride, bytespp = bitmap->bytespp;
+            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
+            for (y = clip.ly; y < clip.uy; y++, deltas += stride, pixelAddress -= bstride, *delta = 0.f)
+                for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bytespp) {
+                    if (*delta)
+                        cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
+                    if (alpha > 0.003921568627f)
+                        writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
+                }
         }
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
