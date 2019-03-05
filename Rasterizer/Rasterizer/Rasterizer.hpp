@@ -550,7 +550,7 @@ struct Rasterizer {
                                           size_t *begins,
                                           Buffer& buffer) {
             size_t size, sz, i, j, begin, end, idx;
-            begin = 0, end = size = pathsCount * sizeof(Colorant);
+            size = pathsCount * (sizeof(Colorant) + sizeof(AffineTransform));
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
             for (i = 0; i < count; i++) {
@@ -563,8 +563,13 @@ struct Rasterizer {
             }
             buffer.data.alloc(size);
             
-            memcpy(buffer.data.base, colorants, end);
+            begin = end = 0, end += pathsCount * sizeof(Colorant);
+            memcpy(buffer.data.base + begin, colorants, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
+            
+            begin = end, end += pathsCount * sizeof(AffineTransform);
+            memcpy(buffer.data.base + begin, ctms, end - begin);
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, begin, end);
             
             for (idx = begin = end, i = 0; i < count; i++)
                 if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
