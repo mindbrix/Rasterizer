@@ -305,12 +305,12 @@ struct RasterizerCoreGraphics {
             if (buffer) {
                 std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
                 size_t begins[count], *b = begins;
-                size_t size = Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, testScene.scene.paths.size(), begins, *buffer);
+                size_t size = Rasterizer::Context::writeContextsToBuffer(& testScene.contexts[0], count, & testScene.scene.paths[0], & ctms[0], colorants, testScene.scene.paths.size(), begins, *buffer);
                 if (count == 1)
-                    Rasterizer::Context::writeContextToBuffer(& testScene.contexts[0], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[0], e[0], *buffer);
+                    Rasterizer::Context::writeContextToBuffer(& testScene.contexts[0], & testScene.scene.paths[0], & ctms[0], colorants, b[0], e[0], *buffer);
                 else {
                     dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                        Rasterizer::Context::writeContextToBuffer(& testScene.contexts[idx], & testScene.scene.paths[0], & testScene.scene.ctms[0], colorants, b[idx], e[idx], *buffer);
+                        Rasterizer::Context::writeContextToBuffer(& testScene.contexts[idx], & testScene.scene.paths[0], & ctms[0], colorants, b[idx], e[idx], *buffer);
                     });
                 }
                 for (int i = 0; i < count; i++)
