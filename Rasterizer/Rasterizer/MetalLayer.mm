@@ -254,6 +254,7 @@
                 [commandEncoder setRenderPipelineState:_shapesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];

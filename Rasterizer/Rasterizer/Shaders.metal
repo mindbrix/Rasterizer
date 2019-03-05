@@ -296,6 +296,7 @@ struct ShapesVertex
 };
 
 vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+                                       device AffineTransform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -303,14 +304,21 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     device Quad& quad = quads[iid];
     AffineTransform ctm = quad.unit;
     
+    AffineTransform m = { 1, 0, 0, 1, 0, 0 };
+    //device AffineTransform& m = affineTransforms[quad.iz & 0xFFFFFF];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (quad.iz & Quad::kOutlines) {
         device Segment& o = quad.outline.s;
         device Segment& p = quads[iid + quad.outline.prev].outline.s;
         device Segment& n = quads[iid + quad.outline.next].outline.s;
-        float2 vo = float2(o.x1 - o.x0, o.y1 - o.y0);
-        float2 vp = float2(p.x1 - p.x0, p.y1 - p.y0);
-        float2 vn = float2(n.x1 - n.x0, n.y1 - n.y0);
+        float x0, y0, x1, y1, px, py, nx, ny;
+        x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
+        x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
+        px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
+        nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
+        float2 vo = float2(x1 - x0, y1 - y0);
+        float2 vp = float2(x0 - px, y0 - py);
+        float2 vn = float2(nx - x1, ny - y0);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
         np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 ? no : np;
@@ -321,8 +329,8 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         float son = s / max(0.25, ton.y * no.y + ton.x * no.x);
         float sgn = vid & 1 ? -1.0 : 1.0;
         // -y, x
-        dx = select(o.x0 - tpo.y * spo * sgn, o.x1 - ton.y * son * sgn, vid >> 1);
-        dy = select(o.y0 + tpo.x * spo * sgn, o.y1 + ton.x * son * sgn, vid >> 1);
+        dx = select(x0 - tpo.y * spo * sgn, x1 - ton.y * son * sgn, vid >> 1);
+        dy = select(y0 + tpo.x * spo * sgn, y1 + ton.x * son * sgn, vid >> 1);
         d0 = -0.2071067812, d1 = quad.outline.width + 1.27071067812;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
     } else {
