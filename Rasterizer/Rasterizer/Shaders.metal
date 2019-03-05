@@ -12,9 +12,6 @@ using namespace metal;
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
 struct AffineTransform {
-    AffineTransform concat(AffineTransform t) const {
-        return { t.a * a + t.b * c, t.a * b + t.b * d, t.c * a + t.d * c, t.c * b + t.d * d, t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty };
-    }
     float a, b, c, d, tx, ty;
 };
 
@@ -336,8 +333,11 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
-        AffineTransform m = affineTransforms[quad.iz & 0xFFFFFF];
-        AffineTransform ctm = m.concat(quad.unit);
+        device AffineTransform& m = affineTransforms[quad.iz & 0xFFFFFF];
+        AffineTransform ctm = {
+            quad.unit.a * m.a + quad.unit.b * m.c, quad.unit.a * m.b + quad.unit.b * m.d,
+            quad.unit.c * m.a + quad.unit.d * m.c, quad.unit.c * m.b + quad.unit.d * m.d,
+            quad.unit.tx * m.a + quad.unit.ty * m.c + m.tx, quad.unit.tx * m.b + quad.unit.ty * m.d + m.ty };
         area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
         float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
         float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
