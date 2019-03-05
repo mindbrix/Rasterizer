@@ -390,7 +390,7 @@ struct Rasterizer {
         };
         void empty() { grid->empty(), segments.empty(); }
         
-        Entry *getPath(Path& path, AffineTransform ctm, AffineTransform& m) {
+        Entry *getPath(Path& path, AffineTransform ctm, AffineTransform *m) {
             Chunk *chunk = grid->chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
@@ -399,8 +399,8 @@ struct Rasterizer {
                 writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(nullptr, 0, & segments));
                 segments.idx = e->end = int(segments.end);
             } else {
-                m = ctm.concat(srch->ctm);
-                if (m.a == m.d && m.b == -m.c && fabsf(m.a * m.a + m.b * m.b - 1.f) < 1e-6f)
+                *m = ctm.concat(srch->ctm);
+                if (m->a == m->d && m->b == -m->c && fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f)
                     e = srch;
             }
             return e;
@@ -654,7 +654,7 @@ struct Rasterizer {
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kFastHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
-                    entry = cache.getPath(path, *ctm, m);
+                    entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
                     writePath(path, *ctm, clip, writeClippedSegment, segments);
                 else if (slow)
