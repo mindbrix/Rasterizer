@@ -140,8 +140,8 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.ic];
     device Cell& cell = edgeCell.cell;
-    device Segment& sm = segments[-edgeCell.im - 1];
-    float a = sm.x1 - sm.x0, b = sm.y1 - sm.y0, _tx = sm.x0, _ty = sm.y0;
+    device AffineTransform& m = affineTransforms[-edgeCell.im - 1];
+    float a = m.a, b = m.b, _tx = m.tx, _ty = m.ty;
     thread float *dst = & vert.x0;
     device Segment *s = & segments[edgeCell.base + edge.i0];
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
