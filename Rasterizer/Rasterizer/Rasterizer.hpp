@@ -388,7 +388,7 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() { grid->empty(), ctms.empty(), segments.empty(); }
+        void empty() { grid->empty(), segments.empty(); }
         
         Entry *getPath(Path& path, AffineTransform ctm, AffineTransform& m) {
             Chunk *chunk = grid->chunk(path.ref->hash);
@@ -420,7 +420,7 @@ struct Rasterizer {
             }
         }
         Grid grid0, *grid = & grid0;
-        Row<Segment> ctms, segments;
+        Row<Segment> segments;
     };
     
     struct Context {
@@ -437,15 +437,13 @@ struct Rasterizer {
             GPU::Quad *quad, *qidx, *q0, *q1;
             std::vector<size_t> idxes;
             
-            size = ctx->cache.segments.end + ctx->cache.ctms.end;
+            size = ctx->cache.segments.end;
             for (j = 0; j < ctx->segments.size(); j++)
                 sbegins[j] = size, size += ctx->segments[j].end;
             if (size) {
                 Segment *dst = (Segment *)(buffer.data.base + begin);
-                if (ctx->cache.ctms.end)
-                    memcpy(dst, ctx->cache.ctms.base, ctx->cache.ctms.end * sizeof(Segment));
                 if (ctx->cache.segments.end)
-                    memcpy(dst + ctx->cache.ctms.end, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
+                    memcpy(dst, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
                 for (j = 0; j < ctx->segments.size(); j++)
                     memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
                 end = begin + size * sizeof(Segment);
@@ -486,7 +484,7 @@ struct Rasterizer {
                         int ic = int(cell - c0);
                         if (quad->super.iy < 0) {
                             cell->im = quad->super.iy;
-                            cell->base = int(ctx->cache.ctms.end + quad->super.end);
+                            cell->base = int(quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
@@ -557,7 +555,7 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + (cache.segments.end + cache.ctms.end) * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + cache.segments.end * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
