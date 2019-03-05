@@ -213,14 +213,13 @@
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                } else {
+                } else
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
-                }
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:edgeCellsOffset atIndex:3];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
