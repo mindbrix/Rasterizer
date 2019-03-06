@@ -29,7 +29,7 @@ struct RasterizerScene {
         }
         return INT_MAX;
     }
-    static int pointWinding(Rasterizer::Path path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float x, float y) {
+    static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float x, float y) {
         int winding = 0;
         if (path.ref->atomsCount) {
             Rasterizer::AffineTransform inv, m, unit;
