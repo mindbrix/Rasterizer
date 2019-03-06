@@ -12,14 +12,14 @@
 #import "nanosvg.h"
 
 struct RasterizerSVG {
-    static uint32_t bgraFromPaint(NSVGpaint paint) {
+    static Rasterizer::Colorant colorFromPaint(NSVGpaint paint) {
         uint8_t r, g, b, a;
         if (paint.type == NSVG_PAINT_COLOR)
             r = paint.color & 0xFF, g = (paint.color >> 8) & 0xFF, b = (paint.color >> 16) & 0xFF, a = paint.color >> 24;
         else
             r = 0, g = 0, b = 0, a = 64;
         uint8_t bgra[4] = { b, g, r, a };
-        return *((uint32_t *)bgra);
+        return Rasterizer::Colorant(bgra);
     }
     
     static void writePath(NSVGshape *shape, Rasterizer::Path p) {
@@ -56,15 +56,13 @@ struct RasterizerSVG {
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
-                    uint32_t bgra = bgraFromPaint(shape->fill);
-                    scene.bgras.emplace_back((uint8_t *)& bgra);
+                    scene.bgras.emplace_back(colorFromPaint(shape->fill));
                     scene.paths.emplace_back();
                     writePath(shape, scene.paths.back());
                     scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
-                    uint32_t bgra = bgraFromPaint(shape->stroke);
-                    scene.bgras.emplace_back((uint8_t *)& bgra);
+                    scene.bgras.emplace_back(colorFromPaint(shape->stroke));
                     
                     Rasterizer::Path s;
                     writePath(shape, s);
