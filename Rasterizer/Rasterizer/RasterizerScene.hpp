@@ -29,18 +29,18 @@ struct RasterizerScene {
         }
         return INT_MAX;
     }
-    static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float x, float y) {
+    static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float dx, float dy) {
         int winding = 0;
         if (path.ref->atomsCount) {
             Rasterizer::AffineTransform inv, m, unit;
             Rasterizer::Bounds clip;
             float ux, uy;
-            inv = device.invert(), ux = inv.a * x + inv.c * y + inv.tx, uy = inv.b * x + inv.d * y + inv.ty;
+            inv = device.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                 m = view.concat(ctm), unit = path.ref->bounds.unit(m);
                 clip = Rasterizer::Bounds(unit).intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                    inv = unit.invert(), ux = inv.a * x + inv.c * y + inv.tx, uy = inv.b * x + inv.d * y + inv.ty;
+                    inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         winding = 1;
                     }
