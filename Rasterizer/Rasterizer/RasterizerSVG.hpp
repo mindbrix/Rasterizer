@@ -22,7 +22,8 @@ struct RasterizerSVG {
         return Rasterizer::Colorant(bgra);
     }
     
-    static void writePath(NSVGshape *shape, Rasterizer::Path p) {
+    static Rasterizer::Path createPathFromShape(NSVGshape *shape) {
+        Rasterizer::Path p;
         float *pts;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
@@ -31,6 +32,7 @@ struct RasterizerSVG {
             if (path->closed)
                 p.ref->close();
         }
+        return p;
     }
     static Rasterizer::Path createPhyllotaxisPath(size_t count) {
         Rasterizer::Path shapes;
@@ -57,15 +59,13 @@ struct RasterizerSVG {
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
                     scene.bgras.emplace_back(colorFromPaint(shape->fill));
-                    scene.paths.emplace_back();
-                    writePath(shape, scene.paths.back());
+                    scene.paths.emplace_back(createPathFromShape(shape));
                     scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     scene.bgras.emplace_back(colorFromPaint(shape->stroke));
                     
-                    Rasterizer::Path s;
-                    writePath(shape, s);
+                    Rasterizer::Path s = createPathFromShape(shape);
                     float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
                     CGMutablePathRef path = CGPathCreateMutable();
                     RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
