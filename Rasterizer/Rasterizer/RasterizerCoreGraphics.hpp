@@ -248,14 +248,17 @@ struct RasterizerCoreGraphics {
                 uint8_t black[4] = { 0, 0, 0, 255 };
                 memset_pattern4(bgras, & black, pathsCount * sizeof(uint32_t));
             }
-            Rasterizer::Colorant *colorants = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colorants;
             Rasterizer::AffineTransform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
+            Rasterizer::AffineTransform *clips = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(Rasterizer::AffineTransform)), *cl = clips;
+            for (int i = 0; i < pathsCount; i++, cl++)
+                *cl = clip;
+            Rasterizer::Colorant *colorants = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colorants;
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip);
             float width = useOutline ? 1.f : 0.f;
             
             if (dx != FLT_MAX) {
-                size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], & testScene.scene.ctms[0], false, colorants, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+                size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], & testScene.scene.ctms[0], false, clips, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
                     colorants[index].src0 = 0, colorants[index].src1 = 0, colorants[index].src2 = 255, colorants[index].src3 = 255;
             }

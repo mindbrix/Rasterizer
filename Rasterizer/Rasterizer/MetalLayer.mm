@@ -172,7 +172,7 @@
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
     uint32_t reverse, pathCount;
-    size_t colorantsOffset = 0, affineTransformsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
+    size_t colorantsOffset = 0, affineTransformsOffset = 0, clipsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
     Rasterizer::AffineTransform clip;
     for (size_t i = 0; i < buffer->entries.end; i++) {
@@ -184,6 +184,9 @@
                 break;
             case Rasterizer::Buffer::Entry::kAffineTransforms:
                 affineTransformsOffset = entry.begin;
+                break;
+            case Rasterizer::Buffer::Entry::kClips:
+                clipsOffset = entry.begin;
                 break;
             case Rasterizer::Buffer::Entry::kSegments:
                 segmentsOffset = entry.begin;
@@ -238,6 +241,7 @@
                 [commandEncoder setRenderPipelineState:_quadsPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:clipsOffset atIndex:5];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
@@ -254,6 +258,7 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:clipsOffset atIndex:5];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];

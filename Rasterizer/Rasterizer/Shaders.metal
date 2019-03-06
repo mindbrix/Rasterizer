@@ -251,6 +251,7 @@ struct QuadsVertex
 };
 
 vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+                                     device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -296,7 +297,7 @@ struct ShapesVertex
 };
 
 vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
-                                       device AffineTransform *affineTransforms [[buffer(4)]],
+                                       device AffineTransform *affineTransforms [[buffer(4)]], device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])

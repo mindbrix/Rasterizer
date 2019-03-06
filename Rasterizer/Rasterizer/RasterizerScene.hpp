@@ -35,9 +35,9 @@ struct RasterizerScene {
                 winding.winding--;
         }
     }
-    static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::Colorant *colors, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
+    static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::AffineTransform *clips, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
         for (int i = int(end) - 1; i >= int(begin); i--) {
-            int winding = pointWinding(paths[i], ctms[i], view, colors[i].ctm, bounds, dx, dy);
+            int winding = pointWinding(paths[i], ctms[i], view, clips[i], bounds, dx, dy);
             if ((even && (winding & 1)) || winding)
                 return i;
         }
