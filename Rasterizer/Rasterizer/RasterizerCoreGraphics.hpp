@@ -29,7 +29,7 @@ struct RasterizerCoreGraphics {
     static void writeSceneToCGScene(RasterizerScene::Scene& scene, CGScene& cgscene) {
         for (int i = 0; i < scene.paths.size(); i++)
             if (scene.paths[i].ref) {
-                cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i].pixel()));
+                cgscene.colors.emplace_back(createCGColorFromBGRA(& scene.bgras[i].src0));
                 cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
                 cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
@@ -106,10 +106,9 @@ struct RasterizerCoreGraphics {
             *dst++ = components[2] * 255.5f, *dst++ = components[1] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[3] * 255.5f;
         return bgra;
     }
-    static CGColorRef createCGColorFromBGRA(uint32_t bgra) {
+    static CGColorRef createCGColorFromBGRA(uint8_t *bgra) {
         CGColorSpaceRef srcSpace = createSrcColorSpace();
-        uint8_t *src = (uint8_t *)& bgra;
-        CGFloat components[4] = { CGFloat(src[2]) / 255, CGFloat(src[1]) / 255, CGFloat(src[0]) / 255, CGFloat(src[3]) / 255 };
+        CGFloat components[4] = { CGFloat(bgra[2]) / 255, CGFloat(bgra[1]) / 255, CGFloat(bgra[0]) / 255, CGFloat(bgra[3]) / 255 };
         CGColorRef color = CGColorCreate(srcSpace, components);
         CGColorSpaceRelease(srcSpace);
         return color;

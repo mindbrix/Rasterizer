@@ -58,7 +58,6 @@ struct Rasterizer {
     struct Colorant {
         Colorant() {}
         Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
-        uint32_t pixel() { return *((uint32_t *)this); }
         uint8_t src0, src1, src2, src3;
     };
     struct Sequence {
