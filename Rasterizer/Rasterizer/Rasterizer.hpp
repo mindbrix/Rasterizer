@@ -290,9 +290,7 @@ struct Rasterizer {
         Info(void *info) : info(info), stride(0) {}
         Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
         Info(Row<Segment> *segments) : segments(segments), stride(0) {}
-        union {
-            void *info;  float *deltas;  Row<Segment> *segments;
-        };
+        union { void *info;  float *deltas;  Row<Segment> *segments; };
         uint32_t stride;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
