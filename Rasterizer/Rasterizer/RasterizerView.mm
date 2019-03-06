@@ -19,10 +19,12 @@
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;
+@property(nonatomic) BOOL showPaths;
 @property(nonatomic) size_t shapesCount;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) CGPoint mouse;
+
 @end
 
 
@@ -122,7 +124,8 @@
 
 - (void)mouseMoved:(NSEvent *)event {
     self.mouse = event.locationInWindow;
-    [self redraw];
+    if (self.showPaths)
+        [self redraw];
 }
 
 - (void)keyDown:(NSEvent *)event {
@@ -140,6 +143,9 @@
         [self redraw];
     } else if (event.keyCode == 31) {
         _useOutline = !_useOutline;
+        [self redraw];
+    } else if (event.keyCode == 35) {
+        _showPaths = !_showPaths;
         [self redraw];
     } else {
         [super keyDown:event];
@@ -176,7 +182,9 @@
     Rasterizer::Path clipPath;
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, float(_mouse.x * self.layer.contentsScale), float(_mouse.y * self.layer.contentsScale));
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
+                                          float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
+                                          float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
 }
 
 #pragma mark - CALayerDelegate
@@ -189,7 +197,9 @@
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
     Rasterizer::Path clipPath;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, float(_mouse.x * self.layer.contentsScale), float(_mouse.y * self.layer.contentsScale));
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
+                                          float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
+                                          float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
 }
 
 - (void)setSvgData:(NSData *)svgData {
