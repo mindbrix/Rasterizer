@@ -223,7 +223,7 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
         Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -254,6 +254,10 @@ struct RasterizerCoreGraphics {
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip);
             float width = useOutline ? 1.f : 0.f;
             
+            size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], ctms, false, colorants, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+            if (index != INT_MAX) {
+                colorants[0].src0 = 0, colorants[0].src1 = 0, colorants[0].src2 = 255, colorants[0].src3 = 255;
+            }
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
                 if (buffer) {
                     Rasterizer::Path *paths = & testScene.scene.paths[0];

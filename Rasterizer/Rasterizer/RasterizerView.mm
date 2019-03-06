@@ -22,7 +22,7 @@
 @property(nonatomic) size_t shapesCount;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
-
+@property(nonatomic) CGPoint mouse;
 @end
 
 
@@ -115,8 +115,14 @@
 
 - (BOOL)becomeFirstResponder {
     [self updateRasterizerLabel];
+    self.window.acceptsMouseMovedEvents = YES;
     [self redraw];
     return YES;
+}
+
+- (void)mouseMoved:(NSEvent *)event {
+    self.mouse = CGPointMake(event.locationInWindow.x * self.layer.contentsScale, event.locationInWindow.y * self.layer.contentsScale);
+    [self redraw];
 }
 
 - (void)keyDown:(NSEvent *)event {
@@ -170,7 +176,7 @@
     Rasterizer::Path clipPath;
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, float(_mouse.x), float(_mouse.y));
 }
 
 #pragma mark - CALayerDelegate
@@ -183,7 +189,7 @@
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
     Rasterizer::Path clipPath;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, float(_mouse.x), float(_mouse.y));
 }
 
 - (void)setSvgData:(NSData *)svgData {

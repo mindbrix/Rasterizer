@@ -20,6 +20,15 @@ struct RasterizerScene {
         std::vector<Rasterizer::AffineTransform> ctms;
         std::vector<Rasterizer::Path> paths;
     };
+    
+    static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::Colorant *colors, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
+        for (int i = int(end) - 1; i >= int(begin); i--) {
+            int winding = pointWinding(paths[i], ctms[i], view, colors[i].ctm, bounds, dx, dy);
+            if (winding)
+                return i;
+        }
+        return INT_MAX;
+    }
     static int pointWinding(Rasterizer::Path path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float x, float y) {
         int winding = 0;
         if (path.ref->atomsCount) {
