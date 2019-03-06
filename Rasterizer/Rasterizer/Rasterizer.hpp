@@ -287,9 +287,11 @@ struct Rasterizer {
         Colorant clearColor;
     };
     struct Info {
+        Info(void *info) : info(info), stride(0) {}
         Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
         Info(Row<Segment> *segments) : segments(segments), stride(0) {}
         union {
+            void *info;
             float *deltas;
             Row<Segment> *segments;
         };
