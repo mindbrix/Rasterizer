@@ -17,7 +17,6 @@ struct AffineTransform {
 
 struct Colorant {
     uint8_t src0, src1, src2, src3;
-    AffineTransform ctm;
 };
 
 struct Segment {
@@ -268,7 +267,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(paint.ctm, dx, dy);
+    vert.clip = distances(clips[quad.iz & 0xFFFFFF], dx, dy);
     vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.super.cover;
     vert.even = false;
@@ -354,7 +353,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(paint.ctm, dx, dy);
+    vert.clip = distances(clips[quad.iz & 0xFFFFFF], dx, dy);
     vert.circle = quad.iz & Quad::kCircle;
     return vert;
 }

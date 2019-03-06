@@ -57,10 +57,8 @@ struct Rasterizer {
     };
     struct Colorant {
         Colorant() {}
-        Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(0.f, 0.f, 0.f, 0.f, 0.f, 0.f)  {}
-        Colorant(uint8_t *src, AffineTransform ctm) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]), ctm(ctm) {}
+        Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
         uint8_t src0, src1, src2, src3;
-        AffineTransform ctm;
     };
     struct Sequence {
         struct Atom {
@@ -545,11 +543,12 @@ struct Rasterizer {
                                           Path *paths,
                                           AffineTransform *ctms,
                                           Colorant *colorants,
+                                          AffineTransform *clips,
                                           size_t pathsCount,
                                           size_t *begins,
                                           Buffer& buffer) {
             size_t size, sz, i, j, begin, end, idx;
-            size = pathsCount * (sizeof(Colorant) + sizeof(AffineTransform));
+            size = pathsCount * (sizeof(Colorant) + 2 * sizeof(AffineTransform));
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
             for (i = 0; i < count; i++) {
@@ -562,13 +561,14 @@ struct Rasterizer {
             }
             buffer.data.alloc(size);
             
-            begin = end = 0, end += pathsCount * sizeof(Colorant);
-            memcpy(buffer.data.base + begin, colorants, end - begin);
+            begin = end = 0, end += pathsCount * sizeof(Colorant), memcpy(buffer.data.base + begin, colorants, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             
-            begin = end, end += pathsCount * sizeof(AffineTransform);
-            memcpy(buffer.data.base + begin, ctms, end - begin);
+            begin = end, end += pathsCount * sizeof(AffineTransform), memcpy(buffer.data.base + begin, ctms, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, begin, end);
+            
+            begin = end, end += pathsCount * sizeof(AffineTransform), memcpy(buffer.data.base + begin, clips, end - begin);
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kClips, begin, end);
             
             for (idx = begin = end, i = 0; i < count; i++)
                 if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
@@ -596,17 +596,16 @@ struct Rasterizer {
             gpu.allocator.init(width, height);
             cache.empty();
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colors, float width, size_t begin, size_t end) {
+        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colors, AffineTransform *clips, float width, size_t begin, size_t end) {
             if (begin == end)
                 return;
             size_t iz;
             AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds device = bounds;
-            Info sgmnts(& segments[0]);
-            for (paths += begin, ctms += begin, colors += begin, iz = begin; iz < end; iz++, paths++, ctms++, colors++)
+            for (paths += begin, ctms += begin, clips += begin, iz = begin; iz < end; iz++, paths++, ctms++, clips++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
-                    if (memcmp(& colors->ctm, & t, sizeof(AffineTransform)))
-                        device = Bounds(colors->ctm).integral().intersect(bounds), inv = bitmap.width ? inv : colors->ctm.invert(), t = colors->ctm;
+                    if (memcmp(clips, & t, sizeof(AffineTransform)))
+                        device = Bounds(*clips).integral().intersect(bounds), inv = bitmap.width ? inv : clips->invert(), t = *clips;
                     AffineTransform unit = paths->ref->bounds.unit(*ctms);
                     Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device);
                     bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
@@ -614,9 +613,9 @@ struct Rasterizer {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
-                                writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, sgmnts, & deltas[0], deltas.size(), & bitmap);
+                                writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0]), & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, sgmnts, gpu, cache);
+                                writeGPUPath(*paths, ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0]), gpu, cache);
                         }
                     }
                 }
