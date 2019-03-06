@@ -265,11 +265,11 @@ struct Rasterizer {
             int ic;
             uint16_t i0, i1;
         };
-        GPU() : edgeCells(0), edgeInstances(0), shapesCount(0) {}
+        GPU() { empty(); }
         void empty() {
-            edgeCells = edgeInstances = shapesCount = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty();
+            edgeCells = edgeInstances = shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty();
         }
-        size_t edgeCells, edgeInstances, shapesCount;
+        size_t edgeCells, edgeInstances, shapesCount, shapePaths, outlinePaths;
         Allocator allocator;
         Row<Segment::Index> indices;
         Row<Quad> quads, opaques;
@@ -553,7 +553,7 @@ struct Rasterizer {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
-                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end + gpu.shapesCount + gpu.quads.end) * sizeof(GPU::Quad) + cache.segments.end * sizeof(Segment);
+                size += gpu.edgeInstances * sizeof(GPU::Edge) + gpu.edgeCells * sizeof(GPU::EdgeCell) + (gpu.outlines.end - gpu.outlinePaths + gpu.shapesCount - gpu.shapePaths + gpu.quads.end) * sizeof(GPU::Quad) + cache.segments.end * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
             }
@@ -638,13 +638,13 @@ struct Rasterizer {
     }
     static void writeGPUPath(Path& path, AffineTransform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu, Cache& cache) {
         if (path.ref->shapes) {
-            gpu.shapesCount += path.ref->shapesCount;
+            gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(*ctm, iz, GPU::Quad::kShapes);
         } else {
             if (width) {
+                gpu.outlinePaths++;
                 writePath(path, *ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(nullptr, 0, & gpu.outlines));
-                if (gpu.outlines.end - gpu.outlines.idx > 1)
-                    new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, int(gpu.outlines.end), int(gpu.outlines.idx), 0);
+                new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, int(gpu.outlines.end), int(gpu.outlines.idx), 0);
                 gpu.outlines.idx = gpu.outlines.end;
             } else {
                 Cache::Entry *entry = nullptr;

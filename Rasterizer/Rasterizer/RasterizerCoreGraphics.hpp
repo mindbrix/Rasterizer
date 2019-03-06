@@ -317,7 +317,7 @@ struct RasterizerCoreGraphics {
                     for (auto entry : e[i])
                         *(buffer->entries.alloc(1)) = entry;
                 size_t end = buffer->entries.base[buffer->entries.end - 1].end;
-                assert(size >= end);
+                assert(size == end);
             }
         }
     }
