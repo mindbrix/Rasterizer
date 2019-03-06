@@ -289,7 +289,7 @@ struct RasterizerCoreGraphics {
             testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert((uint32_t *)& testScene.scene.bgras[0].src0, pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
-            Rasterizer::Colorant *colorants = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colorants;
+            Rasterizer::Colorant *colors = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colors;
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
@@ -301,14 +301,14 @@ struct RasterizerCoreGraphics {
             float width = useOutline ? 1.f : 0.f;
             if (useOutline) {
                 uint8_t black[4] = { 0, 0, 0, 255 };
-                memset_pattern4(colorants, & black, pathsCount * sizeof(uint32_t));
+                memset_pattern4(colors, & black, pathsCount * sizeof(uint32_t));
             }
             if (dx != FLT_MAX) {
                 size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], & testScene.scene.ctms[0], false, clips, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
-                    colorants[index].src0 = 0, colorants[index].src1 = 0, colorants[index].src2 = 255, colorants[index].src3 = 255;
+                    colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
-            renderPaths(testScene.contexts, & testScene.scene.paths[0], ctms, false, colorants, clips, width, testScene.scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderPaths(testScene.contexts, & testScene.scene.paths[0], ctms, false, colors, clips, width, testScene.scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
         }
     }
 };
