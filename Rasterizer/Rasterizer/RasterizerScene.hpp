@@ -20,7 +20,15 @@ struct RasterizerScene {
         std::vector<Rasterizer::AffineTransform> ctms;
         std::vector<Rasterizer::Path> paths;
     };
-    
+    struct WindingInfo {
+        WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
+        float dx, dy;
+        int winding;
+    };
+    static void countWinding(float x0, float y0, float x1, float y1, Rasterizer::Info *info) {
+        WindingInfo& winding = *((WindingInfo *)info->info);
+        winding.winding = 1;
+    }
     static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::Colorant *colors, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
         for (int i = int(end) - 1; i >= int(begin); i--) {
             int winding = pointWinding(paths[i], ctms[i], view, colors[i].ctm, bounds, dx, dy);
@@ -42,7 +50,9 @@ struct RasterizerScene {
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        winding = 1;
+                        WindingInfo info(dx, dy);
+                        Rasterizer::writePath(path, m, clip, countWinding, Rasterizer::Info((void *)& info));
+                        winding = info.winding;
                     }
                 }
             }
