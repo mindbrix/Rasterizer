@@ -254,9 +254,9 @@ struct RasterizerCoreGraphics {
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i], clip);
             float width = useOutline ? 1.f : 0.f;
             
-            size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], ctms, false, colorants, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+            size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], & testScene.scene.ctms[0], false, colorants, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
             if (index != INT_MAX) {
-                colorants[0].src0 = 0, colorants[0].src1 = 0, colorants[0].src2 = 255, colorants[0].src3 = 255;
+                colorants[index].src0 = 0, colorants[index].src1 = 0, colorants[index].src2 = 255, colorants[index].src3 = 255;
             }
             if (testScene.rasterizerType == CGTestScene::kRasterizerMT) {
                 if (buffer) {
