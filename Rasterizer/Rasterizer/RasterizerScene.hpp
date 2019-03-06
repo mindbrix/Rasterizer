@@ -46,7 +46,7 @@ struct RasterizerScene {
         return INT_MAX;
     }
     static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float dx, float dy) {
-        int winding = 0;
+        WindingInfo info(dx, dy);
         if (path.ref->atomsCount) {
             Rasterizer::AffineTransform inv, m, unit;
             Rasterizer::Bounds clip;
@@ -57,14 +57,11 @@ struct RasterizerScene {
                 clip = Rasterizer::Bounds(unit).intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-                    if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        WindingInfo info(dx, dy);
+                    if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f)
                         Rasterizer::writePath(path, m, clip, countWinding, Rasterizer::Info((void *)& info));
-                        winding = info.winding;
-                    }
                 }
             }
         }
-        return winding;
+        return info.winding;
     }
 };
