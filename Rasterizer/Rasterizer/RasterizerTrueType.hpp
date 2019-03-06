@@ -81,7 +81,7 @@ struct RasterizerTrueType {
     };
     
     static Rasterizer::Path writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, bool left, const char *str,
-                            std::vector<uint32_t>& bgras,
+                            std::vector<Rasterizer::Colorant>& bgras,
                             std::vector<Rasterizer::AffineTransform>& ctms,
                             std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
@@ -143,7 +143,7 @@ struct RasterizerTrueType {
                 x = beginx, y -= lineHeight;
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
-                    bgras.emplace_back(*((uint32_t *)bgra));
+                    bgras.emplace_back(bgra);
                     paths.emplace_back(font.glyphPath(glyphs[j], true));
                     Rasterizer::Bounds gb = paths.back().ref->bounds;
                     if (x == beginx) {
@@ -176,7 +176,7 @@ struct RasterizerTrueType {
         return shapes;
     }
     static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
-                               std::vector<uint32_t>& bgras,
+                               std::vector<Rasterizer::Colorant>& bgras,
                                std::vector<Rasterizer::AffineTransform>& ctms,
                                std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
@@ -185,7 +185,7 @@ struct RasterizerTrueType {
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-                bgras.emplace_back(*((uint32_t *)bgra));
+                bgras.emplace_back(bgra);
                 ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
                 paths.emplace_back(font.glyphPath(glyph, false));
             }

@@ -26,18 +26,10 @@ struct RasterizerCoreGraphics {
         std::vector<CGAffineTransform> ctms;
         std::vector<CGPathRef> paths;
     };
-    static void writeCGSceneToScene(CGScene& cgscene, RasterizerScene::Scene& scene) {
-        for (int i = 0; i < cgscene.paths.size(); i++) {
-            scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
-            scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
-            scene.paths.emplace_back();
-            writeCGPathToPath(cgscene.paths[i], scene.paths.back());
-        }
-    }
     static void writeSceneToCGScene(RasterizerScene::Scene& scene, CGScene& cgscene) {
         for (int i = 0; i < scene.paths.size(); i++)
             if (scene.paths[i].ref) {
-                cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
+                cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i].pixel()));
                 cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
                 cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
@@ -291,10 +283,11 @@ struct RasterizerCoreGraphics {
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
             
+            assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             CGColorSpaceRef srcSpace = createSrcColorSpace();
             uint32_t *bgras = (uint32_t *)alloca(pathsCount * sizeof(uint32_t));
             testScene.converter.set(srcSpace, dstSpace);
-            testScene.converter.convert(& testScene.scene.bgras[0], pathsCount, bgras);
+            testScene.converter.convert((uint32_t *)& testScene.scene.bgras[0].src0, pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
             
             if (useOutline) {

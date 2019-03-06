@@ -56,13 +56,15 @@ struct RasterizerSVG {
             int limit = 600000;
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
                 if (shape->fill.type == NSVG_PAINT_COLOR) {
-                    scene.bgras.emplace_back(bgraFromPaint(shape->fill));
+                    uint32_t bgra = bgraFromPaint(shape->fill);
+                    scene.bgras.emplace_back((uint8_t *)& bgra);
                     scene.paths.emplace_back();
                     writePath(shape, scene.paths.back());
                     scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
-                    scene.bgras.emplace_back(bgraFromPaint(shape->stroke));
+                    uint32_t bgra = bgraFromPaint(shape->stroke);
+                    scene.bgras.emplace_back((uint8_t *)& bgra);
                     
                     Rasterizer::Path s;
                     writePath(shape, s);
