@@ -24,7 +24,7 @@ struct RasterizerScene {
     static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::Colorant *colors, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
         for (int i = int(end) - 1; i >= int(begin); i--) {
             int winding = pointWinding(paths[i], ctms[i], view, colors[i].ctm, bounds, dx, dy);
-            if (winding)
+            if ((even && (winding & 1)) || winding)
                 return i;
         }
         return INT_MAX;
