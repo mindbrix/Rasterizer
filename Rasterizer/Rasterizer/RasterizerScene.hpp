@@ -27,10 +27,8 @@ struct RasterizerScene {
     };
     static void countWinding(float x0, float y0, float x1, float y1, Rasterizer::Info *info) {
         WindingInfo& winding = *((WindingInfo *)info->info);
-        float ly, uy, det;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        if (winding.dy >= ly && winding.dy < uy) {
-            det = (x1 - x0) * (winding.dy - y0) - (y1 - y0) * (winding.dx - x0);
+        if (winding.dy >= (y0 < y1 ? y0 : y1) && winding.dy < (y0 > y1 ? y0 : y1)) {
+            float det = (x1 - x0) * (winding.dy - y0) - (y1 - y0) * (winding.dx - x0);
             if (y0 < y1 && det < 0.f)
                 winding.winding++;
             else if (y0 > y1 && det > 0.f)
