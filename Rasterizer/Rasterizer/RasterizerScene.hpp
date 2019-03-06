@@ -37,26 +37,26 @@ struct RasterizerScene {
     }
     static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::AffineTransform *clips, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
         for (int i = int(end) - 1; i >= int(begin); i--) {
-            int winding = pointWinding(paths[i], ctms[i], view, clips[i], bounds, dx, dy);
+            int winding = pointWinding(paths[i], view.concat(ctms[i]), clips[i], bounds, dx, dy);
             if ((even && (winding & 1)) || winding)
                 return i;
         }
         return INT_MAX;
     }
-    static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform view, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float dx, float dy) {
+    static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
         if (path.ref->atomsCount) {
-            Rasterizer::AffineTransform inv, m, unit;
+            Rasterizer::AffineTransform inv, unit;
             Rasterizer::Bounds clip;
             float ux, uy;
             inv = device.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                m = view.concat(ctm), unit = path.ref->bounds.unit(m);
+                unit = path.ref->bounds.unit(ctm);
                 clip = Rasterizer::Bounds(unit).intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f)
-                        Rasterizer::writePath(path, m, clip, countWinding, Rasterizer::Info((void *)& info));
+                        Rasterizer::writePath(path, ctm, clip, countWinding, Rasterizer::Info((void *)& info));
                 }
             }
         }
