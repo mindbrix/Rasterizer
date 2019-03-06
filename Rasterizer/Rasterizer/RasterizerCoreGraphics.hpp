@@ -6,24 +6,12 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#import "Rasterizer.hpp"
+#import "RasterizerScene.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
 
 struct RasterizerCoreGraphics {
-    struct Scene {
-        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
-        void addPath(Rasterizer::Path path, Rasterizer::AffineTransform ctm, uint8_t *bgra) {
-            bgras.emplace_back(*((uint32_t *)bgra));
-            paths.emplace_back(path);
-            ctms.emplace_back(ctm);
-        }
-        std::vector<uint32_t> bgras;
-        std::vector<Rasterizer::AffineTransform> ctms;
-        std::vector<Rasterizer::Path> paths;
-    };
-    
     struct CGScene {
         ~CGScene() { empty(); }
         void empty() {
@@ -38,7 +26,7 @@ struct RasterizerCoreGraphics {
         std::vector<CGAffineTransform> ctms;
         std::vector<CGPathRef> paths;
     };
-    static void writeCGSceneToScene(CGScene& cgscene, Scene& scene) {
+    static void writeCGSceneToScene(CGScene& cgscene, RasterizerScene::Scene& scene) {
         for (int i = 0; i < cgscene.paths.size(); i++) {
             scene.bgras.emplace_back(bgraFromCGColor(cgscene.colors[i]));
             scene.ctms.emplace_back(transformFromCGAffineTransform(cgscene.ctms[i]));
@@ -46,7 +34,7 @@ struct RasterizerCoreGraphics {
             writeCGPathToPath(cgscene.paths[i], scene.paths.back());
         }
     }
-    static void writeSceneToCGScene(Scene& scene, CGScene& cgscene) {
+    static void writeSceneToCGScene(RasterizerScene::Scene& scene, CGScene& cgscene) {
         for (int i = 0; i < scene.paths.size(); i++)
             if (scene.paths[i].ref) {
                 cgscene.colors.emplace_back(createCGColorFromBGRA(scene.bgras[i]));
@@ -228,7 +216,7 @@ struct RasterizerCoreGraphics {
         
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;
-        Scene scene;
+        RasterizerScene::Scene scene;
         CGScene cgscene;
         BGRAColorConverter converter;
         CGFloat dimension;

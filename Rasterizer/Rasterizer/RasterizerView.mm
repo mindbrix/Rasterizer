@@ -15,7 +15,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
-@property(nonatomic) RasterizerCoreGraphics::Scene textScene;
+@property(nonatomic) RasterizerScene::Scene textScene;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;
