@@ -940,15 +940,15 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    static void radixSort(uint32_t *in, int n, uint32_t bias, bool single, uint16_t *counts0, uint16_t *counts1) {
-        uint32_t tmp[n];
-        memset(counts0, 0, sizeof(short) * 256);
+    static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts0, uint16_t *counts1) {
+        uint32_t tmp[n], mask = range - 1;
+        memset(counts0, 0, sizeof(short) * range);
         for (int i = 0; i < n; i++)
-            counts0[(in[i] - bias) & 0xFF]++;
-        for (uint16_t *src = counts0, *dst = src + 1, i = 1; i < 256; i++)
+            counts0[(in[i] - bias) & mask]++;
+        for (uint16_t *src = counts0, *dst = src + 1, i = 1; i < range; i++)
             *dst++ += *src++;
         for (int i = n - 1; i >= 0; i--)
-            tmp[--counts0[(in[i] - bias) & 0xFF]] = in[i];
+            tmp[--counts0[(in[i] - bias) & mask]] = in[i];
         if (single)
             memcpy(in, tmp, n * sizeof(uint32_t));
         else {
@@ -973,6 +973,7 @@ struct Rasterizer {
         uint16_t counts0[256], counts1[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         bool single = clip.ux - clip.lx < 256.f;
+        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx))) : 256;
         Segment *segment;
         Row<Segment::Index>& indices = gpu.indices;    Segment::Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
@@ -983,7 +984,7 @@ struct Rasterizer {
                 for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end - indices.idx > 32)
-                    radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, single, counts0, counts1);
+                    radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, range, single, counts0, counts1);
                 else
                     std::sort(indices.base + indices.idx, indices.base + indices.end);
                 
@@ -1034,7 +1035,7 @@ struct Rasterizer {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, int(indices.end), 0, false, counts0, counts1);
+                    radixSort((uint32_t *)indices.base, int(indices.end), 0, 256, false, counts0, counts1);
                 else
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
