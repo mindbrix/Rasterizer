@@ -531,10 +531,10 @@ struct Rasterizer {
                 begin = end = entry->end;
                 ctx->gpu.quads.idx = qidx - ctx->gpu.quads.base;
             }
-            for (int k = 0; k < idxes.size(); k++) {
+            for (int k = 0; k < idxes.size(); k++)
                 if (entries[k].type == Buffer::Entry::kQuads)
                     memcpy(buffer.data.base + entries[k].begin, ctx->gpu.quads.base + idxes[k], entries[k].end - entries[k].begin);
-            }
+            
             ctx->gpu.empty();
             for (j = 0; j < ctx->segments.size(); j++)
                 ctx->segments[j].empty();
