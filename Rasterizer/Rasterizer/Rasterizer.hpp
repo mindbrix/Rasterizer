@@ -940,20 +940,26 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    static void radixSort(uint32_t *in, short n, short *counts0, short *counts1) {
-        uint32_t x, tmp[n];
+    static void radixSort(uint32_t *in, int n, uint32_t bias, bool single, short *counts0, short *counts1) {
+        uint32_t tmp[n];
         memset(counts0, 0, sizeof(short) * 256);
         for (int i = 0; i < n; i++)
-            counts0[in[i] & 0xFF]++;
+            counts0[(in[i] - bias) & 0xFF]++;
         for (short *src = counts0, *dst = src + 1, i = 1; i < 256; i++)
             *dst++ += *src++;
-        memset(counts1, 0, sizeof(short) * 256);
         for (int i = n - 1; i >= 0; i--)
-            x = in[i], tmp[--counts0[x & 0xFF]] = x, counts1[(x >> 8) & 0xFF]++;
-        for (short *src = counts1, *dst = src + 1, i = 1; i < 256; i++)
-            *dst++ += *src++;
-        for (int i = n - 1; i >= 0; i--)
-            x = tmp[i], in[--counts1[(x >> 8) & 0xFF]] = x;
+            tmp[--counts0[(in[i] - bias) & 0xFF]] = in[i];
+        if (single)
+            memcpy(in, tmp, n * sizeof(uint32_t));
+        else {
+            memset(counts1, 0, sizeof(short) * 256);
+            for (int i = n - 1; i >= 0; i--)
+                counts1[(in[i] >> 8) & 0xFF]++;
+            for (short *src = counts1, *dst = src + 1, i = 1; i < 256; i++)
+                *dst++ += *src++;
+            for (int i = n - 1; i >= 0; i--)
+                in[--counts1[(tmp[i] >> 8) & 0xFF]] = tmp[i];
+        }
     }
     static void writeFast(int begin, int end, size_t iz, Bounds clip, GPU& gpu) {
         float ox, oy;
@@ -966,6 +972,7 @@ struct Rasterizer {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
         short counts0[256], counts1[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
+        bool single = clip.ux - clip.lx < 256.f;
         Segment *segment;
         Row<Segment::Index>& indices = gpu.indices;    Segment::Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
@@ -976,7 +983,7 @@ struct Rasterizer {
                 for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end - indices.idx > 32)
-                    radixSort((uint32_t *)indices.base + indices.idx, indices.end - indices.idx, counts0, counts1);
+                    radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, single, counts0, counts1);
                 else
                     std::sort(indices.base + indices.idx, indices.base + indices.end);
                 
@@ -1027,7 +1034,7 @@ struct Rasterizer {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, indices.end, counts0, counts1);
+                    radixSort((uint32_t *)indices.base, int(indices.end), 0, false, counts0, counts1);
                 else
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
