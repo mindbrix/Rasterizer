@@ -277,23 +277,24 @@ struct RasterizerCoreGraphics {
                 writeSceneToCGScene(testScene.scene, testScene.cgscene);
             drawCGScene(testScene.cgscene, ctm, testScene.contexts[0].bounds, ctx);
         } else {
+            assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             size_t pathsCount = testScene.scene.paths.size();
-            Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(ctm));
+            Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)malloc(pathsCount * sizeof(ctm));
+            uint32_t *bgras = (uint32_t *)malloc(pathsCount * sizeof(uint32_t));
+            Rasterizer::Colorant *colors = (Rasterizer::Colorant *)malloc(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colors;
+            Rasterizer::AffineTransform *clips = (Rasterizer::AffineTransform *)malloc(pathsCount * sizeof(Rasterizer::AffineTransform)), *cl = clips;
+            
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
             
-            assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             CGColorSpaceRef srcSpace = createSrcColorSpace();
-            uint32_t *bgras = (uint32_t *)alloca(pathsCount * sizeof(uint32_t));
             testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert((uint32_t *)& testScene.scene.bgras[0].src0, pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
-            Rasterizer::Colorant *colors = (Rasterizer::Colorant *)alloca(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colors;
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
             Rasterizer::AffineTransform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
-            Rasterizer::AffineTransform *clips = (Rasterizer::AffineTransform *)alloca(pathsCount * sizeof(Rasterizer::AffineTransform)), *cl = clips;
             for (int i = 0; i < pathsCount; i++, cl++)
                 *cl = clip;
             
@@ -308,6 +309,7 @@ struct RasterizerCoreGraphics {
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
             renderPaths(testScene.contexts, & testScene.scene.paths[0], ctms, false, colors, clips, width, testScene.scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            free(ctms), free(bgras), free(colors), free(clips);
         }
     }
 };
