@@ -942,7 +942,7 @@ struct Rasterizer {
     }
     static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts0, uint16_t *counts1) {
         uint32_t tmp[n], mask = range - 1;
-        memset(counts0, 0, sizeof(short) * range);
+        memset(counts0, 0, sizeof(uint16_t) * range);
         for (int i = 0; i < n; i++)
             counts0[(in[i] - bias) & mask]++;
         for (uint16_t *src = counts0, *dst = src + 1, i = 1; i < range; i++)
@@ -952,7 +952,7 @@ struct Rasterizer {
         if (single)
             memcpy(in, tmp, n * sizeof(uint32_t));
         else {
-            memset(counts1, 0, sizeof(short) * 64);
+            memset(counts1, 0, sizeof(uint16_t) * 64);
             for (int i = n - 1; i >= 0; i--)
                 counts1[(in[i] >> 8) & 0x3F]++;
             for (uint16_t *src = counts1, *dst = src + 1, i = 1; i < 64; i++)
