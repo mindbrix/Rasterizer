@@ -973,7 +973,7 @@ struct Rasterizer {
         uint16_t counts0[256], counts1[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         bool single = clip.ux - clip.lx < 256.f;
-        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx))) : 256;
+        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Segment *segment;
         Row<Segment::Index>& indices = gpu.indices;    Segment::Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
