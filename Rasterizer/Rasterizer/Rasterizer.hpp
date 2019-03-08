@@ -60,15 +60,15 @@ struct Rasterizer {
         Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
         uint8_t src0, src1, src2, src3;
     };
-    struct Sequence {
+    struct Geometry {
         struct Atom {
             enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCapacity = 15 };
             Atom() { bzero(points, sizeof(points)), bzero(types, sizeof(types)); }
             float       points[30];
             uint8_t     types[8];
         };
-        Sequence() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
-        ~Sequence() { if (shapes) free(shapes), free(circles); }
+        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
             if (end + size > Atom::kCapacity)
@@ -149,7 +149,7 @@ struct Rasterizer {
         }
         T *ref = nullptr;
     };
-    typedef Ref<Sequence> Path;
+    typedef Ref<Geometry> Path;
     
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
@@ -668,11 +668,11 @@ struct Rasterizer {
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
-        for (Sequence::Atom& atom : path.ref->atoms)
-            for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Sequence::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
+        for (Geometry::Atom& atom : path.ref->atoms)
+            for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Geometry::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 float *p = atom.points + index * 2;
                 switch (type) {
-                    case Sequence::Atom::kMove:
+                    case Geometry::Atom::kMove:
                         if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
                             if (f0 || fs)
                                 writeClippedLine(x0, y0, sx, sy, clip, function, & info);
@@ -685,7 +685,7 @@ struct Rasterizer {
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
                         index++;
                         break;
-                    case Sequence::Atom::kLine:
+                    case Geometry::Atom::kLine:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         if (f0 || f1)
@@ -695,7 +695,7 @@ struct Rasterizer {
                         x0 = x1, y0 = y1, f0 = f1;
                         index++;
                         break;
-                    case Sequence::Atom::kQuadratic:
+                    case Geometry::Atom::kQuadratic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
@@ -707,7 +707,7 @@ struct Rasterizer {
                         x0 = x2, y0 = y2, f0 = f2;
                         index += 2;
                         break;
-                    case Sequence::Atom::kCubic:
+                    case Geometry::Atom::kCubic:
                         x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                         x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
@@ -721,7 +721,7 @@ struct Rasterizer {
                         x0 = x3, y0 = y3, f0 = f3;
                         index += 3;
                         break;
-                    case Sequence::Atom::kClose:
+                    case Geometry::Atom::kClose:
                         index++;
                         break;
                 }

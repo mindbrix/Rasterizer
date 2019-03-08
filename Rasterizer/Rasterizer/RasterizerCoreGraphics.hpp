@@ -158,29 +158,29 @@ struct RasterizerCoreGraphics {
     
     static void writePathToCGPath(Rasterizer::Path p, CGMutablePathRef path) {
         float *points;
-        for (Rasterizer::Sequence::Atom& atom : p.ref->atoms) {
+        for (Rasterizer::Geometry::Atom& atom : p.ref->atoms) {
             size_t index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
                 points = atom.points + index * 2;
                 switch (type) {
-                    case Rasterizer::Sequence::Atom::kMove:
+                    case Rasterizer::Geometry::Atom::kMove:
                         CGPathMoveToPoint(path, NULL, points[0], points[1]);
                         index++;
                         break;
-                    case Rasterizer::Sequence::Atom::kLine:
+                    case Rasterizer::Geometry::Atom::kLine:
                         CGPathAddLineToPoint(path, NULL, points[0], points[1]);
                         index++;
                         break;
-                    case Rasterizer::Sequence::Atom::kQuadratic:
+                    case Rasterizer::Geometry::Atom::kQuadratic:
                         CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[2], points[3]);
                         index += 2;
                         break;
-                    case Rasterizer::Sequence::Atom::kCubic:
+                    case Rasterizer::Geometry::Atom::kCubic:
                         CGPathAddCurveToPoint(path, NULL, points[0], points[1], points[2], points[3], points[4], points[5]);
                         index += 3;
                         break;
-                    case Rasterizer::Sequence::Atom::kClose:
+                    case Rasterizer::Geometry::Atom::kClose:
                         CGPathCloseSubpath(path);
                         index++;
                         break;
