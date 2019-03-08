@@ -661,7 +661,7 @@ struct Rasterizer {
                 if (entry && !slow)
                     *ctm = m, writeFast(entry->begin, entry->end, iz, clip, gpu);
                 else
-                    writeSegments(segments.segments, clip, even, src, iz, hit, gpu);
+                    writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
         }
     }
@@ -972,7 +972,7 @@ struct Rasterizer {
         new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, -int(iz + 1), begin, -1, count);
         gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU& gpu) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
         uint16_t counts[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
@@ -1000,7 +1000,7 @@ struct Rasterizer {
                         }
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
-                            if (src[3] == 255 && !hit)
+                            if (opaque)
                                 new (gpu.opaques.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
                             else
                                 new (gpu.quads.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
