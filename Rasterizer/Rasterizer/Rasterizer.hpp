@@ -941,12 +941,16 @@ struct Rasterizer {
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
     static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts0, uint16_t *counts1) {
+        range = range < 4 ? 4 : range;
         uint32_t tmp[n], mask = range - 1;
         memset(counts0, 0, sizeof(uint16_t) * range);
         for (int i = 0; i < n; i++)
             counts0[(in[i] - bias) & mask]++;
-        for (uint16_t *src = counts0, *dst = src + 1, i = 1; i < range; i++)
-            *dst++ += *src++;
+        uint64_t *dst = (uint64_t *)counts0, sum = 0, count;
+        for (int i = 0; i < range / 4; i++) {
+            count = *dst, sum += count + (count << 16) + (count << 32) + (count << 48), *dst++ = sum;
+            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
+        }
         for (int i = n - 1; i >= 0; i--)
             tmp[--counts0[(in[i] - bias) & mask]] = in[i];
         if (single)
