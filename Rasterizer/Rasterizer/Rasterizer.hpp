@@ -811,8 +811,7 @@ struct Rasterizer {
                 t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
                 t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
                 if (t0 != t1) {
-                    t = (t0 + t1) * 0.5f;
-                    y = (ay * t + by) * t + y0;
+                    t = (t0 + t1) * 0.5f, y = (ay * t + by) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
                         x = (ax * t + bx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
@@ -897,8 +896,7 @@ struct Rasterizer {
                 t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
                 t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
                 if (t0 != t1) {
-                    t = (t0 + t1) * 0.5f;
-                    y = ((ay * t + by) * t + cy) * t + y0;
+                    t = (t0 + t1) * 0.5f, y = ((ay * t + by) * t + cy) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
                         x = ((ax * t + bx) * t + cx) * t + x0;
                         bool visible = x >= clip.lx && x < clip.ux;
