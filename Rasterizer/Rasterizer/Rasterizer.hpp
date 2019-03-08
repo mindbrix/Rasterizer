@@ -980,11 +980,10 @@ struct Rasterizer {
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Segment *segment;
         Row<Segment::Index>& indices = gpu.indices;    Segment::Index *index;
-        for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
-            ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-            uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            count = segments->end - segments->idx;
-            if (count) {
+        for (segments += ily, iy = ily; iy < iuy; iy++, indices.idx = indices.end, segments->idx = segments->end, segments++)
+            if ((count = segments->end - segments->idx)) {
+                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end - indices.idx > 32)
@@ -1021,10 +1020,7 @@ struct Rasterizer {
                     new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, int(segments->idx), int(begin), i - begin);
                     gpu.edgeCells++, gpu.edgeInstances += (i - begin + 1) / 2;
                 }
-                indices.idx = indices.end;
-                segments->idx = segments->end;
             }
-        }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
