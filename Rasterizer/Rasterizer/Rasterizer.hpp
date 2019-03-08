@@ -940,29 +940,29 @@ struct Rasterizer {
         float alpha = fabsf(cover);
         return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
     }
-    static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts0, uint16_t *counts1) {
+    static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts) {
         range = range < 4 ? 4 : range;
         uint32_t tmp[n], mask = range - 1;
-        memset(counts0, 0, sizeof(uint16_t) * range);
+        memset(counts, 0, sizeof(uint16_t) * range);
         for (int i = 0; i < n; i++)
-            counts0[(in[i] - bias) & mask]++;
-        uint64_t *dst = (uint64_t *)counts0, sum = 0, count;
+            counts[(in[i] - bias) & mask]++;
+        uint64_t *dst = (uint64_t *)counts, sum = 0, count;
         for (int i = 0; i < range / 4; i++) {
             count = *dst, sum += count + (count << 16) + (count << 32) + (count << 48), *dst++ = sum;
             sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
         }
         for (int i = n - 1; i >= 0; i--)
-            tmp[--counts0[(in[i] - bias) & mask]] = in[i];
+            tmp[--counts[(in[i] - bias) & mask]] = in[i];
         if (single)
             memcpy(in, tmp, n * sizeof(uint32_t));
         else {
-            memset(counts1, 0, sizeof(uint16_t) * 64);
+            memset(counts, 0, sizeof(uint16_t) * 64);
             for (int i = 0; i < n; i++)
-                counts1[(in[i] >> 8) & 0x3F]++;
-            for (uint16_t *src = counts1, *dst = src + 1, i = 1; i < 64; i++)
+                counts[(in[i] >> 8) & 0x3F]++;
+            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
                 *dst++ += *src++;
             for (int i = n - 1; i >= 0; i--)
-                in[--counts1[(tmp[i] >> 8) & 0x3F]] = tmp[i];
+                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
     static void writeFast(int begin, int end, size_t iz, Bounds clip, GPU& gpu) {
@@ -974,7 +974,7 @@ struct Rasterizer {
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, uint8_t *src, size_t iz, bool hit, GPU& gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
-        uint16_t counts0[256], counts1[256], iy;
+        uint16_t counts[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
@@ -988,7 +988,7 @@ struct Rasterizer {
                 for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end - indices.idx > 32)
-                    radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, range, single, counts0, counts1);
+                    radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices.base + indices.idx, indices.base + indices.end);
                 
@@ -1028,7 +1028,7 @@ struct Rasterizer {
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
-        uint16_t counts0[256], counts1[256];
+        uint16_t counts[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Segment *segment;
         Row<Segment::Index> indices;    Segment::Index *index;
@@ -1039,7 +1039,7 @@ struct Rasterizer {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, int(indices.end), 0, 256, false, counts0, counts1);
+                    radixSort((uint32_t *)indices.base, int(indices.end), 0, 256, false, counts);
                 else
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
