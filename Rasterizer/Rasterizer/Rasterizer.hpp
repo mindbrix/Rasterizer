@@ -982,8 +982,6 @@ struct Rasterizer {
         Row<Segment::Index>& indices = gpu.indices;    Segment::Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, indices.idx = indices.end, segments->idx = segments->end, segments++)
             if ((count = segments->end - segments->idx)) {
-                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
                     new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end - indices.idx > 32)
@@ -991,6 +989,8 @@ struct Rasterizer {
                 else
                     std::sort(indices.base + indices.idx, indices.base + indices.end);
                 
+                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux) {
@@ -1000,13 +1000,10 @@ struct Rasterizer {
                         }
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
-                            lx = ux, ux = index->x;
-                            if (lx != ux) {
-                                if (src[3] == 255 && !hit)
-                                    new (gpu.opaques.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
-                                else
-                                    new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
-                            }
+                            if (src[3] == 255 && !hit)
+                                new (gpu.opaques.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
+                            else
+                                new (gpu.quads.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
                         }
                         lx = ux = index->x;
                         cover = winding;
