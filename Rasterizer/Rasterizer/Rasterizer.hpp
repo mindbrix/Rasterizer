@@ -493,14 +493,15 @@ struct Rasterizer {
                             new (dst) GPU::Quad(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                         entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                     } else if (quad->iz & GPU::Quad::kOutlines) {
-                        Segment *src = ctx->gpu.outlines.base + quad->super.begin, *es = ctx->gpu.outlines.base + quad->super.end;
+                        size_t count = quad->outline.s.y0 - quad->outline.s.x0;
+                        Segment *src = ctx->gpu.outlines.base + int(quad->outline.s.x0), *es = src + count;;
                         GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                         for (dst0 = dst; src < es; src++, dst++) {
-                            new (dst) GPU::Quad(src, quad->super.cover, iz, GPU::Quad::kOutlines);
+                            new (dst) GPU::Quad(src, quad->outline.width, iz, GPU::Quad::kOutlines);
                             if (src->x0 == FLT_MAX && dst - dst0 > 1)
                                 dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                         }
-                        entry->end += (quad->super.end - quad->super.begin) * sizeof(GPU::Quad);
+                        entry->end += count * sizeof(GPU::Quad);
                     } else  {
                         entry->end += sizeof(GPU::Quad);
                         if (quad->iz & GPU::Quad::kEdge) {
@@ -646,7 +647,8 @@ struct Rasterizer {
             if (width) {
                 gpu.outlinePaths++;
                 writePath(path, *ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
-                new (gpu.quads.alloc(1)) GPU::Quad(0.f, 0.f, 0.f, 0.f, 0, 0, iz, GPU::Quad::kOutlines, width, 0, int(gpu.outlines.end), int(gpu.outlines.idx), 0);
+                Segment params(float(gpu.outlines.idx), float(gpu.outlines.end), 0.f, 0.f);
+                new (gpu.quads.alloc(1)) GPU::Quad(& params, width, iz, GPU::Quad::kOutlines);
                 gpu.outlines.idx = gpu.outlines.end;
             } else {
                 Cache::Entry *entry = nullptr;
@@ -995,7 +997,7 @@ struct Rasterizer {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux) {
                             gpu.allocator.alloc(ux - lx, Context::kfh, ox, oy);
-                            new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy,int( segments->idx), int(begin), i - begin);
+                            new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, int(segments->idx), int(begin), i - begin);
                             gpu.edgeCells++, gpu.edgeInstances += (i - begin + 1) / 2;
                         }
                         begin = i;
