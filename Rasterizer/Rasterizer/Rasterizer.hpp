@@ -162,12 +162,12 @@ struct Rasterizer {
     };
     struct Segment {
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
-        struct Index {
-            Index(uint16_t x, uint16_t i) : x(x), i(i) {}
-            uint16_t x, i;
-            inline bool operator< (const Index& other) const { return x < other.x; }
-        };
         float x0, y0, x1, y1;
+    };
+    struct Index {
+        Index(uint16_t x, uint16_t i) : x(x), i(i) {}
+        uint16_t x, i;
+        inline bool operator< (const Index& other) const { return x < other.x; }
     };
     template<typename T>
     struct Memory {
@@ -269,7 +269,7 @@ struct Rasterizer {
         }
         size_t edgeCells, edgeInstances, shapesCount, shapePaths, outlinePaths;
         Allocator allocator;
-        Row<Segment::Index> indices;
+        Row<Index> indices;
         Row<Quad> quads, opaques;
         Row<Segment> outlines;
     };
@@ -515,7 +515,7 @@ struct Rasterizer {
                             } else {
                                 cell->im = 0;
                                 cell->base = int(sbegins[quad->super.iy] + quad->super.end);
-                                Segment::Index *is = ctx->gpu.indices.base + quad->super.begin;
+                                Index *is = ctx->gpu.indices.base + quad->super.begin;
                                 for (j = 0; j < quad->super.count; j++, edge++) {
                                     edge->ic = ic, edge->i0 = uint16_t(is++->i);
                                     if (++j < quad->super.count)
@@ -979,11 +979,11 @@ struct Rasterizer {
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Segment *segment;
-        Row<Segment::Index>& indices = gpu.indices;    Segment::Index *index;
+        Row<Index>& indices = gpu.indices;    Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, indices.idx = indices.end, segments->idx = segments->end, segments++)
             if ((count = segments->end - segments->idx)) {
                 for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
-                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                    new (index) Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end - indices.idx > 32)
                     radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, range, single, counts);
                 else
@@ -1024,13 +1024,13 @@ struct Rasterizer {
         uint16_t counts[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Segment *segment;
-        Row<Segment::Index> indices;    Segment::Index *index;
+        Row<Index> indices;    Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
             ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             if (segments->end) {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
-                    new (index) Segment::Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
+                    new (index) Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end > 32)
                     radixSort((uint32_t *)indices.base, int(indices.end), 0, 256, false, counts);
                 else
