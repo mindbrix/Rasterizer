@@ -667,8 +667,7 @@ struct Rasterizer {
                     gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
                     new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count);
                     gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
-                }
-                else
+                } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
         }
