@@ -957,7 +957,7 @@ struct Rasterizer {
             memcpy(in, tmp, n * sizeof(uint32_t));
         else {
             memset(counts1, 0, sizeof(uint16_t) * 64);
-            for (int i = n - 1; i >= 0; i--)
+            for (int i = 0; i < n; i++)
                 counts1[(in[i] >> 8) & 0x3F]++;
             for (uint16_t *src = counts1, *dst = src + 1, i = 1; i < 64; i++)
                 *dst++ += *src++;
