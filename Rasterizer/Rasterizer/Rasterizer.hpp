@@ -262,7 +262,7 @@ struct Rasterizer {
             int im, base;
         };
         struct Edge {
-            int ic;
+            int ic, ux;
             uint16_t i0, i1;
         };
         GPU() { empty(); }
@@ -512,27 +512,34 @@ struct Rasterizer {
                             if (quad->super.iy < 0) {
                                 cell->im = quad->super.iy;
                                 cell->base = int(quad->super.end);
-                                
+                                GPU::Edge *lf = fast, *uf = lf, *f = lf;
+                                for (j = 0; j < quad->super.count; fast++)
+                                    fast->ic = ic, fast->ux = cell->cell.ux, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                (fast - 1)->i1 = quad->super.count;
                                 Path& path = paths[quad->iz & kPathIndexMask];
                                 if (path.ref->moleculesCount > 1) {
                                     AffineTransform& m = ctms[quad->iz & kPathIndexMask];
                                     float mux, ux, x;
-                                    Segment *s = ctx->cache.segments.base + quad->super.end, *end = s + quad->super.count;
-                                    for (mux = s->x0 * m.a + s->y0 * m.c; s < end; s++)
+                                    Segment *ls = ctx->cache.segments.base + quad->super.end, *us = ls + quad->super.count, *s = ls, *is = ls;
+                                    for (mux = s->x0 * m.a + s->y0 * m.c; s < us; s++)
                                         if (s->x0 != FLT_MAX)
                                             x = s->x1 * m.a + s->y1 * m.c, mux = mux > x ? mux : x;
                                         else {
-                                            ux = ceilf(mux + m.tx);
+                                            ux = ceilf(mux + m.tx) + 1.f;
                                             ux = ux < cell->cell.lx ? cell->cell.lx : ux;
                                             ux = ux > cell->cell.ux ? cell->cell.ux : ux;
-                                            cell->cell.ux = ux;
-                                            if (s < end - 1)
-                                                mux = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c;
+                                            uf = lf + int((s - ls + kFastSegments - 1) / kFastSegments);
+                                            //uf = lf + int((s - 1 - ls + kFastSegments - 1) / kFastSegments);
+                                            while (f < uf)
+                                                f->ux = ux, f++;
+                                            if (s < us - 1) {
+                                                is = s + 1, mux = is->x0 * m.a + is->y0 * m.c;
+                                               // f = uf;
+                                                //f = lf + int((is - ls + kFastSegments - 1) / kFastSegments);
+                                            }
                                         }
+                                    //assert(fast == f);
                                 }
-                                for (j = 0; j < quad->super.count; fast++)
-                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                (fast - 1)->i1 = quad->super.count;
                             } else {
                                 cell->im = 0;
                                 cell->base = int(sbegins[quad->super.iy] + quad->super.end);

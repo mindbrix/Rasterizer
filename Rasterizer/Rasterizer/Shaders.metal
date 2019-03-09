@@ -52,7 +52,7 @@ struct EdgeCell {
     int im, base;
 };
 struct Edge {
-    int ic;
+    int ic, ux;
     uint16_t i0, i1;
 };
 
@@ -150,15 +150,17 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
         if (dst[1] != dst[3])
             slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
     }
-    slx = clamp(short(slx), cell.lx, cell.ux), sly = clamp(short(sly), cell.ly, cell.uy), suy = clamp(short(ceil(suy)), cell.ly, cell.uy);
+    bool empty = slx == FLT_MAX;
     
-    float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
+    slx = clamp(short(slx), cell.lx, cell.ux), sly = clamp(short(sly), cell.ly, cell.uy), suy = clamp(short(ceil(suy)), cell.ly, cell.uy);
+    float sux = edge.ux;
+    float lx = cell.ox + slx - cell.lx, ux = cell.ox + sux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float tx = -(cell.lx - cell.ox) - (dx - 0.5), ty = -(cell.ly - cell.oy) - (dy - 0.5);
     
-    vert.position = slx != FLT_MAX ? float4(x, y, 1.0, 1.0) : float4(0.0, 0.0, 0.0, 1.0);
+    vert.position = !empty ? float4(x, y, 1.0, 1.0) : float4(0.0, 0.0, 0.0, 1.0);
     
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
     vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
@@ -169,6 +171,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
+    //return float4(0.25);
     float winding = 0;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
