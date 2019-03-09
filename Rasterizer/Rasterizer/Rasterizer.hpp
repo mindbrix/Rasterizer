@@ -516,19 +516,19 @@ struct Rasterizer {
                                 Path& path = paths[quad->iz & kPathIndexMask];
                                 if (path.ref->moleculesCount > 1) {
                                     AffineTransform& m = ctms[quad->iz & kPathIndexMask];
-                                    float muxes[path.ref->moleculesCount], *mux = muxes, ux = FLT_MAX;
+                                    float mux, ux, x;
                                     Segment *s = ctx->cache.segments.base + quad->super.end, *end = s + quad->super.count;
-                                    for (*mux = s->x0 * m.a + s->y0 * m.c; s < end; s++) {
-                                        if (s->x0 != FLT_MAX) {
-                                            float x = s->x1 * m.a + s->y1 * m.c;
-                                            *mux = *mux > x ? *mux : x;
-                                        } else if (s < end - 1)
-                                            ux = *mux < ux ? *mux : ux, mux++, *mux = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c;
-                                    }
-                                    ux = ceilf(ux + m.tx);
-                                    ux = ux < cell->cell.lx ? cell->cell.lx : ux;
-                                    ux = ux > cell->cell.ux ? cell->cell.ux : ux;
-                                    cell->cell.ux = ux;
+                                    for (mux = s->x0 * m.a + s->y0 * m.c; s < end; s++)
+                                        if (s->x0 != FLT_MAX)
+                                            x = s->x1 * m.a + s->y1 * m.c, mux = mux > x ? mux : x;
+                                        else {
+                                            ux = ceilf(mux + m.tx);
+                                            ux = ux < cell->cell.lx ? cell->cell.lx : ux;
+                                            ux = ux > cell->cell.ux ? cell->cell.ux : ux;
+                                            cell->cell.ux = ux;
+                                            if (s < end - 1)
+                                                mux = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c;
+                                        }
                                 }
                                 for (j = 0; j < quad->super.count; fast++)
                                     fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
