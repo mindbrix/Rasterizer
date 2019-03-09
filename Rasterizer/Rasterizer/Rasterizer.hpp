@@ -512,6 +512,23 @@ struct Rasterizer {
                             if (quad->super.iy < 0) {
                                 cell->im = quad->super.iy;
                                 cell->base = int(quad->super.end);
+                                
+                                if (0 && paths[quad->iz & kPathIndexMask].ref->moleculesCount > 1) {
+                                    AffineTransform& m = ctms[quad->iz & kPathIndexMask];
+                                    float mux, ux = cell->cell.ux - m.tx;
+                                    Segment *s = ctx->cache.segments.base + quad->super.end, *end = s + quad->super.count;
+                                    for (mux = s->x0 * m.a + s->y0 * m.c; s < end; s++) {
+                                        if (s->x0 != FLT_MAX) {
+                                            float x = s->x1 * m.a + s->y1 * m.c;
+                                            mux = mux > x ? mux : x;
+                                        } else if (s < end - 1)
+                                            ux = mux < ux ? mux : ux, mux = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c;
+                                    }
+                                    ux = ceilf(ux + m.tx);
+                                    ux = ux < cell->cell.lx ? cell->cell.lx : ux;
+                                    ux = ux > cell->cell.ux ? cell->cell.ux : ux;
+                                    cell->cell.ux = ux;
+                                }
                                 for (j = 0; j < quad->super.count; fast++)
                                     fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                                 (fast - 1)->i1 = quad->super.count;
