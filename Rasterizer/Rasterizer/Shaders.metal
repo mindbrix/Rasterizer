@@ -52,7 +52,7 @@ struct EdgeCell {
     int im, base;
 };
 struct Edge {
-    int ic, ux;
+    int ic;
     uint16_t i0, i1;
 };
 
@@ -153,8 +153,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     bool empty = slx == FLT_MAX;
     
     slx = clamp(short(slx), cell.lx, cell.ux), sly = clamp(short(sly), cell.ly, cell.uy), suy = clamp(short(ceil(suy)), cell.ly, cell.uy);
-    float sux = edge.ux;
-    float lx = cell.ox + slx - cell.lx, ux = cell.ox + sux - cell.lx;
+    float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
@@ -171,7 +170,6 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    //return float4(0.25);
     float winding = 0;
     winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
     winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
