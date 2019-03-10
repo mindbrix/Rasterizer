@@ -213,12 +213,13 @@ struct Rasterizer {
     struct GPU {
         struct Allocator {
             struct Entry {
-                size_t edgeCells = 0, edgeInstances = 0, fastInstances = 0;
+                Entry(size_t idx) : li(idx), ui(idx) {}
+                size_t cells = 0, edgeInstances = 0, fastInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
-                width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
+                width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Entry(0);
             }
-            void alloc(float w, float h, size_t edgeCells, size_t instances, bool isFast, float& ox, float& oy) {
+            void alloc(float w, float h, size_t idx, size_t cells, size_t instances, bool isFast, float& ox, float& oy) {
                 Bounds *b = & strip;
                 float hght = Context::kfh;
                 if (h > Context::kfh) {
@@ -228,18 +229,24 @@ struct Rasterizer {
                         hght = kFastHeight, b = & fast;
                 }
                 if (b->ux - b->lx < w) {
-                    if (sheet.uy - sheet.ly < h)
-                        sheet = Bounds(0.f, 0.f, width, height), strip = fast = Bounds(0.f, 0.f, 0.f, 0.f), new (passes.alloc(1)) Entry();
+                    if (sheet.uy - sheet.ly < hght) {
+                        if (sheet.ux)
+                            new (passes.alloc(1)) Entry(idx);
+                        sheet = Bounds(0.f, 0.f, width, height), strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
+                    }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 ox = b->lx, b->lx += w, oy = b->ly;
-                assert(passes.end);
                 Entry& entry = passes.base[passes.end - 1];
-                entry.edgeCells += edgeCells;
+                entry.cells += cells;
+                entry.ui++;
                 if (isFast)
                     entry.fastInstances += instances;
                 else
                     entry.edgeInstances += instances;
+            }
+            inline void countQuad() {
+                passes.base[passes.end - 1].ui++;
             }
             size_t width, height;
             Row<Entry> passes;
@@ -453,7 +460,7 @@ struct Rasterizer {
                                            std::vector<Buffer::Entry>& entries,
                                            Buffer& buffer) {
             size_t end = begin, j, iz, sbegins[ctx->segments.size()], size;
-            GPU::Quad *quad, *qidx, *q0, *q1;
+            GPU::Quad *quad, *qidx, *q0;
             std::vector<size_t> idxes;
             
             size = ctx->cache.segments.end;
@@ -469,40 +476,29 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::Entry::kSegments, begin, end), idxes.emplace_back(0);
                 begin = end;
             }
-            GPU::Allocator::Entry *e = ctx->gpu.allocator.passes.end ? ctx->gpu.allocator.passes.base : nullptr;
-            for (; ctx->gpu.quads.idx != ctx->gpu.quads.end; e += e ? 1 : 0) {
-                q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
-                size_t cellCount = 0, edgeCount = 0, fastCount = 0;
-                for (qidx = q0; qidx < q1; qidx++)
-                    if (qidx->iz & GPU::Quad::kEdge) {
-                        if (qidx->super.cell.oy == 0 && qidx->super.cell.ox == 0 && qidx != q0)
-                            break;
-                        else {
-                            cellCount++;
-                            if (qidx->super.iy < 0)
-                                fastCount += (qidx->super.count + kFastSegments - 1) / kFastSegments;
-                            else
-                                edgeCount += (qidx->super.count + 1) / 2;
-                        }
-                    }
-//                if (e)
-//                    assert(e->edgeCells == cellCount && e->edgeInstances == edgeCount && e->fastInstances == fastCount);
-                end += cellCount * sizeof(GPU::EdgeCell);
+            for (int k = 0; k < ctx->gpu.allocator.passes.end; k++) {
+                GPU::Allocator::Entry& e = ctx->gpu.allocator.passes.base[k];
+                if (e.li == e.ui)
+                    continue;
+                end += e.cells * sizeof(GPU::EdgeCell);
                 entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
                 
-                begin = end, end += edgeCount * sizeof(GPU::Edge);
+                begin = end, end += e.edgeInstances * sizeof(GPU::Edge);
                 entries.emplace_back(Buffer::Entry::kEdges, begin, end), idxes.emplace_back(0);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
                 
-                begin = end, end += fastCount * sizeof(GPU::Edge);
+                begin = end, end += e.fastInstances * sizeof(GPU::Edge);
                 entries.emplace_back(Buffer::Entry::kFastEdges, begin, end), idxes.emplace_back(0);
                 GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
                 begin = end;
                 
+                q0 = q0 = ctx->gpu.quads.base + e.li, qidx = ctx->gpu.quads.base + e.ui;
+                
                 int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 Buffer::Entry *entry;
-                entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(ctx->gpu.quads.idx), entry = & entries.back();
+                entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e.li), entry = & entries.back();
+                
                 for (quad = q0; quad < qidx; quad++) {
                     type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                     iz = quad->iz & 0xFFFFFF;
@@ -552,7 +548,6 @@ struct Rasterizer {
                     }
                 }
                 begin = end = entry->end;
-                ctx->gpu.quads.idx = qidx - ctx->gpu.quads.base;
             }
             for (int k = 0; k < idxes.size(); k++)
                 if (entries[k].type == Buffer::Entry::kQuads)
@@ -579,7 +574,7 @@ struct Rasterizer {
                 GPU& gpu = contexts[i].gpu;
                 Cache& cache = contexts[i].cache;
                 for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                    cells += gpu.allocator.passes.base[j].edgeCells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
+                    cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
                 size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlines.end - gpu.outlinePaths + gpu.shapesCount - gpu.shapePaths + gpu.quads.end) * sizeof(GPU::Quad) + cache.segments.end * sizeof(Segment);
                 for (j = 0; j < contexts[i].segments.size(); j++)
                     size += contexts[i].segments[j].end * sizeof(Segment);
@@ -667,6 +662,7 @@ struct Rasterizer {
         if (path.ref->shapes) {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(*ctm, iz, GPU::Quad::kShapes);
+            gpu.allocator.countQuad();
         } else {
             if (width) {
                 gpu.outlinePaths++;
@@ -674,6 +670,7 @@ struct Rasterizer {
                 Segment params(float(gpu.outlines.idx), float(gpu.outlines.end), 0.f, 0.f);
                 new (gpu.quads.alloc(1)) GPU::Quad(& params, width, iz, GPU::Quad::kOutlines);
                 gpu.outlines.idx = gpu.outlines.end;
+                gpu.allocator.countQuad();
             } else {
                 Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
@@ -701,7 +698,7 @@ struct Rasterizer {
     }
     static void writeEdges(float lx, float ly, float ux, float uy, size_t iz, size_t cells, size_t instances, bool fast, int type, float cover, int iy, int end, int begin, size_t count, GPU& gpu) {
         float ox, oy;
-        gpu.allocator.alloc(ux - lx, uy - ly, cells, instances, fast, ox, oy);
+        gpu.allocator.alloc(ux - lx, uy - ly, gpu.quads.end, cells, instances, fast, ox, oy);
         new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, type, cover, iy, end, begin, count);
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
@@ -1029,8 +1026,10 @@ struct Rasterizer {
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque)
                                 new (gpu.opaques.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
-                            else
+                            else {
                                 new (gpu.quads.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
+                                 gpu.allocator.countQuad();
+                            }
                         }
                         lx = ux = index->x;
                         cover = winding;
