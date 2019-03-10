@@ -8,7 +8,7 @@
 
 #define kFatHeight 8
 #define kFastHeight 32
-#define kMoleculesHeight 64
+#define kMoleculesHeight 32
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFFF

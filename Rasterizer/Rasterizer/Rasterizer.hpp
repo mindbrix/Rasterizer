@@ -673,11 +673,15 @@ struct Rasterizer {
                     *ctm = m;
                     float ox, oy;
                     gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
-                    if (molecules) {
-                    } else {
+                    if (!molecules)
+                        gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
+                    else {
+                        gpu.edgeCells += path.ref->moleculesCount;
+                        for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
+                            if (s->x0 == FLT_MAX)
+                                gpu.edgeInstances += (s - is + kFastSegments - 1) / kFastSegments, is = s + 1;
                     }
                     new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count);
-                    gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
