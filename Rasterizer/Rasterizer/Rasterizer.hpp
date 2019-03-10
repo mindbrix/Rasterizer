@@ -655,7 +655,7 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool slow = clip.uy - clip.ly > kFastHeight;
+                bool slow = clip.uy - clip.ly > kFastHeight, molecules = path.ref->moleculesCount > 1 && clip.uy - clip.ly <= kMoleculeHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
