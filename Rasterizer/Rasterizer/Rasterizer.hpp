@@ -638,13 +638,13 @@ struct Rasterizer {
             deltas.resize((bm.width + 1) * kfh);
             memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
         }
-        void setGPU(size_t width, size_t height) {
+        void setGPU(size_t width, size_t height, Transform *ctms) {
             bitmap = Bitmap();
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
-            gpu.allocator.init(width, height);
+            gpu.allocator.init(width, height), gpu.ctms = ctms;
             cache.empty();
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t begin, size_t end) {
@@ -714,7 +714,7 @@ struct Rasterizer {
                     cache.writeCachedOutline(entry, m, segments);
                 if (entry && !slow) {
                     size_t count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
-                    *ctm = m;
+                    gpu.ctms[iz] = m;
                     if (molecules) {
                         cells = path.ref->molecules.size(), instances = 0;
                         for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)

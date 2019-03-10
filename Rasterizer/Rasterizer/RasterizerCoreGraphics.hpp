@@ -229,7 +229,7 @@ struct RasterizerCoreGraphics {
                     begins[i] = p;
                 }
                 for (i = 0; i < divisions; i++)
-                    contexts[i].setGPU(bitmap.width, bitmap.height);
+                    contexts[i].setGPU(bitmap.width, bitmap.height, ctms);
                 dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     contexts[idx].drawPaths(paths, ctms, false, colors, clips, width, b[idx], b[idx + 1]);
                 });
@@ -248,7 +248,7 @@ struct RasterizerCoreGraphics {
         } else {
             count = 1;
             if (buffer)
-                contexts[0].setGPU(bitmap.width, bitmap.height);
+                contexts[0].setGPU(bitmap.width, bitmap.height, ctms);
             contexts[0].drawPaths(paths, ctms, false, colors, clips, width, 0, pathsCount);
         }
         if (buffer) {
