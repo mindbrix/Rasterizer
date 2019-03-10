@@ -661,7 +661,7 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool slow = clip.uy - clip.ly > kFastHeight, molecules = path.ref->moleculesCount > 1 && clip.uy - clip.ly <= kMoleculesHeight;
+                bool slow = clip.uy - clip.ly > kMoleculesHeight, molecules = !slow && path.ref->moleculesCount > 1 && clip.uy - clip.ly > kFastHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
@@ -673,6 +673,9 @@ struct Rasterizer {
                     *ctm = m;
                     float ox, oy;
                     gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, ox, oy);
+                    if (molecules) {
+                    } else {
+                    }
                     new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count);
                     gpu.edgeCells++, gpu.edgeInstances += (count + kFastSegments - 1) / kFastSegments;
                 } else
