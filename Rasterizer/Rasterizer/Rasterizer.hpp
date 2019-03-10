@@ -527,6 +527,7 @@ struct Rasterizer {
                         
                         if (quad->iz & GPU::Quad::kMolecule) {
                             AffineTransform& m = ctms[quad->iz & kPathIndexMask];
+                            Bounds *molecule = & paths[quad->iz & kPathIndexMask].ref->molecules[0];
                             Segment *ls = ctx->cache.segments.base + quad->super.end, *us = ls + quad->super.count, *is = ls, *s = ls;
                             float ux, x;
                             for (ux = s->x0 * m.a + s->y0 * m.c; s < us; s++)
@@ -534,6 +535,8 @@ struct Rasterizer {
                                     x = s->x1 * m.a + s->y1 * m.c, ux = ux > x ? ux : x;
                                 else {
                                     cell->cell = quad->super.cell;
+                                    Bounds b = molecule->transform(m);
+                                    //ux = b.ux;
                                     ux = ceilf(ux + m.tx);
                                     ux = ux < cell->cell.lx ? cell->cell.lx : ux;
                                     ux = ux > cell->cell.ux ? cell->cell.ux : ux;
@@ -541,7 +544,7 @@ struct Rasterizer {
                                     cell->im = quad->super.iy;
                                     cell->base = int(quad->super.end);
                                     int ic = int(cell - c0), cnt = int(s - ls);
-                                    cell++;
+                                    cell++, molecule++;
                                     for (j = is - ls; j < cnt; fast++)
                                         fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                                     (fast - 1)->i1 = cnt;
