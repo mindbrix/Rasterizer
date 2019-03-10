@@ -270,7 +270,7 @@ struct Rasterizer {
             short prev, next;
         };
         struct Quad {
-            enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30 };
+            enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, int iy, int end, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
             Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
@@ -522,7 +522,32 @@ struct Rasterizer {
                         entry->end += count * sizeof(GPU::Quad);
                     } else  {
                         entry->end += sizeof(GPU::Quad);
-                        if (quad->iz & GPU::Quad::kEdge) {
+                        
+                        if (quad->iz & GPU::Quad::kMolecule) {
+                            AffineTransform& m = ctms[quad->iz & kPathIndexMask];
+                            Segment *ls = ctx->cache.segments.base + quad->super.end, *us = ls + quad->super.count, *is = ls, *s = ls;
+                            float ux, x;
+                            for (ux = s->x0 * m.a + s->y0 * m.c; s < us; s++)
+                                if (s->x0 != FLT_MAX)
+                                    x = s->x1 * m.a + s->y1 * m.c, ux = ux > x ? ux : x;
+                                else {
+                                    cell->cell = quad->super.cell;
+                                    ux = ceilf(ux + m.tx);
+                                    ux = ux < cell->cell.lx ? cell->cell.lx : ux;
+                                    ux = ux > cell->cell.ux ? cell->cell.ux : ux;
+                                    cell->cell.ux = ux;
+                                    cell->im = quad->super.iy;
+                                    cell->base = int(quad->super.end);
+                                    int ic = int(cell - c0), cnt = int(s - ls);
+                                    cell++;
+                                    for (j = is - ls; j < cnt; fast++)
+                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                    (fast - 1)->i1 = cnt;
+                                    is = s + 1;
+                                    if (is < us)
+                                        ux = is->x0 * m.a + is->y0 * m.c;
+                                }
+                        } else if (quad->iz & GPU::Quad::kEdge) {
                             cell->cell = quad->super.cell;
                             int ic = int(cell - c0);
                             if (quad->super.iy < 0) {
@@ -690,7 +715,7 @@ struct Rasterizer {
                             if (s->x0 == FLT_MAX)
                                 instances += (s - is + kFastSegments - 1) / kFastSegments, is = s + 1;
                     }
-                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count, gpu);
+                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule :  GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
