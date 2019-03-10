@@ -687,19 +687,22 @@ struct Rasterizer {
                 if (entry && !slow) {
                     size_t count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     *ctm = m;
-                    float ox, oy;
                     if (molecules) {
                         cells = path.ref->moleculesCount, instances = 0;
                         for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX)
                                 instances += (s - is + kFastSegments - 1) / kFastSegments, is = s + 1;
                     }
-                    gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, cells, instances, true, ox, oy);
-                    new (gpu.quads.alloc(1)) GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, iz, GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count);
+                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
         }
+    }
+    static void writeEdges(float lx, float ly, float ux, float uy, size_t iz, size_t cells, size_t instances, bool fast, int type, float cover, int iy, int end, int begin, size_t count, GPU& gpu) {
+        float ox, oy;
+        gpu.allocator.alloc(ux - lx, uy - ly, cells, instances, fast, ox, oy);
+        new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, type, cover, iy, end, begin, count);
     }
     static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
@@ -1002,7 +1005,7 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
         uint16_t counts[256], iy;
-        float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
+        float ly, uy, scale, cover, winding, lx, ux, x;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Segment *segment;
@@ -1020,10 +1023,8 @@ struct Rasterizer {
                 uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
-                        if (lx != ux) {
-                            gpu.allocator.alloc(ux - lx, Context::kfh, 1, (i - begin + 1) / 2, false, ox, oy);
-                            new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, int(segments->idx), int(begin), i - begin);
-                        }
+                        if (lx != ux)
+                            writeEdges(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Quad::kEdge, cover, iy, int(segments->idx), int(begin), i - begin, gpu);
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque)
@@ -1038,10 +1039,8 @@ struct Rasterizer {
                     winding += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
-                if (lx != ux) {
-                    gpu.allocator.alloc(ux - lx, Context::kfh, 1, (i - begin + 1) / 2, false, ox, oy);
-                    new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, GPU::Quad::kEdge, cover, iy, int(segments->idx), int(begin), i - begin);
-                }
+                if (lx != ux)
+                    writeEdges(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Quad::kEdge, cover, iy, int(segments->idx), int(begin), i - begin, gpu);
             }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info del, uint8_t *src, Bitmap *bitmap) {
