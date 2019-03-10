@@ -213,20 +213,26 @@ struct Rasterizer {
     struct GPU {
         struct Allocator {
             void init(size_t w, size_t h) {
-                width = w, height = h, sheet = strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
+                width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
             }
             void alloc(float w, float h, float& ox, float& oy) {
-                h = h > Context::kfh ? kFastHeight : Context::kfh;
-                Bounds& b = h > Context::kfh ? fast : strip;
-                if (b.ux - b.lx < w) {
+                Bounds *b = & strip;
+                float hght = Context::kfh;
+                if (h > Context::kfh) {
+                    if (h > kFastHeight)
+                        hght = kMoleculesHeight, b = & molecules;
+                    else
+                        hght = kFastHeight, b = & fast;
+                }
+                if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < h)
                         sheet = Bounds(0.f, 0.f, width, height), strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
-                    b.lx = sheet.lx, b.ly = sheet.ly, b.ux = sheet.ux, b.uy = sheet.ly + h, sheet.ly = b.uy;
+                    b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
-                ox = b.lx, b.lx += w, oy = b.ly;
+                ox = b->lx, b->lx += w, oy = b->ly;
             }
             size_t width, height;
-            Bounds sheet, strip, fast;
+            Bounds sheet, strip, fast, molecules;
         };
         struct Cell {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
@@ -655,7 +661,7 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool slow = clip.uy - clip.ly > kFastHeight, molecules = path.ref->moleculesCount > 1 && clip.uy - clip.ly <= kMoleculeHeight;
+                bool slow = clip.uy - clip.ly > kFastHeight, molecules = path.ref->moleculesCount > 1 && clip.uy - clip.ly <= kMoleculesHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
