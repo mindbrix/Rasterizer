@@ -40,6 +40,9 @@ struct Rasterizer {
             lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
             ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
         }
+        inline void extend(float x, float y) {
+            lx = lx < x ? lx : x, ux = ux > x ? ux : x, ly = ly < y ? ly : y, uy = uy > y ? uy : y;
+        }
         Bounds integral() const { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
         inline Bounds intersect(Bounds other) const {
             return {
@@ -67,7 +70,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Geometry() : end(Atom::kCapacity), atomsCount(0), moleculesCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -80,11 +83,9 @@ struct Rasterizer {
         void update(Atom::Type type, size_t size, float *p) {
             atomsCount += size, counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == Atom::kMove)
-                moleculesCount++;
-            while (size--) {
-                bounds.lx = bounds.lx < *p ? bounds.lx : *p, bounds.ux = bounds.ux > *p ? bounds.ux : *p, p++,
-                bounds.ly = bounds.ly < *p ? bounds.ly : *p, bounds.uy = bounds.uy > *p ? bounds.uy : *p, p++;
-            }
+                molecules.emplace_back(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+            while (size--)
+                bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
         }
         void addShapes(size_t count) {
             shapesCount = count, bounds = Bounds(-5e11f, -5e11f, 5e11f, 5e11f);
@@ -129,8 +130,9 @@ struct Rasterizer {
         void close() {
             update(Atom::kClose, 1, alloc(Atom::kClose, 1));
         }
-        size_t refCount, atomsCount, moleculesCount, shapesCount, hash, end, counts[Atom::kClose + 1];
+        size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kClose + 1];
         std::vector<Atom> atoms;
+        std::vector<Bounds> molecules;
         float px, py;
         AffineTransform *shapes;
         bool *circles, isGlyph;
@@ -699,7 +701,7 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool slow = clip.uy - clip.ly > kMoleculesHeight, molecules = !slow && path.ref->moleculesCount > 1 && clip.uy - clip.ly > kFastHeight;
+                bool slow = clip.uy - clip.ly > kMoleculesHeight, molecules = !slow && path.ref->molecules.size() > 1 && clip.uy - clip.ly > kFastHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
@@ -710,7 +712,7 @@ struct Rasterizer {
                     size_t count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     *ctm = m;
                     if (molecules) {
-                        cells = path.ref->moleculesCount, instances = 0;
+                        cells = path.ref->molecules.size(), instances = 0;
                         for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX)
                                 instances += (s - is + kFastSegments - 1) / kFastSegments, is = s + 1;
