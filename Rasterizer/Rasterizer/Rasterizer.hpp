@@ -233,6 +233,7 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 ox = b->lx, b->lx += w, oy = b->ly;
+                assert(passes.end);
                 Entry& entry = passes.base[passes.end - 1];
                 entry.edgeCells += edgeCells;
                 if (isFast)
@@ -468,7 +469,8 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::Entry::kSegments, begin, end), idxes.emplace_back(0);
                 begin = end;
             }
-            while (ctx->gpu.quads.idx != ctx->gpu.quads.end) {
+            GPU::Allocator::Entry *e = ctx->gpu.allocator.passes.end ? ctx->gpu.allocator.passes.base : nullptr;
+            for (; ctx->gpu.quads.idx != ctx->gpu.quads.end; e += e ? 1 : 0) {
                 q0 = ctx->gpu.quads.base + ctx->gpu.quads.idx, q1 = ctx->gpu.quads.base + ctx->gpu.quads.end;
                 size_t cellCount = 0, edgeCount = 0, fastCount = 0;
                 for (qidx = q0; qidx < q1; qidx++)
@@ -483,6 +485,8 @@ struct Rasterizer {
                                 edgeCount += (qidx->super.count + 1) / 2;
                         }
                     }
+//                if (e)
+//                    assert(e->edgeCells == cellCount && e->edgeInstances == edgeCount && e->fastInstances == fastCount);
                 end += cellCount * sizeof(GPU::EdgeCell);
                 entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
