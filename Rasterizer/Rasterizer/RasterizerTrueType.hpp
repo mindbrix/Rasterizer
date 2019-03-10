@@ -82,7 +82,7 @@ struct RasterizerTrueType {
     
     static Rasterizer::Path writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, bool left, const char *str,
                             std::vector<Rasterizer::Colorant>& bgras,
-                            std::vector<Rasterizer::AffineTransform>& ctms,
+                            std::vector<Rasterizer::Transform>& ctms,
                             std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
             return Rasterizer::Path();
@@ -164,7 +164,7 @@ struct RasterizerTrueType {
         shapes.ref->addShapes(paths.size() - base);
         if (0)
             memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
-        Rasterizer::AffineTransform *dst = shapes.ref->shapes;
+        Rasterizer::Transform *dst = shapes.ref->shapes;
         float lx = FLT_MAX, ly = FLT_MAX, ux = -FLT_MAX, uy = -FLT_MAX;
         for (i = base; i < paths.size(); i++, dst++) {
             *dst = paths[i].ref->bounds.unit(ctms[i]);
@@ -177,7 +177,7 @@ struct RasterizerTrueType {
     }
     static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
                                std::vector<Rasterizer::Colorant>& bgras,
-                               std::vector<Rasterizer::AffineTransform>& ctms,
+                               std::vector<Rasterizer::Transform>& ctms,
                                std::vector<Rasterizer::Path>& paths) {
         if (font.info.numGlyphs == 0)
             return;

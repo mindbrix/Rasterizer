@@ -11,17 +11,17 @@
 #pragma clang diagnostic ignored "-Wcomma"
 
 struct Rasterizer {
-    struct AffineTransform {
-        AffineTransform() {}
-        AffineTransform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        inline AffineTransform concat(AffineTransform t) const {
+    struct Transform {
+        Transform() {}
+        Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        inline Transform concat(Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
                 t.c * a + t.d * c, t.c * b + t.d * d,
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
-        inline AffineTransform invert() const {
+        inline Transform invert() const {
             float det = a * d - b * c, recip = 1.f / det;
             if (det == 0.f)
                 return *this;
@@ -36,7 +36,7 @@ struct Rasterizer {
     struct Bounds {
         Bounds() {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        Bounds(AffineTransform t) {
+        Bounds(Transform t) {
             lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
             ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
         }
@@ -50,10 +50,10 @@ struct Rasterizer {
                 ux < other.lx ? other.lx : ux > other.ux ? other.ux : ux, uy < other.ly ? other.ly : uy > other.uy ? other.uy : uy
             };
         }
-        inline Bounds transform(AffineTransform ctm) const {
+        inline Bounds transform(Transform ctm) const {
             return Bounds(unit(ctm));
         }
-        inline AffineTransform unit(AffineTransform t) const {
+        inline Transform unit(Transform t) const {
             return { t.a * (ux - lx), t.b * (ux - lx), t.c * (uy - ly), t.d * (uy - ly), lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty };
         }
         float lx, ly, ux, uy;
@@ -89,7 +89,7 @@ struct Rasterizer {
         }
         void addShapes(size_t count) {
             shapesCount = count, bounds = Bounds(-5e11f, -5e11f, 5e11f, 5e11f);
-            shapes = (AffineTransform *)calloc(count, sizeof(shapes[0])), circles = (bool *)calloc(count, sizeof(bool));
+            shapes = (Transform *)calloc(count, sizeof(shapes[0])), circles = (bool *)calloc(count, sizeof(bool));
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
         
@@ -134,7 +134,7 @@ struct Rasterizer {
         std::vector<Atom> atoms;
         std::vector<Bounds> molecules;
         float px, py;
-        AffineTransform *shapes;
+        Transform *shapes;
         bool *circles, isGlyph;
         Bounds bounds;
     };
@@ -274,11 +274,11 @@ struct Rasterizer {
         struct Quad {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, int iy, int end, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
-            Quad(AffineTransform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
+            Quad(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             union {
                 SuperCell super;
-                AffineTransform unit;
+                Transform unit;
                 Outline outline;
             };
             uint32_t iz;
@@ -293,13 +293,14 @@ struct Rasterizer {
         };
         GPU() { empty(); }
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty();
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr;
         }
         size_t shapesCount, shapePaths, outlinePaths;
         Allocator allocator;
         Row<Index> indices;
         Row<Quad> quads, opaques;
         Row<Segment> outlines;
+        Transform *ctms;
     };
     struct Buffer {
         struct Entry {
@@ -379,9 +380,9 @@ struct Rasterizer {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
-            Entry(AffineTransform ctm) : ctm(ctm) {}
+            Entry(Transform ctm) : ctm(ctm) {}
             int begin, end;
-            AffineTransform ctm;
+            Transform ctm;
         };
         struct Chunk {
             Entry entries[kChunkSize];
@@ -418,7 +419,7 @@ struct Rasterizer {
         };
         void empty() { grid->empty(), segments.empty(); }
         
-        Entry *getPath(Path& path, AffineTransform ctm, AffineTransform *m) {
+        Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid->chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
@@ -433,7 +434,7 @@ struct Rasterizer {
             }
             return e;
         }
-        void writeCachedOutline(Entry *e, AffineTransform m, Info info) {
+        void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
             Segment *s = segments.base + e->begin, *end = segments.base + e->end;
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
@@ -452,11 +453,11 @@ struct Rasterizer {
     };
     
     struct Context {
-        static AffineTransform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
+        static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         
         static void writeContextToBuffer(Context *ctx,
                                            Path *paths,
-                                           AffineTransform *ctms,
+                                           Transform *ctms,
                                            Colorant *colorants,
                                            size_t begin,
                                            std::vector<Buffer::Entry>& entries,
@@ -526,7 +527,7 @@ struct Rasterizer {
                         entry->end += sizeof(GPU::Quad);
                         
                         if (quad->iz & GPU::Quad::kMolecule) {
-                            AffineTransform& m = ctms[quad->iz & kPathIndexMask];
+                            Transform& m = ctms[quad->iz & kPathIndexMask];
                             Bounds *molecule = & paths[quad->iz & kPathIndexMask].ref->molecules[0];
                             Segment *ls = ctx->cache.segments.base + quad->super.end, *us = ls + quad->super.count, *is = ls, *s = ls;
                             float ux, x;
@@ -589,14 +590,14 @@ struct Rasterizer {
         }
         static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                           Path *paths,
-                                          AffineTransform *ctms,
+                                          Transform *ctms,
                                           Colorant *colorants,
-                                          AffineTransform *clips,
+                                          Transform *clips,
                                           size_t pathsCount,
                                           size_t *begins,
                                           Buffer& buffer) {
             size_t size, sz, i, j, begin, end, idx, cells, instances;
-            size = pathsCount * (sizeof(Colorant) + 2 * sizeof(AffineTransform));
+            size = pathsCount * (sizeof(Colorant) + 2 * sizeof(Transform));
             for (i = 0; i < count; i++)
                 size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
             for (i = 0; i < count; i++) {
@@ -614,10 +615,10 @@ struct Rasterizer {
             begin = end = 0, end += pathsCount * sizeof(Colorant), memcpy(buffer.data.base + begin, colorants, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             
-            begin = end, end += pathsCount * sizeof(AffineTransform), memcpy(buffer.data.base + begin, ctms, end - begin);
+            begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, ctms, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, begin, end);
             
-            begin = end, end += pathsCount * sizeof(AffineTransform), memcpy(buffer.data.base + begin, clips, end - begin);
+            begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, clips, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kClips, begin, end);
             
             for (idx = begin = end, i = 0; i < count; i++)
@@ -646,17 +647,17 @@ struct Rasterizer {
             gpu.allocator.init(width, height);
             cache.empty();
         }
-        void drawPaths(Path *paths, AffineTransform *ctms, bool even, Colorant *colors, AffineTransform *clips, float width, size_t begin, size_t end) {
+        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t begin, size_t end) {
             if (begin == end)
                 return;
             size_t iz;
-            AffineTransform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
+            Transform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds device = bounds;
             for (paths += begin, ctms += begin, clips += begin, iz = begin; iz < end; iz++, paths++, ctms++, clips++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
-                    if (memcmp(clips, & t, sizeof(AffineTransform)))
+                    if (memcmp(clips, & t, sizeof(Transform)))
                         device = Bounds(*clips).integral().intersect(bounds), inv = bitmap.width ? inv : clips->invert(), t = *clips;
-                    AffineTransform unit = paths->ref->bounds.unit(*ctms);
+                    Transform unit = paths->ref->bounds.unit(*ctms);
                     Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device);
                     bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
@@ -678,17 +679,17 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
         Cache cache;
     };
-    static void writeBitmapPath(Path& path, AffineTransform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
+    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
         if (stride * h < deltasSize) {
-            writePath(path, AffineTransform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
+            writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
             writeDeltas(Info(deltas, stride), clip, even, src, bm);
         } else {
             writePath(path, ctm, clip, writeClippedSegment, sgmnts);
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
         }
     }
-    static void writeGPUPath(Path& path, AffineTransform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu, Cache& cache) {
+    static void writeGPUPath(Path& path, Transform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu, Cache& cache) {
         if (path.ref->shapes) {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(*ctm, iz, GPU::Quad::kShapes);
@@ -703,7 +704,7 @@ struct Rasterizer {
                 gpu.allocator.countQuad();
             } else {
                 Cache::Entry *entry = nullptr;
-                AffineTransform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kMoleculesHeight, molecules = !slow && path.ref->molecules.size() > 1 && clip.uy - clip.ly > kFastHeight;
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
@@ -731,7 +732,7 @@ struct Rasterizer {
         gpu.allocator.alloc(ux - lx, uy - ly, gpu.quads.end, cells, instances, fast, ox, oy);
         new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, type, cover, iy, end, begin, count);
     }
-    static void writePath(Path& path, AffineTransform ctm, Bounds clip, Function function, Info info) {
+    static void writePath(Path& path, Transform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
         for (Geometry::Atom& atom : path.ref->atoms)

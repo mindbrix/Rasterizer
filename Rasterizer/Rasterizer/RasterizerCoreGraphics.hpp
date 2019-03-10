@@ -38,10 +38,10 @@ struct RasterizerCoreGraphics {
                 CGPathRelease(path);
             }
     }
-    static void drawCGScene(CGScene& scene, const Rasterizer::AffineTransform ctm, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+    static void drawCGScene(CGScene& scene, const Rasterizer::Transform ctm, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (size_t i = 0; i < scene.paths.size(); i++) {
             Rasterizer::Bounds b = boundsFromCGRect(scene.bounds[i]);
-            Rasterizer::AffineTransform t = transformFromCGAffineTransform(scene.ctms[i]);
+            Rasterizer::Transform t = transformFromCGAffineTransform(scene.ctms[i]);
             Rasterizer::Bounds clip = b.transform(ctm.concat(t)).integral().intersect(bounds);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 CGContextSaveGState(ctx);
@@ -113,10 +113,10 @@ struct RasterizerCoreGraphics {
         CGColorSpaceRelease(srcSpace);
         return color;
     }
-    static Rasterizer::AffineTransform transformFromCGAffineTransform(CGAffineTransform t) {
-        return Rasterizer::AffineTransform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
+    static Rasterizer::Transform transformFromCGAffineTransform(CGAffineTransform t) {
+        return Rasterizer::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }
-    static CGAffineTransform CGAffineTransformFromTransform(Rasterizer::AffineTransform t) {
+    static CGAffineTransform CGAffineTransformFromTransform(Rasterizer::Transform t) {
         return CGAffineTransformMake(t.a, t.b, t.c, t.d, t.tx, t.ty);
     }
     static Rasterizer::Bounds boundsFromCGRect(CGRect rect) {
@@ -214,7 +214,7 @@ struct RasterizerCoreGraphics {
         CGFloat phi;
     };
     
-    static void renderPaths(std::vector<Rasterizer::Context>& contexts, Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::Colorant *colors, Rasterizer::AffineTransform *clips, float width, size_t pathsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    static void renderPaths(std::vector<Rasterizer::Context>& contexts, Rasterizer::Path *paths, Rasterizer::Transform *ctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, size_t pathsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         size_t slice, ly, uy, count;
         if (multithread) {
             if (buffer) {
@@ -269,8 +269,8 @@ struct RasterizerCoreGraphics {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::AffineTransform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
-        Rasterizer::AffineTransform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+        Rasterizer::Transform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
@@ -279,10 +279,10 @@ struct RasterizerCoreGraphics {
         } else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             size_t pathsCount = testScene.scene.paths.size();
-            Rasterizer::AffineTransform *ctms = (Rasterizer::AffineTransform *)malloc(pathsCount * sizeof(ctm));
+            Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
             uint32_t *bgras = (uint32_t *)malloc(pathsCount * sizeof(uint32_t));
             Rasterizer::Colorant *colors = (Rasterizer::Colorant *)malloc(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colors;
-            Rasterizer::AffineTransform *clips = (Rasterizer::AffineTransform *)malloc(pathsCount * sizeof(Rasterizer::AffineTransform)), *cl = clips;
+            Rasterizer::Transform *clips = (Rasterizer::Transform *)malloc(pathsCount * sizeof(Rasterizer::Transform)), *cl = clips;
             
             for (size_t i = 0; i < pathsCount; i++)
                 ctms[i] = ctm.concat(testScene.scene.ctms[i]);
@@ -294,7 +294,7 @@ struct RasterizerCoreGraphics {
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
-            Rasterizer::AffineTransform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
+            Rasterizer::Transform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
             for (int i = 0; i < pathsCount; i++, cl++)
                 *cl = clip;
             

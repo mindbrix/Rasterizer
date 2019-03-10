@@ -178,7 +178,7 @@
     uint32_t reverse, pathCount;
     size_t colorantsOffset = 0, affineTransformsOffset = 0, clipsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
-    Rasterizer::AffineTransform clip;
+    Rasterizer::Transform clip;
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {

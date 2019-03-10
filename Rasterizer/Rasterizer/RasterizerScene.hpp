@@ -11,13 +11,13 @@
 struct RasterizerScene {
     struct Scene {
         void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
-        void addPath(Rasterizer::Path path, Rasterizer::AffineTransform ctm, uint8_t *bgra) {
+        void addPath(Rasterizer::Path path, Rasterizer::Transform ctm, uint8_t *bgra) {
             bgras.emplace_back(bgra);
             paths.emplace_back(path);
             ctms.emplace_back(ctm);
         }
         std::vector<Rasterizer::Colorant> bgras;
-        std::vector<Rasterizer::AffineTransform> ctms;
+        std::vector<Rasterizer::Transform> ctms;
         std::vector<Rasterizer::Path> paths;
     };
     struct WindingInfo {
@@ -35,7 +35,7 @@ struct RasterizerScene {
                 winding.winding--;
         }
     }
-    static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::AffineTransform *ctms, bool even, Rasterizer::AffineTransform *clips, Rasterizer::AffineTransform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
+    static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::Transform *ctms, bool even, Rasterizer::Transform *clips, Rasterizer::Transform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
         for (int i = int(end) - 1; i >= int(begin); i--) {
             int winding = pointWinding(paths[i], view.concat(ctms[i]), clips[i], bounds, dx, dy);
             if ((even && (winding & 1)) || winding)
@@ -43,10 +43,10 @@ struct RasterizerScene {
         }
         return INT_MAX;
     }
-    static int pointWinding(Rasterizer::Path& path, Rasterizer::AffineTransform ctm, Rasterizer::AffineTransform device, Rasterizer::Bounds bounds, float dx, float dy) {
+    static int pointWinding(Rasterizer::Path& path, Rasterizer::Transform ctm, Rasterizer::Transform device, Rasterizer::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
         if (path.ref->atomsCount) {
-            Rasterizer::AffineTransform inv, unit;
+            Rasterizer::Transform inv, unit;
             Rasterizer::Bounds clip;
             float ux, uy;
             inv = device.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;

@@ -101,7 +101,7 @@
             Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), false, string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
             if ((0)) {
                 _testScene.scene.empty();
-                _testScene.scene.addPath(shapes, Rasterizer::AffineTransform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
+                _testScene.scene.addPath(shapes, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
         }
 		else
@@ -175,9 +175,9 @@
         return;
         
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-	Rasterizer::AffineTransform view(self.CTM.a, self.CTM.b, self.CTM.c, self.CTM.d, self.CTM.tx, self.CTM.ty);
-    Rasterizer::AffineTransform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
-    Rasterizer::AffineTransform ctm = contentsScale.concat(view);
+	Rasterizer::Transform view(self.CTM.a, self.CTM.b, self.CTM.c, self.CTM.d, self.CTM.tx, self.CTM.ty);
+    Rasterizer::Transform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
+    Rasterizer::Transform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     Rasterizer::Path clipPath;
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
@@ -192,7 +192,7 @@
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     CGContextConcatCTM(ctx, self.CTM);
     CGAffineTransform CTM = CGContextGetCTM(ctx);
-    Rasterizer::AffineTransform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
+    Rasterizer::Transform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
