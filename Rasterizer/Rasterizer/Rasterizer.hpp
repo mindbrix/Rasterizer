@@ -327,6 +327,24 @@ struct Rasterizer {
             Row<Pass> passes;
             Bounds sheet, strip, fast, molecules;
         };
+        struct Molecules {
+            struct Entry {
+                Entry(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
+                int begin, end;
+            };
+            struct Cell {
+                Cell(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
+                float ux;
+                int begin, end;
+            };
+            Cell *alloc(size_t size) {
+                new (entries.alloc(1)) Entry(cells.idx, cells.idx + size), cells.idx += size;
+                return cells.alloc(size);
+            }
+            void empty() { entries.empty(), cells.empty(); }
+            Row<Entry> entries;
+            Row<Cell> cells;
+        };
         struct Cell {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
             short lx, ly, ux, uy, ox, oy;
@@ -363,24 +381,6 @@ struct Rasterizer {
         struct Edge {
             int ic;
             uint16_t i0, i1;
-        };
-        struct Molecules {
-            struct Entry {
-                Entry(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
-                int begin, end;
-            };
-            struct Cell {
-                Cell(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
-                float ux;
-                int begin, end;
-            };
-            Cell *alloc(size_t size) {
-                new (entries.alloc(1)) Entry(cells.idx, cells.idx + size), cells.idx += size;
-                return cells.alloc(size);
-            }
-            void empty() { entries.empty(), cells.empty(); }
-            Row<Entry> entries;
-            Row<Cell> cells;
         };
         GPU() { empty(); }
         void empty() {
