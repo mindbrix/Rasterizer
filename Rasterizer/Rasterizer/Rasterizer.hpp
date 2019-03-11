@@ -234,7 +234,7 @@ struct Rasterizer {
                     if (sheet.uy - sheet.ly < hght) {
                         if (sheet.ux)
                             new (passes.alloc(1)) Entry(idx);
-                        sheet = Bounds(0.f, 0.f, width, height), strip = fast = Bounds(0.f, 0.f, 0.f, 0.f);
+                        sheet = Bounds(0.f, 0.f, width, height), strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
