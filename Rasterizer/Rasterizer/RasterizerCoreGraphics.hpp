@@ -151,9 +151,11 @@ struct RasterizerCoreGraphics {
     static void CGPathApplierFunction(void *info, const CGPathElement *element) {
         ((CGPathApplier *)info)->apply(element);
     };
-    static void writeCGPathToPath(CGPathRef path, Rasterizer::Path p) {
+    static Rasterizer::Path createPathFromCGPath(CGPathRef path) {
+        Rasterizer::Path p;
         CGPathApplier applier(p);
         CGPathApply(path, & applier, CGPathApplierFunction);
+        return p;
     }
     
     static void writePathToCGPath(Rasterizer::Path p, CGMutablePathRef path) {

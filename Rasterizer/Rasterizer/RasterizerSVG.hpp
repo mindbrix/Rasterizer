@@ -63,8 +63,6 @@ struct RasterizerSVG {
                     scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
-                    scene.bgras.emplace_back(colorFromPaint(shape->stroke));
-                    
                     Rasterizer::Path s = createPathFromShape(shape);
                     float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
                     CGMutablePathRef path = CGPathCreateMutable();
@@ -72,12 +70,14 @@ struct RasterizerSVG {
                     CGLineCap cap = shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound;
                     CGLineJoin join = shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel;
                     CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, cap, join, shape->miterLimit, shape->strokeWidth > dim ? 1 : 10);
-                    
-                    scene.paths.emplace_back();
-                    RasterizerCoreGraphics::writeCGPathToPath(stroked, scene.paths.back());
+                    Rasterizer::Path p = RasterizerCoreGraphics::createPathFromCGPath(stroked);
+                    if (p.ref->atomsCount < 32767) {
+                        scene.paths.emplace_back(p);
+                        scene.bgras.emplace_back(colorFromPaint(shape->stroke));
+                        scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
+                    }
                     CGPathRelease(path);
                     CGPathRelease(stroked);
-                    scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
                 }
             }
             // Delete
