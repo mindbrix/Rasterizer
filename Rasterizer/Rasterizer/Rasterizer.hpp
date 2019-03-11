@@ -698,8 +698,9 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
-                bool molecules = !slow && path.ref->molecules.size() > 1 && (clip.uy - clip.ly > kFastHeight || clip.ux - clip.lx > kFastHeight);
+                bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
+                bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight || (!fast && path.ref->atomsCount < 256);
+                bool molecules = !slow && !fast && path.ref->molecules.size() > 1;
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
