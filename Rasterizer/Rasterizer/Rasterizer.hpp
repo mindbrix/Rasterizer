@@ -295,18 +295,18 @@ struct Rasterizer {
                 Entry(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
                 int begin, end;
             };
-            struct Data {
-                Data(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
+            struct Cell {
+                Cell(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
                 float ux;
                 int begin, end;
             };
-            Data *alloc(size_t cells) {
-                new (entries.alloc(1)) Entry(data.idx, data.idx + cells), data.idx += cells;
-                return data.alloc(cells);
+            Cell *alloc(size_t size) {
+                new (entries.alloc(1)) Entry(cells.idx, cells.idx + size), cells.idx += size;
+                return cells.alloc(size);
             }
-            void empty() { entries.empty(), data.empty(); }
+            void empty() { entries.empty(), cells.empty(); }
             Row<Entry> entries;
-            Row<Data> data;
+            Row<Cell> cells;
         };
         GPU() { empty(); }
         void empty() {
@@ -544,7 +544,7 @@ struct Rasterizer {
                         
                         if (quad->iz & GPU::Quad::kMolecule) {
                             GPU::Molecules::Entry *me = & ctx->gpu.molecules.entries.base[quad->super.begin];
-                            GPU::Molecules::Data *data = & ctx->gpu.molecules.data.base[me->begin];
+                            GPU::Molecules::Cell *data = & ctx->gpu.molecules.cells.base[me->begin];
                             for (k = me->begin; k < me->end; k++, cell++, data++) {
                                 cell->cell = quad->super.cell;
                                 cell->cell.ux = data->ux;
@@ -722,14 +722,14 @@ struct Rasterizer {
                     if (molecules) {
                         cells = path.ref->molecules.size(), instances = 0;
                         midx = gpu.molecules.entries.end;
-                        GPU::Molecules::Data *data = gpu.molecules.alloc(cells);
+                        GPU::Molecules::Cell *data = gpu.molecules.alloc(cells);
                         Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
                                 float ux = ceilf(molecule->transform(*ctm).ux);
                                 ux = ux < clip.lx ? clip.lx : ux;
                                 ux = ux > clip.ux ? clip.ux : ux;
-                                new (data) GPU::Molecules::Data(ux, is - ls, s - ls);
+                                new (data) GPU::Molecules::Cell(ux, is - ls, s - ls);
                                 instances += (s - is + kFastSegments - 1) / kFastSegments;
                                 is = s + 1, molecule++, data++;
                             }
