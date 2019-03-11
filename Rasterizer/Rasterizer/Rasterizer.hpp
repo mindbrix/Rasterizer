@@ -281,15 +281,15 @@ struct Rasterizer {
         void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
             Segment *s = segments.base + e->begin, *end = segments.base + e->end;
-            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
+                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh);
                 if (s->x0 != FLT_MAX) {
                     if (iy0 == iy1 && y0 != y1)
                         new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
                     else
                         writeClippedSegment(x0, y0, x1, y1, & info);
                 } else if (s < end - 1)
-                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
             }
         }
         Grid grid0, *grid = & grid0;
@@ -306,8 +306,8 @@ struct Rasterizer {
             }
             void alloc(float w, float h, size_t idx, size_t cells, size_t instances, bool isFast, float& ox, float& oy) {
                 Bounds *b = & strip;
-                float hght = Context::kfh;
-                if (h > Context::kfh) {
+                float hght = kfh;
+                if (h > kfh) {
                     if (h > kFastHeight)
                         hght = kMoleculesHeight, b = & molecules;
                     else
@@ -422,16 +422,16 @@ struct Rasterizer {
     static void writeClippedSegment(float x0, float y0, float x1, float y1, Info *info) {
         if (y0 == y1)
             return;
-        float iy0 = y0 * Context::krfh, iy1 = y1 * Context::krfh;
+        float iy0 = y0 * krfh, iy1 = y1 * krfh;
         if (floorf(iy0) == floorf(iy1))
             new (info->segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
         else {
             float sy1, dy, sx1, dx;
             int s, ds, count;
             if (y0 < y1)
-                iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * Context::kfh, dy = Context::kfh, s = iy0, ds = 1;
+                iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * kfh, dy = kfh, s = iy0, ds = 1;
             else
-                iy0 = floorf(iy1), iy1 = ceilf(y0 * Context::krfh), sy1 = iy1 * Context::kfh, dy = -Context::kfh, s = iy1 - 1.f, ds = -1;
+                iy0 = floorf(iy1), iy1 = ceilf(y0 * krfh), sy1 = iy1 * kfh, dy = -kfh, s = iy1 - 1.f, ds = -1;
             count = iy1 - iy0;
             dx = dy / (y1 - y0) * (x1 - x0), sx1 = (sy1 - y0) / dy * dx + x0;
             while (--count) {
@@ -519,7 +519,6 @@ struct Rasterizer {
         Bitmap bitmap;
         GPU gpu;
         Bounds bounds;
-        static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
     };
@@ -886,7 +885,7 @@ struct Rasterizer {
         }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
-        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), count, i, begin;
+        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), count, i, begin;
         uint16_t counts[256], iy;
         float ly, uy, scale, cover, winding, lx, ux, x;
         bool single = clip.ux - clip.lx < 256.f;
@@ -902,8 +901,8 @@ struct Rasterizer {
                 else
                     std::sort(indices.base + indices.idx, indices.base + indices.end);
                 
-                ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux)
@@ -929,14 +928,14 @@ struct Rasterizer {
             }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info del, uint8_t *src, Bitmap *bitmap) {
-        size_t ily = floorf(clip.ly * Context::krfh), iuy = ceilf(clip.uy * Context::krfh), iy, i;
+        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Segment *segment;
         Row<Index> indices;    Index *index;
         for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
-            ly = iy * Context::kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-            uy = (iy + 1) * Context::kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+            ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+            uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             if (segments->end) {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
