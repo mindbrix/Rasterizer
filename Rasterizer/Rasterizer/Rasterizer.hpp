@@ -544,16 +544,16 @@ struct Rasterizer {
                         
                         if (quad->iz & GPU::Quad::kMolecule) {
                             GPU::Molecules::Entry *me = & ctx->gpu.molecules.entries.base[quad->super.begin];
-                            GPU::Molecules::Cell *data = & ctx->gpu.molecules.cells.base[me->begin];
-                            for (k = me->begin; k < me->end; k++, cell++, data++) {
+                            GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[me->begin];
+                            for (k = me->begin; k < me->end; k++, cell++, mc++) {
                                 cell->cell = quad->super.cell;
-                                cell->cell.ux = data->ux;
+                                cell->cell.ux = mc->ux;
                                 cell->im = quad->super.iy;
                                 cell->base = int(quad->super.end);
                                 int ic = int(cell - c0);
-                                for (j = data->begin; j < data->end; fast++)
+                                for (j = mc->begin; j < mc->end; fast++)
                                     fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                (fast - 1)->i1 = data->end;
+                                (fast - 1)->i1 = mc->end;
                             }
                         } else if (quad->iz & GPU::Quad::kEdge) {
                             cell->cell = quad->super.cell;
