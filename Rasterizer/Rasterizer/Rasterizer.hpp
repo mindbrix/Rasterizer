@@ -384,11 +384,11 @@ struct Rasterizer {
         }
         size_t shapesCount, shapePaths, outlinePaths;
         Allocator allocator;
+        Molecules molecules;
         Row<Index> indices;
         Row<Quad> quads, opaques;
         Row<Segment> outlines;
         Transform *ctms;
-        Molecules molecules;
         Cache cache;
     };
     struct Buffer {
