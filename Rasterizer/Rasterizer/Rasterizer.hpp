@@ -219,7 +219,7 @@ struct Rasterizer {
                 size_t cells = 0, edgeInstances = 0, fastInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
-                width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Entry(0);
+                width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
             void alloc(float w, float h, size_t idx, size_t cells, size_t instances, bool isFast, float& ox, float& oy) {
                 Bounds *b = & strip;
@@ -232,7 +232,7 @@ struct Rasterizer {
                 }
                 if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < hght) {
-                        if (sheet.ux)
+                        if (!(sheet.ux == 0.f && passes.end))
                             new (passes.alloc(1)) Entry(idx);
                         sheet = Bounds(0.f, 0.f, width, height), strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
                     }
@@ -248,6 +248,8 @@ struct Rasterizer {
                     entry.edgeInstances += instances;
             }
             inline void countQuad() {
+                if (passes.end == 0)
+                    new (passes.alloc(1)) Entry(0);
                 passes.base[passes.end - 1].ui++;
             }
             size_t width, height;
@@ -502,8 +504,6 @@ struct Rasterizer {
             }
             for (int k = 0; k < ctx->gpu.allocator.passes.end; k++) {
                 GPU::Allocator::Entry& e = ctx->gpu.allocator.passes.base[k];
-                if (e.li == e.ui)
-                    continue;
                 end += e.cells * sizeof(GPU::EdgeCell);
                 entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;

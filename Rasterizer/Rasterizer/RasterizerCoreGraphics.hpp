@@ -268,7 +268,7 @@ struct RasterizerCoreGraphics {
                 for (auto entry : e[i])
                     *(buffer->entries.alloc(1)) = entry;
             size_t end = buffer->entries.base[buffer->entries.end - 1].end;
-            assert(size >= end);
+            assert(size == end);
         }
     }
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
