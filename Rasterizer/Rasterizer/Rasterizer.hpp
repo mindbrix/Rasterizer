@@ -212,6 +212,88 @@ struct Rasterizer {
         size_t size;
         T *base;
     };
+    struct Info {
+        Info(void *info) : info(info), stride(0) {}
+        Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
+        Info(Row<Segment> *segments) : segments(segments), stride(0) {}
+        union { void *info;  float *deltas;  Row<Segment> *segments; };
+        uint32_t stride;
+    };
+    struct Cache {
+        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
+        struct Entry {
+            Entry() {}
+            Entry(Transform ctm) : ctm(ctm) {}
+            int begin, end;
+            Transform ctm;
+        };
+        struct Chunk {
+            Entry entries[kChunkSize];
+            size_t hashes[kChunkSize];
+            uint32_t end = 0, next = 0;
+        };
+        struct Grid {
+            Grid() { empty(); }
+            void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
+            Chunk *chunk(size_t hash) {
+                uint16_t& idx = grid[hash & kGridMask];
+                if (idx == 0)
+                    idx = chunks.end, new (chunks.alloc(1)) Chunk();
+                return chunks.base + idx;
+            }
+            Entry *alloc(Chunk *chunk, size_t hash) {
+                if (chunk->end == kChunkSize) {
+                    uint16_t& idx = grid[chunk->hashes[0] & kGridMask], next = idx;
+                    idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
+                }
+                chunk->hashes[chunk->end] = hash;
+                return chunk->entries + chunk->end++;
+            }
+            Entry *find(Chunk *chunk, size_t hash) {
+                do {
+                    for (int i = 0; i < chunk->end; i++)
+                        if (chunk->hashes[i] == hash)
+                            return & chunk->entries[i];
+                } while (chunk->next && (chunk = chunks.base + chunk->next));
+                return nullptr;
+            }
+            Row<Chunk> chunks;
+            uint16_t grid[kGridSize];
+        };
+        void empty() { grid->empty(), segments.empty(); }
+        
+        Entry *getPath(Path& path, Transform ctm, Transform *m) {
+            Chunk *chunk = grid->chunk(path.ref->hash);
+            Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
+            if (srch == nullptr) {
+                e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
+                e->begin = int(segments.idx);
+                writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
+                segments.idx = e->end = int(segments.end);
+            } else {
+                *m = ctm.concat(srch->ctm);
+                if (m->a == m->d && m->b == -m->c && fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f)
+                    e = srch;
+            }
+            return e;
+        }
+        void writeCachedOutline(Entry *e, Transform m, Info info) {
+            float x0, y0, x1, y1, iy0, iy1;
+            Segment *s = segments.base + e->begin, *end = segments.base + e->end;
+            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
+                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+                if (s->x0 != FLT_MAX) {
+                    if (iy0 == iy1 && y0 != y1)
+                        new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
+                    else
+                        writeClippedSegment(x0, y0, x1, y1, & info);
+                } else if (s < end - 1)
+                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
+            }
+        }
+        Grid grid0, *grid = & grid0;
+        Row<Segment> segments;
+    };
     struct GPU {
         struct Allocator {
             struct Pass {
@@ -319,6 +401,7 @@ struct Rasterizer {
         Row<Segment> outlines;
         Transform *ctms;
         Molecules molecules;
+        Cache cache;
     };
     struct Buffer {
         struct Entry {
@@ -330,13 +413,6 @@ struct Rasterizer {
         Pages<uint8_t> data;
         Row<Entry> entries;
         Colorant clearColor;
-    };
-    struct Info {
-        Info(void *info) : info(info), stride(0) {}
-        Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
-        Info(Row<Segment> *segments) : segments(segments), stride(0) {}
-        union { void *info;  float *deltas;  Row<Segment> *segments; };
-        uint32_t stride;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
@@ -394,81 +470,6 @@ struct Rasterizer {
             }
         }
     }
-    struct Cache {
-        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
-        struct Entry {
-            Entry() {}
-            Entry(Transform ctm) : ctm(ctm) {}
-            int begin, end;
-            Transform ctm;
-        };
-        struct Chunk {
-            Entry entries[kChunkSize];
-            size_t hashes[kChunkSize];
-            uint32_t end = 0, next = 0;
-        };
-        struct Grid {
-            Grid() { empty(); }
-            void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
-            Chunk *chunk(size_t hash) {
-                uint16_t& idx = grid[hash & kGridMask];
-                if (idx == 0)
-                    idx = chunks.end, new (chunks.alloc(1)) Chunk();
-                return chunks.base + idx;
-            }
-            Entry *alloc(Chunk *chunk, size_t hash) {
-                if (chunk->end == kChunkSize) {
-                    uint16_t& idx = grid[chunk->hashes[0] & kGridMask], next = idx;
-                    idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
-                }
-                chunk->hashes[chunk->end] = hash;
-                return chunk->entries + chunk->end++;
-            }
-            Entry *find(Chunk *chunk, size_t hash) {
-                do {
-                    for (int i = 0; i < chunk->end; i++)
-                        if (chunk->hashes[i] == hash)
-                            return & chunk->entries[i];
-                } while (chunk->next && (chunk = chunks.base + chunk->next));
-                return nullptr;
-            }
-            Row<Chunk> chunks;
-            uint16_t grid[kGridSize];
-        };
-        void empty() { grid->empty(), segments.empty(); }
-        
-        Entry *getPath(Path& path, Transform ctm, Transform *m) {
-            Chunk *chunk = grid->chunk(path.ref->hash);
-            Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
-            if (srch == nullptr) {
-                e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
-                e->begin = int(segments.idx);
-                writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
-                segments.idx = e->end = int(segments.end);
-            } else {
-                *m = ctm.concat(srch->ctm);
-                if (m->a == m->d && m->b == -m->c && fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f)
-                    e = srch;
-            }
-            return e;
-        }
-        void writeCachedOutline(Entry *e, Transform m, Info info) {
-            float x0, y0, x1, y1, iy0, iy1;
-            Segment *s = segments.base + e->begin, *end = segments.base + e->end;
-            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * Context::krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
-                if (s->x0 != FLT_MAX) {
-                    if (iy0 == iy1 && y0 != y1)
-                        new (info.segments[size_t(iy0)].alloc(1)) Segment(x0, y0, x1, y1);
-                    else
-                        writeClippedSegment(x0, y0, x1, y1, & info);
-                } else if (s < end - 1)
-                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * Context::krfh);
-            }
-        }
-        Grid grid0, *grid = & grid0;
-        Row<Segment> segments;
-    };
     
     struct Context {
         static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
@@ -484,13 +485,13 @@ struct Rasterizer {
             GPU::Quad *quad, *qidx, *q0;
             std::vector<size_t> idxes;
             
-            size = ctx->cache.segments.end;
+            size = ctx->gpu.cache.segments.end;
             for (j = 0; j < ctx->segments.size(); j++)
                 sbegins[j] = size, size += ctx->segments[j].end;
             if (size) {
                 Segment *dst = (Segment *)(buffer.data.base + begin);
-                if (ctx->cache.segments.end)
-                    memcpy(dst, ctx->cache.segments.base, ctx->cache.segments.end * sizeof(Segment));
+                if (ctx->gpu.cache.segments.end)
+                    memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
                 for (j = 0; j < ctx->segments.size(); j++)
                     memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
                 end = begin + size * sizeof(Segment);
@@ -605,7 +606,7 @@ struct Rasterizer {
             for (i = 0; i < count; i++) {
                 begins[i] = size;
                 GPU& gpu = contexts[i].gpu;
-                Cache& cache = contexts[i].cache;
+                Cache& cache = gpu.cache;
                 for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                     cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
                 size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlines.end - gpu.outlinePaths + gpu.shapesCount - gpu.shapePaths + gpu.quads.end) * sizeof(GPU::Quad) + cache.segments.end * sizeof(Segment);
@@ -647,7 +648,7 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
-            cache.empty();
+            gpu.cache.empty();
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t begin, size_t end) {
             if (begin == end)
@@ -668,7 +669,7 @@ struct Rasterizer {
                             if (bitmap.width)
                                 writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0]), & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0]), gpu, cache);
+                                writeGPUPath(*paths, ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0]), gpu);
                         }
                     }
                 }
@@ -679,7 +680,6 @@ struct Rasterizer {
         static constexpr float kfh = kFatHeight, krfh = 1.0 / kfh;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
-        Cache cache;
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
@@ -691,7 +691,7 @@ struct Rasterizer {
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
         }
     }
-    static void writeGPUPath(Path& path, Transform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu, Cache& cache) {
+    static void writeGPUPath(Path& path, Transform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         if (path.ref->shapes) {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(*ctm, iz, GPU::Quad::kShapes);
@@ -711,11 +711,11 @@ struct Rasterizer {
                 bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
                 bool slow = (!fast && !molecules) || (clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight);
                 if (!slow || (path.ref->isGlyph && unclipped))
-                    entry = cache.getPath(path, *ctm, & m);
+                    entry = gpu.cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
                     writePath(path, *ctm, clip, writeClippedSegment, segments);
                 else if (slow)
-                    cache.writeCachedOutline(entry, m, segments);
+                    gpu.cache.writeCachedOutline(entry, m, segments);
                 if (entry && !slow) {
                     size_t midx = 0, count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     gpu.ctms[iz] = m;
@@ -724,7 +724,7 @@ struct Rasterizer {
                         midx = gpu.molecules.entries.end;
                         GPU::Molecules::Cell *data = gpu.molecules.alloc(cells);
                         Bounds *molecule = & path.ref->molecules[0];
-                        for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
+                        for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
                                 float ux = ceilf(molecule->transform(*ctm).ux);
                                 ux = ux < clip.lx ? clip.lx : ux;
