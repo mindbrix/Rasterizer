@@ -530,15 +530,10 @@ struct Rasterizer {
                             Transform& m = ctms[quad->iz & kPathIndexMask];
                             Bounds *molecule = & paths[quad->iz & kPathIndexMask].ref->molecules[0];
                             Segment *ls = ctx->cache.segments.base + quad->super.end, *us = ls + quad->super.count, *is = ls, *s = ls;
-                            float ux, x;
-                            for (ux = s->x0 * m.a + s->y0 * m.c; s < us; s++)
-                                if (s->x0 != FLT_MAX)
-                                    x = s->x1 * m.a + s->y1 * m.c, ux = ux > x ? ux : x;
-                                else {
+                            for (; s < us; s++)
+                                if (s->x0 == FLT_MAX) {
                                     cell->cell = quad->super.cell;
-                                    Bounds b = molecule->transform(m);
-                                    //ux = b.ux;
-                                    ux = ceilf(ux + m.tx);
+                                    float ux = ceilf(molecule->transform(m).ux);
                                     ux = ux < cell->cell.lx ? cell->cell.lx : ux;
                                     ux = ux > cell->cell.ux ? cell->cell.ux : ux;
                                     cell->cell.ux = ux;
@@ -550,8 +545,6 @@ struct Rasterizer {
                                         fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                                     (fast - 1)->i1 = cnt;
                                     is = s + 1;
-                                    if (is < us)
-                                        ux = is->x0 * m.a + is->y0 * m.c;
                                 }
                         } else if (quad->iz & GPU::Quad::kEdge) {
                             cell->cell = quad->super.cell;
@@ -615,7 +608,7 @@ struct Rasterizer {
             begin = end = 0, end += pathsCount * sizeof(Colorant), memcpy(buffer.data.base + begin, colorants, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
             
-            begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, ctms, end - begin);
+            begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, contexts[0].gpu.ctms, end - begin);
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, begin, end);
             
             begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, clips, end - begin);
