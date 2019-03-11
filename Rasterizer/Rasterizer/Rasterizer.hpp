@@ -165,15 +165,6 @@ struct Rasterizer {
         uint8_t *data;
         size_t width, height, stride, bpp, bytespp;
     };
-    struct Segment {
-        Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
-        float x0, y0, x1, y1;
-    };
-    struct Index {
-        Index(uint16_t x, uint16_t i) : x(x), i(i) {}
-        uint16_t x, i;
-        inline bool operator< (const Index& other) const { return x < other.x; }
-    };
     template<typename T>
     struct Memory {
         ~Memory() { if (addr) free(addr); }
@@ -212,6 +203,10 @@ struct Rasterizer {
         }
         size_t size;
         T *base;
+    };
+    struct Segment {
+        Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
+        float x0, y0, x1, y1;
     };
     struct Info {
         Info(void *info) : info(info), stride(0) {}
@@ -294,6 +289,11 @@ struct Rasterizer {
         }
         Grid grid0, *grid = & grid0;
         Row<Segment> segments;
+    };
+    struct Index {
+        Index(uint16_t x, uint16_t i) : x(x), i(i) {}
+        uint16_t x, i;
+        inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct GPU {
         struct Allocator {
