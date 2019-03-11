@@ -700,7 +700,7 @@ struct Rasterizer {
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool molecules = path.ref->atomsCount > 256 && path.ref->molecules.size() > 1;
                 bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
-                bool slow = !fast && (!molecules || clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight);
+                bool slow = (!fast && !molecules) || (clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight);
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = cache.getPath(path, *ctm, & m);
                 if (entry == nullptr)
