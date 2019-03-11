@@ -256,12 +256,12 @@ struct RasterizerCoreGraphics {
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::Context::writeContextsToBuffer(& contexts[0], count, paths, ctms, colors, clips, pathsCount, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, paths, ctms, colors, clips, pathsCount, begins, *buffer);
             if (count == 1)
-                Rasterizer::Context::writeContextToBuffer(& contexts[0], paths, ctms, colors, b[0], e[0], *buffer);
+                Rasterizer::writeContextToBuffer(& contexts[0], paths, ctms, colors, b[0], e[0], *buffer);
             else {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    Rasterizer::Context::writeContextToBuffer(& contexts[idx], paths, ctms, colors, b[idx], e[idx], *buffer);
+                    Rasterizer::writeContextToBuffer(& contexts[idx], paths, ctms, colors, b[idx], e[idx], *buffer);
                 });
             }
             for (int i = 0; i < count; i++)
