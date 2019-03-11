@@ -14,6 +14,7 @@ struct Rasterizer {
     struct Transform {
         Transform() {}
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         inline Transform concat(Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
@@ -472,10 +473,6 @@ struct Rasterizer {
     }
     
     struct Context {
-        static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
-        
-        
-        
         Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
@@ -499,7 +496,7 @@ struct Rasterizer {
             if (begin == end)
                 return;
             size_t iz;
-            Transform inv = nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
+            Transform inv = Transform::nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
             Bounds device = bounds;
             for (paths += begin, ctms += begin, clips += begin, iz = begin; iz < end; iz++, paths++, ctms++, clips++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {

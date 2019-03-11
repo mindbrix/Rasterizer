@@ -298,7 +298,7 @@ struct RasterizerCoreGraphics {
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
-            Rasterizer::Transform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Context::nullclip();
+            Rasterizer::Transform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
             for (int i = 0; i < pathsCount; i++, cl++)
                 *cl = clip;
             
