@@ -51,8 +51,8 @@ struct Rasterizer {
                 ux < b.lx ? b.lx : ux > b.ux ? b.ux : ux, uy < b.ly ? b.ly : uy > b.uy ? b.uy : uy
             };
         }
-        inline Bounds transform(Transform ctm) const {
-            return Bounds(unit(ctm));
+        inline Bounds transform(Transform t) const {
+            return Bounds(unit(t));
         }
         inline Transform unit(Transform t) const {
             return { t.a * (ux - lx), t.b * (ux - lx), t.c * (uy - ly), t.d * (uy - ly), lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty };
