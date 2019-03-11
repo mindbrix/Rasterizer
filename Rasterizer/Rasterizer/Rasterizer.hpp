@@ -214,8 +214,8 @@ struct Rasterizer {
     };
     struct GPU {
         struct Allocator {
-            struct Entry {
-                Entry(size_t idx) : li(idx), ui(idx) {}
+            struct Pass {
+                Pass(size_t idx) : li(idx), ui(idx) {}
                 size_t cells = 0, edgeInstances = 0, fastInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
@@ -233,13 +233,13 @@ struct Rasterizer {
                 if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < hght) {
                         if (!(sheet.ux == 0.f && passes.end))
-                            new (passes.alloc(1)) Entry(idx);
+                            new (passes.alloc(1)) Pass(idx);
                         sheet = Bounds(0.f, 0.f, width, height), strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 ox = b->lx, b->lx += w, oy = b->ly;
-                Entry& entry = passes.base[passes.end - 1];
+                Pass& entry = passes.base[passes.end - 1];
                 entry.cells += cells;
                 entry.ui++;
                 if (isFast)
@@ -249,11 +249,11 @@ struct Rasterizer {
             }
             inline void countQuad() {
                 if (passes.end == 0)
-                    new (passes.alloc(1)) Entry(0);
+                    new (passes.alloc(1)) Pass(0);
                 passes.base[passes.end - 1].ui++;
             }
             size_t width, height;
-            Row<Entry> passes;
+            Row<Pass> passes;
             Bounds sheet, strip, fast, molecules;
         };
         struct Cell {
@@ -503,7 +503,7 @@ struct Rasterizer {
                 begin = end;
             }
             for (int k = 0; k < ctx->gpu.allocator.passes.end; k++) {
-                GPU::Allocator::Entry& e = ctx->gpu.allocator.passes.base[k];
+                GPU::Allocator::Pass& e = ctx->gpu.allocator.passes.base[k];
                 end += e.cells * sizeof(GPU::EdgeCell);
                 entries.emplace_back(Buffer::Entry::kEdgeCells, begin, end), idxes.emplace_back(0);
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
