@@ -301,10 +301,8 @@ struct Rasterizer {
                 int begin, end;
             };
             Data *alloc(size_t cells) {
-                new (entries.alloc(1)) Entry(data.idx, data.idx + cells);
-                Data *d = data.alloc(cells);
-                data.idx = data.end;
-                return d;
+                new (entries.alloc(1)) Entry(data.idx, data.idx + cells), data.idx += cells;
+                return data.alloc(cells);
             }
             void empty() { entries.empty(), data.empty(); }
             Row<Entry> entries;
@@ -736,7 +734,7 @@ struct Rasterizer {
                                 is = s + 1, molecule++, data++;
                             }
                     }
-                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule :  GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
+                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule : GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
