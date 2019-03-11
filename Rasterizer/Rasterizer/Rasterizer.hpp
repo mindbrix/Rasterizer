@@ -291,9 +291,29 @@ struct Rasterizer {
             int ic;
             uint16_t i0, i1;
         };
+        struct Molecules {
+            struct Entry {
+                Entry(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
+                int begin, end;
+            };
+            struct Data {
+                Data(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
+                float ux;
+                int begin, end;
+            };
+            Data *alloc(size_t cells) {
+                new (entries.alloc(1)) Entry(data.idx, data.idx + cells);
+                Data *d = data.alloc(cells);
+                data.idx = data.end;
+                return d;
+            }
+            void empty() { entries.empty(), data.empty(); }
+            Row<Entry> entries;
+            Row<Data> data;
+        };
         GPU() { empty(); }
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr;
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty();
         }
         size_t shapesCount, shapePaths, outlinePaths;
         Allocator allocator;
@@ -301,6 +321,7 @@ struct Rasterizer {
         Row<Quad> quads, opaques;
         Row<Segment> outlines;
         Transform *ctms;
+        Molecules molecules;
     };
     struct Buffer {
         struct Entry {
@@ -527,25 +548,18 @@ struct Rasterizer {
                         entry->end += sizeof(GPU::Quad);
                         
                         if (quad->iz & GPU::Quad::kMolecule) {
-                            Transform& m = ctms[quad->iz & kPathIndexMask];
-                            Bounds *molecule = & paths[quad->iz & kPathIndexMask].ref->molecules[0];
-                            Segment *ls = ctx->cache.segments.base + quad->super.end, *us = ls + quad->super.count, *is = ls, *s = ls;
-                            for (; s < us; s++)
-                                if (s->x0 == FLT_MAX) {
-                                    cell->cell = quad->super.cell;
-                                    float ux = ceilf(molecule->transform(m).ux);
-                                    ux = ux < cell->cell.lx ? cell->cell.lx : ux;
-                                    ux = ux > cell->cell.ux ? cell->cell.ux : ux;
-                                    cell->cell.ux = ux;
-                                    cell->im = quad->super.iy;
-                                    cell->base = int(quad->super.end);
-                                    int ic = int(cell - c0), cnt = int(s - ls);
-                                    cell++, molecule++;
-                                    for (j = is - ls; j < cnt; fast++)
-                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                    (fast - 1)->i1 = cnt;
-                                    is = s + 1;
-                                }
+                            GPU::Molecules::Entry *me = & ctx->gpu.molecules.entries.base[quad->super.begin];
+                            GPU::Molecules::Data *data = & ctx->gpu.molecules.data.base[me->begin];
+                            for (k = me->begin; k < me->end; k++, cell++, data++) {
+                                cell->cell = quad->super.cell;
+                                cell->cell.ux = data->ux;
+                                cell->im = quad->super.iy;
+                                cell->base = int(quad->super.end);
+                                int ic = int(cell - c0);
+                                for (j = data->begin; j < data->end; fast++)
+                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                (fast - 1)->i1 = data->end;
+                            }
                         } else if (quad->iz & GPU::Quad::kEdge) {
                             cell->cell = quad->super.cell;
                             int ic = int(cell - c0);
@@ -708,15 +722,24 @@ struct Rasterizer {
                 else if (slow)
                     cache.writeCachedOutline(entry, m, segments);
                 if (entry && !slow) {
-                    size_t count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
+                    size_t midx = 0, count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     gpu.ctms[iz] = m;
                     if (molecules) {
                         cells = path.ref->molecules.size(), instances = 0;
+                        midx = gpu.molecules.entries.end;
+                        GPU::Molecules::Data *data = gpu.molecules.alloc(cells);
+                        Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
-                            if (s->x0 == FLT_MAX)
-                                instances += (s - is + kFastSegments - 1) / kFastSegments, is = s + 1;
+                            if (s->x0 == FLT_MAX) {
+                                float ux = ceilf(molecule->transform(*ctm).ux);
+                                ux = ux < clip.lx ? clip.lx : ux;
+                                ux = ux > clip.ux ? clip.ux : ux;
+                                new (data) GPU::Molecules::Data(ux, is - ls, s - ls);
+                                instances += (s - is + kFastSegments - 1) / kFastSegments;
+                                is = s + 1, molecule++, data++;
+                            }
                     }
-                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule :  GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, -1, count, gpu);
+                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule :  GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
