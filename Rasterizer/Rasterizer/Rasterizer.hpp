@@ -239,13 +239,13 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 ox = b->lx, b->lx += w, oy = b->ly;
-                Pass& entry = passes.base[passes.end - 1];
-                entry.cells += cells;
-                entry.ui++;
+                Pass& pass = passes.base[passes.end - 1];
+                pass.cells += cells;
+                pass.ui++;
                 if (isFast)
-                    entry.fastInstances += instances;
+                    pass.fastInstances += instances;
                 else
-                    entry.edgeInstances += instances;
+                    pass.edgeInstances += instances;
             }
             inline void countQuad() {
                 if (passes.end == 0)
