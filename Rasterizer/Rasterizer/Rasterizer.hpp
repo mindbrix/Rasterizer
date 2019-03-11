@@ -506,7 +506,7 @@ struct Rasterizer {
                             if (bitmap.width)
                                 writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0]), & deltas[0], deltas.size(), & bitmap);
                             else
-                                writeGPUPath(*paths, ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0]), gpu);
+                                writeGPUPath(*paths, *ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0]), gpu);
                         }
                     }
                 }
@@ -527,15 +527,15 @@ struct Rasterizer {
             writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
         }
     }
-    static void writeGPUPath(Path& path, Transform *ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
+    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         if (path.ref->shapes) {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
-            new (gpu.quads.alloc(1)) GPU::Quad(*ctm, iz, GPU::Quad::kShapes);
+            new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
             gpu.allocator.countQuad();
         } else {
             if (width) {
                 gpu.outlinePaths++;
-                writePath(path, *ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
+                writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
                 Segment params(float(gpu.outlines.idx), float(gpu.outlines.end), 0.f, 0.f);
                 new (gpu.quads.alloc(1)) GPU::Quad(& params, width, iz, GPU::Quad::kOutlines);
                 gpu.outlines.idx = gpu.outlines.end;
@@ -547,9 +547,9 @@ struct Rasterizer {
                 bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
                 bool slow = (!fast && !molecules) || (clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight);
                 if (!slow || (path.ref->isGlyph && unclipped))
-                    entry = gpu.cache.getPath(path, *ctm, & m);
+                    entry = gpu.cache.getPath(path, ctm, & m);
                 if (entry == nullptr)
-                    writePath(path, *ctm, clip, writeClippedSegment, segments);
+                    writePath(path, ctm, clip, writeClippedSegment, segments);
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, segments);
                 if (entry && !slow) {
@@ -562,7 +562,7 @@ struct Rasterizer {
                         Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
-                                float ux = ceilf(molecule->transform(*ctm).ux);
+                                float ux = ceilf(molecule->transform(ctm).ux);
                                 ux = ux < clip.lx ? clip.lx : ux;
                                 ux = ux > clip.ux ? clip.ux : ux;
                                 new (data) GPU::Molecules::Cell(ux, is - ls, s - ls);
