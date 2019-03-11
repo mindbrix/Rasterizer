@@ -240,12 +240,9 @@ struct Rasterizer {
                 }
                 ox = b->lx, b->lx += w, oy = b->ly;
                 Pass& pass = passes.base[passes.end - 1];
-                pass.cells += cells;
-                pass.ui++;
-                if (isFast)
-                    pass.fastInstances += instances;
-                else
-                    pass.edgeInstances += instances;
+                pass.cells += cells, pass.ui++;
+                pass.fastInstances += isFast * instances;
+                pass.edgeInstances += !isFast * instances;
             }
             inline void countQuad() {
                 if (passes.end == 0)
