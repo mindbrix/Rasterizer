@@ -380,7 +380,7 @@ struct Rasterizer {
         };
         GPU() { empty(); }
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty();
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.empty();
         }
         size_t shapesCount, shapePaths, outlinePaths;
         Allocator allocator;
@@ -473,7 +473,6 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
-            gpu.cache.empty();
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t begin, size_t end) {
             if (begin == end)
