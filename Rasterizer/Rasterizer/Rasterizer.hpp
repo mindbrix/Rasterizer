@@ -996,8 +996,7 @@ struct Rasterizer {
             size_t begin, end;
         };
         Entry *writeEntry(Entry::Type type, size_t begin, size_t size, void *src) {
-            if (src)
-                memcpy(data.base + begin, src, size);
+            memcpy(data.base + begin, src, size);
             return new (entries.alloc(1)) Entry(type, begin, begin + size);
         }
         Pages<uint8_t> data;
