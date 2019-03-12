@@ -527,8 +527,8 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool molecules = path.ref->atomsCount > 256 && path.ref->molecules.size() > 1;
                 bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
+                bool molecules = (!fast || path.ref->atomsCount > kMoleculesAtoms) && path.ref->molecules.size() > 1;
                 bool slow = (!fast && !molecules) || (clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight);
                 if (!slow || (path.ref->isGlyph && unclipped))
                     entry = gpu.cache.getPath(path, ctm, & m);
