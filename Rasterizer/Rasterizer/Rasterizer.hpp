@@ -1007,7 +1007,7 @@ struct Rasterizer {
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
-        size_t size, sz, i, j, begin, end, idx, cells, instances;
+        size_t size, sz, i, j, begin, end, cells, instances;
         size = pathsCount * (sizeof(Colorant) + 2 * sizeof(Transform));
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Quad);
@@ -1023,18 +1023,19 @@ struct Rasterizer {
         }
         buffer.data.alloc(size);
         
-        begin = end = 0, end += pathsCount * sizeof(Colorant), memcpy(buffer.data.base + begin, colorants, end - begin);
-        new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, begin, end);
+        Buffer::Entry *entry;
+        entry = new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant));
+        memcpy(buffer.data.base + entry->begin, colorants, entry->end - entry->begin);
         
-        begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, contexts[0].gpu.ctms, end - begin);
-        new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, begin, end);
+        entry = new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, entry->end, entry->end + pathsCount * sizeof(Transform));
+        memcpy(buffer.data.base + entry->begin, contexts[0].gpu.ctms, entry->end - entry->begin);
         
-        begin = end, end += pathsCount * sizeof(Transform), memcpy(buffer.data.base + begin, clips, end - begin);
-        new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kClips, begin, end);
+        entry = new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kClips, entry->end, entry->end + pathsCount * sizeof(Transform));
+        memcpy(buffer.data.base + entry->begin, clips, entry->end - entry->begin);
         
-        for (idx = begin = end, i = 0; i < count; i++)
+        for (begin = end = entry->end, i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
-                memcpy(buffer.data.base + idx, contexts[i].gpu.opaques.base, sz), idx = end = end + sz;
+                memcpy(buffer.data.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
         if (begin != end)
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
         return size;
