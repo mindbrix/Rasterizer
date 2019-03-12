@@ -105,9 +105,9 @@ vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], 
     device Cell& cell = quad.super.cell;
     float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
     float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
-    float z = ((quad.iz & 0xFFFFFF) * 2 + 2) / float(*pathCount * 2 + 2);
+    float z = ((quad.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
     
-    device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
+    device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
     
     OpaquesVertex vert;
@@ -259,8 +259,8 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
 {
     device Quad& quad = quads[iid];
 
-    float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
-    device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
+    float z = ((quad.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
+    device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;
@@ -269,7 +269,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(clips[quad.iz & 0xFFFFFF], dx, dy);
+    vert.clip = distances(clips[quad.iz & kPathIndexMask], dx, dy);
     vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.super.cover;
     vert.even = false;
@@ -334,7 +334,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
-        device AffineTransform& m = affineTransforms[quad.iz & 0xFFFFFF];
+        device AffineTransform& m = affineTransforms[quad.iz & kPathIndexMask];
         AffineTransform ctm = {
             quad.unit.a * m.a + quad.unit.b * m.c, quad.unit.a * m.b + quad.unit.b * m.d,
             quad.unit.c * m.a + quad.unit.d * m.c, quad.unit.c * m.b + quad.unit.d * m.d,
@@ -349,13 +349,13 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         vert.shape = distances(ctm, dx, dy);
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
-    float z = ((quad.iz & 0xFFFFFF) * 2 + 1) / float(*pathCount * 2 + 2);
-    device Colorant& paint = paints[(quad.iz & 0xFFFFFF)];
+    float z = ((quad.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
+    device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * sqrt(area);
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(clips[quad.iz & 0xFFFFFF], dx, dy);
+    vert.clip = distances(clips[quad.iz & kPathIndexMask], dx, dy);
     vert.circle = quad.iz & Quad::kCircle;
     return vert;
 }
