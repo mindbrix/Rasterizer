@@ -542,16 +542,16 @@ struct Rasterizer {
                     if (molecules) {
                         cells = path.ref->molecules.size(), instances = 0;
                         midx = gpu.molecules.ranges.end;
-                        GPU::Molecules::Cell *data = gpu.molecules.alloc(cells);
+                        GPU::Molecules::Cell *cell = gpu.molecules.alloc(cells);
                         Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
                                 float ux = ceilf(Bounds(molecule->unit(ctm)).ux);
                                 ux = ux < clip.lx ? clip.lx : ux;
                                 ux = ux > clip.ux ? clip.ux : ux;
-                                new (data) GPU::Molecules::Cell(ux, is - ls, s - ls);
+                                new (cell) GPU::Molecules::Cell(ux, is - ls, s - ls);
                                 instances += (s - is + kFastSegments - 1) / kFastSegments;
-                                is = s + 1, molecule++, data++;
+                                is = s + 1, molecule++, cell++;
                             }
                     }
                     writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule : GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
