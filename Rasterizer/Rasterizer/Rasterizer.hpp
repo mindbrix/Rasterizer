@@ -474,8 +474,8 @@ struct Rasterizer {
             size_t size = ceilf(float(bm.height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
-            deltas.resize((bm.width + 1) * kfh);
-            memset(& deltas[0], 0, deltas.size() * sizeof(deltas[0]));
+            deltas.empty(), deltas.alloc((bm.width + 1) * kfh);
+            memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
         }
         void setGPU(size_t width, size_t height, Transform *ctms) {
             bitmap = Bitmap();
@@ -503,7 +503,7 @@ struct Rasterizer {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
-                                writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0]), & deltas[0], deltas.size(), & bitmap);
+                                writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0]), deltas.base, deltas.end, & bitmap);
                             else
                                 writeGPUPath(*paths, *ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0]), gpu);
                         }
@@ -513,7 +513,7 @@ struct Rasterizer {
         GPU gpu;
         Bitmap bitmap;
         Bounds bounds;
-        std::vector<float> deltas;
+        Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
