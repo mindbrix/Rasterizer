@@ -391,17 +391,6 @@ struct Rasterizer {
         Transform *ctms;
         Cache cache;
     };
-    struct Buffer {
-        struct Entry {
-            enum Type { kColorants, kAffineTransforms, kClips, kEdgeCells, kEdges, kFastEdges, kQuads, kOpaques, kShapes, kSegments };
-            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
-            Type type;
-            size_t begin, end;
-        };
-        Pages<uint8_t> data;
-        Row<Entry> entries;
-        Colorant clearColor;
-    };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
         new (info->segments->alloc(1)) Segment(x0, y0, x1, y1);
@@ -999,6 +988,22 @@ struct Rasterizer {
         }
 #endif
     }
+    struct Buffer {
+        struct Entry {
+            enum Type { kColorants, kAffineTransforms, kClips, kEdgeCells, kEdges, kFastEdges, kQuads, kOpaques, kShapes, kSegments };
+            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
+            Type type;
+            size_t begin, end;
+        };
+        Entry *writeEntry(Entry::Type type, size_t begin, size_t size, void *src) {
+            if (src)
+                memcpy(data.base + begin, src, size);
+            return new (entries.alloc(1)) Entry(type, begin, begin + size);
+        }
+        Pages<uint8_t> data;
+        Row<Entry> entries;
+        Colorant clearColor;
+    };
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Path *paths,
                                         Transform *ctms,
@@ -1023,15 +1028,10 @@ struct Rasterizer {
         buffer.data.alloc(size);
         
         Buffer::Entry *entry;
-        entry = new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant));
-        memcpy(buffer.data.base + entry->begin, colorants, entry->end - entry->begin);
-        
-        entry = new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kAffineTransforms, entry->end, entry->end + pathsCount * sizeof(Transform));
-        memcpy(buffer.data.base + entry->begin, contexts[0].gpu.ctms, entry->end - entry->begin);
-        
-        entry = new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kClips, entry->end, entry->end + pathsCount * sizeof(Transform));
-        memcpy(buffer.data.base + entry->begin, clips, entry->end - entry->begin);
-        
+        entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants);
+        entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms);
+        entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), clips);
+    
         for (begin = end = entry->end, i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
                 memcpy(buffer.data.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
