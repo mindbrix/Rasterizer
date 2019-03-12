@@ -51,9 +51,6 @@ struct Rasterizer {
                 ux < b.lx ? b.lx : ux > b.ux ? b.ux : ux, uy < b.ly ? b.ly : uy > b.uy ? b.uy : uy
             };
         }
-        inline Bounds transform(Transform t) const {
-            return Bounds(unit(t));
-        }
         inline Transform unit(Transform t) const {
             return { t.a * (ux - lx), t.b * (ux - lx), t.c * (uy - ly), t.d * (uy - ly), lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty };
         }
@@ -549,7 +546,7 @@ struct Rasterizer {
                         Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
-                                float ux = ceilf(molecule->transform(ctm).ux);
+                                float ux = ceilf(Bounds(molecule->unit(ctm)).ux);
                                 ux = ux < clip.lx ? clip.lx : ux;
                                 ux = ux > clip.ux ? clip.ux : ux;
                                 new (data) GPU::Molecules::Cell(ux, is - ls, s - ls);

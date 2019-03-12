@@ -42,7 +42,7 @@ struct RasterizerCoreGraphics {
         for (size_t i = 0; i < scene.paths.size(); i++) {
             Rasterizer::Bounds b = boundsFromCGRect(scene.bounds[i]);
             Rasterizer::Transform t = transformFromCGAffineTransform(scene.ctms[i]);
-            Rasterizer::Bounds clip = b.transform(ctm.concat(t)).integral().intersect(bounds);
+            Rasterizer::Bounds clip = Rasterizer::Bounds(b.unit(ctm.concat(t))).integral().intersect(bounds);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 CGContextSaveGState(ctx);
                 CGContextSetFillColorWithColor(ctx, scene.colors[i]);
