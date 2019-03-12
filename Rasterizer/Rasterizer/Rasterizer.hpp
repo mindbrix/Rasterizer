@@ -334,11 +334,11 @@ struct Rasterizer {
                 int begin, end;
             };
             Cell *alloc(size_t size) {
-                new (entries.alloc(1)) Range(cells.idx, cells.idx + size), cells.idx += size;
+                new (ranges.alloc(1)) Range(cells.idx, cells.idx + size), cells.idx += size;
                 return cells.alloc(size);
             }
-            void empty() { entries.empty(), cells.empty(); }
-            Row<Range> entries;
+            void empty() { ranges.empty(), cells.empty(); }
+            Row<Range> ranges;
             Row<Cell> cells;
         };
         struct Cell {
@@ -556,7 +556,7 @@ struct Rasterizer {
                     gpu.ctms[iz] = m;
                     if (molecules) {
                         cells = path.ref->molecules.size(), instances = 0;
-                        midx = gpu.molecules.entries.end;
+                        midx = gpu.molecules.ranges.end;
                         GPU::Molecules::Cell *data = gpu.molecules.alloc(cells);
                         Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
@@ -1109,9 +1109,9 @@ struct Rasterizer {
                     entry->end += sizeof(GPU::Quad);
                     
                     if (quad->iz & GPU::Quad::kMolecule) {
-                        GPU::Molecules::Range *me = & ctx->gpu.molecules.entries.base[quad->super.begin];
-                        GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[me->begin];
-                        for (k = me->begin; k < me->end; k++, cell++, mc++) {
+                        GPU::Molecules::Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
+                        GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[mr->begin];
+                        for (k = mr->begin; k < mr->end; k++, cell++, mc++) {
                             cell->cell = quad->super.cell;
                             cell->cell.ux = mc->ux;
                             cell->im = quad->super.iy;
