@@ -510,8 +510,8 @@ struct Rasterizer {
                     }
                 }
         }
-        Bitmap bitmap;
         GPU gpu;
+        Bitmap bitmap;
         Bounds bounds;
         std::vector<float> deltas;
         std::vector<Row<Segment>> segments;
