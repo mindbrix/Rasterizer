@@ -324,8 +324,8 @@ struct Rasterizer {
             Bounds sheet, strip, fast, molecules;
         };
         struct Molecules {
-            struct Entry {
-                Entry(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
+            struct Range {
+                Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
                 int begin, end;
             };
             struct Cell {
@@ -334,11 +334,11 @@ struct Rasterizer {
                 int begin, end;
             };
             Cell *alloc(size_t size) {
-                new (entries.alloc(1)) Entry(cells.idx, cells.idx + size), cells.idx += size;
+                new (entries.alloc(1)) Range(cells.idx, cells.idx + size), cells.idx += size;
                 return cells.alloc(size);
             }
             void empty() { entries.empty(), cells.empty(); }
-            Row<Entry> entries;
+            Row<Range> entries;
             Row<Cell> cells;
         };
         struct Cell {
@@ -1109,7 +1109,7 @@ struct Rasterizer {
                     entry->end += sizeof(GPU::Quad);
                     
                     if (quad->iz & GPU::Quad::kMolecule) {
-                        GPU::Molecules::Entry *me = & ctx->gpu.molecules.entries.base[quad->super.begin];
+                        GPU::Molecules::Range *me = & ctx->gpu.molecules.entries.base[quad->super.begin];
                         GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[me->begin];
                         for (k = me->begin; k < me->end; k++, cell++, mc++) {
                             cell->cell = quad->super.cell;
