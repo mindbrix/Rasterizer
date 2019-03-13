@@ -253,10 +253,8 @@ struct Rasterizer {
             Entry *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
             if (srch) {
                 *m = ctm.concat(srch->ctm);
-                if (m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f))
-                    return srch;
-                else
-                    return nullptr;
+                bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                return hit ? srch : nullptr;
             }
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
