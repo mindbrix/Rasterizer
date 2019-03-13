@@ -68,7 +68,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -82,6 +82,8 @@ struct Rasterizer {
             atomsCount += size, counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == Atom::kMove)
                 molecules.emplace_back(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+            if (isPolygon && (type == Atom::kQuadratic || type == Atom::kCubic))
+                isPolygon = false;
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
         }
@@ -133,7 +135,7 @@ struct Rasterizer {
         std::vector<Bounds> molecules;
         float px, py;
         Transform *shapes;
-        bool *circles, isGlyph;
+        bool *circles, isGlyph, isPolygon;
         Bounds bounds;
     };
     template<typename T>
@@ -251,8 +253,7 @@ struct Rasterizer {
             Chunk *chunk = grid.chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
-                bool isPolygon = path.ref->counts[Geometry::Atom::kQuadratic] == 0 && path.ref->counts[Geometry::Atom::kCubic] == 0;
-                e = new (grid.alloc(chunk, path.ref->hash)) Entry(segments.idx, isPolygon, ctm.invert());
+                e = new (grid.alloc(chunk, path.ref->hash)) Entry(segments.idx, path.ref->isPolygon, ctm.invert());
                 writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
                 segments.idx = segments.end, e->end = int(segments.end);
             } else {
