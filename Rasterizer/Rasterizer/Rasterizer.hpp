@@ -82,8 +82,7 @@ struct Rasterizer {
             atomsCount += size, counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == Atom::kMove)
                 molecules.emplace_back(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-            if (isPolygon && (type == Atom::kQuadratic || type == Atom::kCubic))
-                isPolygon = false;
+            isPolygon &= type != Atom::kQuadratic && type != Atom::kCubic;
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
         }
