@@ -207,8 +207,9 @@ struct Rasterizer {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
-            Entry(Transform ctm) : ctm(ctm) {}
+            Entry(size_t begin, bool isPolygon, Transform ctm) : begin(int(begin)), isPolygon(isPolygon), ctm(ctm) {}
             int begin, end;
+            bool isPolygon;
             Transform ctm;
         };
         struct Chunk {
@@ -250,13 +251,13 @@ struct Rasterizer {
             Chunk *chunk = grid->chunk(path.ref->hash);
             Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
-                e = new (grid->alloc(chunk, path.ref->hash)) Entry(ctm.invert());
-                e->begin = int(segments.idx);
+                bool isPolygon = path.ref->counts[Geometry::Atom::kQuadratic] == 0 && path.ref->counts[Geometry::Atom::kCubic] == 0;
+                e = new (grid->alloc(chunk, path.ref->hash)) Entry(segments.idx, isPolygon, ctm.invert());
                 writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
-                segments.idx = e->end = int(segments.end);
+                segments.idx = segments.end, e->end = int(segments.end);
             } else {
                 *m = ctm.concat(srch->ctm);
-                if (m->a == m->d && m->b == -m->c && fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f)
+                if (m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f))
                     e = srch;
             }
             return e;
