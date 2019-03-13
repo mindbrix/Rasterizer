@@ -208,7 +208,7 @@ struct Rasterizer {
         static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
-            Entry(size_t begin, bool isPolygon, Transform ctm) : begin(int(begin)), isPolygon(isPolygon), ctm(ctm) {}
+            Entry(size_t begin, size_t end, bool isPolygon, Transform ctm) : begin(int(begin)), end(int(end)), isPolygon(isPolygon), ctm(ctm) {}
             int begin, end;
             bool isPolygon;
             Transform ctm;
@@ -250,17 +250,18 @@ struct Rasterizer {
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid.chunk(path.ref->hash);
-            Entry *e = nullptr, *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
-            if (srch == nullptr) {
-                e = new (grid.alloc(chunk, path.ref->hash)) Entry(segments.idx, path.ref->isPolygon, ctm.invert());
-                writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
-                segments.idx = segments.end, e->end = int(segments.end);
-            } else {
+            Entry *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
+            if (srch) {
                 *m = ctm.concat(srch->ctm);
                 if (m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f))
-                    e = srch;
+                    return srch;
+                else
+                    return nullptr;
             }
-            return e;
+            size_t begin = segments.idx;
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
+            segments.idx = segments.end;
+            return new (grid.alloc(chunk, path.ref->hash)) Entry(begin, segments.end, path.ref->isPolygon, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
