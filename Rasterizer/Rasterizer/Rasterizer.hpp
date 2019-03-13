@@ -245,14 +245,14 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() { grid->empty(), segments.empty(); }
+        void empty() { grid.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
-            Chunk *chunk = grid->chunk(path.ref->hash);
-            Entry *e = nullptr, *srch = chunk->end ? grid->find(chunk, path.ref->hash) : nullptr;
+            Chunk *chunk = grid.chunk(path.ref->hash);
+            Entry *e = nullptr, *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
             if (srch == nullptr) {
                 bool isPolygon = path.ref->counts[Geometry::Atom::kQuadratic] == 0 && path.ref->counts[Geometry::Atom::kCubic] == 0;
-                e = new (grid->alloc(chunk, path.ref->hash)) Entry(segments.idx, isPolygon, ctm.invert());
+                e = new (grid.alloc(chunk, path.ref->hash)) Entry(segments.idx, isPolygon, ctm.invert());
                 writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
                 segments.idx = segments.end, e->end = int(segments.end);
             } else {
@@ -276,7 +276,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
             }
         }
-        Grid grid0, *grid = & grid0;
+        Grid grid;
         Row<Segment> segments;
     };
     struct Index {
