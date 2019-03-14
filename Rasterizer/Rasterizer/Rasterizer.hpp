@@ -246,14 +246,14 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() {}// { grid.empty(), segments.empty(); }
+        void empty() { grid.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid.chunk(path.ref->hash);
             Entry *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
             if (srch) {
                 *m = ctm.concat(srch->ctm);
-                bool hit = m->a == m->d && m->b == -m->c && (1 || srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 return hit ? srch : nullptr;
             }
             size_t begin = segments.idx;
@@ -1098,10 +1098,7 @@ struct Rasterizer {
                         GPU::Molecules::Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
                         GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (int c = mr->begin; c < mr->end; c++, cell++, mc++) {
-                            cell->cell = quad->super.cell;
-                            cell->cell.ux = mc->ux;
-                            cell->im = quad->super.iy;
-                            cell->base = int(quad->super.end);
+                            cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = quad->super.iy, cell->base = int(quad->super.end);
                             int ic = int(cell - c0);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
@@ -1111,14 +1108,12 @@ struct Rasterizer {
                         cell->cell = quad->super.cell;
                         int ic = int(cell - c0);
                         if (quad->super.iy < 0) {
-                            cell->im = quad->super.iy;
-                            cell->base = int(quad->super.end);
+                            cell->im = quad->super.iy, cell->base = int(quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
-                            cell->im = 0;
-                            cell->base = int(sbegins[quad->super.iy] + quad->super.end);
+                            cell->im = 0, cell->base = int(sbegins[quad->super.iy] + quad->super.end);
                             Index *is = ctx->gpu.indices.base + quad->super.begin;
                             for (j = 0; j < quad->super.count; j++, edge++) {
                                 edge->ic = ic, edge->i0 = uint16_t(is++->i);
