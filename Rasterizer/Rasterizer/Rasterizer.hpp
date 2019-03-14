@@ -194,14 +194,30 @@ struct Rasterizer {
         T *base;
     };
     struct Segment {
+        Segment() {}
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         float x0, y0, x1, y1;
     };
+    struct Store {
+        static constexpr int kChunkSize = 64;
+        struct Chunk {
+            uint32_t end = 0, next = 0;
+            Segment segments[kChunkSize];
+        };
+        Store() { empty(); }
+        void empty() { chunks.empty(), end(); }
+        void end() { chunk = new (chunks.alloc(1)) Chunk(), count = 0; }
+        Chunk *chunk;
+        size_t count;
+        Row<Chunk> chunks;
+    };
+    
     struct Info {
         Info(void *info) : info(info), stride(0) {}
         Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
         Info(Row<Segment> *segments) : segments(segments), stride(0) {}
-        union { void *info;  float *deltas;  Row<Segment> *segments; };
+        Info(Store *store) : store(store), stride(0) {}
+        union { void *info;  float *deltas;  Row<Segment> *segments;  Store *store; };
         uint32_t stride;
     };
     struct Cache {
@@ -246,7 +262,7 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() { grid.empty(), segments.empty(); }
+        void empty() { grid.empty(), store.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid.chunk(path.ref->hash);
@@ -256,6 +272,9 @@ struct Rasterizer {
                 bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 return hit ? srch : nullptr;
             }
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeStoreSegment, Info(& store));
+            store.end();
+            
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
@@ -276,6 +295,7 @@ struct Rasterizer {
             }
         }
         Grid grid;
+        Store store;
         Row<Segment> segments;
     };
     struct Index {
@@ -387,6 +407,12 @@ struct Rasterizer {
         Cache cache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
+    static void writeStoreSegment(float x0, float y0, float x1, float y1, Info *info) {
+        Store *store = info->store;
+        if (store->chunk->end == Store::kChunkSize)
+            store->chunk->next = uint32_t(store->chunks.end + 1), store->chunk = new (store->chunks.alloc(1)) Store::Chunk(), store->count++;
+        new (store->chunk->segments + store->chunk->end++) Segment(x0, y0, x1, y1);
+    }
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
         new (info->segments->alloc(1)) Segment(x0, y0, x1, y1);
     }
