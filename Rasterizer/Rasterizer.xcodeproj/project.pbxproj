@@ -56,6 +56,7 @@
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 		E9C2E72722280F000023B714 /* crc64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = crc64.h; sourceTree = "<group>"; };
 		E9C2E72822280F000023B714 /* crc64.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = crc64.c; sourceTree = "<group>"; };
+		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +109,7 @@
 				E9214A7D222FD3FF00D1F1F8 /* RasterizerScene.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
 				E963FF6D21DF59B9007C1327 /* RasterizerTrueType.hpp */,
+				E9E36F08223A722100F6533A /* RasterizerTest.hpp */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
 				E920A59D21762BCD00F52C25 /* AppDelegate.m */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
