@@ -545,8 +545,7 @@ struct Rasterizer {
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
                                 float ux = ceilf(Bounds(molecule->unit(ctm)).ux);
-                                ux = ux < clip.lx ? clip.lx : ux;
-                                ux = ux > clip.ux ? clip.ux : ux;
+                                ux = ux < clip.lx ? clip.lx : ux, ux = ux > clip.ux ? clip.ux : ux;
                                 new (cell) GPU::Molecules::Cell(ux, is - ls, s - ls);
                                 instances += (s - is + kFastSegments - 1) / kFastSegments;
                                 is = s + 1, molecule++, cell++;
