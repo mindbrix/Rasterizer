@@ -1097,9 +1097,8 @@ struct Rasterizer {
                     if (quad->iz & GPU::Quad::kMolecule) {
                         GPU::Molecules::Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
                         GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[mr->begin];
-                        for (int c = mr->begin; c < mr->end; c++, cell++, mc++) {
+                        for (int ic = int(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
                             cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = quad->super.iy, cell->base = int(quad->super.end);
-                            int ic = int(cell - c0);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = mc->end;
