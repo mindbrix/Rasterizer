@@ -1052,23 +1052,20 @@ struct Rasterizer {
                 memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
             entries.emplace_back(Buffer::Entry::kSegments, begin, begin + size * sizeof(Segment)), idxes.emplace_back(0), begin = entries.back().end;
         }
-        for (int k = 0; k < ctx->gpu.allocator.passes.end; k++, begin = entries.back().end) {
-            GPU::Allocator::Pass& e = ctx->gpu.allocator.passes.base[k];
-
+        for (GPU::Allocator::Pass *e = ctx->gpu.allocator.passes.base, *ue = e + ctx->gpu.allocator.passes.end; e < ue; e++, begin = entries.back().end) {
             GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
-            entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + e.cells * sizeof(GPU::EdgeCell)), idxes.emplace_back(0), begin = entries.back().end;
+            entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + e->cells * sizeof(GPU::EdgeCell)), idxes.emplace_back(0), begin = entries.back().end;
             
             GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
-            entries.emplace_back(Buffer::Entry::kEdges, begin, begin + e.edgeInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
+            entries.emplace_back(Buffer::Entry::kEdges, begin, begin + e->edgeInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
 
             GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
-            entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + e.fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
+            entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + e->fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
             
             Buffer::Entry *entry;
-            GPU::Quad *q0 = ctx->gpu.quads.base + e.li, *qidx = ctx->gpu.quads.base + e.ui, *quad;
+            GPU::Quad *q0 = ctx->gpu.quads.base + e->li, *qidx = ctx->gpu.quads.base + e->ui, *quad;
             int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
-            entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e.li), entry = & entries.back();
-            
+            entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e->li), entry = & entries.back();
             for (quad = q0; quad < qidx; quad++) {
                 type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 iz = quad->iz & kPathIndexMask;
@@ -1092,7 +1089,6 @@ struct Rasterizer {
                     entry->end += count * sizeof(GPU::Quad);
                 } else  {
                     entry->end += sizeof(GPU::Quad);
-                    
                     if (quad->iz & GPU::Quad::kMolecule) {
                         GPU::Molecules::Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
                         GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[mr->begin];
@@ -1129,7 +1125,6 @@ struct Rasterizer {
         for (int k = 0; k < idxes.size(); k++)
             if (entries[k].type == Buffer::Entry::kQuads)
                 memcpy(buffer.data.base + entries[k].begin, ctx->gpu.quads.base + idxes[k], entries[k].end - entries[k].begin);
-        
         ctx->gpu.empty();
         for (j = 0; j < ctx->segments.size(); j++)
             ctx->segments[j].empty();
