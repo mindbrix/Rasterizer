@@ -246,14 +246,14 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() { grid.empty(), segments.empty(); }
+        void empty() {}// { grid.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid.chunk(path.ref->hash);
             Entry *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
             if (srch) {
                 *m = ctm.concat(srch->ctm);
-                bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                bool hit = m->a == m->d && m->b == -m->c && (1 || srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 return hit ? srch : nullptr;
             }
             size_t begin = segments.idx;
@@ -297,10 +297,8 @@ struct Rasterizer {
                 Bounds *b = & strip;
                 float hght = kfh;
                 if (h > kfh) {
-                    if (h > kFastHeight)
-                        hght = kMoleculesHeight, b = & molecules;
-                    else
-                        hght = kFastHeight, b = & fast;
+                    b = h > kFastHeight ? & molecules : & fast;
+                    hght = h > kFastHeight ? kMoleculesHeight : kFastHeight;
                 }
                 if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < hght) {
