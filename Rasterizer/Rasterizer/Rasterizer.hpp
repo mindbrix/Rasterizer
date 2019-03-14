@@ -1063,10 +1063,10 @@ struct Rasterizer {
             entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + e->fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
             
             Buffer::Entry *entry;
-            GPU::Quad *q0 = ctx->gpu.quads.base + e->li, *qidx = ctx->gpu.quads.base + e->ui, *quad;
-            int type = q0->iz & GPU::Quad::kShapes || q0->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+            GPU::Quad *lq = ctx->gpu.quads.base + e->li, *uq = ctx->gpu.quads.base + e->ui, *quad;
+            int type = lq->iz & GPU::Quad::kShapes || lq->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
             entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e->li), entry = & entries.back();
-            for (quad = q0; quad < qidx; quad++) {
+            for (quad = lq; quad < uq; quad++) {
                 type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 iz = quad->iz & kPathIndexMask;
                 if (type != entry->type)
