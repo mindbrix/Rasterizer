@@ -105,7 +105,7 @@ struct RasterizerSVG {
             if (0) {
                 scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
             }
-            if (1 ) {
+            if (0) {
                 writePhyllotaxisToScene(100000, scene);
             }
         }
