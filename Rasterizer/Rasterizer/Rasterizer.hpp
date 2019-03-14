@@ -205,10 +205,22 @@ struct Rasterizer {
             Segment segments[kChunkSize];
         };
         Store() { empty(); }
-        void empty() { chunks.empty(), end(); }
+        void empty() { chunks.empty(), chunks.alloc(1), end(), free = 0; }
         void end() { chunk = new (chunks.alloc(1)) Chunk(), count = 0; }
+        void next() {
+            if (free)
+                chunk->next = uint32_t(free), chunk = & chunks.base[free], free = chunk->next, new (chunk) Store::Chunk();
+            else
+                chunk->next = uint32_t(chunks.end + 1), chunk = new (chunks.alloc(1)) Store::Chunk();
+        }
+        size_t index() { return chunk - chunks.base; }
+        void release(size_t index) {
+            Chunk *last = chunks.base + index;
+            do {} while (last->next && ((last = chunks.base + last->next)));
+            last->next = uint32_t(free), free = index;
+        }
         Chunk *chunk;
-        size_t count;
+        size_t count, free;
         Row<Chunk> chunks;
     };
     
@@ -272,8 +284,10 @@ struct Rasterizer {
                 bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 return hit ? srch : nullptr;
             }
+            size_t index = store.index();
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeStoreSegment, Info(& store));
             store.end();
+            store.release(index);
             
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
@@ -410,7 +424,7 @@ struct Rasterizer {
     static void writeStoreSegment(float x0, float y0, float x1, float y1, Info *info) {
         Store *store = info->store;
         if (store->chunk->end == Store::kChunkSize)
-            store->chunk->next = uint32_t(store->chunks.end + 1), store->chunk = new (store->chunks.alloc(1)) Store::Chunk(), store->count++;
+            store->next(), store->count++;
         new (store->chunk->segments + store->chunk->end++) Segment(x0, y0, x1, y1);
     }
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
