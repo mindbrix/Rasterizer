@@ -1076,7 +1076,7 @@ struct Rasterizer {
                 type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 iz = quad->iz & kPathIndexMask;
                 if (type != entry->type)
-                    entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
+                    begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
                 if (quad->iz & GPU::Quad::kShapes) {
                     Path& path = paths[iz];
                     GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
