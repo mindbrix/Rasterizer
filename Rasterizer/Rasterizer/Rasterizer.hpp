@@ -204,7 +204,11 @@ struct Rasterizer {
         
         Store()         { free = count = 0, new (chunks.alloc(1)) Chunk(), chunk = new (chunks.alloc(1)) Chunk(); }
         size_t index()  { return chunk - chunks.base; }
-        void link()     { chunk->next = uint32_t(free ?: chunks.end); }
+        inline Segment *alloc() {
+            if (chunk->end == kChunkSize)
+                chunk->next = uint32_t(free ?: chunks.end), next();
+            return chunk->segments + chunk->end++;
+        }
         void next() {
             if (free)
                 chunk = chunks.base + free, free = chunk->next, new (chunk) Chunk();
@@ -420,10 +424,7 @@ struct Rasterizer {
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeStoreSegment(float x0, float y0, float x1, float y1, Info *info) {
-        Store *store = info->store;
-        if (store->chunk->end == Store::kChunkSize)
-            store->link(), store->next();
-        new (store->chunk->segments + store->chunk->end++) Segment(x0, y0, x1, y1);
+        new (info->store->alloc()) Segment(x0, y0, x1, y1);
     }
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
         new (info->segments->alloc(1)) Segment(x0, y0, x1, y1);
