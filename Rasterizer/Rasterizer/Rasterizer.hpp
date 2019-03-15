@@ -181,7 +181,6 @@ struct Rasterizer {
         const size_t kPageSize = 4096;
         Pages() : size(0), base(nullptr) {}
         ~Pages() { if (base) free(base); }
-        void reset() { size = 0, ~Pages(), base = nullptr; }
         T *alloc(size_t n) {
             if (size < n) {
                 size = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
