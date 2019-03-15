@@ -177,14 +177,14 @@ struct Rasterizer {
     };
     template<typename T>
     struct Pages {
-        const size_t kPageSize = 4096;
+        static constexpr size_t kPageSize = 4096;
         ~Pages() { if (base) free(base); }
         T *resize(size_t n, bool copy) {
             size_t allocation = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
             if (size < allocation) {
                 void *addr;
                 posix_memalign(& addr, kPageSize, allocation);
-                if (copy) memcpy(addr, base, size);
+                if (base && copy) memcpy(addr, base, size);
                 this->~Pages(), base = (T *)addr, size = allocation;
             }
             return base;
@@ -200,19 +200,26 @@ struct Rasterizer {
     struct Store {
         struct Chunk { static constexpr int kSize = 64; uint32_t end = 0, next = 0;  Segment segments[kSize]; };
         
-        Store()         { free = chunkCount = 0, new (chunks.alloc(1)) Chunk(), chunk = new (chunks.alloc(1)) Chunk(); }
+        Store()         { size = 0, empty(); }
+        void empty()    { free = chunkCount = end = 0, allocChunk(), chunk = allocChunk(); }
         size_t count()  { return chunkCount * Chunk::kSize + chunk->end; }
         size_t index()  { return chunk - chunks.base; }
         inline Segment *alloc() {
             if (chunk->end == Chunk::kSize)
-                chunk->next = uint32_t(free ?: chunks.end), next();
+                chunk->next = uint32_t(free ?: end), next();
             return chunk->segments + chunk->end++;
+        }
+        Chunk *allocChunk() {
+            size_t i = end++;
+            if (size < end)
+                size = end * 1.5, chunks.resize(size, true);
+            return new (chunks.base + i) Chunk();
         }
         void next() {
             if (free)
                 chunk = chunks.base + free, free = chunk->next, new (chunk) Chunk();
             else
-                chunk = new (chunks.alloc(1)) Chunk();
+                chunk = allocChunk();
             chunkCount++;
         }
         void release(size_t index) {
@@ -222,8 +229,8 @@ struct Rasterizer {
             last->next = uint32_t(free), free = index, next(), chunkCount = 0;
         }
         Chunk *chunk;
-        size_t chunkCount, free;
-        Row<Chunk> chunks;
+        size_t chunkCount, free, end, size;
+        Pages<Chunk> chunks;
     };
     
     struct Info {
@@ -276,7 +283,7 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() { grid.empty(), segments.empty(); }
+        void empty() { grid.empty(), store.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid.chunk(path.ref->hash);
