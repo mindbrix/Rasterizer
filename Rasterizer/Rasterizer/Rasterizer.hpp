@@ -180,7 +180,7 @@ struct Rasterizer {
         const size_t kPageSize = 4096;
         Pages() : size(0), base(nullptr) {}
         ~Pages() { if (base) free(base); }
-        T *alloc(size_t n) {
+        T *resize(size_t n) {
             if (size < n) {
                 size = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
                 this->~Pages();
@@ -1054,7 +1054,7 @@ struct Rasterizer {
             for (j = 0; j < contexts[i].segments.size(); j++)
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
-        buffer.data.alloc(size);
+        buffer.data.resize(size);
         
         Buffer::Entry *entry;
         entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants);
