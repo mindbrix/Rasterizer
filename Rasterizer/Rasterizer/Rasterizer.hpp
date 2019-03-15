@@ -199,14 +199,13 @@ struct Rasterizer {
         float x0, y0, x1, y1;
     };
     struct Store {
-        static constexpr int kChunkSize = 64;
-        struct Chunk { uint32_t end = 0, next = 0;  Segment segments[kChunkSize]; };
+        struct Chunk { static constexpr int kSize = 64; uint32_t end = 0, next = 0;  Segment segments[kSize]; };
         
         Store()         { free = chunkCount = 0, new (chunks.alloc(1)) Chunk(), chunk = new (chunks.alloc(1)) Chunk(); }
-        size_t count()  { return chunkCount * kChunkSize + chunk->end; }
+        size_t count()  { return chunkCount * Chunk::kSize + chunk->end; }
         size_t index()  { return chunk - chunks.base; }
         inline Segment *alloc() {
-            if (chunk->end == kChunkSize)
+            if (chunk->end == Chunk::kSize)
                 chunk->next = uint32_t(free ?: chunks.end), next();
             return chunk->segments + chunk->end++;
         }
