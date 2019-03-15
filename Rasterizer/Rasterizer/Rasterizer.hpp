@@ -163,18 +163,17 @@ struct Rasterizer {
     };
     template<typename T>
     struct Row {
-        Row() : end(0), size(memory.ref->size), idx(0), base(memory.ref->addr) {}
         void empty() { end = idx = 0; }
         inline T *alloc(size_t n) {
             size_t i = end;
             end += n;
-            if (size < end)
-                size = end * 1.5, memory.ref->resize(size), base = memory.ref->addr;
+            if (memory.ref->size < end)
+                memory.ref->resize(end * 1.5), base = memory.ref->addr;
             return base + i;
         }
         Ref<Memory<T>> memory;
-        size_t end, size, idx;
-        T *base;
+        size_t end = 0, idx = 0;
+        T *base = nullptr;
     };
     template<typename T>
     struct Pages {
