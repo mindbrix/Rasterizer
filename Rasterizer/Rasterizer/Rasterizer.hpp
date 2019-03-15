@@ -204,20 +204,28 @@ struct Rasterizer {
             uint32_t end = 0, next = 0;
             Segment segments[kChunkSize];
         };
-        Store() { empty(); }
-        void empty() { chunks.empty(), chunks.alloc(1), end(), free = 0; }
-        void end() { chunk = new (chunks.alloc(1)) Chunk(), count = 0; }
+        Store() { new (chunks.alloc(1)) Chunk(), free = 0, end(); }
+        void end() {
+            next(), count = 0;
+        }
+        void link() {
+            chunk->next = uint32_t(free ?: chunks.end);
+        }
         void next() {
             if (free)
-                chunk->next = uint32_t(free), chunk = & chunks.base[free], free = chunk->next, new (chunk) Store::Chunk();
+                chunk = chunks.base + free, free = chunk->next, new (chunk) Chunk();
             else
-                chunk->next = uint32_t(chunks.end + 1), chunk = new (chunks.alloc(1)) Store::Chunk();
+                chunk = new (chunks.alloc(1)) Chunk();
+            count++;
         }
         size_t index() { return chunk - chunks.base; }
         void release(size_t index) {
+            uint32_t next;
             Chunk *last = chunks.base + index;
-            do {} while (last->next && ((last = chunks.base + last->next)));
-            last->next = uint32_t(free), free = index;
+            do {
+                next = last->next;
+            } while (next && ((last = chunks.base + next)));
+            last->next = uint32_t(free), free = index, end();
         }
         Chunk *chunk;
         size_t count, free;
@@ -274,7 +282,7 @@ struct Rasterizer {
             Row<Chunk> chunks;
             uint16_t grid[kGridSize];
         };
-        void empty() { grid.empty(), store.empty(), segments.empty(); }
+        void empty() { grid.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Chunk *chunk = grid.chunk(path.ref->hash);
@@ -286,7 +294,6 @@ struct Rasterizer {
             }
             size_t index = store.index();
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeStoreSegment, Info(& store));
-            store.end();
             store.release(index);
             
             size_t begin = segments.idx;
@@ -424,7 +431,7 @@ struct Rasterizer {
     static void writeStoreSegment(float x0, float y0, float x1, float y1, Info *info) {
         Store *store = info->store;
         if (store->chunk->end == Store::kChunkSize)
-            store->next(), store->count++;
+            store->link(), store->next();
         new (store->chunk->segments + store->chunk->end++) Segment(x0, y0, x1, y1);
     }
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
