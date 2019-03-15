@@ -202,7 +202,8 @@ struct Rasterizer {
         static constexpr int kChunkSize = 64;
         struct Chunk { uint32_t end = 0, next = 0;  Segment segments[kChunkSize]; };
         
-        Store()         { free = count = 0, new (chunks.alloc(1)) Chunk(), chunk = new (chunks.alloc(1)) Chunk(); }
+        Store()         { free = chunkCount = 0, new (chunks.alloc(1)) Chunk(), chunk = new (chunks.alloc(1)) Chunk(); }
+        size_t count()  { return chunkCount * kChunkSize + chunk->end; }
         size_t index()  { return chunk - chunks.base; }
         inline Segment *alloc() {
             if (chunk->end == kChunkSize)
@@ -214,16 +215,16 @@ struct Rasterizer {
                 chunk = chunks.base + free, free = chunk->next, new (chunk) Chunk();
             else
                 chunk = new (chunks.alloc(1)) Chunk();
-            count++;
+            chunkCount++;
         }
         void release(size_t index) {
             Chunk *last = chunks.base + index;
             while (last->next)
                 last = chunks.base + last->next;
-            last->next = uint32_t(free), free = index, next(), count = 0;
+            last->next = uint32_t(free), free = index, next(), chunkCount = 0;
         }
         Chunk *chunk;
-        size_t count, free;
+        size_t chunkCount, free;
         Row<Chunk> chunks;
     };
     
@@ -615,7 +616,7 @@ struct Rasterizer {
                             else
                                 (*function)(x0, y0, sx, sy, & info);
                         }
-                        if (sx != FLT_MAX && function == writeOutlineSegment)
+                        if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeStoreSegment))
                             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, & info);
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -668,7 +669,7 @@ struct Rasterizer {
             else
                 (*function)(x0, y0, sx, sy, & info);
         }
-        if (sx != FLT_MAX && function == writeOutlineSegment)
+        if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeStoreSegment))
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, & info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
