@@ -178,7 +178,6 @@ struct Rasterizer {
     template<typename T>
     struct Pages {
         const size_t kPageSize = 4096;
-        Pages() : size(0), base(nullptr) {}
         ~Pages() { if (base) free(base); }
         T *resize(size_t n) {
             if (size < n) {
@@ -188,8 +187,8 @@ struct Rasterizer {
             }
             return base;
         }
-        size_t size;
-        T *base;
+        size_t size = 0;
+        T *base = nullptr;
     };
     struct Segment {
         Segment() {}
