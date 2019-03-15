@@ -179,11 +179,13 @@ struct Rasterizer {
     struct Pages {
         const size_t kPageSize = 4096;
         ~Pages() { if (base) free(base); }
-        T *resize(size_t n) {
-            if (size < n) {
-                size = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
-                this->~Pages();
-                posix_memalign((void **)& base, kPageSize, size);
+        T *resize(size_t n, bool copy) {
+            size_t allocation = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
+            if (size < allocation) {
+                void *addr;
+                posix_memalign(& addr, kPageSize, allocation);
+                if (copy) memcpy(addr, base, size);
+                this->~Pages(), base = (T *)addr, size = allocation;
             }
             return base;
         }
@@ -1053,7 +1055,7 @@ struct Rasterizer {
             for (j = 0; j < contexts[i].segments.size(); j++)
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
-        buffer.data.resize(size);
+        buffer.data.resize(size, false);
         
         Buffer::Entry *entry;
         entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants);
