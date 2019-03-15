@@ -200,17 +200,11 @@ struct Rasterizer {
     };
     struct Store {
         static constexpr int kChunkSize = 64;
-        struct Chunk {
-            uint32_t end = 0, next = 0;
-            Segment segments[kChunkSize];
-        };
-        Store() { new (chunks.alloc(1)) Chunk(), free = 0, end(); }
-        void end() {
-            next(), count = 0;
-        }
-        void link() {
-            chunk->next = uint32_t(free ?: chunks.end);
-        }
+        struct Chunk { uint32_t end = 0, next = 0;  Segment segments[kChunkSize]; };
+        
+        Store()         { free = count = 0, new (chunks.alloc(1)) Chunk(), chunk = new (chunks.alloc(1)) Chunk(); }
+        size_t index()  { return chunk - chunks.base; }
+        void link()     { chunk->next = uint32_t(free ?: chunks.end); }
         void next() {
             if (free)
                 chunk = chunks.base + free, free = chunk->next, new (chunk) Chunk();
@@ -218,14 +212,11 @@ struct Rasterizer {
                 chunk = new (chunks.alloc(1)) Chunk();
             count++;
         }
-        size_t index() { return chunk - chunks.base; }
         void release(size_t index) {
-            uint32_t next;
             Chunk *last = chunks.base + index;
-            do {
-                next = last->next;
-            } while (next && ((last = chunks.base + next)));
-            last->next = uint32_t(free), free = index, end();
+            while (last->next)
+                last = chunks.base + last->next;
+            last->next = uint32_t(free), free = index, next(), count = 0;
         }
         Chunk *chunk;
         size_t count, free;
