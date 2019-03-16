@@ -242,37 +242,36 @@ struct Rasterizer {
         uint32_t stride;
     };
     struct Cache {
-        static constexpr int kGridSize = 4096, kGridMask = kGridSize - 1, kChunkSize = 4;
         struct Entry {
             Entry() {}
-            Entry(size_t begin, size_t end, bool isPolygon, Transform ctm) : begin(int(begin)), end(int(end)), isPolygon(isPolygon), ctm(ctm) {}
-            int begin, end;
-            bool isPolygon;
-            Transform ctm;
+            Entry(size_t begin, size_t end, bool isPolygon, Transform ctm)
+             : begin(int(begin)), end(int(end)), isPolygon(isPolygon), ctm(ctm) {}
+            int begin, end;  bool isPolygon;  Transform ctm;
         };
-        struct Chunk {
-            Entry entries[kChunkSize];
-            size_t hashes[kChunkSize];
-            uint32_t end = 0, next = 0;
-        };
+        
         struct Grid {
+            struct Chunk { static constexpr int kSize = 64;  Entry entries[kSize];  size_t hashes[kSize];  uint32_t end = 0, next = 0; };
+            
+            static constexpr int kSize = 4096, kMask = kSize - 1;
             Grid() { empty(); }
             void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
-            Chunk *chunk(size_t hash) {
-                uint16_t& idx = grid[hash & kGridMask];
+            inline Chunk *getChunk(size_t hash) {
+                uint16_t& idx = grid[hash & kMask];
                 if (idx == 0)
                     idx = chunks.end, new (chunks.alloc(1)) Chunk();
                 return chunks.base + idx;
             }
-            Entry *alloc(Chunk *chunk, size_t hash) {
-                if (chunk->end == kChunkSize) {
-                    uint16_t& idx = grid[chunk->hashes[0] & kGridMask], next = idx;
+            Entry *alloc(size_t hash) {
+                Chunk *chunk = getChunk(hash);
+                if (chunk->end == Chunk::kSize) {
+                    uint16_t& idx = grid[chunk->hashes[0] & kMask], next = idx;
                     idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
                 }
                 chunk->hashes[chunk->end] = hash;
                 return chunk->entries + chunk->end++;
             }
-            Entry *find(Chunk *chunk, size_t hash) {
+            Entry *find(size_t hash) {
+                Chunk *chunk = getChunk(hash);
                 do {
                     for (int i = 0; i < chunk->end; i++)
                         if (chunk->hashes[i] == hash)
@@ -281,26 +280,26 @@ struct Rasterizer {
                 return nullptr;
             }
             Row<Chunk> chunks;
-            uint16_t grid[kGridSize];
+            uint16_t grid[kSize];
         };
         void empty() { grid.empty(), store.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
-            Chunk *chunk = grid.chunk(path.ref->hash);
-            Entry *srch = chunk->end ? grid.find(chunk, path.ref->hash) : nullptr;
+            Entry *srch = grid.find(path.ref->hash);
             if (srch) {
                 *m = ctm.concat(srch->ctm);
                 bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 return hit ? srch : nullptr;
             }
+            /*
             size_t index = store.index();
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeStoreSegment, Info(& store));
             store.release(index);
-            
+            */
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            return new (grid.alloc(chunk, path.ref->hash)) Entry(begin, segments.end, path.ref->isPolygon, ctm.invert());
+            return new (grid.alloc(path.ref->hash)) Entry(begin, segments.end, path.ref->isPolygon, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
