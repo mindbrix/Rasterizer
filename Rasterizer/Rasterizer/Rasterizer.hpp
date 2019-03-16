@@ -244,42 +244,27 @@ struct Rasterizer {
     struct Cache {
         struct Entry {
             Entry() {}
-            Entry(size_t begin, size_t end, bool isPolygon, Transform ctm)
-             : begin(int(begin)), end(int(end)), isPolygon(isPolygon), hit(true), ctm(ctm) {}
-            int begin, end; bool isPolygon, hit; Transform ctm;
+            Entry(size_t hash, size_t begin, size_t end, bool isPolygon, Transform ctm)
+             : hash(hash), begin(int(begin)), end(int(end)), isPolygon(isPolygon), hit(true), ctm(ctm) {}
+            size_t hash; int begin, end; bool isPolygon, hit; Transform ctm;
         };
         struct Grid {
-            struct Chunk { static constexpr int kSize = 64;  uint32_t end = 0, next = 0;  Entry entries[kSize];  size_t hashes[kSize]; };
-            
-            static constexpr int kSize = 4096, kMask = kSize - 1;
-            Grid() { empty(); }
-            void empty() { chunks.empty(), chunks.alloc(1), bzero(grid, sizeof(grid)); }
-            inline Chunk *getChunk(size_t hash) {
-                uint16_t& idx = grid[hash & kMask];
-                if (idx == 0)
-                    idx = chunks.end, new (chunks.alloc(1)) Chunk();
-                return chunks.base + idx;
+            static constexpr size_t kSize = 4096, kMask = kSize - 1;
+            void empty() {
+                for (Row<Entry>& row : grid)
+                    row.empty();
             }
             Entry *alloc(size_t hash) {
-                Chunk *chunk = getChunk(hash);
-                if (chunk->end == Chunk::kSize) {
-                    uint16_t& idx = grid[chunk->hashes[0] & kMask], next = idx;
-                    idx = chunks.end, chunk = new (chunks.alloc(1)) Chunk(), chunk->next = uint32_t(next);
-                }
-                chunk->hashes[chunk->end] = hash;
-                return chunk->entries + chunk->end++;
+                return grid[hash & kMask].alloc(1);
             }
             Entry *find(size_t hash) {
-                Chunk *chunk = getChunk(hash);
-                do {
-                    for (int i = 0; i < chunk->end; i++)
-                        if (chunk->hashes[i] == hash)
-                            return & chunk->entries[i];
-                } while (chunk->next && (chunk = chunks.base + chunk->next));
+                Row<Entry>& row = grid[hash & kMask];
+                for (Entry *e = row.base, *ue = e + row.end; e < ue; e++)
+                    if (e->hash == hash)
+                        return e;
                 return nullptr;
             }
-            Row<Chunk> chunks;
-            uint16_t grid[kSize];
+            Row<Entry> grid[kSize];
         };
         void empty() { grid.empty(), store.empty(), segments.empty(); }
         
@@ -299,7 +284,7 @@ struct Rasterizer {
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            return new (grid.alloc(path.ref->hash)) Entry(begin, segments.end, path.ref->isPolygon, ctm.invert());
+            return new (grid.alloc(path.ref->hash)) Entry(path.ref->hash, begin, segments.end, path.ref->isPolygon, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
