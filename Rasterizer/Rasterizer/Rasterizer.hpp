@@ -197,48 +197,11 @@ struct Rasterizer {
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
         float x0, y0, x1, y1;
     };
-    struct Store {
-        struct Chunk { static constexpr int kSize = 64; uint32_t end = 0, next = 0;  Segment segments[kSize]; };
-        
-        Store()         { size = 0, empty(); }
-        void empty()    { free = chunkCount = end = 0, allocChunk(), chunk = allocChunk(); }
-        size_t count()  { return chunkCount * Chunk::kSize + chunk->end; }
-        size_t index()  { return chunk - chunks.base; }
-        inline Segment *alloc() {
-            if (chunk->end == Chunk::kSize)
-                chunk->next = uint32_t(free ?: end), chunk = allocChunk(), chunkCount++;
-            return chunk->segments + chunk->end++;
-        }
-        Chunk *allocChunk() {
-            Chunk *chnk;
-            if (free)
-                chnk = chunks.base + free, free = chnk->next;
-            else {
-                size_t i = end++;
-                if (size < end)
-                    size = end * 1.5, chunks.resize(size, true);
-                chnk = chunks.base + i;
-            }
-            return new (chnk) Chunk();
-        }
-        void release(size_t index) {
-            Chunk *last = chunks.base + index;
-            while (last->next)
-                last = chunks.base + last->next;
-            last->next = uint32_t(free), free = index;
-            chunk = allocChunk(), chunkCount = 0;
-        }
-        Chunk *chunk;
-        size_t chunkCount, free, end, size;
-        Pages<Chunk> chunks;
-    };
-    
     struct Info {
         Info(void *info) : info(info), stride(0) {}
         Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
         Info(Row<Segment> *segments) : segments(segments), stride(0) {}
-        Info(Store *store) : store(store), stride(0) {}
-        union { void *info;  float *deltas;  Row<Segment> *segments;  Store *store; };
+        union { void *info;  float *deltas;  Row<Segment> *segments; };
         uint32_t stride;
     };
     struct Cache {
@@ -250,7 +213,7 @@ struct Rasterizer {
         };
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
-            void compact(Store& store) {
+            void compact() {
                 for (Row<Entry>& row : grid) {
                     Entry *e = row.base, *dst = e, *ue = e + row.end;
                     for (; e < ue; e++) {
@@ -259,7 +222,7 @@ struct Rasterizer {
                         if (e->hit)
                             dst++;
                         else
-                            store.release(e->begin);
+                            ; //store.release(e->begin);
                     }
                     row.end = dst - row.base;
                     for (int i = 0; i < row.end; i++)
@@ -282,7 +245,7 @@ struct Rasterizer {
             }
             Row<Entry> grid[kSize];
         };
-        void empty() { grid.empty(), store.empty(), segments.empty(); }
+        void empty() { grid.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Entry *srch = grid.find(path.ref->hash);
@@ -292,11 +255,6 @@ struct Rasterizer {
                 srch->hit |= hit;
                 return hit ? srch : nullptr;
             }
-            /*
-            size_t index = store.index();
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeStoreSegment, Info(& store));
-            store.release(index);
-            */
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
@@ -317,7 +275,6 @@ struct Rasterizer {
             }
         }
         Grid grid;
-        Store store;
         Row<Segment> segments;
     };
     struct Index {
@@ -429,9 +386,6 @@ struct Rasterizer {
         Cache cache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
-    static void writeStoreSegment(float x0, float y0, float x1, float y1, Info *info) {
-        new (info->store->alloc()) Segment(x0, y0, x1, y1);
-    }
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
         new (info->segments->alloc(1)) Segment(x0, y0, x1, y1);
     }
@@ -621,7 +575,7 @@ struct Rasterizer {
                             else
                                 (*function)(x0, y0, sx, sy, & info);
                         }
-                        if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeStoreSegment))
+                        if (sx != FLT_MAX && function == writeOutlineSegment)
                             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, & info);
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -674,7 +628,7 @@ struct Rasterizer {
             else
                 (*function)(x0, y0, sx, sy, & info);
         }
-        if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeStoreSegment))
+        if (sx != FLT_MAX && function == writeOutlineSegment)
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, & info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
