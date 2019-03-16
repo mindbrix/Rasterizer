@@ -245,8 +245,8 @@ struct Rasterizer {
         struct Entry {
             Entry() {}
             Entry(size_t begin, size_t end, bool isPolygon, Transform ctm)
-             : begin(int(begin)), end(int(end)), isPolygon(isPolygon), ctm(ctm) {}
-            int begin, end;  bool isPolygon;  Transform ctm;
+             : begin(int(begin)), end(int(end)), isPolygon(isPolygon), hit(true), ctm(ctm) {}
+            int begin, end; bool isPolygon, hit; Transform ctm;
         };
         
         struct Grid {
@@ -289,6 +289,7 @@ struct Rasterizer {
             if (srch) {
                 *m = ctm.concat(srch->ctm);
                 bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                srch->hit |= hit;
                 return hit ? srch : nullptr;
             }
             /*
