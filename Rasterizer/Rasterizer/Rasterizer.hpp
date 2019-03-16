@@ -212,22 +212,32 @@ struct Rasterizer {
             size_t hash; int begin, end; bool isPolygon, hit; Transform ctm;
         };
         struct Grid {
+            struct Index {
+                Index(int begin, size_t index) : begin(begin), index(int(index)) {}
+                int begin, index;
+                inline bool operator< (const Index& other) const { return begin < other.begin; }
+            };
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
-            void compact() {
+            void compact(Row<Segment>& segments) {
                 for (Row<Entry>& row : grid) {
                     Entry *e = row.base, *dst = e, *ue = e + row.end;
                     for (; e < ue; e++) {
                         if (e != dst)
                             *dst = *e;
                         if (e->hit)
-                            dst++;
-                        else
-                            ; //store.release(e->begin);
+                            dst++, new (indices.alloc(1)) Index(e->begin, & row - grid + kSize * (e - row.base));
                     }
                     row.end = dst - row.base;
                     for (int i = 0; i < row.end; i++)
                         row.base[i].hit = false;
                 }
+                std::sort(indices.base, indices.base + indices.end);
+                for (int i = 0; i < indices.end; i++) {
+                    Index *index = indices.base + i;
+                    Entry *e = grid[index->index & kMask].base + index->index / kSize;
+                    assert(e->begin == index->begin);
+                }
+                indices.empty();
             }
             void empty() {
                 for (Row<Entry>& row : grid)
@@ -243,9 +253,11 @@ struct Rasterizer {
                         return e;
                 return nullptr;
             }
+            Row<Index> indices;
             Row<Entry> grid[kSize];
         };
-        void empty() { grid.empty(), segments.empty(); }
+        void compact() { grid.compact(segments); }
+        void empty() { compact(), grid.empty(), segments.empty(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Entry *srch = grid.find(path.ref->hash);
