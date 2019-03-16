@@ -248,9 +248,8 @@ struct Rasterizer {
              : begin(int(begin)), end(int(end)), isPolygon(isPolygon), hit(true), ctm(ctm) {}
             int begin, end; bool isPolygon, hit; Transform ctm;
         };
-        
         struct Grid {
-            struct Chunk { static constexpr int kSize = 64;  Entry entries[kSize];  size_t hashes[kSize];  uint32_t end = 0, next = 0; };
+            struct Chunk { static constexpr int kSize = 64;  uint32_t end = 0, next = 0;  Entry entries[kSize];  size_t hashes[kSize]; };
             
             static constexpr int kSize = 4096, kMask = kSize - 1;
             Grid() { empty(); }
