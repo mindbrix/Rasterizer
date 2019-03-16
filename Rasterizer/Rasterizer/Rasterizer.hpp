@@ -250,6 +250,17 @@ struct Rasterizer {
         };
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
+            void compact(Store& store) {
+                for (Row<Entry>& row : grid) {
+                    for (Entry *e = row.base, *ue = e + row.end; e < ue; e++)
+                        if (!e->hit && e->begin)
+                            store.release(e->begin), e->hash = e->begin = 0;
+                    for (int i = int(row.end) - 1; i >= 0 && !row.base[i].hit; i--)
+                        row.end--;
+                    for (int i = 0; i < row.end; i++)
+                        row.base[i].hit = false;
+                }
+            }
             void empty() {
                 for (Row<Entry>& row : grid)
                     row.empty();
