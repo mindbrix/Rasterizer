@@ -206,27 +206,27 @@ struct Rasterizer {
         size_t index()  { return chunk - chunks.base; }
         inline Segment *alloc() {
             if (chunk->end == Chunk::kSize)
-                chunk->next = uint32_t(free ?: end), next();
+                chunk->next = uint32_t(free ?: end), chunk = allocChunk(), chunkCount++;
             return chunk->segments + chunk->end++;
         }
         Chunk *allocChunk() {
-            size_t i = end++;
-            if (size < end)
-                size = end * 1.5, chunks.resize(size, true);
-            return new (chunks.base + i) Chunk();
-        }
-        void next() {
+            Chunk *chnk;
             if (free)
-                chunk = chunks.base + free, free = chunk->next, new (chunk) Chunk();
-            else
-                chunk = allocChunk();
-            chunkCount++;
+                chnk = chunks.base + free, free = chnk->next;
+            else {
+                size_t i = end++;
+                if (size < end)
+                    size = end * 1.5, chunks.resize(size, true);
+                chnk = chunks.base + i;
+            }
+            return new (chnk) Chunk();
         }
         void release(size_t index) {
             Chunk *last = chunks.base + index;
             while (last->next)
                 last = chunks.base + last->next;
-            last->next = uint32_t(free), free = index, next(), chunkCount = 0;
+            last->next = uint32_t(free), free = index;
+            chunk = allocChunk(), chunkCount = 0;
         }
         Chunk *chunk;
         size_t chunkCount, free, end, size;
