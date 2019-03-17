@@ -271,7 +271,9 @@ struct Rasterizer {
                 grid.empty(), segments.empty();
         }
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
-            Entry *srch = grid.find(path.ref->hash);
+            Transform unit = path.ref->bounds.unit(ctm);
+            uint64_t hash = path.ref->hash + (useCache ? 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c)) : 0);
+            Entry *srch = grid.find(hash);
             if (srch) {
                 *m = ctm.concat(srch->ctm);
                 bool hit = m->a == m->d && m->b == -m->c && (useCache || srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
@@ -281,7 +283,7 @@ struct Rasterizer {
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            return new (grid.alloc(path.ref->hash)) Entry(path.ref->hash, begin, segments.end, path.ref->isPolygon, ctm.invert());
+            return new (grid.alloc(hash)) Entry(hash, begin, segments.end, path.ref->isPolygon, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
