@@ -272,7 +272,8 @@ struct Rasterizer {
         }
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Transform unit = path.ref->bounds.unit(ctm);
-            uint64_t hash = path.ref->hash + (useCache ? 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c)) : 0);
+            uint64_t scale = useCache && !path.ref->isPolygon ? 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c)) : 0;
+            uint64_t hash = path.ref->hash + scale;
             Entry *srch = grid.find(hash);
             if (srch) {
                 *m = ctm.concat(srch->ctm);
