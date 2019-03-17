@@ -395,17 +395,16 @@ struct Rasterizer {
             int ic;
             uint16_t i0, i1;
         };
-        GPU() { empty(); }
         void empty() {
             shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.empty();
         }
-        size_t shapesCount, shapePaths, outlinePaths;
+        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
         Allocator allocator;
         Molecules molecules;
         Row<Index> indices;
         Row<Quad> quads, opaques;
         Row<Segment> outlines;
-        Transform *ctms;
+        Transform *ctms = nullptr;
         Cache cache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
