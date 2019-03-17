@@ -264,14 +264,17 @@ struct Rasterizer {
             Row<Index> indices;
             Row<Entry> grid[kSize];
         };
-        void compact() { grid.compact(segments); }
-        void empty() { compact();/*, grid.empty(), segments.empty(); */ }
-        
+        void empty() {
+            if (0)
+                grid.compact(segments);
+            else
+                grid.empty(), segments.empty();
+        }
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Entry *srch = grid.find(path.ref->hash);
             if (srch) {
                 *m = ctm.concat(srch->ctm);
-                bool hit = m->a == m->d && m->b == -m->c && (1 || srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 srch->hit |= hit;
                 return hit ? srch : nullptr;
             }
