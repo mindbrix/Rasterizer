@@ -265,7 +265,7 @@ struct Rasterizer {
             Row<Entry> grid[kSize];
         };
         void empty() {
-            if (0)
+            if (useCache)
                 grid.compact(segments);
             else
                 grid.empty(), segments.empty();
@@ -274,7 +274,7 @@ struct Rasterizer {
             Entry *srch = grid.find(path.ref->hash);
             if (srch) {
                 *m = ctm.concat(srch->ctm);
-                bool hit = m->a == m->d && m->b == -m->c && (srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                bool hit = m->a == m->d && m->b == -m->c && (useCache || srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
                 srch->hit |= hit;
                 return hit ? srch : nullptr;
             }
@@ -297,6 +297,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
             }
         }
+        bool useCache;
         Grid grid;
         Row<Segment> segments;
     };
@@ -482,13 +483,13 @@ struct Rasterizer {
             deltas.empty(), deltas.alloc((bm.width + 1) * kfh);
             memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
         }
-        void setGPU(size_t width, size_t height, Transform *ctms) {
+        void setGPU(size_t width, size_t height, Transform *ctms, bool useCache) {
             bitmap = Bitmap();
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
-            gpu.allocator.init(width, height), gpu.ctms = ctms;
+            gpu.allocator.init(width, height), gpu.ctms = ctms, gpu.cache.useCache = useCache;
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t begin, size_t end) {
             if (begin == end)
