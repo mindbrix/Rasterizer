@@ -272,12 +272,12 @@ struct Rasterizer {
         }
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Transform unit = path.ref->bounds.unit(ctm);
-            uint64_t scale = useCache && !path.ref->isPolygon ? 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c)) : 0;
+            uint64_t scale = path.ref->isPolygon ? 0 : 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c));
             uint64_t hash = path.ref->hash + scale;
             Entry *srch = grid.find(hash);
             if (srch) {
                 *m = ctm.concat(srch->ctm);
-                bool hit = m->a == m->d && m->b == -m->c && (useCache || srch->isPolygon || fabsf(m->a * m->a + m->b * m->b - 1.f) < 1e-6f);
+                bool hit = m->a == m->d && m->b == -m->c;
                 srch->hit |= hit;
                 return hit ? srch : nullptr;
             }
