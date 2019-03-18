@@ -476,7 +476,6 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct Context {
-        Context() {}
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
             bounds = Bounds(0.f, 0.f, bm.width, bm.height).intersect(cl.integral());
