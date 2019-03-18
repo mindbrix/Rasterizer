@@ -286,11 +286,11 @@ struct Rasterizer {
             segments.idx = segments.end;
             return new (grid.alloc(hash)) Entry(hash, begin, segments.end, ctm.invert());
         }
-        void writeCachedOutline(Entry *e, Transform m, Info info) {
+        void writeCachedOutline(Entry *e, Transform m, Bounds clip, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
             Segment *s = segments.base + e->begin, *end = segments.base + e->end;
-            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, iy0 = floorf(y0 * krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh);
+            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
+                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh);
                 if (s->x0 != FLT_MAX) {
                     if (iy0 == iy1 && y0 != y1)
                         new (info.segments[size_t(iy0) - info.stride].alloc(1)) Segment(x0, y0, x1, y1);
@@ -510,7 +510,7 @@ struct Rasterizer {
                         Bounds clu = Bounds(inv.concat(unit));
                         if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             if (bitmap.width)
-                                writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0]), deltas.base, deltas.end, & bitmap);
+                                writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                             else
                                 writeGPUPath(*paths, *ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
                         }
@@ -557,7 +557,7 @@ struct Rasterizer {
                 if (entry == nullptr)
                     writePath(path, ctm, clip, writeClippedSegment, segments);
                 else if (slow)
-                    gpu.cache.writeCachedOutline(entry, m, segments);
+                    gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
                     size_t midx = 0, count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     gpu.ctms[iz] = m;
@@ -933,7 +933,7 @@ struct Rasterizer {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
         Segment *segment;
         Row<Index> indices;    Index *index;
-        for (segments += ily, iy = ily; iy < iuy; iy++, segments++) {
+        for (iy = ily; iy < iuy; iy++, segments++) {
             ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
             if (segments->end) {
