@@ -40,6 +40,7 @@
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
 	[self writeGlyphs:self.font string:nil];
+    _useCache = YES;
     return self;
 }
 
