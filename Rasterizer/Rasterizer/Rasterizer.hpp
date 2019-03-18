@@ -207,9 +207,9 @@ struct Rasterizer {
     struct Cache {
         struct Entry {
             Entry() {}
-            Entry(size_t hash, size_t begin, size_t end, bool isPolygon, Transform ctm)
-             : hash(hash), begin(int(begin)), end(int(end)), isPolygon(isPolygon), hit(true), ctm(ctm) {}
-            size_t hash; int begin, end; bool isPolygon, hit; Transform ctm;
+            Entry(size_t hash, size_t begin, size_t end, Transform ctm)
+             : hash(hash), begin(int(begin)), end(int(end)), hit(true), ctm(ctm) {}
+            size_t hash; int begin, end; bool hit; Transform ctm;
         };
         struct Grid {
             struct Index {
@@ -284,7 +284,7 @@ struct Rasterizer {
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            return new (grid.alloc(hash)) Entry(hash, begin, segments.end, path.ref->isPolygon, ctm.invert());
+            return new (grid.alloc(hash)) Entry(hash, begin, segments.end, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
