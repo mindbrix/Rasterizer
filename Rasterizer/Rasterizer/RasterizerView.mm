@@ -16,7 +16,6 @@
 
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
 @property(nonatomic) RasterizerScene::Scene textScene;
-@property(nonatomic) BOOL useCache;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;
@@ -40,7 +39,6 @@
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
 	[self writeGlyphs:self.font string:nil];
-    _useCache = YES;
     return self;
 }
 
@@ -147,9 +145,6 @@
     } else if (event.keyCode == 31) {
         _useOutline = !_useOutline;
         [self redraw];
-    } else if (event.keyCode == 34) {
-        _useCache = !_useCache;
-        [self redraw];
     } else if (event.keyCode == 35) {
         _showPaths = !_showPaths;
         [self redraw];
@@ -188,7 +183,7 @@
     Rasterizer::Path clipPath;
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, _useCache, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
                                           float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
                                           float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
 }
@@ -203,7 +198,7 @@
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
     Rasterizer::Path clipPath;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, _useCache, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
                                           float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
                                           float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
 }
