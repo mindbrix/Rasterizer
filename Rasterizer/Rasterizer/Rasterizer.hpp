@@ -164,6 +164,7 @@ struct Rasterizer {
     template<typename T>
     struct Row {
         void empty() { end = idx = 0; }
+        void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         inline T *alloc(size_t n) {
             size_t i = end;
             end += n;
@@ -251,6 +252,11 @@ struct Rasterizer {
                 for (Row<Entry>& row : grid)
                     row.empty();
             }
+            void reset() {
+                indices.reset();
+                for (Row<Entry>& row : grid)
+                    row.reset();
+            }
             Entry *alloc(size_t hash) {
                 return grid[hash & kMask].alloc(1);
             }
@@ -269,6 +275,9 @@ struct Rasterizer {
                 grid.compact(segments);
             else
                 grid.empty(), segments.empty();
+        }
+        void reset() {
+            grid.reset(), segments.reset();
         }
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Transform unit = path.ref->bounds.unit(ctm);
@@ -359,6 +368,7 @@ struct Rasterizer {
                 return cells.alloc(size);
             }
             void empty() { ranges.empty(), cells.empty(); }
+            void reset() { ranges.reset(), cells.reset(); }
             Row<Range> ranges;
             Row<Cell> cells;
         };
@@ -401,6 +411,9 @@ struct Rasterizer {
         };
         void empty() {
             shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.empty();
+        }
+        void reset() {
+            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), quads.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset();
         }
         size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
         Allocator allocator;
@@ -517,6 +530,7 @@ struct Rasterizer {
                     }
                 }
         }
+        void reset() { gpu.reset(), deltas.reset(), segments.resize(0); }
         GPU gpu;
         Bitmap bitmap;
         Bounds bounds;

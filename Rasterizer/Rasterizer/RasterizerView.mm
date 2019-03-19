@@ -138,6 +138,7 @@
         _useCPU = !_useCPU;
         [self toggleTimer];
         [self initLayer:_useCPU];
+        _testScene.reset();
         [self redraw];
     } else if (event.keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
