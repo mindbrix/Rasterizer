@@ -270,12 +270,9 @@ struct Rasterizer {
             Row<Index> indices;
             Row<Entry> grid[kSize];
         };
-        void empty() {
-            grid.compact(segments);
-        }
-        void reset() {
-            grid.reset(), segments.reset();
-        }
+        void compact() { grid.compact(segments); }
+        void reset() { grid.reset(), segments.reset(); }
+        
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Transform unit = path.ref->bounds.unit(ctm);
             uint64_t scale = path.ref->isPolygon ? 0 : 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c));
@@ -406,7 +403,7 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.empty();
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), quads.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.compact();
         }
         void reset() {
             shapesCount = shapePaths = outlinePaths = 0, indices.reset(), quads.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset();
