@@ -8,8 +8,6 @@
 
 #import <unordered_map>
 #import "Rasterizer.hpp"
-
-
 #import "stb_truetype.h"
 
 struct RasterizerTrueType {
