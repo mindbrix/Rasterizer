@@ -233,9 +233,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)paste:(id)sender {
-	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-	NSArray<NSPasteboardItem *> *items = pasteboard.pasteboardItems;
-	self.pastedString = [[items objectAtIndex:0] stringForType:NSPasteboardTypeString];
+	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _testScene);
 	[self redraw];
 }
