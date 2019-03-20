@@ -9,7 +9,7 @@
 #import <unordered_map>
 #import "Rasterizer.hpp"
 
-#define STB_TRUETYPE_IMPLEMENTATION
+
 #import "stb_truetype.h"
 
 struct RasterizerTrueType {

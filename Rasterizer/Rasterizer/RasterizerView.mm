@@ -38,8 +38,8 @@
         return nil;
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
-	[self writeGlyphs:self.font string:nil];
-    return self;
+    RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _testScene);
+	return self;
 }
 
 - (void)drawRect:(NSRect)dirtyRect {}
@@ -49,7 +49,7 @@
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
-    [self writeGlyphs:self.font string:self.pastedString];
+    RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _testScene);
     [self redraw];
 }
 
@@ -84,29 +84,6 @@
 - (void)updateRasterizerLabel {
     [self.rasterizerLabel setHidden:YES];
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
-}
-
-- (void)writeGlyphs:(NSFont *)nsFont string:(NSString *)string {
-	CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)nsFont.fontName, 1);
-	CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
-	CFRelease(fontRef);
-	NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
-	CFRelease(url);
-	_testScene.scene.empty();
-    _testScene.cgscene.empty();
-	RasterizerTrueType::Font font;
-	if (font.set(data.bytes, nsFont.fontName.UTF8String) != 0) {
-		uint8_t bgra[4] = { 0, 0, 0, 255 };
-        if (string) {
-            Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(nsFont.pointSize), bgra, RasterizerCoreGraphics::boundsFromCGRect(self.bounds), false, string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
-            if ((0)) {
-                _testScene.scene.empty();
-                _testScene.scene.addPath(shapes, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
-            }
-        }
-		else
-        	RasterizerTrueType::writeGlyphGrid(font, float(nsFont.pointSize), bgra,  _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
-	}
 }
 
 #pragma mark - NSResponder
@@ -161,7 +138,7 @@
 	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
 	NSArray<NSPasteboardItem *> *items = pasteboard.pasteboardItems;
 	self.pastedString = [[items objectAtIndex:0] stringForType:NSPasteboardTypeString];
-	[self writeGlyphs:self.font string:self.pastedString];
+    RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _testScene);
 	[self redraw];
 }
 

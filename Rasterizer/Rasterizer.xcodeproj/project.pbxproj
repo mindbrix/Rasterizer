@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		E901B3872194B00F00B1AB72 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E901B3862194B00F00B1AB72 /* Accelerate.framework */; };
+		E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */ = {isa = PBXBuildFile; fileRef = E91ADF9322425C2F00729DA0 /* stb_truetype.c */; };
 		E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A59D21762BCD00F52C25 /* AppDelegate.m */; };
 		E920A5A121762BCD00F52C25 /* Document.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5A021762BCD00F52C25 /* Document.m */; };
 		E920A5A421762BCD00F52C25 /* Document.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A221762BCD00F52C25 /* Document.xib */; };
@@ -25,6 +26,7 @@
 
 /* Begin PBXFileReference section */
 		E901B3862194B00F00B1AB72 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		E91ADF9322425C2F00729DA0 /* stb_truetype.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = stb_truetype.c; sourceTree = "<group>"; };
 		E920A59921762BCD00F52C25 /* Rasterizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rasterizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E920A59C21762BCD00F52C25 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		E920A59D21762BCD00F52C25 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -101,6 +103,7 @@
 			children = (
 				E9A7FA84218FAB380031FD4E /* nanosvg.h */,
 				E963FF6E21DF5A29007C1327 /* stb_truetype.h */,
+				E91ADF9322425C2F00729DA0 /* stb_truetype.c */,
 				E9C2E72722280F000023B714 /* crc64.h */,
 				E9C2E72822280F000023B714 /* crc64.c */,
 				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
@@ -210,6 +213,7 @@
 				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
 				E9C2E72922280F000023B714 /* crc64.c in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
+				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
 				E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E920A5BE21767BD800F52C25 /* ZoomableView.m in Sources */,

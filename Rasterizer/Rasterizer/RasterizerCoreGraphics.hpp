@@ -7,6 +7,7 @@
 //
 
 #import "RasterizerScene.hpp"
+#import "RasterizerTrueType.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
@@ -218,6 +219,24 @@ struct RasterizerCoreGraphics {
         CGFloat dimension;
         CGFloat phi;
     };
+    
+    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, CGTestScene& _testScene) {
+        CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
+        CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
+        CFRelease(fontRef);
+        NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
+        CFRelease(url);
+        _testScene.scene.empty();
+        _testScene.cgscene.empty();
+        RasterizerTrueType::Font font;
+        if (font.set(data.bytes, fontName.UTF8String) != 0) {
+            uint8_t bgra[4] = { 0, 0, 0, 255 };
+            if (string)
+                Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(pointSize), bgra, boundsFromCGRect(bounds), false, string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+            else
+                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), bgra, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+        }
+    }
     
     static void renderPaths(std::vector<Rasterizer::Context>& contexts, Rasterizer::Path *paths, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, size_t pathsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         size_t slice, ly, uy, count;
