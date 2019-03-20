@@ -190,32 +190,33 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)keyDown:(NSEvent *)event {
     NSLog(@"%d", event.keyCode);
-    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kKeyDown, int(event.keyCode))];
+    int keyCode = event.keyCode;
+    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kKeyDown, keyCode)];
     
-    if (event.keyCode == 8) {
+    if (keyCode == 8) {
         _useClip = !_useClip;
         [self redraw];
-    } else if (event.keyCode == 46) {
+    } else if (keyCode == 46) {
         _useCPU = !_useCPU;
         [self toggleTimer];
         [self initLayer:_useCPU];
         _testScene.reset();
         [self redraw];
-    } else if (event.keyCode == 15) {
+    } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
         [self redraw];
-    } else if (event.keyCode == 31) {
+    } else if (keyCode == 31) {
         _useOutline = !_useOutline;
         [self redraw];
-    } else if (event.keyCode == 35) {
+    } else if (keyCode == 35) {
         _showPaths = !_showPaths;
         [self redraw];
-    } else if (event.keyCode == 49) {
+    } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCoreGraphics::CGTestScene::kRasterizerCount;
         [self updateRasterizerLabel];
         [self redraw];
-    } else if (event.keyCode == 36) {
+    } else if (keyCode == 36) {
         self.CTM = CGAffineTransformIdentity;
         [self redraw];
     } else {
