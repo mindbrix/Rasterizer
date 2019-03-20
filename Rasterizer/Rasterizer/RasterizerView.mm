@@ -15,7 +15,6 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
-@property(nonatomic) CGAffineTransform CTM;
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
@@ -226,7 +225,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         [self updateRasterizerLabel];
         [self redraw];
     } else if (keyCode == 36) {
-        self.CTM = CGAffineTransformIdentity;
+        self.transform = [VGAffineTransform new];
         [self redraw];
     } else {
         [super keyDown:event];
@@ -267,15 +266,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMouseUp, float(event.locationInWindow.x), float(event.locationInWindow.y))];
 }
 
-#pragma mark - Properties
-
-- (CGAffineTransform)CTM {
-    return self.transform.affineTransform;
-}
-
-- (void)setCTM:(CGAffineTransform)CTM {
-    self.transform = [[VGAffineTransform alloc] initWithTransform:CTM];
-}
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
@@ -283,7 +273,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         return;
         
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-	Rasterizer::Transform view(self.CTM.a, self.CTM.b, self.CTM.c, self.CTM.d, self.CTM.tx, self.CTM.ty);
+    CGAffineTransform CTM = self.transform.affineTransform;
+	Rasterizer::Transform view(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Transform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
     Rasterizer::Transform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
@@ -298,7 +289,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    CGContextConcatCTM(ctx, self.CTM);
+    CGContextConcatCTM(ctx, self.transform.affineTransform);
     CGAffineTransform CTM = CGContextGetCTM(ctx);
     Rasterizer::Transform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
