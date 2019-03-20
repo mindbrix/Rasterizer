@@ -17,8 +17,6 @@
 
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
-- (void)timerFired:(double)time;
-
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
 @property(nonatomic) RasterizerScene::Scene textScene;
 @property(nonatomic) BOOL useClip;
@@ -29,6 +27,7 @@
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) CGPoint mouse;
+- (void)timerFired:(double)time;
 
 @end
 
