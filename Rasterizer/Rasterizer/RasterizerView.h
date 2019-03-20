@@ -7,11 +7,11 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "ZoomableView.h"
 
-@interface RasterizerView : ZoomableView
+@interface RasterizerView : NSView
 
 @property(nonatomic, strong) NSData *svgData;
 @property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
+@property(nonatomic) CGAffineTransform CTM;
 
 @end
