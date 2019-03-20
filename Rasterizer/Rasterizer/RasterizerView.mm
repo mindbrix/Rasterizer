@@ -195,14 +195,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     return YES;
 }
 
-- (void)mouseMoved:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMouseMove, float(event.locationInWindow.x), float(event.locationInWindow.y))];
-    
-    self.mouse = event.locationInWindow;
-    if (self.showPaths)
-        [self redraw];
-}
-
 - (void)keyDown:(NSEvent *)event {
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
@@ -250,22 +242,28 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)magnifyWithEvent:(NSEvent *)event {
     [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMagnify, float(1 + event.magnification), 0.f)];
 }
-
 - (void)rotateWithEvent:(NSEvent *)event {
     if (!(event.modifierFlags & NSEventModifierFlagShift))
         [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kRotate, float(event.rotation / 10), 0.f)];
 }
-
-- (void)mouseDragged:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kTranslate, float(event.deltaX), float(-event.deltaY))];
-}
-
 - (void)scrollWheel:(NSEvent *)event {
     BOOL isInverted = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]);
     CGFloat inversion = isInverted ? 1.0f : -1.0f;
     [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion))];
 }
 
+- (void)mouseDown:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMouseDown, float(event.locationInWindow.x), float(event.locationInWindow.y))];
+}
+- (void)mouseDragged:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kTranslate, float(event.deltaX), float(-event.deltaY))];
+}
+- (void)mouseMoved:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMouseMove, float(event.locationInWindow.x), float(event.locationInWindow.y))];
+}
+- (void)mouseUp:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMouseUp, float(event.locationInWindow.x), float(event.locationInWindow.y))];
+}
 
 #pragma mark - Properties
 
