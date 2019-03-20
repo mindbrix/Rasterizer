@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 23/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-
+#import "RasterizerEvent.hpp"
 #import "RasterizerScene.hpp"
 #import "RasterizerTrueType.hpp"
 #import <Accelerate/Accelerate.h>
@@ -212,6 +212,7 @@ struct RasterizerCoreGraphics {
                 context.reset();
         }
         std::vector<Rasterizer::Context> contexts;
+        std::vector<RasterizerEvent::Event> events;
         int rasterizerType;
         RasterizerScene::Scene scene;
         CGScene cgscene;
