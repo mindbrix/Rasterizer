@@ -142,7 +142,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
-#pragma mark - NSResponder
+#pragma mark - RasterizerEvent
 
 - (BOOL)readEvents:(std::vector<RasterizerEvent::Event>&)events {
     BOOL redraw = NO;
@@ -185,6 +185,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         _testScene.events.resize(0);
     }
 }
+
+#pragma mark - NSResponder
+
 - (BOOL)acceptsFirstResponder {
     return YES;
 }
