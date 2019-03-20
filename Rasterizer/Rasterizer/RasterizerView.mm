@@ -87,7 +87,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    [self readEvents:_testScene.state];
+    [self readEvents:_testScene.state forTime:time];
 }
 
 - (void)toggleTimer {
@@ -141,7 +141,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - RasterizerEvent
 
-- (void)readEvents:(RasterizerEvent::State&)state {
+- (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time {
     BOOL redraw = NO;
     for (RasterizerEvent::Event& e : state.events) {
         switch(e.type) {
@@ -181,7 +181,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _testScene.state.events.emplace_back(event);
     if (_displayLink == nil)
-        [self readEvents:_testScene.state];
+        [self readEvents:_testScene.state forTime:0];
 }
 
 #pragma mark - NSResponder
