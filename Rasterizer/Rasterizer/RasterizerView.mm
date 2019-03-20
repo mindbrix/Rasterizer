@@ -87,9 +87,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    if ([self readEvents:_testScene.events])
+    if ([self readEvents:_testScene.state])
         [self redraw];
-    _testScene.events.resize(0);
 }
 
 - (void)toggleTimer {
@@ -143,9 +142,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - RasterizerEvent
 
-- (BOOL)readEvents:(std::vector<RasterizerEvent::Event>&)events {
+- (BOOL)readEvents:(RasterizerEvent::State&)state {
     BOOL redraw = NO;
-    for (RasterizerEvent::Event& e : events) {
+    for (RasterizerEvent::Event& e : state.events) {
         switch(e.type) {
             case RasterizerEvent::Event::kMouseMove:
                 self.mouse = CGPointMake(e.x, e.y);
@@ -153,7 +152,11 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                     redraw = YES;
                 break;
             case RasterizerEvent::Event::kMouseUp:
+                state.mouseDown = false;
+                break;
             case RasterizerEvent::Event::kMouseDown:
+                state.mouseDown = true;
+                break;
             case RasterizerEvent::Event::kKeyDown:
             case RasterizerEvent::Event::kKeyUp:
                 break;
@@ -173,16 +176,13 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 assert(0);
         }
     }
+    state.events.resize(0);
     return redraw;
 }
 - (void)writeEvent:(RasterizerEvent::Event)event {
-    _testScene.events.emplace_back(event);
-    
-    if (_displayLink == nil) {
-        if ([self readEvents:_testScene.events])
-            [self redraw];
-        _testScene.events.resize(0);
-    }
+    _testScene.state.events.emplace_back(event);
+    if (_displayLink == nil && [self readEvents:_testScene.state])
+        [self redraw];
 }
 
 #pragma mark - NSResponder

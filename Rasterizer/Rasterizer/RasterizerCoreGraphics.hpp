@@ -212,7 +212,7 @@ struct RasterizerCoreGraphics {
                 context.reset();
         }
         std::vector<Rasterizer::Context> contexts;
-        std::vector<RasterizerEvent::Event> events;
+        RasterizerEvent::State state;
         int rasterizerType;
         RasterizerScene::Scene scene;
         CGScene cgscene;
