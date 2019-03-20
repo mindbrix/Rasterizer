@@ -61,7 +61,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         CVDisplayLinkStop(_displayLink);
         CVDisplayLinkRelease(_displayLink);
         _displayLink = nil;
-        _time = 0;
     }
 }
 
@@ -73,7 +72,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    _time = time;
     if (_eventFlag)
         [self redraw];
     _eventFlag = NO;
