@@ -15,7 +15,6 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
-@property(nonatomic) BOOL eventFlag;
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
 - (void)timerFired:(double)time;
@@ -89,9 +88,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    if (_eventFlag)
+    if ([self readEvents:_testScene.events])
         [self redraw];
-    _eventFlag = NO;
+    _testScene.events.resize(0);
 }
 
 - (void)toggleTimer {
@@ -113,8 +112,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - Drawing
 
 - (void)redraw {
-    [self readEvents:_testScene.events];
-    _testScene.events.resize(0);
     [self.layer setNeedsDisplay];
 }
 
@@ -152,13 +149,25 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     for (RasterizerEvent::Event& e : events) {
         switch(e.type) {
             case RasterizerEvent::Event::kMouseMove:
+                self.mouse = CGPointMake(e.x, e.y);
+                if (self.showPaths)
+                    redraw = YES;
+                break;
             case RasterizerEvent::Event::kMouseUp:
             case RasterizerEvent::Event::kMouseDown:
             case RasterizerEvent::Event::kKeyDown:
             case RasterizerEvent::Event::kKeyUp:
             case RasterizerEvent::Event::kMagnify:
+                [self.transform scaleBy:e.x bounds:self.bounds];
+                redraw = YES;
+                break;
             case RasterizerEvent::Event::kRotate:
+                [self.transform rotateBy:e.x bounds:self.bounds];
+                redraw = YES;
+                break;
             case RasterizerEvent::Event::kTranslate:
+                [self.transform translateByX:e.x andY:e.y];
+                redraw = YES;
                 break;
             case RasterizerEvent::Event::kNull:
                 assert(0);
@@ -168,6 +177,12 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _testScene.events.emplace_back(event);
+    
+    if (_displayLink == nil) {
+        if ([self readEvents:_testScene.events])
+            [self redraw];
+        _testScene.events.resize(0);
+    }
 }
 - (BOOL)acceptsFirstResponder {
     return YES;
@@ -191,7 +206,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)keyDown:(NSEvent *)event {
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kKeyDown, keyCode)];
+    //[self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kKeyDown, keyCode)];
     
     if (keyCode == 8) {
         _useClip = !_useClip;
@@ -234,42 +249,21 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)magnifyWithEvent:(NSEvent *)event {
     [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kMagnify, float(1 + event.magnification), 0.f)];
-    
-    [self.transform scaleBy:1.0f + event.magnification bounds:self.bounds];
-    _eventFlag = YES;
-    if (_displayLink == nil)
-        [self redraw];
 }
 
 - (void)rotateWithEvent:(NSEvent *)event {
-    if (!(event.modifierFlags & NSEventModifierFlagShift)) {
+    if (!(event.modifierFlags & NSEventModifierFlagShift))
         [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kRotate, float(event.rotation / 10), 0.f)];
-        
-        [self.transform rotateBy:event.rotation / 10.f bounds:self.bounds];
-        _eventFlag = YES;
-    }
-    if (_displayLink == nil)
-        [self redraw];
 }
 
 - (void)mouseDragged:(NSEvent *)event {
     [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kTranslate, float(event.deltaX), float(-event.deltaY))];
-    
-    [self.transform translateByX:event.deltaX andY:-event.deltaY];
-    _eventFlag = YES;
-    if (_displayLink == nil)
-        [self redraw];
 }
 
 - (void)scrollWheel:(NSEvent *)event {
     BOOL isInverted = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]);
     CGFloat inversion = isInverted ? 1.0f : -1.0f;
-    [self.transform translateByX:event.deltaX * inversion andY:-event.deltaY * inversion];
     [self writeEvent:RasterizerEvent::Event(RasterizerEvent::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion))];
-    
-    _eventFlag = YES;
-    if (_displayLink == nil)
-        [self redraw];
 }
 
 
@@ -281,9 +275,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)setCTM:(CGAffineTransform)CTM {
     self.transform = [[VGAffineTransform alloc] initWithTransform:CTM];
-    _eventFlag = YES;
-    if (_displayLink == nil)
-        [self redraw];
+    [self redraw];
 }
 #pragma mark - LayerDelegate
 
