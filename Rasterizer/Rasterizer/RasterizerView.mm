@@ -157,6 +157,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
             case RasterizerEvent::Event::kMouseDown:
             case RasterizerEvent::Event::kKeyDown:
             case RasterizerEvent::Event::kKeyUp:
+                break;
             case RasterizerEvent::Event::kMagnify:
                 [self.transform scaleBy:e.x bounds:self.bounds];
                 redraw = YES;
@@ -191,6 +192,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (BOOL)becomeFirstResponder {
     [self updateRasterizerLabel];
     self.window.acceptsMouseMovedEvents = YES;
+    [self toggleTimer];
     [self redraw];
     return YES;
 }
