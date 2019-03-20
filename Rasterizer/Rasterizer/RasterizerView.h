@@ -12,6 +12,5 @@
 
 @property(nonatomic, strong) NSData *svgData;
 @property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
-@property(nonatomic) CGAffineTransform CTM;
 
 @end

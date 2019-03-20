@@ -15,6 +15,7 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
+@property(nonatomic) CGAffineTransform CTM;
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
