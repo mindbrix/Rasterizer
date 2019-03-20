@@ -274,7 +274,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
     CGAffineTransform CTM = self.transform.affineTransform;
-	Rasterizer::Transform view(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
+    Rasterizer::Transform view = RasterizerCoreGraphics::transformFromCG(CTM);
     Rasterizer::Transform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
     Rasterizer::Transform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);

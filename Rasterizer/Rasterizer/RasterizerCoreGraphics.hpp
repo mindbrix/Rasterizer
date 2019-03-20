@@ -31,7 +31,7 @@ struct RasterizerCoreGraphics {
         for (int i = 0; i < scene.paths.size(); i++)
             if (scene.paths[i].ref) {
                 cgscene.colors.emplace_back(createCGColorFromBGRA(& scene.bgras[i].src0));
-                cgscene.ctms.emplace_back(CGAffineTransformFromTransform(scene.ctms[i]));
+                cgscene.ctms.emplace_back(CGFromTransform(scene.ctms[i]));
                 cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
                 writePathToCGPath(scene.paths[i], path);
@@ -42,7 +42,7 @@ struct RasterizerCoreGraphics {
     static void drawCGScene(CGScene& scene, const Rasterizer::Transform ctm, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (size_t i = 0; i < scene.paths.size(); i++) {
             Rasterizer::Bounds b = boundsFromCGRect(scene.bounds[i]);
-            Rasterizer::Transform t = transformFromCGAffineTransform(scene.ctms[i]);
+            Rasterizer::Transform t = transformFromCG(scene.ctms[i]);
             Rasterizer::Bounds clip = Rasterizer::Bounds(b.unit(ctm.concat(t))).integral().intersect(bounds);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 CGContextSaveGState(ctx);
@@ -114,10 +114,10 @@ struct RasterizerCoreGraphics {
         CGColorSpaceRelease(srcSpace);
         return color;
     }
-    static Rasterizer::Transform transformFromCGAffineTransform(CGAffineTransform t) {
+    static Rasterizer::Transform transformFromCG(CGAffineTransform t) {
         return Rasterizer::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }
-    static CGAffineTransform CGAffineTransformFromTransform(Rasterizer::Transform t) {
+    static CGAffineTransform CGFromTransform(Rasterizer::Transform t) {
         return CGAffineTransformMake(t.a, t.b, t.c, t.d, t.tx, t.ty);
     }
     static Rasterizer::Bounds boundsFromCGRect(CGRect rect) {
