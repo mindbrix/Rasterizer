@@ -12,9 +12,6 @@
 @interface RasterizerView : ZoomableView
 
 @property(nonatomic, strong) NSData *svgData;
-
 @property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
-
-- (IBAction)toggleRasterizer:(id)sender;
 
 @end

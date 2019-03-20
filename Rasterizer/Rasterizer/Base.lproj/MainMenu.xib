@@ -633,13 +633,6 @@
                                     <action selector="toggleFullScreen:" target="-1" id="dU3-MA-1Rq"/>
                                 </connections>
                             </menuItem>
-                            <menuItem isSeparatorItem="YES" id="hB3-LF-h0Y"/>
-                            <menuItem title="Toggle Rasterizer" keyEquivalent=" " id="Bzt-zh-GwK">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                                <connections>
-                                    <action selector="toggleRasterizer:" target="-1" id="eOm-a1-0P1"/>
-                                </connections>
-                            </menuItem>
                         </items>
                     </menu>
                 </menuItem>

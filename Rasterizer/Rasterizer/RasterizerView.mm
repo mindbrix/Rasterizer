@@ -148,6 +148,10 @@
     } else if (event.keyCode == 35) {
         _showPaths = !_showPaths;
         [self redraw];
+    } else if (event.keyCode == 49) {
+        _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCoreGraphics::CGTestScene::kRasterizerCount;
+        [self updateRasterizerLabel];
+        [self redraw];
     } else {
         [super keyDown:event];
     }
@@ -159,14 +163,6 @@
 	self.pastedString = [[items objectAtIndex:0] stringForType:NSPasteboardTypeString];
 	[self writeGlyphs:self.font string:self.pastedString];
 	[self redraw];
-}
-
-#pragma mark - IBOutlet
-
-- (IBAction)toggleRasterizer:(id)sender {
-    _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCoreGraphics::CGTestScene::kRasterizerCount;
-    [self updateRasterizerLabel];
-    [self redraw];
 }
 
 #pragma mark - LayerDelegate
