@@ -67,8 +67,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [super removeFromSuperview];
 }
 
-- (void)drawRect:(NSRect)dirtyRect {}
-
 #pragma mark - NSTimer
 
 - (void)stopTimer {
