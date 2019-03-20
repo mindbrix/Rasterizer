@@ -278,10 +278,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     Rasterizer::Transform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
     Rasterizer::Transform ctm = contentsScale.concat(view);
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
-    Rasterizer::Path clipPath;
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
                                           float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
                                           float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
 }
@@ -290,13 +289,11 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     CGContextConcatCTM(ctx, self.transform.affineTransform);
-    CGAffineTransform CTM = CGContextGetCTM(ctx);
-    Rasterizer::Transform ctm(CTM.a, CTM.b, CTM.c, CTM.d, CTM.tx, CTM.ty);
+    Rasterizer::Transform ctm = RasterizerCoreGraphics::transformFromCG(CGContextGetCTM(ctx));
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
-    Rasterizer::Path clipPath;
-    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip ? &clipPath : nullptr, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
+    RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useClip, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
                                           float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
                                           float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
 }

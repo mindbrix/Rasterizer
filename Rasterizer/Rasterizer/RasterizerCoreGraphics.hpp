@@ -294,7 +294,7 @@ struct RasterizerCoreGraphics {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, Rasterizer::Path *clipPath, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, bool useClip, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
         Rasterizer::Transform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
@@ -321,7 +321,7 @@ struct RasterizerCoreGraphics {
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
-            Rasterizer::Transform clip = clipPath ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
+            Rasterizer::Transform clip = useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
             for (int i = 0; i < pathsCount; i++, cl++)
                 *cl = clip;
             
