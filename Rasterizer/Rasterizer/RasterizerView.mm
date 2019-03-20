@@ -114,23 +114,20 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)initLayer:(BOOL)useCPU {
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    if (!useCPU)
-        [self setLayer:[MetalLayer layer]];
-    else
+    if (useCPU) {
         [self setLayer:[CALayer layer]];
+        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
+        self.layer.delegate = self;
+        self.layer.magnificationFilter = kCAFilterNearest;
+    } else {
+        [self setLayer:[MetalLayer layer]];
+        ((MetalLayer *)self.layer).layerDelegate = self;
+    }
     self.layer.contentsScale = scale;
     self.layer.bounds = self.bounds;
     self.layer.opaque = YES;
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    if (!useCPU) {
-        MetalLayer *layer = (MetalLayer *)self.layer;
-        layer.layerDelegate = self;
-    } else {
-        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
-        self.layer.delegate = self;
-        self.layer.magnificationFilter = kCAFilterNearest;
-    }
     [self.layer setNeedsDisplay];
 }
 
