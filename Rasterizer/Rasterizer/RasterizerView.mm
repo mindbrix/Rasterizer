@@ -87,8 +87,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    if ([self readEvents:_testScene.state])
-        [self redraw];
+    [self readEvents:_testScene.state];
 }
 
 - (void)toggleTimer {
@@ -96,7 +95,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         [self stopTimer];
     else
         [self resetTimer];
-    [self redraw];
 }
 
 #pragma mark - NSFontManager
@@ -133,6 +131,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         self.layer.delegate = self;
         self.layer.magnificationFilter = kCAFilterNearest;
     }
+    [self.layer setNeedsDisplay];
 }
 
 - (void)updateRasterizerLabel {
@@ -142,14 +141,13 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - RasterizerEvent
 
-- (BOOL)readEvents:(RasterizerEvent::State&)state {
+- (void)readEvents:(RasterizerEvent::State&)state {
     BOOL redraw = NO;
     for (RasterizerEvent::Event& e : state.events) {
         switch(e.type) {
             case RasterizerEvent::Event::kMouseMove:
                 self.mouse = CGPointMake(e.x, e.y);
-                if (self.showPaths)
-                    redraw = YES;
+                redraw = self.showPaths;
                 break;
             case RasterizerEvent::Event::kMouseUp:
                 state.mouseDown = false;
@@ -177,12 +175,13 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         }
     }
     state.events.resize(0);
-    return redraw;
+    if (redraw)
+        [self redraw];
 }
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _testScene.state.events.emplace_back(event);
-    if (_displayLink == nil && [self readEvents:_testScene.state])
-        [self redraw];
+    if (_displayLink == nil)
+        [self readEvents:_testScene.state];
 }
 
 #pragma mark - NSResponder
@@ -195,7 +194,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self updateRasterizerLabel];
     self.window.acceptsMouseMovedEvents = YES;
     [self toggleTimer];
-    [self redraw];
     return YES;
 }
 
@@ -212,7 +210,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         [self toggleTimer];
         [self initLayer:_useCPU];
         _testScene.reset();
-        [self redraw];
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
@@ -277,7 +274,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)setCTM:(CGAffineTransform)CTM {
     self.transform = [[VGAffineTransform alloc] initWithTransform:CTM];
-    [self redraw];
 }
 #pragma mark - LayerDelegate
 
