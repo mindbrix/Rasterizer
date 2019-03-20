@@ -113,6 +113,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - Drawing
 
 - (void)redraw {
+    [self readEvents:_testScene.events];
+    _testScene.events.resize(0);
     [self.layer setNeedsDisplay];
 }
 
@@ -145,6 +147,25 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - NSResponder
 
+- (BOOL)readEvents:(std::vector<RasterizerEvent::Event>&)events {
+    BOOL redraw = NO;
+    for (RasterizerEvent::Event& e : events) {
+        switch(e.type) {
+            case RasterizerEvent::Event::kMouseMove:
+            case RasterizerEvent::Event::kMouseUp:
+            case RasterizerEvent::Event::kMouseDown:
+            case RasterizerEvent::Event::kKeyDown:
+            case RasterizerEvent::Event::kKeyUp:
+            case RasterizerEvent::Event::kMagnify:
+            case RasterizerEvent::Event::kRotate:
+            case RasterizerEvent::Event::kTranslate:
+                break;
+            case RasterizerEvent::Event::kNull:
+                assert(0);
+        }
+    }
+    return redraw;
+}
 - (BOOL)acceptsFirstResponder {
     return YES;
 }
@@ -157,6 +178,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)mouseMoved:(NSEvent *)event {
+    _testScene.events.emplace_back(RasterizerEvent::Event::kMouseMove, float(event.locationInWindow.x), float(event.locationInWindow.y));
+    
     self.mouse = event.locationInWindow;
     if (self.showPaths)
         [self redraw];
@@ -164,6 +187,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)keyDown:(NSEvent *)event {
     NSLog(@"%d", event.keyCode);
+    _testScene.events.emplace_back(RasterizerEvent::Event::kKeyDown, int(event.keyCode));
     if (event.keyCode == 8) {
         _useClip = !_useClip;
         [self redraw];
@@ -204,6 +228,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
+    _testScene.events.emplace_back(RasterizerEvent::Event::kMagnify, float(event.magnification), 0.f);
+    
     [self.transform scaleBy:1.0f + event.magnification bounds:self.bounds];
     _eventFlag = YES;
     if (_displayLink == nil)
@@ -212,6 +238,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)rotateWithEvent:(NSEvent *)event {
     if (!(event.modifierFlags & NSEventModifierFlagShift)) {
+        _testScene.events.emplace_back(RasterizerEvent::Event::kRotate, float(event.rotation / 10), 0.f);
+        
         [self.transform rotateBy:event.rotation / 10.f bounds:self.bounds];
         _eventFlag = YES;
     }
@@ -220,6 +248,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)mouseDragged:(NSEvent *)event {
+    _testScene.events.emplace_back(RasterizerEvent::Event::kTranslate, float(event.deltaX), float(-event.deltaY));
+    
     [self.transform translateByX:event.deltaX andY:-event.deltaY];
     _eventFlag = YES;
     if (_displayLink == nil)
@@ -230,6 +260,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     BOOL isInverted = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]);
     CGFloat inversion = isInverted ? 1.0f : -1.0f;
     [self.transform translateByX:event.deltaX * inversion andY:-event.deltaY * inversion];
+    _testScene.events.emplace_back(RasterizerEvent::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion));
+    
     _eventFlag = YES;
     if (_displayLink == nil)
         [self redraw];
