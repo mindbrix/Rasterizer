@@ -18,7 +18,7 @@
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
-@property(nonatomic) RasterizerScene::Scene textScene;
+@property(nonatomic) Rasterizer::Scene textScene;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;

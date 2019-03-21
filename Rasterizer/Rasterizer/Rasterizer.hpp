@@ -154,6 +154,17 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    struct Scene {
+        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
+        void addPath(Path path, Transform ctm, uint8_t *bgra) {
+            bgras.emplace_back(bgra);
+            paths.emplace_back(path);
+            ctms.emplace_back(ctm);
+        }
+        std::vector<Colorant> bgras;
+        std::vector<Transform> ctms;
+        std::vector<Path> paths;
+    };
     template<typename T>
     struct Memory {
         ~Memory() { if (addr) free(addr); }

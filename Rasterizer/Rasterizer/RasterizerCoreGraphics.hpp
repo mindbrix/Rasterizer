@@ -27,7 +27,7 @@ struct RasterizerCoreGraphics {
         std::vector<CGAffineTransform> ctms;
         std::vector<CGPathRef> paths;
     };
-    static void writeSceneToCGScene(RasterizerScene::Scene& scene, CGScene& cgscene) {
+    static void writeSceneToCGScene(Rasterizer::Scene& scene, CGScene& cgscene) {
         for (int i = 0; i < scene.paths.size(); i++)
             if (scene.paths[i].ref) {
                 cgscene.colors.emplace_back(createCGColorFromBGRA(& scene.bgras[i].src0));
@@ -214,7 +214,7 @@ struct RasterizerCoreGraphics {
         std::vector<Rasterizer::Context> contexts;
         RasterizerEvent::State state;
         int rasterizerType;
-        RasterizerScene::Scene scene;
+        Rasterizer::Scene scene;
         CGScene cgscene;
         BGRAColorConverter converter;
         CGFloat dimension;

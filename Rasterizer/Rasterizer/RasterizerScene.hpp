@@ -9,17 +9,6 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerScene {
-    struct Scene {
-        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0); }
-        void addPath(Rasterizer::Path path, Rasterizer::Transform ctm, uint8_t *bgra) {
-            bgras.emplace_back(bgra);
-            paths.emplace_back(path);
-            ctms.emplace_back(ctm);
-        }
-        std::vector<Rasterizer::Colorant> bgras;
-        std::vector<Rasterizer::Transform> ctms;
-        std::vector<Rasterizer::Path> paths;
-    };
     struct WindingInfo {
         WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
         float dx, dy;

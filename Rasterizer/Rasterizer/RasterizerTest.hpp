@@ -8,7 +8,7 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerTest {
-    static void writePhyllotaxisToScene(size_t count, RasterizerScene::Scene& scene) {
+    static void writePhyllotaxisToScene(size_t count, Rasterizer::Scene& scene) {
         uint8_t bgra[4] = { 0, 0, 0, 255 };
         Rasterizer::Path rect;
         rect.ref->addBounds(Rasterizer::Bounds(0.f, 0.f, 1.f, 1.f));
