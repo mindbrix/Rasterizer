@@ -206,7 +206,7 @@ struct RasterizerCoreGraphics {
     struct CGTestScene {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         
-        CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) { contexts.resize(8); }
+        CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) { contexts.resize(8), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>()); }
         void reset() {
             for (Rasterizer::Context& context : contexts)
                 context.reset();
@@ -214,7 +214,7 @@ struct RasterizerCoreGraphics {
         std::vector<Rasterizer::Context> contexts;
         RasterizerEvent::State state;
         int rasterizerType;
-        Rasterizer::Scene scene;
+        std::vector<Rasterizer::Ref<Rasterizer::Scene>> scenes;
         CGScene cgscene;
         BGRAColorConverter converter;
         CGFloat dimension;
@@ -227,15 +227,16 @@ struct RasterizerCoreGraphics {
         CFRelease(fontRef);
         NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
         CFRelease(url);
-        _testScene.scene.empty();
+        Rasterizer::Scene& scene = *_testScene.scenes[0].ref;
+        scene.empty();
         _testScene.cgscene.empty();
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
             uint8_t bgra[4] = { 0, 0, 0, 255 };
             if (string)
-                Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(pointSize), bgra, boundsFromCGRect(bounds), false, string.UTF8String, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+                Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(pointSize), bgra, boundsFromCGRect(bounds), false, string.UTF8String, scene.bgras, scene.ctms, scene.paths);
             else
-                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), bgra, _testScene.scene.bgras, _testScene.scene.ctms, _testScene.scene.paths);
+                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), bgra, scene.bgras, scene.ctms, scene.paths);
         }
     }
     
@@ -295,27 +296,28 @@ struct RasterizerCoreGraphics {
         }
     }
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, bool useClip, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+        Rasterizer::Scene& scene = *testScene.scenes[0].ref;
         Rasterizer::Transform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
-                writeSceneToCGScene(testScene.scene, testScene.cgscene);
+                writeSceneToCGScene(scene, testScene.cgscene);
             drawCGScene(testScene.cgscene, ctm, testScene.contexts[0].bounds, ctx);
         } else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
-            size_t pathsCount = testScene.scene.paths.size();
+            size_t pathsCount = scene.paths.size();
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
             Rasterizer::Transform *gpuctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
             uint32_t *bgras = (uint32_t *)malloc(pathsCount * sizeof(uint32_t));
             Rasterizer::Colorant *colors = (Rasterizer::Colorant *)malloc(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colors;
             
             for (size_t i = 0; i < pathsCount; i++)
-                ctms[i] = ctm.concat(testScene.scene.ctms[i]);
+                ctms[i] = ctm.concat(scene.ctms[i]);
             memcpy(gpuctms, ctms, pathsCount * sizeof(ctm));
             
             CGColorSpaceRef srcSpace = createSrcColorSpace();
             testScene.converter.set(srcSpace, dstSpace);
-            testScene.converter.convert((uint32_t *)& testScene.scene.bgras[0].src0, pathsCount, bgras);
+            testScene.converter.convert((uint32_t *)& scene.bgras[0].src0, pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
@@ -328,11 +330,11 @@ struct RasterizerCoreGraphics {
                 memset_pattern4(colors, & black, pathsCount * sizeof(uint32_t));
             }
             if (dx != FLT_MAX) {
-                size_t index = RasterizerScene::pathIndexForPoint(& testScene.scene.paths[0], & testScene.scene.ctms[0], false, clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+                size_t index = RasterizerScene::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
-            renderPaths(testScene.contexts, & testScene.scene.paths[0], ctms, gpuctms, false, colors, clip, width, testScene.scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderPaths(testScene.contexts, & scene.paths[0], ctms, gpuctms, false, colors, clip, width, scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(bgras), free(colors);
         }
     }

@@ -165,6 +165,7 @@ struct Rasterizer {
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
         }
+        size_t refCount = 0;
         std::vector<Colorant> bgras;
         std::vector<Transform> ctms;
         std::vector<Path> paths;

@@ -291,8 +291,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)setSvgData:(NSData *)svgData {
     _svgData = svgData;
     if (_svgData) {
-        _testScene.scene.empty(), _testScene.cgscene.empty();
-        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _testScene.scene);
+        Rasterizer::Scene& scene = *_testScene.scenes[0].ref;
+        scene.empty(), _testScene.cgscene.empty();
+        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
     }
     [self redraw];
 }
