@@ -64,16 +64,16 @@ struct RasterizerSVG {
             // Delete
             nsvgDelete(image);
             
-            uint8_t bgra[4] = { 0, 0, 0, 255 };
+            Rasterizer::Colorant color(0, 0, 0, 255);
             if (0) {
                 Rasterizer::Path shape;
                 shape.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
-                scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
+                scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
             }
             if (0) {
-                scene.addPath(RasterizerTest::createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), bgra);
+                scene.addPath(RasterizerTest::createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
             }
-            if (0) {
+            if (1) {
                 RasterizerTest::writePhyllotaxisToScene(100000, scene);
             }
         }
