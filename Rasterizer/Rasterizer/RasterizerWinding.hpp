@@ -1,5 +1,5 @@
 //
-//  RasterizerScene.hpp
+//  RasterizerWinding.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 06/03/2019.
@@ -8,7 +8,7 @@
 
 #import "Rasterizer.hpp"
 
-struct RasterizerScene {
+struct RasterizerWinding {
     struct WindingInfo {
         WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
         float dx, dy;

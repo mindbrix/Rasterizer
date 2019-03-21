@@ -6,7 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 #import "RasterizerEvent.hpp"
-#import "RasterizerScene.hpp"
+#import "RasterizerWinding.hpp"
 #import "RasterizerTrueType.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -333,7 +333,7 @@ struct RasterizerCoreGraphics {
                 memset_pattern4(colors, & black, pathsCount * sizeof(uint32_t));
             }
             if (dx != FLT_MAX) {
-                size_t index = RasterizerScene::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
