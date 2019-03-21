@@ -157,14 +157,9 @@ struct RasterizerTrueType {
         if (0)
             memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
         Rasterizer::Transform *dst = shapes.ref->shapes;
-        float lx = FLT_MAX, ly = FLT_MAX, ux = -FLT_MAX, uy = -FLT_MAX;
-        for (i = 0; i < scene.paths.size(); i++, dst++) {
+        for (i = 0; i < scene.paths.size(); i++, dst++)
             *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
-            Rasterizer::Bounds b(*dst);
-            lx = lx < b.lx ? lx : b.lx, ly = ly < b.ly ? ly : b.ly;
-            ux = ux > b.ux ? ux : b.ux, uy = uy > b.uy ? uy : b.uy;
-        }
-        shapes.ref->bounds = Rasterizer::Bounds(lx, ly, ux, uy);
+        shapes.ref->bounds = scene.bounds;
         return shapes;
     }
     static void writeGlyphGrid(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
