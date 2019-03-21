@@ -1038,11 +1038,8 @@ struct Rasterizer {
             size_t begin, end;
         };
         Entry *writeEntry(Entry::Type type, size_t begin, size_t size, void *src, size_t stride) {
-            if (stride == 0)
-                memcpy(data.base + begin, src, size);
-            else
-                for (uint8_t *dst = data.base + begin, *end = dst + size; dst < end; dst += stride)
-                    memcpy(dst, src, stride);
+            for (uint8_t *dst = data.base + begin, *end = dst + size; dst < end; dst += stride)
+                memcpy(dst, src, stride);
             return new (entries.alloc(1)) Entry(type, begin, begin + size);
         }
         Pages<uint8_t> data;
@@ -1073,8 +1070,8 @@ struct Rasterizer {
         buffer.data.resize(size, false);
         
         Buffer::Entry *entry;
-        entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, 0);
-        entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms, 0);
+        entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, pathsCount * sizeof(Colorant));
+        entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms, pathsCount * sizeof(Transform));
         entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), & clip, sizeof(Transform));
     
         for (begin = end = entry->end, i = 0; i < count; i++)
