@@ -238,47 +238,12 @@ struct Rasterizer {
         };
         template<typename T>
         struct Grid {
-            struct Index {
-                Index(int begin, size_t index) : begin(begin), index(int(index)) {}
-                int begin, index;
-                inline bool operator< (const Index& other) const { return begin < other.begin; }
-            };
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
-            void compact(Row<Segment>& segments) {
-                indices.alloc(1), indices.empty();
-                for (Row<T>& row : grid) {
-                    T *e = row.base, *dst = e, *ue = e + row.end;
-                    for (; e < ue; e++) {
-                        if (e != dst)
-                            *dst = *e;
-                        if (e->hit)
-                            new (indices.alloc(1)) Index(e->begin, & row - grid + kSize * (dst - row.base)), dst++;
-                    }
-                    row.end = dst - row.base;
-                    for (int i = 0; i < row.end; i++)
-                        row.base[i].hit = false;
-                }
-                std::sort(indices.base, indices.base + indices.end);
-                Segment *dst = segments.base, *src;
-                Index *index = indices.base;
-                int count;
-                for (int i = 0; i < indices.end; i++, index++) {
-                    Entry *e = grid[index->index & kMask].base + index->index / kSize;
-                    src = segments.base + e->begin, count = int(e->end - e->begin);
-                    if (dst != src)
-                        memmove(dst, src, count * sizeof(Segment));
-                    e->begin = int(dst - segments.base), e->end = e->begin + count;
-                    dst += count;
-                }
-                segments.idx = segments.end = dst - segments.base;
-                indices.empty();
-            }
             void empty() {
                 for (Row<T>& row : grid)
                     row.empty();
             }
             void reset() {
-                indices.reset();
                 for (Row<T>& row : grid)
                     row.reset();
             }
@@ -292,18 +257,39 @@ struct Rasterizer {
                         return e;
                 return nullptr;
             }
-            Row<Index> indices;
             Row<T> grid[kSize];
         };
-        void compact() { grid.compact(segments); }
-        void reset() { grid.reset(), segments.reset(); }
+        void compact() {
+            grid.empty();
+            int count = 0;
+            Segment *ssrc = segments.base, *sdst = ssrc;
+            Entry *src = entries.base, *dst = src, *end = src + entries.end;
+            for (; src < end; ssrc += count, src++) {
+                count = src->end - src->begin;
+                if (src->hit) {
+                    if (src != dst) {
+                        *dst = *src;
+                        memmove(sdst, ssrc, count * sizeof(Segment));
+                    }
+                    dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
+                    dst->hit = false;
+                    sdst += count;
+                    new (grid.alloc(src->hash)) Element(src->hash, dst - entries.base);
+                    dst++;
+                }
+            }
+            entries.end = dst - entries.base;
+            segments.idx = segments.end = sdst - segments.base;
+        }
+        void reset() { segments.reset(), grid.reset(), entries.reset(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             Transform unit = path.ref->bounds.unit(ctm);
             uint64_t scale = path.ref->isPolygon ? 0 : 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c));
             uint64_t hash = path.ref->hash + scale;
-            Entry *srch = grid.find(hash);
-            if (srch) {
+            Element *el = grid.find(hash);
+            if (el) {
+                Entry *srch = entries.base + el->index;
                 *m = ctm.concat(srch->ctm);
                 bool hit = m->a == m->d && m->b == -m->c;
                 srch->hit |= hit;
@@ -312,7 +298,8 @@ struct Rasterizer {
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            return new (grid.alloc(hash)) Entry(hash, begin, segments.end, ctm.invert());
+            new (grid.alloc(hash)) Element(hash, entries.end);
+            return new (entries.alloc(1)) Entry(hash, begin, segments.end, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Bounds clip, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
@@ -328,8 +315,8 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
             }
         }
-        Grid<Entry> grid;
-        Grid<Element> _grid;
+        Grid<Element> grid;
+        Row<Entry> entries;
         Row<Segment> segments;
     };
     struct Index {
