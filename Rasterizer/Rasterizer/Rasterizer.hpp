@@ -232,32 +232,24 @@ struct Rasterizer {
              : hash(hash), begin(int(begin)), end(int(end)), hit(true), ctm(ctm) {}
             size_t hash; int begin, end; bool hit; Transform ctm;
         };
-        struct Element {
-            Element(size_t hash, size_t index) : hash(hash), index(index) {}
-            size_t hash, index;
-        };
-        template<typename T>
+        
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
-            void empty() {
-                for (Row<T>& row : grid)
-                    row.empty();
-            }
-            void reset() {
-                for (Row<T>& row : grid)
-                    row.reset();
-            }
-            T *alloc(size_t hash) {
-                return grid[hash & kMask].alloc(1);
-            }
-            T *find(size_t hash) {
-                Row<T>& row = grid[hash & kMask];
-                for (T *e = row.base, *ue = e + row.end; e < ue; e++)
+            struct Element {
+                Element(size_t hash, size_t index) : hash(hash), index(index) {}
+                size_t hash, index;
+            };
+            void empty()                    { for (Row<Element>& row : grid) row.empty(); }
+            void reset()                    { for (Row<Element>& row : grid) row.reset(); }
+            Element *alloc(size_t hash)     { return grid[hash & kMask].alloc(1); }
+            Element *find(size_t hash) {
+                Row<Element>& row = grid[hash & kMask];
+                for (Element *e = row.base, *ue = e + row.end; e < ue; e++)
                     if (e->hash == hash)
                         return e;
                 return nullptr;
             }
-            Row<T> grid[kSize];
+            Row<Element> grid[kSize];
         };
         void compact() {
             grid.empty();
@@ -274,7 +266,7 @@ struct Rasterizer {
                     dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
                     dst->hit = false;
                     sdst += count;
-                    new (grid.alloc(src->hash)) Element(src->hash, dst - entries.base);
+                    new (grid.alloc(src->hash)) Grid::Element(src->hash, dst - entries.base);
                     dst++;
                 }
             }
@@ -287,7 +279,7 @@ struct Rasterizer {
             Transform unit = path.ref->bounds.unit(ctm);
             uint64_t scale = path.ref->isPolygon ? 0 : 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c));
             uint64_t hash = path.ref->hash + scale;
-            Element *el = grid.find(hash);
+            Grid::Element *el = grid.find(hash);
             if (el) {
                 Entry *srch = entries.base + el->index;
                 *m = ctm.concat(srch->ctm);
@@ -298,7 +290,7 @@ struct Rasterizer {
             size_t begin = segments.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            new (grid.alloc(hash)) Element(hash, entries.end);
+            new (grid.alloc(hash)) Grid::Element(hash, entries.end);
             return new (entries.alloc(1)) Entry(hash, begin, segments.end, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Bounds clip, Info info) {
@@ -315,7 +307,7 @@ struct Rasterizer {
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
             }
         }
-        Grid<Element> grid;
+        Grid grid;
         Row<Entry> entries;
         Row<Segment> segments;
     };
