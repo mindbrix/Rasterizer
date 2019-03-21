@@ -30,7 +30,7 @@ struct RasterizerCoreGraphics {
     static void writeSceneToCGScene(Rasterizer::Scene& scene, CGScene& cgscene) {
         for (int i = 0; i < scene.paths.size(); i++)
             if (scene.paths[i].ref) {
-                cgscene.colors.emplace_back(createCGColorFromBGRA(& scene.bgras[i].src0));
+                cgscene.colors.emplace_back(createCGColorFromBGRA(& scene.colors[i].src0));
                 cgscene.ctms.emplace_back(CGFromTransform(scene.ctms[i]));
                 cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
                 CGMutablePathRef path = CGPathCreateMutable();
@@ -322,14 +322,14 @@ struct RasterizerCoreGraphics {
             
             CGColorSpaceRef srcSpace = createSrcColorSpace();
             testScene.converter.set(srcSpace, dstSpace);
-            testScene.converter.convert((uint32_t *)& scene.bgras[0].src0, pathsCount, bgras);
+            testScene.converter.convert((uint32_t *)& scene.colors[0].src0, pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
             float width = useOutline ? 1.f : 0.f;
             if (useOutline) {
-                uint8_t black[4] = { 0, 0, 0, 255 };
+                Rasterizer::Colorant black(0, 0, 0, 255);
                 memset_pattern4(colors, & black, pathsCount * sizeof(uint32_t));
             }
             if (dx != FLT_MAX) {

@@ -157,9 +157,9 @@ struct Rasterizer {
     
     struct Scene {
         Scene() { empty(); }
-        void empty() { ctms.resize(0), paths.resize(0), bgras.resize(0), ctm = Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), clip = Transform::nullclip(), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
+        void empty() { ctms.resize(0), paths.resize(0), colors.resize(0), ctm = Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), clip = Transform::nullclip(), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            bgras.emplace_back(colorant), paths.emplace_back(path), ctms.emplace_back(ctm);
+            colors.emplace_back(colorant), paths.emplace_back(path), ctms.emplace_back(ctm);
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
         }
@@ -174,7 +174,7 @@ struct Rasterizer {
             return false;
         }
         size_t refCount = 0;
-        std::vector<Colorant> bgras;
+        std::vector<Colorant> colors;
         std::vector<Transform> ctms;
         std::vector<Path> paths;
         Transform ctm, clip;

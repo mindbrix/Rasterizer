@@ -14,13 +14,10 @@
 
 struct RasterizerSVG {
     static Rasterizer::Colorant colorFromPaint(NSVGpaint paint) {
-        uint8_t r, g, b, a;
         if (paint.type == NSVG_PAINT_COLOR)
-            r = paint.color & 0xFF, g = (paint.color >> 8) & 0xFF, b = (paint.color >> 16) & 0xFF, a = paint.color >> 24;
+            return Rasterizer::Colorant((paint.color >> 16) & 0xFF, (paint.color >> 8) & 0xFF, paint.color & 0xFF, paint.color >> 24);
         else
-            r = 0, g = 0, b = 0, a = 64;
-        uint8_t bgra[4] = { b, g, r, a };
-        return Rasterizer::Colorant(bgra);
+            return Rasterizer::Colorant(0, 0, 0, 64);
     }
     
     static Rasterizer::Path createPathFromShape(NSVGshape *shape) {
