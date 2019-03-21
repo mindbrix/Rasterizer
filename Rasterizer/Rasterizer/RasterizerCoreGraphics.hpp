@@ -294,11 +294,10 @@ struct RasterizerCoreGraphics {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, bool useClip, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
-        Rasterizer::Transform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
-        Rasterizer::Transform clip = useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
+    static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+        Rasterizer::Transform ctm = view;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         Rasterizer::Scene& scene = *testScene.scenes[0].ref;
-        scene.clip = clip;
+        Rasterizer::Transform clip = scene.clip;
         if (!scene.isVisible(ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height)))
             return;
         ctm = ctm.concat(scene.ctm);
