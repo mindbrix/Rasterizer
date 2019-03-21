@@ -297,7 +297,7 @@ struct RasterizerCoreGraphics {
         }
     }
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
-        Rasterizer::Transform ctm = view;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
+        Rasterizer::Transform ctm = view;//.concat(Rasterizer::Transform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         Rasterizer::Scene& scene = *testScene.scenes[0].ref;
         Rasterizer::Transform clip = scene.clip;
         if (!scene.isVisible(ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height)))
