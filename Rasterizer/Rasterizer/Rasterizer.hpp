@@ -159,24 +159,18 @@ struct Rasterizer {
         Scene() { empty(); }
         void empty() { paths.resize(0), ctms.resize(0), colors.resize(0), ctm = Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), clip = Transform::nullclip(), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            colors.emplace_back(colorant), paths.emplace_back(path), ctms.emplace_back(ctm);
+            paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
         }
         bool isVisible(Transform view, Bounds device) {
             Transform unit = bounds.unit(view.concat(ctm));
             Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
-            if (dev.lx != dev.ux && dev.ly != dev.uy) {
-                Bounds clu = Bounds(clip.invert().concat(unit));
-                if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
-                    return true;
-            }
-            return false;
+            Bounds clu = Bounds(clip.invert().concat(unit));
+            return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
         }
         size_t refCount = 0;
-        std::vector<Path> paths;
-        std::vector<Transform> ctms;
-        std::vector<Colorant> colors;
+        std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
         Transform ctm, clip;
         Bounds bounds;
     };
