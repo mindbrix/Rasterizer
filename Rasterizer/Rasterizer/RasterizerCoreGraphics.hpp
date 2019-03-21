@@ -274,6 +274,8 @@ struct RasterizerCoreGraphics {
             count = 1;
             if (buffer)
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
+            else
+                contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
             contexts[0].drawPaths(paths, ctms, false, colors, clip, width, 0, pathsCount);
         }
         if (buffer) {
@@ -302,11 +304,10 @@ struct RasterizerCoreGraphics {
             return;
         ctm = ctm.concat(scene.ctm);
         
-        testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
                 writeSceneToCGScene(scene, testScene.cgscene);
-            drawCGScene(testScene.cgscene, ctm, testScene.contexts[0].bounds, ctx);
+            drawCGScene(testScene.cgscene, ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height), ctx);
         } else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             size_t pathsCount = scene.paths.size();
