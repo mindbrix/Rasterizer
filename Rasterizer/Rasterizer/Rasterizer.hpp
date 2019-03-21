@@ -255,7 +255,7 @@ struct Rasterizer {
             int count = 0;
             Segment *ssrc = segments.base, *sdst = ssrc;
             Entry *src = entries.base, *dst = src, *end = src + entries.end;
-            for (; src < end; ssrc += count, src++) {
+            for (int i = 0; src < end; ssrc += count, src++) {
                 count = src->end - src->begin;
                 if (src->hit) {
                     if (src != dst) {
@@ -266,8 +266,8 @@ struct Rasterizer {
                     dst->hit = false;
                     sdst += count;
                     Row<Grid::Element>& row = grid.grid[src->hash & Grid::kMask];
-                    new (row.base + row.idx++) Grid::Element(src->hash, dst - entries.base);
-                    dst++;
+                    new (row.base + row.idx++) Grid::Element(src->hash, i);
+                    dst++, i++;
                 }
             }
             grid.update();
