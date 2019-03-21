@@ -499,16 +499,14 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t begin, size_t end) {
+        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t begin, size_t end) {
             if (begin == end)
                 return;
             size_t iz;
-            Transform inv = Transform::nullclip().invert(), t = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
-            Bounds device = bounds;
-            for (paths += begin, ctms += begin, clips += begin, iz = begin; iz < end; iz++, paths++, ctms++, clips++)
+            Transform inv = bitmap.width ? Transform::nullclip().invert() : clip.invert();
+            Bounds device = Bounds(clip).integral().intersect(bounds);
+            for (paths += begin, ctms += begin, iz = begin; iz < end; iz++, paths++, ctms++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
-                    if (memcmp(clips, & t, sizeof(Transform)))
-                        device = Bounds(*clips).integral().intersect(bounds), inv = bitmap.width ? inv : clips->invert(), t = *clips;
                     Transform unit = paths->ref->bounds.unit(*ctms);
                     Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device);
                     bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
@@ -1019,8 +1017,12 @@ struct Rasterizer {
             Type type;
             size_t begin, end;
         };
-        Entry *writeEntry(Entry::Type type, size_t begin, size_t size, void *src) {
-            memcpy(data.base + begin, src, size);
+        Entry *writeEntry(Entry::Type type, size_t begin, size_t size, void *src, size_t stride) {
+            if (stride == 0)
+                memcpy(data.base + begin, src, size);
+            else
+                for (uint8_t *dst = data.base + begin, *end = dst + size; dst < end; dst += stride)
+                    memcpy(dst, src, stride);
             return new (entries.alloc(1)) Entry(type, begin, begin + size);
         }
         Pages<uint8_t> data;
@@ -1031,7 +1033,7 @@ struct Rasterizer {
                                         Path *paths,
                                         Transform *ctms,
                                         Colorant *colorants,
-                                        Transform *clips,
+                                        Transform clip,
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
@@ -1051,9 +1053,9 @@ struct Rasterizer {
         buffer.data.resize(size, false);
         
         Buffer::Entry *entry;
-        entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants);
-        entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms);
-        entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), clips);
+        entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, 0);
+        entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms, 0);
+        entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), & clip, sizeof(Transform));
     
         for (begin = end = entry->end, i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Quad)))
