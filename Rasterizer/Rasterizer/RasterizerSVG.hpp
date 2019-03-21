@@ -42,12 +42,10 @@ struct RasterizerSVG {
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
             int limit = 600000;
+            Rasterizer::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
-                if (shape->fill.type == NSVG_PAINT_COLOR) {
-                    scene.bgras.emplace_back(colorFromPaint(shape->fill));
-                    scene.paths.emplace_back(createPathFromShape(shape));
-                    scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
-                }
+                if (shape->fill.type == NSVG_PAINT_COLOR)
+                    scene.addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     Rasterizer::Path s = createPathFromShape(shape);
                     float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
@@ -57,11 +55,8 @@ struct RasterizerSVG {
                     CGLineJoin join = shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel;
                     CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth, cap, join, shape->miterLimit, shape->strokeWidth > dim ? 1 : 10);
                     Rasterizer::Path p = RasterizerCoreGraphics::createPathFromCGPath(stroked);
-                    if (p.ref->atomsCount < 32767) {
-                        scene.paths.emplace_back(p);
-                        scene.bgras.emplace_back(colorFromPaint(shape->stroke));
-                        scene.ctms.emplace_back(1, 0, 0, -1, 0, image->height);
-                    }
+                    if (p.ref->atomsCount < 32767)
+                        scene.addPath(p, flip, colorFromPaint(shape->stroke));
                     CGPathRelease(path);
                     CGPathRelease(stroked);
                 }
