@@ -78,10 +78,7 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static Rasterizer::Path writeGlyphs(Font& font, float size, uint8_t *bgra, Rasterizer::Bounds bounds, bool left, const char *str,
-                            std::vector<Rasterizer::Colorant>& bgras,
-                            std::vector<Rasterizer::Transform>& ctms,
-                            std::vector<Rasterizer::Path>& paths) {
+    static Rasterizer::Path writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return Rasterizer::Path();
         int i, j, begin, step, len, codepoint;
@@ -106,7 +103,7 @@ struct RasterizerTrueType {
             if (step)
                 glyphs.emplace_back(codepoint == sp ? SP : codepoint == nl ? NL : codepoint == tab ? TAB : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
-        int base, ascent, descent, lineGap, leftSideBearing;
+        int ascent, descent, lineGap, leftSideBearing;
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
         float s, width, height, lineHeight, space, beginx, x, y;
         s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
@@ -114,7 +111,6 @@ struct RasterizerTrueType {
         height = ascent - descent, lineHeight = height + lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         beginx = left ? width : 0;
-        base = (int)paths.size();
         len = (int)glyphs.size();
         x = beginx;
         y = i = 0;
@@ -141,31 +137,29 @@ struct RasterizerTrueType {
                 x = beginx, y -= lineHeight;
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
-                    bgras.emplace_back(bgra);
-                    paths.emplace_back(font.glyphPath(glyphs[j], true));
-                    Rasterizer::Bounds gb = paths.back().ref->bounds;
+                    Rasterizer::Path path = font.glyphPath(glyphs[j], true);
                     if (x == beginx) {
                         if (left)
-                            x += *advance - gb.ux;
+                            x += *advance - path.ref->bounds.ux;
                         else
-                            x += -gb.lx;
+                            x += -path.ref->bounds.lx;
                     }
                     if (left)
                         x -= *advance;
-                    ctms.emplace_back(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
+                    scene.addPath(path, Rasterizer::Transform(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy), color);
                     if (!left)
                         x += *advance;
                 }
         } while (i < len);
         
         Rasterizer::Path shapes;
-        shapes.ref->addShapes(paths.size() - base);
+        shapes.ref->addShapes(scene.paths.size());
         if (0)
             memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
         Rasterizer::Transform *dst = shapes.ref->shapes;
         float lx = FLT_MAX, ly = FLT_MAX, ux = -FLT_MAX, uy = -FLT_MAX;
-        for (i = base; i < paths.size(); i++, dst++) {
-            *dst = paths[i].ref->bounds.unit(ctms[i]);
+        for (i = 0; i < scene.paths.size(); i++, dst++) {
+            *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
             Rasterizer::Bounds b(*dst);
             lx = lx < b.lx ? lx : b.lx, ly = ly < b.ly ? ly : b.ly;
             ux = ux > b.ux ? ux : b.ux, uy = uy > b.uy ? uy : b.uy;
@@ -173,10 +167,9 @@ struct RasterizerTrueType {
         shapes.ref->bounds = Rasterizer::Bounds(lx, ly, ux, uy);
         return shapes;
     }
-    static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, Rasterizer::Scene& scene) {
+    static void writeGlyphGrid(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return;
-        Rasterizer::Colorant color(bgra);
         int d = ceilf(sqrtf((float)font.info.numGlyphs));
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)

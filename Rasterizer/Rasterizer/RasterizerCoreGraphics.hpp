@@ -232,11 +232,10 @@ struct RasterizerCoreGraphics {
         _testScene.cgscene.empty();
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
-            uint8_t bgra[4] = { 0, 0, 0, 255 };
             if (string)
-                Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(pointSize), bgra, boundsFromCGRect(bounds), false, string.UTF8String, scene.bgras, scene.ctms, scene.paths);
+                Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, string.UTF8String, scene);
             else
-                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), bgra, scene);
+                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), scene);
         }
     }
     
