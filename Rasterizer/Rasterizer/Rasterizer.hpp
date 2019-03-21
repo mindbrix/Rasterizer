@@ -227,12 +227,9 @@ struct Rasterizer {
     };
     struct Cache {
         struct Entry {
-            Entry() {}
-            Entry(size_t hash, size_t begin, size_t end, Transform ctm)
-             : hash(hash), begin(int(begin)), end(int(end)), hit(true), ctm(ctm) {}
+            Entry(size_t hash, size_t begin, size_t end, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), hit(true), ctm(ctm) {}
             size_t hash; int begin, end; bool hit; Transform ctm;
         };
-        
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
             struct Element {
@@ -262,8 +259,8 @@ struct Rasterizer {
                     if (src != dst) {
                         *dst = *src;
                         memmove(sdst, ssrc, count * sizeof(Segment));
+                        dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
                     }
-                    dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
                     dst->hit = false;
                     sdst += count;
                     new (grid.alloc(src->hash)) Grid::Element(src->hash, dst - entries.base);
