@@ -11,6 +11,7 @@
 #import "RasterizerCoreGraphics.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerTrueType.hpp"
+#import "RasterizerTest.hpp"
 #import "MetalLayer.h"
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
@@ -296,6 +297,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         Rasterizer::Scene& scene = *_testScene.scenes[0].ref;
         scene.empty(), _testScene.cgscene.empty();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
+        RasterizerTest::addTestPaths(scene);
     }
     [self redraw];
 }

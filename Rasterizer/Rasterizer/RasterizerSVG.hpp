@@ -7,7 +7,6 @@
 //
 
 #import "Rasterizer.hpp"
-#import "RasterizerTest.hpp"
 
 #define NANOSVG_IMPLEMENTATION    // Expands implementation
 #import "nanosvg.h"
@@ -19,7 +18,6 @@ struct RasterizerSVG {
         else
             return Rasterizer::Colorant(0, 0, 0, 64);
     }
-    
     static Rasterizer::Path createPathFromShape(NSVGshape *shape) {
         Rasterizer::Path p;
         float *pts;
@@ -60,19 +58,6 @@ struct RasterizerSVG {
             }
             // Delete
             nsvgDelete(image);
-            
-            Rasterizer::Colorant color(0, 0, 0, 255);
-            if (0) {
-                Rasterizer::Path shape;
-                shape.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
-                scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
-            }
-            if (0) {
-                scene.addPath(RasterizerTest::createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
-            }
-            if (0) {
-                RasterizerTest::writePhyllotaxisToScene(100000, scene);
-            }
         }
         free(data);
     }

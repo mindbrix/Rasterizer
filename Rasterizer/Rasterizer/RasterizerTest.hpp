@@ -8,6 +8,20 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerTest {
+    static void addTestPaths(Rasterizer::Scene& scene) {
+        Rasterizer::Colorant color(0, 0, 0, 255);
+        if (0) {
+            Rasterizer::Path shape;
+            shape.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
+            scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
+        }
+        if (0) {
+            scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
+        }
+        if (0) {
+            writePhyllotaxisToScene(100000, scene);
+        }
+    }
     static void writePhyllotaxisToScene(size_t count, Rasterizer::Scene& scene) {
         Rasterizer::Colorant color(0, 0, 0, 255);
         Rasterizer::Path rect;
