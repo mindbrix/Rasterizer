@@ -7,8 +7,6 @@
 //
 
 #import "Rasterizer.hpp"
-
-#define NANOSVG_IMPLEMENTATION    // Expands implementation
 #import "nanosvg.h"
 
 struct RasterizerSVG {
@@ -36,9 +34,8 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            int limit = 600000;
             Rasterizer::Transform flip(1, 0, 0, -1, 0, image->height);
-            for (NSVGshape *shape = image->shapes; shape != NULL && limit; shape = shape->next, limit--) {
+            for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                 if (shape->fill.type == NSVG_PAINT_COLOR)
                     scene.addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
@@ -56,7 +53,6 @@ struct RasterizerSVG {
                     CGPathRelease(stroked);
                 }
             }
-            // Delete
             nsvgDelete(image);
         }
         free(data);
