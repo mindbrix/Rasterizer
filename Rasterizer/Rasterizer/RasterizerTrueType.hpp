@@ -66,9 +66,8 @@ struct RasterizerTrueType {
                             break;
                     }
                 stbtt_FreeShape(& info, vertices);
-                if (cacheable) {
+                if (cacheable)
                     cache.emplace(glyph, path);
-                }
             }
             path.ref->isGlyph = true;
             return path;
