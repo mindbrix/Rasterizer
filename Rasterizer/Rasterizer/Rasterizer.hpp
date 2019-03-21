@@ -165,6 +165,16 @@ struct Rasterizer {
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
         }
+        bool isVisible(Transform view, Bounds device) {
+            Transform unit = bounds.unit(view.concat(ctm));
+            Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
+            if (dev.lx != dev.ux && dev.ly != dev.uy) {
+                Bounds clu = Bounds(clip.invert().concat(unit));
+                if (clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f)
+                    return true;
+            }
+            return false;
+        }
         size_t refCount = 0;
         std::vector<Colorant> bgras;
         std::vector<Transform> ctms;

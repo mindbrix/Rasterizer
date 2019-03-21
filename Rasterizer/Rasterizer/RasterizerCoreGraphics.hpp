@@ -236,7 +236,7 @@ struct RasterizerCoreGraphics {
             if (string)
                 Rasterizer::Path shapes = RasterizerTrueType::writeGlyphs(font, float(pointSize), bgra, boundsFromCGRect(bounds), false, string.UTF8String, scene.bgras, scene.ctms, scene.paths);
             else
-                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), bgra, scene.bgras, scene.ctms, scene.paths);
+                RasterizerTrueType::writeGlyphGrid(font, float(pointSize), bgra, scene);
         }
     }
     
@@ -296,8 +296,14 @@ struct RasterizerCoreGraphics {
         }
     }
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform _ctm, bool useClip, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
-        Rasterizer::Scene& scene = *testScene.scenes[0].ref;
         Rasterizer::Transform ctm = _ctm;//.concat(Rasterizer::AffineTransform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
+        Rasterizer::Transform clip = useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
+        Rasterizer::Scene& scene = *testScene.scenes[0].ref;
+        scene.clip = clip;
+        if (!scene.isVisible(ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height)))
+            return;
+        ctm = ctm.concat(scene.ctm);
+        
         testScene.contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
             if (testScene.cgscene.paths.size() == 0)
@@ -322,8 +328,6 @@ struct RasterizerCoreGraphics {
             for (int i = 0; i < pathsCount; i++, dst++)
                 new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
-            Rasterizer::Transform clip = useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
-            
             float width = useOutline ? 1.f : 0.f;
             if (useOutline) {
                 uint8_t black[4] = { 0, 0, 0, 255 };

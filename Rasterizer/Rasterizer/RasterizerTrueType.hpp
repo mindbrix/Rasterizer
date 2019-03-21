@@ -173,19 +173,14 @@ struct RasterizerTrueType {
         shapes.ref->bounds = Rasterizer::Bounds(lx, ly, ux, uy);
         return shapes;
     }
-    static void writeGlyphGrid(Font& font, float size, uint8_t *bgra,
-                               std::vector<Rasterizer::Colorant>& bgras,
-                               std::vector<Rasterizer::Transform>& ctms,
-                               std::vector<Rasterizer::Path>& paths) {
+    static void writeGlyphGrid(Font& font, float size, uint8_t *bgra, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0)
             return;
+        Rasterizer::Colorant color(bgra);
         int d = ceilf(sqrtf((float)font.info.numGlyphs));
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
         for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
-            if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-                bgras.emplace_back(bgra);
-                ctms.emplace_back(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d));
-                paths.emplace_back(font.glyphPath(glyph, false));
-            }
+            if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
+                scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d)), color);
     }
 };
