@@ -236,8 +236,6 @@ struct Rasterizer {
                 Element(size_t hash, size_t index) : hash(hash), index(index) {}
                 size_t hash, index;
             };
-            void zero()                     { for (Row<Element>& row : grid) row.idx = 0; }
-            void update()                   { for (Row<Element>& row : grid) row.end = row.idx; }
             void empty()                    { for (Row<Element>& row : grid) row.empty(); }
             void reset()                    { for (Row<Element>& row : grid) row.reset(); }
             Element *alloc(size_t hash)     { return grid[hash & kMask].alloc(1); }
@@ -251,7 +249,7 @@ struct Rasterizer {
             Row<Element> grid[kSize];
         };
         void compact() {
-            grid.zero();
+            grid.empty();
             int count = 0;
             Segment *ssrc = segments.base, *sdst = ssrc;
             Entry *src = entries.base, *dst = src, *end = src + entries.end;
@@ -266,11 +264,10 @@ struct Rasterizer {
                     dst->hit = false;
                     sdst += count;
                     Row<Grid::Element>& row = grid.grid[src->hash & Grid::kMask];
-                    new (row.base + row.idx++) Grid::Element(src->hash, i);
+                    new (row.base + row.end++) Grid::Element(src->hash, i);
                     dst++, i++;
                 }
             }
-            grid.update();
             entries.end = dst - entries.base;
             segments.idx = segments.end = sdst - segments.base;
         }
