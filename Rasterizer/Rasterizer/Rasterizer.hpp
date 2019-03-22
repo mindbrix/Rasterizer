@@ -1051,8 +1051,7 @@ struct Rasterizer {
         }
         buffer.data.resize(size, false);
         
-        Buffer::Entry *entry;
-        entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, 0);
+        Buffer::Entry *entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, 0);
         entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms, 0);
         entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), & clip, sizeof(Transform));
     
