@@ -24,7 +24,6 @@
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;
 @property(nonatomic) BOOL showPaths;
-@property(nonatomic) size_t shapesCount;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) CGPoint mouse;
