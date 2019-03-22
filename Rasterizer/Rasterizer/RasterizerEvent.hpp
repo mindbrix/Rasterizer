@@ -12,9 +12,10 @@ struct RasterizerEvent {
         enum Type { kNull = 0, kMouseMove, kMouseUp, kMouseDown, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate };
         
         Event() {}
-        Event(Type type, float x, float y) : type(type), x(x), y(y), keyCode(0) {}
-        Event(Type type, int keyCode) : type(type), x(0.f), y(0.f), keyCode(keyCode) {}
+        Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y), keyCode(0) {}
+        Event(double time, Type type, int keyCode) : time(time), type(type), x(0.f), y(0.f), keyCode(keyCode) {}
         
+        double time;
         Type type;
         float x, y;
         int keyCode;
