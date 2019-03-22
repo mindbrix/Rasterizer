@@ -67,8 +67,8 @@ struct RasterizerTrueType {
                 stbtt_FreeShape(& info, vertices);
                 if (cacheable)
                     cache.emplace(glyph, path);
+                path.ref->isGlyph = true;
             }
-            path.ref->isGlyph = true;
             return path;
         }
         std::unordered_map<int, Rasterizer::Path> cache;
