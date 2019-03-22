@@ -300,7 +300,6 @@ struct RasterizerCoreGraphics {
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
         Rasterizer::Transform ctm = view;//.concat(Rasterizer::Transform(-1.f, 1.f, 0.f, 1.f, 0.f, 0.f));
         Rasterizer::Scene& scene = *testScene.scenes[0].ref;
-        Rasterizer::Transform clip = scene.clip;
         if (!scene.isVisible(ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height)))
             return;
         ctm = ctm.concat(scene.ctm);
@@ -334,11 +333,11 @@ struct RasterizerCoreGraphics {
                 memset_pattern4(colors, & black, pathsCount * sizeof(uint32_t));
             }
             if (dx != FLT_MAX) {
-                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
-            renderPaths(testScene.contexts, & testScene.scenes[0], testScene.scenes.size(), & scene.paths[0], ctms, gpuctms, false, colors, clip, width, scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderPaths(testScene.contexts, & testScene.scenes[0], testScene.scenes.size(), & scene.paths[0], ctms, gpuctms, false, colors, scene.clip, width, scene.paths.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(bgras), free(colors);
         }
     }
