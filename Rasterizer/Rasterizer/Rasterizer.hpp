@@ -159,6 +159,8 @@ struct Rasterizer {
         Scene() { empty(); }
         void empty() { paths.resize(0), ctms.resize(0), colors.resize(0), ctm = Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), clip = Transform::nullclip(), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
         void addPath(Path path, Transform ctm, Colorant colorant) {
+            if ((path.ref->atomsCount == 0 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)
+                return;
             paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
