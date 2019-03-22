@@ -12,21 +12,24 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCoreGraphics {
-    static void drawScene(Rasterizer::Scene& scene, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
-        for (size_t i = 0; i < scene.paths.size(); i++) {
-            Rasterizer::Path& p = scene.paths[i];
-            Rasterizer::Transform t = scene.ctms[i];
-            Rasterizer::Bounds clip = Rasterizer::Bounds(p.ref->bounds.unit(view.concat(t))).integral().intersect(bounds);
-            if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                CGContextSaveGState(ctx);
-                CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                CGContextConcatCTM(ctx, CGFromTransform(t));
-                CGMutablePathRef path = CGPathCreateMutable();
-                writePathToCGPath(p, path);
-                CGContextAddPath(ctx, path);
-                CGPathRelease(path);
-                CGContextFillPath(ctx);
-                CGContextRestoreGState(ctx);
+    static void drawScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+        for (int j = 0; j < scenesCount; j++) {
+            Rasterizer::Scene& scene = *scenes[j].ref;
+            for (size_t i = 0; i < scene.paths.size(); i++) {
+                Rasterizer::Path& p = scene.paths[i];
+                Rasterizer::Transform t = scene.ctm.concat(scene.ctms[i]);
+                Rasterizer::Bounds clip = Rasterizer::Bounds(p.ref->bounds.unit(view.concat(t))).integral().intersect(bounds);
+                if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                    CGContextSaveGState(ctx);
+                    CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
+                    CGContextConcatCTM(ctx, CGFromTransform(t));
+                    CGMutablePathRef path = CGPathCreateMutable();
+                    writePathToCGPath(p, path);
+                    CGContextAddPath(ctx, path);
+                    CGPathRelease(path);
+                    CGContextFillPath(ctx);
+                    CGContextRestoreGState(ctx);
+                }
             }
         }
     }
@@ -249,11 +252,10 @@ struct RasterizerCoreGraphics {
         Rasterizer::Scene& scene = *testScene.scenes[0].ref;
         if (!scene.isVisible(ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height)))
             return;
-        ctm = ctm.concat(scene.ctm);
-        
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
-            drawScene(scene, ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height), ctx);
+            drawScenes(& testScene.scenes[0], testScene.scenes.size(), ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height), ctx);
         else {
+            ctm = ctm.concat(scene.ctm);
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             size_t pathsCount = scene.paths.size();
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
