@@ -567,8 +567,7 @@ struct Rasterizer {
                     size_t midx = 0, count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     gpu.ctms[iz] = m;
                     if (molecules) {
-                        cells = path.ref->molecules.size(), instances = 0;
-                        midx = gpu.molecules.ranges.end;
+                        cells = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
                         GPU::Molecules::Cell *cell = gpu.molecules.alloc(cells);
                         Bounds *molecule = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
