@@ -147,6 +147,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
             case RasterizerEvent::Event::kMouseDown:
                 state.mouseDown = true;
                 break;
+            case RasterizerEvent::Event::kFlags:
+                state.flags = e.flags;
+                break;
             case RasterizerEvent::Event::kKeyDown:
                 state.keyDown = true, state.keyCode = e.keyCode;
                 break;
@@ -192,6 +195,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     return YES;
 }
 
+- (void)flagsChanged:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kFlags, event.modifierFlags)];
+}
 - (void)keyDown:(NSEvent *)event {
     [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kKeyDown, event.keyCode)];
     
