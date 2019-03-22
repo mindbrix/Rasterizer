@@ -250,38 +250,47 @@ struct RasterizerCoreGraphics {
         }
     }
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+        Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
-            drawScenes(& testScene.scenes[0], testScene.scenes.size(), view, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height), ctx);
+            drawScenes(& testScene.scenes[0], testScene.scenes.size(), view, bounds, ctx);
         else {
-            Rasterizer::Scene& scene = *testScene.scenes[0].ref;
-            if (!scene.isVisible(view, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height)))
+            size_t pathsCount = 0;
+            for (int i = 0; i < testScene.scenes.size(); i++)
+                if (testScene.scenes[i].ref->isVisible(view, bounds))
+                    pathsCount += testScene.scenes[i].ref->paths.size();
+            if (pathsCount == 0)
                 return;
-            Rasterizer::Transform ctm = view.concat(scene.ctm);
-            assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
-            size_t pathsCount = scene.paths.size();
-            Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
-            Rasterizer::Transform *gpuctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
-            uint32_t *bgras = (uint32_t *)malloc(pathsCount * sizeof(uint32_t));
-            Rasterizer::Colorant *colors = (Rasterizer::Colorant *)malloc(pathsCount * sizeof(Rasterizer::Colorant)), *dst = colors;
             
-            for (size_t i = 0; i < pathsCount; i++)
-                ctms[i] = ctm.concat(scene.ctms[i]);
-            memcpy(gpuctms, ctms, pathsCount * sizeof(ctm));
+            assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
+            Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
+            Rasterizer::Transform *gpuctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
+            uint32_t *bgras = (uint32_t *)malloc(pathsCount * sizeof(uint32_t));
+            Rasterizer::Colorant *colors = (Rasterizer::Colorant *)malloc(pathsCount * sizeof(Rasterizer::Colorant)), *color = colors;
             
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             testScene.converter.set(srcSpace, dstSpace);
-            testScene.converter.convert((uint32_t *)& scene.colors[0].src0, pathsCount, bgras);
+            
+            for (int i = 0, j = 0; i < testScene.scenes.size(); i++)
+                if (testScene.scenes[i].ref->isVisible(view, bounds)) {
+                    Rasterizer::Scene& scene = *testScene.scenes[i].ref;
+                    testScene.converter.convert((uint32_t *)& scene.colors[0].src0, scene.paths.size(), bgras + j);
+                    Rasterizer::Transform ctm = view.concat(scene.ctm);
+                    for (int k = 0; k < scene.paths.size(); j++, k++)
+                        ctms[j] = ctm.concat(scene.ctms[k]);
+                }
+            memcpy(gpuctms, ctms, pathsCount * sizeof(view));
             CGColorSpaceRelease(srcSpace);
-            for (int i = 0; i < pathsCount; i++, dst++)
-                new (dst) Rasterizer::Colorant((uint8_t *)& bgras[i]);
+            for (int i = 0; i < pathsCount; i++, color++)
+                new (color) Rasterizer::Colorant((uint8_t *)& bgras[i]);
         
             float width = useOutline ? 1.f : 0.f;
             if (useOutline) {
                 Rasterizer::Colorant black(0, 0, 0, 255);
-                memset_pattern4(colors, & black, pathsCount * sizeof(uint32_t));
+                memset_pattern4(colors, & black, pathsCount * sizeof(Rasterizer::Colorant));
             }
+            Rasterizer::Scene& scene = *testScene.scenes[0].ref;
             if (dx != FLT_MAX) {
-                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, ctm, Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, view.concat(scene.ctm), Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
