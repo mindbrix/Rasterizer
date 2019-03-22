@@ -70,27 +70,6 @@ struct RasterizerCoreGraphics {
         vImage_CGImageFormat srcFormat, dstFormat;
     };
     
-    static CGColorSpaceRef createSrcColorSpace() {
-        return CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    }
-    
-    static uint32_t bgraFromCGColor(CGColorRef color) {
-        uint32_t bgra = 0;
-        uint8_t *dst = (uint8_t *) &bgra;
-        const CGFloat *components = CGColorGetComponents(color);
-        if (CGColorGetNumberOfComponents(color) == 2)
-            *dst++ = components[0] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[1] * 255.5f;
-        else if (CGColorGetNumberOfComponents(color) == 4)
-            *dst++ = components[2] * 255.5f, *dst++ = components[1] * 255.5f, *dst++ = components[0] * 255.5f, *dst++ = components[3] * 255.5f;
-        return bgra;
-    }
-    static CGColorRef createCGColorFromBGRA(uint8_t *bgra) {
-        CGColorSpaceRef srcSpace = createSrcColorSpace();
-        CGFloat components[4] = { CGFloat(bgra[2]) / 255, CGFloat(bgra[1]) / 255, CGFloat(bgra[0]) / 255, CGFloat(bgra[3]) / 255 };
-        CGColorRef color = CGColorCreate(srcSpace, components);
-        CGColorSpaceRelease(srcSpace);
-        return color;
-    }
     static Rasterizer::Transform transformFromCG(CGAffineTransform t) {
         return Rasterizer::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }
@@ -135,7 +114,6 @@ struct RasterizerCoreGraphics {
         CGPathApply(path, & applier, CGPathApplierFunction);
         return p;
     }
-    
     static void writePathToCGPath(Rasterizer::Path p, CGMutablePathRef path) {
         float *points;
         for (Rasterizer::Geometry::Atom& atom : p.ref->atoms) {
@@ -293,7 +271,7 @@ struct RasterizerCoreGraphics {
                 ctms[i] = ctm.concat(scene.ctms[i]);
             memcpy(gpuctms, ctms, pathsCount * sizeof(ctm));
             
-            CGColorSpaceRef srcSpace = createSrcColorSpace();
+            CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             testScene.converter.set(srcSpace, dstSpace);
             testScene.converter.convert((uint32_t *)& scene.colors[0].src0, pathsCount, bgras);
             CGColorSpaceRelease(srcSpace);
