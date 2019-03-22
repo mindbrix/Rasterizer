@@ -273,9 +273,11 @@ struct Rasterizer {
         void reset() { segments.reset(), grid.reset(), entries.reset(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
-            Transform unit = path.ref->bounds.unit(ctm);
-            uint64_t scale = path.ref->isPolygon ? 0 : 1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c));
-            uint64_t hash = path.ref->hash + scale;
+            uint64_t hash = path.ref->hash;
+            if (!path.ref->isPolygon) {
+                Transform unit = path.ref->bounds.unit(ctm);
+                hash += uint64_t(1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c)));
+            }
             Grid::Element *el = grid.find(hash);
             if (el) {
                 Entry *srch = entries.base + el->index;
