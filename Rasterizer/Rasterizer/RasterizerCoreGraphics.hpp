@@ -13,42 +13,19 @@
 
 
 struct RasterizerCoreGraphics {
-    struct CGScene {
-        ~CGScene() { empty(); }
-        void empty() {
-            for (CGPathRef path : paths)
-                CGPathRelease(path);
-            for (CGColorRef color : colors)
-                CGColorRelease(color);
-            ctms.resize(0), paths.resize(0), bounds.resize(0), colors.resize(0);
-        }
-        std::vector<CGColorRef> colors;
-        std::vector<CGRect> bounds;
-        std::vector<CGAffineTransform> ctms;
-        std::vector<CGPathRef> paths;
-    };
-    static void writeSceneToCGScene(Rasterizer::Scene& scene, CGScene& cgscene) {
-        for (int i = 0; i < scene.paths.size(); i++)
-            if (scene.paths[i].ref) {
-                cgscene.colors.emplace_back(createCGColorFromBGRA(& scene.colors[i].src0));
-                cgscene.ctms.emplace_back(CGFromTransform(scene.ctms[i]));
-                cgscene.bounds.emplace_back(CGRectFromBounds(scene.paths[i].ref->bounds));
-                CGMutablePathRef path = CGPathCreateMutable();
-                writePathToCGPath(scene.paths[i], path);
-                cgscene.paths.emplace_back(CGPathCreateCopy(path));
-                CGPathRelease(path);
-            }
-    }
-    static void drawCGScene(CGScene& scene, const Rasterizer::Transform ctm, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+    static void drawScene(Rasterizer::Scene& scene, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (size_t i = 0; i < scene.paths.size(); i++) {
-            Rasterizer::Bounds b = boundsFromCGRect(scene.bounds[i]);
-            Rasterizer::Transform t = transformFromCG(scene.ctms[i]);
-            Rasterizer::Bounds clip = Rasterizer::Bounds(b.unit(ctm.concat(t))).integral().intersect(bounds);
+            Rasterizer::Path& p = scene.paths[i];
+            Rasterizer::Transform t = scene.ctms[i];
+            Rasterizer::Bounds clip = Rasterizer::Bounds(p.ref->bounds.unit(view.concat(t))).integral().intersect(bounds);
             if (clip.lx != clip.ux && clip.ly != clip.uy) {
                 CGContextSaveGState(ctx);
-                CGContextSetFillColorWithColor(ctx, scene.colors[i]);
-                CGContextConcatCTM(ctx, scene.ctms[i]);
-                CGContextAddPath(ctx, scene.paths[i]);
+                CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
+                CGContextConcatCTM(ctx, CGFromTransform(t));
+                CGMutablePathRef path = CGPathCreateMutable();
+                writePathToCGPath(p, path);
+                CGContextAddPath(ctx, path);
+                CGPathRelease(path);
                 CGContextFillPath(ctx);
                 CGContextRestoreGState(ctx);
             }
@@ -215,7 +192,6 @@ struct RasterizerCoreGraphics {
         RasterizerEvent::State state;
         int rasterizerType;
         std::vector<Rasterizer::Ref<Rasterizer::Scene>> scenes;
-        CGScene cgscene;
         BGRAColorConverter converter;
         CGFloat dimension;
         CGFloat phi;
@@ -229,7 +205,6 @@ struct RasterizerCoreGraphics {
         CFRelease(url);
         Rasterizer::Scene& scene = *_testScene.scenes[0].ref;
         scene.empty();
-        _testScene.cgscene.empty();
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
             if (string)
@@ -304,11 +279,9 @@ struct RasterizerCoreGraphics {
             return;
         ctm = ctm.concat(scene.ctm);
         
-        if (testScene.rasterizerType == CGTestScene::kCoreGraphics) {
-            if (testScene.cgscene.paths.size() == 0)
-                writeSceneToCGScene(scene, testScene.cgscene);
-            drawCGScene(testScene.cgscene, ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height), ctx);
-        } else {
+        if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
+            drawScene(scene, ctm, Rasterizer::Bounds(0, 0, bitmap.width, bitmap.height), ctx);
+        else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             size_t pathsCount = scene.paths.size();
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(ctm));
