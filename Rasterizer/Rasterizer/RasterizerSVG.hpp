@@ -5,7 +5,6 @@
 //  Created by Nigel Barber on 04/11/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-
 #import "Rasterizer.hpp"
 #import "nanosvg.h"
 

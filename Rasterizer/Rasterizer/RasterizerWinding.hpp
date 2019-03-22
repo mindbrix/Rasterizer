@@ -5,7 +5,6 @@
 //  Created by Nigel Barber on 06/03/2019.
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
-
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {

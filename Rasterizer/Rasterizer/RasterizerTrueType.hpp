@@ -5,7 +5,6 @@
 //  Created by Nigel Barber on 04/01/2019.
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
-
 #import <unordered_map>
 #import "Rasterizer.hpp"
 #import "stb_truetype.h"
