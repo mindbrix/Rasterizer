@@ -11,7 +11,6 @@
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
-
 struct RasterizerCoreGraphics {
     static void drawScene(Rasterizer::Scene& scene, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (size_t i = 0; i < scene.paths.size(); i++) {
@@ -161,18 +160,13 @@ struct RasterizerCoreGraphics {
     struct CGTestScene {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         
-        CGTestScene() : rasterizerType(0), dimension(24), phi((sqrt(5) - 1) / 2) { contexts.resize(8), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>()); }
-        void reset() {
-            for (Rasterizer::Context& context : contexts)
-                context.reset();
-        }
+        CGTestScene() : rasterizerType(0) { contexts.resize(8), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>()); }
+        void reset() { for (auto& ctx : contexts) ctx.reset(); }
         std::vector<Rasterizer::Context> contexts;
         RasterizerEvent::State state;
         int rasterizerType;
         std::vector<Rasterizer::Ref<Rasterizer::Scene>> scenes;
         BGRAColorConverter converter;
-        CGFloat dimension;
-        CGFloat phi;
     };
     
     static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, CGTestScene& _testScene) {
