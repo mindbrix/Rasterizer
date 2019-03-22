@@ -148,7 +148,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 state.mouseDown = true;
                 break;
             case RasterizerEvent::Event::kKeyDown:
+                state.keyDown = true, state.keyCode = e.keyCode;
+                break;
             case RasterizerEvent::Event::kKeyUp:
+                state.keyDown = true, state.keyCode = e.keyCode;
                 break;
             case RasterizerEvent::Event::kMagnify:
                 [self.transform scaleBy:e.x bounds:self.bounds];
@@ -190,10 +193,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)keyDown:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kKeyDown, event.keyCode)];
+    
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kKeyDown, keyCode)];
-    
     if (keyCode == 8) {
         _useClip = !_useClip;
         [self redraw];
@@ -222,6 +225,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     } else {
         [super keyDown:event];
     }
+}
+- (void)keyUp:(NSEvent *)event {
+    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kKeyUp, event.keyCode)];
 }
 
 - (void)paste:(id)sender {
