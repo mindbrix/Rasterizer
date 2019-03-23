@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 20/03/2019.
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
-#import <vector>
+#import "Rasterizer.hpp"
 
 struct RasterizerEvent {
     struct Event {
@@ -30,5 +30,7 @@ struct RasterizerEvent {
         int keyCode = 0;
         size_t index = INT_MAX, flags = 0;
         std::vector<RasterizerEvent::Event> events;
+        Rasterizer::Transform view;
+        Rasterizer::Bounds bounds;
     };
 };

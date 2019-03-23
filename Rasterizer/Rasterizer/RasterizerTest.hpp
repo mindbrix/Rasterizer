@@ -15,7 +15,7 @@ struct RasterizerTest {
             shape.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
             scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
         }
-        if (1) {
+        if (0) {
             scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
         }
         if (0) {
