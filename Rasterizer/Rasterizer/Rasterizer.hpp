@@ -1035,7 +1035,6 @@ struct Rasterizer {
         Colorant clearColor;
     };
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
-                                        Path *paths,
                                         Transform *ctms,
                                         Colorant *colorants,
                                         Transform clip,
@@ -1069,15 +1068,21 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     Path *paths,
+                                     Ref<Scene> *scenes, size_t scenesCount,
                                      Transform *ctms,
                                      Colorant *colorants,
                                      size_t begin,
+                                     size_t _iz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
-        size_t j, iz, sbegins[ctx->segments.size()], size;
+        size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
         std::vector<size_t> idxes;
         
+        for (base = count = 0, j = 0; j < scenesCount; base = count, j++, scenes++) {
+            count += scenes->ref->paths.size();
+            if (_iz < count)
+                break;
+        }
         size = ctx->gpu.cache.segments.end;
         for (j = 0; j < ctx->segments.size(); j++)
             sbegins[j] = size, size += ctx->segments[j].end;
@@ -1106,10 +1111,14 @@ struct Rasterizer {
             for (quad = lq; quad < uq; quad++) {
                 type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 iz = quad->iz & kPathIndexMask;
+                while (iz - base >= scenes->ref->paths.size())
+                    base += scenes->ref->paths.size(), scenes++;
+                
                 if (type != entry->type)
                     begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
                 if (quad->iz & GPU::Quad::kShapes) {
-                    Path& path = paths[iz];
+                    Path& path = scenes->ref->paths[iz - base];
+                    
                     GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                     for (int k = 0; k < path.ref->shapesCount; k++, dst++)
                         new (dst) GPU::Quad(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);

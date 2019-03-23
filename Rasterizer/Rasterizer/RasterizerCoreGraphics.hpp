@@ -197,11 +197,9 @@ struct RasterizerCoreGraphics {
             for (int p = 0; p < scene.paths.size(); p++)
                 total += scene.paths[p].ref->atomsCount ?: (scene.paths[p].ref->shapes ? scene.paths[p].ref->end >> 4 : 0);
         }
-        size_t slice, ly, uy, count;
+        size_t slice, ly, uy, count, divisions = contexts.size(), base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         if (multithread) {
             if (buffer) {
-                size_t divisions = contexts.size(), base, i, iz;
-                size_t izeds[divisions + 1], target, *izs = izeds;
                 izeds[0] = 0, izeds[divisions] = eiz;
                 auto scene = scenes;
                 for (count = base = iz = 0, i = 1; i < divisions; i++) {
@@ -239,15 +237,14 @@ struct RasterizerCoreGraphics {
             contexts[0].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, eiz);
         }
         if (buffer) {
-            Rasterizer::Path *paths = & scenes->ref->paths[0];
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, paths, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
             if (count == 1)
-                Rasterizer::writeContextToBuffer(& contexts[0], paths, ctms, colors, b[0], e[0], *buffer);
+                Rasterizer::writeContextToBuffer(& contexts[0], scenes, scenesCount, ctms, colors, b[0], 0, e[0], *buffer);
             else {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    Rasterizer::writeContextToBuffer(& contexts[idx], paths, ctms, colors, b[idx], e[idx], *buffer);
+                    Rasterizer::writeContextToBuffer(& contexts[idx], scenes, scenesCount, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
                 });
             }
             for (int i = 0; i < count; i++)
