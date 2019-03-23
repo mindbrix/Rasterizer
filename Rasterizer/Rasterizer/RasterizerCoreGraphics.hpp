@@ -269,14 +269,13 @@ struct RasterizerCoreGraphics {
             
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             testScene.converter.set(srcSpace, dstSpace);
-            
-            for (int i = 0, iz = 0; i < testScene.scenes.size(); i++)
+            for (size_t i = 0, iz = 0; i < testScene.scenes.size(); i++)
                 if (testScene.scenes[i].ref->isVisible(view, bounds)) {
                     Rasterizer::Scene& scene = *testScene.scenes[i].ref;
                     testScene.converter.convert((uint32_t *)& scene.colors[0].src0, scene.paths.size(), bgras + iz);
                     Rasterizer::Transform ctm = view.concat(scene.ctm);
-                    for (int k = 0; k < scene.paths.size(); iz++, k++)
-                        ctms[iz] = ctm.concat(scene.ctms[k]);
+                    for (size_t j = 0; j < scene.paths.size(); iz++, j++)
+                        ctms[iz] = ctm.concat(scene.ctms[j]);
                 }
             memcpy(gpuctms, ctms, pathsCount * sizeof(view));
             CGColorSpaceRelease(srcSpace);
