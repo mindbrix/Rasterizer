@@ -23,10 +23,10 @@ struct RasterizerWinding {
                 winding.winding--;
         }
     }
-    static size_t pathIndexForPoint(Rasterizer::Path *paths, Rasterizer::Transform *ctms, bool even, Rasterizer::Transform clip, Rasterizer::Transform view, Rasterizer::Bounds bounds, size_t begin, size_t end, float dx, float dy) {
-        Rasterizer::Transform inv = clip.invert();
-        for (int i = int(end) - 1; i >= int(begin); i--) {
-            int winding = pointWinding(paths[i], view.concat(ctms[i]), inv, bounds, dx, dy);
+    static size_t pathIndexForPoint(Rasterizer::Scene& scene, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
+        Rasterizer::Transform inv = scene.clip.invert(), ctm = view.concat(scene.ctm);
+        for (int i = int(scene.paths.size()) - 1; i >= 0; i--) {
+            int winding = pointWinding(scene.paths[i], ctm.concat(scene.ctms[i]), inv, bounds, dx, dy);
             if ((even && (winding & 1)) || winding)
                 return i;
         }

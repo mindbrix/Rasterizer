@@ -288,12 +288,10 @@ struct RasterizerCoreGraphics {
                 Rasterizer::Colorant black(0, 0, 0, 255);
                 memset_pattern4(colors, & black, pathsCount * sizeof(Rasterizer::Colorant));
             }
-            if (dx != FLT_MAX) {
-                Rasterizer::Scene& scene = *visibles[0].ref;
-                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, view.concat(scene.ctm), Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, scene.paths.size(), dx, dy);
-                if (index != INT_MAX)
-                    colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
-            }
+            size_t index = dx == FLT_MAX ? INT_MAX : RasterizerWinding::pathIndexForPoint(*visibles[0].ref, false, view, bounds, dx, dy);
+            if (index != INT_MAX)
+                colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
+            
             renderScenes(& visibles[0], visibles.size(), ctms, gpuctms, false, colors, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(bgras), free(colors);
         }
