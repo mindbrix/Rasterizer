@@ -190,27 +190,33 @@ struct RasterizerCoreGraphics {
     }
     
     static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, std::vector<Rasterizer::Context>& contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
-        Rasterizer::Path *paths = & scenes->ref->paths[0];
-        size_t eiz = 0;
-        for (int i = 0; i < scenesCount; i++)
-            eiz += scenes[i].ref->paths.size();
+        size_t eiz = 0, total = 0;
+        for (int j = 0; j < scenesCount; j++) {
+            Rasterizer::Scene& scene = *scenes[j].ref;
+            eiz += scene.paths.size();
+            for (int p = 0; p < scene.paths.size(); p++)
+                total += scene.paths[p].ref->atomsCount ?: (scene.paths[p].ref->shapes ? scene.paths[p].ref->end >> 4 : 0);
+        }
         size_t slice, ly, uy, count;
         if (multithread) {
             if (buffer) {
-                size_t divisions = contexts.size(), total, p, i;
-                for (total = p = 0; p < eiz; p++)
-                    total += paths[p].ref->atomsCount ?: (paths[p].ref->shapes ? paths[p].ref->end >> 4 : 0);
-                size_t begins[divisions + 1], target, *b = begins;
-                begins[0] = 0, begins[divisions] = eiz;
-                for (count = p = 0, i = 1; i < divisions; i++) {
-                    for (target = total * i / divisions; count < target; p++)
-                        count += paths[p].ref->atomsCount ?: (paths[p].ref->shapes ? paths[p].ref->end >> 4: 0);
-                    begins[i] = p;
+                size_t divisions = contexts.size(), base, i, iz;
+                size_t izeds[divisions + 1], target, *izs = izeds;
+                izeds[0] = 0, izeds[divisions] = eiz;
+                auto scene = scenes;
+                for (count = base = iz = 0, i = 1; i < divisions; i++) {
+                    for (target = total * i / divisions; count < target; iz++) {
+                        if (iz - base == scene->ref->paths.size())
+                            scene++, base = iz;
+                        Rasterizer::Path& path = scene->ref->paths[iz - base];
+                        count += path.ref->atomsCount ?: (path.ref->shapes ? path.ref->end >> 4: 0);
+                    }
+                    izeds[i] = iz;
                 }
                 for (i = 0; i < divisions; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
                 dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, width, b[idx], b[idx + 1]);
+                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, width, izs[idx], izs[idx + 1]);
                 });
                 count = divisions;
             } else {
@@ -233,6 +239,7 @@ struct RasterizerCoreGraphics {
             contexts[0].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, eiz);
         }
         if (buffer) {
+            Rasterizer::Path *paths = & scenes->ref->paths[0];
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
             size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, paths, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
