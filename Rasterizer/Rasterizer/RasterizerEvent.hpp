@@ -25,6 +25,10 @@ struct RasterizerEvent {
     };
     
     struct State {
+        void update(float s, float w, float h, Rasterizer::Transform t) {
+            view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(t);
+            bounds = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+        }
         bool keyDown = false, mouseDown = false, mouseMove = false;
         float x, y;
         int keyCode = 0;

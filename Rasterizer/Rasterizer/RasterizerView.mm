@@ -181,9 +181,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         [self readEvents:_testScene.state forTime:0 withScenes:_scenes];
 }
 - (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
-    float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    state.view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(RasterizerCG::transformFromCG(self.transform.affineTransform));
-    state.bounds = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+    state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
     scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(state.view) : Rasterizer::Transform::nullclip());
 }
 
