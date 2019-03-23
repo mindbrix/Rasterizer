@@ -253,16 +253,16 @@ struct RasterizerCoreGraphics {
     }
     static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
+        size_t pathsCount = 0;
+        std::vector<Rasterizer::Ref<Rasterizer::Scene>> visibles;
+        for (int i = 0; i < testScene.scenes.size(); i++)
+            if (testScene.scenes[i].ref->isVisible(view, bounds))
+                visibles.emplace_back(testScene.scenes[i]), pathsCount += testScene.scenes[i].ref->paths.size();
+        if (pathsCount == 0)
+            return;
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
-            drawScenes(& testScene.scenes[0], testScene.scenes.size(), view, bounds, ctx);
+            drawScenes(& visibles[0], visibles.size(), view, bounds, ctx);
         else {
-            size_t pathsCount = 0;
-            for (int i = 0; i < testScene.scenes.size(); i++)
-                if (testScene.scenes[i].ref->isVisible(view, bounds))
-                    pathsCount += testScene.scenes[i].ref->paths.size();
-            if (pathsCount == 0)
-                return;
-            
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
             Rasterizer::Transform *gpuctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
@@ -271,14 +271,13 @@ struct RasterizerCoreGraphics {
             
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             testScene.converter.set(srcSpace, dstSpace);
-            for (size_t i = 0, iz = 0; i < testScene.scenes.size(); i++)
-                if (testScene.scenes[i].ref->isVisible(view, bounds)) {
-                    Rasterizer::Scene& scene = *testScene.scenes[i].ref;
-                    testScene.converter.convert((uint32_t *)& scene.colors[0].src0, scene.paths.size(), bgras + iz);
-                    Rasterizer::Transform ctm = view.concat(scene.ctm);
-                    for (size_t j = 0; j < scene.paths.size(); iz++, j++)
-                        ctms[iz] = ctm.concat(scene.ctms[j]);
-                }
+            for (size_t i = 0, iz = 0; i < visibles.size(); i++) {
+                Rasterizer::Scene& scene = *visibles[i].ref;
+                testScene.converter.convert((uint32_t *)& scene.colors[0].src0, scene.paths.size(), bgras + iz);
+                Rasterizer::Transform ctm = view.concat(scene.ctm);
+                for (size_t j = 0; j < scene.paths.size(); iz++, j++)
+                    ctms[iz] = ctm.concat(scene.ctms[j]);
+            }
             memcpy(gpuctms, ctms, pathsCount * sizeof(view));
             CGColorSpaceRelease(srcSpace);
             for (int i = 0; i < pathsCount; i++, color++)
@@ -290,12 +289,12 @@ struct RasterizerCoreGraphics {
                 memset_pattern4(colors, & black, pathsCount * sizeof(Rasterizer::Colorant));
             }
             if (dx != FLT_MAX) {
-                Rasterizer::Scene& scene = *testScene.scenes[0].ref;
+                Rasterizer::Scene& scene = *visibles[0].ref;
                 size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, view.concat(scene.ctm), Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
-            renderScenes(& testScene.scenes[0], testScene.scenes.size(), view, bounds, ctms, gpuctms, false, colors, width, testScene.contexts, bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderScenes(& visibles[0], visibles.size(), view, bounds, ctms, gpuctms, false, colors, width, testScene.contexts, bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(bgras), free(colors);
         }
     }
