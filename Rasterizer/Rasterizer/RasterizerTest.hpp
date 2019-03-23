@@ -15,7 +15,7 @@ struct RasterizerTest {
             shape.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
             scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
         }
-        if (0) {
+        if (1) {
             scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
         }
         if (0) {
@@ -45,9 +45,12 @@ struct RasterizerTest {
             shapes.ref->circles[i] = i & 1;
             s = sqrtf(i);
             new (dst) Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, s * vx - 0.5f, s * vy - 0.5f);
+            Rasterizer::Bounds b(*dst);
+            shapes.ref->bounds.extend(b.lx, b.ly), shapes.ref->bounds.extend(b.ux, b.uy);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
+        shapes.ref->setShapesBounds(count);
         return shapes;
     }
 };
