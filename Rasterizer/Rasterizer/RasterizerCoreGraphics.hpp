@@ -186,7 +186,7 @@ struct RasterizerCoreGraphics {
         }
     }
     
-    static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, std::vector<Rasterizer::Context>& contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         size_t eiz = 0, total = 0;
         for (int j = 0; j < scenesCount; j++) {
             Rasterizer::Scene& scene = *scenes[j].ref;
@@ -194,7 +194,7 @@ struct RasterizerCoreGraphics {
             for (int p = 0; p < scene.paths.size(); p++)
                 total += scene.paths[p].ref->atomsCount ?: (scene.paths[p].ref->shapes ? scene.paths[p].ref->end >> 4 : 0);
         }
-        size_t slice, ly, uy, count, divisions = contexts.size(), base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+        size_t slice, ly, uy, count, divisions = contextsCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         if (multithread) {
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
@@ -215,7 +215,7 @@ struct RasterizerCoreGraphics {
                 });
                 count = divisions;
             } else {
-                slice = (bitmap.height + contexts.size() - 1) / contexts.size(), slice = slice < 64 ? 64 : slice;
+                slice = (bitmap.height + contextsCount - 1) / contextsCount, slice = slice < 64 ? 64 : slice;
                 for (count = ly = 0; ly < bitmap.height; ly = uy) {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                     contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
@@ -236,9 +236,9 @@ struct RasterizerCoreGraphics {
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
             if (count == 1)
-                Rasterizer::writeContextToBuffer(& contexts[0], scenes, scenesCount, ctms, colors, b[0], 0, e[0], *buffer);
+                Rasterizer::writeContextToBuffer(contexts, scenes, scenesCount, ctms, colors, b[0], 0, e[0], *buffer);
             else {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
                     Rasterizer::writeContextToBuffer(& contexts[idx], scenes, scenesCount, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
@@ -294,7 +294,7 @@ struct RasterizerCoreGraphics {
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
-            renderScenes(& visibles[0], visibles.size(), ctms, gpuctms, false, colors, width, testScene.contexts, bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderScenes(& visibles[0], visibles.size(), ctms, gpuctms, false, colors, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(bgras), free(colors);
         }
     }
