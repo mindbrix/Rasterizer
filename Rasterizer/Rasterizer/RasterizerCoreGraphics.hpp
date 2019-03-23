@@ -165,19 +165,9 @@ struct RasterizerCoreGraphics {
         
         CGTestScene() : rasterizerType(0) { contexts.resize(8); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
-        void setClip(Rasterizer::Transform clip) { for (auto& scene : scenes) scene.ref->clip = clip; }
-        Rasterizer::Scene& startScene() {
-            scenes.resize(0);
-            return nextScene();
-        }
-        Rasterizer::Scene& nextScene() {
-            scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>());
-            return *scenes.back().ref;
-        }
         std::vector<Rasterizer::Context> contexts;
         RasterizerEvent::State state;
         int rasterizerType;
-        std::vector<Rasterizer::Ref<Rasterizer::Scene>> scenes;
         BGRAColorConverter converter;
     };
     
@@ -261,13 +251,13 @@ struct RasterizerCoreGraphics {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+    static void drawTestScene(CGTestScene& testScene, Rasterizer::Scenes& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         size_t pathsCount = 0;
         std::vector<Rasterizer::Ref<Rasterizer::Scene>> visibles;
-        for (int i = 0; i < testScene.scenes.size(); i++)
-            if (testScene.scenes[i].ref->isVisible(view, bounds))
-                visibles.emplace_back(testScene.scenes[i]), pathsCount += testScene.scenes[i].ref->paths.size();
+        for (int i = 0; i < scenes.scenes.size(); i++)
+            if (scenes.scenes[i].ref->isVisible(view, bounds))
+                visibles.emplace_back(scenes.scenes[i]), pathsCount += scenes.scenes[i].ref->paths.size();
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics)

@@ -176,6 +176,18 @@ struct Rasterizer {
         Transform ctm, clip;
         Bounds bounds;
     };
+    struct Scenes {
+        void setClip(Rasterizer::Transform clip) { for (auto& scene : scenes) scene.ref->clip = clip; }
+        Scene& startScene() {
+            scenes.resize(0);
+            return nextScene();
+        }
+        Scene& nextScene() {
+            scenes.emplace_back(Ref<Scene>());
+            return *scenes.back().ref;
+        }
+        std::vector<Ref<Scene>> scenes;
+    };
     template<typename T>
     struct Memory {
         ~Memory() { if (addr) free(addr); }
