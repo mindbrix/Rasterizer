@@ -501,20 +501,20 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(Ref<Scene> *scenes, size_t scenesCount, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t begin, size_t end) {
-            if (scenesCount == 0 || begin == end)
-                return;
-            size_t count = 0, i = 0, iz = begin, eiz = begin;
-            for (; i < scenesCount; i++) {
-                count += scenes[i].ref->paths.size();
-                if (begin < count)
-                    break;
-            }
-            assert(i < scenesCount);
-            for (; i < scenesCount && eiz < end; count += scenes[i].ref->paths.size(), i++, iz = eiz) {
-                eiz = count < end ? count : end;
-                drawPaths(& scenes[i].ref->paths[0], ctms, even, colors, clip, width, iz, eiz);
-            }
+        void drawScenes(Ref<Scene> *scenes, size_t scenesCount, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t end) {
+            for (size_t count = 0, i = 0, eiz = iz; i < scenesCount && eiz < end; i++)
+                if (scenes[i].ref->isVisible(view, bounds)) {
+                    count += scenes[i].ref->paths.size();
+                    if (iz < count)
+                        for (count = 0; i < scenesCount && eiz < end; i++)
+                            if (scenes[i].ref->isVisible(view, bounds)) {
+                                count += scenes[i].ref->paths.size();
+                                eiz = count < end ? count : end;
+                                drawPaths(& scenes[i].ref->paths[0], ctms, even, colors, clip, width, iz, eiz);
+                                iz = eiz;
+                            }
+                }
+            assert(iz == end);
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t begin, size_t end) {
             if (begin == end)

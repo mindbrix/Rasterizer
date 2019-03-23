@@ -191,7 +191,7 @@ struct RasterizerCoreGraphics {
         }
     }
     
-    static void renderScenes(std::vector<Rasterizer::Context>& contexts, Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, const Rasterizer::Transform view,  const Rasterizer::Bounds bounds, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, std::vector<Rasterizer::Context>& contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         Rasterizer::Path *paths = & scenes->ref->paths[0];
         size_t pathsCount = scenes->ref->paths.size();
         Rasterizer::Transform clip = scenes->ref->clip;
@@ -211,7 +211,7 @@ struct RasterizerCoreGraphics {
                 for (i = 0; i < divisions; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
                 dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, clip, width, b[idx], b[idx + 1]);
+                    contexts[idx].drawScenes(scenes, scenesCount, view, bounds, ctms, false, colors, clip, width, b[idx], b[idx + 1]);
                 });
                 count = divisions;
             } else {
@@ -222,7 +222,7 @@ struct RasterizerCoreGraphics {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, clip, width, 0, pathsCount);
+                    contexts[idx].drawScenes(scenes, scenesCount, view, bounds, ctms, false, colors, clip, width, 0, pathsCount);
                 });
             }
         } else {
@@ -231,8 +231,7 @@ struct RasterizerCoreGraphics {
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
                 contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            
-            contexts[0].drawScenes(scenes, scenesCount, ctms, false, colors, clip, width, 0, pathsCount);
+            contexts[0].drawScenes(scenes, scenesCount, view, bounds, ctms, false, colors, clip, width, 0, pathsCount);
         }
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
@@ -296,7 +295,7 @@ struct RasterizerCoreGraphics {
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
-            renderScenes(testScene.contexts, & testScene.scenes[0], testScene.scenes.size(), ctms, gpuctms, false, colors, width, bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderScenes(& testScene.scenes[0], testScene.scenes.size(), view, bounds, ctms, gpuctms, false, colors, width, testScene.contexts, bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(bgras), free(colors);
         }
     }
