@@ -163,9 +163,13 @@ struct RasterizerCoreGraphics {
     struct CGTestScene {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         
-        CGTestScene() : rasterizerType(0) { contexts.resize(8), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>()); }
+        CGTestScene() : rasterizerType(0) { contexts.resize(8); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
         void setClip(Rasterizer::Transform clip) { for (auto& scene : scenes) scene.ref->clip = clip; }
+        Rasterizer::Scene& startScene() {
+            scenes.resize(0), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>());
+            return *scenes.back().ref;
+        }
         std::vector<Rasterizer::Context> contexts;
         RasterizerEvent::State state;
         int rasterizerType;
@@ -173,14 +177,12 @@ struct RasterizerCoreGraphics {
         BGRAColorConverter converter;
     };
     
-    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, CGTestScene& _testScene) {
+    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Rasterizer::Scene& scene) {
         CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
         CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
         CFRelease(fontRef);
         NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
         CFRelease(url);
-        Rasterizer::Scene& scene = *_testScene.scenes[0].ref;
-        scene.empty();
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
             if (string)
