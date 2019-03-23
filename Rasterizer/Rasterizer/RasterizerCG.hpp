@@ -251,7 +251,7 @@ struct RasterizerCG {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, Rasterizer::Scenes& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, float dx, float dy) {
+    static void drawTestScene(CGTestScene& testScene, Rasterizer::Scenes& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         size_t pathsCount = 0;
         std::vector<Rasterizer::Ref<Rasterizer::Scene>> visibles;
@@ -288,7 +288,6 @@ struct RasterizerCG {
                 Rasterizer::Colorant black(0, 0, 0, 255);
                 memset_pattern4(colors, & black, pathsCount * sizeof(Rasterizer::Colorant));
             }
-            size_t index = dx == FLT_MAX ? INT_MAX : RasterizerWinding::pathIndexForPoint(*visibles[0].ref, false, view, bounds, dx, dy);
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             

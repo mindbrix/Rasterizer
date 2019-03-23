@@ -23,7 +23,6 @@
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;
-@property(nonatomic) BOOL showPaths;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 - (void)timerFired:(double)time;
@@ -102,6 +101,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - Drawing
 
 - (void)redraw {
+    float s = self.layer.contentsScale;
+    Rasterizer::Transform view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(RasterizerCG::transformFromCG(self.transform.affineTransform));
+    _scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(view) : Rasterizer::Transform::nullclip());
     [self.layer setNeedsDisplay];
 }
 
@@ -138,7 +140,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         switch(e.type) {
             case RasterizerEvent::Event::kMouseMove:
                 state.x = e.x, state.y = e.y;
-                redraw = self.showPaths;
+                redraw = state.mouseMove;
                 break;
             case RasterizerEvent::Event::kMouseUp:
                 state.mouseDown = false;
@@ -151,6 +153,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 break;
             case RasterizerEvent::Event::kKeyDown:
                 state.keyDown = true, state.keyCode = e.keyCode;
+                redraw = YES;
+                if (e.keyCode == 35)
+                    state.mouseMove = !state.mouseMove;
                 break;
             case RasterizerEvent::Event::kKeyUp:
                 state.keyDown = true, state.keyCode = e.keyCode;
@@ -171,14 +176,13 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 assert(0);
         }
     }
-    float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    Rasterizer::Transform view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(RasterizerCG::transformFromCG(self.transform.affineTransform));
-    _scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(view) : Rasterizer::Transform::nullclip());
-    Rasterizer::Bounds bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
-    state.index = !self.showPaths ? INT_MAX : RasterizerWinding::pathIndexForPoint(*scenes.scenes[0].ref, false, view, bounds, s * state.x, s * state.y);
-    state.events.resize(0);
     if (redraw)
         [self redraw];
+    float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    Rasterizer::Transform view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(RasterizerCG::transformFromCG(self.transform.affineTransform));
+    Rasterizer::Bounds bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+    state.index = !state.mouseMove ? INT_MAX : RasterizerWinding::pathIndexForPoint(*scenes.scenes[0].ref, false, view, bounds, s * state.x, s * state.y);
+    state.events.resize(0);
 }
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _testScene.state.events.emplace_back(event);
@@ -209,7 +213,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     int keyCode = event.keyCode;
     if (keyCode == 8) {
         _useClip = !_useClip;
-        [self redraw];
     } else if (keyCode == 46) {
         _useCPU = !_useCPU;
         [self toggleTimer];
@@ -218,20 +221,14 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
-        [self redraw];
     } else if (keyCode == 31) {
         _useOutline = !_useOutline;
-        [self redraw];
     } else if (keyCode == 35) {
-        _showPaths = !_showPaths;
-        [self redraw];
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestScene::kRasterizerCount;
         [self updateRasterizerLabel];
-        [self redraw];
     } else if (keyCode == 36) {
         self.transform = [VGAffineTransform new];
-        [self redraw];
     } else {
         [super keyDown:event];
     }
@@ -282,9 +279,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCG::drawTestScene(_testScene, _scenes, view, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
-                                          float(_showPaths ? _testScene.state.x * self.layer.contentsScale : FLT_MAX),
-                                          float(_showPaths ? _testScene.state.y * self.layer.contentsScale : FLT_MAX));
+    RasterizerCG::drawTestScene(_testScene, _scenes, view, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, _testScene.state.index);
 }
 
 #pragma mark - CALayerDelegate
@@ -295,9 +290,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
-    RasterizerCG::drawTestScene(_testScene, _scenes, ctm, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
-                                          float(_showPaths ? _testScene.state.x * self.layer.contentsScale : FLT_MAX),
-                                          float(_showPaths ? _testScene.state.y * self.layer.contentsScale : FLT_MAX));
+    RasterizerCG::drawTestScene(_testScene, _scenes, ctm, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _testScene.state.index);
 }
 
 - (void)setSvgData:(NSData *)svgData {
