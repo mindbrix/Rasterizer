@@ -502,21 +502,19 @@ struct Rasterizer {
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
         void drawScenes(Ref<Scene> *scenes, size_t scenesCount, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
-            for (size_t count = 0, i = 0, eiz = iz; i < scenesCount && eiz < end; i++) {
+            for (size_t count = 0, base = 0, i = 0, eiz = iz; i < scenesCount && eiz < end; i++) {
                 count += scenes[i].ref->paths.size();
                 if (iz < count)
-                    for (count = 0; i < scenesCount && eiz < end; i++) {
-                        count += scenes[i].ref->paths.size();
-                        eiz = count < end ? count : end;
-                        drawPaths(& scenes[i].ref->paths[0], ctms, even, colors, scenes[i].ref->clip, width, iz, eiz);
-                        iz = eiz;
+                    for (count = 0; i < scenesCount && eiz < end; base = count, iz = eiz, i++) {
+                        count += scenes[i].ref->paths.size(), eiz = count < end ? count : end;
+                        drawPaths(& scenes[i].ref->paths[0] + iz - base, ctms + iz, even, colors + iz, scenes[i].ref->clip, width, iz, eiz);
                     }
             }
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t end) {
             Transform inv = bitmap.width ? Transform::nullclip().invert() : clip.invert();
             Bounds device = Bounds(clip).integral().intersect(bounds);
-            for (paths += iz, ctms += iz; iz < end; iz++, paths++, ctms++)
+            for (; iz < end; iz++, paths++, ctms++, colors++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
                     Transform unit = paths->ref->bounds.unit(*ctms);
                     Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device);
@@ -524,9 +522,9 @@ struct Rasterizer {
                     bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                     if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                         if (bitmap.width)
-                            writeBitmapPath(*paths, *ctms, even, & colors[iz].src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                            writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                         else
-                            writeGPUPath(*paths, *ctms, even, & colors[iz].src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
+                            writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
                     }
                 }
         }

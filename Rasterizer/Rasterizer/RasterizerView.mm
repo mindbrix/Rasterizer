@@ -307,7 +307,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if (_svgData) {
         Rasterizer::Scene& scene = _testScene.startScene();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
-        RasterizerTest::addTestPaths(scene);
+        RasterizerTest::addTestPaths(_testScene.nextScene());
     }
     [self redraw];
 }

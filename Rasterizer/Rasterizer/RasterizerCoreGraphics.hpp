@@ -167,7 +167,11 @@ struct RasterizerCoreGraphics {
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
         void setClip(Rasterizer::Transform clip) { for (auto& scene : scenes) scene.ref->clip = clip; }
         Rasterizer::Scene& startScene() {
-            scenes.resize(0), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>());
+            scenes.resize(0);
+            return nextScene();
+        }
+        Rasterizer::Scene& nextScene() {
+            scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>());
             return *scenes.back().ref;
         }
         std::vector<Rasterizer::Context> contexts;
@@ -296,7 +300,7 @@ struct RasterizerCoreGraphics {
             }
             if (dx != FLT_MAX) {
                 Rasterizer::Scene& scene = *visibles[0].ref;
-                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, view.concat(scene.ctm), Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, pathsCount, dx, dy);
+                size_t index = RasterizerWinding::pathIndexForPoint(& scene.paths[0], & scene.ctms[0], false, scene.clip, view.concat(scene.ctm), Rasterizer::Bounds(0.f, 0.f, bitmap.width, bitmap.height), 0, scene.paths.size(), dx, dy);
                 if (index != INT_MAX)
                     colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             }
