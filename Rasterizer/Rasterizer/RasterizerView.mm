@@ -8,7 +8,7 @@
 #define RASTERIZER_SIMD 1
 #import "RasterizerView.h"
 #import "VGAffineTransform.h"
-#import "RasterizerCoreGraphics.hpp"
+#import "RasterizerCG.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerTrueType.hpp"
 #import "RasterizerTest.hpp"
@@ -18,7 +18,7 @@
 
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) RasterizerCoreGraphics::CGTestScene testScene;
+@property(nonatomic) RasterizerCG::CGTestScene testScene;
 @property(nonatomic) Rasterizer::Scenes scenes;
 @property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
@@ -26,7 +26,6 @@
 @property(nonatomic) BOOL showPaths;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
-@property(nonatomic) CGPoint mouse;
 - (void)timerFired:(double)time;
 
 @end
@@ -58,7 +57,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     self.transform = [VGAffineTransform new];
-    RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _scenes.startScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _scenes.startScene());
 	return self;
 }
 
@@ -82,7 +81,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    [self readEvents:_testScene.state forTime:time];
+    [self readEvents:_testScene.state forTime:time withScenes:_scenes];
 }
 
 - (void)toggleTimer {
@@ -96,7 +95,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
-    RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
     [self redraw];
 }
 
@@ -128,17 +127,17 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)updateRasterizerLabel {
     [self.rasterizerLabel setHidden:YES];
-    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
 #pragma mark - RasterizerEvent
 
-- (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time {
+- (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
     BOOL redraw = NO;
     for (RasterizerEvent::Event& e : state.events) {
         switch(e.type) {
             case RasterizerEvent::Event::kMouseMove:
-                self.mouse = CGPointMake(e.x, e.y);
+                state.x = e.x, state.y = e.y;
                 redraw = self.showPaths;
                 break;
             case RasterizerEvent::Event::kMouseUp:
@@ -172,6 +171,11 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 assert(0);
         }
     }
+    float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    Rasterizer::Transform view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(RasterizerCG::transformFromCG(self.transform.affineTransform));
+    _scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(view) : Rasterizer::Transform::nullclip());
+    Rasterizer::Bounds bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+    state.index = !self.showPaths ? INT_MAX : RasterizerWinding::pathIndexForPoint(*scenes.scenes[0].ref, false, view, bounds, s * state.x, s * state.y);
     state.events.resize(0);
     if (redraw)
         [self redraw];
@@ -179,7 +183,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _testScene.state.events.emplace_back(event);
     if (_displayLink == nil)
-        [self readEvents:_testScene.state forTime:0];
+        [self readEvents:_testScene.state forTime:0 withScenes:_scenes];
 }
 
 #pragma mark - NSResponder
@@ -222,7 +226,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         _showPaths = !_showPaths;
         [self redraw];
     } else if (keyCode == 49) {
-        _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCoreGraphics::CGTestScene::kRasterizerCount;
+        _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestScene::kRasterizerCount;
         [self updateRasterizerLabel];
         [self redraw];
     } else if (keyCode == 36) {
@@ -238,7 +242,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    RasterizerCoreGraphics::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
 	[self redraw];
 }
 
@@ -271,35 +275,29 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
-    if (_testScene.rasterizerType == RasterizerCoreGraphics::CGTestScene::kCoreGraphics)
+    if (_testScene.rasterizerType == RasterizerCG::CGTestScene::kCoreGraphics)
         return;
-        
     float s = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    CGAffineTransform CTM = self.transform.affineTransform;
-    Rasterizer::Transform view = RasterizerCoreGraphics::transformFromCG(CTM);
-    Rasterizer::Transform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
-    Rasterizer::Transform ctm = contentsScale.concat(view);
-    _scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip());
+    Rasterizer::Transform view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(RasterizerCG::transformFromCG(self.transform.affineTransform));
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCoreGraphics::drawTestScene(_testScene, _scenes, ctm, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
-                                          float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
-                                          float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
+    RasterizerCG::drawTestScene(_testScene, _scenes, view, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer,
+                                          float(_showPaths ? _testScene.state.x * self.layer.contentsScale : FLT_MAX),
+                                          float(_showPaths ? _testScene.state.y * self.layer.contentsScale : FLT_MAX));
 }
 
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     CGContextConcatCTM(ctx, self.transform.affineTransform);
-    Rasterizer::Transform ctm = RasterizerCoreGraphics::transformFromCG(CGContextGetCTM(ctx));
+    Rasterizer::Transform ctm = RasterizerCG::transformFromCG(CGContextGetCTM(ctx));
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
-    _scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip());
-    RasterizerCoreGraphics::drawTestScene(_testScene, _scenes, ctm, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
-                                          float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
-                                          float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));
+    RasterizerCG::drawTestScene(_testScene, _scenes, ctm, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
+                                          float(_showPaths ? _testScene.state.x * self.layer.contentsScale : FLT_MAX),
+                                          float(_showPaths ? _testScene.state.y * self.layer.contentsScale : FLT_MAX));
 }
 
 - (void)setSvgData:(NSData *)svgData {

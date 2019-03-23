@@ -7,7 +7,7 @@
 //
 
 #import <QuartzCore/QuartzCore.h>
-#import "RasterizerCoreGraphics.hpp"
+#import "RasterizerCG.hpp"
 
 @protocol LayerDelegate <NSObject>
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer;

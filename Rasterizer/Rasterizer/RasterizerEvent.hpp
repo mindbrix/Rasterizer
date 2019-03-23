@@ -26,8 +26,9 @@ struct RasterizerEvent {
     
     struct State {
         bool keyDown = false, mouseDown = false;
+        float x, y;
         int keyCode = 0;
-        size_t flags = 0;
+        size_t index = INT_MAX, flags = 0;
         std::vector<RasterizerEvent::Event> events;
     };
 };

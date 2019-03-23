@@ -11,7 +11,7 @@
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
-struct RasterizerCoreGraphics {
+struct RasterizerCG {
     static void drawScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (int j = 0; j < scenesCount; j++) {
             Rasterizer::Scene& scene = *scenes[j].ref;

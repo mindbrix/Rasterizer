@@ -41,12 +41,12 @@ struct RasterizerSVG {
                     Rasterizer::Path s = createPathFromShape(shape);
                     float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
                     CGMutablePathRef path = CGPathCreateMutable();
-                    RasterizerCoreGraphics::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
-                    CGPathRef stroked = RasterizerCoreGraphics::createStrokedPath(path, shape->strokeWidth,
+                    RasterizerCG::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
+                    CGPathRef stroked = RasterizerCG::createStrokedPath(path, shape->strokeWidth,
                         shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound,
                         shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel,
                         shape->miterLimit, shape->strokeWidth > dim ? 1 : 10);
-                    Rasterizer::Path p = RasterizerCoreGraphics::createPathFromCGPath(stroked);
+                    Rasterizer::Path p = RasterizerCG::createPathFromCGPath(stroked);
                     if (p.ref->atomsCount < 32767)
                         scene.addPath(p, flip, colorFromPaint(shape->stroke));
                     CGPathRelease(path);
