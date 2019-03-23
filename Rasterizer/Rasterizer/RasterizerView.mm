@@ -95,14 +95,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
-    [self redraw];
+    [self.layer setNeedsDisplay];
 }
 
 #pragma mark - Drawing
-
-- (void)redraw {
-    [self.layer setNeedsDisplay];
-}
 
 - (void)initLayer:(BOOL)useCPU {
     [self setWantsLayer:YES];
@@ -176,7 +172,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self updateState:state forTime:time withScenes:scenes];
     state.index = !state.mouseMove ? INT_MAX : RasterizerWinding::pathIndexForPoint(*scenes.scenes[0].ref, false, state.view, state.bounds, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
     if (redraw)
-        [self redraw];
+        [self.layer setNeedsDisplay];
     state.events.resize(0);
 }
 - (void)writeEvent:(RasterizerEvent::Event)event {
@@ -241,7 +237,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
-	[self redraw];
+	[self.layer setNeedsDisplay];
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
@@ -300,6 +296,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
         RasterizerTest::addTestPaths(_scenes.nextScene());
     }
-    [self redraw];
+    [self.layer setNeedsDisplay];
 }
 @end
