@@ -279,7 +279,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     Rasterizer::Transform view = RasterizerCoreGraphics::transformFromCG(CTM);
     Rasterizer::Transform contentsScale(s, 0.f, 0.f, s, 0.f, 0.f);
     Rasterizer::Transform ctm = contentsScale.concat(view);
-    _testScene.scenes[0].ref->clip = _useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
+    _testScene.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip());
     Rasterizer::Bitmap bitmap(nullptr, ceilf(s * w), ceilf(h * s), 0, 0);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
@@ -296,7 +296,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     bitmap.clear(_svgData && !_useOutline ? svg : font);
-    _testScene.scenes[0].ref->clip = _useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip();
+    _testScene.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(ctm) : Rasterizer::Transform::nullclip());
     RasterizerCoreGraphics::drawTestScene(_testScene, ctm, _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr,
                                           float(_showPaths ? _mouse.x * self.layer.contentsScale : FLT_MAX),
                                           float(_showPaths ? _mouse.y * self.layer.contentsScale : FLT_MAX));

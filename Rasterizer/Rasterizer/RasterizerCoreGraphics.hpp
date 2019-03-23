@@ -165,6 +165,7 @@ struct RasterizerCoreGraphics {
         
         CGTestScene() : rasterizerType(0) { contexts.resize(8), scenes.emplace_back(Rasterizer::Ref<Rasterizer::Scene>()); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
+        void setClip(Rasterizer::Transform clip) { for (auto& scene : scenes) scene.ref->clip = clip; }
         std::vector<Rasterizer::Context> contexts;
         RasterizerEvent::State state;
         int rasterizerType;
