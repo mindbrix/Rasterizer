@@ -270,7 +270,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if (_testScene.rasterizerType == RasterizerCG::CGTestScene::kCoreGraphics)
         return;
     [self updateState:_testScene.state forTime:0 withScenes:_scenes];
-    Rasterizer::Bitmap bitmap(nullptr, _testScene.state.bounds.ux, _testScene.state.bounds.ux, 0, 0);
+    Rasterizer::Bitmap bitmap(nullptr, _testScene.state.bounds.ux, _testScene.state.bounds.uy, 0, 0);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
     RasterizerCG::drawTestScene(_testScene, _scenes, _testScene.state.view, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, _testScene.state.index);
