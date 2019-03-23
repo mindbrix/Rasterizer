@@ -191,7 +191,9 @@ struct RasterizerCoreGraphics {
     
     static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, std::vector<Rasterizer::Context>& contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         Rasterizer::Path *paths = & scenes->ref->paths[0];
-        size_t pathsCount = scenes->ref->paths.size();
+        size_t pathsCount = 0;
+        for (int i = 0; i < scenesCount; i++)
+            pathsCount += scenes[i].ref->paths.size();
         size_t slice, ly, uy, count;
         if (multithread) {
             if (buffer) {
