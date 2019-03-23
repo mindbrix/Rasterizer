@@ -511,10 +511,10 @@ struct Rasterizer {
                     }
             }
         }
-        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t end) {
+        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t eiz) {
             Transform inv = bitmap.width ? Transform::nullclip().invert() : clip.invert();
             Bounds device = Bounds(clip).integral().intersect(bounds);
-            for (; iz < end; iz++, paths++, ctms++, colors++)
+            for (; iz < eiz; iz++, paths++, ctms++, colors++)
                 if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
                     Transform unit = paths->ref->bounds.unit(*ctms);
                     Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device);
