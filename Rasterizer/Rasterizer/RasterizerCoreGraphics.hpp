@@ -191,17 +191,17 @@ struct RasterizerCoreGraphics {
     
     static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, std::vector<Rasterizer::Context>& contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         Rasterizer::Path *paths = & scenes->ref->paths[0];
-        size_t pathsCount = 0;
+        size_t eiz = 0;
         for (int i = 0; i < scenesCount; i++)
-            pathsCount += scenes[i].ref->paths.size();
+            eiz += scenes[i].ref->paths.size();
         size_t slice, ly, uy, count;
         if (multithread) {
             if (buffer) {
                 size_t divisions = contexts.size(), total, p, i;
-                for (total = p = 0; p < pathsCount; p++)
+                for (total = p = 0; p < eiz; p++)
                     total += paths[p].ref->atomsCount ?: (paths[p].ref->shapes ? paths[p].ref->end >> 4 : 0);
                 size_t begins[divisions + 1], target, *b = begins;
-                begins[0] = 0, begins[divisions] = pathsCount;
+                begins[0] = 0, begins[divisions] = eiz;
                 for (count = p = 0, i = 1; i < divisions; i++) {
                     for (target = total * i / divisions; count < target; p++)
                         count += paths[p].ref->atomsCount ?: (paths[p].ref->shapes ? paths[p].ref->end >> 4: 0);
@@ -221,7 +221,7 @@ struct RasterizerCoreGraphics {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, pathsCount);
+                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, eiz);
                 });
             }
         } else {
@@ -230,12 +230,12 @@ struct RasterizerCoreGraphics {
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
                 contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, pathsCount);
+            contexts[0].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, eiz);
         }
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, paths, ctms, colors, scenes->ref->clip, pathsCount, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(& contexts[0], count, paths, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
             if (count == 1)
                 Rasterizer::writeContextToBuffer(& contexts[0], paths, ctms, colors, b[0], e[0], *buffer);
             else {
