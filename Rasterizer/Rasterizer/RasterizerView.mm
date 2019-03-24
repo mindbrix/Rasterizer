@@ -182,9 +182,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if (_displayLink == nil)
         [self readEvents:_testScene.state forTime:0 withScenes:_scenes];
 }
-- (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
+- (RasterizerEvent::State&)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
     state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
     scenes.setClip(state.useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(state.view) : Rasterizer::Transform::nullclip());
+    return state;
 }
 
 #pragma mark - NSResponder
@@ -267,20 +268,19 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
     if (_testScene.rasterizerType == RasterizerCG::CGTestScene::kCoreGraphics)
         return;
-    [self updateState:_testScene.state forTime:0 withScenes:_scenes];
-    Rasterizer::Bitmap bitmap(nullptr, _testScene.state.bounds.ux, _testScene.state.bounds.uy, 0, 0);
-    buffer->clearColor = _svgData && !_testScene.state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant( 0xFF, 0xFF, 0xFF, 0xFF);
-    RasterizerCG::drawTestScene(_testScene, _scenes, _testScene.state.view, _testScene.state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, _testScene.state.index);
+    auto state = [self updateState:_testScene.state forTime:0 withScenes:_scenes];
+    buffer->clearColor = _svgData && !state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
+    RasterizerCG::drawTestScene(_testScene, _scenes, state.view, state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, Rasterizer::Bitmap(nullptr, state.bounds.ux, state.bounds.uy, 0, 0), buffer, state.index);
 }
 
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    [self updateState:_testScene.state forTime:0 withScenes:_scenes];
+    auto state = [self updateState:_testScene.state forTime:0 withScenes:_scenes];
     CGContextConcatCTM(ctx, self.transform.affineTransform);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    bitmap.clear(_svgData && !_testScene.state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant( 0xFF, 0xFF, 0xFF, 0xFF));
-    RasterizerCG::drawTestScene(_testScene, _scenes, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), _testScene.state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _testScene.state.index);
+    bitmap.clear(_svgData && !state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
+    RasterizerCG::drawTestScene(_testScene, _scenes, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, state.index);
 }
 
 - (void)setSvgData:(NSData *)svgData {
