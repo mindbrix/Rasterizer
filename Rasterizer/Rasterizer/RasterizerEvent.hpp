@@ -29,7 +29,7 @@ struct RasterizerEvent {
             view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(t);
             bounds = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
         }
-        bool keyDown = false, mouseDown = false, mouseMove = false;
+        bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false;
         float x, y;
         int keyCode = 0;
         size_t index = INT_MAX, flags = 0;

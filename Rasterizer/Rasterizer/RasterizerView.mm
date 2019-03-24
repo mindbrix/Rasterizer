@@ -20,7 +20,6 @@
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCG::CGTestScene testScene;
 @property(nonatomic) Rasterizer::Scenes scenes;
-@property(nonatomic) BOOL useClip;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) BOOL useOutline;
 @property(nonatomic) NSFont *font;
@@ -147,7 +146,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
             case RasterizerEvent::Event::kKeyDown:
                 state.keyDown = true, state.keyCode = e.keyCode;
                 redraw = YES;
-                if (e.keyCode == 35)
+                if (e.keyCode == 8)
+                    state.useClip = !state.useClip;
+                else if (e.keyCode == 35)
                     state.mouseMove = !state.mouseMove;
                 break;
             case RasterizerEvent::Event::kKeyUp:
@@ -182,7 +183,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 - (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
     state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
-    scenes.setClip(_useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(state.view) : Rasterizer::Transform::nullclip());
+    scenes.setClip(state.useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(state.view) : Rasterizer::Transform::nullclip());
 }
 
 #pragma mark - NSResponder
@@ -206,9 +207,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (keyCode == 8) {
-        _useClip = !_useClip;
-    } else if (keyCode == 46) {
+    if (keyCode == 8 || keyCode == 35) {}
+    else if (keyCode == 46) {
         _useCPU = !_useCPU;
         [self toggleTimer];
         [self initLayer:_useCPU];
@@ -218,7 +218,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
     } else if (keyCode == 31) {
         _useOutline = !_useOutline;
-    } else if (keyCode == 35) {
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestScene::kRasterizerCount;
         [self updateRasterizerLabel];
