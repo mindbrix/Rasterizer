@@ -82,7 +82,7 @@
     descriptor.label = @"shapes";
     self.shapesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR16Float;
+    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
     descriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
@@ -132,7 +132,7 @@
         desc.width = self.drawableSize.width;
         desc.height = self.drawableSize.height;
         desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
-        desc.pixelFormat = MTLPixelFormatR16Float;
+        desc.pixelFormat = MTLPixelFormatR32Float;
         self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
         [self.accumulationTexture setLabel:@"accumulationTexture"];
     }
