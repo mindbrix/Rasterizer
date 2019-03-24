@@ -269,8 +269,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         return;
     [self updateState:_testScene.state forTime:0 withScenes:_scenes];
     Rasterizer::Bitmap bitmap(nullptr, _testScene.state.bounds.ux, _testScene.state.bounds.uy, 0, 0);
-    uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    buffer->clearColor = Rasterizer::Colorant(_svgData && !_testScene.state.useOutline ? svg : font);
+    buffer->clearColor = _svgData && !_testScene.state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant( 0xFF, 0xFF, 0xFF, 0xFF);
     RasterizerCG::drawTestScene(_testScene, _scenes, _testScene.state.view, _testScene.state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, _testScene.state.index);
 }
 
@@ -280,8 +279,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self updateState:_testScene.state forTime:0 withScenes:_scenes];
     CGContextConcatCTM(ctx, self.transform.affineTransform);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    bitmap.clear(_svgData && !_testScene.state.useOutline ? svg : font);
+    bitmap.clear(_svgData && !_testScene.state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant( 0xFF, 0xFF, 0xFF, 0xFF));
     RasterizerCG::drawTestScene(_testScene, _scenes, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), _testScene.state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _testScene.state.index);
 }
 
