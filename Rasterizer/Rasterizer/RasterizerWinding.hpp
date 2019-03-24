@@ -8,21 +8,6 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    struct WindingInfo {
-        WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
-        float dx, dy;
-        int winding;
-    };
-    static void countWinding(float x0, float y0, float x1, float y1, Rasterizer::Info *info) {
-        WindingInfo& winding = *((WindingInfo *)info->info);
-        if (winding.dy >= (y0 < y1 ? y0 : y1) && winding.dy < (y0 > y1 ? y0 : y1)) {
-            float det = (x1 - x0) * (winding.dy - y0) - (y1 - y0) * (winding.dx - x0);
-            if (y0 < y1 && det < 0.f)
-                winding.winding++;
-            else if (y0 > y1 && det > 0.f)
-                winding.winding--;
-        }
-    }
     static size_t pathIndexForPoint(Rasterizer::Scene& scene, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
         Rasterizer::Transform inv = scene.clip.invert(), ctm = view.concat(scene.ctm);
         for (int i = int(scene.paths.size()) - 1; i >= 0; i--) {
@@ -32,6 +17,11 @@ struct RasterizerWinding {
         }
         return INT_MAX;
     }
+    struct WindingInfo {
+        WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
+        float dx, dy;
+        int winding;
+    };
     static int pointWinding(Rasterizer::Path& path, Rasterizer::Transform ctm, Rasterizer::Transform inv, Rasterizer::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
         if (path.ref->atomsCount) {
@@ -47,5 +37,15 @@ struct RasterizerWinding {
             }
         }
         return info.winding;
+    }
+    static void countWinding(float x0, float y0, float x1, float y1, Rasterizer::Info *info) {
+        WindingInfo& winding = *((WindingInfo *)info->info);
+        if (winding.dy >= (y0 < y1 ? y0 : y1) && winding.dy < (y0 > y1 ? y0 : y1)) {
+            float det = (x1 - x0) * (winding.dy - y0) - (y1 - y0) * (winding.dx - x0);
+            if (y0 < y1 && det < 0.f)
+                winding.winding++;
+            else if (y0 > y1 && det > 0.f)
+                winding.winding--;
+        }
     }
 };
