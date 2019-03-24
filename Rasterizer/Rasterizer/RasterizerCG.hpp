@@ -57,14 +57,12 @@ struct RasterizerCG {
                 converter = vImageConverter_CreateWithCGImageFormat(&srcFormat, &dstFormat, NULL, kvImageNoFlags, NULL);
             }
         }
-        void convert(uint32_t *src, size_t size, uint32_t *dst) {
+        void convert(void *src, size_t size, void *dst) {
             if (size && converter) {
-                vImage_Buffer sourceBuffer;
-                vImageBuffer_Init(&sourceBuffer, 1, size, 32, kvImageNoAllocate);
-                sourceBuffer.data = (void *)src;
-                vImage_Buffer destBuffer;
-                vImageBuffer_Init(&destBuffer, 1, size, 32, kvImageNoAllocate);
-                destBuffer.data = (void *)dst;
+                vImage_Buffer sourceBuffer, destBuffer;
+                vImageBuffer_Init(& sourceBuffer, 1, size, 32, kvImageNoAllocate);
+                vImageBuffer_Init(& destBuffer, 1, size, 32, kvImageNoAllocate);
+                sourceBuffer.data = src, destBuffer.data = dst;
                 vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
             }
         }
@@ -272,7 +270,7 @@ struct RasterizerCG {
             testScene.converter.set(srcSpace, dstSpace);
             for (size_t i = 0, iz = 0; i < visibles.size(); i++) {
                 Rasterizer::Scene& scene = *visibles[i].ref;
-                testScene.converter.convert((uint32_t *)& scene.colors[0].src0, scene.paths.size(), (uint32_t *)colors + iz);
+                testScene.converter.convert(& scene.colors[0].src0, scene.paths.size(), colors + iz);
                 Rasterizer::Transform ctm = view.concat(scene.ctm);
                 for (size_t j = 0; j < scene.paths.size(); iz++, j++)
                     ctms[iz] = ctm.concat(scene.ctms[j]);
