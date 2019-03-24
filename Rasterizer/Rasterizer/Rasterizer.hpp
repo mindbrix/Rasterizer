@@ -372,19 +372,19 @@ struct Rasterizer {
                 Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
                 int begin, end;
             };
-            struct Cell {
-                Cell(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
+            struct Molecule {
+                Molecule(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
                 float ux;
                 int begin, end;
             };
-            Cell *alloc(size_t size) {
+            Molecule *alloc(size_t size) {
                 new (ranges.alloc(1)) Range(cells.idx, cells.idx + size), cells.idx += size;
                 return cells.alloc(size);
             }
             void empty() { ranges.empty(), cells.empty(); }
             void reset() { ranges.reset(), cells.reset(); }
             Row<Range> ranges;
-            Row<Cell> cells;
+            Row<Molecule> cells;
         };
         struct Cell {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
@@ -594,15 +594,15 @@ struct Rasterizer {
                     gpu.ctms[iz] = m;
                     if (molecules) {
                         cells = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
-                        GPU::Molecules::Cell *cell = gpu.molecules.alloc(cells);
-                        Bounds *molecule = & path.ref->molecules[0];
+                        GPU::Molecules::Molecule *molecule = gpu.molecules.alloc(cells);
+                        Bounds *bounds = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
-                                float ux = ceilf(Bounds(molecule->unit(ctm)).ux);
+                                float ux = ceilf(Bounds(bounds->unit(ctm)).ux);
                                 ux = ux < clip.lx ? clip.lx : ux, ux = ux > clip.ux ? clip.ux : ux;
-                                new (cell) GPU::Molecules::Cell(ux, is - ls, s - ls);
+                                new (molecule) GPU::Molecules::Molecule(ux, is - ls, s - ls);
                                 instances += (s - is + kFastSegments - 1) / kFastSegments;
-                                is = s + 1, molecule++, cell++;
+                                is = s + 1, bounds++, molecule++;
                             }
                     }
                     writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule : GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
@@ -1154,7 +1154,7 @@ struct Rasterizer {
                     entry->end += sizeof(GPU::Quad);
                     if (quad->iz & GPU::Quad::kMolecule) {
                         GPU::Molecules::Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
-                        GPU::Molecules::Cell *mc = & ctx->gpu.molecules.cells.base[mr->begin];
+                        GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (int ic = int(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
                             cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = quad->super.iy, cell->base = int(quad->super.end);
                             for (j = mc->begin; j < mc->end; fast++)
