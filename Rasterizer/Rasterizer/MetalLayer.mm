@@ -164,16 +164,7 @@
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
     drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
     drawableDescriptor.depthAttachment.clearDepth = 0;
-    
-    MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
-    edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
-    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
-    edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-    edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
-    
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-    drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
-    drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
     
     uint32_t reverse, pathCount;
     size_t colorantsOffset = 0, affineTransformsOffset = 0, clipsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
@@ -218,6 +209,11 @@
             case Rasterizer::Buffer::Entry::kFastEdges:
                 if (entry.type == Rasterizer::Buffer::Entry::kEdges) {
                     [commandEncoder endEncoding];
+                    MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+                    edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
+                    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+                    edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+                    edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
                 } else
@@ -237,6 +233,8 @@
                 }
                 if (entry.type == Rasterizer::Buffer::Entry::kFastEdges) {
                     [commandEncoder endEncoding];
+                    drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
+                    drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
