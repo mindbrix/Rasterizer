@@ -59,7 +59,6 @@ struct Rasterizer {
     struct Colorant {
         Colorant() {}
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
-        Colorant(uint8_t *src) : src0(src[0]), src1(src[1]), src2(src[2]), src3(src[3]) {}
         uint8_t src0, src1, src2, src3;
     };
     struct Geometry {
