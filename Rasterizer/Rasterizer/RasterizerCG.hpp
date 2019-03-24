@@ -164,7 +164,6 @@ struct RasterizerCG {
         CGTestScene() : rasterizerType(0) { contexts.resize(8); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
         std::vector<Rasterizer::Context> contexts;
-        RasterizerEvent::State state;
         int rasterizerType;
         BGRAColorConverter converter;
     };
