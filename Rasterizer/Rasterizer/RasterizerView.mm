@@ -21,7 +21,6 @@
 @property(nonatomic) RasterizerCG::CGTestScene testScene;
 @property(nonatomic) Rasterizer::Scenes scenes;
 @property(nonatomic) BOOL useCPU;
-@property(nonatomic) BOOL useOutline;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 - (void)timerFired:(double)time;
@@ -148,6 +147,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 redraw = YES;
                 if (e.keyCode == 8)
                     state.useClip = !state.useClip;
+                else if (e.keyCode == 31)
+                    state.useOutline = !state.useOutline;
                 else if (e.keyCode == 35)
                     state.mouseMove = !state.mouseMove;
                 break;
@@ -207,7 +208,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (keyCode == 8 || keyCode == 35) {}
+    if (keyCode == 8 || keyCode == 31 || keyCode == 35) {}
     else if (keyCode == 46) {
         _useCPU = !_useCPU;
         [self toggleTimer];
@@ -216,8 +217,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
-    } else if (keyCode == 31) {
-        _useOutline = !_useOutline;
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestScene::kRasterizerCount;
         [self updateRasterizerLabel];
@@ -271,8 +270,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self updateState:_testScene.state forTime:0 withScenes:_scenes];
     Rasterizer::Bitmap bitmap(nullptr, _testScene.state.bounds.ux, _testScene.state.bounds.uy, 0, 0);
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    buffer->clearColor = Rasterizer::Colorant(_svgData && !_useOutline ? svg : font);
-    RasterizerCG::drawTestScene(_testScene, _scenes, _testScene.state.view, _useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, _testScene.state.index);
+    buffer->clearColor = Rasterizer::Colorant(_svgData && !_testScene.state.useOutline ? svg : font);
+    RasterizerCG::drawTestScene(_testScene, _scenes, _testScene.state.view, _testScene.state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, bitmap, buffer, _testScene.state.index);
 }
 
 #pragma mark - CALayerDelegate
@@ -282,8 +281,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     CGContextConcatCTM(ctx, self.transform.affineTransform);
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     uint8_t svg[4] = { 0xCC, 0xCC, 0xCC, 0xCC }, font[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    bitmap.clear(_svgData && !_useOutline ? svg : font);
-    RasterizerCG::drawTestScene(_testScene, _scenes, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), _useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _testScene.state.index);
+    bitmap.clear(_svgData && !_testScene.state.useOutline ? svg : font);
+    RasterizerCG::drawTestScene(_testScene, _scenes, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), _testScene.state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _testScene.state.index);
 }
 
 - (void)setSvgData:(NSData *)svgData {
