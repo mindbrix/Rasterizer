@@ -53,4 +53,15 @@ struct RasterizerTest {
         shapes.ref->setShapesBounds(count);
         return shapes;
     }
+    static Rasterizer::Path createBoundsShapes(Rasterizer::Scene& scene, bool circles) {
+        Rasterizer::Path shapes;
+        shapes.ref->addShapes(scene.paths.size());
+        if (circles)
+            memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
+        Rasterizer::Transform *dst = shapes.ref->shapes;
+        for (int i = 0; i < scene.paths.size(); i++, dst++)
+            *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
+        shapes.ref->bounds = scene.bounds;
+        return shapes;
+    }
 };

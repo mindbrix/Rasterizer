@@ -159,15 +159,4 @@ struct RasterizerTrueType {
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d)), color);
     }
-    static Rasterizer::Path createBoundsShapes(Rasterizer::Scene& scene, bool circles) {
-        Rasterizer::Path shapes;
-        shapes.ref->addShapes(scene.paths.size());
-        if (circles)
-            memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
-        Rasterizer::Transform *dst = shapes.ref->shapes;
-        for (int i = 0; i < scene.paths.size(); i++, dst++)
-            *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
-        shapes.ref->bounds = scene.bounds;
-        return shapes;
-    }
 };
