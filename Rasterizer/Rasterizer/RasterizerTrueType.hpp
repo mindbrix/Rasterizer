@@ -76,9 +76,9 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static Rasterizer::Path writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
+    static void writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0)
-            return Rasterizer::Path();
+            return;
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ', tab = '\t';
         const int NL = -1, SP = -2, TAB = -3;
@@ -149,16 +149,6 @@ struct RasterizerTrueType {
                         x += *advance;
                 }
         } while (i < len);
-        
-        Rasterizer::Path shapes;
-        shapes.ref->addShapes(scene.paths.size());
-        if (0)
-            memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
-        Rasterizer::Transform *dst = shapes.ref->shapes;
-        for (i = 0; i < scene.paths.size(); i++, dst++)
-            *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
-        shapes.ref->bounds = scene.bounds;
-        return shapes;
     }
     static void writeGlyphGrid(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0)
@@ -168,5 +158,16 @@ struct RasterizerTrueType {
         for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d)), color);
+    }
+    static Rasterizer::Path createBoundsShapes(Rasterizer::Scene& scene, bool circles) {
+        Rasterizer::Path shapes;
+        shapes.ref->addShapes(scene.paths.size());
+        if (circles)
+            memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
+        Rasterizer::Transform *dst = shapes.ref->shapes;
+        for (int i = 0; i < scene.paths.size(); i++, dst++)
+            *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
+        shapes.ref->bounds = scene.bounds;
+        return shapes;
     }
 };
