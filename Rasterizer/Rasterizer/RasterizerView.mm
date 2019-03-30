@@ -120,8 +120,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)updateRasterizerLabel {
-    [self.rasterizerLabel setHidden:YES];
-    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizerMT ? @"Rasterizer (mt)" : _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizerMT ? @"Rasterizer (GPU)" : _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
 #pragma mark - RasterizerEvent
@@ -195,8 +194,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (BOOL)becomeFirstResponder {
-    [self updateRasterizerLabel];
     self.window.acceptsMouseMovedEvents = YES;
+    [self.rasterizerLabel setHidden:YES];
     [self toggleTimer];
     return YES;
 }
@@ -210,17 +209,25 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (keyCode == 8 || keyCode == 31 || keyCode == 35) {}
-    else if (keyCode == 46) {
+    else if (keyCode == 51) {
+        _useCPU = !_useCPU;
+        [self toggleTimer];
+        [self initLayer:_useCPU];
+        _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestScene::RasterizerType::kCoreGraphics : RasterizerCG::CGTestScene::RasterizerType::kRasterizerMT;
+        [self updateRasterizerLabel];
+        [self.rasterizerLabel setHidden:NO];
+    } else if (keyCode == 46) {
         _useCPU = !_useCPU;
         [self toggleTimer];
         [self initLayer:_useCPU];
         _testScene.reset();
+        [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestScene::kRasterizerCount;
-        [self updateRasterizerLabel];
+        [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 36) {
         self.transform = [VGAffineTransform new];
     } else {
