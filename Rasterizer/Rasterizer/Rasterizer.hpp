@@ -1103,9 +1103,9 @@ struct Rasterizer {
                                      Buffer& buffer) {
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
         std::vector<size_t> idxes;
-        auto scenes = & list.scenes[0];
-        for (base = count = 0, j = 0; j < list.scenes.size(); base = count, j++, scenes++) {
-            count += scenes->ref->paths.size();
+        Ref<Scene> *scene = & list.scenes[0];
+        for (base = count = 0, j = 0; j < list.scenes.size(); base = count, j++, scene++) {
+            count += scene->ref->paths.size();
             if (_iz < count)
                 break;
         }
@@ -1137,13 +1137,13 @@ struct Rasterizer {
             for (quad = lq; quad < uq; quad++) {
                 type = quad->iz & GPU::Quad::kShapes || quad->iz & GPU::Quad::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 iz = quad->iz & kPathIndexMask;
-                while (iz - base >= scenes->ref->paths.size())
-                    base += scenes->ref->paths.size(), scenes++;
+                while (iz - base >= scene->ref->paths.size())
+                    base += scene->ref->paths.size(), scene++;
                 
                 if (type != entry->type)
                     begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
                 if (quad->iz & GPU::Quad::kShapes) {
-                    Path& path = scenes->ref->paths[iz - base];
+                    Path& path = scene->ref->paths[iz - base];
                     
                     GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end);
                     for (int k = 0; k < path.ref->shapesCount; k++, dst++)
