@@ -183,8 +183,8 @@ struct Rasterizer {
     };
     struct Scenes {
         void empty() { scenes.resize(0), ctms.resize(0), clips.resize(0); }
-        Scene& addScene(Transform ctm, Transform clip) {
-            scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(ctm), clips.emplace_back(clip);
+        Scene& addScene() {
+            scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
             return *scenes.back().ref;
         }
         void setClip(Transform clip) {
@@ -193,7 +193,7 @@ struct Rasterizer {
         }
         Scene& startScene() {
             empty();
-            return addScene(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), Transform::nullclip());
+            return addScene();
         }
         size_t writeVisibles(Transform view, Bounds device, Scenes& dst) {
             size_t pathsCount = 0;
