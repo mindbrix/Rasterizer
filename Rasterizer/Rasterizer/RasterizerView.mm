@@ -173,7 +173,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         }
     }
     [self updateState:state forTime:time withScenes:scenes];
-    state.index = !state.mouseMove ? INT_MAX : RasterizerWinding::pathIndexForPoint(*scenes.scenes[0].ref, false, state.view, state.bounds, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
+    state.index = !state.mouseMove ? INT_MAX : RasterizerWinding::pathIndexForPoint(_scenes, false, state.view, state.bounds, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
     if (redraw)
         [self.layer setNeedsDisplay];
     state.events.resize(0);
@@ -288,7 +288,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if (_svgData) {
         Rasterizer::Scene& scene = _scenes.startScene();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
-        RasterizerTest::addTestPaths(_scenes.nextScene());
+        //RasterizerTest::addTestPaths(_scenes.startScene());
     }
     [self.layer setNeedsDisplay];
 }

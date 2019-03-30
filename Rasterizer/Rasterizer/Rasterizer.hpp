@@ -161,9 +161,15 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    static bool isVisible(Bounds bounds, Transform view, Transform ctm, Transform clip, Bounds device) {
+        Transform unit = bounds.unit(view.concat(ctm));
+        Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
+        Bounds clu = Bounds(clip.invert().concat(unit));
+        return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
+    }
     struct Scene {
         Scene() { empty(); }
-        void empty() { paths.resize(0), ctms.resize(0), colors.resize(0), ctm = Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), clip = Transform::nullclip(), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
+        void empty() { paths.resize(0), ctms.resize(0), colors.resize(0), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
         void addPath(Path path, Transform ctm, Colorant colorant) {
             if ((path.ref->atomsCount == 0 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)
                 return;
@@ -171,28 +177,32 @@ struct Rasterizer {
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
         }
-        bool isVisible(Transform view, Bounds device) {
-            Transform unit = bounds.unit(view.concat(ctm));
-            Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
-            Bounds clu = Bounds(clip.invert().concat(unit));
-            return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
-        }
         size_t refCount = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
-        Transform ctm, clip;
         Bounds bounds;
     };
     struct Scenes {
-        void setClip(Rasterizer::Transform clip) { for (auto& scene : scenes) scene.ref->clip = clip; }
-        Scene& startScene() {
-            scenes.resize(0);
-            return nextScene();
-        }
-        Scene& nextScene() {
-            scenes.emplace_back(Ref<Scene>());
+        void empty() { scenes.resize(0), ctms.resize(0), clips.resize(0); }
+        Scene& addScene(Transform ctm, Transform clip) {
+            scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *scenes.back().ref;
         }
-        std::vector<Ref<Scene>> scenes;
+        void setClip(Transform clip) {
+            for (int i = 0; i < scenes.size(); i++)
+                clips[i] = clip;
+        }
+        Scene& startScene() {
+            empty();
+            return addScene(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), Transform::nullclip());
+        }
+        size_t writeVisibles(Transform view, Bounds device, Scenes& dst) {
+            size_t pathsCount = 0;
+            for (int i = 0; i < scenes.size(); i++)
+                if (isVisible(scenes[i].ref->bounds, view, ctms[i], clips[i], device))
+                    pathsCount += scenes[i].ref->paths.size(), dst.scenes.emplace_back(scenes[i]), dst.ctms.emplace_back(ctms[i]), dst.clips.emplace_back(clips[i]);
+            return pathsCount;
+        }
+        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;
     };
     template<typename T>
     struct Memory {
@@ -519,13 +529,13 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(Ref<Scene> *scenes, size_t scenesCount, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
-            for (size_t count = 0, base = 0, i = 0, eiz = iz; i < scenesCount && eiz < end; i++) {
-                count += scenes[i].ref->paths.size();
+        void drawScenes(Scenes& scenes, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
+            for (size_t count = 0, base = 0, i = 0, eiz = iz; i < scenes.scenes.size() && eiz < end; i++) {
+                count += scenes.scenes[i].ref->paths.size();
                 if (iz < count)
-                    for (count = 0; i < scenesCount && eiz < end; base = count, iz = eiz, i++) {
-                        count += scenes[i].ref->paths.size(), eiz = count < end ? count : end;
-                        drawPaths(& scenes[i].ref->paths[0] + iz - base, ctms + iz, even, colors + iz, scenes[i].ref->clip, width, iz, eiz);
+                    for (count = 0; i < scenes.scenes.size() && eiz < end; base = count, iz = eiz, i++) {
+                        count += scenes.scenes[i].ref->paths.size(), eiz = count < end ? count : end;
+                        drawPaths(& scenes.scenes[i].ref->paths[0] + iz - base, ctms + iz, even, colors + iz, scenes.clips[i], width, iz, eiz);
                     }
             }
         }
@@ -1084,7 +1094,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     Ref<Scene> *scenes, size_t scenesCount,
+                                     Scenes& _scenes,
                                      Transform *ctms,
                                      Colorant *colorants,
                                      size_t begin,
@@ -1093,8 +1103,8 @@ struct Rasterizer {
                                      Buffer& buffer) {
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
         std::vector<size_t> idxes;
-        
-        for (base = count = 0, j = 0; j < scenesCount; base = count, j++, scenes++) {
+        auto scenes = & _scenes.scenes[0];
+        for (base = count = 0, j = 0; j < _scenes.scenes.size(); base = count, j++, scenes++) {
             count += scenes->ref->paths.size();
             if (_iz < count)
                 break;

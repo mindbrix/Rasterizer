@@ -12,12 +12,13 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
-        for (int j = 0; j < scenesCount; j++) {
-            Rasterizer::Scene& scene = *scenes[j].ref;
+    static void drawScenes(Rasterizer::Scenes& scenes, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+        for (int j = 0; j < scenes.scenes.size(); j++) {
+            Rasterizer::Scene& scene = *scenes.scenes[j].ref;
+            Rasterizer::Transform ctm = scenes.ctms[j];
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
-                Rasterizer::Transform t = scene.ctm.concat(scene.ctms[i]);
+                Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
                 Rasterizer::Bounds clip = Rasterizer::Bounds(p.ref->bounds.unit(view.concat(t))).integral().intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     CGContextSaveGState(ctx);
@@ -183,10 +184,10 @@ struct RasterizerCG {
         }
     }
     
-    static void renderScenes(Rasterizer::Ref<Rasterizer::Scene> *scenes, size_t scenesCount, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    static void renderScenes(Rasterizer::Scenes& scenes, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         size_t eiz = 0, total = 0;
-        for (int j = 0; j < scenesCount; j++) {
-            Rasterizer::Scene& scene = *scenes[j].ref;
+        for (int j = 0; j < scenes.scenes.size(); j++) {
+            Rasterizer::Scene& scene = *scenes.scenes[j].ref;
             eiz += scene.paths.size();
             for (int p = 0; p < scene.paths.size(); p++)
                 total += scene.paths[p].ref->atomsCount ?: (scene.paths[p].ref->shapes ? scene.paths[p].ref->end >> 4 : 0);
@@ -195,7 +196,7 @@ struct RasterizerCG {
         if (multithread) {
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
-                auto scene = scenes;
+                auto scene = & scenes.scenes[0];
                 for (count = base = iz = 0, i = 1; i < divisions; i++) {
                     for (target = total * i / divisions; count < target; iz++) {
                         if (iz - base == scene->ref->paths.size())
@@ -208,7 +209,7 @@ struct RasterizerCG {
                 for (i = 0; i < divisions; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
                 dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, width, izs[idx], izs[idx + 1]);
+                    contexts[idx].drawScenes(scenes, ctms, false, colors, width, izs[idx], izs[idx + 1]);
                 });
                 count = divisions;
             } else {
@@ -219,7 +220,7 @@ struct RasterizerCG {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, eiz);
+                    contexts[idx].drawScenes(scenes, ctms, false, colors, width, 0, eiz);
                 });
             }
         } else {
@@ -228,17 +229,17 @@ struct RasterizerCG {
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
                 contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(scenes, scenesCount, ctms, false, colors, width, 0, eiz);
+            contexts[0].drawScenes(scenes, ctms, false, colors, width, 0, eiz);
         }
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, scenes->ref->clip, eiz, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, scenes.clips[0], eiz, begins, *buffer);
             if (count == 1)
-                Rasterizer::writeContextToBuffer(contexts, scenes, scenesCount, ctms, colors, b[0], 0, e[0], *buffer);
+                Rasterizer::writeContextToBuffer(contexts, scenes, ctms, colors, b[0], 0, e[0], *buffer);
             else {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    Rasterizer::writeContextToBuffer(& contexts[idx], scenes, scenesCount, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
+                    Rasterizer::writeContextToBuffer(& contexts[idx], scenes, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
                 });
             }
             for (int i = 0; i < count; i++)
@@ -250,15 +251,12 @@ struct RasterizerCG {
     }
     static void drawTestScene(CGTestScene& testScene, Rasterizer::Scenes& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
-        size_t pathsCount = 0;
-        std::vector<Rasterizer::Ref<Rasterizer::Scene>> visibles;
-        for (int i = 0; i < scenes.scenes.size(); i++)
-            if (scenes.scenes[i].ref->isVisible(view, bounds))
-                visibles.emplace_back(scenes.scenes[i]), pathsCount += scenes.scenes[i].ref->paths.size();
+        Rasterizer::Scenes visibles;
+        size_t pathsCount = scenes.writeVisibles(view, bounds, visibles);
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
-            drawScenes(& visibles[0], visibles.size(), view, bounds, ctx);
+            drawScenes(visibles, view, bounds, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
@@ -267,10 +265,10 @@ struct RasterizerCG {
             
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             testScene.converter.set(srcSpace, dstSpace);
-            for (size_t i = 0, iz = 0; i < visibles.size(); i++) {
-                Rasterizer::Scene& scene = *visibles[i].ref;
+            for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++) {
+                Rasterizer::Scene& scene = *visibles.scenes[i].ref;
                 testScene.converter.convert(& scene.colors[0].src0, scene.paths.size(), colors + iz);
-                Rasterizer::Transform ctm = view.concat(scene.ctm);
+                Rasterizer::Transform ctm = view.concat(visibles.ctms[i]);
                 for (size_t j = 0; j < scene.paths.size(); iz++, j++)
                     ctms[iz] = ctm.concat(scene.ctms[j]);
             }
@@ -285,7 +283,7 @@ struct RasterizerCG {
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             
-            renderScenes(& visibles[0], visibles.size(), ctms, gpuctms, false, colors, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderScenes(visibles, ctms, gpuctms, false, colors, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
             free(ctms), free(gpuctms), free(colors);
         }
     }
