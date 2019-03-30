@@ -8,7 +8,7 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    static size_t pathIndexForPoint(Rasterizer::Scenes& scenes, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
+    static size_t pathIndexForPoint(Rasterizer::SceneList& scenes, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
         Rasterizer::Transform inv = scenes.clips[0].invert(), ctm = view.concat(scenes.ctms[0]);
         Rasterizer::Scene& scene = *scenes.scenes[0].ref;
         for (int i = int(scene.paths.size()) - 1; i >= 0; i--) {

@@ -181,7 +181,7 @@ struct Rasterizer {
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
         Bounds bounds;
     };
-    struct Scenes {
+    struct SceneList {
         void empty() { scenes.resize(0), ctms.resize(0), clips.resize(0); }
         Scene& addScene() {
             scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
@@ -195,7 +195,7 @@ struct Rasterizer {
             empty();
             return addScene();
         }
-        size_t writeVisibles(Transform view, Bounds device, Scenes& dst) {
+        size_t writeVisibles(Transform view, Bounds device, SceneList& dst) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
                 if (isVisible(scenes[i].ref->bounds, view, ctms[i], clips[i], device))
@@ -529,7 +529,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(Scenes& scenes, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
+        void drawScenes(SceneList& scenes, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
             for (size_t count = 0, base = 0, i = 0, eiz = iz; i < scenes.scenes.size() && eiz < end; i++) {
                 count += scenes.scenes[i].ref->paths.size();
                 if (iz < count)
@@ -1094,7 +1094,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     Scenes& _scenes,
+                                     SceneList& _scenes,
                                      Transform *ctms,
                                      Colorant *colorants,
                                      size_t begin,

@@ -12,7 +12,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Rasterizer::Scenes& scenes, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+    static void drawScenes(Rasterizer::SceneList& scenes, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (int j = 0; j < scenes.scenes.size(); j++) {
             Rasterizer::Scene& scene = *scenes.scenes[j].ref;
             Rasterizer::Transform ctm = scenes.ctms[j], clip = scenes.clips[j];
@@ -183,7 +183,7 @@ struct RasterizerCG {
         }
     }
     
-    static void renderScenes(Rasterizer::Scenes& scenes, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    static void renderScenes(Rasterizer::SceneList& scenes, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         size_t eiz = 0, total = 0;
         for (int j = 0; j < scenes.scenes.size(); j++) {
             Rasterizer::Scene& scene = *scenes.scenes[j].ref;
@@ -248,9 +248,9 @@ struct RasterizerCG {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, Rasterizer::Scenes& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
+    static void drawTestScene(CGTestScene& testScene, Rasterizer::SceneList& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
-        Rasterizer::Scenes visibles;
+        Rasterizer::SceneList visibles;
         size_t pathsCount = scenes.writeVisibles(view, bounds, visibles);
         if (pathsCount == 0)
             return;

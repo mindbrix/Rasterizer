@@ -20,7 +20,7 @@
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCG::CGTestScene testScene;
 @property(nonatomic) RasterizerEvent::State state;
-@property(nonatomic) Rasterizer::Scenes scenes;
+@property(nonatomic) Rasterizer::SceneList scenes;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
@@ -126,7 +126,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - RasterizerEvent
 
-- (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
+- (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)scenes {
     BOOL redraw = NO;
     for (RasterizerEvent::Event& e : state.events) {
         switch(e.type) {
@@ -183,7 +183,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if (_displayLink == nil)
         [self readEvents:_state forTime:0 withScenes:_scenes];
 }
-- (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::Scenes&)scenes {
+- (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)scenes {
     state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
     scenes.setClip(state.useClip ? Rasterizer::Bounds(100, 100, 200, 200).unit(state.view) : Rasterizer::Transform::nullclip());
 }
