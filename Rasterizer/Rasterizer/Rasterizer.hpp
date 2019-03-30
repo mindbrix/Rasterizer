@@ -191,7 +191,7 @@ struct Rasterizer {
             for (int i = 0; i < scenes.size(); i++)
                 clips[i] = clip;
         }
-        Scene& startScene() {
+        Scene& firstScene() {
             empty();
             return addScene();
         }

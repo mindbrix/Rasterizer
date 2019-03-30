@@ -55,7 +55,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     self.transform = [VGAffineTransform new];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _scenes.startScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _scenes.firstScene());
 	return self;
 }
 
@@ -93,7 +93,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.firstScene());
     [self.layer setNeedsDisplay];
 }
 
@@ -233,7 +233,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.startScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _scenes.firstScene());
 	[self.layer setNeedsDisplay];
 }
 
@@ -286,7 +286,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)setSvgData:(NSData *)svgData {
     _svgData = svgData;
     if (_svgData) {
-        Rasterizer::Scene& scene = _scenes.startScene();
+        Rasterizer::Scene& scene = _scenes.firstScene();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
         RasterizerTest::addTestPaths(_scenes.addScene());
     }
