@@ -15,12 +15,11 @@ struct RasterizerCG {
     static void drawScenes(Rasterizer::Scenes& scenes, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (int j = 0; j < scenes.scenes.size(); j++) {
             Rasterizer::Scene& scene = *scenes.scenes[j].ref;
-            Rasterizer::Transform ctm = scenes.ctms[j];
+            Rasterizer::Transform ctm = scenes.ctms[j], clip = scenes.clips[j];
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
                 Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
-                Rasterizer::Bounds clip = Rasterizer::Bounds(p.ref->bounds.unit(view.concat(t))).integral().intersect(bounds);
-                if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                if (Rasterizer::isVisible(p.ref->bounds, view, t, clip, bounds)) {
                     CGContextSaveGState(ctx);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
