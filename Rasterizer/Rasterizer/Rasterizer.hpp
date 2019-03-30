@@ -1008,15 +1008,15 @@ struct Rasterizer {
             }
         }
     }
-    static void writeDeltas(Info del, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
-        float *deltas = del.deltas;
+    static void writeDeltas(Info info, Bounds clip, bool even, uint8_t *src, Bitmap *bitmap) {
+        float *deltas = info.deltas;
         if (clip.lx == clip.ux)
-            for (float y = clip.ly; y < clip.uy; y++, deltas += del.stride)
+            for (float y = clip.ly; y < clip.uy; y++, deltas += info.stride)
                 *deltas = 0.f;
         else {
             uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
-            for (y = clip.ly; y < clip.uy; y++, deltas += del.stride, pixelAddress -= bitmap->stride, *delta = 0.f)
+            for (y = clip.ly; y < clip.uy; y++, deltas += info.stride, pixelAddress -= bitmap->stride, *delta = 0.f)
                 for (cover = alpha = 0.f, delta = deltas, pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
