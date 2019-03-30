@@ -529,13 +529,13 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& scenes, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
-            for (size_t count = 0, base = 0, i = 0, eiz = iz; i < scenes.scenes.size() && eiz < end; i++) {
-                count += scenes.scenes[i].ref->paths.size();
+        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
+            for (size_t count = 0, base = 0, i = 0, eiz = iz; i < list.scenes.size() && eiz < end; i++) {
+                count += list.scenes[i].ref->paths.size();
                 if (iz < count)
-                    for (count = 0; i < scenes.scenes.size() && eiz < end; base = count, iz = eiz, i++) {
-                        count += scenes.scenes[i].ref->paths.size(), eiz = count < end ? count : end;
-                        drawPaths(& scenes.scenes[i].ref->paths[0] + iz - base, ctms + iz, even, colors + iz, scenes.clips[i], width, iz, eiz);
+                    for (count = 0; i < list.scenes.size() && eiz < end; base = count, iz = eiz, i++) {
+                        count += list.scenes[i].ref->paths.size(), eiz = count < end ? count : end;
+                        drawPaths(& list.scenes[i].ref->paths[0] + iz - base, ctms + iz, even, colors + iz, list.clips[i], width, iz, eiz);
                     }
             }
         }
@@ -1094,7 +1094,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     SceneList& _scenes,
+                                     SceneList& list,
                                      Transform *ctms,
                                      Colorant *colorants,
                                      size_t begin,
@@ -1103,8 +1103,8 @@ struct Rasterizer {
                                      Buffer& buffer) {
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
         std::vector<size_t> idxes;
-        auto scenes = & _scenes.scenes[0];
-        for (base = count = 0, j = 0; j < _scenes.scenes.size(); base = count, j++, scenes++) {
+        auto scenes = & list.scenes[0];
+        for (base = count = 0, j = 0; j < list.scenes.size(); base = count, j++, scenes++) {
             count += scenes->ref->paths.size();
             if (_iz < count)
                 break;

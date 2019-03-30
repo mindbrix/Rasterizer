@@ -12,10 +12,10 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Rasterizer::SceneList& scenes, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
-        for (int j = 0; j < scenes.scenes.size(); j++) {
-            Rasterizer::Scene& scene = *scenes.scenes[j].ref;
-            Rasterizer::Transform ctm = scenes.ctms[j], clip = scenes.clips[j];
+    static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+        for (int j = 0; j < list.scenes.size(); j++) {
+            Rasterizer::Scene& scene = *list.scenes[j].ref;
+            Rasterizer::Transform ctm = list.ctms[j], clip = list.clips[j];
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
                 Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
@@ -183,10 +183,10 @@ struct RasterizerCG {
         }
     }
     
-    static void renderScenes(Rasterizer::SceneList& scenes, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
         size_t eiz = 0, total = 0;
-        for (int j = 0; j < scenes.scenes.size(); j++) {
-            Rasterizer::Scene& scene = *scenes.scenes[j].ref;
+        for (int j = 0; j < list.scenes.size(); j++) {
+            Rasterizer::Scene& scene = *list.scenes[j].ref;
             eiz += scene.paths.size();
             for (int p = 0; p < scene.paths.size(); p++)
                 total += scene.paths[p].ref->atomsCount ?: (scene.paths[p].ref->shapes ? scene.paths[p].ref->end >> 4 : 0);
@@ -195,7 +195,7 @@ struct RasterizerCG {
         if (multithread) {
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
-                auto scene = & scenes.scenes[0];
+                auto scene = & list.scenes[0];
                 for (count = base = iz = 0, i = 1; i < divisions; i++) {
                     for (target = total * i / divisions; count < target; iz++) {
                         if (iz - base == scene->ref->paths.size())
@@ -208,7 +208,7 @@ struct RasterizerCG {
                 for (i = 0; i < divisions; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
                 dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, ctms, false, colors, width, izs[idx], izs[idx + 1]);
+                    contexts[idx].drawScenes(list, ctms, false, colors, width, izs[idx], izs[idx + 1]);
                 });
                 count = divisions;
             } else {
@@ -219,7 +219,7 @@ struct RasterizerCG {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(scenes, ctms, false, colors, width, 0, eiz);
+                    contexts[idx].drawScenes(list, ctms, false, colors, width, 0, eiz);
                 });
             }
         } else {
@@ -228,17 +228,17 @@ struct RasterizerCG {
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
                 contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(scenes, ctms, false, colors, width, 0, eiz);
+            contexts[0].drawScenes(list, ctms, false, colors, width, 0, eiz);
         }
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, scenes.clips[0], eiz, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, list.clips[0], eiz, begins, *buffer);
             if (count == 1)
-                Rasterizer::writeContextToBuffer(contexts, scenes, ctms, colors, b[0], 0, e[0], *buffer);
+                Rasterizer::writeContextToBuffer(contexts, list, ctms, colors, b[0], 0, e[0], *buffer);
             else {
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    Rasterizer::writeContextToBuffer(& contexts[idx], scenes, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
+                    Rasterizer::writeContextToBuffer(& contexts[idx], list, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
                 });
             }
             for (int i = 0; i < count; i++)
@@ -248,10 +248,10 @@ struct RasterizerCG {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, Rasterizer::SceneList& scenes, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
+    static void drawTestScene(CGTestScene& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
-        size_t pathsCount = scenes.writeVisibles(view, bounds, visibles);
+        size_t pathsCount = list.writeVisibles(view, bounds, visibles);
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
