@@ -25,7 +25,7 @@ struct RasterizerWinding {
     };
     static int pointWinding(Rasterizer::Path& path, Rasterizer::Transform ctm, Rasterizer::Transform inv, Rasterizer::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
-        if (path.ref->atomsCount) {
+        if (path.ref->atomsCount > 2) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                 Rasterizer::Transform unit = path.ref->bounds.unit(ctm);
