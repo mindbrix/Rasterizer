@@ -168,18 +168,16 @@ struct Rasterizer {
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
     struct Scene {
-        Scene() { empty(); }
-        void empty() { paths.resize(0), ctms.resize(0), colors.resize(0), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            if ((path.ref->atomsCount < 3 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)
-                return;
-            paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
-            Bounds user = Bounds(path.ref->bounds.unit(ctm));
-            bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
+            if (!((path.ref->atomsCount < 3 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)) {
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
+                Bounds user = Bounds(path.ref->bounds.unit(ctm));
+                bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
+            }
         }
         size_t refCount = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
-        Bounds bounds;
+        Bounds bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
     };
     struct SceneList {
         Scene& firstScene() {
