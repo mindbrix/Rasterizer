@@ -171,7 +171,7 @@ struct Rasterizer {
         Scene() { empty(); }
         void empty() { paths.resize(0), ctms.resize(0), colors.resize(0), bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX); }
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            if ((path.ref->atomsCount == 0 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)
+            if ((path.ref->atomsCount < 3 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)
                 return;
             paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
@@ -542,18 +542,17 @@ struct Rasterizer {
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t eiz) {
             Transform inv = bitmap.width ? Transform::nullclip().invert() : clip.invert();
             Bounds device = Bounds(clip).integral().intersect(bounds);
-            for (; iz < eiz; iz++, paths++, ctms++, colors++)
-                if ((bitmap.width == 0 && paths->ref->shapesCount) || paths->ref->atomsCount > 2) {
-                    Transform unit = paths->ref->bounds.unit(*ctms);
-                    Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
-                    bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
-                    if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
-                        if (bitmap.width)
-                            writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
-                        else
-                            writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
-                    }
+            for (; iz < eiz; iz++, paths++, ctms++, colors++) {
+                Transform unit = paths->ref->bounds.unit(*ctms);
+                Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
+                bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
+                    if (bitmap.width)
+                        writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                    else
+                        writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
                 }
+            }
         }
         void reset() { gpu.reset(), deltas.reset(), segments.resize(0); }
         GPU gpu;
@@ -563,17 +562,19 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
-        float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-        if (stride * h < deltasSize) {
-            writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
-            writeDeltas(Info(deltas, stride), clip, even, src, bm);
-        } else {
-            writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-            writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
+        if (path.ref->shapesCount == 0) {
+            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+            if (stride * h < deltasSize) {
+                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
+                writeDeltas(Info(deltas, stride), clip, even, src, bm);
+            } else {
+                writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+                writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
+            }
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
-        if (path.ref->shapes) {
+        if (path.ref->shapesCount) {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
             gpu.allocator.countQuad();
