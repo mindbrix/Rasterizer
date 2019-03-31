@@ -194,13 +194,6 @@ struct Rasterizer {
             for (int i = 0; i < scenes.size(); i++)
                 clips[i] = clip;
         }
-        size_t writeVisibles(Transform view, Bounds device, SceneList& dst) {
-            size_t pathsCount = 0;
-            for (int i = 0; i < scenes.size(); i++)
-                if (isVisible(scenes[i].ref->bounds, view, ctms[i], clips[i], device))
-                    pathsCount += scenes[i].ref->paths.size(), dst.scenes.emplace_back(scenes[i]), dst.ctms.emplace_back(ctms[i]), dst.clips.emplace_back(clips[i]);
-            return pathsCount;
-        }
         std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;
     };
     template<typename T>
