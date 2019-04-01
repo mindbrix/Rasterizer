@@ -161,8 +161,8 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    static bool isVisible(Bounds bounds, Transform view, Transform ctm, Transform clip, Bounds device) {
-        Transform unit = bounds.unit(view.concat(ctm));
+    static bool isVisible(Bounds bounds, Transform ctm, Transform clip, Bounds device) {
+        Transform unit = bounds.unit(ctm);
         Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
         Bounds clu = Bounds(clip.invert().concat(unit));
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;

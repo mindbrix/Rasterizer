@@ -19,7 +19,7 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
                 Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
-                if (Rasterizer::isVisible(p.ref->bounds, view, t, clip, bounds)) {
+                if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), clip, bounds)) {
                     CGContextSaveGState(ctx);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
@@ -253,7 +253,7 @@ struct RasterizerCG {
         Rasterizer::SceneList visibles;
         size_t pathsCount = 0;
         for (int i = 0; i < list.scenes.size(); i++)
-            if (Rasterizer::isVisible(list.scenes[i].ref->bounds, view, list.ctms[i], list.clips[i], bounds))
+            if (Rasterizer::isVisible(list.scenes[i].ref->bounds, view.concat(list.ctms[i]), list.clips[i], bounds))
                 pathsCount += list.scenes[i].ref->paths.size(), visibles.scenes.emplace_back(list.scenes[i]), visibles.ctms.emplace_back(list.ctms[i]), visibles.clips.emplace_back(list.clips[i]);
         if (pathsCount == 0)
             return;
