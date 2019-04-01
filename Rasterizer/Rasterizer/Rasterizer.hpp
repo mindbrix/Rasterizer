@@ -58,7 +58,7 @@ struct Rasterizer {
     };
     static bool isVisible(Bounds bounds, Transform ctm, Transform clip, Bounds device) {
         Transform unit = bounds.unit(ctm);
-        Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
+        Bounds dev = Bounds(unit).intersect(device.intersect(Bounds(clip)));
         Bounds clu = Bounds(clip.invert().concat(unit));
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
