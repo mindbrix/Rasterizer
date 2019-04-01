@@ -56,6 +56,12 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
+    static bool isVisible(Bounds bounds, Transform ctm, Transform clip, Bounds device) {
+        Transform unit = bounds.unit(ctm);
+        Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
+        Bounds clu = Bounds(clip.invert().concat(unit));
+        return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
+    }
     struct Colorant {
         Colorant() {}
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
@@ -161,12 +167,6 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    static bool isVisible(Bounds bounds, Transform ctm, Transform clip, Bounds device) {
-        Transform unit = bounds.unit(ctm);
-        Bounds dev = Bounds(unit).integral().intersect(device.intersect(Bounds(clip).integral()));
-        Bounds clu = Bounds(clip.invert().concat(unit));
-        return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
-    }
     struct Scene {
         void addPath(Path path, Transform ctm, Colorant colorant) {
             if (!((path.ref->atomsCount < 3 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)) {
