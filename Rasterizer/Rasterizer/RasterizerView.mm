@@ -18,7 +18,7 @@
 
 @property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) RasterizerCG::CGTestScene testScene;
+@property(nonatomic) RasterizerCG::CGTestContext testScene;
 @property(nonatomic) RasterizerEvent::State state;
 @property(nonatomic) Rasterizer::SceneList list;
 @property(nonatomic) BOOL useCPU;
@@ -120,7 +120,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizerMT ? @"Rasterizer (GPU)" : _testScene.rasterizerType == RasterizerCG::CGTestScene::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizerMT ? @"Rasterizer (GPU)" : _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
 #pragma mark - RasterizerEvent
@@ -213,7 +213,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         _useCPU = !_useCPU;
         [self toggleTimer];
         [self initLayer:_useCPU];
-        _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestScene::RasterizerType::kCoreGraphics : RasterizerCG::CGTestScene::RasterizerType::kRasterizerMT;
+        _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestContext::RasterizerType::kCoreGraphics : RasterizerCG::CGTestContext::RasterizerType::kRasterizerMT;
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 46) {
@@ -226,7 +226,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
     } else if (keyCode == 49) {
-        _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestScene::kRasterizerCount;
+        _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 36) {
         self.transform = [VGAffineTransform new];
@@ -273,7 +273,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
-    if (_testScene.rasterizerType == RasterizerCG::CGTestScene::kCoreGraphics)
+    if (_testScene.rasterizerType == RasterizerCG::CGTestContext::kCoreGraphics)
         return;
     [self updateState:_state forTime:0 withScenes:_list];
     buffer->clearColor = _svgData && !_state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF);

@@ -158,10 +158,10 @@ struct RasterizerCG {
         return scaledDown;
     }
     
-    struct CGTestScene {
+    struct CGTestContext {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         
-        CGTestScene() : rasterizerType(0) { contexts.resize(8); }
+        CGTestContext() : rasterizerType(0) { contexts.resize(8); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;
@@ -248,7 +248,7 @@ struct RasterizerCG {
             assert(size == end);
         }
     }
-    static void drawTestScene(CGTestScene& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
+    static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
         size_t pathsCount = 0;
@@ -257,7 +257,7 @@ struct RasterizerCG {
                 pathsCount += list.scenes[i].ref->paths.size(), visibles.scenes.emplace_back(list.scenes[i]), visibles.ctms.emplace_back(list.ctms[i]), visibles.clips.emplace_back(list.clips[i]);
         if (pathsCount == 0)
             return;
-        if (testScene.rasterizerType == CGTestScene::kCoreGraphics)
+        if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
             drawScenes(visibles, view, bounds, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
@@ -285,7 +285,7 @@ struct RasterizerCG {
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             
-            renderScenes(visibles, ctms, gpuctms, false, colors, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestScene::kRasterizerMT);
+            renderScenes(visibles, ctms, gpuctms, false, colors, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT);
             free(ctms), free(gpuctms), free(colors);
         }
     }
