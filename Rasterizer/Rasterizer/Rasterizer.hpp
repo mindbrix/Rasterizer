@@ -278,8 +278,7 @@ struct Rasterizer {
                         *dst = *src, dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
                         memmove(sdst, ssrc, count * sizeof(Segment));
                     }
-                    Row<Grid::Element>& row = grid.grid[src->hash & Grid::kMask];
-                    new (row.base + row.end++) Grid::Element(src->hash, i);
+                    new (grid.grid[src->hash & Grid::kMask].alloc(1)) Grid::Element(src->hash, i);
                     dst->hit = false, sdst += count, dst++, i++;
                 }
             }
