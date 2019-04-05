@@ -567,16 +567,13 @@ struct Rasterizer {
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         if (path.ref->shapesCount) {
-            gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount;
             new (gpu.quads.alloc(1)) GPU::Quad(ctm, iz, GPU::Quad::kShapes);
-            gpu.allocator.countQuad();
+            gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countQuad();
         } else {
             if (width) {
-                gpu.outlinePaths++;
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
                 new (gpu.quads.alloc(1)) GPU::Quad(gpu.outlines.idx, gpu.outlines.end, width, iz, GPU::Quad::kOutlines);
-                gpu.outlines.idx = gpu.outlines.end;
-                gpu.allocator.countQuad();
+                gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countQuad();
             } else {
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
