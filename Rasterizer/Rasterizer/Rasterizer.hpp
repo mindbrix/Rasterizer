@@ -587,22 +587,22 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    size_t midx = 0, count = entry->end - entry->begin, cells = 1, instances = (count + kFastSegments - 1) / kFastSegments;
+                    size_t midx = 0, count = entry->end - entry->begin, moleculesCount = 1, instances = (count + kFastSegments - 1) / kFastSegments;
                     gpu.ctms[iz] = m;
                     if (molecules) {
-                        cells = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
-                        GPU::Molecules::Molecule *molecule = gpu.molecules.alloc(cells);
+                        moleculesCount = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
+                        GPU::Molecules::Molecule *dst = gpu.molecules.alloc(moleculesCount);
                         Bounds *bounds = & path.ref->molecules[0];
                         for (Segment *ls = gpu.cache.segments.base + entry->begin, *us = ls + count, *s = ls, *is = ls; s < us; s++)
                             if (s->x0 == FLT_MAX) {
                                 float ux = ceilf(Bounds(bounds->unit(ctm)).ux);
                                 ux = ux < clip.lx ? clip.lx : ux, ux = ux > clip.ux ? clip.ux : ux;
-                                new (molecule) GPU::Molecules::Molecule(ux, is - ls, s - ls);
+                                new (dst) GPU::Molecules::Molecule(ux, is - ls, s - ls);
                                 instances += (s - is + kFastSegments - 1) / kFastSegments;
-                                is = s + 1, bounds++, molecule++;
+                                is = s + 1, bounds++, dst++;
                             }
                     }
-                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, cells, instances, true, molecules ? GPU::Quad::kMolecule : GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
+                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, moleculesCount, instances, true, molecules ? GPU::Quad::kMolecule : GPU::Quad::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
