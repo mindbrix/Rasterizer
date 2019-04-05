@@ -331,6 +331,10 @@ struct Rasterizer {
         uint16_t x, i;
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
+    struct Range {
+        Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
+        int begin, end;
+    };
     struct GPU {
         struct Allocator {
             struct Pass {
@@ -367,10 +371,6 @@ struct Rasterizer {
             Bounds sheet, strip, fast, molecules;
         };
         struct Molecules {
-            struct Range {
-                Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
-                int begin, end;
-            };
             struct Molecule {
                 Molecule(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
                 float ux;
@@ -398,7 +398,8 @@ struct Rasterizer {
         };
         struct Outline {
             Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
-            Segment s;
+            Outline(size_t begin, size_t end, float width) : r(begin, end), width(width), prev(-1), next(1) {}
+            union { Segment s;  Range r; };
             float width;
             short prev, next;
         };
@@ -407,6 +408,7 @@ struct Rasterizer {
             Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, int iy, int end, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
             Quad(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
+            Quad(size_t begin, size_t end, float width, size_t iz, int type) : outline(begin, end, width), iz((uint32_t)iz | type) {}
             union {
                 SuperCell super;
                 Transform unit;
@@ -572,8 +574,7 @@ struct Rasterizer {
             if (width) {
                 gpu.outlinePaths++;
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
-                Segment params(float(gpu.outlines.idx), float(gpu.outlines.end), 0.f, 0.f);
-                new (gpu.quads.alloc(1)) GPU::Quad(& params, width, iz, GPU::Quad::kOutlines);
+                new (gpu.quads.alloc(1)) GPU::Quad(gpu.outlines.idx, gpu.outlines.end, width, iz, GPU::Quad::kOutlines);
                 gpu.outlines.idx = gpu.outlines.end;
                 gpu.allocator.countQuad();
             } else {
@@ -1140,8 +1141,8 @@ struct Rasterizer {
                         new (dst) GPU::Quad(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Quad::kCircle : GPU::Quad::kRect);
                     entry->end += path.ref->shapesCount * sizeof(GPU::Quad);
                 } else if (quad->iz & GPU::Quad::kOutlines) {
-                    size_t count = quad->outline.s.y0 - quad->outline.s.x0;
-                    Segment *src = ctx->gpu.outlines.base + int(quad->outline.s.x0), *es = src + count;
+                    size_t count = quad->outline.r.end - quad->outline.r.begin;
+                    Segment *src = ctx->gpu.outlines.base + quad->outline.r.begin, *es = src + count;
                     GPU::Quad *dst = (GPU::Quad *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
                         new (dst) GPU::Quad(src, quad->outline.width, iz, GPU::Quad::kOutlines);
@@ -1152,7 +1153,7 @@ struct Rasterizer {
                 } else  {
                     entry->end += sizeof(GPU::Quad);
                     if (quad->iz & GPU::Quad::kMolecule) {
-                        GPU::Molecules::Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
+                        Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
                         GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (int ic = int(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
                             cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = quad->super.iy, cell->base = int(quad->super.end);
