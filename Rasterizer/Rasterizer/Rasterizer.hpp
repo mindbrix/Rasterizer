@@ -1118,59 +1118,59 @@ struct Rasterizer {
             entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + e->fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
             
             Buffer::Entry *entry;
-            GPU::Instance *lq = ctx->gpu.quads.base + e->li, *uq = ctx->gpu.quads.base + e->ui, *quad;
-            int type = lq->iz & GPU::Instance::kShapes || lq->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+            GPU::Instance *li = ctx->gpu.quads.base + e->li, *ui = ctx->gpu.quads.base + e->ui, *inst;
+            int type = li->iz & GPU::Instance::kShapes || li->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
             entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e->li), entry = & entries.back();
-            for (quad = lq; quad < uq; quad++) {
-                type = quad->iz & GPU::Instance::kShapes || quad->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
-                iz = quad->iz & kPathIndexMask;
+            for (inst = li; inst < ui; inst++) {
+                type = inst->iz & GPU::Instance::kShapes || inst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+                iz = inst->iz & kPathIndexMask;
                 while (iz - base >= scene->ref->paths.size())
                     base += scene->ref->paths.size(), scene++;
                 
                 if (type != entry->type)
-                    begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(quad - ctx->gpu.quads.base), entry = & entries.back();
-                if (quad->iz & GPU::Instance::kShapes) {
+                    begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(inst - ctx->gpu.quads.base), entry = & entries.back();
+                if (inst->iz & GPU::Instance::kShapes) {
                     Path& path = scene->ref->paths[iz - base];
                     
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end);
                     for (int k = 0; k < path.ref->shapesCount; k++, dst++)
                         new (dst) GPU::Instance(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Instance::kCircle : GPU::Instance::kRect);
                     entry->end += path.ref->shapesCount * sizeof(GPU::Instance);
-                } else if (quad->iz & GPU::Instance::kOutlines) {
-                    size_t count = quad->outline.r.end - quad->outline.r.begin;
-                    Segment *src = ctx->gpu.outlines.base + quad->outline.r.begin, *es = src + count;
+                } else if (inst->iz & GPU::Instance::kOutlines) {
+                    size_t count = inst->outline.r.end - inst->outline.r.begin;
+                    Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = src + count;
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
-                        new (dst) GPU::Instance(src, quad->outline.width, iz, GPU::Instance::kOutlines);
+                        new (dst) GPU::Instance(src, inst->outline.width, iz, GPU::Instance::kOutlines);
                         if (src->x0 == FLT_MAX && dst - dst0 > 1)
                             dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                     }
                     entry->end += count * sizeof(GPU::Instance);
                 } else  {
                     entry->end += sizeof(GPU::Instance);
-                    if (quad->iz & GPU::Instance::kMolecule) {
-                        Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
+                    if (inst->iz & GPU::Instance::kMolecule) {
+                        Range *mr = & ctx->gpu.molecules.ranges.base[inst->super.begin];
                         GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (uint32_t ic = uint32_t(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
-                            cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = -quad->super.iy - 1, cell->base = uint32_t(quad->super.end);
+                            cell->cell = inst->super.cell, cell->cell.ux = mc->ux, cell->im = -inst->super.iy - 1, cell->base = uint32_t(inst->super.end);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = mc->end;
                         }
-                    } else if (quad->iz & GPU::Instance::kEdge) {
-                        cell->cell = quad->super.cell;
+                    } else if (inst->iz & GPU::Instance::kEdge) {
+                        cell->cell = inst->super.cell;
                         uint32_t ic = uint32_t(cell - c0);
-                        if (quad->super.iy < 0) {
-                            cell->im = -quad->super.iy - 1, cell->base = uint32_t(quad->super.end);
-                            for (j = 0; j < quad->super.count; fast++)
+                        if (inst->super.iy < 0) {
+                            cell->im = -inst->super.iy - 1, cell->base = uint32_t(inst->super.end);
+                            for (j = 0; j < inst->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                            (fast - 1)->i1 = quad->super.count;
+                            (fast - 1)->i1 = inst->super.count;
                         } else {
-                            cell->im = 0, cell->base = uint32_t(sbegins[quad->super.iy] + quad->super.end);
-                            Index *is = ctx->gpu.indices.base + quad->super.begin;
-                            for (j = 0; j < quad->super.count; j++, edge++) {
+                            cell->im = 0, cell->base = uint32_t(sbegins[inst->super.iy] + inst->super.end);
+                            Index *is = ctx->gpu.indices.base + inst->super.begin;
+                            for (j = 0; j < inst->super.count; j++, edge++) {
                                 edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                if (++j < quad->super.count)
+                                if (++j < inst->super.count)
                                     edge->i1 = uint16_t(is++->i);
                                 else
                                     edge->i1 = kNullIndex;
