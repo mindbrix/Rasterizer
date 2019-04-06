@@ -41,7 +41,7 @@ struct Outline {
 struct Instance {
     enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
     union {
-        Quad super;
+        Quad quad;
         AffineTransform unit;
         Outline outline;
     };
@@ -102,7 +102,7 @@ vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], 
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     device Instance& quad = quads[*reverse - 1 - iid];
-    device Cell& cell = quad.super.cell;
+    device Cell& cell = quad.quad.cell;
     float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
     float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
     float z = ((quad.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
@@ -263,14 +263,14 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;
-    device Cell& cell = quad.super.cell;
+    device Cell& cell = quad.quad.cell;
     float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(clips[quad.iz & kPathIndexMask], dx, dy);
     vert.u = u - du, vert.v = v - dv;
-    vert.cover = quad.super.cover;
+    vert.cover = quad.quad.cover;
     vert.even = false;
     vert.solid = quad.iz & Instance::kSolidCell;
     return vert;

@@ -404,15 +404,12 @@ struct Rasterizer {
         };
         struct Instance {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-            Instance(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count, size_t iz, int type) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
+            Instance(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count, size_t iz, int type) : quad(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
             Instance(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Instance(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             Instance(size_t begin, size_t end, float width, size_t iz, int type) : outline(begin, end, width), iz((uint32_t)iz | type) {}
-            union {
-                Quad super;
-                Transform unit;
-                Outline outline;
-            };
+            
+            union { Quad quad;  Transform unit;  Outline outline; };
             uint32_t iz;
         };
         struct EdgeCell {
@@ -1149,28 +1146,28 @@ struct Rasterizer {
                 } else  {
                     entry->end += sizeof(GPU::Instance);
                     if (inst->iz & GPU::Instance::kMolecule) {
-                        Range *mr = & ctx->gpu.molecules.ranges.base[inst->super.begin];
+                        Range *mr = & ctx->gpu.molecules.ranges.base[inst->quad.begin];
                         GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (uint32_t ic = uint32_t(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
-                            cell->cell = inst->super.cell, cell->cell.ux = mc->ux, cell->im = -inst->super.iy - 1, cell->base = uint32_t(inst->super.end);
+                            cell->cell = inst->quad.cell, cell->cell.ux = mc->ux, cell->im = -inst->quad.iy - 1, cell->base = uint32_t(inst->quad.end);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = mc->end;
                         }
                     } else if (inst->iz & GPU::Instance::kEdge) {
-                        cell->cell = inst->super.cell;
+                        cell->cell = inst->quad.cell;
                         uint32_t ic = uint32_t(cell - c0);
-                        if (inst->super.iy < 0) {
-                            cell->im = -inst->super.iy - 1, cell->base = uint32_t(inst->super.end);
-                            for (j = 0; j < inst->super.count; fast++)
+                        if (inst->quad.iy < 0) {
+                            cell->im = -inst->quad.iy - 1, cell->base = uint32_t(inst->quad.end);
+                            for (j = 0; j < inst->quad.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                            (fast - 1)->i1 = inst->super.count;
+                            (fast - 1)->i1 = inst->quad.count;
                         } else {
-                            cell->im = 0, cell->base = uint32_t(sbegins[inst->super.iy] + inst->super.end);
-                            Index *is = ctx->gpu.indices.base + inst->super.begin;
-                            for (j = 0; j < inst->super.count; j++, edge++) {
+                            cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.end);
+                            Index *is = ctx->gpu.indices.base + inst->quad.begin;
+                            for (j = 0; j < inst->quad.count; j++, edge++) {
                                 edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                if (++j < inst->super.count)
+                                if (++j < inst->quad.count)
                                     edge->i1 = uint16_t(is++->i);
                                 else
                                     edge->i1 = kNullIndex;
