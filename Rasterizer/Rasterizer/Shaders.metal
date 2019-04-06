@@ -24,7 +24,7 @@ struct Segment {
 };
 
 struct Cell {
-    short lx, ly, ux, uy, ox, oy;
+    uint16_t lx, ly, ux, uy, ox, oy;
 };
 
 struct SuperCell {
@@ -152,7 +152,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     }
     bool empty = slx == FLT_MAX;
     
-    slx = clamp(short(slx), cell.lx, cell.ux), sly = clamp(short(sly), cell.ly, cell.uy), suy = clamp(short(ceil(suy)), cell.ly, cell.uy);
+    slx = clamp(uint16_t(slx), cell.lx, cell.ux), sly = clamp(uint16_t(sly), cell.ly, cell.uy), suy = clamp(uint16_t(ceil(suy)), cell.ly, cell.uy);
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;

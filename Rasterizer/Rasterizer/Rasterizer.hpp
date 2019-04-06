@@ -386,7 +386,7 @@ struct Rasterizer {
         };
         struct Cell {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
-            short lx, ly, ux, uy, ox, oy;
+            uint16_t lx, ly, ux, uy, ox, oy;
         };
         struct SuperCell {
             SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), begin(begin), end(end) {}
