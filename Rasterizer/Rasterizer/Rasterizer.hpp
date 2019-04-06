@@ -404,7 +404,7 @@ struct Rasterizer {
         };
         struct Quad {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, size_t iz, int type, float cover, int iy, int end, int begin, size_t count) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count, size_t iz, int type) : super(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
             Quad(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Quad(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             Quad(size_t begin, size_t end, float width, size_t iz, int type) : outline(begin, end, width), iz((uint32_t)iz | type) {}
@@ -610,7 +610,7 @@ struct Rasterizer {
     static void writeEdges(float lx, float ly, float ux, float uy, size_t iz, size_t cells, size_t instances, bool fast, int type, float cover, int iy, int end, int begin, size_t count, GPU& gpu) {
         float ox, oy;
         gpu.allocator.alloc(ux - lx, uy - ly, gpu.quads.end, cells, instances, fast, ox, oy);
-        new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, iz, type, cover, iy, end, begin, count);
+        new (gpu.quads.alloc(1)) GPU::Quad(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count, iz, type);
     }
     static void writePath(Path& path, Transform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
@@ -936,9 +936,9 @@ struct Rasterizer {
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque)
-                                new (gpu.opaques.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kOpaque, 1.f, 0, 0, 0, 0);
+                                new (gpu.opaques.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0, iz, GPU::Quad::kOpaque);
                             else {
-                                new (gpu.quads.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, iz, GPU::Quad::kSolidCell, 1.f, 0, 0, 0, 0);
+                                new (gpu.quads.alloc(1)) GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0, iz, GPU::Quad::kSolidCell);
                                  gpu.allocator.countQuad();
                             }
                         }
