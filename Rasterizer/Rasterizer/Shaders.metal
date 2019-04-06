@@ -27,7 +27,7 @@ struct Cell {
     uint16_t lx, ly, ux, uy, ox, oy;
 };
 
-struct SuperCell {
+struct Quad {
     Cell cell;
     short cover;
     uint16_t count;
@@ -41,7 +41,7 @@ struct Outline {
 struct Instance {
     enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
     union {
-        SuperCell super;
+        Quad super;
         AffineTransform unit;
         Outline outline;
     };

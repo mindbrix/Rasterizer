@@ -388,8 +388,8 @@ struct Rasterizer {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
             uint16_t lx, ly, ux, uy, ox, oy;
         };
-        struct SuperCell {
-            SuperCell(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), begin(begin), end(end) {}
+        struct Quad {
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), begin(begin), end(end) {}
             Cell cell;
             short cover;
             uint16_t count;
@@ -409,7 +409,7 @@ struct Rasterizer {
             Instance(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
             Instance(size_t begin, size_t end, float width, size_t iz, int type) : outline(begin, end, width), iz((uint32_t)iz | type) {}
             union {
-                SuperCell super;
+                Quad super;
                 Transform unit;
                 Outline outline;
             };
