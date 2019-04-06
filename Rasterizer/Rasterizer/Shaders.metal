@@ -96,18 +96,18 @@ struct OpaquesVertex
     float4 color;
 };
 
-vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *quads [[buffer(1)]],
+vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *instances [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Instance& quad = quads[*reverse - 1 - iid];
-    device Cell& cell = quad.quad.cell;
+    device Instance& inst = instances[*reverse - 1 - iid];
+    device Cell& cell = inst.quad.cell;
     float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
     float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
-    float z = ((quad.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
+    float z = ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
     
-    device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
+    device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
     
     OpaquesVertex vert;
@@ -250,29 +250,29 @@ struct QuadsVertex
     bool even, solid;
 };
 
-vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *quads [[buffer(1)]],
+vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *instances [[buffer(1)]],
                                      device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Instance& quad = quads[iid];
+    device Instance& inst = instances[iid];
 
-    float z = ((quad.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
-    device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
+    float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
+    device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;
-    device Cell& cell = quad.quad.cell;
+    device Cell& cell = inst.quad.cell;
     float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     vert.position = float4(x, y, z, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(clips[quad.iz & kPathIndexMask], dx, dy);
+    vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
     vert.u = u - du, vert.v = v - dv;
-    vert.cover = quad.quad.cover;
+    vert.cover = inst.quad.cover;
     vert.even = false;
-    vert.solid = quad.iz & Instance::kSolidCell;
+    vert.solid = inst.iz & Instance::kSolidCell;
     return vert;
 }
 
@@ -296,20 +296,20 @@ struct ShapesVertex
     bool circle;
 };
 
-vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *quads [[buffer(1)]],
+vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *instances [[buffer(1)]],
                                        device AffineTransform *affineTransforms [[buffer(4)]], device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     ShapesVertex vert;
-    device Instance& quad = quads[iid];
+    device Instance& inst = instances[iid];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
-    if (quad.iz & Instance::kOutlines) {
+    if (inst.iz & Instance::kOutlines) {
         AffineTransform m = { 1, 0, 0, 1, 0, 0 };
-        device Segment& o = quad.outline.s;
-        device Segment& p = quads[iid + quad.outline.prev].outline.s;
-        device Segment& n = quads[iid + quad.outline.next].outline.s;
+        device Segment& o = inst.outline.s;
+        device Segment& p = instances[iid + inst.outline.prev].outline.s;
+        device Segment& n = instances[iid + inst.outline.next].outline.s;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
@@ -322,22 +322,22 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         np = rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 ? no : np;
         nn = rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float s = 0.5 * quad.outline.width + 0.7071067812;
+        float s = 0.5 * inst.outline.width + 0.7071067812;
         float spo = s / max(0.25, tpo.y * np.y + tpo.x * np.x);
         float son = s / max(0.25, ton.y * no.y + ton.x * no.x);
         float sgn = vid & 1 ? -1.0 : 1.0;
         // -y, x
         dx = select(x0 - tpo.y * spo * sgn, x1 - ton.y * son * sgn, vid >> 1);
         dy = select(y0 + tpo.x * spo * sgn, y1 + ton.x * son * sgn, vid >> 1);
-        d0 = -0.2071067812, d1 = quad.outline.width + 1.27071067812;
+        d0 = -0.2071067812, d1 = inst.outline.width + 1.27071067812;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
-        device AffineTransform& m = affineTransforms[quad.iz & kPathIndexMask];
+        device AffineTransform& m = affineTransforms[inst.iz & kPathIndexMask];
         AffineTransform ctm = {
-            quad.unit.a * m.a + quad.unit.b * m.c, quad.unit.a * m.b + quad.unit.b * m.d,
-            quad.unit.c * m.a + quad.unit.d * m.c, quad.unit.c * m.b + quad.unit.d * m.d,
-            quad.unit.tx * m.a + quad.unit.ty * m.c + m.tx, quad.unit.tx * m.b + quad.unit.ty * m.d + m.ty };
+            inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
+            inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
+            inst.unit.tx * m.a + inst.unit.ty * m.c + m.tx, inst.unit.tx * m.b + inst.unit.ty * m.d + m.ty };
         area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
         float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
         float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
@@ -348,14 +348,14 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         vert.shape = distances(ctm, dx, dy);
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
-    float z = ((quad.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
-    device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
+    float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
+    device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * sqrt(area);
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(clips[quad.iz & kPathIndexMask], dx, dy);
-    vert.circle = quad.iz & Instance::kCircle;
+    vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
+    vert.circle = inst.iz & Instance::kCircle;
     return vert;
 }
 
