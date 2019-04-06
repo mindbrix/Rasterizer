@@ -406,8 +406,7 @@ struct Rasterizer {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
             Instance(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count, size_t iz, int type) : quad(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
             Instance(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
-            Instance(Segment *s, float width, size_t iz, int type) : outline(s, width), iz((uint32_t)iz | type) {}
-            Instance(size_t begin, size_t end, float width, size_t iz, int type) : outline(begin, end, width), iz((uint32_t)iz | type) {}
+            Instance(Outline outline, size_t iz, int type) : outline(outline), iz((uint32_t)iz | type) {}
             
             union { Quad quad;  Transform unit;  Outline outline; };
             uint32_t iz;
@@ -568,7 +567,7 @@ struct Rasterizer {
         } else {
             if (width) {
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
-                new (gpu.blends.alloc(1)) GPU::Instance(gpu.outlines.idx, gpu.outlines.end, width, iz, GPU::Instance::kOutlines);
+                new (gpu.blends.alloc(1)) GPU::Instance(GPU::Outline(gpu.outlines.idx, gpu.outlines.end, width), iz, GPU::Instance::kOutlines);
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countQuad();
             } else {
                 Cache::Entry *entry = nullptr;
@@ -1138,7 +1137,7 @@ struct Rasterizer {
                     Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = src + count;
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
-                        new (dst) GPU::Instance(src, inst->outline.width, iz, GPU::Instance::kOutlines);
+                        new (dst) GPU::Instance(GPU::Outline(src, inst->outline.width), iz, GPU::Instance::kOutlines);
                         if (src->x0 == FLT_MAX && dst - dst0 > 1)
                             dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                     }
