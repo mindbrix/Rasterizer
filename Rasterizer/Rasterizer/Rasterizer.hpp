@@ -404,7 +404,7 @@ struct Rasterizer {
         };
         struct Instance {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-            Instance(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count, size_t iz, int type) : quad(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz((uint32_t)iz | type) {}
+            Instance(Quad quad, size_t iz, int type) : quad(quad), iz((uint32_t)iz | type) {}
             Instance(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
             Instance(Outline outline, size_t iz, int type) : outline(outline), iz((uint32_t)iz | type) {}
             
@@ -606,7 +606,7 @@ struct Rasterizer {
     static void writeEdges(float lx, float ly, float ux, float uy, size_t iz, size_t cells, size_t instances, bool fast, int type, float cover, int iy, int end, int begin, size_t count, GPU& gpu) {
         float ox, oy;
         gpu.allocator.alloc(ux - lx, uy - ly, gpu.blends.end, cells, instances, fast, ox, oy);
-        new (gpu.blends.alloc(1)) GPU::Instance(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count, iz, type);
+        new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz, type);
     }
     static void writePath(Path& path, Transform ctm, Bounds clip, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
@@ -932,9 +932,9 @@ struct Rasterizer {
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque)
-                                new (gpu.opaques.alloc(1)) GPU::Instance(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0, iz, GPU::Instance::kOpaque);
+                                new (gpu.opaques.alloc(1)) GPU::Instance(GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0), iz, GPU::Instance::kOpaque);
                             else {
-                                new (gpu.blends.alloc(1)) GPU::Instance(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0, iz, GPU::Instance::kSolidCell);
+                                new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0), iz, GPU::Instance::kSolidCell);
                                  gpu.allocator.countQuad();
                             }
                         }
