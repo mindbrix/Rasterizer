@@ -52,7 +52,7 @@ struct EdgeCell {
     uint32_t im, base;
 };
 struct Edge {
-    int ic;
+    uint32_t ic;
     uint16_t i0, i1;
 };
 

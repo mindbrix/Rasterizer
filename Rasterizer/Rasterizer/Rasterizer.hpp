@@ -420,7 +420,7 @@ struct Rasterizer {
             uint32_t im, base;
         };
         struct Edge {
-            int ic;
+            uint32_t ic;
             uint16_t i0, i1;
         };
         void empty() {
@@ -1151,7 +1151,7 @@ struct Rasterizer {
                     if (quad->iz & GPU::Quad::kMolecule) {
                         Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
                         GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
-                        for (int ic = int(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
+                        for (uint32_t ic = uint32_t(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
                             cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = -quad->super.iy - 1, cell->base = uint32_t(quad->super.end);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
@@ -1159,7 +1159,7 @@ struct Rasterizer {
                         }
                     } else if (quad->iz & GPU::Quad::kEdge) {
                         cell->cell = quad->super.cell;
-                        int ic = int(cell - c0);
+                        uint32_t ic = uint32_t(cell - c0);
                         if (quad->super.iy < 0) {
                             cell->im = -quad->super.iy - 1, cell->base = uint32_t(quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
