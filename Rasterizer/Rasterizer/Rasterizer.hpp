@@ -417,7 +417,7 @@ struct Rasterizer {
         };
         struct EdgeCell {
             Cell cell;
-            int im, base;
+            uint32_t im, base;
         };
         struct Edge {
             int ic;
@@ -1152,7 +1152,7 @@ struct Rasterizer {
                         Range *mr = & ctx->gpu.molecules.ranges.base[quad->super.begin];
                         GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (int ic = int(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
-                            cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = quad->super.iy, cell->base = int(quad->super.end);
+                            cell->cell = quad->super.cell, cell->cell.ux = mc->ux, cell->im = -quad->super.iy - 1, cell->base = uint32_t(quad->super.end);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = mc->end;
@@ -1161,12 +1161,12 @@ struct Rasterizer {
                         cell->cell = quad->super.cell;
                         int ic = int(cell - c0);
                         if (quad->super.iy < 0) {
-                            cell->im = quad->super.iy, cell->base = int(quad->super.end);
+                            cell->im = -quad->super.iy - 1, cell->base = uint32_t(quad->super.end);
                             for (j = 0; j < quad->super.count; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = quad->super.count;
                         } else {
-                            cell->im = 0, cell->base = int(sbegins[quad->super.iy] + quad->super.end);
+                            cell->im = 0, cell->base = uint32_t(sbegins[quad->super.iy] + quad->super.end);
                             Index *is = ctx->gpu.indices.base + quad->super.begin;
                             for (j = 0; j < quad->super.count; j++, edge++) {
                                 edge->ic = ic, edge->i0 = uint16_t(is++->i);

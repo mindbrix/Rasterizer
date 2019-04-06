@@ -49,7 +49,7 @@ struct Quad {
 };
 struct EdgeCell {
     Cell cell;
-    int im, base;
+    uint32_t im, base;
 };
 struct Edge {
     int ic;
@@ -139,7 +139,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     device Edge& edge = edges[iid];
     device EdgeCell& edgeCell = edgeCells[edge.ic];
     device Cell& cell = edgeCell.cell;
-    device AffineTransform& m = affineTransforms[-edgeCell.im - 1];
+    device AffineTransform& m = affineTransforms[edgeCell.im];
     thread float *dst = & vert.x0;
     device Segment *s = & segments[edgeCell.base + edge.i0];
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
