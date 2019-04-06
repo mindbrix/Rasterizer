@@ -194,7 +194,7 @@
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                reverse = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad));
+                reverse = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Instance));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
@@ -251,7 +251,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad)
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Instance)
                                   baseInstance:0];
                 break;
             case Rasterizer::Buffer::Entry::kShapes:
@@ -267,7 +267,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Quad)
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Instance)
                                   baseInstance:0];
                 break;
         }

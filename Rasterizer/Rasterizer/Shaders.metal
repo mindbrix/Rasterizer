@@ -38,7 +38,7 @@ struct Outline {
     float width;
     short prev, next;
 };
-struct Quad {
+struct Instance {
     enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
     union {
         SuperCell super;
@@ -96,12 +96,12 @@ struct OpaquesVertex
     float4 color;
 };
 
-vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *quads [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Quad& quad = quads[*reverse - 1 - iid];
+    device Instance& quad = quads[*reverse - 1 - iid];
     device Cell& cell = quad.super.cell;
     float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
     float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
@@ -250,13 +250,13 @@ struct QuadsVertex
     bool even, solid;
 };
 
-vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *quads [[buffer(1)]],
                                      device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Quad& quad = quads[iid];
+    device Instance& quad = quads[iid];
 
     float z = ((quad.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
     device Colorant& paint = paints[(quad.iz & kPathIndexMask)];
@@ -272,7 +272,7 @@ vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], devi
     vert.u = u - du, vert.v = v - dv;
     vert.cover = quad.super.cover;
     vert.even = false;
-    vert.solid = quad.iz & Quad::kSolidCell;
+    vert.solid = quad.iz & Instance::kSolidCell;
     return vert;
 }
 
@@ -296,16 +296,16 @@ struct ShapesVertex
     bool circle;
 };
 
-vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Quad *quads [[buffer(1)]],
+vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *quads [[buffer(1)]],
                                        device AffineTransform *affineTransforms [[buffer(4)]], device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     ShapesVertex vert;
-    device Quad& quad = quads[iid];
+    device Instance& quad = quads[iid];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
-    if (quad.iz & Quad::kOutlines) {
+    if (quad.iz & Instance::kOutlines) {
         AffineTransform m = { 1, 0, 0, 1, 0, 0 };
         device Segment& o = quad.outline.s;
         device Segment& p = quads[iid + quad.outline.prev].outline.s;
@@ -355,7 +355,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(clips[quad.iz & kPathIndexMask], dx, dy);
-    vert.circle = quad.iz & Quad::kCircle;
+    vert.circle = quad.iz & Instance::kCircle;
     return vert;
 }
 
