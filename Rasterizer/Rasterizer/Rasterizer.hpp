@@ -268,11 +268,11 @@ struct Rasterizer {
         };
         void compact() {
             grid.empty();
-            int count = 0, ccount = 0;
+            int count = 0, ccount = 0, i = 0;
             int *csrc = counts.base, *cdst = csrc;
             Segment *ssrc = segments.base, *sdst = ssrc;
             Entry *src = entries.base, *dst = src, *end = src + entries.end;
-            for (int i = 0; src < end; csrc += ccount, ssrc += count, src++) {
+            for (; src < end; csrc += ccount, ssrc += count, src++) {
                 count = src->end - src->begin, ccount = src->cend - src->cbegin;
                 if (src->hit) {
                     if (src != dst) {
