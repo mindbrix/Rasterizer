@@ -597,10 +597,10 @@ struct Rasterizer {
                         moleculesCount = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
                         GPU::Molecules::Molecule *dst = gpu.molecules.alloc(moleculesCount);
                         Bounds *b = & path.ref->molecules[0];
-                        float ta, tc, tx, ux;
+                        float ta, tc, ux;
                         for (int bc = 0, *lc = gpu.cache.counts.base + entry->cbegin, *uc = lc + ccount, *c = lc; c < uc; bc = *c + 1, b++, dst++, c++) {
-                            ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly), tx = b->lx * ctm.a + b->ly * ctm.c + ctm.tx;
-                            ux = ceilf(ux = tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f)), ux = ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux;
+                            ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly), ux = b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f);
+                            ux = ceilf(ux), ux = ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux;
                             new (dst) GPU::Molecules::Molecule(ux, bc, *c);
                             instances += (*c - bc + kFastSegments - 1) / kFastSegments;
                         }
