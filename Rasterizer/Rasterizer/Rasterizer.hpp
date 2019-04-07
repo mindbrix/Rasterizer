@@ -596,13 +596,13 @@ struct Rasterizer {
                     if (molecules) {
                         moleculesCount = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
                         GPU::Molecules::Molecule *dst = gpu.molecules.alloc(moleculesCount);
-                        Bounds *bounds = & path.ref->molecules[0];
-                        for (int is = 0, *lc = gpu.cache.counts.base + entry->cbegin, *uc = lc + ccount, *c = lc; c < uc; c++) {
-                            float ux = ceilf(Bounds(bounds->unit(ctm)).ux);
-                            ux = ux < clip.lx ? clip.lx : ux, ux = ux > clip.ux ? clip.ux : ux;
+                        Bounds *b = & path.ref->molecules[0];
+                        float ta, tc, tx, ux;
+                        for (int is = 0, *lc = gpu.cache.counts.base + entry->cbegin, *uc = lc + ccount, *c = lc; c < uc; is = *c + 1, b++, dst++, c++) {
+                            ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly), tx = b->lx * ctm.a + b->ly * ctm.c + ctm.tx;
+                            ux = ceilf(ux = tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f)), ux = ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux;
                             new (dst) GPU::Molecules::Molecule(ux, is, *c);
                             instances += (*c - is + kFastSegments - 1) / kFastSegments;
-                            is = *c + 1, bounds++, dst++;
                         }
                     }
                     writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, moleculesCount, instances, true, molecules ? GPU::Instance::kMolecule : GPU::Instance::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
