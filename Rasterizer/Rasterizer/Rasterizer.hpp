@@ -245,8 +245,8 @@ struct Rasterizer {
     };
     struct Cache {
         struct Entry {
-            Entry(size_t hash, size_t begin, size_t end, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), hit(true), ctm(ctm) {}
-            size_t hash; int begin, end; bool hit; Transform ctm;
+            Entry(size_t hash, size_t begin, size_t end, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), cbegin(0), cend(0), hit(true), ctm(ctm) {}
+            size_t hash; int begin, end, cbegin, cend; bool hit; Transform ctm;
         };
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
@@ -268,24 +268,30 @@ struct Rasterizer {
         };
         void compact() {
             grid.empty();
-            int count = 0;
+            int count = 0, ccount = 0;
+            int *csrc = counts.base, *cdst = csrc;
             Segment *ssrc = segments.base, *sdst = ssrc;
             Entry *src = entries.base, *dst = src, *end = src + entries.end;
-            for (int i = 0; src < end; ssrc += count, src++) {
+            for (int i = 0; src < end; csrc += ccount, ssrc += count, src++) {
                 count = src->end - src->begin;
+                ccount = src->cend - src->cbegin;
                 if (src->hit) {
                     if (src != dst) {
-                        *dst = *src, dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
+                        *dst = *src;
+                        dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
+                        dst->cbegin = int(cdst - counts.base), dst->cend = dst->cbegin + ccount;
                         memmove(sdst, ssrc, count * sizeof(Segment));
+                        memmove(cdst, csrc, count * sizeof(int));
                     }
                     new (grid.grid[src->hash & Grid::kMask].alloc(1)) Grid::Element(src->hash, i);
-                    dst->hit = false, sdst += count, dst++, i++;
+                    dst->hit = false, cdst += ccount, sdst += count, dst++, i++;
                 }
             }
             entries.end = dst - entries.base;
+            counts.idx = counts.end = cdst - counts.base;
             segments.idx = segments.end = sdst - segments.base;
         }
-        void reset() { segments.reset(), grid.reset(), entries.reset(); }
+        void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             uint64_t hash = path.ref->hash;
@@ -324,6 +330,7 @@ struct Rasterizer {
         Grid grid;
         Row<Entry> entries;
         Row<Segment> segments;
+        Row<int> counts;
     };
     struct Index {
         Index(uint16_t x, uint16_t i) : x(x), i(i) {}
