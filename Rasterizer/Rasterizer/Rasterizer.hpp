@@ -380,7 +380,7 @@ struct Rasterizer {
         };
         struct Molecules {
             struct Molecule {
-                Molecule(float ux, size_t begin, size_t end) : ux(ux), begin(int(begin)), end(int(end)) {}
+                Molecule(float ux, int begin, int end) : ux(ux), begin(begin), end(end) {}
                 float ux;
                 int begin, end;
             };
