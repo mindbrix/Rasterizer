@@ -281,7 +281,7 @@ struct Rasterizer {
                         dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
                         dst->cbegin = int(cdst - counts.base), dst->cend = dst->cbegin + ccount;
                         memmove(sdst, ssrc, count * sizeof(Segment));
-                        memmove(cdst, csrc, count * sizeof(int));
+                        memmove(cdst, csrc, ccount * sizeof(int));
                     }
                     new (grid.grid[src->hash & Grid::kMask].alloc(1)) Grid::Element(src->hash, i);
                     dst->hit = false, cdst += ccount, sdst += count, dst++, i++;
@@ -310,7 +310,11 @@ struct Rasterizer {
             size_t begin = segments.idx, cbegin = counts.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            
+            Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls;
+            for (; s < us; s++)
+                if (s->x0 == FLT_MAX)
+                    *(counts.alloc(1)) = int(s - ls);
+            counts.idx = counts.end;
             new (grid.alloc(hash)) Grid::Element(hash, entries.end);
             return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert());
         }
