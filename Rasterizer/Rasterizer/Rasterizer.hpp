@@ -273,15 +273,12 @@ struct Rasterizer {
             Segment *ssrc = segments.base, *sdst = ssrc;
             Entry *src = entries.base, *dst = src, *end = src + entries.end;
             for (int i = 0; src < end; csrc += ccount, ssrc += count, src++) {
-                count = src->end - src->begin;
-                ccount = src->cend - src->cbegin;
+                count = src->end - src->begin, ccount = src->cend - src->cbegin;
                 if (src->hit) {
                     if (src != dst) {
-                        *dst = *src;
-                        dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
-                        dst->cbegin = int(cdst - counts.base), dst->cend = dst->cbegin + ccount;
-                        memmove(sdst, ssrc, count * sizeof(Segment));
-                        memmove(cdst, csrc, ccount * sizeof(int));
+                        dst->hash = src->hash, dst->begin = int(sdst - segments.base), dst->end = dst->begin + count;
+                        dst->cbegin = int(cdst - counts.base), dst->cend = dst->cbegin + ccount, dst->ctm = src->ctm;
+                        memmove(sdst, ssrc, count * sizeof(Segment)), memmove(cdst, csrc, ccount * sizeof(int));
                     }
                     new (grid.grid[src->hash & Grid::kMask].alloc(1)) Grid::Element(src->hash, i);
                     dst->hit = false, cdst += ccount, sdst += count, dst++, i++;
