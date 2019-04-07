@@ -81,11 +81,11 @@ struct Rasterizer {
             if (end + size > Atom::kCapacity)
                 end = 0, atoms.emplace_back();
             atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
-            end += size;
+            end += size, atomsCount += size;
             return atoms.back().points + (end - size) * 2;
         }
         void update(Atom::Type type, size_t size, float *p) {
-            atomsCount += size, counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
+            counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == Atom::kMove)
                 molecules.emplace_back(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
             isPolygon &= type != Atom::kQuadratic && type != Atom::kCubic;
@@ -140,7 +140,7 @@ struct Rasterizer {
             }
         }
         void close() {
-            update(Atom::kClose, 1, alloc(Atom::kClose, 1));
+            update(Atom::kClose, 0, alloc(Atom::kClose, 1));
         }
         size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kCountSize];
         std::vector<Atom> atoms;
