@@ -245,7 +245,7 @@ struct Rasterizer {
     };
     struct Cache {
         struct Entry {
-            Entry(size_t hash, size_t begin, size_t end, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), cbegin(0), cend(0), hit(true), ctm(ctm) {}
+            Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), cbegin(int(cbegin)), cend(int(cend)), hit(true), ctm(ctm) {}
             size_t hash; int begin, end, cbegin, cend; bool hit; Transform ctm;
         };
         struct Grid {
@@ -307,11 +307,12 @@ struct Rasterizer {
                 srch->hit |= hit;
                 return hit ? srch : nullptr;
             }
-            size_t begin = segments.idx;
+            size_t begin = segments.idx, cbegin = counts.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
+            
             new (grid.alloc(hash)) Grid::Element(hash, entries.end);
-            return new (entries.alloc(1)) Entry(hash, begin, segments.end, ctm.invert());
+            return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert());
         }
         void writeCachedOutline(Entry *e, Transform m, Bounds clip, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
