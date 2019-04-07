@@ -245,8 +245,8 @@ struct Rasterizer {
     };
     struct Cache {
         struct Entry {
-            Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), cbegin(int(cbegin)), cend(int(cend)), hit(true), ctm(ctm) {}
-            size_t hash; int begin, end, cbegin, cend; bool hit; Transform ctm;
+            Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm) : hash(hash), begin(int(begin)), end(int(end)), cbegin(int(cbegin)), cend(int(cend)), ctm(ctm), hit(true) {}
+            size_t hash; int begin, end, cbegin, cend; Transform ctm; bool hit;
         };
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
