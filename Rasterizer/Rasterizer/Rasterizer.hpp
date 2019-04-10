@@ -758,13 +758,12 @@ struct Rasterizer {
                     t = (t0 + t1) * 0.5f, y = (ay * t + by) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
                         x = (ax * t + bx) * t + x0;
-                        bool visible = x >= clip.lx && x < clip.ux;
                         tx0 = (ax * t0 + bx) * t0 + x0, ty0 = (ay * t0 + by) * t0 + y0;
                         tx2 = (ax * t1 + bx) * t1 + x0, ty2 = (ay * t1 + by) * t1 + y0;
                         tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
                         ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                         ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
-                        if (visible) {
+                        if (x >= clip.lx && x < clip.ux) {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
                             writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
@@ -842,13 +841,12 @@ struct Rasterizer {
                 if (t0 != t1) {
                     t = (t0 + t1) * 0.5f, y = ((ay * t + by) * t + cy) * t + y0;
                     if (y >= clip.ly && y < clip.uy) {
-                        x = ((ax * t + bx) * t + cx) * t + x0;
-                        bool visible = x >= clip.lx && x < clip.ux;
                         tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0, ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
                         tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0, ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
                         ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                         ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
-                        if (visible) {
+                        x = ((ax * t + bx) * t + cx) * t + x0;
+                        if (x >= clip.lx && x < clip.ux) {
                             const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
                             t = v * t0 + u * t1, tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
                             t = u * t0 + v * t1, tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
