@@ -584,7 +584,7 @@ struct Rasterizer {
                 bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
                 bool molecules = (!fast || path.ref->atomsCount > kMoleculesAtoms) && path.ref->molecules.size() > 1;
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
-                if (!slow || (path.ref->isGlyph && unclipped))
+                if (!slow || unclipped)
                     entry = gpu.cache.getPath(path, ctm, & m);
                 if (entry == nullptr)
                     writePath(path, ctm, clip, writeClippedSegment, segments);
