@@ -581,8 +581,6 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
-                bool molecules = (!fast || path.ref->atomsCount > kMoleculesAtoms) && path.ref->molecules.size() > 1;
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped)
                     entry = gpu.cache.getPath(path, ctm, & m);
@@ -591,11 +589,11 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    size_t midx = 0, count = entry->end - entry->begin, ccount = entry->cend - entry->cbegin, moleculesCount = 1, instances = (count + kFastSegments - 1) / kFastSegments;
+                    size_t midx = 0, count = entry->end - entry->begin, ccount = entry->cend - entry->cbegin, molecules = path.ref->molecules.size(), instances = (count + kFastSegments - 1) / kFastSegments;
                     gpu.ctms[iz] = m;
-                    if (molecules) {
-                        moleculesCount = path.ref->molecules.size(), instances = 0, midx = gpu.molecules.ranges.end;
-                        GPU::Molecules::Molecule *dst = gpu.molecules.alloc(moleculesCount);
+                    if (molecules > 1) {
+                        instances = 0, midx = gpu.molecules.ranges.end;
+                        GPU::Molecules::Molecule *dst = gpu.molecules.alloc(molecules);
                         Bounds *b = & path.ref->molecules[0];
                         float ta, tc, ux;
                         for (int bc = 0, *lc = gpu.cache.counts.base + entry->cbegin, *uc = lc + ccount, *c = lc; c < uc; c++) {
@@ -605,7 +603,7 @@ struct Rasterizer {
                             instances += (*c - bc + kFastSegments - 1) / kFastSegments, bc = *c + 1, b++, dst++;
                         }
                     }
-                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, moleculesCount, instances, true, molecules ? GPU::Instance::kMolecule : GPU::Instance::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
+                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, instances, true, molecules > 1 ? GPU::Instance::kMolecule : GPU::Instance::kEdge, 0.f, -int(iz + 1), entry->begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
