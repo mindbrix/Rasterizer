@@ -190,17 +190,15 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
     device Cell& cell = edgeCell.cell;
     device Segment& s0 = segments[edgeCell.base + edge.i0];
     device Segment& s1 = segments[edgeCell.base + edge.i1];
-    float f0 = s0.x0 != FLT_MAX, f1 = edge.i1 != kNullIndex && s1.x0 != FLT_MAX;
-    vert.x0 = f0 * s0.x0, vert.y0 = f0 * s0.y0, vert.x1 = f0 * s0.x1, vert.y1 = f0 * s0.y1;
-    vert.x2 = f1 * s1.x0, vert.y2 = f1 * s1.y0, vert.x3 = f1 * s1.x1, vert.y3 = f1 * s1.y1;
+    vert.x0 = s0.x0, vert.y0 = s0.y0, vert.x1 = s0.x1, vert.y1 = s0.y1;
+    float slx = min(vert.x0, vert.x1);
+    float sly = min(vert.y0, vert.y1);
+    float suy = max(vert.y0, vert.y1);
     
-    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    if (vert.y0 != vert.y1) {
-        slx = min(slx, min(vert.x0, vert.x1));
-        sly = min(sly, min(vert.y0, vert.y1));
-        suy = max(suy, max(vert.y0, vert.y1));
-    }
-    if (vert.y2 != vert.y3) {
+    if (edge.i1 == kNullIndex)
+        vert.x2 = vert.y2 = vert.x3 = vert.y3 = 0.0;
+    else {
+        vert.x2 = s1.x0, vert.y2 = s1.y0, vert.x3 = s1.x1, vert.y3 = s1.y1;
         slx = min(slx, min(vert.x2, vert.x3));
         sly = min(sly, min(vert.y2, vert.y3));
         suy = max(suy, max(vert.y2, vert.y3));
