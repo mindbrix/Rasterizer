@@ -70,10 +70,8 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
-    float sy0 = saturate(y0), sy1 = saturate(y1);
-    float coverage = sy1 - sy0;
-    
-    if (coverage == 0.0 || saturate(x0) + saturate(x1) == 0.0)
+    float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
+    if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
     
     float dxdy = (x1 - x0) / (y1 - y0);
