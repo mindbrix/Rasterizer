@@ -9,6 +9,7 @@
 #define kFatHeight 8
 #define kfh  8.f
 #define krfh 0.125f
+#define kFastHeight 32
 #define kMoleculesHeight 128
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
