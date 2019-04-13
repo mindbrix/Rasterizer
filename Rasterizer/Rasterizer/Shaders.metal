@@ -136,18 +136,16 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     device EdgeCell& edgeCell = edgeCells[edge.ic];
     device Cell& cell = edgeCell.cell;
     device AffineTransform& m = affineTransforms[edgeCell.im];
-    thread float *dst = & vert.x0;
     device Segment *s = & segments[edgeCell.base + edge.i0];
+    thread float *dst = & vert.x0;
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < kFastSegments; i++, s++, dst += 4) {
-        float visible = s->x0 != FLT_MAX && i + edge.i0 < edge.i1;
+        float visible = i + edge.i0 < edge.i1;
         dst[0] = visible * (m.a * s->x0 - m.b * s->y0 + m.tx), dst[1] = visible * (m.b * s->x0 + m.a * s->y0 + m.ty);
         dst[2] = visible * (m.a * s->x1 - m.b * s->y1 + m.tx), dst[3] = visible * (m.b * s->x1 + m.a * s->y1 + m.ty);
         if (dst[1] != dst[3])
             slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
     }
-    bool empty = slx == FLT_MAX;
-    
     slx = clamp(uint16_t(slx), cell.lx, cell.ux), sly = clamp(uint16_t(sly), cell.ly, cell.uy), suy = clamp(uint16_t(ceil(suy)), cell.ly, cell.uy);
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
@@ -155,8 +153,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
     float tx = -(cell.lx - cell.ox) - (dx - 0.5), ty = -(cell.ly - cell.oy) - (dy - 0.5);
     
-    vert.position = !empty ? float4(x, y, 1.0, 1.0) : float4(0.0, 0.0, 0.0, 1.0);
-    
+    vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
     vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
     vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty;
