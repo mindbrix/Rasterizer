@@ -1141,7 +1141,7 @@ struct Rasterizer {
                             dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                     }
                     entry->end += count * sizeof(GPU::Instance);
-                } else  {
+                } else {
                     entry->end += sizeof(GPU::Instance);
                     if (inst->iz & GPU::Instance::kMolecule) {
                         Range *mr = & ctx->gpu.molecules.ranges.base[inst->quad.begin];
