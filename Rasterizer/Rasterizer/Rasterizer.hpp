@@ -307,8 +307,7 @@ struct Rasterizer {
             size_t begin = segments.idx, cbegin = counts.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls;
-            for (; s < us; s++)
+            for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
                 if (s->x0 == FLT_MAX)
                     *(counts.alloc(1)) = int(s - ls);
             counts.idx = counts.end;
