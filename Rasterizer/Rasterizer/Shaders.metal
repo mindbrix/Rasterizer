@@ -145,11 +145,11 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
             slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
     }
     slx = clamp(uint16_t(slx), cell.lx, cell.ux), sly = clamp(uint16_t(sly), cell.ly, cell.uy), suy = clamp(uint16_t(ceil(suy)), cell.ly, cell.uy);
-    float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
-    float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
-    float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
-    float dy = select(ly, uy, vid >> 1), y = dy / *height * 2.0 - 1.0;
-    float tx = -(cell.lx - cell.ox) - (dx - 0.5), ty = -(cell.ly - cell.oy) - (dy - 0.5);
+    
+    float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
+    float dx = tx + select(slx, float(cell.ux), vid & 1), x = dx / *width * 2.0 - 1.0;
+    float dy = ty + select(sly, suy, vid >> 1), y = dy / *height * 2.0 - 1.0;
+    tx -= (dx - 0.5), ty -= (dy - 0.5);
     
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
