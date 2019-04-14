@@ -203,7 +203,7 @@ vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Se
         sly = min(sly, min(vert.y2, vert.y3));
         suy = max(suy, max(vert.y2, vert.y3));
     }
-    slx = max(floor(slx), float(cell.lx)), sly = floor(sly), suy = ceil(suy);
+    slx = floor(slx), sly = floor(sly), suy = ceil(suy);
     float lx = cell.ox + slx - cell.lx, ux = cell.ox + cell.ux - cell.lx;
     float ly = cell.oy + sly - cell.ly, uy = cell.oy + suy - cell.ly;
     float dx = select(lx, ux, vid & 1), x = dx / *width * 2.0 - 1.0;
