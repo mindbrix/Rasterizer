@@ -136,13 +136,17 @@ vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], 
     device AffineTransform& m = affineTransforms[edgeCell.im];
     device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
-    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    for (int i = 0; i < kFastSegments; i++, s++, dst += 4) {
-        float visible = i + edge.i0 < edge.i1;
-        dst[0] = visible * (m.a * s->x0 - m.b * s->y0 + m.tx), dst[1] = visible * (m.b * s->x0 + m.a * s->y0 + m.ty);
-        dst[2] = visible * (m.a * s->x1 - m.b * s->y1 + m.tx), dst[3] = visible * (m.b * s->x1 + m.a * s->y1 + m.ty);
-        if (dst[1] != dst[3])
+    dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
+    dst[2] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[3] = m.b * s->x1 + m.a * s->y1 + m.ty;
+    float slx = min(dst[0], dst[2]), sly = min(dst[1], dst[3]), suy = max(dst[1], dst[3]);
+    s++, dst += 4;
+    for (int i = 1; i < kFastSegments; i++, s++, dst += 4) {
+        if (i + edge.i0 < edge.i1) {
+            dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
+            dst[2] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[3] = m.b * s->x1 + m.a * s->y1 + m.ty;
             slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
+        } else
+            dst[0] = dst[1] = dst[2] = dst[3] = 0.0;
     }
     slx = clamp(uint16_t(slx), cell.lx, cell.ux), sly = clamp(uint16_t(sly), cell.ly, cell.uy), suy = clamp(uint16_t(ceil(suy)), cell.ly, cell.uy);
     
