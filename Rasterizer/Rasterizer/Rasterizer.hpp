@@ -307,9 +307,10 @@ struct Rasterizer {
             size_t begin = segments.idx, cbegin = counts.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
+            int *c = counts.alloc(path.ref->molecules.size());
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
                 if (s->x0 == FLT_MAX)
-                    *(counts.alloc(1)) = int(s - ls);
+                    *c++ = int(s - ls);
             counts.idx = counts.end;
             new (grid.alloc(hash)) Grid::Element(hash, entries.end);
             return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert());
