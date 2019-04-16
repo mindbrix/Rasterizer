@@ -1084,17 +1084,14 @@ struct Rasterizer {
                                      Transform *ctms,
                                      Colorant *colorants,
                                      size_t begin,
-                                     size_t _iz,
+                                     size_t liz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
         std::vector<size_t> idxes;
         Ref<Scene> *scene = & list.scenes[0];
-        for (base = count = 0, j = 0; j < list.scenes.size(); base = count, j++, scene++) {
-            count += scene->ref->paths.size();
-            if (_iz < count)
-                break;
-        }
+        for (base = 0, count = scene->ref->paths.size(); liz >= count; base = count, scene++, count += scene->ref->paths.size()) {}
+
         size = ctx->gpu.cache.segments.end;
         for (j = 0; j < ctx->segments.size(); j++)
             sbegins[j] = size, size += ctx->segments[j].end;
