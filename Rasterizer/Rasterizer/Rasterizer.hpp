@@ -1114,10 +1114,10 @@ struct Rasterizer {
             entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + e->fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
             
             Buffer::Entry *entry;
-            GPU::Instance *li = ctx->gpu.blends.base + e->li, *ui = ctx->gpu.blends.base + e->ui, *inst;
-            int type = li->iz & GPU::Instance::kShapes || li->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+            GPU::Instance *linst = ctx->gpu.blends.base + e->li, *uinst = ctx->gpu.blends.base + e->ui, *inst;
+            int type = linst->iz & GPU::Instance::kShapes || linst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
             entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e->li), entry = & entries.back();
-            for (inst = li; inst < ui; inst++) {
+            for (inst = linst; inst < uinst; inst++) {
                 for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                     base += scene->ref->paths.size();
                 
