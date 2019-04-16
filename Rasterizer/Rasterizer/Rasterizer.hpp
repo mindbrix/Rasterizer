@@ -1121,16 +1121,14 @@ struct Rasterizer {
             int type = li->iz & GPU::Instance::kShapes || li->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
             entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e->li), entry = & entries.back();
             for (inst = li; inst < ui; inst++) {
-                type = inst->iz & GPU::Instance::kShapes || inst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
-                iz = inst->iz & kPathIndexMask;
-                while (iz - base >= scene->ref->paths.size())
-                    base += scene->ref->paths.size(), scene++;
+                for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
+                    base += scene->ref->paths.size();
                 
+                type = inst->iz & GPU::Instance::kShapes || inst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 if (type != entry->type)
                     begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(inst - ctx->gpu.blends.base), entry = & entries.back();
                 if (inst->iz & GPU::Instance::kShapes) {
                     Path& path = scene->ref->paths[iz - base];
-                    
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end);
                     for (int k = 0; k < path.ref->shapesCount; k++, dst++)
                         new (dst) GPU::Instance(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Instance::kCircle : GPU::Instance::kRect);
