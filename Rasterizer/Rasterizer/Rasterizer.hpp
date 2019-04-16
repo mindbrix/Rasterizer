@@ -1103,20 +1103,20 @@ struct Rasterizer {
                 memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
             entries.emplace_back(Buffer::Entry::kSegments, begin, begin + size * sizeof(Segment)), idxes.emplace_back(0), begin = entries.back().end;
         }
-        for (GPU::Allocator::Pass *e = ctx->gpu.allocator.passes.base, *ue = e + ctx->gpu.allocator.passes.end; e < ue; e++, begin = entries.back().end) {
+        for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
             GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
-            entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + e->cells * sizeof(GPU::EdgeCell)), idxes.emplace_back(0), begin = entries.back().end;
+            entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + pass->cells * sizeof(GPU::EdgeCell)), idxes.emplace_back(0), begin = entries.back().end;
             
             GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
-            entries.emplace_back(Buffer::Entry::kEdges, begin, begin + e->edgeInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
+            entries.emplace_back(Buffer::Entry::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
 
             GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
-            entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + e->fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
+            entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), idxes.emplace_back(0), begin = entries.back().end;
             
             Buffer::Entry *entry;
-            GPU::Instance *linst = ctx->gpu.blends.base + e->li, *uinst = ctx->gpu.blends.base + e->ui, *inst;
+            GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst;
             int type = linst->iz & GPU::Instance::kShapes || linst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
-            entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(e->li), entry = & entries.back();
+            entries.emplace_back(Buffer::Entry::Type(type), begin, begin), idxes.emplace_back(pass->li), entry = & entries.back();
             for (inst = linst; inst < uinst; inst++) {
                 for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                     base += scene->ref->paths.size();
