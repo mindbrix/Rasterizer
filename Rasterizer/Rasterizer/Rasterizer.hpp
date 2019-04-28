@@ -372,7 +372,7 @@ struct Rasterizer {
                 ox = b->lx, b->lx += w, oy = b->ly;
                 pass->cells += cells, pass->ui++, pass->fastInstances += isFast * instances, pass->edgeInstances += !isFast * instances;
             }
-            inline void countQuad() {
+            inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 pass->ui++;
             }
@@ -574,12 +574,12 @@ struct Rasterizer {
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         if (path.ref->shapesCount) {
             new (gpu.blends.alloc(1)) GPU::Instance(ctm, iz, GPU::Instance::kShapes);
-            gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countQuad();
+            gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
         } else {
             if (width) {
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
                 new (gpu.blends.alloc(1)) GPU::Instance(GPU::Outline(gpu.outlines.idx, gpu.outlines.end, width), iz, GPU::Instance::kOutlines);
-                gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countQuad();
+                gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
@@ -938,7 +938,7 @@ struct Rasterizer {
                                 new (gpu.opaques.alloc(1)) GPU::Instance(GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0), iz, GPU::Instance::kOpaque);
                             else {
                                 new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0), iz, GPU::Instance::kSolidCell);
-                                 gpu.allocator.countQuad();
+                                 gpu.allocator.countInstance();
                             }
                         }
                         lx = ux = index->x;
