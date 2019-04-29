@@ -205,7 +205,7 @@ struct RasterizerCG {
                         if (iz - base == scene->ref->paths.size())
                             scene++, base = iz;
                         Rasterizer::Path& path = scene->ref->paths[iz - base];
-                        count += path.ref->atomsCount ?: (path.ref->shapes ? path.ref->end >> 4: 0);
+                        count += path.ref->atomsCount ?: (path.ref->shapes ? path.ref->shapesCount >> 4: 0);
                     }
                     izeds[i] = iz;
                 }
