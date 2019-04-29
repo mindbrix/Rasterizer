@@ -300,7 +300,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
             RasterizerSQL::DB db;
             db.open(dbURL.path.UTF8String);
-            db.writeQuery(font, 20.f, "select * from tbl1", _list.firstScene());
+            db.writeQuery(font, 20.f, RasterizerCG::boundsFromCGRect(self.bounds), "select * from tbl1", _list.firstScene());
         }
     }
     [self.layer setNeedsDisplay];
