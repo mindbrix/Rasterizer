@@ -45,12 +45,10 @@
     return nil;
 }
 
-
-- (BOOL)readFromData:(NSData *)data ofType:(NSString *)typeName error:(NSError **)outError {
+- (BOOL)readFromURL:(NSURL *)url ofType:(NSString *)typeName error:(NSError **)outError {
     if ([typeName isEqualToString:@"SVG"])
-        self.svgData = data;
+        self.svgData = [NSData dataWithContentsOfURL:url];
     return YES;
 }
-
 
 @end
