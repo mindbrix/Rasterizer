@@ -296,6 +296,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if ([_dbURL isFileURL]) {
         RasterizerSQL::DB db;
         db.open(dbURL.path.UTF8String);
+        db.writeQuery("select * from tbl1", _list.firstScene());
     }
     [self.layer setNeedsDisplay];
 }
