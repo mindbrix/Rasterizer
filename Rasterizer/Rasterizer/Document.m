@@ -9,7 +9,8 @@
 #import "Document.h"
 
 @interface Document ()
-@property( nonatomic, strong ) NSData *svgData;
+@property(nonatomic, strong) NSURL *dbURL;
+@property(nonatomic, strong) NSData *svgData;
 @end
 
 @implementation Document
@@ -29,6 +30,7 @@
 - (void)windowControllerDidLoadNib:(NSWindowController *)aController {
     [super windowControllerDidLoadNib:aController];
     self.view.svgData = self.svgData;
+    self.view.dbURL = self.dbURL;
 }
 
 - (NSString *)windowNibName {
@@ -48,6 +50,8 @@
 - (BOOL)readFromURL:(NSURL *)url ofType:(NSString *)typeName error:(NSError **)outError {
     if ([typeName isEqualToString:@"SVG"])
         self.svgData = [NSData dataWithContentsOfURL:url];
+    else if ([typeName isEqualToString:@"sqlite"])
+        self.dbURL = url;
     return YES;
 }
 

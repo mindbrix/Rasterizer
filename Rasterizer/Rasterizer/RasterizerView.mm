@@ -291,6 +291,15 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     RasterizerCG::drawTestScene(_testScene, _list, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), _state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _state.index);
 }
 
+- (void)setDbURL:(NSURL *)dbURL {
+    _dbURL = dbURL;
+    if ([_dbURL isFileURL]) {
+        RasterizerSQL::DB db;
+        db.open(dbURL.path.UTF8String);
+    }
+    [self.layer setNeedsDisplay];
+}
+
 - (void)setSvgData:(NSData *)svgData {
     _svgData = svgData;
     if (_svgData) {

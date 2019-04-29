@@ -36,6 +36,18 @@
 			<key>NSDocumentClass</key>
 			<string>Document</string>
 		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>db</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>sqlite</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>NSDocumentClass</key>
+			<string>Document</string>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
