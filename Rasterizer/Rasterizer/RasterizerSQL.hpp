@@ -33,12 +33,14 @@ struct RasterizerSQL {
             status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
             if (status == SQLITE_OK) {
                 int columns = sqlite3_column_count(pStmt);
+                for (int i = 0; i < columns; i++) {
+                    const char *name = sqlite3_column_name(pStmt, i);
+                    int type = sqlite3_column_type(pStmt, i);
+                }
                 do {
                     status = sqlite3_step(pStmt);
                     if (status == SQLITE_ROW) {
-                        for (int i = 0; i < columns; i++) {
-                            int type =  sqlite3_column_type(pStmt, i);
-                        }
+                        for (int i = 0; i < columns; i++) {}
                     }
                 } while (status == SQLITE_ROW);
             }
