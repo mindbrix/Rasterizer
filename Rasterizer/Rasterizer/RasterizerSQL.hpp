@@ -20,6 +20,12 @@ struct RasterizerSQL {
                 sqlite3_close(db);
             db = nullptr;
         }
+        sqlite3_stmt *prepare(const char *zSql, int nByte) {
+            sqlite3_stmt *pStmt;
+            const char *zTail;
+            status =  sqlite3_prepare(db, zSql, nByte, & pStmt, & zTail);
+            return pStmt;
+        }
         sqlite3 *db = nullptr;
         int status = SQLITE_OK;
     };
