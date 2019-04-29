@@ -21,13 +21,7 @@ struct RasterizerSQL {
                 sqlite3_close(db);
             db = nullptr;
         }
-        sqlite3_stmt *prepare(const char *zSql, int nByte) {
-            sqlite3_stmt *pStmt;
-            const char *zTail;
-            status =  sqlite3_prepare(db, zSql, nByte, & pStmt, & zTail);
-            return pStmt;
-        }
-        void writeQuery(RasterizerTrueType::Font font, float pointSize, const char *sql, Rasterizer::Scene& scene) {
+        void writeQuery(RasterizerTrueType::Font& font, float size, const char *sql, Rasterizer::Scene& scene) {
             sqlite3_stmt *pStmt;
             const char *zTail;
             status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
