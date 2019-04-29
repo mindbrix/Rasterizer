@@ -7,6 +7,7 @@
 //
 
 #import "Rasterizer.hpp"
+#import "RasterizerTrueType.hpp"
 #import <sqlite3.h>
 
 struct RasterizerSQL {
@@ -25,6 +26,23 @@ struct RasterizerSQL {
             const char *zTail;
             status =  sqlite3_prepare(db, zSql, nByte, & pStmt, & zTail);
             return pStmt;
+        }
+        void writeQuery(RasterizerTrueType::Font font, float pointSize, const char *sql, Rasterizer::Scene& scene) {
+            sqlite3_stmt *pStmt;
+            const char *zTail;
+            status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
+            if (status == SQLITE_OK) {
+                int columns = sqlite3_column_count(pStmt);
+                do {
+                    status = sqlite3_step(pStmt);
+                    if (status == SQLITE_ROW) {
+                        for (int i = 0; i < columns; i++) {
+                            int type =  sqlite3_column_type(pStmt, i);
+                        }
+                    }
+                } while (status == SQLITE_ROW);
+            }
+            sqlite3_finalize(pStmt);
         }
         sqlite3 *db = nullptr;
         int status = SQLITE_OK;
