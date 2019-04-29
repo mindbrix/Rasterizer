@@ -1089,9 +1089,14 @@ struct Rasterizer {
                                      Buffer& buffer) {
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
         std::vector<size_t> idxes;
-        Ref<Scene> *scene = & list.scenes[0];
-        for (base = 0, count = scene->ref->paths.size(); liz >= count; base = count, scene++, count += scene->ref->paths.size()) {}
-
+        Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
+        for (base = 0, count = 0; scene < uscene; base = count, scene++) {
+            count += scene->ref->paths.size();
+            if (liz < count)
+                break;
+        }
+        if (scene == uscene)
+            return;
         size = ctx->gpu.cache.segments.end;
         for (j = 0; j < ctx->segments.size(); j++)
             sbegins[j] = size, size += ctx->segments[j].end;
