@@ -168,12 +168,16 @@ struct RasterizerCG {
         BGRAColorConverter converter;
     };
     
-    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Rasterizer::Scene& scene) {
-        CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize ((__bridge CFStringRef)fontName, 1);
+    static NSURL *fontURL(NSString *fontName) {
+        CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
         CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
         CFRelease(fontRef);
-        NSData *data = [NSData dataWithContentsOfURL:(__bridge NSURL *)url];
+        NSURL *URL = (__bridge NSURL *)url;
         CFRelease(url);
+        return URL;
+    }
+    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Rasterizer::Scene& scene) {
+        NSData *data = [NSData dataWithContentsOfURL:fontURL(fontName)];
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
             if (string)
