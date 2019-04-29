@@ -294,9 +294,14 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)setDbURL:(NSURL *)dbURL {
     _dbURL = dbURL;
     if ([_dbURL isFileURL]) {
-        RasterizerSQL::DB db;
-        db.open(dbURL.path.UTF8String);
-        db.writeQuery("select * from tbl1", _list.firstScene());
+        NSString *fontName = @"Helvetica";
+        NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(fontName)];
+        RasterizerTrueType::Font font;
+        if (font.set(data.bytes, fontName.UTF8String) != 0) {
+            RasterizerSQL::DB db;
+            db.open(dbURL.path.UTF8String);
+            db.writeQuery(font, 20.f, "select * from tbl1", _list.firstScene());
+        }
     }
     [self.layer setNeedsDisplay];
 }
