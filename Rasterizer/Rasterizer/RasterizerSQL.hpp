@@ -8,3 +8,19 @@
 
 #import "Rasterizer.hpp"
 #import <sqlite3.h>
+
+struct RasterizerSQL {
+    struct DB {
+        ~DB() { close(); }
+        void open(const char *filename) {
+            status = sqlite3_open(filename, & db);
+        }
+        void close() {
+            if (db != nullptr && status == SQLITE_OK)
+                sqlite3_close(db);
+            db = nullptr;
+        }
+        sqlite3 *db = nullptr;
+        int status = SQLITE_OK;
+    };
+};
