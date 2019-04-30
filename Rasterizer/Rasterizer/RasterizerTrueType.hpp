@@ -76,9 +76,10 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static void writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
+    static Rasterizer::Bounds writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
+        Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0)
-            return;
+            return glyphBounds;
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ', tab = '\t';
         const uint8_t *utf8 = (uint8_t *)str;
@@ -143,11 +144,16 @@ struct RasterizerTrueType {
                     }
                     if (left)
                         x -= *advance;
-                    scene.addPath(path, Rasterizer::Transform(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy), color);
+                    Rasterizer::Transform ctm(s, 0, 0, s, x * s + bounds.lx, (y - height) * s + bounds.uy);
+                    if (scene.addPath(path, ctm, color)) {
+                        Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
+                        glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
+                    }
                     if (!left)
                         x += *advance;
                 }
         } while (i < len);
+        return glyphBounds;
     }
     static void writeGlyphGrid(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0)
