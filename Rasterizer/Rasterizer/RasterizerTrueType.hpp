@@ -105,13 +105,10 @@ struct RasterizerTrueType {
         stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
         float s, width, height, lineHeight, space, beginx, x, y;
         s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
-        width = (bounds.ux - bounds.lx) / s;
-        height = ascent - descent, lineHeight = height + lineGap;
+        width = (bounds.ux - bounds.lx) / s, height = ascent - descent, lineHeight = height + lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-        beginx = left ? width : 0;
+        x = beginx = left ? width : 0, y = i = 0;
         len = (int)glyphs.size();
-        x = beginx;
-        y = i = 0;
         do {
             while (i < len && glyphs[i] < 0) {
                 if (glyphs[i] == -nl)
