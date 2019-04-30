@@ -29,8 +29,8 @@ struct RasterizerSQL {
                 int columns = sqlite3_column_count(pStmt);
                 for (int i = 0; i < columns; i++) {
                     const char *name = sqlite3_column_name(pStmt, i);
-                    RasterizerTrueType::writeGlyphs(font, size, Rasterizer::Colorant(0, 0, 0, 255), bounds, false, name, scene);
-                    
+                    Rasterizer::Bounds glyphBounds = RasterizerTrueType::writeGlyphs(font, size, Rasterizer::Colorant(0, 0, 0, 255), bounds, false, name, scene);
+                    bounds.lx = glyphBounds.ux;
                     int type = sqlite3_column_type(pStmt, i);
                 }
                 do {
