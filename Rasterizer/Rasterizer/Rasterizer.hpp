@@ -168,12 +168,14 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Scene {
-        void addPath(Path path, Transform ctm, Colorant colorant) {
+        bool addPath(Path path, Transform ctm, Colorant colorant) {
             if (!((path.ref->atomsCount < 3 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX)) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 Bounds user = Bounds(path.ref->bounds.unit(ctm));
                 bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
+                return true;
             }
+            return false;
         }
         size_t refCount = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
