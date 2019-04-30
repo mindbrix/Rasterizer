@@ -14,17 +14,16 @@ struct RasterizerSQL {
     struct DB {
         ~DB() { close(); }
         void open(const char *filename) {
-            status = sqlite3_open(filename, & db);
+            sqlite3_open(filename, & db);
         }
         void close() {
-            if (db != nullptr && status == SQLITE_OK)
-                sqlite3_close(db);
+            sqlite3_close(db);
             db = nullptr;
         }
         void writeQuery(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds bounds, const char *sql, Rasterizer::Scene& scene) {
             sqlite3_stmt *pStmt;
             const char *zTail;
-            status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
+            int status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
             if (status == SQLITE_OK) {
                 int columns = sqlite3_column_count(pStmt);
                 for (int i = 0; i < columns; i++) {
@@ -43,6 +42,5 @@ struct RasterizerSQL {
             sqlite3_finalize(pStmt);
         }
         sqlite3 *db = nullptr;
-        int status = SQLITE_OK;
     };
 };
