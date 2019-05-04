@@ -80,7 +80,7 @@ struct RasterizerTrueType {
     
     static Rasterizer::Bounds writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-        if (font.info.numGlyphs == 0)
+        if (font.info.numGlyphs == 0 || font.space == 0)
             return glyphBounds;
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ', tab = '\t';
@@ -152,7 +152,7 @@ struct RasterizerTrueType {
         return glyphBounds;
     }
     static void writeGlyphGrid(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
-        if (font.info.numGlyphs == 0)
+        if (font.info.numGlyphs == 0 || font.space == 0)
             return;
         int d = ceilf(sqrtf((float)font.info.numGlyphs));
         float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
