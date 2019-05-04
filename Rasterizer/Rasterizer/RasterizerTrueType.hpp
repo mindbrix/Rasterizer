@@ -155,7 +155,7 @@ struct RasterizerTrueType {
         if (font.info.numGlyphs == 0 || font.space == 0)
             return;
         int d = ceilf(sqrtf((float)font.info.numGlyphs));
-        float s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
+        float s = size / float(font.unitsPerEm);
         for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d)), color);
