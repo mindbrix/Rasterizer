@@ -34,6 +34,7 @@ struct RasterizerTrueType {
                                 monospace = widths[0];
                             space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
+                            unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.0);
                             return 1;
                         }
                     }
@@ -73,7 +74,7 @@ struct RasterizerTrueType {
             return path;
         }
         std::unordered_map<int, Rasterizer::Path> cache;
-        int monospace, space, ascent, descent, lineGap;
+        int monospace, space, ascent, descent, lineGap, unitsPerEm;
         stbtt_fontinfo info;
     };
     
@@ -102,8 +103,7 @@ struct RasterizerTrueType {
             if (step)
                 glyphs.emplace_back(codepoint == sp || codepoint == nl || codepoint == tab ? -codepoint : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
-        float s, width, height, lineHeight, space, beginx, x, y;
-        s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
+        float s = size / float(font.unitsPerEm), width, height, lineHeight, space, beginx, x, y;
         width = (bounds.ux - bounds.lx) / s, height = font.ascent - font.descent, lineHeight = height + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         x = beginx = left ? width : 0, y = i = 0;
