@@ -73,8 +73,7 @@ struct RasterizerTrueType {
             return path;
         }
         std::unordered_map<int, Rasterizer::Path> cache;
-        int ascent, descent, lineGap;
-        float monospace, space;
+        int monospace, space, ascent, descent, lineGap;
         stbtt_fontinfo info;
     };
     
