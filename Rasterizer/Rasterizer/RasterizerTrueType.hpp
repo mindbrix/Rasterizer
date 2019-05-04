@@ -33,6 +33,7 @@ struct RasterizerTrueType {
                             if (widths[0] == widths[1] && widths[1] == widths[2])
                                 monospace = widths[0];
                             space = widths[2];
+                            stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             return 1;
                         }
                     }
@@ -72,6 +73,7 @@ struct RasterizerTrueType {
             return path;
         }
         std::unordered_map<int, Rasterizer::Path> cache;
+        int ascent, descent, lineGap;
         float monospace, space;
         stbtt_fontinfo info;
     };
@@ -101,11 +103,9 @@ struct RasterizerTrueType {
             if (step)
                 glyphs.emplace_back(codepoint == sp || codepoint == nl || codepoint == tab ? -codepoint : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
-        int ascent, descent, lineGap, leftSideBearing;
-        stbtt_GetFontVMetrics(& font.info, & ascent, & descent, & lineGap);
         float s, width, height, lineHeight, space, beginx, x, y;
         s = stbtt_ScaleForMappingEmToPixels(& font.info, size);
-        width = (bounds.ux - bounds.lx) / s, height = ascent - descent, lineHeight = height + lineGap;
+        width = (bounds.ux - bounds.lx) / s, height = font.ascent - font.descent, lineHeight = height + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         x = beginx = left ? width : 0, y = i = 0;
         len = (int)glyphs.size();
@@ -120,7 +120,7 @@ struct RasterizerTrueType {
             begin = i;
             while (i < len && glyphs[i] >= 0)
                 i++;
-            int advances[i - begin], *advance = advances, total = 0;
+            int advances[i - begin], *advance = advances, total = 0, leftSideBearing;
             bzero(advances, sizeof(advances));
             for (j = begin; j < i; j++, advance++)
                 if (glyphs[j] > 0 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
