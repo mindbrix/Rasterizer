@@ -34,7 +34,7 @@ struct RasterizerTrueType {
                                 monospace = widths[0];
                             space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
-                            unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.0);
+                            unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
                             return 1;
                         }
                     }
