@@ -28,14 +28,14 @@ struct RasterizerTrueType {
                             for (int j = 0; j < 3; j++)
                                 if ((glyph = stbtt_FindGlyphIndex(& info, lw_[j])) != -1)
                                     stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
-                            if (widths[0] == 0 && widths[1] == widths[2])
-                                return 0;
-                            if (widths[0] == widths[1] && widths[1] == widths[2])
-                                monospace = widths[0];
-                            space = widths[2];
-                            stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
-                            unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.0);
-                            return 1;
+                            if (widths[0] && widths[1] && widths[2]) {
+                                if (widths[0] == widths[1] && widths[1] == widths[2])
+                                    monospace = widths[0];
+                                space = widths[2];
+                                stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
+                                unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.0);
+                                return 1;
+                            }
                         }
                     }
                 }
