@@ -106,7 +106,7 @@ struct RasterizerTrueType {
         float s = size / float(font.unitsPerEm), width, height, lineHeight, space, beginx, x, y;
         width = (bounds.ux - bounds.lx) / s, height = font.ascent - font.descent, lineHeight = height + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-        x = beginx = left ? width : 0, y = -font.ascent, i = 0;
+        x = beginx = left ? width : 0.f, y = -font.ascent, i = 0;
         len = (int)glyphs.size();
         do {
             while (i < len && glyphs[i] < 0) {
@@ -140,7 +140,7 @@ struct RasterizerTrueType {
                     }
                     if (left)
                         x -= *advance;
-                    Rasterizer::Transform ctm(s, 0, 0, s, x * s + bounds.lx, y * s + bounds.uy);
+                    Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
                     if (scene.addPath(path, ctm, color)) {
                         Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
                         glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
@@ -158,6 +158,6 @@ struct RasterizerTrueType {
         float s = size / float(font.unitsPerEm);
         for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
-                scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0, 0, s, size * float(glyph % d), size * float(glyph / d)), color);
+                scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color);
     }
 };
