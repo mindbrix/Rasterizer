@@ -103,8 +103,8 @@ struct RasterizerTrueType {
             if (step)
                 glyphs.emplace_back(codepoint == sp || codepoint == nl || codepoint == tab ? -codepoint : stbtt_FindGlyphIndex(& font.info, codepoint));
         }
-        float s = size / float(font.unitsPerEm), width, height, lineHeight, space, beginx, x, y;
-        width = (bounds.ux - bounds.lx) / s, height = font.ascent - font.descent, lineHeight = height + font.lineGap;
+        float s = size / float(font.unitsPerEm), width, lineHeight, space, beginx, x, y;
+        width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         x = beginx = left ? width : 0.f, y = -font.ascent, i = 0;
         len = (int)glyphs.size();
