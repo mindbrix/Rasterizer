@@ -32,14 +32,14 @@ struct RasterizerSQL {
                     const char *name = sqlite3_column_name(pStmt, i);
                     glyphs = RasterizerTrueType::writeGlyphs(font, size, Rasterizer::Colorant(0, 0, 0, 255), bounds, false, name, scene);
                     bounds.lx = glyphs.ux + space;
-                    int type = sqlite3_column_type(pStmt, i);
                 }
                 do {
                     bounds.lx = frame.lx, bounds.uy -= lineHeight;
                     status = sqlite3_step(pStmt);
                     if (status == SQLITE_ROW) {
                         for (int i = 0; i < columns; i++) {
-                            glyphs = RasterizerTrueType::writeGlyphs(font, size, Rasterizer::Colorant(0, 0, 0, 255), bounds, false, "{}", scene);
+                            int type = sqlite3_column_type(pStmt, i);
+                            glyphs = RasterizerTrueType::writeGlyphs(font, size, Rasterizer::Colorant(0, 0, 0, 255), bounds, false, (const char *)sqlite3_column_text(pStmt, i), scene);
                             bounds.lx = glyphs.ux + space;
                         }
                     }
