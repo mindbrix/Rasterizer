@@ -94,7 +94,16 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.firstScene());
+    if ([_dbURL isFileURL]) {
+        NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
+        RasterizerTrueType::Font font;
+        if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
+            RasterizerSQL::DB db;
+            db.open(_dbURL.path.UTF8String);
+            db.writeQuery(font, self.font.pointSize, RasterizerCG::boundsFromCGRect(self.bounds), "select * from tbl1", _list.firstScene());
+        }
+    } else
+        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.firstScene());
     [self.layer setNeedsDisplay];
 }
 
@@ -293,17 +302,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)setDbURL:(NSURL *)dbURL {
     _dbURL = dbURL;
-    if ([_dbURL isFileURL]) {
-        NSString *fontName = @"Helvetica";
-        NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(fontName)];
-        RasterizerTrueType::Font font;
-        if (font.set(data.bytes, fontName.UTF8String) != 0) {
-            RasterizerSQL::DB db;
-            db.open(dbURL.path.UTF8String);
-            db.writeQuery(font, 20.f, RasterizerCG::boundsFromCGRect(self.bounds), "select * from tbl1", _list.firstScene());
-        }
-    }
-    [self.layer setNeedsDisplay];
+    if (_dbURL)
+        [self changeFont:nil];
 }
 
 - (void)setSvgData:(NSData *)svgData {
