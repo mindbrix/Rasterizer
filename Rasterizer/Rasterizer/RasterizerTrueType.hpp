@@ -78,7 +78,7 @@ struct RasterizerTrueType {
         stbtt_fontinfo info;
     };
     
-    static Rasterizer::Bounds writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, const char *str, Rasterizer::Scene& scene) {
+    static Rasterizer::Bounds writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0)
             return glyphBounds;
@@ -110,9 +110,10 @@ struct RasterizerTrueType {
         len = (int)glyphs.size();
         do {
             while (i < len && glyphs[i] < 0) {
-                if (glyphs[i] == -nl)
-                    x = beginx, y -= lineHeight;
-                else
+                if (glyphs[i] == -nl) {
+                    if (!single)
+                        x = beginx, y -= lineHeight;
+                } else
                     x += (glyphs[i] == -tab ? 4 : 1) * (left ? -space : space);
                 i++;
             }
@@ -127,7 +128,7 @@ struct RasterizerTrueType {
                     if (j < len - 1)
                         *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
                 }
-            if (!left && x + total > width)
+            if (!single && ((!left && x + total > width) || (left && x - total < 0.f)))
                 x = beginx, y -= lineHeight;
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {

@@ -181,7 +181,7 @@ struct RasterizerCG {
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, fontName.UTF8String) != 0) {
             if (string)
-                RasterizerTrueType::writeGlyphs(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, string.UTF8String, scene);
+                RasterizerTrueType::writeGlyphs(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, false, string.UTF8String, scene);
             else
                 RasterizerTrueType::writeGlyphGrid(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), scene);
         }
