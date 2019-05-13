@@ -30,8 +30,8 @@ struct RasterizerSQL {
                 float s = size / float(font.unitsPerEm), space = font.space * s * columnSpaces, lineHeight = (font.ascent - font.descent + font.lineGap) * s;
                 int columns = sqlite3_column_count(pStmt);
                 for (int i = 0; i < columns; i++) {
-                    bounds.lx = frame.lx + i * space;
-                    glyphs = RasterizerTrueType::writeGlyphs(font, size, red, bounds, false, false, sqlite3_column_name(pStmt, i), scene);
+                    bounds.lx = frame.lx + i * space, bounds.ux = bounds.lx + space;
+                    glyphs = RasterizerTrueType::writeGlyphs(font, size, red, bounds, false, true, sqlite3_column_name(pStmt, i), scene);
                 }
                 do {
                     bounds.uy -= lineHeight;
@@ -39,8 +39,8 @@ struct RasterizerSQL {
                     if (status == SQLITE_ROW) {
                         for (int i = 0; i < columns; i++) {
                             int type = sqlite3_column_type(pStmt, i);
-                            bounds.lx = frame.lx + i * space;
-                            glyphs = RasterizerTrueType::writeGlyphs(font, size, black, bounds, false, false, (const char *)sqlite3_column_text(pStmt, i), scene);
+                            bounds.lx = frame.lx + i * space, bounds.ux = bounds.lx + space;
+                            glyphs = RasterizerTrueType::writeGlyphs(font, size, black, bounds, false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
                         }
                     }
                 } while (status == SQLITE_ROW);
