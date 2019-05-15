@@ -9,7 +9,7 @@
 
 struct RasterizerWinding {
     static Rasterizer::Range indicesForPoint(Rasterizer::SceneList& list, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
-        if (dx >= bounds.lx && dx <= bounds.ux && dy >= bounds.ly && dy <= bounds.uy)
+        if (dx >= bounds.lx && dx < bounds.ux && dy >= bounds.ly && dy < bounds.uy)
             for (int j = int(list.scenes.size()) - 1; j >= 0; j--) {
                 Rasterizer::Transform inv = list.clips[j].invert(), ctm = view.concat(list.ctms[j]);
                 Rasterizer::Scene& scene = *list.scenes[j].ref;
@@ -41,14 +41,12 @@ struct RasterizerWinding {
                         else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
                                 inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-                                if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                                    if (path.ref->circles[i]) {
-                                        ux = ux * 2.f - 1.f, uy = uy * 2.f - 1.f;
-                                        if (ux * ux + uy * uy < 1.f)
-                                            return 1;
-                                    } else
+                                if (path.ref->circles[i]) {
+                                    ux = ux * 2.f - 1.f, uy = uy * 2.f - 1.f;
+                                    if (ux * ux + uy * uy < 1.f)
                                         return 1;
-                                }
+                                } else if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f)
+                                    return 1;
                             }
                         }
                     }
