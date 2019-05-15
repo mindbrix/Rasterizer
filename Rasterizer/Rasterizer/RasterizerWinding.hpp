@@ -39,19 +39,14 @@ struct RasterizerWinding {
                             Rasterizer::writePath(path, ctm, clip, countWinding, Rasterizer::Info((void *)& info));
                         else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
-                                unit = ctm.concat(path.ref->shapes[i]);
-                                inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+                                inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                                 if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                                     if (path.ref->circles[i]) {
                                         ux = ux * 2.f - 1.f, uy = uy * 2.f - 1.f;
-                                        if (ux * ux + uy * uy < 1.f) {
-                                            info.winding = 1;
-                                            break;
-                                        }
-                                    } else {
-                                        info.winding = 1;
-                                        break;
-                                    }
+                                        if (ux * ux + uy * uy < 1.f)
+                                            return 1;
+                                    } else
+                                        return 1;
                                 }
                             }
                         }
