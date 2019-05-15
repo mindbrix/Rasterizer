@@ -170,10 +170,8 @@ struct RasterizerCG {
     
     static NSURL *fontURL(NSString *fontName) {
         CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
-        CFURLRef url = (CFURLRef)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
+        NSURL *URL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
         CFRelease(fontRef);
-        NSURL *URL = (__bridge NSURL *)url;
-        CFRelease(url);
         return URL;
     }
     static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Rasterizer::Scene& scene) {
