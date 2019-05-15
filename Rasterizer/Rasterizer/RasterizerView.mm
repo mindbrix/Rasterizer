@@ -182,7 +182,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         }
     }
     [self updateState:state forTime:time withScenes:list];
-    state.index = !state.mouseMove ? INT_MAX : RasterizerWinding::pathIndexForPoint(_list, false, state.view, state.bounds, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
+    state.index = !state.mouseMove ? INT_MAX : RasterizerWinding::pathIndexForPoint(_list, false, state.view, state.bounds, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y).end;
     if (redraw)
         [self.layer setNeedsDisplay];
     state.events.resize(0);
