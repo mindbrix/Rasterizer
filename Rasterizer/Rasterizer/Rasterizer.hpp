@@ -190,6 +190,13 @@ struct Rasterizer {
             scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
             return *scenes.back().ref;
         }
+        size_t writeVisibles(Transform view, Bounds bounds, SceneList& visibles) {
+            size_t pathsCount = 0;
+            for (int i = 0; i < scenes.size(); i++)
+                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), clips[i], bounds))
+                    pathsCount += scenes[i].ref->paths.size(), visibles.scenes.emplace_back(scenes[i]), visibles.ctms.emplace_back(ctms[i]), visibles.clips.emplace_back(clips[i]);
+            return pathsCount;
+        }
         void setClip(Transform clip) {
             for (int i = 0; i < scenes.size(); i++)
                 clips[i] = clip;

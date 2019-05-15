@@ -253,10 +253,7 @@ struct RasterizerCG {
     static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
-        size_t pathsCount = 0;
-        for (int i = 0; i < list.scenes.size(); i++)
-            if (Rasterizer::isVisible(list.scenes[i].ref->bounds, view.concat(list.ctms[i]), list.clips[i], bounds))
-                pathsCount += list.scenes[i].ref->paths.size(), visibles.scenes.emplace_back(list.scenes[i]), visibles.ctms.emplace_back(list.ctms[i]), visibles.clips.emplace_back(list.clips[i]);
+        size_t pathsCount = list.writeVisibles(view, bounds, visibles);
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
