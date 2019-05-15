@@ -27,15 +27,35 @@ struct RasterizerWinding {
     };
     static int pointWinding(Rasterizer::Path& path, Rasterizer::Transform ctm, Rasterizer::Transform inv, Rasterizer::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
-        if (path.ref->atomsCount > 2) {
+        if (path.ref->atomsCount > 2 || path.ref->shapesCount != 0) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                 Rasterizer::Transform unit = path.ref->bounds.unit(ctm);
                 Rasterizer::Bounds clip = Rasterizer::Bounds(unit).intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-                    if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f)
-                        Rasterizer::writePath(path, ctm, clip, countWinding, Rasterizer::Info((void *)& info));
+                    if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
+                        if (path.ref->atomsCount)
+                            Rasterizer::writePath(path, ctm, clip, countWinding, Rasterizer::Info((void *)& info));
+                        else {
+                            for (int i = 0; i < path.ref->shapesCount; i++) {
+                                unit = ctm.concat(path.ref->shapes[i]);
+                                inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+                                if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
+                                    if (path.ref->circles[i]) {
+                                        ux = ux * 2.f - 1.f, uy = uy * 2.f - 1.f;
+                                        if (ux * ux + uy * uy < 1.f) {
+                                            info.winding = 1;
+                                            break;
+                                        }
+                                    } else {
+                                        info.winding = 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
