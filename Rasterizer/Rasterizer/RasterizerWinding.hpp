@@ -10,13 +10,13 @@
 struct RasterizerWinding {
     static Rasterizer::Range indicesForPoint(Rasterizer::SceneList& list, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
         if (dx >= bounds.lx && dx < bounds.ux && dy >= bounds.ly && dy < bounds.uy)
-            for (int j = int(list.scenes.size()) - 1; j >= 0; j--) {
-                Rasterizer::Transform inv = list.clips[j].invert(), ctm = view.concat(list.ctms[j]);
-                Rasterizer::Scene& scene = *list.scenes[j].ref;
-                for (int i = int(scene.paths.size()) - 1; i >= 0; i--) {
-                    int winding = pointWinding(scene.paths[i], ctm.concat(scene.ctms[i]), inv, bounds, dx, dy);
+            for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
+                Rasterizer::Transform inv = list.clips[li].invert(), ctm = view.concat(list.ctms[li]);
+                Rasterizer::Scene& scene = *list.scenes[li].ref;
+                for (int si = int(scene.paths.size()) - 1; si >= 0; si--) {
+                    int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy);
                     if ((even && (winding & 1)) || winding)
-                        return Rasterizer::Range(j, i);
+                        return Rasterizer::Range(li, si);
                 }
             }
         return Rasterizer::Range(INT_MAX, INT_MAX);
