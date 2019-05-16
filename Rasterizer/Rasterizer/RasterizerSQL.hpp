@@ -20,7 +20,7 @@ struct RasterizerSQL {
             sqlite3_close(db);
             db = nullptr;
         }
-        void writeQuery(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *sql, Rasterizer::Scene& scene) {
+        Rasterizer::Bounds writeQuery(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *sql, Rasterizer::Scene& scene) {
             sqlite3_stmt *pStmt;
             const char *zTail;
             int status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
@@ -44,8 +44,10 @@ struct RasterizerSQL {
                         }
                     }
                 } while (status == SQLITE_ROW);
+                return Rasterizer::Bounds(frame.lx, bounds.uy - lineHeight, bounds.ux, frame.uy);
             }
             sqlite3_finalize(pStmt);
+            return Rasterizer::Bounds(0.f, 0.f, 0.f, 0.f);
         }
         sqlite3 *db = nullptr;
     };
