@@ -39,21 +39,19 @@ struct RasterizerSQL {
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
-                Rasterizer::Bounds bounds = frame;
                 float s = size / float(font.unitsPerEm), space = font.space * s * columnSpaces, lineHeight = (font.ascent - font.descent + font.lineGap) * s;
-                int columns = sqlite3_column_count(pStmt);
+                int columns = sqlite3_column_count(pStmt), rows = 1;
                 for (int i = 0; i < columns; i++) {
-                    bounds.lx = frame.lx + i * space, bounds.ux = bounds.lx + space;
+                    Rasterizer::Bounds bounds = { frame.lx + i * space, frame.ly, frame.lx + (i + 1) * space, frame.uy };
                     RasterizerTrueType::writeGlyphs(font, size, red, bounds, false, true, sqlite3_column_name(pStmt, i), scene);
                 }
-                for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt)) {
-                    bounds.uy -= lineHeight;
+                for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), rows++) {
                     for (int i = 0; i < columns; i++) {
-                        bounds.lx = frame.lx + i * space, bounds.ux = bounds.lx + space;
+                        Rasterizer::Bounds bounds = { frame.lx + i * space, frame.ly, frame.lx + (i + 1) * space, frame.uy - rows * lineHeight };
                         RasterizerTrueType::writeGlyphs(font, size, black, bounds, false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
                     }
                 }
-                return Rasterizer::Bounds(frame.lx, bounds.uy - lineHeight, bounds.ux, frame.uy);
+                return Rasterizer::Bounds(frame.lx, frame.uy - rows * lineHeight, frame.lx + columns * space, frame.uy);
             }
             sqlite3_finalize(pStmt);
             return Rasterizer::Bounds(0.f, 0.f, 0.f, 0.f);
