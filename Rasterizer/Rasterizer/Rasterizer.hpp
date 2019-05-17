@@ -182,9 +182,9 @@ struct Rasterizer {
         Bounds bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
     };
     struct SceneList {
-        Scene& firstScene() {
+        SceneList& empty() {
             scenes.resize(0), ctms.resize(0), clips.resize(0);
-            return addScene();
+            return *this;
         }
         Scene& addScene() {
             scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());

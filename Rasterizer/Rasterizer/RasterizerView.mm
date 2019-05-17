@@ -56,7 +56,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     self.transform = [VGAffineTransform new];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _list.firstScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _list.empty().addScene());
 	return self;
 }
 
@@ -100,10 +100,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
             RasterizerSQL::DB db;
             db.open(_dbURL.path.UTF8String);
-            db.writeTable(font, self.font.pointSize, 20, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.firstScene());
+            db.writeTable(font, self.font.pointSize, 20, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.empty().addScene());
         }
     } else
-        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.firstScene());
+        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());
     [self.layer setNeedsDisplay];
 }
 
@@ -263,7 +263,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.firstScene());
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());
 	[self.layer setNeedsDisplay];
 }
 
@@ -322,7 +322,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)setSvgData:(NSData *)svgData {
     _svgData = svgData;
     if (_svgData) {
-        Rasterizer::Scene& scene = _list.firstScene();
+        Rasterizer::Scene& scene = _list.empty().addScene();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
         RasterizerTest::addTestPaths(_list.addScene());
     }
