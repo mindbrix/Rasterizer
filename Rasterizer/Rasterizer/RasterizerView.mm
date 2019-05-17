@@ -100,7 +100,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
             RasterizerSQL::DB db;
             db.open(_dbURL.path.UTF8String);
-            db.writeQuery(font, self.font.pointSize, 20, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.firstScene());
+            db.writeTable(font, self.font.pointSize, 20, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.firstScene());
         }
     } else
         RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.firstScene());
