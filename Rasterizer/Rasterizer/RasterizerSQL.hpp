@@ -20,7 +20,10 @@ struct RasterizerSQL {
             sqlite3_close(db);
             db = nullptr;
         }
-        Rasterizer::Bounds writeQuery(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *sql, Rasterizer::Scene& scene) {
+        Rasterizer::Bounds writeQuery(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *table, Rasterizer::Scene& scene) {
+            const char *select = "SELECT * FROM ";
+            char sql[strlen(select) + strlen(table) + 1];
+            sql[0] = 0, strcat(sql, select), strcat(sql, table);
             sqlite3_stmt *pStmt;
             int status = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL);
             if (status == SQLITE_OK) {
