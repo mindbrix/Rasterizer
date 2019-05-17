@@ -45,12 +45,11 @@ struct RasterizerSQL {
                     Rasterizer::Bounds bounds = { frame.lx + i * columnWidth, frame.ly, frame.lx + (i + 1) * columnWidth, frame.uy };
                     RasterizerTrueType::writeGlyphs(font, size, red, bounds, false, true, sqlite3_column_name(pStmt, i), scene);
                 }
-                for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), rows++) {
+                for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), rows++)
                     for (int i = 0; i < columns; i++) {
                         Rasterizer::Bounds bounds = { frame.lx + i * columnWidth, frame.ly, frame.lx + (i + 1) * columnWidth, frame.uy - rows * lineHeight };
                         RasterizerTrueType::writeGlyphs(font, size, black, bounds, false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
                     }
-                }
                 return Rasterizer::Bounds(frame.lx, frame.uy - rows * lineHeight, frame.lx + columns * columnWidth, frame.uy);
             }
             sqlite3_finalize(pStmt);
