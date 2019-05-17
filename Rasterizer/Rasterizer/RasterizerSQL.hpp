@@ -22,8 +22,7 @@ struct RasterizerSQL {
         }
         Rasterizer::Bounds writeQuery(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *sql, Rasterizer::Scene& scene) {
             sqlite3_stmt *pStmt;
-            const char *zTail;
-            int status = sqlite3_prepare(db, sql, (int)strlen(sql), & pStmt, & zTail);
+            int status = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL);
             if (status == SQLITE_OK) {
                 Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
                 Rasterizer::Bounds glyphs, bounds = frame;
