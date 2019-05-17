@@ -20,7 +20,20 @@ struct RasterizerSQL {
             sqlite3_close(db);
             db = nullptr;
         }
+        int rowCount(const char *table) {
+            int count = INT_MAX;
+            const char *select = "SELECT COUNT(*) FROM ";
+            char sql[strlen(select) + strlen(table) + 1];
+            sql[0] = 0, strcat(sql, select), strcat(sql, table);
+            sqlite3_stmt *pStmt;
+            int status = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL);
+            if (status == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
+                count = sqlite3_column_int(pStmt, 0);
+            sqlite3_finalize(pStmt);
+            return count;
+        }
         Rasterizer::Bounds writeQuery(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *table, Rasterizer::Scene& scene) {
+            int count = rowCount(table);
             const char *select = "SELECT * FROM ";
             char sql[strlen(select) + strlen(table) + 1];
             sql[0] = 0, strcat(sql, select), strcat(sql, table);
