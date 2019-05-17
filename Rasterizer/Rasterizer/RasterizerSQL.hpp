@@ -26,8 +26,7 @@ struct RasterizerSQL {
             char sql[strlen(select) + strlen(table) + 1];
             sql[0] = 0, strcat(sql, select), strcat(sql, table);
             sqlite3_stmt *pStmt;
-            int status = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL);
-            if (status == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
+            if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
                 count = sqlite3_column_int(pStmt, 0);
             sqlite3_finalize(pStmt);
             return count;
