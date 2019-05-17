@@ -31,7 +31,8 @@ struct RasterizerSQL {
             sqlite3_finalize(pStmt);
             return count;
         }
-        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *table, Rasterizer::Scene& scene) {
+        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
+            Rasterizer::Scene& scene = list.addScene();
             int count = rowCount(table);
             const char *select = "SELECT * FROM ";
             char sql[strlen(select) + strlen(table) + 1];
