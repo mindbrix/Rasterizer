@@ -19,7 +19,7 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
                 Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
-                if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), clip, bounds)) {
+                if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), bounds)) {
                     CGContextSaveGState(ctx);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
@@ -210,7 +210,7 @@ struct RasterizerCG {
                 for (i = 0; i < divisions; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
                 dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(list, ctms, false, colors, width, izs[idx], izs[idx + 1]);
+                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, izs[idx], izs[idx + 1]);
                 });
                 count = divisions;
             } else {
@@ -221,7 +221,7 @@ struct RasterizerCG {
                     count++;
                 }
                 dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(list, ctms, false, colors, width, 0, eiz);
+                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
                 });
             }
         } else {
@@ -230,12 +230,12 @@ struct RasterizerCG {
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
                 contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(list, ctms, false, colors, width, 0, eiz);
+            contexts[0].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
         }
         if (buffer) {
             std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, list.clips[0], eiz, begins, *buffer);
+            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, clips, eiz, begins, *buffer);
             if (count == 1)
                 Rasterizer::writeContextToBuffer(contexts, list, ctms, colors, b[0], 0, e[0], *buffer);
             else {

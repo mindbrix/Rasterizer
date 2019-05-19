@@ -11,7 +11,7 @@ struct RasterizerWinding {
     static Rasterizer::Range indicesForPoint(Rasterizer::SceneList& list, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
         if (dx >= bounds.lx && dx < bounds.ux && dy >= bounds.ly && dy < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
-                Rasterizer::Transform inv = list.clips[li].invert(), ctm = view.concat(list.ctms[li]);
+                Rasterizer::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 Rasterizer::Scene& scene = *list.scenes[li].ref;
                 for (int si = int(scene.paths.size()) - 1; si >= 0; si--) {
                     int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy);

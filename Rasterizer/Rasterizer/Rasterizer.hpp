@@ -193,7 +193,7 @@ struct Rasterizer {
         size_t writeVisibles(Transform view, Bounds bounds, SceneList& visibles) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
-                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), clips[i], bounds))
+                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), bounds))
                     pathsCount += scenes[i].ref->paths.size(), visibles.scenes.emplace_back(scenes[i]), visibles.ctms.emplace_back(ctms[i]), visibles.clips.emplace_back(clips[i]);
             return pathsCount;
         }
@@ -536,11 +536,11 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
+        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t iz, size_t end) {
             for (size_t count = 0, base = 0, i = 0, liz, eiz; i < list.scenes.size(); base = count, i++) {
                 count += list.scenes[i].ref->paths.size();
                 if ((liz = base < iz ? iz : base > end ? end : base) != (eiz = count < iz ? iz : count > end ? end : count))
-                    drawPaths(& list.scenes[i].ref->paths[0] + liz - base, ctms + liz, even, colors + liz, list.clips[i], width, liz, eiz);
+                    drawPaths(& list.scenes[i].ref->paths[0] + liz - base, ctms + liz, even, colors + liz, clips[liz], width, liz, eiz);
             }
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t eiz) {
@@ -1055,7 +1055,7 @@ struct Rasterizer {
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Transform *ctms,
                                         Colorant *colorants,
-                                        Transform clip,
+                                        Transform *clips,
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
@@ -1076,7 +1076,7 @@ struct Rasterizer {
         
         Buffer::Entry *entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, 0);
         entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms, 0);
-        entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), & clip, sizeof(Transform));
+        entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), clips, 0);
     
         for (begin = end = entry->end, i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
