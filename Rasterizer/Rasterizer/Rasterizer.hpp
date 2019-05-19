@@ -537,12 +537,9 @@ struct Rasterizer {
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
         void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, float width, size_t iz, size_t end) {
-            size_t count, base, i, liz, eiz;
-            for (base = count = i = 0; i < list.scenes.size(); base = count, i++) {
+            for (size_t count = 0, base = 0, i = 0, liz, eiz; i < list.scenes.size(); base = count, i++) {
                 count += list.scenes[i].ref->paths.size();
-                liz = base < iz ? iz : base > end ? end : base;
-                eiz = count < iz ? iz : count > end ? end : count;
-                if (liz != eiz)
+                if ((liz = base < iz ? iz : base > end ? end : base) != (eiz = count < iz ? iz : count > end ? end : count))
                     drawPaths(& list.scenes[i].ref->paths[0] + liz - base, ctms + liz, even, colors + liz, list.clips[i], width, liz, eiz);
             }
         }
