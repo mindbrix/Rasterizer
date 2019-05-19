@@ -33,7 +33,7 @@ struct RasterizerSQL {
         }
         Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
             int count = rowCount(table);
-            const char *select = "SELECT * FROM ", *limit = " LIMIT 1";
+            const char *select = "SELECT * FROM ", *limit = " LIMIT 1000000";
             char sql[strlen(select) + strlen(table) + 1];
             sql[0] = 0, strcat(sql, select), strcat(sql, table), strcat(sql, limit);
             sqlite3_stmt *pStmt;
