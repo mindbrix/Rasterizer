@@ -29,7 +29,7 @@ struct RasterizerSQL {
             free(sql);
             return count;
         }
-        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
+        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
             Rasterizer::Bounds bnds(0.f, 0.f, 0.f, 0.f);
             int count = rowCount(table);
             char *sql;
