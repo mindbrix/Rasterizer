@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 29/04/2019.
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
-
+#import <stdio.h>
 #import "Rasterizer.hpp"
 #import "RasterizerTrueType.hpp"
 #import <sqlite3.h>
@@ -31,11 +31,11 @@ struct RasterizerSQL {
             sqlite3_finalize(pStmt);
             return count;
         }
-        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
+        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
+            Rasterizer::Bounds bnds(0.f, 0.f, 0.f, 0.f);
             int count = rowCount(table);
-            const char *select = "SELECT * FROM ", *limit = " LIMIT 1000000";
-            char sql[strlen(select) + strlen(table) + 1];
-            sql[0] = 0, strcat(sql, select), strcat(sql, table), strcat(sql, limit);
+            char *sql;
+            asprintf(& sql, "SELECT * FROM %s LIMIT %d", table, rowSize);
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
@@ -52,10 +52,11 @@ struct RasterizerSQL {
                         Rasterizer::Bounds bounds = { frame.lx + i * columnWidth, frame.ly, frame.lx + (i + 1) * columnWidth, frame.uy - rows * lineHeight };
                         RasterizerTrueType::writeGlyphs(font, size, black, bounds, false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
                     }
-                return Rasterizer::Bounds(frame.lx, frame.uy - rows * lineHeight, frame.lx + columns * columnWidth, frame.uy);
+                bnds = { frame.lx, frame.uy - rows * lineHeight, frame.lx + columns * columnWidth, frame.uy };
             }
             sqlite3_finalize(pStmt);
-            return Rasterizer::Bounds(0.f, 0.f, 0.f, 0.f);
+            free(sql);
+            return bnds;
         }
         sqlite3 *db = nullptr;
     };
