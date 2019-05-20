@@ -100,7 +100,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
             RasterizerSQL::DB db;
             db.open(_dbURL.path.UTF8String);
-            db.writeTable(font, self.font.pointSize, 20, 100000, 1.f, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.empty());
+            db.writeTable(font, self.font.pointSize, 20, 12, 1.f, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.empty());
         }
     } else
         RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());
@@ -207,7 +207,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 - (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
     state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
-    list.setClip(state.useClip ? Rasterizer::Transform(100, 0, 0, 100, 100, 100) : Rasterizer::Transform::nullclip());
+    //list.setClip(state.useClip ? Rasterizer::Transform(100, 0, 0, 100, 100, 100) : Rasterizer::Transform::nullclip());
 }
 
 #pragma mark - NSResponder
