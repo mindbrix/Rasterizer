@@ -31,7 +31,7 @@ struct RasterizerSQL {
         }
         Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
             int count = rowCount(table), columns = 0, rows = 0;
-            float s = size / float(font.unitsPerEm), columnWidth = font.space * s * columnSpaces, lineHeight = (font.ascent - font.descent + font.lineGap) * s;
+            float s = size / float(font.unitsPerEm), w = font.space * s * columnSpaces, h = (font.ascent - font.descent + font.lineGap) * s;
             Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
             char *sql;
             asprintf(& sql, "SELECT * FROM %s LIMIT %d", table, rowSize);
@@ -39,22 +39,20 @@ struct RasterizerSQL {
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
                 columns = sqlite3_column_count(pStmt), rows = 1;
-                for (int i = 0; i < columns; i++) {
-                    Rasterizer::Bounds bounds = { frame.lx + i * columnWidth, frame.ly, frame.lx + (i + 1) * columnWidth, frame.uy };
-                    RasterizerTrueType::writeGlyphs(font, size, red, bounds, false, true, sqlite3_column_name(pStmt, i), header);
-                }
+                for (int i = 0; i < columns; i++)
+                    RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, sqlite3_column_name(pStmt, i), header);
+                list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
+                
                 for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), rows++) {
                     Rasterizer::Scene& scene = list.addScene();
-                    for (int i = 0; i < columns; i++) {
-                        Rasterizer::Bounds bounds = { i * columnWidth, -FLT_MAX, (i + 1) * columnWidth, 0.f };
-                        RasterizerTrueType::writeGlyphs(font, size, black, bounds, false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
-                    }
-                    list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - rows * lineHeight;
+                    for (int i = 0; i < columns; i++)
+                        RasterizerTrueType::writeGlyphs(font, size, black, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
+                    list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - rows * h;
                 }
             }
             sqlite3_finalize(pStmt);
             free(sql);
-            return { frame.lx, frame.uy - rows * lineHeight, frame.lx + columns * columnWidth, frame.uy };
+            return { frame.lx, frame.uy - rows * h, frame.lx + columns * w, frame.uy };
         }
         sqlite3 *db = nullptr;
     };
