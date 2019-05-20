@@ -21,14 +21,12 @@ struct RasterizerSQL {
             db = nullptr;
         }
         int rowCount(const char *table) {
-            int count = INT_MAX;
-            const char *select = "SELECT COUNT(*) FROM ";
-            char sql[strlen(select) + strlen(table) + 1];
-            sql[0] = 0, strcat(sql, select), strcat(sql, table);
+            char *sql;
+            asprintf(& sql, "SELECT COUNT(*) FROM %s", table);
             sqlite3_stmt *pStmt;
-            if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
-                count = sqlite3_column_int(pStmt, 0);
+            int count = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW ? sqlite3_column_int(pStmt, 0) : INT_MAX;
             sqlite3_finalize(pStmt);
+            free(sql);
             return count;
         }
         Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
