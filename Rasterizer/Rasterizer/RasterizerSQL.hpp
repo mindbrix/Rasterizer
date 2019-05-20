@@ -31,7 +31,7 @@ struct RasterizerSQL {
         }
         Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
             int count = rowCount(table), columns = 0, rows = 0;
-            float s = size / float(font.unitsPerEm), w = font.space * s * columnSpaces, h = (font.ascent - font.descent + font.lineGap) * s;
+            float s = size / float(font.unitsPerEm), w = s * font.space * columnSpaces, h = s * (font.ascent - font.descent + font.lineGap);
             Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
             char *sql;
             asprintf(& sql, "SELECT * FROM %s LIMIT %d", table, rowSize * 2);
