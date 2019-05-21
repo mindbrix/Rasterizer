@@ -95,12 +95,13 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
     if ([_dbURL isFileURL]) {
+        RasterizerSQL::View view(20, 12, "tbl1");
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
             RasterizerSQL::DB db;
             db.open(_dbURL.path.UTF8String);
-            db.writeTable(font, self.font.pointSize, 20, 12, 1.f, RasterizerCG::boundsFromCGRect(self.bounds), "tbl1", _list.empty());
+            view.bounds = db.writeTable(font, self.font.pointSize, view.columnSpaces, view.rowSize, view.t, RasterizerCG::boundsFromCGRect(self.bounds), view._table.base, _list.empty());
         }
     } else
         RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());

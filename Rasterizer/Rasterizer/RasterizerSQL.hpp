@@ -58,4 +58,11 @@ struct RasterizerSQL {
         }
         sqlite3 *db = nullptr;
     };
+    struct View {
+        View(int columnSpaces, int rowSize, const char *table) : columnSpaces(columnSpaces), rowSize(rowSize), t(1.f), bounds(0.f, 0.f, 0.f, 0.f) { strcpy(_table.alloc(strlen(table) + 1), table); }
+        int columnSpaces, rowSize;
+        float t;
+        Rasterizer::Bounds bounds;
+        Rasterizer::Row<char> _table;
+    };
 };
