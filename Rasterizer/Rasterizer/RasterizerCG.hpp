@@ -168,6 +168,20 @@ struct RasterizerCG {
         BGRAColorConverter converter;
     };
     
+    static void writeFontsTable() {
+        NSArray *urls = (__bridge_transfer NSArray *)CTFontManagerCopyAvailableFontURLs();
+        for (NSURL *URL in urls) {
+            NSArray *descriptors = (__bridge_transfer NSArray *)CTFontManagerCreateFontDescriptorsFromURL((__bridge CFURLRef)URL);
+            for (int i = 0; i < descriptors.count; i++) {
+                CTFontDescriptorRef fontRef = (__bridge CTFontDescriptorRef)descriptors[i];
+                NSURL *fontURL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
+                NSString *fontName = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontNameAttribute);
+                NSString *displayName = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontDisplayNameAttribute);
+                NSString *fontFamily = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontFamilyNameAttribute);
+                fontURL = fontURL;
+            }
+        }
+    }
     static NSURL *fontURL(NSString *fontName) {
         CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
         NSURL *URL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
