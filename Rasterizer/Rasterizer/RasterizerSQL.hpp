@@ -13,12 +13,31 @@
 struct RasterizerSQL {
     struct DB {
         ~DB() { close(); }
-        void open(const char *filename) {
-            sqlite3_open(filename, & db);
+        int open(const char *filename) {
+            return sqlite3_open(filename, & db);
         }
         void close() {
             sqlite3_close(db);
             db = nullptr;
+        }
+        int beginTransaction() { return sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL); }
+        int endTransaction() { return sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL); }
+        
+        int createFontsTable() {
+            return sqlite3_exec(db, "DROP TABLE Fonts; CREATE TABLE Fonts(name text, url text, display text, family text, style text);", NULL, NULL, NULL);
+        }
+        void insertValues(const char *table, int count, char **values) {
+            int status;
+            char *sql;
+            asprintf(& sql, "INSERT INTO %s VALUES (@name, @url, @display, @family, @style)", table);
+            sqlite3_stmt *pStmt;
+            if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
+                for (int i = 0; i < count; i++)
+                    status = sqlite3_bind_text(pStmt, i + 1, values[i], -1, SQLITE_STATIC);
+                status = sqlite3_step(pStmt);
+            }
+            sqlite3_finalize(pStmt);
+            free(sql);
         }
         int rowCount(const char *table) {
             char *sql;
