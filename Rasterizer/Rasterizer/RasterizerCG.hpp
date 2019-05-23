@@ -6,6 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 #import "RasterizerEvent.hpp"
+#import "RasterizerSQL.hpp"
 #import "RasterizerWinding.hpp"
 #import "RasterizerTrueType.hpp"
 #import <Accelerate/Accelerate.h>
@@ -168,20 +169,28 @@ struct RasterizerCG {
         BGRAColorConverter converter;
     };
     
-    static void writeFontsTable() {
-        NSArray *urls = (__bridge_transfer NSArray *)CTFontManagerCopyAvailableFontURLs();
-        for (NSURL *URL in urls) {
-            NSArray *descriptors = (__bridge_transfer NSArray *)CTFontManagerCreateFontDescriptorsFromURL((__bridge CFURLRef)URL);
-            for (int i = 0; i < descriptors.count; i++) {
-                CTFontDescriptorRef fontRef = (__bridge CTFontDescriptorRef)descriptors[i];
+    static void writeFontsTable(RasterizerSQL::DB& db) {
+        int status;
+        db.createFontsTable();
+        status = db.beginTransaction();
+        
+        NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();
+        const char *values[5];
+        for (NSString *fontName in names) {
+            if (![fontName hasPrefix:@"."]) {
+                CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
                 NSURL *fontURL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
-                NSString *fontName = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontNameAttribute);
                 NSString *displayName = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontDisplayNameAttribute);
                 NSString *fontFamily = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontFamilyNameAttribute);
-                fontURL = fontURL;
+                NSString *fontStyle = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontStyleNameAttribute);
+                CFRelease(fontRef);
+                values[0] = fontName.UTF8String, values[1] = fontURL.absoluteString.UTF8String, values[2] = displayName.UTF8String, values[3] = fontFamily.UTF8String, values[4] = fontStyle.UTF8String;
+                db.insertValues("Fonts", 5, (char **)values);
             }
         }
+        status = db.endTransaction();
     }
+    
     static NSURL *fontURL(NSString *fontName) {
         CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
         NSURL *URL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
