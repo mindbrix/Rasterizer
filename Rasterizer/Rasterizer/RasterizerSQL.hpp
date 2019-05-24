@@ -12,7 +12,7 @@
 
 struct RasterizerSQL {
     struct DB {
-        static constexpr const char *kCreateFontsTable = "DROP TABLE Fonts; CREATE TABLE Fonts(name text, url text, display text, family text, style text);";
+        static constexpr const char *kCreateFontsTable = "DROP TABLE Fonts; CREATE TABLE Fonts(family varchar(64), style varchar(32), name varchar(64), url text);";
         static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
         const int kColumnSpaces = 8, kColumnCount = 5, kRowSize = 12;
         
@@ -31,7 +31,7 @@ struct RasterizerSQL {
         void insertValues(const char *table, int count, char **values) {
             int status;
             char *sql;
-            asprintf(& sql, "INSERT INTO %s VALUES (@name, @url, @display, @family, @style)", table);
+            asprintf(& sql, "INSERT INTO %s VALUES (@name, @url, @family, @style)", table);
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 for (int i = 0; i < count; i++)

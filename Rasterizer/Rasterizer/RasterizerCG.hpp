@@ -180,12 +180,11 @@ struct RasterizerCG {
             if (![fontName hasPrefix:@"."]) {
                 CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
                 NSURL *fontURL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
-                NSString *displayName = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontDisplayNameAttribute);
                 NSString *fontFamily = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontFamilyNameAttribute);
                 NSString *fontStyle = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontStyleNameAttribute);
                 CFRelease(fontRef);
-                values[0] = fontName.UTF8String, values[1] = fontURL.absoluteString.UTF8String, values[2] = displayName.UTF8String, values[3] = fontFamily.UTF8String, values[4] = fontStyle.UTF8String;
-                db.insertValues("Fonts", 5, (char **)values);
+                values[0] = fontFamily.UTF8String, values[1] = fontStyle.UTF8String, values[2] = fontName.UTF8String, values[3] = fontURL.absoluteString.UTF8String;
+                db.insertValues("Fonts", 4, (char **)values);
             }
         }
         status = db.endTransaction();
