@@ -13,7 +13,8 @@
 struct RasterizerSQL {
     struct DB {
         static constexpr const char *kCreateFontsTable = "DROP TABLE Fonts; CREATE TABLE Fonts(name text, url text, display text, family text, style text);";
-        static constexpr const char *kCreateViewsTable = "CREATE TABLE Views(Fonts_name varchar(64), tbl varchar(32), idx smallint); INSERT INTO Views (Fonts_name, tbl, idx) SELECT 'Helvetica', name, 0 FROM sqlite_master;";
+        static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
+        const int kColumnSpaces = 8, kColumnCount = 5, kRowSize = 12;
         
         ~DB() { close(); }
         int open(const char *filename) {
@@ -49,9 +50,21 @@ struct RasterizerSQL {
             free(sql);
             return count;
         }
+        Rasterizer::Bounds writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
+            float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), w = h * kColumnSpaces * kColumnCount;
+            sqlite3_stmt *pStmt;
+            if (sqlite3_prepare_v2(db, kSelectTables, -1, & pStmt, NULL) == SQLITE_OK) {
+                for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
+                    Rasterizer::Bounds bounds = { frame.lx + i * w, -FLT_MAX, frame.lx + (i + 1) * w, frame.uy };
+                    writeTable(font, size, kColumnSpaces, kRowSize, 1.f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
+                }
+            }
+            sqlite3_finalize(pStmt);
+            return frame;
+        }
         Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, int columnSpaces, int rowSize, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
             Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
-            float s = size / float(font.unitsPerEm), w = s * font.space * columnSpaces, h = s * (font.ascent - font.descent + font.lineGap), my = 0.5f * rowSize * h;
+            float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), w = h * columnSpaces, my = 0.5f * rowSize * h;
             int columns = 0, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rowSize) * 2, lower = n - range / 2, upper = n + range / 2;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             char *sql;
@@ -77,12 +90,5 @@ struct RasterizerSQL {
             return { frame.lx, frame.uy - (rowSize + 1) * h, frame.lx + columns * w, frame.uy };
         }
         sqlite3 *db = nullptr;
-    };
-    struct View {
-        View(int columnSpaces, int rowSize, const char *table) : columnSpaces(columnSpaces), rowSize(rowSize), t(1.f), bounds(0.f, 0.f, 0.f, 0.f) { strcpy(_table.alloc(strlen(table) + 1), table); }
-        int columnSpaces, rowSize;
-        float t;
-        Rasterizer::Bounds bounds;
-        Rasterizer::Row<char> _table;
     };
 };
