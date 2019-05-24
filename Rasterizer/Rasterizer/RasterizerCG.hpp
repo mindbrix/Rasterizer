@@ -171,7 +171,7 @@ struct RasterizerCG {
     
     static void writeFontsTable(RasterizerSQL::DB& db) {
         int status;
-        db.createFontsTable();
+        db.exec(RasterizerSQL::DB::kCreateFontsTable);
         status = db.beginTransaction();
         
         NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();

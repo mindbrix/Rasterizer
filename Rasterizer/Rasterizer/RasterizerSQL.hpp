@@ -12,6 +12,8 @@
 
 struct RasterizerSQL {
     struct DB {
+        static constexpr const char *kCreateFontsTable = "DROP TABLE Fonts; CREATE TABLE Fonts(name text, url text, display text, family text, style text);";
+        
         ~DB() { close(); }
         int open(const char *filename) {
             return sqlite3_open(filename, & db);
@@ -22,10 +24,8 @@ struct RasterizerSQL {
         }
         int beginTransaction() { return sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL); }
         int endTransaction() { return sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL); }
+        int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
         
-        int createFontsTable() {
-            return sqlite3_exec(db, "DROP TABLE Fonts; CREATE TABLE Fonts(name text, url text, display text, family text, style text);", NULL, NULL, NULL);
-        }
         void insertValues(const char *table, int count, char **values) {
             int status;
             char *sql;
