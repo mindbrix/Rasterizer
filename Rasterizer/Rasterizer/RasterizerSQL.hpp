@@ -13,7 +13,7 @@
 struct RasterizerSQL {
     struct DB {
         static constexpr const char *kCreateFontsTable = "DROP TABLE Fonts; CREATE TABLE Fonts(name text, url text, display text, family text, style text);";
-        static constexpr const char *kCreateViewsTable = "CREATE TABLE Views(Fonts_name text, table text, order smallint);";
+        static constexpr const char *kCreateViewsTable = "CREATE TABLE Views(Fonts_name varchar(64), table varchar(32), order smallint);";
         
         ~DB() { close(); }
         int open(const char *filename) {
