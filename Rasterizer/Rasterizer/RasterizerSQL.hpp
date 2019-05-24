@@ -14,7 +14,7 @@ struct RasterizerSQL {
     struct DB {
         static constexpr const char *kCreateFontsTable = "DROP TABLE Fonts; CREATE TABLE Fonts(family varchar(64), style varchar(32), name varchar(64), url text);";
         static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
-        const int kColumnSpaces = 8, kColumnCount = 5, kRowSize = 8;
+        const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
         
         ~DB() { close(); }
         int open(const char *filename) {
