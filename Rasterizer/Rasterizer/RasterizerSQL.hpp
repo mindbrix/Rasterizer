@@ -24,8 +24,8 @@ struct RasterizerSQL {
             sqlite3_close(db);
             db = nullptr;
         }
-        int beginTransaction() { return sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL); }
-        int endTransaction() { return sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL); }
+        int beginTransaction() { return exec("BEGIN TRANSACTION"); }
+        int endTransaction() { return exec("END TRANSACTION"); }
         int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
         
         void insert(const char *table, int count, char **values) {
