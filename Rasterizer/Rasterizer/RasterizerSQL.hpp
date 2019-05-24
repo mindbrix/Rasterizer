@@ -29,14 +29,17 @@ struct RasterizerSQL {
         int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
         
         void insertValues(const char *table, int count, char **values) {
-            int status;
-            char *sql;
-            asprintf(& sql, "INSERT INTO %s VALUES (@name, @url, @family, @style)", table);
+            char *sql, val[count * 4 + 1], *v = val;
+            *v++ = '@', *v++ = '0';
+            for (int i = 1; i < count; i++)
+                *v++ = ',', *v++ = ' ', *v++ = '@', *v++ = '0' + i;
+            *v = 0;
+            asprintf(& sql, "INSERT INTO %s VALUES (%s)", table, val);
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 for (int i = 0; i < count; i++)
-                    status = sqlite3_bind_text(pStmt, i + 1, values[i], -1, SQLITE_STATIC);
-                status = sqlite3_step(pStmt);
+                    sqlite3_bind_text(pStmt, i + 1, values[i], -1, SQLITE_STATIC);
+                sqlite3_step(pStmt);
             }
             sqlite3_finalize(pStmt);
             free(sql);
