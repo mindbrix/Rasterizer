@@ -80,7 +80,7 @@ struct RasterizerTrueType {
     
     static Rasterizer::Bounds writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-        if (font.info.numGlyphs == 0 || font.space == 0)
+        if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ', tab = '\t';
