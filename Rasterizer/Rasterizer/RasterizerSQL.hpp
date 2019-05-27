@@ -12,13 +12,9 @@
 
 struct RasterizerSQL {
     struct DB {
-        static constexpr const char *kFontsTable = "fonts", *kFontFamilyTable = "fontFamily", *kFontStyleTable = "fontStyle";
+        static constexpr const char *kFontsTable = "fonts";
         static constexpr const char *kInsertSelect = "SELECT 'test', fontFamily.rowid, fontStyle.rowid FROM fontFamily, fontStyle WHERE family = 'Helvetica' AND style = 'Bold';";
-        static constexpr const char *kCreateFontsTable = "\
-        CREATE TABLE IF NOT EXISTS _fonts(name varchar(64), url text, fontFamily_rowid int, fontStyle_rowid int); \
-        CREATE TABLE IF NOT EXISTS fonts(family varchar(64), style varchar(32), name varchar(64), url text); \
-        CREATE TABLE IF NOT EXISTS fontFamily(family varchar(64) UNIQUE); \
-        CREATE TABLE IF NOT EXISTS fontStyle(style varchar(32) UNIQUE);";
+        static constexpr const char *kCreateFontsTable = "CREATE TABLE IF NOT EXISTS fonts(family varchar(64), style varchar(32), name varchar(64), url text); ";
         static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
         const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
         
@@ -34,6 +30,24 @@ struct RasterizerSQL {
         int endTransaction() { return exec("END TRANSACTION"); }
         int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
         
+        int beginImport(const char *table, const char **names, int count) {
+            size_t len = strlen(table);
+            for (int i = 0; i < count; i++)
+                len += strlen(names[i]);
+            char *sql, columns[len + count * 8], *c = columns;
+            *c = 0;
+            strcat(c, names[0]), strcat(c, " text");
+            for (int i = 1; i < count; i++)
+                strcat(c, ", "), strcat(c, names[i]), strcat(c, " text");
+            asprintf(& sql, "CREATE TABLE IF NOT EXISTS _%s(%s); DELETE * FROM _%s;", table, columns, table);
+            int status;
+            sqlite3_stmt *pStmt;
+            if ((status = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK))
+                status = sqlite3_step(pStmt);
+            sqlite3_finalize(pStmt);
+            free(sql);
+            return status;
+        }
         void insert(const char *table, int count, char **values) {
             char *sql, val[count * 4 + 1], *v = val;
             *v++ = '@', *v++ = '0';
