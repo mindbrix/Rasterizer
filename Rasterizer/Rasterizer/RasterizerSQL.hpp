@@ -72,20 +72,20 @@ struct RasterizerSQL {
                     asprintf(& str1, "%s, %s varchar(%d)", str0, names[i], lengths[i]), free(str0), str0 = str1;
                     asprintf(& tmp, "%s, _%s.%s", cols, table, names[i]), free(cols), cols = tmp;
                 }
-            asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s(%s); DELETE FROM %s;", table, str0, table);
+            asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s(id INTEGER PRIMARY KEY AUTOINCREMENT, %s); DELETE FROM %s;", table, str0, table);
             int status = exec(sql);
             free(sql), free(str0);
             
             for (int i = 0; i < count; i++)
                 if (names[i][0] == '_') {
-                    asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s%s(%s varchar(%d)); DELETE FROM %s%s;", table, names[i], & names[i][1], lengths[i], table, names[i]);
+                    asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s%s(id INTEGER PRIMARY KEY AUTOINCREMENT, %s varchar(%d)); DELETE FROM %s%s;", table, names[i], & names[i][1], lengths[i], table, names[i]);
                     status = exec(sql);
                     free(sql);
-                    asprintf(& sql, "INSERT INTO %s%s SELECT DISTINCT(%s) FROM _%s;", table, names[i], names[i], table);
+                    asprintf(& sql, "INSERT INTO %s%s SELECT DISTINCT NULL, %s FROM _%s;", table, names[i], names[i], table);
                     status = exec(sql);
                     free(sql);
                 }
-            asprintf(& sql, "INSERT INTO %s SELECT %s FROM %s WHERE %s; DROP TABLE _%s", table, cols, tabs, joins, table);
+            asprintf(& sql, "INSERT INTO %s SELECT NULL, %s FROM %s WHERE %s; DROP TABLE _%s", table, cols, tabs, joins, table);
             status = exec(sql);
             free(sql), free(cols), free(tabs), free(joins);
             return status;
