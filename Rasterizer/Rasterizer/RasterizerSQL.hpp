@@ -48,6 +48,7 @@ struct RasterizerSQL {
             asprintf(& sql, "SELECT %s FROM _%s", str0, table);
             int lengths[count];
             writeRowValues(sql, lengths);
+            free(sql), free(str0);
             return 0;
         }
         void insert(const char *table, int count, char **values) {
