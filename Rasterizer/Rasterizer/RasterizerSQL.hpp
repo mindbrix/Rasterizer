@@ -31,21 +31,13 @@ struct RasterizerSQL {
         int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
         
         int beginImport(const char *table, const char **names, int count) {
-            size_t len = strlen(table);
-            for (int i = 0; i < count; i++)
-                len += strlen(names[i]);
-            char *sql, columns[len + count * 8], *c = columns;
-            *c = 0;
-            strcat(c, names[0]), strcat(c, " text");
+            char *str0, *str1, *sql;
+            asprintf(& str0, "%s text", names[0]);
             for (int i = 1; i < count; i++)
-                strcat(c, ", "), strcat(c, names[i]), strcat(c, " text");
-            asprintf(& sql, "CREATE TABLE IF NOT EXISTS _%s(%s); DELETE * FROM _%s;", table, columns, table);
-            int status;
-            sqlite3_stmt *pStmt;
-            if ((status = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK))
-                status = sqlite3_step(pStmt);
-            sqlite3_finalize(pStmt);
-            free(sql);
+                asprintf(& str1, "%s, %s text", str0, names[i]), free(str0), str0 = str1;
+            asprintf(& sql, "CREATE TABLE IF NOT EXISTS _%s(%s); DELETE FROM _%s;", table, str0, table);
+            int status = exec(sql);
+            free(sql), free(str0);
             return status;
         }
         int endImport(const char *table, const char **names, int count) {
