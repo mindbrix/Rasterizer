@@ -50,12 +50,12 @@ struct RasterizerSQL {
             free(sql), free(str0);
             
             if (names[0][0] == '_')
-                asprintf(& str0, "%s int", & names[0][1]);
+                asprintf(& str0, "%s%s int", table, names[0]);
             else
                 asprintf(& str0, "%s varchar(%d)", names[0], lengths[0]);
             for (int i = 1; i < count; i++)
                 if (names[i][0] == '_')
-                    asprintf(& str1, "%s, %s int", str0, & names[i][1]), free(str0), str0 = str1;
+                    asprintf(& str1, "%s, %s%s int", str0, table, names[i]), free(str0), str0 = str1;
                 else
                     asprintf(& str1, "%s, %s varchar(%d)", str0, names[i], lengths[i]), free(str0), str0 = str1;
             asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s(%s); DELETE FROM %s;", table, str0, table);
