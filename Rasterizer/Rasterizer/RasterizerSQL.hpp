@@ -49,15 +49,30 @@ struct RasterizerSQL {
             writeRowValues(sql, lengths);
             free(sql), free(str0);
             
-            if (names[0][0] == '_')
+            char *cols, *tabs, *joins = nullptr, *tmp;
+            asprintf(& tabs, "_%s", table);
+            if (names[0][0] == '_') {
                 asprintf(& str0, "%s%s int", table, names[0]);
-            else
+                asprintf(& cols, "%s%s.rowid", table, names[0]);
+                asprintf(& tmp, "%s, %s%s", tabs, table, names[0]), free(tabs), tabs = tmp;
+                asprintf(& joins, "%s = _%s.%s", & names[0][1], table, names[0]);
+            } else {
                 asprintf(& str0, "%s varchar(%d)", names[0], lengths[0]);
+                asprintf(& cols, "_%s.%s", table, names[0]);
+            }
             for (int i = 1; i < count; i++)
-                if (names[i][0] == '_')
+                if (names[i][0] == '_') {
                     asprintf(& str1, "%s, %s%s int", str0, table, names[i]), free(str0), str0 = str1;
-                else
+                    asprintf(& tmp, "%s, %s%s.rowid", cols, table, names[i]), free(cols), cols = tmp;
+                    asprintf(& tmp, "%s, %s%s", tabs, table, names[i]), free(tabs), tabs = tmp;
+                    if (joins)
+                        asprintf(& tmp, "%s AND %s = _%s.%s", joins, & names[i][1], table, names[i]), free(joins), joins = tmp;
+                    else
+                        asprintf(& joins, "%s = _%s.%s", & names[i][1], table, names[i]);
+                } else {
                     asprintf(& str1, "%s, %s varchar(%d)", str0, names[i], lengths[i]), free(str0), str0 = str1;
+                    asprintf(& tmp, "%s, _%s.%s", cols, table, names[i]), free(cols), cols = tmp;
+                }
             asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s(%s); DELETE FROM %s;", table, str0, table);
             int status = exec(sql);
             free(sql), free(str0);
@@ -71,6 +86,9 @@ struct RasterizerSQL {
                     status = exec(sql);
                     free(sql);
                 }
+            asprintf(& sql, "INSERT INTO %s SELECT %s FROM %s WHERE %s; DROP TABLE _%s", table, cols, tabs, joins, table);
+            status = exec(sql);
+            free(sql), free(cols), free(tabs), free(joins);
             return status;
         }
         void insert(const char *table, int count, char **values) {
