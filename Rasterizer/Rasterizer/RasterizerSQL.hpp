@@ -67,12 +67,18 @@ struct RasterizerSQL {
             sqlite3_finalize(pStmt);
             free(sql);
         }
+        void writeRowValues(const char *sql, int *values) {
+            sqlite3_stmt *pStmt;
+            if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
+                for (int i = 0; i < sqlite3_column_count(pStmt); i++)
+                    values[i] = sqlite3_column_int(pStmt, i);
+            sqlite3_finalize(pStmt);
+        }
         int rowCount(const char *table) {
+            int count;
             char *sql;
             asprintf(& sql, "SELECT COUNT(*) FROM %s", table);
-            sqlite3_stmt *pStmt;
-            int count = sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW ? sqlite3_column_int(pStmt, 0) : INT_MAX;
-            sqlite3_finalize(pStmt);
+            writeRowValues(sql, & count);
             free(sql);
             return count;
         }
