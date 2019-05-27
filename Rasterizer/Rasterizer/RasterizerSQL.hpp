@@ -62,6 +62,12 @@ struct RasterizerSQL {
             int status = exec(sql);
             free(sql), free(str0);
             
+            for (int i = 0; i < count; i++)
+                if (names[i][0] == '_') {
+                    asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s%s(%s varchar(%d)); DELETE FROM %s%s;", table, names[i], & names[i][1], lengths[i], table, names[i]);
+                    status = exec(sql);
+                    free(sql);
+                }
             return status;
         }
         void insert(const char *table, int count, char **values) {
