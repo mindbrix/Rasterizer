@@ -41,6 +41,13 @@ struct RasterizerSQL {
             return status;
         }
         int endImport(const char *table, const char **names, int count) {
+            char *str0, *str1, *sql;
+            asprintf(& str0, "MAX(LENGTH(%s))", names[0]);
+            for (int i = 1; i < count; i++)
+                asprintf(& str1, "%s, MAX(LENGTH(%s))", str0, names[i]), free(str0), str0 = str1;
+            asprintf(& sql, "SELECT %s FROM _%s", str0, table);
+            int lengths[count];
+            writeRowValues(sql, lengths);
             return 0;
         }
         void insert(const char *table, int count, char **values) {
