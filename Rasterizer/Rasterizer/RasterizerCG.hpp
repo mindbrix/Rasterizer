@@ -175,10 +175,21 @@ struct RasterizerCG {
         NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();
         status = db.beginTransaction();
         
-        {
-        const char *names[] = { "name", "url", "_family", "_style" };
-        db.beginImport("fonts", names, 4);
+        const char *columnNames[] = { "name", "url", "_family", "_style" };
+        db.beginImport("fonts", columnNames, 4);
+        for (NSString *fontName in names) {
+            if (![fontName hasPrefix:@"."]) {
+                CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
+                NSURL *fontURL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
+                NSString *fontFamily = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontFamilyNameAttribute);
+                NSString *fontStyle = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontStyleNameAttribute);
+                CFRelease(fontRef);
+                values[0] = fontName.UTF8String, values[1] = fontURL.absoluteString.UTF8String, values[2] = fontFamily.UTF8String, values[3] = fontStyle.UTF8String;
+                db.insert("_fonts", 4, (char **)values);
+            }
         }
+        db.endImport("fonts", columnNames, 4);
+        
         db.exec(RasterizerSQL::DB::kCreateFontsTable);
         for (NSString *fontName in names) {
             if (![fontName hasPrefix:@"."]) {

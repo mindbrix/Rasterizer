@@ -48,6 +48,9 @@ struct RasterizerSQL {
             free(sql);
             return status;
         }
+        int endImport(const char *table, const char **names, int count) {
+            return 0;
+        }
         void insert(const char *table, int count, char **values) {
             char *sql, val[count * 4 + 1], *v = val;
             *v++ = '@', *v++ = '0';
