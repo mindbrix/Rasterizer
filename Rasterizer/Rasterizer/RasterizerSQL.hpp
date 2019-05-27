@@ -67,6 +67,9 @@ struct RasterizerSQL {
                     asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s%s(%s varchar(%d)); DELETE FROM %s%s;", table, names[i], & names[i][1], lengths[i], table, names[i]);
                     status = exec(sql);
                     free(sql);
+                    asprintf(& sql, "INSERT INTO %s%s SELECT DISTINCT(%s) FROM _%s;", table, names[i], names[i], table);
+                    status = exec(sql);
+                    free(sql);
                 }
             return status;
         }
