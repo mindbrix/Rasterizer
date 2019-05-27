@@ -13,7 +13,6 @@
 struct RasterizerSQL {
     struct DB {
         static constexpr const char *kFontsTable = "fonts";
-        static constexpr const char *kInsertSelect = "SELECT 'test', fontFamily.rowid, fontStyle.rowid FROM fontFamily, fontStyle WHERE family = 'Helvetica' AND style = 'Bold';";
         static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
         const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
         
@@ -97,7 +96,7 @@ struct RasterizerSQL {
             for (int i = 1; i < count; i++)
                 *v++ = ',', *v++ = ' ', *v++ = '@', *v++ = '0' + i;
             *v = 0;
-            asprintf(& sql, "INSERT INTO %s VALUES (%s)", table, val);
+            asprintf(& sql, "INSERT INTO _%s VALUES (%s)", table, val);
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 for (int i = 0; i < count; i++)
