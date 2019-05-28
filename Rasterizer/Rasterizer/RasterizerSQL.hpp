@@ -85,7 +85,7 @@ struct RasterizerSQL {
                     status = exec(sql);
                     free(sql);
                 }
-            asprintf(& sql, "INSERT INTO %s SELECT NULL, %s FROM %s WHERE %s; DROP TABLE _%s", table, cols, tabs, joins, table);
+            asprintf(& sql, "INSERT INTO %s SELECT NULL, %s FROM %s WHERE %s; DROP TABLE _%s; VACUUM;", table, cols, tabs, joins, table);
             status = exec(sql);
             free(sql), free(cols), free(tabs), free(joins);
             return status;
