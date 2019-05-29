@@ -13,6 +13,7 @@
 struct RasterizerSQL {
     struct DB {
         static constexpr const char *kFontsTable = "fonts";
+        static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
         static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
         const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
         
@@ -122,6 +123,9 @@ struct RasterizerSQL {
             return count;
         }
         Rasterizer::Bounds writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
+            int count;
+            writeRowValues(kCountTables, & count);
+            
             float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), w = h * kColumnSpaces * kColumnCount;
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, kSelectTables, -1, & pStmt, NULL) == SQLITE_OK) {
