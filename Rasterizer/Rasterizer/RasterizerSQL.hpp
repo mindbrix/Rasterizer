@@ -123,14 +123,15 @@ struct RasterizerSQL {
             return count;
         }
         Rasterizer::Bounds writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
-            int count;
+            int count, N;
             writeRowValues(kCountTables, & count);
-            
-            float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), w = h * kColumnSpaces * kColumnCount;
+            N = ceilf(sqrtf(count));
+            float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N;
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, kSelectTables, -1, & pStmt, NULL) == SQLITE_OK) {
                 for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
-                    Rasterizer::Bounds bounds = { frame.lx + i * w, -FLT_MAX, frame.lx + (i + 1) * w, frame.uy };
+                    int x = i % N, y = i / N;
+                    Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                     writeTable(font, size, 1.f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
                 }
             }
