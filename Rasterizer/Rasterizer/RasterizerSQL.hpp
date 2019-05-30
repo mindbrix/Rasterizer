@@ -41,13 +41,8 @@ struct RasterizerSQL {
         }
         int endImport(const char *table, const char **names, int count) {
             char *str0, *str1, *sql;
-            asprintf(& str0, "MAX(LENGTH(%s))", names[0]);
-            for (int i = 1; i < count; i++)
-                asprintf(& str1, "%s, MAX(LENGTH(%s))", str0, names[i]), free(str0), str0 = str1;
-            asprintf(& sql, "SELECT %s FROM _%s", str0, table);
             int lengths[count];
-            writeRowValues(sql, lengths);
-            free(sql), free(str0);
+            writeRowLengths(table, names, "MAX", count, lengths);
             
             char *cols, *tabs, *joins = nullptr, *tmp;
             asprintf(& tabs, "_%s", table);
@@ -113,6 +108,15 @@ struct RasterizerSQL {
                 for (int i = 0; i < sqlite3_column_count(pStmt); i++)
                     values[i] = sqlite3_column_int(pStmt, i);
             sqlite3_finalize(pStmt);
+        }
+        void writeRowLengths(const char *table, const char **names, const char *fn, int count, int *lengths) {
+            char *str0, *str1, *sql;
+            asprintf(& str0, "%s(LENGTH(%s))", fn, names[0]);
+            for (int i = 1; i < count; i++)
+                asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
+            asprintf(& sql, "SELECT %s FROM _%s", str0, table);
+            writeRowValues(sql, lengths);
+            free(sql), free(str0);
         }
         int rowCount(const char *table) {
             int count;
