@@ -126,7 +126,7 @@ struct RasterizerSQL {
             free(sql);
             return count;
         }
-        Rasterizer::Bounds writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
+        void writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
             int count, N;
             writeRowValues(kCountTables, & count);
             N = ceilf(sqrtf(count));
@@ -140,9 +140,8 @@ struct RasterizerSQL {
                 }
             }
             sqlite3_finalize(pStmt);
-            return frame;
         }
-        Rasterizer::Bounds writeTable(RasterizerTrueType::Font& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
+        void writeTable(RasterizerTrueType::Font& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
             Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
             float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), w = h * kColumnSpaces, my = 0.5f * kRowSize * h;
             int columns = 0, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * kRowSize) * 2, lower = n - range / 2, upper = n + range / 2;
@@ -167,7 +166,6 @@ struct RasterizerSQL {
             }
             sqlite3_finalize(pStmt);
             free(sql);
-            return { frame.lx, frame.uy - (kRowSize + 1) * h, frame.lx + columns * w, frame.uy };
         }
         sqlite3 *db = nullptr;
     };
