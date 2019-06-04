@@ -90,18 +90,18 @@ struct OpaquesVertex
     float4 color;
 };
 
-vertex OpaquesVertex opaques_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *instances [[buffer(1)]],
+vertex OpaquesVertex opaques_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Instance& inst = instances[*reverse - 1 - iid];
-    device Cell& cell = inst.quad.cell;
+    const device Instance& inst = instances[*reverse - 1 - iid];
+    const device Cell& cell = inst.quad.cell;
     float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
     float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
     
-    device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
+    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
     
     OpaquesVertex vert;
@@ -123,18 +123,18 @@ struct FastEdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7;
 };
 
-vertex FastEdgesVertex fast_edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
-                                     device EdgeCell *edgeCells [[buffer(3)]], device AffineTransform *affineTransforms [[buffer(4)]],
+vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
+                                     const device EdgeCell *edgeCells [[buffer(3)]], const device AffineTransform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     FastEdgesVertex vert;
     
-    device Edge& edge = edges[iid];
-    device EdgeCell& edgeCell = edgeCells[edge.ic];
-    device Cell& cell = edgeCell.cell;
-    device AffineTransform& m = affineTransforms[edgeCell.im];
-    device Segment *s = & segments[edgeCell.base + edge.i0];
+    const device Edge& edge = edges[iid];
+    const device EdgeCell& edgeCell = edgeCells[edge.ic];
+    const device Cell& cell = edgeCell.cell;
+    const device AffineTransform& m = affineTransforms[edgeCell.im];
+    const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
     dst[2] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[3] = m.b * s->x1 + m.a * s->y1 + m.ty;
@@ -181,17 +181,17 @@ struct EdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3;
 };
 
-vertex EdgesVertex edges_vertex_main(device Edge *edges [[buffer(1)]], device Segment *segments [[buffer(2)]],
-                                     device EdgeCell *edgeCells [[buffer(3)]],
+vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
+                                     const device EdgeCell *edgeCells [[buffer(3)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     EdgesVertex vert;
-    device Edge& edge = edges[iid];
-    device EdgeCell& edgeCell = edgeCells[edge.ic];
-    device Cell& cell = edgeCell.cell;
-    device Segment& s0 = segments[edgeCell.base + edge.i0];
-    device Segment& s1 = segments[edgeCell.base + edge.i1];
+    const device Edge& edge = edges[iid];
+    const device EdgeCell& edgeCell = edgeCells[edge.ic];
+    const device Cell& cell = edgeCell.cell;
+    const device Segment& s0 = segments[edgeCell.base + edge.i0];
+    const device Segment& s1 = segments[edgeCell.base + edge.i1];
     vert.x0 = s0.x0, vert.y0 = s0.y0, vert.x1 = s0.x1, vert.y1 = s0.y1;
     float slx = min(vert.x0, vert.x1);
     float sly = min(vert.y0, vert.y1);
@@ -238,20 +238,20 @@ struct QuadsVertex
     bool even, solid;
 };
 
-vertex QuadsVertex quads_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *instances [[buffer(1)]],
-                                     device AffineTransform *clips [[buffer(5)]],
+vertex QuadsVertex quads_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
+                                     const device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Instance& inst = instances[iid];
+    const device Instance& inst = instances[iid];
 
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
-    device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
+    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
     
     QuadsVertex vert;
-    device Cell& cell = inst.quad.cell;
+    const device Cell& cell = inst.quad.cell;
     float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
     float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
     vert.position = float4(x, y, z, 1.0);
@@ -284,20 +284,20 @@ struct ShapesVertex
     bool circle;
 };
 
-vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], device Instance *instances [[buffer(1)]],
-                                       device AffineTransform *affineTransforms [[buffer(4)]], device AffineTransform *clips [[buffer(5)]],
+vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
+                                       const device AffineTransform *affineTransforms [[buffer(4)]], const device AffineTransform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     ShapesVertex vert;
-    device Instance& inst = instances[iid];
+    const device Instance& inst = instances[iid];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (inst.iz & Instance::kOutlines) {
         AffineTransform m = { 1, 0, 0, 1, 0, 0 };
-        device Segment& o = inst.outline.s;
-        device Segment& p = instances[iid + inst.outline.prev].outline.s;
-        device Segment& n = instances[iid + inst.outline.next].outline.s;
+        const device Segment& o = inst.outline.s;
+        const device Segment& p = instances[iid + inst.outline.prev].outline.s;
+        const device Segment& n = instances[iid + inst.outline.next].outline.s;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
@@ -321,7 +321,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
-        device AffineTransform& m = affineTransforms[inst.iz & kPathIndexMask];
+        const device AffineTransform& m = affineTransforms[inst.iz & kPathIndexMask];
         AffineTransform ctm = {
             inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
             inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
@@ -337,7 +337,7 @@ vertex ShapesVertex shapes_vertex_main(device Colorant *paints [[buffer(0)]], de
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
-    device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
+    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * sqrt(area);
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
