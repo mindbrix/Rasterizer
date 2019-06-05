@@ -43,7 +43,7 @@ struct RasterizerSQL {
             char *str0, *str1, *sql, *cols, *tabs, *joins = nullptr, *tmp;
             asprintf(& tabs, "_%s", table);
             int lengths[count];
-            writeRowLengths(tabs, names, "MAX", count, lengths);
+            writeColumnMetrics(tabs, names, "MAX", count, lengths);
             if (names[0][0] == '_') {
                 asprintf(& str0, "%s%s int", table, names[0]);
                 asprintf(& cols, "%s%s.rowid", table, names[0]);
@@ -107,7 +107,7 @@ struct RasterizerSQL {
                     values[i] = sqlite3_column_int(pStmt, i);
             sqlite3_finalize(pStmt);
         }
-        void writeRowLengths(const char *table, const char **names, const char *fn, int count, int *lengths) {
+        void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, int *lengths) {
             char *str0, *str1, *sql;
             asprintf(& str0, "%s(LENGTH(%s))", fn, names[0]);
             for (int i = 1; i < count; i++)
@@ -154,8 +154,8 @@ struct RasterizerSQL {
                 for (int i = 0; i < columns; i++)
                     names[i] = sqlite3_column_name(pStmt, i);
                 int avgLengths[count], maxLengths[count];
-                writeRowLengths(table, names, "AVG", columns, avgLengths);
-                writeRowLengths(table, names, "MAX", columns, maxLengths);
+                writeColumnMetrics(table, names, "AVG", columns, avgLengths);
+                writeColumnMetrics(table, names, "MAX", columns, maxLengths);
                 for (int i = 0; i < columns; i++)
                     RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, names[i], header);
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
