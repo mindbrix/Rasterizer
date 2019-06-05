@@ -100,7 +100,7 @@ struct RasterizerSQL {
             sqlite3_finalize(pStmt);
             free(sql);
         }
-        void writeRowValues(const char *sql, int *values) {
+        void writeColumnInts(const char *sql, int *values) {
             sqlite3_stmt *pStmt;
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
                 for (int i = 0; i < sqlite3_column_count(pStmt); i++)
@@ -113,20 +113,20 @@ struct RasterizerSQL {
             for (int i = 1; i < count; i++)
                 asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
             asprintf(& sql, "SELECT %s FROM %s", str0, table);
-            writeRowValues(sql, lengths);
+            writeColumnInts(sql, lengths);
             free(sql), free(str0);
         }
         int rowCount(const char *table) {
             int count;
             char *sql;
             asprintf(& sql, "SELECT COUNT(*) FROM %s", table);
-            writeRowValues(sql, & count);
+            writeColumnInts(sql, & count);
             free(sql);
             return count;
         }
         void writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
             int count, N;
-            writeRowValues(kCountTables, & count);
+            writeColumnInts(kCountTables, & count);
             N = ceilf(sqrtf(count));
             float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N;
             sqlite3_stmt *pStmt;
