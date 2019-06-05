@@ -98,7 +98,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
         RasterizerTrueType::Font font;
         if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
-            RasterizerSQL::DB db;
+            RasterizerDB db;
             db.open(_dbURL.path.UTF8String);
             RasterizerCG::writeFontsTable(db);
             db.writeTables(font, self.font.pointSize, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());

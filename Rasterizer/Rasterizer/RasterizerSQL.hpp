@@ -10,14 +10,13 @@
 #import "RasterizerTrueType.hpp"
 #import <sqlite3.h>
 
-struct RasterizerSQL {
-    struct DB {
+struct RasterizerDB {
         static constexpr const char *kFontsTable = "fonts";
         static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
         static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
         const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
         
-        ~DB() { close(); }
+        ~RasterizerDB() { close(); }
         int open(const char *filename) {
             return sqlite3_open(filename, & db);
         }
@@ -177,5 +176,5 @@ struct RasterizerSQL {
             free(sql);
         }
         sqlite3 *db = nullptr;
-    };
+
 };
