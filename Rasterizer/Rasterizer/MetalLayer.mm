@@ -114,6 +114,18 @@
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
+    id <MTLBuffer> mtlBuffer = _odd ? _mtlBuffer1 : _mtlBuffer0;
+    if (mtlBuffer.contents != buffer->data.base || mtlBuffer.length != buffer->data.size) {
+        mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->data.base
+                                                   length:buffer->data.size
+                                                  options:MTLResourceStorageModeShared
+                                              deallocator:nil];
+        if (_odd)
+            _mtlBuffer1 = mtlBuffer;
+        else
+            _mtlBuffer0 = mtlBuffer;
+    }
+    
     id <CAMetalDrawable> drawable = [self nextDrawable];
     if (drawable == nil) {
         dispatch_semaphore_signal(_inflight_semaphore);
@@ -136,19 +148,6 @@
         self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
         [self.accumulationTexture setLabel:@"accumulationTexture"];
     }
-    
-    id <MTLBuffer> mtlBuffer = _odd ? _mtlBuffer1 : _mtlBuffer0;
-    if (mtlBuffer.contents != buffer->data.base || mtlBuffer.length != buffer->data.size) {
-        mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->data.base
-                                                   length:buffer->data.size
-                                                  options:MTLResourceStorageModeShared
-                                              deallocator:nil];
-        if (_odd)
-            _mtlBuffer1 = mtlBuffer;
-        else
-            _mtlBuffer0 = mtlBuffer;
-    }
-    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -165,6 +164,13 @@
     drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
     drawableDescriptor.depthAttachment.clearDepth = 0;
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+    drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
+    MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
+    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+    edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+    edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
     uint32_t reverse, pathCount;
     size_t colorantsOffset = 0, affineTransformsOffset = 0, clipsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
@@ -209,11 +215,6 @@
             case Rasterizer::Buffer::Entry::kFastEdges:
                 if (entry.type == Rasterizer::Buffer::Entry::kEdges) {
                     [commandEncoder endEncoding];
-                    MTLRenderPassDescriptor *edgesDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
-                    edgesDescriptor.colorAttachments[0].texture = _accumulationTexture;
-                    edgesDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
-                    edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-                    edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
                 } else
@@ -233,8 +234,6 @@
                 }
                 if (entry.type == Rasterizer::Buffer::Entry::kFastEdges) {
                     [commandEncoder endEncoding];
-                    drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
-                    drawableDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
