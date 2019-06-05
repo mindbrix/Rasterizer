@@ -40,12 +40,10 @@ struct RasterizerSQL {
             return status;
         }
         int endImport(const char *table, const char **names, int count) {
-            char *str0, *str1, *sql;
-            int lengths[count];
-            writeRowLengths(table, names, "MAX", count, lengths);
-            
-            char *cols, *tabs, *joins = nullptr, *tmp;
+            char *str0, *str1, *sql, *cols, *tabs, *joins = nullptr, *tmp;
             asprintf(& tabs, "_%s", table);
+            int lengths[count];
+            writeRowLengths(tabs, names, "MAX", count, lengths);
             if (names[0][0] == '_') {
                 asprintf(& str0, "%s%s int", table, names[0]);
                 asprintf(& cols, "%s%s.rowid", table, names[0]);
@@ -114,7 +112,7 @@ struct RasterizerSQL {
             asprintf(& str0, "%s(LENGTH(%s))", fn, names[0]);
             for (int i = 1; i < count; i++)
                 asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
-            asprintf(& sql, "SELECT %s FROM _%s", str0, table);
+            asprintf(& sql, "SELECT %s FROM %s", str0, table);
             writeRowValues(sql, lengths);
             free(sql), free(str0);
         }
@@ -152,8 +150,14 @@ struct RasterizerSQL {
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
                 columns = sqlite3_column_count(pStmt);
+                const char *names[columns];
                 for (int i = 0; i < columns; i++)
-                    RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, sqlite3_column_name(pStmt, i), header);
+                    names[i] = sqlite3_column_name(pStmt, i);
+                int avgLengths[count], maxLengths[count];
+                writeRowLengths(table, names, "AVG", columns, avgLengths);
+                writeRowLengths(table, names, "MAX", columns, maxLengths);
+                for (int i = 0; i < columns; i++)
+                    RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, names[i], header);
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
                 
                 Rasterizer::Transform clip(columns * w, 0.f, 0.f, kRowSize * h, frame.lx, frame.uy - (kRowSize + 1) * h);
