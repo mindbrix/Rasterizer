@@ -111,13 +111,13 @@ struct RasterizerSQL {
             }
             sqlite3_finalize(pStmt);
         }
-        void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, int *lengths) {
+        void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, int *metrics) {
             char *str0, *str1, *sql;
             asprintf(& str0, "%s(LENGTH(%s))", fn, names[0]);
             for (int i = 1; i < count; i++)
                 asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
             asprintf(& sql, "SELECT %s FROM %s", str0, table);
-            writeColumnValues(sql, lengths, false);
+            writeColumnValues(sql, metrics, false);
             free(sql), free(str0);
         }
         int rowCount(const char *table) {
