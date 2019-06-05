@@ -100,11 +100,15 @@ struct RasterizerSQL {
             sqlite3_finalize(pStmt);
             free(sql);
         }
-        void writeColumnInts(const char *sql, int *values) {
+        void writeColumnValues(const char *sql, void *values, bool real) {
             sqlite3_stmt *pStmt;
-            if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
+            if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
                 for (int i = 0; i < sqlite3_column_count(pStmt); i++)
-                    values[i] = sqlite3_column_int(pStmt, i);
+                    if (real)
+                        ((float *)values)[i] = sqlite3_column_double(pStmt, i);
+                    else
+                        ((int *)values)[i] = sqlite3_column_int(pStmt, i);
+            }
             sqlite3_finalize(pStmt);
         }
         void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, int *lengths) {
@@ -113,20 +117,20 @@ struct RasterizerSQL {
             for (int i = 1; i < count; i++)
                 asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
             asprintf(& sql, "SELECT %s FROM %s", str0, table);
-            writeColumnInts(sql, lengths);
+            writeColumnValues(sql, lengths, false);
             free(sql), free(str0);
         }
         int rowCount(const char *table) {
             int count;
             char *sql;
             asprintf(& sql, "SELECT COUNT(*) FROM %s", table);
-            writeColumnInts(sql, & count);
+            writeColumnValues(sql, & count, false);
             free(sql);
             return count;
         }
         void writeTables(RasterizerTrueType::Font& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
             int count, N;
-            writeColumnInts(kCountTables, & count);
+            writeColumnValues(kCountTables, & count, false);
             N = ceilf(sqrtf(count));
             float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N;
             sqlite3_stmt *pStmt;
