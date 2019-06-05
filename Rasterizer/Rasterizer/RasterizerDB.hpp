@@ -42,7 +42,7 @@ struct RasterizerDB {
         char *str0, *str1, *sql, *cols, *tabs, *joins = nullptr, *tmp;
         asprintf(& tabs, "_%s", table);
         int lengths[count];
-        writeColumnMetrics(tabs, names, "MAX", count, lengths);
+        writeColumnMetrics(tabs, names, "MAX", count, lengths, false);
         if (names[0][0] == '_') {
             asprintf(& str0, "%s%s int", table, names[0]);
             asprintf(& cols, "%s%s.rowid", table, names[0]);
@@ -110,13 +110,13 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
-    void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, int *metrics) {
+    void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, void *metrics, bool real) {
         char *str0, *str1, *sql;
         asprintf(& str0, "%s(LENGTH(%s))", fn, names[0]);
         for (int i = 1; i < count; i++)
             asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
         asprintf(& sql, "SELECT %s FROM %s", str0, table);
-        writeColumnValues(sql, metrics, false);
+        writeColumnValues(sql, metrics, real);
         free(sql), free(str0);
     }
     int rowCount(const char *table) {
@@ -153,13 +153,14 @@ struct RasterizerDB {
         if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& header = list.addScene();
             columns = sqlite3_column_count(pStmt);
-            int avgLengths[columns], lengths[columns], total = 0;
+            float avgLengths[columns];
+            int lengths[columns], total = 0;
             const char *names[columns];
             for (int i = 0; i < columns; i++)
                 names[i] = sqlite3_column_name(pStmt, i), lengths[i] = (int)strlen(names[i]);
-            writeColumnMetrics(table, names, "AVG", columns, avgLengths);
+            writeColumnMetrics(table, names, "AVG", columns, avgLengths, true);
             for (int i = 0; i < columns; i++)
-                avgLengths[i] += 1, lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
+                avgLengths[i] = ceilf(avgLengths[i] * 1.333f), lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
             for (int i = 0; i < columns; i++)
                 RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, names[i], header);
             list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
