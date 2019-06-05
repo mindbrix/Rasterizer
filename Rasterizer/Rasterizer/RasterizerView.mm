@@ -9,7 +9,7 @@
 #import "RasterizerView.h"
 #import "VGAffineTransform.h"
 #import "RasterizerCG.hpp"
-#import "RasterizerSQL.hpp"
+#import "RasterizerDB.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerTrueType.hpp"
 #import "RasterizerTest.hpp"

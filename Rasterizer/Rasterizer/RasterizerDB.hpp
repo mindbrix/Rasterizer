@@ -1,5 +1,5 @@
 //
-//  RasterizerSQL.hpp
+//  RasterizerDB.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 29/04/2019.
