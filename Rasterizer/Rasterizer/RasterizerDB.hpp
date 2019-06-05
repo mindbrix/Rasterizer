@@ -13,7 +13,7 @@
 struct RasterizerDB {
     static constexpr const char *kFontsTable = "fonts";
     static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
-    static constexpr const char *kSelectTables = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
+    static constexpr const char *kSelectTableNames = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
     const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
     
     ~RasterizerDB() { close(); }
@@ -133,7 +133,7 @@ struct RasterizerDB {
         N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N;
         sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, kSelectTables, -1, & pStmt, NULL) == SQLITE_OK) {
+        if (sqlite3_prepare_v2(db, kSelectTableNames, -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
                 int x = i % N, y = i / N;
                 Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
