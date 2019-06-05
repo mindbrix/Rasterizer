@@ -150,11 +150,13 @@ struct RasterizerSQL {
             if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
                 columns = sqlite3_column_count(pStmt);
+                int avgLengths[columns], maxLengths[columns], lengths[columns], total = 0;
                 const char *names[columns];
                 for (int i = 0; i < columns; i++)
-                    names[i] = sqlite3_column_name(pStmt, i);
-                int avgLengths[count], maxLengths[count];
+                    names[i] = sqlite3_column_name(pStmt, i), lengths[i] = (int)strlen(names[i]);
                 writeColumnMetrics(table, names, "AVG", columns, avgLengths);
+                for (int i = 0; i < columns; i++)
+                    avgLengths[i] += 1, lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
                 writeColumnMetrics(table, names, "MAX", columns, maxLengths);
                 for (int i = 0; i < columns; i++)
                     RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, names[i], header);
