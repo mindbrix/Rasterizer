@@ -153,7 +153,7 @@ struct RasterizerDB {
         if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& header = list.addScene();
             columns = sqlite3_column_count(pStmt);
-            float avgLengths[columns];
+            float avgLengths[columns], fw = frame.ux - frame.lx, tw, fs;
             int lengths[columns], total = 0;
             const char *names[columns];
             for (int i = 0; i < columns; i++)
@@ -161,8 +161,10 @@ struct RasterizerDB {
             writeColumnMetrics(table, names, "AVG", columns, avgLengths, true);
             for (int i = 0; i < columns; i++)
                 avgLengths[i] = ceilf(avgLengths[i] * 1.333f), lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
+            tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
+            fs = powf(2.f, floorf(log2f(fw / tw)));
             for (int i = 0; i < columns; i++)
-                RasterizerTrueType::writeGlyphs(font, size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, names[i], header);
+                RasterizerTrueType::writeGlyphs(font, fs * size, red, Rasterizer::Bounds(i * w, -FLT_MAX, (i + 1) * w, 0.f), false, true, names[i], header);
             list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
             
             Rasterizer::Transform clip(columns * w, 0.f, 0.f, kRowSize * h, frame.lx, frame.uy - (kRowSize + 1) * h);
