@@ -100,9 +100,8 @@
 - (void)display {
     @autoreleasepool {
         self.drawableSize = CGSizeMake(ceil(self.bounds.size.width * self.contentsScale), ceil(self.bounds.size.height * self.contentsScale));
-        if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW))
-            return;
-        [self draw];
+        if (dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_NOW) == 0)
+            [self draw];
     }
 }
 
