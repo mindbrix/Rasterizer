@@ -160,7 +160,7 @@ struct RasterizerDB {
                 names[i] = sqlite3_column_name(pStmt, i), lengths[i] = strstr(names[i], "_") ? 0 : (int)strlen(names[i]);
             writeColumnMetrics(table, names, "AVG", columns, avgLengths, true);
             for (int i = 0; i < columns; i++)
-                avgLengths[i] = ceilf(avgLengths[i] * 1.333f), lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
+                avgLengths[i] = ceilf(avgLengths[i] * 1.f), lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = powf(2.f, floorf(log2f(fw / tw)));
             cx = 0.f;
