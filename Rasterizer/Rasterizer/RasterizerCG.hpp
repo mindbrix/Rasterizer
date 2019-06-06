@@ -175,7 +175,7 @@ struct RasterizerCG {
         NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();
         status = db.beginTransaction();
         
-        const char *columnNames[] = { "name", "url", "_family", "_style" };
+        const char *columnNames[] = { "name", "_url", "_family", "_style" };
         db.beginImport(RasterizerDB::kFontsTable, columnNames, 4);
         for (NSString *fontName in names) {
             if (![fontName hasPrefix:@"."]) {
