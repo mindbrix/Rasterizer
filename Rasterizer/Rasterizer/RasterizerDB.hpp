@@ -153,7 +153,7 @@ struct RasterizerDB {
         if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& header = list.addScene();
             columns = sqlite3_column_count(pStmt);
-            float avgLengths[columns], fw = frame.ux - frame.lx, tw, fs, cx, cw;
+            float avgLengths[columns], fw = frame.ux - frame.lx, tw, fs, lx, ux;
             int lengths[columns], total = 0, i, j, status;
             const char *names[columns];
             for (i = 0; i < columns; i++)
@@ -163,18 +163,18 @@ struct RasterizerDB {
                 avgLengths[i] = ceilf(avgLengths[i] * 1.f), lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = powf(2.f, floorf(log2f(fw / tw)));
-            for (cx = 0.f, i = 0; i < columns; i++, cx += cw) {
-                cw = fs * tw * float(lengths[i]) / float(total);
-                RasterizerTrueType::writeGlyphs(font, fs * size, red, Rasterizer::Bounds(cx, -FLT_MAX, cx + cw, 0.f), false, true, names[i], header);
+            for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
+                ux = lx + fs * tw * float(lengths[i]) / float(total);
+                RasterizerTrueType::writeGlyphs(font, fs * size, red, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, names[i], header);
             }
             list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
             
             Rasterizer::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly, frame.lx, frame.ly);
             for (j = lower, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), j++) {
                 Rasterizer::Scene& scene = list.addScene();
-                for (cx = 0.f, i = 0; i < columns; i++, cx += cw) {
-                    cw = fs * tw * float(lengths[i]) / float(total);
-                    RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(cx, -FLT_MAX, cx + cw, 0.f), false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
+                for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
+                    ux = lx + fs * tw * float(lengths[i]) / float(total);
+                    RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
                 }
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - my - fs * (j - n) * h, list.clips.back() = clip;
             }
