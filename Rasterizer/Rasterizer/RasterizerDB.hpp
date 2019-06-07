@@ -14,7 +14,7 @@ struct RasterizerDB {
     static constexpr const char *kFontsTable = "fonts";
     static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
     static constexpr const char *kSelectTableNames = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
-    const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 8;
+    const int kColumnSpaces = 6, kColumnCount = 5, kRowSize = 16;
     
     ~RasterizerDB() { close(); }
     int open(const char *filename) {
@@ -176,7 +176,7 @@ struct RasterizerDB {
                     ux = lx + fs * tw * float(lengths[i]) / float(total);
                     RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt, i), scene);
                 }
-                list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - my - fs * (j - n) * h, list.clips.back() = clip;
+                list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - fs * (j - lower + 1) * h, list.clips.back() = clip;
             }
         }
         sqlite3_finalize(pStmt);
