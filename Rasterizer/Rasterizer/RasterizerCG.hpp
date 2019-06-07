@@ -184,7 +184,7 @@ struct RasterizerCG {
                 NSString *fontFamily = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontFamilyNameAttribute);
                 NSString *fontStyle = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontStyleNameAttribute);
                 CFRelease(fontRef);
-                values[0] = fontName.UTF8String, values[1] = fontURL.absoluteString.UTF8String, values[2] = fontFamily.UTF8String, values[3] = fontStyle.UTF8String;
+                values[0] = fontName.UTF8String, values[1] = [fontURL.absoluteString stringByRemovingPercentEncoding].UTF8String, values[2] = fontFamily.UTF8String, values[3] = fontStyle.UTF8String;
                 db.insert(RasterizerDB::kFontsTable, 4, (char **)values);
             }
         }
