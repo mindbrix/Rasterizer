@@ -145,22 +145,34 @@ struct RasterizerDB {
         const int kRowSize = 16;
         Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
         float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), my = 0.5f * kRowSize * h;
-        int columns = 0, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * kRowSize) * 2, lower = n - range / 2, upper = n + range / 2;
+        int count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * kRowSize) * 2, lower = n - range / 2, upper = n + range / 2;
         lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
         char *sql;
         asprintf(& sql, "SELECT * FROM %s LIMIT %d, %d", table, lower, upper - lower);
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& header = list.addScene();
-            columns = sqlite3_column_count(pStmt);
+            int columns = sqlite3_column_count(pStmt), lengths[columns], total = 0, i, j, status;
             float avgLengths[columns], tw, fs, lx, ux;
-            int lengths[columns], total = 0, i, j, status;
             const char *names[columns];
             for (i = 0; i < columns; i++)
                 names[i] = sqlite3_column_name(pStmt, i), lengths[i] = strstr(names[i], "_") ? 0 : (int)strlen(names[i]);
-            writeColumnMetrics(table, names, "AVG", columns, avgLengths, true);
-            for (i = 0; i < columns; i++)
-                avgLengths[i] = ceilf(avgLengths[i] * 1.f), lengths[i] = lengths[i] > avgLengths[i] ? lengths[i] : avgLengths[i], total += lengths[i];
+            writeColumnMetrics(table, names, "MAX", columns, avgLengths, true);
+            for (i = 0; i < columns; i++) {
+                float avg = ceilf(avgLengths[i]);
+                // SELECT CASE WHEN LENGTH(url) < 32 THEN url ELSE SUBSTR(url, 1, 14) || '...' || SUBSTR(url, LENGTH(url) - 14) END AS url FROM fonts_url;
+                /*
+                if (avg < 4.f)
+                    avg = 4.f;
+//                else if (avg < 16.f)
+//                    avg = 16.f;
+//                else if (avg < 24.f)
+//                    avg = 24.f;
+                else //if (avg > 32.f)
+                    avg = 32.f;
+                  */
+                lengths[i] = lengths[i] > avg ? lengths[i] : avg, total += lengths[i];
+            }
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = powf(2.f, floorf(log2f((frame.ux - frame.lx) / tw)));
             for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
