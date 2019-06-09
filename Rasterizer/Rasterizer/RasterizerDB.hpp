@@ -142,9 +142,8 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt);
     }
     void writeTable(RasterizerTrueType::Font& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
-        const int kRowSize = 16;
         Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
-        float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap), my = 0.5f * kRowSize * h;
+        float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);//, my = 0.5f * kRowSize * h;
         char *sql;
         asprintf(& sql, "SELECT * FROM %s LIMIT 1", table);
         sqlite3_stmt *pStmt;
@@ -162,15 +161,13 @@ struct RasterizerDB {
             }
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = powf(2.f, floorf(log2f((frame.ux - frame.lx) / tw)));
-            
-            int count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * kRowSize) * 2, lower = n - range / 2, upper = n + range / 2;
+            int rows = 16 / fs, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows) * 2, lower = n - range / 2, upper = n + range / 2;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             char *_sql;
             asprintf(& _sql, "SELECT * FROM %s LIMIT %d, %d", table, lower, upper - lower);
             sqlite3_stmt *_pStmt;
             if (sqlite3_prepare_v2(db, _sql, -1, & _pStmt, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
-                
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
                     ux = lx + fs * tw * float(lengths[i]) / float(total);
                     RasterizerTrueType::writeGlyphs(font, fs * size, red, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, names[i], header);
