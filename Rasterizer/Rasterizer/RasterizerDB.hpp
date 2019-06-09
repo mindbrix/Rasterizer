@@ -141,23 +141,24 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
+    // SELECT CASE WHEN LENGTH(url) < 32 THEN url ELSE SUBSTR(url, 1, 14) || '...' || SUBSTR(url, LENGTH(url) - 14) END AS url FROM fonts_url;
     void writeTable(RasterizerTrueType::Font& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
         Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
         char *sql0, *sql1;
         asprintf(& sql0, "SELECT * FROM %s LIMIT 1", table);
         sqlite3_stmt *pStmt0, *pStmt1;
-        if (sqlite3_prepare_v2(db, sql0, -1, & pStmt0, NULL) == SQLITE_OK) {
-            int columns = sqlite3_column_count(pStmt0), lengths[columns], total = 0, i, j, status;
+        if (sqlite3_prepare_v2(db, sql0, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
+            int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status;
             float avgLengths[columns], tw, fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
             const char *names[columns];
             for (i = 0; i < columns; i++)
-                names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = strstr(names[i], "_") ? 0 : (int)strlen(names[i]);
+                types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = strstr(names[i], "_") || types[i] != SQLITE_TEXT ? 0 : (int)strlen(names[i]);
             writeColumnMetrics(table, names, "MAX", columns, avgLengths, true);
-            for (i = 0; i < columns; i++) {
-                float avg = ceilf(avgLengths[i]);
-                // SELECT CASE WHEN LENGTH(url) < 32 THEN url ELSE SUBSTR(url, 1, 14) || '...' || SUBSTR(url, LENGTH(url) - 14) END AS url FROM fonts_url;
-                lengths[i] = lengths[i] > avg ? lengths[i] : avg, total += lengths[i];
-            }
+            for (i = 0; i < columns; i++)
+                if (lengths[i]) {
+                    float avg = ceilf(avgLengths[i]);
+                    lengths[i] = lengths[i] > avg ? lengths[i] : avg, total += lengths[i];
+                }
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = powf(2.f, floorf(log2f((frame.ux - frame.lx) / tw)));
             int rows = 16 / fs, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows) * 2, lower = n - range / 2, upper = n + range / 2;
@@ -167,7 +168,8 @@ struct RasterizerDB {
                 Rasterizer::Scene& header = list.addScene();
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
                     ux = lx + fs * tw * float(lengths[i]) / float(total);
-                    RasterizerTrueType::writeGlyphs(font, fs * size, red, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, names[i], header);
+                    if (lx != ux)
+                        RasterizerTrueType::writeGlyphs(font, fs * size, red, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, names[i], header);
                 }
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
                 
@@ -176,7 +178,8 @@ struct RasterizerDB {
                     Rasterizer::Scene& scene = list.addScene();
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
                         ux = lx + fs * tw * float(lengths[i]) / float(total);
-                        RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), scene);
+                        if (lx != ux)
+                            RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), scene);
                     }
                     list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - fs * (j - lower + 1) * h, list.clips.back() = clip;
                 }
