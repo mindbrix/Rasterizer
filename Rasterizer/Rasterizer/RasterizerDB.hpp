@@ -141,23 +141,31 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
-    // SELECT CASE WHEN LENGTH(url) < 32 THEN url ELSE SUBSTR(url, 1, 14) || '...' || SUBSTR(url, LENGTH(url) - 14) END AS url FROM fonts_url;
     void writeTable(RasterizerTrueType::Font& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
         Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
-        char *sql0, *sql1;
+        char *sql0, *sql1, *str0, *str1;
         asprintf(& sql0, "SELECT * FROM %s LIMIT 1", table);
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, sql0, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status;
             float tw, fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
-            const char *names[columns];
+            const char *names[columns], *empty = "", *separator = ", ";
             for (i = 0; i < columns; i++)
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] != SQLITE_TEXT ? 0 : 32, total += lengths[i];
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = (frame.ux - frame.lx) / tw;
             int rows = 16 / fs, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows) * 2, lower = n - range / 2, upper = n + range / 2;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-            asprintf(& sql1, "SELECT * FROM %s LIMIT %d, %d", table, lower, upper - lower);
+            asprintf(& str0, "");
+            for (int i = 0; i < columns; i++) {
+                if (types[i] == SQLITE_TEXT)
+                    asprintf(& str1, "%s%s CASE WHEN LENGTH(%s) < 32 THEN %s ELSE SUBSTR(%s, 1, 15) || '…' || SUBSTR(%s, LENGTH(%s) - 15) END AS %s", str0, i == 0 ? empty : separator, names[i], names[i], names[i], names[i], names[i], names[i]);
+                else
+                    asprintf(& str1, "%s%s 0", str0, i == 0 ? empty : separator);
+                free(str0), str0 = str1;
+            }
+            asprintf(& sql1, "SELECT %s FROM %s LIMIT %d, %d", str0, table, lower, upper - lower);
+            free(str0);
             if (sqlite3_prepare_v2(db, sql1, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
