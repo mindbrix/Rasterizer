@@ -149,16 +149,14 @@ struct RasterizerDB {
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, sql0, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status;
-            float avgLengths[columns], tw, fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
+            float avgLengths[columns], avg, tw, fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
             const char *names[columns];
             for (i = 0; i < columns; i++)
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = strstr(names[i], "_") || types[i] != SQLITE_TEXT ? 0 : (int)strlen(names[i]);
             writeColumnMetrics(table, names, "MAX", columns, avgLengths, true);
             for (i = 0; i < columns; i++)
-                if (lengths[i]) {
-                    float avg = ceilf(avgLengths[i]);
-                    lengths[i] = lengths[i] > avg ? lengths[i] : avg, total += lengths[i];
-                }
+                if (lengths[i])
+                    avg = ceilf(avgLengths[i]), lengths[i] = lengths[i] > avg ? lengths[i] : avg, total += lengths[i];
             tw = s * total * font.space * (font.monospace ? 1.f : 2.f);
             fs = powf(2.f, floorf(log2f((frame.ux - frame.lx) / tw)));
             int rows = 16 / fs, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows) * 2, lower = n - range / 2, upper = n + range / 2;
