@@ -143,16 +143,15 @@ struct RasterizerDB {
     }
     void writeTable(RasterizerTrueType::Font& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
         Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
-        float s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);//, my = 0.5f * kRowSize * h;
-        char *sql;
-        asprintf(& sql, "SELECT * FROM %s LIMIT 1", table);
-        sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
-            int columns = sqlite3_column_count(pStmt), lengths[columns], total = 0, i, j, status;
-            float avgLengths[columns], tw, fs, lx, ux;
+        char *sql0, *sql1;
+        asprintf(& sql0, "SELECT * FROM %s LIMIT 1", table);
+        sqlite3_stmt *pStmt0, *pStmt1;
+        if (sqlite3_prepare_v2(db, sql0, -1, & pStmt0, NULL) == SQLITE_OK) {
+            int columns = sqlite3_column_count(pStmt0), lengths[columns], total = 0, i, j, status;
+            float avgLengths[columns], tw, fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
             const char *names[columns];
             for (i = 0; i < columns; i++)
-                names[i] = sqlite3_column_name(pStmt, i), lengths[i] = strstr(names[i], "_") ? 0 : (int)strlen(names[i]);
+                names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = strstr(names[i], "_") ? 0 : (int)strlen(names[i]);
             writeColumnMetrics(table, names, "MAX", columns, avgLengths, true);
             for (i = 0; i < columns; i++) {
                 float avg = ceilf(avgLengths[i]);
@@ -163,10 +162,8 @@ struct RasterizerDB {
             fs = powf(2.f, floorf(log2f((frame.ux - frame.lx) / tw)));
             int rows = 16 / fs, count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows) * 2, lower = n - range / 2, upper = n + range / 2;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-            char *_sql;
-            asprintf(& _sql, "SELECT * FROM %s LIMIT %d, %d", table, lower, upper - lower);
-            sqlite3_stmt *_pStmt;
-            if (sqlite3_prepare_v2(db, _sql, -1, & _pStmt, NULL) == SQLITE_OK) {
+            asprintf(& sql1, "SELECT * FROM %s LIMIT %d, %d", table, lower, upper - lower);
+            if (sqlite3_prepare_v2(db, sql1, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
                     ux = lx + fs * tw * float(lengths[i]) / float(total);
@@ -175,20 +172,18 @@ struct RasterizerDB {
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
                 
                 Rasterizer::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly, frame.lx, frame.ly);
-                for (j = lower, status = sqlite3_step(_pStmt); status == SQLITE_ROW; status = sqlite3_step(_pStmt), j++) {
+                for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {
                     Rasterizer::Scene& scene = list.addScene();
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux) {
                         ux = lx + fs * tw * float(lengths[i]) / float(total);
-                        RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(_pStmt, i), scene);
+                        RasterizerTrueType::writeGlyphs(font, fs * size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), scene);
                     }
                     list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy - fs * (j - lower + 1) * h, list.clips.back() = clip;
                 }
             }
-            sqlite3_finalize(_pStmt);
-            free(_sql);
+            sqlite3_finalize(pStmt1), free(sql1);
         }
-        sqlite3_finalize(pStmt);
-        free(sql);
+        sqlite3_finalize(pStmt0), free(sql0);
     }
     sqlite3 *db = nullptr;
 };
