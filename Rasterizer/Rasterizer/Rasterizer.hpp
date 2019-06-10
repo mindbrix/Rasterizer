@@ -197,10 +197,6 @@ struct Rasterizer {
                     pathsCount += scenes[i].ref->paths.size(), visibles.scenes.emplace_back(scenes[i]), visibles.ctms.emplace_back(ctms[i]), visibles.clips.emplace_back(clips[i]);
             return pathsCount;
         }
-        void setClip(Transform clip) {
-            for (int i = 0; i < scenes.size(); i++)
-                clips[i] = clip;
-        }
         std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;
     };
     template<typename T>

@@ -208,7 +208,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 - (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
     state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
-    //list.setClip(state.useClip ? Rasterizer::Transform(100, 0, 0, 100, 100, 100) : Rasterizer::Transform::nullclip());
 }
 
 #pragma mark - NSResponder
