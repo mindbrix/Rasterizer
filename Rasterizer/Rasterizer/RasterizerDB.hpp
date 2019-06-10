@@ -130,13 +130,13 @@ struct RasterizerDB {
         int count, N;
         writeColumnValues(kCountTables, & count, false);
         N = ceilf(sqrtf(count));
-        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N;
+        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N, padding = 1.f - 1.f / 24.f;
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, kSelectTableNames, -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
                 int x = i % N, y = i / N;
-                Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
-                writeTable(font, size, 1.f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
+                Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim * padding, frame.uy - y * dim * padding };
+                writeTable(font, size, 0.f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
             }
         }
         sqlite3_finalize(pStmt);
