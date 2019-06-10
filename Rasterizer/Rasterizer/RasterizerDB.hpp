@@ -11,7 +11,6 @@
 #import "RasterizerTrueType.hpp"
 
 struct RasterizerDB {
-    static constexpr const char *kFontsTable = "fonts";
     static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
     static constexpr const char *kSelectTableNames = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
     
