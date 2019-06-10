@@ -135,8 +135,8 @@ struct RasterizerDB {
         if (sqlite3_prepare_v2(db, kSelectTableNames, -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
                 int x = i % N, y = i / N;
-                Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim * padding, frame.uy - y * dim * padding };
-                writeTable(font, size, 0.f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
+                Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim * padding, frame.lx + (x + 1) * dim * padding, frame.uy - y * dim };
+                writeTable(font, size, 0.5f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
             }
         }
         sqlite3_finalize(pStmt);
