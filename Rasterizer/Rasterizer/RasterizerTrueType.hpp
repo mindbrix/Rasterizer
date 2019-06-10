@@ -9,76 +9,74 @@
 #import "Rasterizer.hpp"
 #import "stb_truetype.h"
 
-struct RasterizerTrueType {
-    struct Font {
-        Font() { empty(); }
-        void empty() { monospace = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
-        int set(const void *bytes, const char *name) {
-            const unsigned char *ttf_buffer = (const unsigned char *)bytes;
-            int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
-            empty();
-            for (int i = 0; i < numfonts; i++)
-                if ((offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i)) != -1) {
-                    stbtt_InitFont(& info, ttf_buffer, offset);
-                    if (info.numGlyphs) {
-                        const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
-                        if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
-                            const char* lM_ =  "lM ";
-                            int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
-                            for (int j = 0; j < 3; j++)
-                                if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
-                                    stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
-                            if (widths[0] && widths[1] && widths[2]) {
-                                if (widths[0] == widths[1] && widths[1] == widths[2])
-                                    monospace = widths[0];
-                                space = widths[2], em = widths[1];
-                                stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
-                                unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
-                                return 1;
-                            }
+struct RasterizerFont {
+    RasterizerFont() { empty(); }
+    void empty() { monospace = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
+    int set(const void *bytes, const char *name) {
+        const unsigned char *ttf_buffer = (const unsigned char *)bytes;
+        int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
+        empty();
+        for (int i = 0; i < numfonts; i++)
+            if ((offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i)) != -1) {
+                stbtt_InitFont(& info, ttf_buffer, offset);
+                if (info.numGlyphs) {
+                    const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
+                    if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
+                        const char* lM_ =  "lM ";
+                        int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
+                        for (int j = 0; j < 3; j++)
+                            if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
+                                stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
+                        if (widths[0] && widths[1] && widths[2]) {
+                            if (widths[0] == widths[1] && widths[1] == widths[2])
+                                monospace = widths[0];
+                            space = widths[2], em = widths[1];
+                            stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
+                            unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
+                            return 1;
                         }
                     }
                 }
-            return 0;
-        }
-        Rasterizer::Path glyphPath(int glyph, bool cacheable) {
-            if (cacheable) {
-                auto it = cache.find(glyph);
-                if (it != cache.end())
-                    return it->second;
             }
-            Rasterizer::Path path;
-            stbtt_vertex *vertices, *vertex;
-            int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
-            if (nverts) {
-                for (vertex = vertices, i = 0; i < nverts; i++, vertex++)
-                    switch (vertex->type) {
-                        case STBTT_vmove:
-                            path.ref->moveTo(vertex->x, vertex->y);
-                            break;
-                        case STBTT_vline:
-                            path.ref->lineTo(vertex->x, vertex->y);
-                            break;
-                        case STBTT_vcurve:
-                            path.ref->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
-                            break;
-                        case STBTT_vcubic:
-                            path.ref->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
-                            break;
-                    }
-                stbtt_FreeShape(& info, vertices);
-                if (cacheable)
-                    cache.emplace(glyph, path);
-                path.ref->isGlyph = true;
-            }
-            return path;
+        return 0;
+    }
+    Rasterizer::Path glyphPath(int glyph, bool cacheable) {
+        if (cacheable) {
+            auto it = cache.find(glyph);
+            if (it != cache.end())
+                return it->second;
         }
-        std::unordered_map<int, Rasterizer::Path> cache;
-        int monospace, space, em, ascent, descent, lineGap, unitsPerEm;
-        stbtt_fontinfo info;
-    };
+        Rasterizer::Path path;
+        stbtt_vertex *vertices, *vertex;
+        int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
+        if (nverts) {
+            for (vertex = vertices, i = 0; i < nverts; i++, vertex++)
+                switch (vertex->type) {
+                    case STBTT_vmove:
+                        path.ref->moveTo(vertex->x, vertex->y);
+                        break;
+                    case STBTT_vline:
+                        path.ref->lineTo(vertex->x, vertex->y);
+                        break;
+                    case STBTT_vcurve:
+                        path.ref->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
+                        break;
+                    case STBTT_vcubic:
+                        path.ref->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
+                        break;
+                }
+            stbtt_FreeShape(& info, vertices);
+            if (cacheable)
+                cache.emplace(glyph, path);
+            path.ref->isGlyph = true;
+        }
+        return path;
+    }
+    std::unordered_map<int, Rasterizer::Path> cache;
+    int monospace, space, em, ascent, descent, lineGap, unitsPerEm;
+    stbtt_fontinfo info;
     
-    static Rasterizer::Bounds writeGlyphs(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
+    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
@@ -155,7 +153,7 @@ struct RasterizerTrueType {
         } while (i < len);
         return glyphBounds;
     }
-    static void writeGlyphGrid(Font& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
+    static void writeGlyphGrid(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0 || font.space == 0)
             return;
         int d = ceilf(sqrtf((float)font.info.numGlyphs));

@@ -96,7 +96,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
     if ([_dbURL isFileURL]) {
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
-        RasterizerTrueType::Font font;
+        RasterizerFont font;
         if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
             RasterizerDB db;
             db.open(_dbURL.path.UTF8String);
