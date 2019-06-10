@@ -82,20 +82,22 @@ struct RasterizerDB {
         return status;
     }
     void insert(const char *table, int count, char **values) {
-        char *sql, val[count * 4 + 1], *v = val;
-        *v++ = '@', *v++ = '0';
-        for (int i = 1; i < count; i++)
-            *v++ = ',', *v++ = ' ', *v++ = '@', *v++ = '0' + i;
-        *v = 0;
-        asprintf(& sql, "INSERT INTO _%s VALUES (%s)", table, val);
+        char num[2] = { 0, 0 };
+        Rasterizer::Row<char> str;
+        str.cat("INSERT INTO _").cat(table).cat(" VALUES (");
+        for (int i = 0; i < count; i++) {
+            if (i > 0)
+                str.cat(", ");
+            num[0] = '0' + i, str.cat("@").cat(num);
+        }
+        str.cat(")");
         sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK) {
+        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0; i < count; i++)
                 sqlite3_bind_text(pStmt, i + 1, values[i], -1, SQLITE_STATIC);
             sqlite3_step(pStmt);
         }
         sqlite3_finalize(pStmt);
-        free(sql);
     }
     void writeColumnValues(const char *sql, void *values, bool real) {
         sqlite3_stmt *pStmt;
