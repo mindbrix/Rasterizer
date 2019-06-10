@@ -23,15 +23,15 @@ struct RasterizerTrueType {
                     if (info.numGlyphs) {
                         const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                         if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
-                            const char* lw_ =  "lW ";
+                            const char* lM_ =  "lM ";
                             int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
                             for (int j = 0; j < 3; j++)
-                                if ((glyph = stbtt_FindGlyphIndex(& info, lw_[j])) != -1)
+                                if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
                                     stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
                             if (widths[0] && widths[1] && widths[2]) {
                                 if (widths[0] == widths[1] && widths[1] == widths[2])
                                     monospace = widths[0];
-                                space = widths[2];
+                                space = widths[2], em = widths[1];
                                 stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                                 unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
                                 return 1;
@@ -74,7 +74,7 @@ struct RasterizerTrueType {
             return path;
         }
         std::unordered_map<int, Rasterizer::Path> cache;
-        int monospace, space, ascent, descent, lineGap, unitsPerEm;
+        int monospace, space, em, ascent, descent, lineGap, unitsPerEm;
         stbtt_fontinfo info;
     };
     
