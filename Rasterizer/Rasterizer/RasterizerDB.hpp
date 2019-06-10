@@ -109,20 +109,21 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt);
     }
     void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, void *metrics, bool real) {
-        char *str0, *str1, *sql;
-        asprintf(& str0, "%s(LENGTH(%s))", fn, names[0]);
-        for (int i = 1; i < count; i++)
-            asprintf(& str1, "%s, %s(LENGTH(%s))", str0, fn, names[i]), free(str0), str0 = str1;
-        asprintf(& sql, "SELECT %s FROM %s", str0, table);
-        writeColumnValues(sql, metrics, real);
-        free(sql), free(str0);
+        Rasterizer::Row<char> str;
+        str.append("SELECT ");
+        for (int i = 0; i < count; i++) {
+            if (i > 0)
+                str.append(", ");
+            str.append(fn).append("(LENGTH(").append(names[i]).append("))");
+        }
+        str.append(" FROM ").append(table);
+        writeColumnValues(str.base, metrics, real);
     }
     int rowCount(const char *table) {
         int count;
-        char *sql;
-        asprintf(& sql, "SELECT COUNT(*) FROM %s", table);
-        writeColumnValues(sql, & count, false);
-        free(sql);
+        Rasterizer::Row<char> str;
+        str.append("SELECT COUNT(*) FROM ").append(table);
+        writeColumnValues(str.base, & count, false);
         return count;
     }
     void writeTables(RasterizerFont& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
