@@ -208,6 +208,7 @@ struct Rasterizer {
     };
     template<typename T>
     struct Row {
+        Row<T>& append(const T *src) { do *(alloc(1)) = *src; while (*src++);  --end;  return *this; }
         void empty() { end = idx = 0; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         inline T *alloc(size_t n) {
