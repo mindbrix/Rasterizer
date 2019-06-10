@@ -1,5 +1,5 @@
 //
-//  RasterizerTrueType.hpp
+//  RasterizerFont.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 04/01/2019.

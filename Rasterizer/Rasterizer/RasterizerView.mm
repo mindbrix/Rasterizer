@@ -11,7 +11,7 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerDB.hpp"
 #import "RasterizerSVG.hpp"
-#import "RasterizerTrueType.hpp"
+#import "RasterizerFont.hpp"
 #import "RasterizerTest.hpp"
 #import "MetalLayer.h"
 

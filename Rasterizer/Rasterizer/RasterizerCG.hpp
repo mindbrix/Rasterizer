@@ -8,7 +8,7 @@
 #import "RasterizerEvent.hpp"
 #import "RasterizerDB.hpp"
 #import "RasterizerWinding.hpp"
-#import "RasterizerTrueType.hpp"
+#import "RasterizerFont.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 

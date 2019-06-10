@@ -49,7 +49,7 @@
 		E938EB1121C4FCB800794C0B /* Rasterizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Rasterizer.h; sourceTree = "<group>"; };
 		E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerCG.hpp; sourceTree = "<group>"; };
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
-		E963FF6D21DF59B9007C1327 /* RasterizerTrueType.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTrueType.hpp; sourceTree = "<group>"; };
+		E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerFont.hpp; sourceTree = "<group>"; };
 		E963FF6E21DF5A29007C1327 /* stb_truetype.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../../stb/stb_truetype.h; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 		E990649021C2E11500D2DBF2 /* MetalLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MetalLayer.h; sourceTree = "<group>"; };
@@ -118,7 +118,7 @@
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerEvent.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
-				E963FF6D21DF59B9007C1327 /* RasterizerTrueType.hpp */,
+				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
 				E9E36F08223A722100F6533A /* RasterizerTest.hpp */,
 				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,

@@ -8,7 +8,7 @@
 #import <stdio.h>
 #import <sqlite3.h>
 #import "Rasterizer.hpp"
-#import "RasterizerTrueType.hpp"
+#import "RasterizerFont.hpp"
 
 struct RasterizerDB {
     static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
