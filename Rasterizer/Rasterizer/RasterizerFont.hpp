@@ -11,7 +11,7 @@
 
 struct RasterizerFont {
     RasterizerFont() { empty(); }
-    void empty() { monospace = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
+    void empty() { monospace = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     int set(const void *bytes, const char *name) {
         const unsigned char *ttf_buffer = (const unsigned char *)bytes;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
