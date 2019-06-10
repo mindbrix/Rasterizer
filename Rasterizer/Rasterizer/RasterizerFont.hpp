@@ -30,7 +30,7 @@ struct RasterizerFont {
                         if (widths[0] && widths[1] && widths[2]) {
                             if (widths[0] == widths[1] && widths[1] == widths[2])
                                 monospace = widths[0];
-                            space = widths[2], em = widths[1];
+                            em = widths[1], space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
                             return 1;
@@ -73,7 +73,7 @@ struct RasterizerFont {
         return path;
     }
     std::unordered_map<int, Rasterizer::Path> cache;
-    int monospace, space, em, ascent, descent, lineGap, unitsPerEm;
+    int monospace, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
     static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
