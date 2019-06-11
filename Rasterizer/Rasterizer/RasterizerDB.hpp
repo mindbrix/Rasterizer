@@ -39,7 +39,7 @@ struct RasterizerDB {
     }
     int endImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str;
-        char intbuf[16], *str0, *str1, *sql, *cols, *tabs, *joins = nullptr, *tmp;
+        char intbuf[16], *str0, *str1, *cols, *tabs, *joins = nullptr, *tmp;
         asprintf(& tabs, "_%s", table);
         int lengths[count];
         writeColumnMetrics(tabs, names, "MAX", count, lengths, false);
@@ -65,9 +65,9 @@ struct RasterizerDB {
                 asprintf(& str1, "%s, %s varchar(%d)", str0, names[i], lengths[i]), free(str0), str0 = str1;
                 asprintf(& tmp, "%s, _%s.%s", cols, table, names[i]), free(cols), cols = tmp;
             }
-        asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s(id INTEGER PRIMARY KEY, %s); DELETE FROM %s;", table, str0, table);
-        int status = exec(sql);
-        free(sql), free(str0);
+        str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat("(id INTEGER PRIMARY KEY, ").cat(str0).cat("); DELETE FROM ").cat(table);
+        int status = exec(str.base);
+        free(str0);
         
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
@@ -77,9 +77,9 @@ struct RasterizerDB {
                 str.empty().cat("INSERT INTO ").cat(table).cat(names[i]).cat(" SELECT DISTINCT NULL, ").cat(names[i]).cat(" FROM _").cat(table).cat(" ORDER BY ").cat(names[i]).cat(" ASC");
                 status = exec(str.base);
             }
-        asprintf(& sql, "INSERT INTO %s SELECT NULL, %s FROM %s WHERE %s; DROP TABLE _%s; VACUUM;", table, cols, tabs, joins, table);
-        status = exec(sql);
-        free(sql), free(cols), free(tabs), free(joins);
+        str.empty().cat("INSERT INTO ").cat(table).cat(" SELECT NULL, ").cat(cols).cat(" FROM ").cat(tabs).cat(" WHERE ").cat(joins).cat("; DROP TABLE _").cat(table).cat("; VACUUM;");
+        status = exec(str.base);
+        free(cols), free(tabs), free(joins);
         return status;
     }
     void insert(const char *table, int count, char **values) {
