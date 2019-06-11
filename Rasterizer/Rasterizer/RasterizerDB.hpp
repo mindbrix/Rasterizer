@@ -29,11 +29,8 @@ struct RasterizerDB {
     int beginImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str;
         str.cat("CREATE TABLE IF NOT EXISTS _").cat(table).cat(" (");
-        for (int i = 0; i < count; i++) {
-            if (i > 0)
-                str.cat(", ");
-            str.cat(names[i]).cat(" text");
-        }
+        for (int i = 0; i < count; i++)
+            str.cat(i == 0 ? "" : ", ").cat(names[i]).cat(" text");
         str.cat("); DELETE FROM _").cat(table);
         return exec(str.base);
     }
@@ -86,11 +83,8 @@ struct RasterizerDB {
         char num[2] = { 0, 0 };
         Rasterizer::Row<char> str;
         str.cat("INSERT INTO _").cat(table).cat(" VALUES (");
-        for (int i = 0; i < count; i++) {
-            if (i > 0)
-                str.cat(", ");
-            num[0] = '0' + i, str.cat("@").cat(num);
-        }
+        for (int i = 0; i < count; i++)
+            num[0] = '0' + i, str.cat(i == 0 ? "" : ", ").cat("@").cat(num);
         str.cat(")");
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
@@ -114,11 +108,8 @@ struct RasterizerDB {
     void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, void *metrics, bool real) {
         Rasterizer::Row<char> str;
         str.cat("SELECT ");
-        for (int i = 0; i < count; i++) {
-            if (i > 0)
-                str.cat(", ");
-            str.cat(fn).cat("(LENGTH(").cat(names[i]).cat("))");
-        }
+        for (int i = 0; i < count; i++)
+            str.cat(i == 0 ? "" : ", ").cat(fn).cat("(LENGTH(").cat(names[i]).cat("))");
         str.cat(" FROM ").cat(table);
         writeColumnValues(str.base, metrics, real);
     }
