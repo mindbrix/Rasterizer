@@ -27,25 +27,25 @@ struct RasterizerDB {
         return exec(str.base);
     }
     int endImport(const char *table, const char **names, int count) {
-        Rasterizer::Row<char> str, _str0, _cols, _tabs, _joins;
+        Rasterizer::Row<char> str, masterCols, cols, tabs, joins;
         int lengths[count];
         char intbuf[16];
-        _tabs.cat("_").cat(table);
-        writeColumnMetrics(_tabs.base, names, "MAX", count, lengths, false);
+        tabs.cat("_").cat(table);
+        writeColumnMetrics(tabs.base, names, "MAX", count, lengths, false);
 
         for (int i = 0; i < count; i++) {
             sprintf(intbuf, "%d", lengths[i]);
             if (names[i][0] == '_') {
-                _str0.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(" int");
-                _cols.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(".rowid");
-                _tabs.cat(", ").cat(table).cat(names[i]);
-                _joins.cat(_joins.base ? " AND " : "").cat(& names[i][1]).cat(" = _").cat(table).cat(".").cat(names[i]);
+                masterCols.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(" int");
+                cols.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(".rowid");
+                tabs.cat(", ").cat(table).cat(names[i]);
+                joins.cat(joins.base ? " AND " : "").cat(& names[i][1]).cat(" = _").cat(table).cat(".").cat(names[i]);
             } else {
-                _str0.cat(i == 0 ? "" : ", ").cat(names[i]).cat(" varchar(").cat(intbuf).cat(")");
-                _cols.cat(i == 0 ? "" : ", ").cat("_").cat(table).cat(".").cat(names[i]);
+                masterCols.cat(i == 0 ? "" : ", ").cat(names[i]).cat(" varchar(").cat(intbuf).cat(")");
+                cols.cat(i == 0 ? "" : ", ").cat("_").cat(table).cat(".").cat(names[i]);
             }
         }
-        str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat("(id INTEGER PRIMARY KEY, ").cat(_str0.base).cat("); DELETE FROM ").cat(table);
+        str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat("(id INTEGER PRIMARY KEY, ").cat(masterCols.base).cat("); DELETE FROM ").cat(table);
         int status = exec(str.base);
         
         for (int i = 0; i < count; i++)
@@ -56,7 +56,7 @@ struct RasterizerDB {
                 str.empty().cat("INSERT INTO ").cat(table).cat(names[i]).cat(" SELECT DISTINCT NULL, ").cat(names[i]).cat(" FROM _").cat(table).cat(" ORDER BY ").cat(names[i]).cat(" ASC");
                 status = exec(str.base);
             }
-        str.empty().cat("INSERT INTO ").cat(table).cat(" SELECT NULL, ").cat(_cols.base).cat(" FROM ").cat(_tabs.base).cat(" WHERE ").cat(_joins.base).cat("; DROP TABLE _").cat(table).cat("; VACUUM;");
+        str.empty().cat("INSERT INTO ").cat(table).cat(" SELECT NULL, ").cat(cols.base).cat(" FROM ").cat(tabs.base).cat(" WHERE ").cat(joins.base).cat("; DROP TABLE _").cat(table).cat("; VACUUM;");
         return exec(str.base);
     }
     void insert(const char *table, int count, char **values) {
