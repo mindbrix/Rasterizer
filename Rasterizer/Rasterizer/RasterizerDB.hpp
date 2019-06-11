@@ -150,14 +150,11 @@ struct RasterizerDB {
             int rows = ceilf((frame.uy - frame.ly) / h), count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows), lower = n - range, upper = n + range;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             str.empty().cat("SELECT ");
-            for (int i = 0; i < columns; i++) {
-                if (i > 0)
-                    str.cat(", ");
+            for (int i = 0; i < columns; i++)
                 if (types[i] == SQLITE_TEXT)
-                    str.cat("CASE WHEN LENGTH(").cat(names[i]).cat(") < 24 THEN ").cat(names[i]).cat(" ELSE SUBSTR(").cat(names[i]).cat(", 1, 11) || '…' || SUBSTR(").cat(names[i]).cat(", LENGTH(").cat(names[i]).cat(") - 11) END AS ").cat(names[i]);
+                    str.cat(i == 0 ? "" : ", ").cat("CASE WHEN LENGTH(").cat(names[i]).cat(") < 24 THEN ").cat(names[i]).cat(" ELSE SUBSTR(").cat(names[i]).cat(", 1, 11) || '…' || SUBSTR(").cat(names[i]).cat(", LENGTH(").cat(names[i]).cat(") - 11) END AS ").cat(names[i]);
                 else
-                    str.cat("0");
-            }
+                    str.cat(i == 0 ? "" : ", ").cat("0");
             str.cat(" FROM ").cat(table).cat(" LIMIT "), sprintf(str.alloc(32), "%d, %d", lower, upper - lower);
             
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
