@@ -38,7 +38,8 @@ struct RasterizerDB {
         return exec(str.base);
     }
     int endImport(const char *table, const char **names, int count) {
-        char *str0, *str1, *sql, *cols, *tabs, *joins = nullptr, *tmp;
+        Rasterizer::Row<char> str;
+        char intbuf[16], *str0, *str1, *sql, *cols, *tabs, *joins = nullptr, *tmp;
         asprintf(& tabs, "_%s", table);
         int lengths[count];
         writeColumnMetrics(tabs, names, "MAX", count, lengths, false);
@@ -70,12 +71,11 @@ struct RasterizerDB {
         
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
-                asprintf(& sql, "CREATE TABLE IF NOT EXISTS %s%s(id INTEGER PRIMARY KEY, %s varchar(%d)); DELETE FROM %s%s;", table, names[i], & names[i][1], lengths[i], table, names[i]);
-                status = exec(sql);
-                free(sql);
-                asprintf(& sql, "INSERT INTO %s%s SELECT DISTINCT NULL, %s FROM _%s ORDER BY %s ASC;", table, names[i], names[i], table, names[i]);
-                status = exec(sql);
-                free(sql);
+                sprintf(intbuf, "%d", lengths[i]);
+                str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat(names[i]).cat("(id INTEGER PRIMARY KEY, ").cat(& names[i][1]).cat(" varchar(").cat(intbuf).cat(")); DELETE FROM ").cat(table).cat(names[i]);
+                status = exec(str.base);
+                str.empty().cat("INSERT INTO ").cat(table).cat(names[i]).cat(" SELECT DISTINCT NULL, ").cat(names[i]).cat(" FROM _").cat(table).cat(" ORDER BY ").cat(names[i]).cat(" ASC");
+                status = exec(str.base);
             }
         asprintf(& sql, "INSERT INTO %s SELECT NULL, %s FROM %s WHERE %s; DROP TABLE _%s; VACUUM;", table, cols, tabs, joins, table);
         status = exec(sql);
