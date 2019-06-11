@@ -11,17 +11,9 @@
 #import "RasterizerFont.hpp"
 
 struct RasterizerDB {
-    static constexpr const char *kCountTables = "SELECT COUNT(*) FROM sqlite_master;";
-    static constexpr const char *kSelectTableNames = "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC;";
-    
     ~RasterizerDB() { close(); }
-    int open(const char *filename) {
-        return sqlite3_open(filename, & db);
-    }
-    void close() {
-        sqlite3_close(db);
-        db = nullptr;
-    }
+    int open(const char *filename) { return sqlite3_open(filename, & db); }
+    void close() { sqlite3_close(db), db = nullptr; }
     int beginTransaction() { return exec("BEGIN TRANSACTION"); }
     int endTransaction() { return exec("END TRANSACTION"); }
     int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
@@ -110,11 +102,11 @@ struct RasterizerDB {
     }
     void writeTables(RasterizerFont& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
         int count, N;
-        writeColumnValues(kCountTables, & count, false);
+        writeColumnValues("SELECT COUNT(*) FROM sqlite_master", & count, false);
         N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N, padding = 1.f - 1.f / 24.f;
         sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, kSelectTableNames, -1, & pStmt, NULL) == SQLITE_OK) {
+        if (sqlite3_prepare_v2(db, "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
                 int x = i % N, y = i / N;
                 Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim * padding, frame.lx + (x + 1) * dim * padding, frame.uy - y * dim };
