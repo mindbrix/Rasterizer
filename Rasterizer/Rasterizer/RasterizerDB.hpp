@@ -35,36 +35,37 @@ struct RasterizerDB {
         return exec(str.base);
     }
     int endImport(const char *table, const char **names, int count) {
-        Rasterizer::Row<char> str;
-        char intbuf[16], *str0, *str1, *cols, *tabs, *joins = nullptr, *tmp;
+        Rasterizer::Row<char> str, _str0, _cols, _tabs, _joins;
+        char intbuf[16], *tabs, *joins = nullptr, *tmp;
+        _tabs.cat("_").cat(table);
         asprintf(& tabs, "_%s", table);
         int lengths[count];
-        writeColumnMetrics(tabs, names, "MAX", count, lengths, false);
+        writeColumnMetrics(_tabs.base, names, "MAX", count, lengths, false);
+        
+        for (int i = 0; i < count; i++) {
+            sprintf(intbuf, "%d", lengths[i]);
+            if (names[i][0] == '_') {
+                _str0.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(" int");
+                _cols.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(".rowid");
+            } else {
+                _str0.cat(i == 0 ? "" : ", ").cat(names[i]).cat(" varchar(").cat(intbuf).cat(")");
+                _cols.cat(i == 0 ? "" : ", ").cat("_").cat(table).cat(".").cat(names[i]);
+            }
+        }
         if (names[0][0] == '_') {
-            asprintf(& str0, "%s%s int", table, names[0]);
-            asprintf(& cols, "%s%s.rowid", table, names[0]);
             asprintf(& tmp, "%s, %s%s", tabs, table, names[0]), free(tabs), tabs = tmp;
             asprintf(& joins, "%s = _%s.%s", & names[0][1], table, names[0]);
-        } else {
-            asprintf(& str0, "%s varchar(%d)", names[0], lengths[0]);
-            asprintf(& cols, "_%s.%s", table, names[0]);
         }
         for (int i = 1; i < count; i++)
             if (names[i][0] == '_') {
-                asprintf(& str1, "%s, %s%s int", str0, table, names[i]), free(str0), str0 = str1;
-                asprintf(& tmp, "%s, %s%s.rowid", cols, table, names[i]), free(cols), cols = tmp;
                 asprintf(& tmp, "%s, %s%s", tabs, table, names[i]), free(tabs), tabs = tmp;
                 if (joins)
                     asprintf(& tmp, "%s AND %s = _%s.%s", joins, & names[i][1], table, names[i]), free(joins), joins = tmp;
                 else
                     asprintf(& joins, "%s = _%s.%s", & names[i][1], table, names[i]);
-            } else {
-                asprintf(& str1, "%s, %s varchar(%d)", str0, names[i], lengths[i]), free(str0), str0 = str1;
-                asprintf(& tmp, "%s, _%s.%s", cols, table, names[i]), free(cols), cols = tmp;
             }
-        str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat("(id INTEGER PRIMARY KEY, ").cat(str0).cat("); DELETE FROM ").cat(table);
+        str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat("(id INTEGER PRIMARY KEY, ").cat(_str0.base).cat("); DELETE FROM ").cat(table);
         int status = exec(str.base);
-        free(str0);
         
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
@@ -74,9 +75,9 @@ struct RasterizerDB {
                 str.empty().cat("INSERT INTO ").cat(table).cat(names[i]).cat(" SELECT DISTINCT NULL, ").cat(names[i]).cat(" FROM _").cat(table).cat(" ORDER BY ").cat(names[i]).cat(" ASC");
                 status = exec(str.base);
             }
-        str.empty().cat("INSERT INTO ").cat(table).cat(" SELECT NULL, ").cat(cols).cat(" FROM ").cat(tabs).cat(" WHERE ").cat(joins).cat("; DROP TABLE _").cat(table).cat("; VACUUM;");
+        str.empty().cat("INSERT INTO ").cat(table).cat(" SELECT NULL, ").cat(_cols.base).cat(" FROM ").cat(tabs).cat(" WHERE ").cat(joins).cat("; DROP TABLE _").cat(table).cat("; VACUUM;");
         status = exec(str.base);
-        free(cols), free(tabs), free(joins);
+        free(tabs), free(joins);
         return status;
     }
     void insert(const char *table, int count, char **values) {
