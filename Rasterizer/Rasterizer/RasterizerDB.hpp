@@ -37,36 +37,36 @@ struct RasterizerDB {
         for (int i = 0; i < count; i++) {
             sprintf(intbuf, "%d", lengths[i]);
             if (names[i][0] == '_') {
-                str.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(" int");
-                cols.cat(i == 0 ? "" : ", ").cat(table).cat(names[i]).cat(".rowid");
-                tabs.cat(", ").cat(table).cat(names[i]);
-                joins.cat(joins.base ? " AND " : "").cat(& names[i][1]).cat(" = _").cat(table).cat(".").cat(names[i]);
+                str = str + (i == 0 ? "" : ", ") + table + names[i] + " int";
+                cols = cols + (i == 0 ? "" : ", ") + table + names[i] + ".rowid";
+                tabs = tabs + ", " + table + names[i];
+                joins = joins + (joins.base ? " AND " : "") + & names[i][1] + " = _" + table + "." + names[i];
             } else {
-                str.cat(i == 0 ? "" : ", ").cat(names[i]).cat(" varchar(").cat(intbuf).cat(")");
-                cols.cat(i == 0 ? "" : ", ").cat("_").cat(table).cat(".").cat(names[i]);
+                str = str + (i == 0 ? "" : ", ") + names[i] + " varchar(" + intbuf + ")";
+                cols = cols + (i == 0 ? "" : ", ") + "_" + table + "." + names[i];
             }
         }
-        str.cat("); DELETE FROM ").cat(table);
+        str = str + "); DELETE FROM " + table;
         int status = exec(str.base);
         
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
                 sprintf(intbuf, "%d", lengths[i]);
-                str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat(names[i]).cat("(id INTEGER PRIMARY KEY, ").cat(& names[i][1]).cat(" varchar(").cat(intbuf).cat(")); DELETE FROM ").cat(table).cat(names[i]);
+                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + intbuf + ")); DELETE FROM " + table + names[i];
                 status = exec(str.base);
-                str.empty().cat("INSERT INTO ").cat(table).cat(names[i]).cat(" SELECT DISTINCT NULL, ").cat(names[i]).cat(" FROM _").cat(table).cat(" ORDER BY ").cat(names[i]).cat(" ASC");
+                str = str.empty() + "INSERT INTO " + table + names[i] + " SELECT DISTINCT NULL, " + names[i] + " FROM _" + table + " ORDER BY " + names[i] + " ASC";
                 status = exec(str.base);
             }
-        str.empty().cat("INSERT INTO ").cat(table).cat(" SELECT NULL, ").cat(cols.base).cat(" FROM ").cat(tabs.base).cat(" WHERE ").cat(joins.base).cat("; DROP TABLE _").cat(table).cat("; VACUUM;");
+        str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base + "; DROP TABLE _" + table + "; VACUUM";
         return exec(str.base);
     }
     void insert(const char *table, int count, char **values) {
-        char num[2] = { 0, 0 };
+        char num[3] = { '@', 0, 0 };
         Rasterizer::Row<char> str;
-        str.cat("INSERT INTO _").cat(table).cat(" VALUES (");
+        str = str + "INSERT INTO _" + table + " VALUES (";
         for (int i = 0; i < count; i++)
-            num[0] = '0' + i, str.cat(i == 0 ? "" : ", ").cat("@").cat(num);
-        str.cat(")");
+            num[1] = '0' + i, str = str + (i == 0 ? "" : ", ") + num;
+        str = str + ")";
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0; i < count; i++)

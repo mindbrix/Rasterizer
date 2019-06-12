@@ -209,8 +209,7 @@ struct Rasterizer {
     template<typename T>
     struct Row {
     public:
-        Row<T>& operator+(const T *src) { return cat(src); }
-        Row<T>& cat(const T *src) { do *(alloc(1)) = *src; while (*src++);  --end;  return *this; }
+        Row<T>& operator+(const T *src) { do *(alloc(1)) = *src; while (*src++);  --end;  return *this; }
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         inline T *alloc(size_t n) {
