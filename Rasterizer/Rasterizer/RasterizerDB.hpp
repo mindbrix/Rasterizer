@@ -20,10 +20,10 @@ struct RasterizerDB {
     
     int beginImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str;
-        str.cat("CREATE TABLE IF NOT EXISTS _").cat(table).cat(" (");
+        str = str + "CREATE TABLE IF NOT EXISTS _" + table + " (";
         for (int i = 0; i < count; i++)
-            str.cat(i == 0 ? "" : ", ").cat(names[i]).cat(" text");
-        str.cat("); DELETE FROM _").cat(table);
+            str = str + (i == 0 ? "" : ", ") + names[i] + " text";
+        str = str + "); DELETE FROM _" + table;
         return exec(str.base);
     }
     int endImport(const char *table, const char **names, int count) {
@@ -119,7 +119,7 @@ struct RasterizerDB {
     void writeTable(RasterizerFont& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
         Rasterizer::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255);
         Rasterizer::Row<char> str;
-        str.cat("SELECT * FROM ").cat(table).cat(" LIMIT 1");
+        str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status;
@@ -130,13 +130,14 @@ struct RasterizerDB {
             fs = (frame.ux - frame.lx) / (s * total * font.em * (font.monospace ? 1.f : 0.666f)), size *= fs, h *= fs;
             int rows = ceilf((frame.uy - frame.ly) / h), count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows), lower = n - range, upper = n + range;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-            str.empty().cat("SELECT ");
+            str = str.empty() + "SELECT ";
             for (int i = 0; i < columns; i++)
                 if (types[i] == SQLITE_TEXT)
-                    str.cat(i == 0 ? "" : ", ").cat("CASE WHEN LENGTH(").cat(names[i]).cat(") < 24 THEN ").cat(names[i]).cat(" ELSE SUBSTR(").cat(names[i]).cat(", 1, 11) || '…' || SUBSTR(").cat(names[i]).cat(", LENGTH(").cat(names[i]).cat(") - 11) END AS ").cat(names[i]);
+                    str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + names[i] + ") < 24 THEN " + names[i] + " ELSE SUBSTR(" + names[i] + ", 1, 11) || '…' || SUBSTR(" + names[i] + ", LENGTH(" + names[i] + ") - 11) END AS " + names[i];
                 else
-                    str.cat(i == 0 ? "" : ", ").cat("0");
-            str.cat(" FROM ").cat(table).cat(" LIMIT "), sprintf(str.alloc(32), "%d, %d", lower, upper - lower);
+                    str = str + (i == 0 ? "" : ", ") + "0";
+            str = str + " FROM " + table + " LIMIT ";
+            sprintf(str.alloc(32), "%d, %d", lower, upper - lower);
             
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
