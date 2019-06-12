@@ -29,20 +29,18 @@ struct RasterizerDB {
     int endImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str, cols, tabs, joins;
         int lengths[count];
-        char intbuf[16];
         tabs = tabs + "_" + table;
         writeColumnMetrics(tabs.base, names, "MAX", count, lengths, false);
 
         str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
         for (int i = 0; i < count; i++) {
-            sprintf(intbuf, "%d", lengths[i]);
             if (names[i][0] == '_') {
                 str = str + (i == 0 ? "" : ", ") + table + names[i] + " int";
                 cols = cols + (i == 0 ? "" : ", ") + table + names[i] + ".rowid";
                 tabs = tabs + ", " + table + names[i];
                 joins = joins + (joins.base ? " AND " : "") + & names[i][1] + " = _" + table + "." + names[i];
             } else {
-                str = str + (i == 0 ? "" : ", ") + names[i] + " varchar(" + intbuf + ")";
+                str = str + (i == 0 ? "" : ", ") + names[i] + " varchar(" + lengths[i] + ")";
                 cols = cols + (i == 0 ? "" : ", ") + "_" + table + "." + names[i];
             }
         }
@@ -51,8 +49,7 @@ struct RasterizerDB {
         
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
-                sprintf(intbuf, "%d", lengths[i]);
-                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + intbuf + ")); DELETE FROM " + table + names[i];
+                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + lengths[i] + ")); DELETE FROM " + table + names[i];
                 status = exec(str.base);
                 str = str.empty() + "INSERT INTO " + table + names[i] + " SELECT DISTINCT NULL, " + names[i] + " FROM _" + table + " ORDER BY " + names[i] + " ASC";
                 status = exec(str.base);
@@ -61,11 +58,10 @@ struct RasterizerDB {
         return exec(str.base);
     }
     void insert(const char *table, int count, char **values) {
-        char num[3] = { '@', 0, 0 };
         Rasterizer::Row<char> str;
         str = str + "INSERT INTO _" + table + " VALUES (";
         for (int i = 0; i < count; i++)
-            num[1] = '0' + i, str = str + (i == 0 ? "" : ", ") + num;
+            str = str + (i == 0 ? "" : ", ") + "@" + i;
         str = str + ")";
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
@@ -136,8 +132,7 @@ struct RasterizerDB {
                     str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + names[i] + ") < 24 THEN " + names[i] + " ELSE SUBSTR(" + names[i] + ", 1, 11) || '…' || SUBSTR(" + names[i] + ", LENGTH(" + names[i] + ") - 11) END AS " + names[i];
                 else
                     str = str + (i == 0 ? "" : ", ") + "0";
-            str = str + " FROM " + table + " LIMIT ";
-            sprintf(str.alloc(32), "%d, %d", lower, upper - lower);
+            str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
             
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
