@@ -30,10 +30,10 @@ struct RasterizerDB {
         Rasterizer::Row<char> str, cols, tabs, joins;
         int lengths[count];
         char intbuf[16];
-        tabs.cat("_").cat(table);
+        tabs = tabs + "_" + table;
         writeColumnMetrics(tabs.base, names, "MAX", count, lengths, false);
 
-        str.empty().cat("CREATE TABLE IF NOT EXISTS ").cat(table).cat("(id INTEGER PRIMARY KEY, ");
+        str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
         for (int i = 0; i < count; i++) {
             sprintf(intbuf, "%d", lengths[i]);
             if (names[i][0] == '_') {
@@ -88,16 +88,16 @@ struct RasterizerDB {
     }
     void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, void *metrics, bool real) {
         Rasterizer::Row<char> str;
-        str.cat("SELECT ");
+        str = str + "SELECT ";
         for (int i = 0; i < count; i++)
-            str.cat(i == 0 ? "" : ", ").cat(fn).cat("(LENGTH(").cat(names[i]).cat("))");
-        str.cat(" FROM ").cat(table);
+            str = str + (i == 0 ? "" : ", ") + fn + "(LENGTH(" + names[i] + "))";
+        str = str + " FROM " + table;
         writeColumnValues(str.base, metrics, real);
     }
     int rowCount(const char *table) {
         int count;
         Rasterizer::Row<char> str;
-        str.cat("SELECT COUNT(*) FROM ").cat(table);
+        str = str + "SELECT COUNT(*) FROM " + table;
         writeColumnValues(str.base, & count, false);
         return count;
     }
