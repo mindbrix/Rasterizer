@@ -31,25 +31,22 @@ struct RasterizerDB {
         int lengths[count];
         tabs = tabs + "_" + table;
         writeColumnMetrics(tabs.base, names, "MAX", count, lengths, false);
-
         str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
                 str = str + (i == 0 ? "" : ", ") + table + names[i] + " int";
                 cols = cols + (i == 0 ? "" : ", ") + table + names[i] + ".rowid";
                 tabs = tabs + ", " + table + names[i];
                 joins = joins + (joins.base ? " AND " : "") + & names[i][1] + " = _" + table + "." + names[i];
             } else {
-                str = str + (i == 0 ? "" : ", ") + names[i] + " varchar(" + lengths[i] + ")";
+                str = str + (i == 0 ? "" : ", ") + names[i] + " varchar(" + lengths[i] + ") UNIQUE";
                 cols = cols + (i == 0 ? "" : ", ") + "_" + table + "." + names[i];
             }
-        }
-        str = str + "); DELETE FROM " + table;
+        str = str + ")";
         int status = exec(str.base);
-        
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
-                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + lengths[i] + ") UNIQUE); DELETE FROM " + table + names[i];
+                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + lengths[i] + ") UNIQUE)";
                 status = exec(str.base);
                 str = str.empty() + "INSERT INTO " + table + names[i] + " SELECT DISTINCT NULL, " + names[i] + " FROM _" + table + " ORDER BY " + names[i] + " ASC";
                 status = exec(str.base);
