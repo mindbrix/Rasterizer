@@ -49,7 +49,7 @@ struct RasterizerDB {
         
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
-                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + lengths[i] + ")); DELETE FROM " + table + names[i];
+                str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + lengths[i] + ") UNIQUE); DELETE FROM " + table + names[i];
                 status = exec(str.base);
                 str = str.empty() + "INSERT INTO " + table + names[i] + " SELECT DISTINCT NULL, " + names[i] + " FROM _" + table + " ORDER BY " + names[i] + " ASC";
                 status = exec(str.base);
@@ -99,11 +99,11 @@ struct RasterizerDB {
     }
     void writeTables(RasterizerFont& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
         int count, N;
-        writeColumnValues("SELECT COUNT(*) FROM sqlite_master", & count, false);
+        writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false);
         N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N, padding = 1.f - 1.f / 24.f;
         sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, "SELECT tbl_name FROM sqlite_master ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
+        if (sqlite3_prepare_v2(db, "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
                 int x = i % N, y = i / N;
                 Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim * padding, frame.lx + (x + 1) * dim * padding, frame.uy - y * dim };
