@@ -122,7 +122,7 @@ struct RasterizerDB {
             float fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
             const char *names[columns];
             for (i = 0; i < columns; i++)
-                types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] != SQLITE_TEXT ? 0 : 24, total += lengths[i];
+                types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? 24 : 0, total += lengths[i];
             fs = (frame.ux - frame.lx) / (s * total * font.em * (font.monospace ? 1.f : 0.666f)), size *= fs, h *= fs;
             int rows = ceilf((frame.uy - frame.ly) / h), count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows), lower = n - range, upper = n + range;
             lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
@@ -131,7 +131,7 @@ struct RasterizerDB {
                 if (types[i] == SQLITE_TEXT)
                     str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + names[i] + ") < 24 THEN " + names[i] + " ELSE SUBSTR(" + names[i] + ", 1, 11) || '…' || SUBSTR(" + names[i] + ", LENGTH(" + names[i] + ") - 11) END AS " + names[i];
                 else
-                    str = str + (i == 0 ? "" : ", ") + "0";
+                    str = str + (i == 0 ? "" : ", ") + names[i];
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
             
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
