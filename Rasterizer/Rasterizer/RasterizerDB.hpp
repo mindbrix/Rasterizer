@@ -14,11 +14,12 @@ struct RasterizerDB {
     ~RasterizerDB() { close(); }
     int open(const char *filename) { return sqlite3_open(filename, & db); }
     void close() { sqlite3_close(db), db = nullptr; }
-    int beginTransaction() { return exec("BEGIN TRANSACTION"); }
-    int endTransaction() { return exec("END TRANSACTION"); }
+    int begin() { return exec("BEGIN TRANSACTION"); }
+    int end() { return exec("END TRANSACTION"); }
     int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
     
     int beginImport(const char *table, const char **names, int count) {
+        exec("CREATE TABLE IF NOT EXISTS _ts(t REAL, tid INT UNIQUE)");
         Rasterizer::Row<char> str;
         str = str + "CREATE TABLE IF NOT EXISTS _" + table + " (";
         for (int i = 0; i < count; i++)

@@ -173,7 +173,7 @@ struct RasterizerCG {
         int status;
         const char *values[5], *kFontsTable = "fonts";
         NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();
-        status = db.beginTransaction();
+        status = db.begin();
         
         const char *columnNames[] = { "name", "_url", "_family", "_style" };
         db.beginImport(kFontsTable, columnNames, 4);
@@ -190,7 +190,7 @@ struct RasterizerCG {
         }
         db.endImport(kFontsTable, columnNames, 4);
         
-        status = db.endTransaction();
+        status = db.end();
     }
     
     static NSURL *fontURL(NSString *fontName) {
