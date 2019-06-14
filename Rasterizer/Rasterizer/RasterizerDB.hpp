@@ -100,7 +100,7 @@ struct RasterizerDB {
         int count, N;
         writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false);
         N = ceilf(sqrtf(count));
-        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = fw < fh ? fh : fw / N, padding = 1.f - 1.f / 24.f;
+        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, padding = 1.f - 1.f / 24.f;
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& bg = list.addScene();
