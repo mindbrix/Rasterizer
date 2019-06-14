@@ -94,16 +94,14 @@ struct Rasterizer {
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
         }
-        void addShapes(size_t count) {
-            shapesCount = count;
-            shapes = (Transform *)calloc(count, sizeof(shapes[0])), circles = (bool *)calloc(count, sizeof(bool));
+        void allocShapes(size_t count) {
+            shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
         }
         void setShapesBounds(size_t count) {
             bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-            for (int i = 0; i < count; i++) {
-                Rasterizer::Bounds b(shapes[i]);
-                bounds.extend(b.lx, b.ly), bounds.extend(b.ux, b.uy);
-            }
+            Bounds sb;
+            for (int i = 0; i < shapesCount; i++)
+                sb = Bounds(shapes[i]), bounds.extend(sb.lx, sb.ly), bounds.extend(sb.ux, sb.uy);
         }
         Geometry& addBounds(Bounds b) { return moveTo(b.lx, b.ly).lineTo(b.ux, b.ly).lineTo(b.ux, b.uy).lineTo(b.lx, b.uy).close(); }
         

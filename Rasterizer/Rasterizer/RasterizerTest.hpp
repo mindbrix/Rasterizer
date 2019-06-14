@@ -13,10 +13,10 @@ struct RasterizerTest {
         if (0) {
             Rasterizer::Path shape;
             shape.ref->addBounds(Rasterizer::Bounds(100.5, 100.5, 199.5, 199.5));
-            scene.addPath(shape, Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
+            scene.addPath(shape, Rasterizer::Transform::identity(), color);
         }
         if (0) {
-            scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f), color);
+            scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform::identity(), color);
         }
         if (0) {
             writePhyllotaxisToScene(100000, scene);
@@ -37,7 +37,7 @@ struct RasterizerTest {
     }
     static Rasterizer::Path createPhyllotaxisPath(size_t count) {
         Rasterizer::Path shapes;
-        shapes.ref->addShapes(count);
+        shapes.ref->allocShapes(count);
         Rasterizer::Transform *dst = shapes.ref->shapes;
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s;
@@ -55,7 +55,7 @@ struct RasterizerTest {
     }
     static Rasterizer::Path createBoundsShapes(Rasterizer::Scene& scene, bool circles) {
         Rasterizer::Path shapes;
-        shapes.ref->addShapes(scene.paths.size());
+        shapes.ref->allocShapes(scene.paths.size());
         if (circles)
             memset(shapes.ref->circles, 0x01, shapes.ref->shapesCount * sizeof(bool));
         Rasterizer::Transform *dst = shapes.ref->shapes;
