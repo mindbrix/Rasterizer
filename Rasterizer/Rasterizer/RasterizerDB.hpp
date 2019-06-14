@@ -14,8 +14,6 @@ struct RasterizerDB {
     ~RasterizerDB() { close(); }
     int open(const char *filename) { return sqlite3_open(filename, & db); }
     void close() { sqlite3_close(db), db = nullptr; }
-    int begin() { return exec("BEGIN TRANSACTION"); }
-    int end() { return exec("END TRANSACTION"); }
     int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
     
     int beginImport(const char *table, const char **names, int count) {
@@ -57,7 +55,7 @@ struct RasterizerDB {
                 status = exec(str.base);
             }
         str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base;
-        exec(str.base), end();
+        exec(str.base), exec("END TRANSACTION");
         sqlite3_finalize(stmt), stmt = nullptr;
         str = str.empty() + "BEGIN TRANSACTION; DROP TABLE _" + table + "; VACUUM; END TRANSACTION;";
         return exec(str.base);
