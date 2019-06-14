@@ -33,7 +33,7 @@ struct RasterizerDB {
         int lengths[count];
         tabs = tabs + "_" + table;
         writeColumnMetrics(tabs.base, names, "MAX", count, lengths, false);
-        str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
+        str = str + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
                 str = str + (i == 0 ? "" : ", ") + table + names[i] + " int";
