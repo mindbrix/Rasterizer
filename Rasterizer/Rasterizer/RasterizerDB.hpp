@@ -20,14 +20,11 @@ struct RasterizerDB {
     
     int beginImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str;
-        begin();
-        exec("CREATE TABLE IF NOT EXISTS _ts(t REAL, tid INT UNIQUE); INSERT INTO _ts SELECT 0.0, rowid FROM sqlite_master WHERE NOT EXISTS(SELECT t FROM _ts WHERE tid = sqlite_master.rowid)");
-        str = str.empty() + "CREATE TABLE IF NOT EXISTS _" + table + " (";
+        str = str + "BEGIN TRANSACTION; CREATE TABLE IF NOT EXISTS _ts(t REAL, tid INT UNIQUE); INSERT INTO _ts SELECT 0.0, rowid FROM sqlite_master WHERE NOT EXISTS(SELECT t FROM _ts WHERE tid = sqlite_master.rowid); " + "CREATE TABLE IF NOT EXISTS _" + table + " (";
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + names[i] + " text";
         str = str + "); DELETE FROM _" + table;
         exec(str.base);
-        
         str = str.empty() + "INSERT INTO _" + table + " VALUES (";
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + "@" + i;
@@ -62,8 +59,8 @@ struct RasterizerDB {
         str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base;
         exec(str.base), end();
         sqlite3_finalize(stmt), stmt = nullptr;
-        begin(), str = str.empty() + "DROP TABLE _" + table + "; VACUUM;", exec(str.base);
-        return end();
+        str = str.empty() + "BEGIN TRANSACTION; DROP TABLE _" + table + "; VACUUM; END TRANSACTION;";
+        return exec(str.base);
     }
     void insert(const char *table, int count, char **values) {
         for (int i = 0; i < count; i++)
