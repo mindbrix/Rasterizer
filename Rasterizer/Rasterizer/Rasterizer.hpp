@@ -105,21 +105,23 @@ struct Rasterizer {
                 bounds.extend(b.lx, b.ly), bounds.extend(b.ux, b.uy);
             }
         }
-        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
+        Geometry& addBounds(Bounds b) { return moveTo(b.lx, b.ly).lineTo(b.ux, b.ly).lineTo(b.ux, b.uy).lineTo(b.lx, b.uy).close(); }
         
-        void moveTo(float x, float y) {
+        Geometry& moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
             px = points[0] = x, py = points[1] = y;
             update(Atom::kMove, 1, points);
+            return *this;
         }
-        void lineTo(float x, float y) {
+        Geometry& lineTo(float x, float y) {
             if (px != x || py != y) {
                 float *points = alloc(Atom::kLine, 1);
                 px = points[0] = x, py = points[1] = y;
                 update(Atom::kLine, 1, points);
             }
+            return *this;
         }
-        void quadTo(float cx, float cy, float x, float y) {
+        Geometry& quadTo(float cx, float cy, float x, float y) {
             float ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy, det = ax * by - ay * bx, dot = ax * bx + ay * by;
             if (fabsf(det) < 1e-4f) {
                 if (dot < 0.f && det)
@@ -130,8 +132,9 @@ struct Rasterizer {
                 points[0] = cx, points[1] = cy, px = points[2] = x, py = points[3] = y;
                 update(Atom::kQuadratic, 2, points);
             }
+            return *this;
         }
-        void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
+        Geometry& cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
             float dx = 3.f * (cx0 - cx1) - px + x, dy = 3.f * (cy0 - cy1) - py + y;
             if (dx * dx + dy * dy < 1e-4f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
@@ -140,9 +143,10 @@ struct Rasterizer {
                 points[0] = cx0, points[1] = cy0, points[2] = cx1, points[3] = cy1, px = points[4] = x, py = points[5] = y;
                 update(Atom::kCubic, 3, points);
             }
+            return *this;
         }
-        void close() {
-            update(Atom::kClose, 0, alloc(Atom::kClose, 1));
+        Geometry& close() {
+            update(Atom::kClose, 0, alloc(Atom::kClose, 1)); return *this;
         }
         size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kCountSize];
         std::vector<Atom> atoms;
