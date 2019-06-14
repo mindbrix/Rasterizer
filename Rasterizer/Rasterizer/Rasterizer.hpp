@@ -14,6 +14,7 @@ struct Rasterizer {
     struct Transform {
         Transform() {}
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
+        static Transform identity() { return { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }; }
         static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         inline Transform concat(Transform t) const {
             return {
