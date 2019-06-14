@@ -19,14 +19,20 @@ struct RasterizerDB {
     int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
     
     int beginImport(const char *table, const char **names, int count) {
+        Rasterizer::Row<char> str;
         begin();
         exec("CREATE TABLE IF NOT EXISTS _ts(t REAL, tid INT UNIQUE); INSERT INTO _ts SELECT 0.0, rowid FROM sqlite_master WHERE NOT EXISTS(SELECT t FROM _ts WHERE tid = sqlite_master.rowid)");
-        Rasterizer::Row<char> str;
-        str = str + "CREATE TABLE IF NOT EXISTS _" + table + " (";
+        str = str.empty() + "CREATE TABLE IF NOT EXISTS _" + table + " (";
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + names[i] + " text";
         str = str + "); DELETE FROM _" + table;
-        return exec(str.base);
+        exec(str.base);
+        
+        str = str.empty() + "INSERT INTO _" + table + " VALUES (";
+        for (int i = 0; i < count; i++)
+            str = str + (i == 0 ? "" : ", ") + "@" + i;
+        str = str + ")";
+        return sqlite3_prepare_v2(db, str.base, -1, & stmt, NULL);
     }
     int endImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str, cols, tabs, joins;
@@ -55,21 +61,13 @@ struct RasterizerDB {
             }
         str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base + "; DROP TABLE _" + table + "; VACUUM";
         exec(str.base);
+        sqlite3_finalize(stmt), stmt = nullptr;
         return end();
     }
     void insert(const char *table, int count, char **values) {
-        Rasterizer::Row<char> str;
-        str = str + "INSERT INTO _" + table + " VALUES (";
         for (int i = 0; i < count; i++)
-            str = str + (i == 0 ? "" : ", ") + "@" + i;
-        str = str + ")";
-        sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
-            for (int i = 0; i < count; i++)
-                sqlite3_bind_text(pStmt, i + 1, values[i], -1, SQLITE_STATIC);
-            sqlite3_step(pStmt);
-        }
-        sqlite3_finalize(pStmt);
+            sqlite3_bind_text(stmt, i + 1, values[i], -1, SQLITE_STATIC);
+        sqlite3_step(stmt), sqlite3_reset(stmt);
     }
     void writeColumnValues(const char *sql, void *values, bool real) {
         sqlite3_stmt *pStmt;
@@ -154,4 +152,5 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt0);
     }
     sqlite3 *db = nullptr;
+    sqlite3_stmt *stmt = nullptr;
 };
