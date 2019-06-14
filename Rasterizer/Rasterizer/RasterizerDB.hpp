@@ -100,17 +100,17 @@ struct RasterizerDB {
         int count, N;
         writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false);
         N = ceilf(sqrtf(count));
-        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, padding = 1.f - 1.f / 24.f;
+        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / 24.f;
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& bg = list.addScene();
             for (int i = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++) {
                 int x = i % N, y = i / N;
-                Rasterizer::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim * padding, frame.lx + (x + 1) * dim * padding, frame.uy - y * dim };
+                Rasterizer::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Rasterizer::Path path;
-                path.ref->addBounds(Rasterizer::Bounds(frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim));
+                path.ref->addBounds(b);
                 bg.addPath(path, Rasterizer::Transform::identity(), i & 1 ? bg1 : bg0);
-                writeTable(font, size, 0.5f, bounds, (const char *)sqlite3_column_text(pStmt, 0), list);
+                writeTable(font, size, 0.5f, Rasterizer::Bounds(b.lx + pad, b.ly + pad, b.ux - pad, b.uy - pad), (const char *)sqlite3_column_text(pStmt, 0), list);
             }
         }
         sqlite3_finalize(pStmt);
