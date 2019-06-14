@@ -193,7 +193,7 @@ struct Rasterizer {
         size_t writeVisibles(Transform view, Bounds bounds, SceneList& visibles) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
-                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), bounds))
+                if (scenes[i].ref->paths.size() && isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), bounds))
                     pathsCount += scenes[i].ref->paths.size(), visibles.scenes.emplace_back(scenes[i]), visibles.ctms.emplace_back(ctms[i]), visibles.clips.emplace_back(clips[i]);
             return pathsCount;
         }
