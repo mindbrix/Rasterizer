@@ -59,9 +59,10 @@ struct RasterizerDB {
                 str = str.empty() + "INSERT INTO " + table + names[i] + " SELECT DISTINCT NULL, " + names[i] + " FROM _" + table + " ORDER BY " + names[i] + " ASC";
                 status = exec(str.base);
             }
-        str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base + "; DROP TABLE _" + table + "; VACUUM";
-        exec(str.base);
+        str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base;
+        exec(str.base), end();
         sqlite3_finalize(stmt), stmt = nullptr;
+        begin(), str = str.empty() + "DROP TABLE _" + table + "; VACUUM;", exec(str.base);
         return end();
     }
     void insert(const char *table, int count, char **values) {
