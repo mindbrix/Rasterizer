@@ -19,6 +19,7 @@ struct RasterizerDB {
     int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
     
     int beginImport(const char *table, const char **names, int count) {
+        begin();
         exec("CREATE TABLE IF NOT EXISTS _ts(t REAL, tid INT UNIQUE); INSERT INTO _ts SELECT 0.0, rowid FROM sqlite_master WHERE NOT EXISTS(SELECT t FROM _ts WHERE tid = sqlite_master.rowid)");
         Rasterizer::Row<char> str;
         str = str + "CREATE TABLE IF NOT EXISTS _" + table + " (";
@@ -53,7 +54,8 @@ struct RasterizerDB {
                 status = exec(str.base);
             }
         str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base + "; DROP TABLE _" + table + "; VACUUM";
-        return exec(str.base);
+        exec(str.base);
+        return end();
     }
     void insert(const char *table, int count, char **values) {
         Rasterizer::Row<char> str;
