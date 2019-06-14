@@ -92,7 +92,7 @@ struct RasterizerDB {
         return count;
     }
     void writeTables(RasterizerFont& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
-        Rasterizer::Colorant bg0(240, 255), bg1(248, 255);
+        Rasterizer::Colorant bg0(248, 255), bg1(252, 255);
         int count, N;
         writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false);
         N = ceilf(sqrtf(count));
