@@ -14,7 +14,6 @@ struct RasterizerDB {
     ~RasterizerDB() { close(); }
     int open(const char *filename) { return sqlite3_open(filename, & db); }
     void close() { sqlite3_close(db), db = nullptr; }
-    int exec(const char *sql) { return sqlite3_exec(db, sql, NULL, NULL, NULL); }
     
     int beginImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str;
@@ -22,7 +21,7 @@ struct RasterizerDB {
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + names[i] + " text";
         str = str + "); DELETE FROM _" + table;
-        exec(str.base);
+        sqlite3_exec(db, str.base, NULL, NULL, NULL);
         str = str.empty() + "INSERT INTO _" + table + " VALUES (";
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + "@" + i;
@@ -46,19 +45,20 @@ struct RasterizerDB {
                 cols = cols + (i == 0 ? "" : ", ") + "_" + table + "." + names[i];
             }
         str = str + ")";
-        int status = exec(str.base);
+        
+        int status = sqlite3_exec(db, str.base, NULL, NULL, NULL);
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
                 str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + names[i] + "(id INTEGER PRIMARY KEY, " + & names[i][1] + " varchar(" + lengths[i] + ") UNIQUE)";
-                status = exec(str.base);
+                status = sqlite3_exec(db, str.base, NULL, NULL, NULL);
                 str = str.empty() + "INSERT INTO " + table + names[i] + " SELECT DISTINCT NULL, " + names[i] + " FROM _" + table + " ORDER BY " + names[i] + " ASC";
-                status = exec(str.base);
+                status = sqlite3_exec(db, str.base, NULL, NULL, NULL);
             }
         str = str.empty() + "INSERT INTO " + table + " SELECT NULL, " + cols.base + " FROM " + tabs.base + " WHERE " + joins.base;
-        exec(str.base), exec("END TRANSACTION");
+        sqlite3_exec(db, str.base, NULL, NULL, NULL), sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
         sqlite3_finalize(stmt), stmt = nullptr;
         str = str.empty() + "BEGIN TRANSACTION; DROP TABLE _" + table + "; VACUUM; END TRANSACTION;";
-        return exec(str.base);
+        return sqlite3_exec(db, str.base, NULL, NULL, NULL);
     }
     void insert(const char *table, int count, char **values) {
         for (int i = 0; i < count; i++)
