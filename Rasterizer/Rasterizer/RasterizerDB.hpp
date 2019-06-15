@@ -85,7 +85,7 @@ struct RasterizerDB {
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++, x = i % N, y = i / N) {
                 Rasterizer::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Rasterizer::Path path;
-                path.ref->addBounds(b), background.addPath(path, Rasterizer::Transform::identity(), i & 1 ? bg1 : bg0);
+                path.ref->addBounds(b), background.addPath(path, Rasterizer::Transform::identity(), (y & 1) ^ (x & 1) ? bg1 : bg0);
                 writeTable(font, size, sqlite3_column_double(pStmt, 1), Rasterizer::Bounds(b.lx + pad, b.ly + pad, b.ux - pad, b.uy - pad), (const char *)sqlite3_column_text(pStmt, 0), list);
             }
         }
