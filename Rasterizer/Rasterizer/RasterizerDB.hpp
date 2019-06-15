@@ -80,13 +80,6 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
-    int rowCount(const char *table) {
-        int count;
-        Rasterizer::Row<char> str;
-        str = str + "SELECT COUNT(*) FROM " + table;
-        writeColumnValues(str.base, & count, false);
-        return count;
-    }
     void writeTables(RasterizerFont& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
         Rasterizer::Colorant bg0(244, 255), bg1(250, 255);
         int count, N;
@@ -119,7 +112,8 @@ struct RasterizerDB {
             for (i = 0; i < columns; i++)
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? 24 : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? 4 : 0, total += lengths[i];
             total = total < 24 ? 24 : total, fs = (frame.ux - frame.lx) / (s * total * font.em * (font.monospace ? 1.f : 0.666f)), size *= fs, h *= fs;
-            rows = ceilf((frame.uy - frame.ly) / h), count = rowCount(table), n = (1.f - t) * float(count), range = ceilf(0.5f * rows);
+            str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
+            rows = ceilf((frame.uy - frame.ly) / h), n = (1.f - t) * float(count), range = ceilf(0.5f * rows);
             lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             str = str.empty() + "SELECT ";
             for (int i = 0; i < columns; i++)
