@@ -32,8 +32,12 @@ struct RasterizerDB {
         Rasterizer::Row<char> str, cols, tabs, joins;
         int lengths[count];
         tabs = tabs + "_" + table;
-        writeColumnMetrics(tabs.base, names, "MAX", count, lengths, false);
-        str = str + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
+        str = str + "SELECT ";
+        for (int i = 0; i < count; i++)
+            str = str + (i == 0 ? "" : ", ") + "MAX(LENGTH(" + names[i] + "))";
+        str = str + " FROM " + tabs.base;
+        writeColumnValues(str.base, lengths, false);
+        str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
                 str = str + (i == 0 ? "" : ", ") + table + names[i] + " int";
@@ -75,14 +79,6 @@ struct RasterizerDB {
                     ((int *)values)[i] = sqlite3_column_int(pStmt, i);
         }
         sqlite3_finalize(pStmt);
-    }
-    void writeColumnMetrics(const char *table, const char **names, const char *fn, int count, void *metrics, bool real) {
-        Rasterizer::Row<char> str;
-        str = str + "SELECT ";
-        for (int i = 0; i < count; i++)
-            str = str + (i == 0 ? "" : ", ") + fn + "(LENGTH(" + names[i] + "))";
-        str = str + " FROM " + table;
-        writeColumnValues(str.base, metrics, real);
     }
     int rowCount(const char *table) {
         int count;
