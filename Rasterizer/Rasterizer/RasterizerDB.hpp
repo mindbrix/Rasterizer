@@ -92,7 +92,7 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt);
     }
     void writeTable(RasterizerFont& font, float size, float t, Rasterizer::Bounds frame, const char *table, Rasterizer::SceneList& list) {
-        Rasterizer::Colorant red(0, 0, 255, 255), black(0, 255);
+        Rasterizer::Colorant red(0, 0, 255, 255), black(0, 255), gray(144, 255);
         Rasterizer::Row<char> str;
         str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0, *pStmt1;
@@ -125,7 +125,7 @@ struct RasterizerDB {
                     list.ctms.back().tx = frame.lx, list.ctms.back().ty = 0.5f * (frame.uy - h + frame.ly) - (j - n + 1) * h, list.clips.back() = clip;
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + (frame.ux - frame.lx) * float(lengths[i]) / float(total)))
-                            RasterizerFont::writeGlyphs(font, size, black, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), scene);
+                            RasterizerFont::writeGlyphs(font, size, j == n ? black : gray, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), scene);
                 }
             }
             sqlite3_finalize(pStmt1);
