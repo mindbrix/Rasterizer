@@ -11,6 +11,7 @@
 #import "RasterizerFont.hpp"
 
 struct RasterizerDB {
+    const int kTextChars = 24, kRealChars = 4;
     ~RasterizerDB() { close(); }
     int open(const char *filename) { return sqlite3_open(filename, & db); }
     void close() { sqlite3_close(db), db = nullptr; }
@@ -77,7 +78,7 @@ struct RasterizerDB {
         Rasterizer::Colorant bg0(244, 255), bg1(250, 255);
         int count, N;
         writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
-        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / 24.f;
+        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, "SELECT tbl_name, t FROM sqlite_master, _ts WHERE name NOT LIKE 'sqlite%' AND sqlite_master.rowid = _ts.tid ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& background = list.addScene();
@@ -100,8 +101,8 @@ struct RasterizerDB {
             float fs, lx, ux, s = size / float(font.unitsPerEm), h = s * (font.ascent - font.descent + font.lineGap);
             const char *names[columns];
             for (i = 0; i < columns; i++)
-                types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? 24 : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? 4 : 0, total += lengths[i];
-            total = total < 24 ? 24 : total, fs = (frame.ux - frame.lx) / (s * total * font.em * (font.monospace ? 1.f : 0.666f)), size *= fs, h *= fs;
+                types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, total += lengths[i];
+            total = total < kTextChars ? kTextChars : total, fs = (frame.ux - frame.lx) / (s * total * font.em * (font.monospace ? 1.f : 0.666f)), size *= fs, h *= fs;
             str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
             rows = ceilf((frame.uy - frame.ly) / h), n = (1.f - t) * float(count), range = ceilf(0.5f * rows);
             lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
