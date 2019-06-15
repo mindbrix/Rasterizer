@@ -123,7 +123,7 @@ struct RasterizerDB {
                 Rasterizer::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {
                     Rasterizer::Scene& scene = list.addScene();
-                    list.ctms.back().tx = frame.lx, list.ctms.back().ty = my - (j - n) * h, list.clips.back() = clip;
+                    list.ctms.back().tx = frame.lx, list.ctms.back().ty = my - j * h + ((1.f - t) * float(count)) * h, list.clips.back() = clip;
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + (frame.ux - frame.lx) * float(lengths[i]) / float(total)))
                             RasterizerFont::writeGlyphs(font, size, j == n ? black : gray, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), scene);
