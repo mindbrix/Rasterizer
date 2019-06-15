@@ -83,8 +83,7 @@ struct RasterizerDB {
     void writeTables(RasterizerFont& font, float size, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
         Rasterizer::Colorant bg0(244, 255), bg1(250, 255);
         int count, N;
-        writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false);
-        N = ceilf(sqrtf(count));
+        writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / 24.f;
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, "SELECT tbl_name, t FROM sqlite_master, _ts WHERE name NOT LIKE 'sqlite%' AND sqlite_master.rowid = _ts.tid ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
@@ -122,7 +121,6 @@ struct RasterizerDB {
                 else
                     str = str + (i == 0 ? "" : ", ") + names[i];
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
-            
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Rasterizer::Scene& header = list.addScene();
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
