@@ -140,12 +140,11 @@ struct RasterizerFont {
                     bool skip = single && ((!left && x + *advance > width) || (left && x - *advance < 0.f));
                     if (left)
                         x -= *advance;
-                    if (!skip) {
+                    if (!skip && path.ref->isDrawable()) {
                         Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
-                        if (scene.addPath(path, ctm, color)) {
-                            Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
-                            glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
-                        }
+                        scene.addPath(path, ctm, color);
+                        Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
+                        glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
                     }
                     if (!left)
                         x += *advance;

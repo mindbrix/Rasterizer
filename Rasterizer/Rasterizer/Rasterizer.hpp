@@ -79,6 +79,9 @@ struct Rasterizer {
         Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
+        bool isDrawable() {
+            return !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
+        }
         float *alloc(Atom::Type type, size_t size) {
             if (end + size > Atom::kCapacity)
                 end = 0, atoms.emplace_back();
@@ -168,14 +171,14 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Scene {
-        bool addPath(Path path, Transform ctm, Colorant colorant) {
-            bool success = !((path.ref->atomsCount < 3 && path.ref->shapesCount == 0) || path.ref->bounds.lx == FLT_MAX);
-            if (success) {
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
-                Bounds user = Bounds(path.ref->bounds.unit(ctm));
-                bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
-            }
-            return success;
+        void addBounds(Bounds bounds, Transform ctm, Colorant col) {
+            Path path;
+            path.ref->addBounds(bounds), addPath(path, ctm, col);
+        }
+        void addPath(Path path, Transform ctm, Colorant colorant) {
+            paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
+            Bounds user = Bounds(path.ref->bounds.unit(ctm));
+            bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
         }
         size_t refCount = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
