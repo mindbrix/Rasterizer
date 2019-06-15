@@ -552,9 +552,10 @@ struct Rasterizer {
                 Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
                 bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
-                    if (bitmap.width)
-                        writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
-                    else
+                    if (bitmap.width) {
+                        if (paths->ref->shapesCount == 0)
+                            writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                    } else
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
                 }
             }
@@ -567,15 +568,13 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
-        if (path.ref->shapesCount == 0) {
-            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-            if (stride * h < deltasSize) {
-                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
-                writeDeltas(Info(deltas, stride), clip, even, src, bm);
-            } else {
-                writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-                writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
-            }
+        float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+        if (stride * h < deltasSize) {
+            writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
+            writeDeltas(Info(deltas, stride), clip, even, src, bm);
+        } else {
+            writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+            writeSegments(sgmnts.segments, clip, even, Info(deltas, stride), src, bm);
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
