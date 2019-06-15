@@ -552,11 +552,18 @@ struct Rasterizer {
                 Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
                 bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
-                    if (bitmap.width) {
+                    if (bitmap.width == 0)
+                        writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
+                    else {
                         if (paths->ref->shapesCount == 0)
                             writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
-                    } else
-                        writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f, width, Info(& segments[0], clip.ly * krfh), gpu);
+                        else {
+                            Path rect;
+                            rect.ref->addBounds(Bounds(0.f, 0.f, 1.f, 1.f));
+                            for (int i = 0; i < paths->ref->shapesCount; i++)
+                                writeBitmapPath(rect, ctms->concat(paths->ref->shapes[i]), even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                        }
+                    }
                 }
             }
         }
