@@ -148,15 +148,13 @@ struct RasterizerFont {
                 }
         } while (i < len);
         lines.emplace_back(int(scene.paths.size()));
-        for (int i = 0; i < lines.size() - 1; i++) {
-            int l0 = lines[i], l1 = lines[i + 1];
+        for (int i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1])
             if (l0 != l1) {
                 Rasterizer::Bounds right = Rasterizer::Bounds(scene.paths[l1 - 1].ref->bounds.unit(scene.ctms[l1 - 1]));
                 float dx = true ? -scene.paths[l0].ref->bounds.lx * s : bounds.ux - right.ux;
                 for (int j = l0; j < l1; j++)
                     scene.ctms[j].tx += dx;
             }
-        }
         return glyphBounds;
     }
     static void writeGlyphGrid(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
