@@ -11,7 +11,7 @@
 
 struct RasterizerFont {
     RasterizerFont() { empty(); }
-    void empty() { monospace = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
+    void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     int set(const void *bytes, const char *name) {
         const unsigned char *ttf_buffer = (const unsigned char *)bytes;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
@@ -23,14 +23,17 @@ struct RasterizerFont {
                     const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                     if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
                         const char* lM_ =  "lM ";
-                        int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing;
+                        int widths[3] = { 0, 0, 0 }, glyph, leftSideBearing, width, total = 0;
                         for (int j = 0; j < 3; j++)
                             if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
                                 stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & leftSideBearing);
                         if (widths[0] && widths[1] && widths[2]) {
                             if (widths[0] == widths[1] && widths[1] == widths[2])
                                 monospace = widths[0];
-                            em = widths[1], space = widths[2];
+                            for (int j = 32; j < 128; j++)
+                                if ((glyph = stbtt_FindGlyphIndex(& info, j)) != -1)
+                                    stbtt_GetGlyphHMetrics(& info, glyph, & width, & leftSideBearing), total += width;
+                            avg = total / 96, em = widths[1], space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
                             return 1;
@@ -73,7 +76,7 @@ struct RasterizerFont {
         return path;
     }
     std::unordered_map<int, Rasterizer::Path> cache;
-    int monospace, em, space, ascent, descent, lineGap, unitsPerEm;
+    int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
     static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
