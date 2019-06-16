@@ -123,6 +123,8 @@ struct RasterizerFont {
                 i++;
             int advances[i - begin], *advance = advances, total = 0, leftSideBearing;
             bzero(advances, sizeof(advances));
+            if (rtol)
+                std::reverse(& glyphs[begin], & glyphs[i]);
             for (j = begin; j < i; j++, advance++)
                 if (glyphs[j] > 0 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
                     stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
@@ -131,21 +133,21 @@ struct RasterizerFont {
                 }
             if (!single && ((!rtol && x + total > width) || (rtol && x - total < 0.f)))
                 x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
-            for (advance = advances, j = begin; j < i; j++, advance++)
+            if (rtol)
+                x -= total;
+            for (advance = advances, j = begin; j < i; j++, x += *advance, advance++)
                 if (*advance) {
                     Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                    bool skip = single && ((!rtol && x + *advance > width) || (rtol && x - *advance < 0.f));
-                    if (rtol)
-                        x -= *advance;
+                    bool skip = single && ((!rtol && x + *advance > width) || (rtol && x < 0.f));
                     if (!skip && path.ref->isDrawable()) {
                         Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
                         scene.addPath(path, ctm, color);
                         Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
                         glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
                     }
-                    if (!rtol)
-                        x += *advance;
                 }
+            if (rtol)
+                x -= total;
         } while (i < len);
         lines.emplace_back(int(scene.paths.size()));
         for (int i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1])
