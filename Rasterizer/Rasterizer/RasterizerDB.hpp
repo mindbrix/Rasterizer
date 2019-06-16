@@ -101,7 +101,7 @@ struct RasterizerDB {
             const char *names[columns];
             for (i = 0; i < columns; i++)
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, total += lengths[i];
-            total = total < kTextChars ? kTextChars : total, fs = (frame.ux - frame.lx) / (s * total * font.em * (font.monospace ? 1.f : 0.666f)), size *= fs, h *= fs;
+            total = total < kTextChars ? kTextChars : total, fs = (frame.ux - frame.lx) / (s * total * font.avg), size *= fs, h *= fs;
             str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
             rows = ceilf((frame.uy - frame.ly) / h), n = (1.f - (t < 1e-6f ? 1e-6f : t)) * float(count), range = ceilf(0.5f * rows);
             lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
