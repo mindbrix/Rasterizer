@@ -97,15 +97,15 @@ struct RasterizerDB {
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status, rows, count, n, range, lower, upper;
-            float fs, lx, ux, my, h;
+            float fw, fh, fs, lx, ux, my, h;
             const char *names[columns];
             for (i = 0; i < columns; i++)
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, total += lengths[i];
             total = total < kTextChars ? kTextChars : total;
-            fs = (frame.ux - frame.lx) / (total * font.avg), h = fs * (font.ascent - font.descent + font.lineGap);
-            my = 0.5f * (frame.uy + frame.ly - h), my = frame.uy - roundf((frame.uy - my) / h) * h;
+            fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
+            fs = fw / (total * font.avg), h = fs * (font.ascent - font.descent + font.lineGap), my = frame.uy - roundf(0.5f * (1.f + fh / h)) * h;
             str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
-            rows = ceilf((frame.uy - frame.ly) / h), n = (1.f - (t < 1e-6f ? 1e-6f : t)) * float(count), range = ceilf(0.5f * rows);
+            rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = (1.f - (t < 1e-6f ? 1e-6f : t)) * float(count);
             lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             str = str.empty() + "SELECT ";
             for (int i = 0; i < columns; i++)
@@ -118,7 +118,7 @@ struct RasterizerDB {
                 Rasterizer::Scene& header = list.addScene();
                 list.ctms.back().tx = frame.lx, list.ctms.back().ty = frame.uy;
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
-                    if (lx != (ux = lx + (frame.ux - frame.lx) * float(lengths[i]) / float(total)))
+                    if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                         RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, names[i], header);
                 Rasterizer::Scene& line = list.addScene();
                 line.addBounds(Rasterizer::Bounds(frame.lx, my - h / 256.f, frame.ux, my + h / 256.f), Rasterizer::Transform::identity(), red);
@@ -127,7 +127,7 @@ struct RasterizerDB {
                     Rasterizer::Scene& row = list.addScene();
                     list.ctms.back().tx = frame.lx, list.ctms.back().ty = my + h * ((1.f - t) * float(count) - j), list.clips.back() = clip;
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
-                        if (lx != (ux = lx + (frame.ux - frame.lx) * float(lengths[i]) / float(total)))
+                        if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                             RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? black : gray, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, (const char *)sqlite3_column_text(pStmt1, i), row);
                 }
             }
