@@ -86,7 +86,7 @@ struct RasterizerFont {
         int i, j, begin, step, len, codepoint;
         const char nl = '\n', sp = ' ', tab = '\t';
         const uint8_t *utf8 = (uint8_t *)str;
-        std::vector<int> glyphs;
+        std::vector<int> glyphs, lines;
         for (step = 1, codepoint = i = 0; step; i += step) {
             if (utf8[i] < 128)
                 step = 1, codepoint = utf8[i];
@@ -108,12 +108,12 @@ struct RasterizerFont {
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
         x = beginx = left ? width : 0.f, y = -font.ascent, i = 0;
-        len = (int)glyphs.size();
+        len = (int)glyphs.size(), lines.emplace_back(int(scene.paths.size()));
         do {
             while (i < len && glyphs[i] < 0) {
                 if (glyphs[i] == -nl) {
                     if (!single)
-                        x = beginx, y -= lineHeight;
+                        x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
                 } else
                     x += (glyphs[i] == -tab ? 4 : 1) * (left ? -space : space);
                 i++;
@@ -130,16 +130,10 @@ struct RasterizerFont {
                         *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
                 }
             if (!single && ((!left && x + total > width) || (left && x - total < 0.f)))
-                x = beginx, y -= lineHeight;
+                x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
                     Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                    if (x == beginx) {
-                        if (left)
-                            x += *advance - path.ref->bounds.ux;
-                        else
-                            x += -path.ref->bounds.lx;
-                    }
                     bool skip = single && ((!left && x + *advance > width) || (left && x - *advance < 0.f));
                     if (left)
                         x -= *advance;
@@ -153,6 +147,16 @@ struct RasterizerFont {
                         x += *advance;
                 }
         } while (i < len);
+        lines.emplace_back(int(scene.paths.size()));
+        for (int i = 0; i < lines.size() - 1; i++) {
+            int l0 = lines[i], l1 = lines[i + 1];
+            if (l0 != l1) {
+                Rasterizer::Bounds right = Rasterizer::Bounds(scene.paths[l1 - 1].ref->bounds.unit(scene.ctms[l1 - 1]));
+                float dx = true ? -scene.paths[l0].ref->bounds.lx * s : bounds.ux - right.ux;
+                for (int j = l0; j < l1; j++)
+                    scene.ctms[j].tx += dx;
+            }
+        }
         return glyphBounds;
     }
     static void writeGlyphGrid(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
