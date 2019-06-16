@@ -79,7 +79,7 @@ struct RasterizerFont {
     int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool left, bool single, const char *str, Rasterizer::Scene& scene) {
+    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool rtol, bool single, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
@@ -107,7 +107,7 @@ struct RasterizerFont {
         float s = size / float(font.unitsPerEm), width, lineHeight, space, beginx, x, y;
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-        x = beginx = left ? width : 0.f, y = -font.ascent, i = 0;
+        x = beginx = rtol ? width : 0.f, y = -font.ascent, i = 0;
         len = (int)glyphs.size(), lines.emplace_back(int(scene.paths.size()));
         do {
             while (i < len && glyphs[i] < 0) {
@@ -115,7 +115,7 @@ struct RasterizerFont {
                     if (!single)
                         x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
                 } else
-                    x += (glyphs[i] == -tab ? 4 : 1) * (left ? -space : space);
+                    x += (glyphs[i] == -tab ? 4 : 1) * (rtol ? -space : space);
                 i++;
             }
             begin = i;
@@ -129,13 +129,13 @@ struct RasterizerFont {
                     if (j < len - 1)
                         *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
                 }
-            if (!single && ((!left && x + total > width) || (left && x - total < 0.f)))
+            if (!single && ((!rtol && x + total > width) || (rtol && x - total < 0.f)))
                 x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
             for (advance = advances, j = begin; j < i; j++, advance++)
                 if (*advance) {
                     Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                    bool skip = single && ((!left && x + *advance > width) || (left && x - *advance < 0.f));
-                    if (left)
+                    bool skip = single && ((!rtol && x + *advance > width) || (rtol && x - *advance < 0.f));
+                    if (rtol)
                         x -= *advance;
                     if (!skip && path.ref->isDrawable()) {
                         Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
@@ -143,7 +143,7 @@ struct RasterizerFont {
                         Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
                         glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
                     }
-                    if (!left)
+                    if (!rtol)
                         x += *advance;
                 }
         } while (i < len);
