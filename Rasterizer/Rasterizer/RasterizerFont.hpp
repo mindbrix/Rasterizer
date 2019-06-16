@@ -79,7 +79,7 @@ struct RasterizerFont {
     int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool rtol, bool single, const char *str, Rasterizer::Scene& scene) {
+    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool rtol, bool single, bool right, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
@@ -151,7 +151,7 @@ struct RasterizerFont {
         for (int i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1])
             if (l0 != l1) {
                 float ux = scene.paths[l1 - 1].ref->bounds.ux * s + scene.ctms[l1 - 1].tx;
-                float dx = true ? -scene.paths[l0].ref->bounds.lx * s : bounds.ux - ux;
+                float dx = right ? bounds.ux - ux : -scene.paths[l0].ref->bounds.lx * s;
                 for (int j = l0; j < l1; j++)
                     scene.ctms[j].tx += dx;
             }
