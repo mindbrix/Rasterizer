@@ -61,7 +61,7 @@ struct RasterizerState {
                     else if (e.keyCode == 35)
                         mouseMove = !mouseMove;
                     else if (e.keyCode == 36)
-                        ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+                        ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f);
                     break;
                 case Event::kKeyUp:
                     keyDown = true, keyCode = e.keyCode;
