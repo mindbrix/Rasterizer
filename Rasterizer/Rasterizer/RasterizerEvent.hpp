@@ -8,7 +8,7 @@
 #import "Rasterizer.hpp"
 #import "RasterizerWinding.hpp"
 
-struct RasterizerEvent {
+struct RasterizerState {
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
         enum Type { kNull = 0, kMouseMove, kMouseUp, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate };
@@ -24,80 +24,78 @@ struct RasterizerEvent {
         int keyCode;
         size_t flags;
     };
-    
-    struct State {
-        bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
-            bool redraw = false;
-            scale = s;
-            view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
-            bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
-            for (Event& e : events) {
-                switch(e.type) {
-                    case Event::kMouseMove:
-                        x = e.x, y = e.y;
-                        redraw = mouseMove;
-                        break;
-                    case Event::kMouseUp:
-                        mouseDown = false;
-                        break;
-                    case Event::kMouseDown:
-                        mouseDown = true;
-                        break;
-                    case Event::kFlags:
-                        flags = e.flags;
-                        break;
-                    case Event::kKeyDown:
-                        keyDown = true, keyCode = e.keyCode;
-                        redraw = YES;
-                        if (e.keyCode == 8)
-                            useClip = !useClip;
-                        else if (e.keyCode == 31)
-                            useOutline = !useOutline;
-                        else if (e.keyCode == 35)
-                            mouseMove = !mouseMove;
-                        break;
-                    case Event::kKeyUp:
-                        keyDown = true, keyCode = e.keyCode;
-                        break;
-                    case Event::kMagnify:
-                        ctm = ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
-                        redraw = true;
-                        break;
-                    case Event::kRotate:
-                        ctm = ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
-                        redraw = true;
-                        break;
-                    case Event::kTranslate:
-                        ctm.tx += e.x, ctm.ty += e.y;
-                        redraw = true;
-                        break;
-                    case Event::kNull:
-                        assert(0);
-                }
+    bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
+        bool redraw = false;
+        scale = s;
+        view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+        bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+        for (Event& e : events) {
+            switch(e.type) {
+                case Event::kMouseMove:
+                    x = e.x, y = e.y;
+                    redraw = mouseMove;
+                    break;
+                case Event::kMouseUp:
+                    mouseDown = false;
+                    break;
+                case Event::kMouseDown:
+                    mouseDown = true;
+                    break;
+                case Event::kFlags:
+                    flags = e.flags;
+                    break;
+                case Event::kKeyDown:
+                    keyDown = true, keyCode = e.keyCode;
+                    redraw = YES;
+                    if (e.keyCode == 8)
+                        useClip = !useClip;
+                    else if (e.keyCode == 31)
+                        useOutline = !useOutline;
+                    else if (e.keyCode == 35)
+                        mouseMove = !mouseMove;
+                    break;
+                case Event::kKeyUp:
+                    keyDown = true, keyCode = e.keyCode;
+                    break;
+                case Event::kMagnify:
+                    ctm = ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    redraw = true;
+                    break;
+                case Event::kRotate:
+                    ctm = ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    redraw = true;
+                    break;
+                case Event::kTranslate:
+                    ctm.tx += e.x, ctm.ty += e.y;
+                    redraw = true;
+                    break;
+                case Event::kNull:
+                    assert(0);
             }
-            index = INT_MAX;
-            if (mouseMove) {
-                Rasterizer::SceneList visibles;
-                size_t pathsCount = list.writeVisibles(view, device, visibles);
-                if (pathsCount) {
-                    Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, view, device, scale * x, scale * y);
-                    if (indices.begin != INT_MAX) {
-                        int idx = 0;
-                        for (int j = 0; j < indices.begin; j++)
-                            idx += visibles.scenes[j].ref->paths.size();
-                            index = idx + indices.end;
-                    }
-                }
-            }
-            events.resize(0);
-            return redraw;
         }
-        bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false, useOutline = false;
-        float x, y, scale;
-        int keyCode = 0;
-        size_t index = INT_MAX, flags = 0;
-        std::vector<RasterizerEvent::Event> events;
-        Rasterizer::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
-        Rasterizer::Bounds bounds, device;
-    };
+        index = INT_MAX;
+        if (mouseMove) {
+            Rasterizer::SceneList visibles;
+            size_t pathsCount = list.writeVisibles(view, device, visibles);
+            if (pathsCount) {
+                Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, view, device, scale * x, scale * y);
+                if (indices.begin != INT_MAX) {
+                    int idx = 0;
+                    for (int j = 0; j < indices.begin; j++)
+                        idx += visibles.scenes[j].ref->paths.size();
+                        index = idx + indices.end;
+                }
+            }
+        }
+        events.resize(0);
+        return redraw;
+    }
+    bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false, useOutline = false;
+    float x, y, scale;
+    int keyCode = 0;
+    size_t index = INT_MAX, flags = 0;
+    std::vector<Event> events;
+    Rasterizer::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
+    Rasterizer::Bounds bounds, device;
 };
+

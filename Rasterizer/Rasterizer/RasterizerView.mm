@@ -18,7 +18,7 @@
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCG::CGTestContext testScene;
-@property(nonatomic) RasterizerEvent::State state;
+@property(nonatomic) RasterizerState state;
 @property(nonatomic) Rasterizer::SceneList list;
 @property(nonatomic) BOOL useCPU;
 @property(nonatomic) NSFont *font;
@@ -133,9 +133,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizerMT ? @"Rasterizer (GPU)" : _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
 }
 
-#pragma mark - RasterizerEvent
+#pragma mark - AppState
 
-- (void)writeEvent:(RasterizerEvent::Event)event {
+- (void)writeEvent:(RasterizerState::Event)event {
     _state.events.emplace_back(event);
     if (_displayLink == nil)
         if (_state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list))
@@ -157,10 +157,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)flagsChanged:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kFlags, event.modifierFlags)];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kFlags, event.modifierFlags)];
 }
 - (void)keyDown:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kKeyDown, event.keyCode)];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode)];
     
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
@@ -191,7 +191,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     }
 }
 - (void)keyUp:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kKeyUp, event.keyCode)];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyUp, event.keyCode)];
 }
 
 - (void)paste:(id)sender {
@@ -201,29 +201,29 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kMagnify, float(1 + event.magnification), 0.f)];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMagnify, float(1 + event.magnification), 0.f)];
 }
 - (void)rotateWithEvent:(NSEvent *)event {
     if (!(event.modifierFlags & NSEventModifierFlagShift))
-        [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kRotate, float(event.rotation / 10), 0.f)];
+        [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kRotate, float(event.rotation / 10), 0.f)];
 }
 - (void)scrollWheel:(NSEvent *)event {
     BOOL isInverted = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]);
     CGFloat inversion = isInverted ? 1.0f : -1.0f;
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion))];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion))];
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kMouseDown, float(event.locationInWindow.x), float(event.locationInWindow.y))];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseDown, float(event.locationInWindow.x), float(event.locationInWindow.y))];
 }
 - (void)mouseDragged:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kTranslate, float(event.deltaX), float(-event.deltaY))];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kTranslate, float(event.deltaX), float(-event.deltaY))];
 }
 - (void)mouseMoved:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kMouseMove, float(event.locationInWindow.x), float(event.locationInWindow.y))];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseMove, float(event.locationInWindow.x), float(event.locationInWindow.y))];
 }
 - (void)mouseUp:(NSEvent *)event {
-    [self writeEvent:RasterizerEvent::Event(event.timestamp, RasterizerEvent::Event::kMouseUp, float(event.locationInWindow.x), float(event.locationInWindow.y))];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseUp, float(event.locationInWindow.x), float(event.locationInWindow.y))];
 }
 
 #pragma mark - LayerDelegate
