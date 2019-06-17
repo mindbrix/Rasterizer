@@ -26,6 +26,7 @@ struct RasterizerState {
     };
     bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
         bool redraw = false;
+        float sine, cosine;
         scale = s;
         view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
         bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
@@ -62,7 +63,8 @@ struct RasterizerState {
                     redraw = true;
                     break;
                 case Event::kRotate:
-                    ctm = ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    __sincosf(e.x, & sine, & cosine);
+                    ctm = ctm.concat(Rasterizer::Transform(cosine, sine, -sine, cosine, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     redraw = true;
                     break;
                 case Event::kTranslate:
