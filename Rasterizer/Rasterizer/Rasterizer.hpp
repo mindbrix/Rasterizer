@@ -19,7 +19,8 @@ struct Rasterizer {
         inline Transform concat(Transform t, float ax, float ay) const {
             Transform inv = invert();
             float ix = ax * inv.a + ay * inv.c + inv.tx, iy = ax * inv.b + ay * inv.d + inv.ty;
-            return Transform(a, b, c, d, ix * a + iy * c + tx, ix * b + iy * d + ty).concat(t).concat(Transform(1.f, 0.f, 0.f, 1.f, -ix, -iy));
+            Transform m = Transform(a, b, c, d, ix * a + iy * c + tx, ix * b + iy * d + ty).concat(t);
+            return Transform(m.a, m.b, m.c, m.d, m.tx - ix * m.a - iy * m.c, m.ty - ix * m.b - iy * m.d);
         }
         inline Transform concat(Transform t) const {
             return {
