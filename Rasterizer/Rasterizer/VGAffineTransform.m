@@ -11,6 +11,14 @@
 
 #pragma mark - Static C helpers
 
+static inline CGAffineTransform concatCTM(CGAffineTransform ctm, CGAffineTransform delta, CGPoint anchor) {
+    CGPoint _anchor = CGPointApplyAffineTransform(anchor, CGAffineTransformInvert(ctm));
+    CGAffineTransform _ctm = CGAffineTransformConcat(CGAffineTransformMakeTranslation(_anchor.x, _anchor.y), ctm);
+    _ctm = CGAffineTransformConcat(delta, _ctm);
+    _ctm = CGAffineTransformConcat(CGAffineTransformMakeTranslation(-_anchor.x, -_anchor.y), _ctm);
+    return _ctm;
+}
+
 static inline CGAffineTransform makeCTM(CGFloat angle, CGFloat s, CGPoint t, CGPoint anchorPoint) {
     CGFloat sine = sinf(angle), cosine = cosf(angle);
     CGAffineTransform ctm = CGAffineTransformMakeTranslation(anchorPoint.x, anchorPoint.y);
@@ -128,7 +136,7 @@ static inline CGAffineTransform makeCTM(CGFloat angle, CGFloat s, CGPoint t, CGP
 }
 
 -(void)rotateBy:(CGFloat)turn bounds:(CGRect)bounds {
-    [self rotateTo:self.rotation + turn bounds:bounds];
+    _affineTransform = concatCTM(_affineTransform, CGAffineTransformMakeRotation(turn), CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds)));
 }
 
 - (void)rotateSteppedBy:(CGFloat)turn bounds:(CGRect)bounds {
@@ -145,14 +153,12 @@ static inline CGAffineTransform makeCTM(CGFloat angle, CGFloat s, CGPoint t, CGP
 }
 
 -(void)scaleBy:(CGFloat)scaleFactor bounds:(CGRect)bounds {
-    CGPoint centre = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
-    
-    self.anchorPoint = centre;
-    self.scale *= scaleFactor;
+    _affineTransform = concatCTM(_affineTransform, CGAffineTransformMakeScale(scaleFactor, scaleFactor), CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds)));
 }
 
 -(void)translateByX:(CGFloat)x andY:(CGFloat)y {
-    self.translation = CGPointMake(self.translation.x + x, self.translation.y + y);
+    _affineTransform.tx += x;
+    _affineTransform.ty += y;
 }
 
 
