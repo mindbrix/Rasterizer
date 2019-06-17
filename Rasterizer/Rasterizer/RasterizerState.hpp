@@ -1,5 +1,5 @@
 //
-//  RasterizerEvent.hpp
+//  RasterizerState.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 20/03/2019.

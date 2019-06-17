@@ -27,7 +27,7 @@
 /* Begin PBXFileReference section */
 		E901B3862194B00F00B1AB72 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		E91ADF9322425C2F00729DA0 /* stb_truetype.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = stb_truetype.c; sourceTree = "<group>"; };
-		E91ADF95224266A400729DA0 /* RasterizerEvent.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerEvent.hpp; sourceTree = "<group>"; };
+		E91ADF95224266A400729DA0 /* RasterizerState.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerState.hpp; sourceTree = "<group>"; };
 		E91ADF962243FED000729DA0 /* nanosvg.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = nanosvg.cc; sourceTree = "<group>"; };
 		E91ADF982244017900729DA0 /* RasterizerWinding.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerWinding.hpp; sourceTree = "<group>"; };
 		E920A59921762BCD00F52C25 /* Rasterizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rasterizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -113,7 +113,7 @@
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
 				E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */,
-				E91ADF95224266A400729DA0 /* RasterizerEvent.hpp */,
+				E91ADF95224266A400729DA0 /* RasterizerState.hpp */,
 				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
 				E9E36F08223A722100F6533A /* RasterizerTest.hpp */,
