@@ -24,6 +24,10 @@ struct RasterizerState {
         int keyCode;
         size_t flags;
     };
+    void update(float s, float w, float h) {
+        scale = s, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+        bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+    }
     bool writeEvent(Event e) {
         bool written = e.type != Event::kKeyDown || (e.type == Event::kKeyDown && (e.keyCode == 8 || e.keyCode == 31 || e.keyCode == 35 || e.keyCode == 36));
         if (written)
@@ -33,8 +37,7 @@ struct RasterizerState {
     bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
         bool redraw = false;
         float sine, cosine;
-        scale = s, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
-        bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+        update(s, w, h);
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
