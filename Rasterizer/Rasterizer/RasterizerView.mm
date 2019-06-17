@@ -120,7 +120,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     [self.layer setNeedsDisplay];
-    _state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
 }
 
 - (void)updateRasterizerLabel {
@@ -173,6 +173,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
+        [self.layer setNeedsDisplay];
+        _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
