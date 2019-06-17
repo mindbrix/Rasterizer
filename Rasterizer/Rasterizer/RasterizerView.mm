@@ -54,7 +54,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _list.empty().addScene());
-	return self;
+    return self;
 }
 
 - (void)removeFromSuperview {
@@ -77,7 +77,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    if ([self readEvents:_state forTime:time withScenes:_list])
+    if (_state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list))
         [self.layer setNeedsDisplay];
 }
 
@@ -126,6 +126,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     [self.layer setNeedsDisplay];
+    _state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list);
 }
 
 - (void)updateRasterizerLabel {
@@ -134,74 +135,10 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - RasterizerEvent
 
-- (BOOL)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
-    BOOL redraw = NO;
-    state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
-    for (RasterizerEvent::Event& e : state.events) {
-        switch(e.type) {
-            case RasterizerEvent::Event::kMouseMove:
-                state.x = e.x, state.y = e.y;
-                redraw = state.mouseMove;
-                break;
-            case RasterizerEvent::Event::kMouseUp:
-                state.mouseDown = false;
-                break;
-            case RasterizerEvent::Event::kMouseDown:
-                state.mouseDown = true;
-                break;
-            case RasterizerEvent::Event::kFlags:
-                state.flags = e.flags;
-                break;
-            case RasterizerEvent::Event::kKeyDown:
-                state.keyDown = true, state.keyCode = e.keyCode;
-                redraw = YES;
-                if (e.keyCode == 8)
-                    state.useClip = !state.useClip;
-                else if (e.keyCode == 31)
-                    state.useOutline = !state.useOutline;
-                else if (e.keyCode == 35)
-                    state.mouseMove = !state.mouseMove;
-                break;
-            case RasterizerEvent::Event::kKeyUp:
-                state.keyDown = true, state.keyCode = e.keyCode;
-                break;
-            case RasterizerEvent::Event::kMagnify:
-                state.ctm = state.ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (state.bounds.lx + state.bounds.ux), 0.5f * (state.bounds.ly + state.bounds.uy));
-                redraw = YES;
-                break;
-            case RasterizerEvent::Event::kRotate:
-                state.ctm = state.ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), 0.5f * (state.bounds.lx + state.bounds.ux), 0.5f * (state.bounds.ly + state.bounds.uy));
-                redraw = YES;
-                break;
-            case RasterizerEvent::Event::kTranslate:
-                state.ctm.tx += e.x, state.ctm.ty += e.y;
-                redraw = YES;
-                break;
-            case RasterizerEvent::Event::kNull:
-                assert(0);
-        }
-    }
-    state.index = INT_MAX;
-    if (state.mouseMove) {
-        Rasterizer::SceneList visibles;
-        size_t pathsCount = _list.writeVisibles(state.view, state.device, visibles);
-        if (pathsCount) {
-            Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, state.view, state.device, state.scale * state.x, state.scale * state.y);
-            if (indices.begin != INT_MAX) {
-                int index = 0;
-                for (int j = 0; j < indices.begin; j++)
-                    index += visibles.scenes[j].ref->paths.size();
-                state.index = index + indices.end;
-            }
-        }
-    }
-    state.events.resize(0);
-    return redraw;
-}
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _state.events.emplace_back(event);
     if (_displayLink == nil)
-        if ([self readEvents:_state forTime:0 withScenes:_list])
+        if (_state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list))
             [self.layer setNeedsDisplay];
 }
 
@@ -294,7 +231,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
     if (_testScene.rasterizerType == RasterizerCG::CGTestContext::kCoreGraphics)
         return;
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && !_state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     RasterizerCG::drawTestScene(_testScene, _list, _state.view, _state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, Rasterizer::Bitmap(nullptr, _state.device.ux, _state.device.uy, 0, 0), buffer, _state.index);
 }
@@ -302,7 +238,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData && !_state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
