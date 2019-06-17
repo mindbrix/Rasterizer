@@ -24,6 +24,12 @@ struct RasterizerState {
         int keyCode;
         size_t flags;
     };
+    bool writeEvent(Event e) {
+        bool written = e.type != Event::kKeyDown || (e.type == Event::kKeyDown && (e.keyCode == 8 || e.keyCode == 31 || e.keyCode == 35 || e.keyCode == 36));
+        if (written)
+            events.emplace_back(e);
+        return written;
+    }
     bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
         bool redraw = false;
         float sine, cosine;

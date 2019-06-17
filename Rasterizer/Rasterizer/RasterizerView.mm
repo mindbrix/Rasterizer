@@ -135,13 +135,13 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - AppState
 
-- (void)writeEvent:(RasterizerState::Event)event {
-    _state.events.emplace_back(event);
-    if (_displayLink == nil)
+- (BOOL)writeEvent:(RasterizerState::Event)event {
+    BOOL written = _state.writeEvent(event);
+    if (written && _displayLink == nil)
         if (_state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list))
             [self.layer setNeedsDisplay];
+    return written;
 }
-
 
 #pragma mark - NSResponder
 
@@ -160,11 +160,9 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kFlags, event.modifierFlags)];
 }
 - (void)keyDown:(NSEvent *)event {
-    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode)];
-    
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (keyCode == 8 || keyCode == 31 || keyCode == 35 || keyCode == 36) {}
+    if ([self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode)]) {}
     else if (keyCode == 51) {
         _useCPU = !_useCPU;
         [self toggleTimer];
