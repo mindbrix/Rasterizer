@@ -33,8 +33,7 @@ struct RasterizerState {
     bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
         bool redraw = false;
         float sine, cosine;
-        scale = s;
-        view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+        scale = s, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
         bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
         for (Event& e : events) {
             switch(e.type) {
@@ -61,7 +60,7 @@ struct RasterizerState {
                     else if (e.keyCode == 35)
                         mouseMove = !mouseMove;
                     else if (e.keyCode == 36)
-                        ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f);
+                        ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                     break;
                 case Event::kKeyUp:
                     keyDown = true, keyCode = e.keyCode;
@@ -83,6 +82,7 @@ struct RasterizerState {
                     assert(0);
             }
         }
+        view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
         index = INT_MAX;
         if (mouseMove) {
             Rasterizer::SceneList visibles;
@@ -108,4 +108,3 @@ struct RasterizerState {
     Rasterizer::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
     Rasterizer::Bounds bounds, device;
 };
-
