@@ -185,7 +185,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         Rasterizer::SceneList visibles;
         size_t pathsCount = _list.writeVisibles(state.view, state.device, visibles);
         if (pathsCount) {
-            Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, state.view, state.device, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
+            Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, state.view, state.device, state.scale * state.x, state.scale * state.y);
             if (indices.begin != INT_MAX) {
                 int index = 0;
                 for (int j = 0; j < indices.begin; j++)
