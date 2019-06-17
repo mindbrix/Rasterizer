@@ -7,7 +7,6 @@
 //
 #define RASTERIZER_SIMD 1
 #import "RasterizerView.h"
-#import "VGAffineTransform.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerDB.hpp"
 #import "RasterizerSVG.hpp"
@@ -17,7 +16,6 @@
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
-@property(nonatomic) VGAffineTransform *transform;
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCG::CGTestContext testScene;
 @property(nonatomic) RasterizerEvent::State state;
@@ -55,7 +53,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         return nil;
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
-    self.transform = [VGAffineTransform new];
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _list.empty().addScene());
 	return self;
 }
@@ -167,15 +164,15 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 state.keyDown = true, state.keyCode = e.keyCode;
                 break;
             case RasterizerEvent::Event::kMagnify:
-                [self.transform scaleBy:e.x bounds:self.bounds];
+                state.ctm = state.ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), float(CGRectGetMidX(self.bounds)), float(CGRectGetMidY(self.bounds)));
                 redraw = YES;
                 break;
             case RasterizerEvent::Event::kRotate:
-                [self.transform rotateBy:e.x bounds:self.bounds];
+                state.ctm = state.ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), float(CGRectGetMidX(self.bounds)), float(CGRectGetMidY(self.bounds)));
                 redraw = YES;
                 break;
             case RasterizerEvent::Event::kTranslate:
-                [self.transform translateByX:e.x andY:e.y];
+                state.ctm.tx += e.x, state.ctm.ty += e.y;
                 redraw = YES;
                 break;
             case RasterizerEvent::Event::kNull:
@@ -207,7 +204,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         [self readEvents:_state forTime:0 withScenes:_list];
 }
 - (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
-    state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, RasterizerCG::transformFromCG(self.transform.affineTransform));
+    state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
 }
 
 #pragma mark - NSResponder
@@ -252,7 +249,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 36) {
-        self.transform = [VGAffineTransform new];
+        _state.ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
     } else {
         [super keyDown:event];
     }
@@ -307,7 +304,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     [self updateState:_state forTime:0 withScenes:_list];
-    CGContextConcatCTM(ctx, self.transform.affineTransform);
+    CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData && !_state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
     RasterizerCG::drawTestScene(_testScene, _list, RasterizerCG::transformFromCG(CGContextGetCTM(ctx)), _state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _state.index);

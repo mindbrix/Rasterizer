@@ -17,7 +17,6 @@
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* RasterizerView.mm */; };
-		E920A5BB21767B7900F52C25 /* VGAffineTransform.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B921767B7900F52C25 /* VGAffineTransform.m */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* MetalLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
@@ -44,8 +43,6 @@
 		E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Rasterizer.entitlements; sourceTree = "<group>"; };
 		E920A5B3217631E600F52C25 /* RasterizerView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerView.h; sourceTree = "<group>"; };
 		E920A5B4217631E600F52C25 /* RasterizerView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerView.mm; sourceTree = "<group>"; };
-		E920A5B921767B7900F52C25 /* VGAffineTransform.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VGAffineTransform.m; sourceTree = "<group>"; };
-		E920A5BA21767B7900F52C25 /* VGAffineTransform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VGAffineTransform.h; sourceTree = "<group>"; };
 		E938EB1121C4FCB800794C0B /* Rasterizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Rasterizer.h; sourceTree = "<group>"; };
 		E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerCG.hpp; sourceTree = "<group>"; };
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
@@ -134,8 +131,6 @@
 				E971DB2C218495AA005AE5E5 /* Rasterizer.icns */,
 				E920A5B3217631E600F52C25 /* RasterizerView.h */,
 				E920A5B4217631E600F52C25 /* RasterizerView.mm */,
-				E920A5BA21767B7900F52C25 /* VGAffineTransform.h */,
-				E920A5B921767B7900F52C25 /* VGAffineTransform.m */,
 				E990649021C2E11500D2DBF2 /* MetalLayer.h */,
 				E990649121C2E11500D2DBF2 /* MetalLayer.mm */,
 				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
@@ -215,7 +210,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */,
-				E920A5BB21767B7900F52C25 /* VGAffineTransform.m in Sources */,
 				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
 				E9C2E72922280F000023B714 /* crc64.c in Sources */,
 				E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */,

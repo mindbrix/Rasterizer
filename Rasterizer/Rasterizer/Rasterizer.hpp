@@ -16,6 +16,14 @@ struct Rasterizer {
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
         static Transform identity() { return { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }; }
         static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
+        inline Transform concat(Transform t, float x, float y) const {
+            Transform inv = this->invert();
+            float tx = x * inv.a + y * inv.c + inv.tx, ty = x * inv.b + y * inv.d + inv.ty;
+            Transform ctm = this->concat(Transform(1.f, 0.f, 0.f, 1.f, tx, ty));
+            ctm = ctm.concat(t);
+            ctm = ctm.concat(Transform(1.f, 0.f, 0.f, 1.f, -tx, -ty));
+            return ctm;
+        }
         inline Transform concat(Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
