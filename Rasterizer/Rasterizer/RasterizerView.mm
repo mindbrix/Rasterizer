@@ -135,6 +135,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 - (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
     BOOL redraw = NO;
+    state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     for (RasterizerEvent::Event& e : state.events) {
         switch(e.type) {
             case RasterizerEvent::Event::kMouseMove:
@@ -164,11 +165,11 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 state.keyDown = true, state.keyCode = e.keyCode;
                 break;
             case RasterizerEvent::Event::kMagnify:
-                state.ctm = state.ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), float(CGRectGetMidX(self.bounds)), float(CGRectGetMidY(self.bounds)));
+                state.ctm = state.ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (state.bounds.lx + state.bounds.ux), 0.5f * (state.bounds.ly + state.bounds.uy));
                 redraw = YES;
                 break;
             case RasterizerEvent::Event::kRotate:
-                state.ctm = state.ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), float(CGRectGetMidX(self.bounds)), float(CGRectGetMidY(self.bounds)));
+                state.ctm = state.ctm.concat(Rasterizer::Transform(cosf(e.x), sinf(e.x), -sinf(e.x), cosf(e.x), 0.f, 0.f), 0.5f * (state.bounds.lx + state.bounds.ux), 0.5f * (state.bounds.ly + state.bounds.uy));
                 redraw = YES;
                 break;
             case RasterizerEvent::Event::kTranslate:
@@ -179,13 +180,12 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
                 assert(0);
         }
     }
-    [self updateState:state forTime:time withScenes:list];
     state.index = INT_MAX;
     if (state.mouseMove) {
         Rasterizer::SceneList visibles;
-        size_t pathsCount = _list.writeVisibles(state.view, state.bounds, visibles);
+        size_t pathsCount = _list.writeVisibles(state.view, state.device, visibles);
         if (pathsCount) {
-            Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, state.view, state.bounds, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
+            Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, state.view, state.device, self.layer.contentsScale * state.x, self.layer.contentsScale * state.y);
             if (indices.begin != INT_MAX) {
                 int index = 0;
                 for (int j = 0; j < indices.begin; j++)
@@ -203,9 +203,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     if (_displayLink == nil)
         [self readEvents:_state forTime:0 withScenes:_list];
 }
-- (void)updateState:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
-    state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
-}
+
 
 #pragma mark - NSResponder
 
@@ -295,15 +293,15 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 - (void)writeBuffer:(Rasterizer::Buffer *)buffer forLayer:(CALayer *)layer {
     if (_testScene.rasterizerType == RasterizerCG::CGTestContext::kCoreGraphics)
         return;
-    [self updateState:_state forTime:0 withScenes:_list];
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && !_state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    RasterizerCG::drawTestScene(_testScene, _list, _state.view, _state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, Rasterizer::Bitmap(nullptr, _state.bounds.ux, _state.bounds.uy, 0, 0), buffer, _state.index);
+    RasterizerCG::drawTestScene(_testScene, _list, _state.view, _state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, Rasterizer::Bitmap(nullptr, _state.device.ux, _state.device.uy, 0, 0), buffer, _state.index);
 }
 
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    [self updateState:_state forTime:0 withScenes:_list];
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     Rasterizer::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
     bitmap.clear(_svgData && !_state.useOutline ? Rasterizer::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Rasterizer::Colorant(0xFF, 0xFF, 0xFF, 0xFF));

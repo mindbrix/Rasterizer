@@ -27,7 +27,7 @@ struct RasterizerEvent {
     struct State {
         void update(float s, float w, float h) {
             view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
-            bounds = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+            bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
         }
         bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false, useOutline = false;
         float x, y;
@@ -35,6 +35,6 @@ struct RasterizerEvent {
         size_t index = INT_MAX, flags = 0;
         std::vector<RasterizerEvent::Event> events;
         Rasterizer::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
-        Rasterizer::Bounds bounds;
+        Rasterizer::Bounds bounds, device;
     };
 };
