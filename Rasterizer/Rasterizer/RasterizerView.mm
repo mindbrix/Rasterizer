@@ -77,7 +77,8 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 }
 
 - (void)timerFired:(double)time {
-    [self readEvents:_state forTime:time withScenes:_list];
+    if ([self readEvents:_state forTime:time withScenes:_list])
+        [self.layer setNeedsDisplay];
 }
 
 - (void)toggleTimer {
@@ -133,7 +134,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
 
 #pragma mark - RasterizerEvent
 
-- (void)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
+- (BOOL)readEvents:(RasterizerEvent::State&)state forTime:(double)time withScenes:(Rasterizer::SceneList&)list {
     BOOL redraw = NO;
     state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     for (RasterizerEvent::Event& e : state.events) {
@@ -194,14 +195,14 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
             }
         }
     }
-    if (redraw)
-        [self.layer setNeedsDisplay];
     state.events.resize(0);
+    return redraw;
 }
 - (void)writeEvent:(RasterizerEvent::Event)event {
     _state.events.emplace_back(event);
     if (_displayLink == nil)
-        [self readEvents:_state forTime:0 withScenes:_list];
+        if ([self readEvents:_state forTime:0 withScenes:_list])
+            [self.layer setNeedsDisplay];
 }
 
 
