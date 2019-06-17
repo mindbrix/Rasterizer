@@ -164,7 +164,7 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (keyCode == 8 || keyCode == 31 || keyCode == 35) {}
+    if (keyCode == 8 || keyCode == 31 || keyCode == 35 || keyCode == 36) {}
     else if (keyCode == 51) {
         _useCPU = !_useCPU;
         [self toggleTimer];
@@ -184,8 +184,6 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink,
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
-    } else if (keyCode == 36) {
-        _state.ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
     } else {
         [super keyDown:event];
     }
