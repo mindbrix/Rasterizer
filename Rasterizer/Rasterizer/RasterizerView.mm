@@ -85,7 +85,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"Times" size:14]];
+    self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
     if ([_dbURL isFileURL]) {
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
         RasterizerFont font;
