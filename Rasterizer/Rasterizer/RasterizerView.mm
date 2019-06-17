@@ -202,7 +202,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGFloat inversion = isInverted ? 1.0f : -1.0f;
     [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion))];
 }
-
 - (void)mouseDown:(NSEvent *)event {
     [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseDown, float(event.locationInWindow.x), float(event.locationInWindow.y))];
 }
@@ -235,14 +234,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)setDbURL:(NSURL *)dbURL {
-    _dbURL = dbURL;
-    if (_dbURL)
+    if ((_dbURL = dbURL))
         [self changeFont:nil];
 }
 
 - (void)setSvgData:(NSData *)svgData {
-    _svgData = svgData;
-    if (_svgData) {
+    if ((_svgData = svgData)) {
         Rasterizer::Scene& scene = _list.empty().addScene();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
         RasterizerTest::addTestPaths(_list.addScene());
