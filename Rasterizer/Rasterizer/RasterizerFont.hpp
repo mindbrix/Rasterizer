@@ -23,16 +23,16 @@ struct RasterizerFont {
                     const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                     if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
                         const char* lM_ =  "lM ";
-                        int widths[3] = { 0, 0, 0 }, glyph, lsb, width, total = 0;
+                        int widths[3] = { 0, 0, 0 }, glyph, width, total = 0;
                         for (int j = 0; j < 3; j++)
                             if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
-                                stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], & lsb);
+                                stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], NULL);
                         if (widths[0] && widths[1] && widths[2]) {
                             if (widths[0] == widths[1] && widths[1] == widths[2])
                                 monospace = widths[0];
                             for (int j = 32; j < 128; j++)
                                 if ((glyph = stbtt_FindGlyphIndex(& info, j)) != -1)
-                                    stbtt_GetGlyphHMetrics(& info, glyph, & width, & lsb), total += width;
+                                    stbtt_GetGlyphHMetrics(& info, glyph, & width, NULL), total += width;
                             avg = total / 96, em = widths[1], space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
@@ -118,12 +118,12 @@ struct RasterizerFont {
                     x = 0.f, lines.emplace_back(i);
             begin = i;
             for (; i < len && glyphs[i] > 0; i++) {}
-            int advances[i - begin], *advance = advances, total = 0, lsb;
+            int advances[i - begin], *advance = advances, total = 0;
             bzero(advances, sizeof(advances));
             if (rtol)
                 std::reverse(& glyphs[begin], & glyphs[i]);
             for (j = begin; j < i; j++, advance++) {
-                stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & lsb);
+                stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, NULL);
                 if (j < len - 1)
                     *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
             }
