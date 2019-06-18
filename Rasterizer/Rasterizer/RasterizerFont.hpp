@@ -118,21 +118,20 @@ struct RasterizerFont {
                     x = 0.f, lines.emplace_back(i);
             begin = i;
             for (; i < len && glyphs[i] > 0; i++) {}
-            int advances[i - begin], *advance = advances, total = 0;
-            bzero(advances, sizeof(advances));
             if (rtol)
                 std::reverse(& glyphs[begin], & glyphs[i]);
-            for (j = begin; j < i; j++, advance++) {
-                stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, NULL);
+            int advances[i - begin], *adv = advances, total = 0;
+            for (j = begin; j < i; j++, adv++) {
+                *adv = 0, stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
                 if (j < len - 1)
-                    *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
+                    *adv += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *adv;
             }
             if (!single && (fabsf(x) + total > width))
                 x = 0.f, lines.emplace_back(begin);
             if (rtol)
                 x -= total;
-            for (advance = advances, j = begin; j < i; j++, x += *advance, advance++) {
-                bool skip = single && ((!rtol && x + *advance > width) || (rtol && x < 0.f));
+            for (adv = advances, j = begin; j < i; j++, x += *adv, adv++) {
+                bool skip = single && ((!rtol && x + *adv > width) || (rtol && x < 0.f));
                 if (!skip)
                     xs[j] = x;
             }
