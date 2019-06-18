@@ -145,21 +145,16 @@ struct RasterizerFont {
                     for (int j = right ? l1 - 1 : l0; j >= 0 && j < l1; j += (right ? -1 : 1))
                         if ((x = xs[j]) != FLT_MAX) {
                             Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                            if (path.ref->isDrawable()) {
-                                dx += right ? width - (x + path.ref->bounds.ux) : -path.ref->bounds.lx;
-                                break;
-                            }
+                            dx += right ? width - (x + path.ref->bounds.ux) : -path.ref->bounds.lx;
+                            break;
                         }
-                for (int j = l0; j < l1; j++) {
+                for (int j = l0; j < l1; j++) 
                     if ((x = xs[j]) != FLT_MAX) {
                         Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                        if (path.ref->isDrawable()) {
-                            Rasterizer::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
-                            Rasterizer::Bounds user = scene.addPath(path, ctm, color);
-                            glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
-                        }
+                        Rasterizer::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
+                        Rasterizer::Bounds user = scene.addPath(path, ctm, color);
+                        glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
                     }
-                }
             }
         return glyphBounds;
     }
