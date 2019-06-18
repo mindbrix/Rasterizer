@@ -161,9 +161,8 @@ struct RasterizerFont {
     static void writeGlyphGrid(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
         if (font.info.numGlyphs == 0 || font.space == 0)
             return;
-        int d = ceilf(sqrtf((float)font.info.numGlyphs));
         float s = size / float(font.unitsPerEm);
-        for (int glyph = 0; glyph < font.info.numGlyphs; glyph++)
+        for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color);
     }
