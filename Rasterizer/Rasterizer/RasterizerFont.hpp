@@ -105,17 +105,18 @@ struct RasterizerFont {
             else if ((glyph = stbtt_FindGlyphIndex(& font.info, codepoint)) && stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 glyphs.emplace_back(glyph);
         }
-        float s = size / float(font.unitsPerEm), width, lineHeight, space, beginx, x, y;
+        float s = size / float(font.unitsPerEm), width, lineHeight, space, beginx, x, y, xs[glyphs.size()];
+        for (int k = 0; k < glyphs.size(); k++) xs[k] = -1.f;
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-        x = beginx = rtol ? width : 0.f, y = -font.ascent, i = 0;
-        len = (int)glyphs.size(), lines.emplace_back(int(scene.paths.size()));
+        x = beginx = rtol ? width : 0.f, i = 0;
+        len = (int)glyphs.size(), lines.emplace_back(0);
         do {
             for (; i < len && glyphs[i] < 0; i++)
                 if (glyphs[i] != -nl)
                     x += (glyphs[i] == -tab ? 4 : 1) * (rtol ? -space : space);
                 else if (!single)
-                    x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
+                    x = beginx, lines.emplace_back(i);
             begin = i;
             for (; i < len && glyphs[i] > 0; i++) {}
             int advances[i - begin], *advance = advances, total = 0, leftSideBearing;
@@ -128,29 +129,35 @@ struct RasterizerFont {
                     *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
             }
             if (!single && ((!rtol && x + total > width) || (rtol && x - total < 0.f)))
-                x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
+                x = beginx, lines.emplace_back(i);
             if (rtol)
                 x -= total;
             for (advance = advances, j = begin; j < i; j++, x += *advance, advance++) {
-                Rasterizer::Path path = font.glyphPath(glyphs[j], true);
                 bool skip = single && ((!rtol && x + *advance > width) || (rtol && x < 0.f));
-                if (!skip && path.ref->isDrawable()) {
-                    Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
-                    scene.addPath(path, ctm, color);
-                    Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
-                    glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
-                }
+                if (!skip)
+                    xs[j] = x;
             }
             if (rtol)
                 x -= total;
         } while (i < len);
-        lines.emplace_back(int(scene.paths.size()));
-        for (int i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1])
+        lines.emplace_back(i);
+        y = -font.ascent;
+        for (int i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1], y -= lineHeight)
             if (l0 != l1) {
-                float ux = scene.paths[l1 - 1].ref->bounds.ux * s + scene.ctms[l1 - 1].tx;
-                float dx = right ? bounds.ux - ux : -scene.paths[l0].ref->bounds.lx * s;
-                for (int j = l0; j < l1; j++)
-                    scene.ctms[j].tx += dx;
+//                float ux = scene.paths[l1 - 1].ref->bounds.ux * s + scene.ctms[l1 - 1].tx;
+//                float dx = right ? bounds.ux - ux : -scene.paths[l0].ref->bounds.lx * s;
+                for (int j = l0; j < l1; j++) {
+//                    scene.ctms[j].tx += dx;
+                    if ((x = xs[j]) >= 0.f) {
+                        Rasterizer::Path path = font.glyphPath(glyphs[j], true);
+                        if (path.ref->isDrawable()) {
+                            Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
+                            scene.addPath(path, ctm, color);
+                            Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
+                            glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
+                        }
+                    }
+                }
             }
         return glyphBounds;
     }
