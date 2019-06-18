@@ -138,15 +138,16 @@ struct RasterizerFont {
         lines.emplace_back(i);
         for (y = -font.ascent, i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1], y -= lineHeight)
             if (l0 != l1) {
-//                float ux = scene.paths[l1 - 1].ref->bounds.ux * s + scene.ctms[l1 - 1].tx;
-//                float dx = right ? bounds.ux - ux : -scene.paths[l0].ref->bounds.lx * s;
+                float dx = rtol ? width : 0.f;
+                bool first = true;
                 for (int j = l0; j < l1; j++) {
                     if ((x = xs[j]) != FLT_MAX) {
                         Rasterizer::Path path = font.glyphPath(glyphs[j], true);
                         if (path.ref->isDrawable()) {
-                            Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
-                            scene.addPath(path, ctm, color);
-                            Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
+                            if (first)
+                                dx += rtol ? 0.f : -path.ref->bounds.lx, first = false;
+                            Rasterizer::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
+                            Rasterizer::Bounds user = scene.addPath(path, ctm, color);
                             glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
                         }
                     }
