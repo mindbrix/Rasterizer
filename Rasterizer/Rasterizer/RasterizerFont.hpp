@@ -114,27 +114,23 @@ struct RasterizerFont {
         x = beginx = rtol ? width : 0.f, y = -font.ascent, i = 0;
         len = (int)glyphs.size(), lines.emplace_back(int(scene.paths.size()));
         do {
-            while (i < len && glyphs[i] < 0) {
+            for (; i < len && glyphs[i] < 0; i++)
                 if (glyphs[i] == -nl) {
                     if (!single)
                         x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
                 } else
                     x += (glyphs[i] == -tab ? 4 : 1) * (rtol ? -space : space);
-                i++;
-            }
             begin = i;
-            while (i < len && glyphs[i] >= 0)
-                i++;
+            for (; i < len && glyphs[i] > 0; i++) {}
             int advances[i - begin], *advance = advances, total = 0, leftSideBearing;
             bzero(advances, sizeof(advances));
             if (rtol)
                 std::reverse(& glyphs[begin], & glyphs[i]);
-            for (j = begin; j < i; j++, advance++)
-                if (glyphs[j] > 0) {
-                    stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
-                    if (j < len - 1)
-                        *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
-                }
+            for (j = begin; j < i; j++, advance++) {
+                stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
+                if (j < len - 1)
+                    *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
+            }
             if (!single && ((!rtol && x + total > width) || (rtol && x - total < 0.f)))
                 x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
             if (rtol)
