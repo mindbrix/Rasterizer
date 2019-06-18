@@ -88,7 +88,9 @@ struct RasterizerFont {
         const uint8_t *utf8 = (uint8_t *)str;
         std::vector<int> glyphs, lines;
         for (step = 1, codepoint = i = 0; step; i += step) {
-            if (utf8[i] < 128)
+            if (utf8[i] == 0)
+                break;
+            else if (utf8[i] < 128)
                 step = 1, codepoint = utf8[i];
             else if ((utf8[i] & 0xE0) == 0xC0 && (utf8[i + 1] & 0xC0) == 0x80)
                 step = 2, codepoint = ((utf8[i] & ~0xE0) << 6) | (utf8[i + 1] & ~0xC0);
@@ -98,15 +100,10 @@ struct RasterizerFont {
                 step = 4, codepoint = (utf8[i] & ~0xF8) << 18 | (utf8[i + 1] & ~0xC0) << 12 | (utf8[i + 2] & ~0xC0) << 6 | (utf8[i + 3] & ~0xC0);
             else
                 assert(0);
-            for (j = 0; step && j < step; j++)
-                if (utf8[i + j] == 0)
-                    step = 0;
-            if (step) {
-                if (codepoint == sp || codepoint == nl || codepoint == tab)
-                    glyphs.emplace_back(-codepoint);
-                else if ((glyph = stbtt_FindGlyphIndex(& font.info, codepoint)) && stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
-                    glyphs.emplace_back(glyph);
-            }
+            if (codepoint == sp || codepoint == nl || codepoint == tab)
+                glyphs.emplace_back(-codepoint);
+            else if ((glyph = stbtt_FindGlyphIndex(& font.info, codepoint)) && stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
+                glyphs.emplace_back(glyph);
         }
         float s = size / float(font.unitsPerEm), width, lineHeight, space, beginx, x, y;
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
