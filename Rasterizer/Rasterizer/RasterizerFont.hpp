@@ -115,11 +115,10 @@ struct RasterizerFont {
         len = (int)glyphs.size(), lines.emplace_back(int(scene.paths.size()));
         do {
             for (; i < len && glyphs[i] < 0; i++)
-                if (glyphs[i] == -nl) {
-                    if (!single)
-                        x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
-                } else
+                if (glyphs[i] != -nl)
                     x += (glyphs[i] == -tab ? 4 : 1) * (rtol ? -space : space);
+                else if (!single)
+                    x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
             begin = i;
             for (; i < len && glyphs[i] > 0; i++) {}
             int advances[i - begin], *advance = advances, total = 0, leftSideBearing;
