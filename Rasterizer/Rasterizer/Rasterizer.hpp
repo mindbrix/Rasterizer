@@ -177,14 +177,16 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Scene {
-        void addBounds(Bounds bounds, Transform ctm, Colorant col) {
+        Bounds addBounds(Bounds bounds, Transform ctm, Colorant col) {
             Path path;
-            path.ref->addBounds(bounds), addPath(path, ctm, col);
+            path.ref->addBounds(bounds);
+            return addPath(path, ctm, col);
         }
-        void addPath(Path path, Transform ctm, Colorant colorant) {
+        Bounds addPath(Path path, Transform ctm, Colorant colorant) {
             paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
+            return user;
         }
         size_t refCount = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
