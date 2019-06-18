@@ -116,8 +116,7 @@ struct RasterizerFont {
                     x += (glyphs[i] == -tab ? 4 : 1) * (rtol ? -space : space);
                 else if (!single)
                     x = 0.f, lines.emplace_back(i);
-            begin = i;
-            for (; i < len && glyphs[i] > 0; i++) {}
+            for (begin = i; i < len && glyphs[i] > 0; i++) {}
             if (rtol)
                 std::reverse(& glyphs[begin], & glyphs[i]);
             int advances[i - begin], *adv = advances, total = 0;
