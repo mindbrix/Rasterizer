@@ -83,7 +83,7 @@ struct RasterizerFont {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
-        int i, j, begin, step, len, codepoint;
+        int i, j, begin, step, len, codepoint, glyph;
         const char nl = '\n', sp = ' ', tab = '\t';
         const uint8_t *utf8 = (uint8_t *)str;
         std::vector<int> glyphs, lines;
@@ -101,8 +101,12 @@ struct RasterizerFont {
             for (j = 0; step && j < step; j++)
                 if (utf8[i + j] == 0)
                     step = 0;
-            if (step)
-                glyphs.emplace_back(codepoint == sp || codepoint == nl || codepoint == tab ? -codepoint : stbtt_FindGlyphIndex(& font.info, codepoint));
+            if (step) {
+                if (codepoint == sp || codepoint == nl || codepoint == tab)
+                    glyphs.emplace_back(-codepoint);
+                else if ((glyph = stbtt_FindGlyphIndex(& font.info, codepoint)) && stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
+                    glyphs.emplace_back(glyph);
+            }
         }
         float s = size / float(font.unitsPerEm), width, lineHeight, space, beginx, x, y;
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
@@ -126,7 +130,7 @@ struct RasterizerFont {
             if (rtol)
                 std::reverse(& glyphs[begin], & glyphs[i]);
             for (j = begin; j < i; j++, advance++)
-                if (glyphs[j] > 0 && stbtt_IsGlyphEmpty(& font.info, glyphs[j]) == 0) {
+                if (glyphs[j] > 0) {
                     stbtt_GetGlyphHMetrics(& font.info, glyphs[j], advance, & leftSideBearing);
                     if (j < len - 1)
                         *advance += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *advance;
@@ -135,17 +139,16 @@ struct RasterizerFont {
                 x = beginx, y -= lineHeight, lines.emplace_back(int(scene.paths.size()));
             if (rtol)
                 x -= total;
-            for (advance = advances, j = begin; j < i; j++, x += *advance, advance++)
-                if (*advance) {
-                    Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                    bool skip = single && ((!rtol && x + *advance > width) || (rtol && x < 0.f));
-                    if (!skip && path.ref->isDrawable()) {
-                        Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
-                        scene.addPath(path, ctm, color);
-                        Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
-                        glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
-                    }
+            for (advance = advances, j = begin; j < i; j++, x += *advance, advance++) {
+                Rasterizer::Path path = font.glyphPath(glyphs[j], true);
+                bool skip = single && ((!rtol && x + *advance > width) || (rtol && x < 0.f));
+                if (!skip && path.ref->isDrawable()) {
+                    Rasterizer::Transform ctm(s, 0.f, 0.f, s, x * s + bounds.lx, y * s + bounds.uy);
+                    scene.addPath(path, ctm, color);
+                    Rasterizer::Bounds user(path.ref->bounds.unit(ctm));
+                    glyphBounds.extend(user.lx, user.ly), glyphBounds.extend(user.ux, user.uy);
                 }
+            }
             if (rtol)
                 x -= total;
         } while (i < len);
