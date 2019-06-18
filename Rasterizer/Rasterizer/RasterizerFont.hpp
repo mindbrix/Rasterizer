@@ -129,11 +129,9 @@ struct RasterizerFont {
                 x = 0.f, lines.emplace_back(begin);
             if (rtol)
                 x -= total;
-            for (adv = advances, j = begin; j < i; j++, x += *adv, adv++) {
-                bool skip = single && ((!rtol && x + *adv > width) || (rtol && x < 0.f));
-                if (!skip)
+            for (adv = advances, j = begin; j < i; j++, x += *adv++)
+                if (!(single && (fabsf(x) + *adv > width)))
                     xs[j] = x;
-            }
             if (rtol)
                 x -= total;
         } while (i < len);
