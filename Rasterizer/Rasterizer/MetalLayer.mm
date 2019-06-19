@@ -125,10 +125,6 @@
     }
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
-    if (drawable == nil) {
-        dispatch_semaphore_signal(_inflight_semaphore);
-        return;
-    }
     if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
                                                                                         width:self.drawableSize.width
