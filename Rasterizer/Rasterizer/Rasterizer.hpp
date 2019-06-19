@@ -227,7 +227,7 @@ struct Rasterizer {
     template<typename T>
     struct Row {
     public:
-        Row<T>& operator+(const T *src) { if (src) do *(alloc(1)) = *src; while (*src++);  --end;  return *this; }
+        Row<T>& operator+(const T *src) { if (src) { do *(alloc(1)) = *src; while (*src++);  --end; } return *this; }
         Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), sprintf(buf, "%d", n); operator+((T *)buf); return *this; }
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
