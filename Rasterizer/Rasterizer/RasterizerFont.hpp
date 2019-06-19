@@ -79,7 +79,7 @@ struct RasterizerFont {
     int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool rtol, bool single, bool right, const char *str, Rasterizer::Scene& scene) {
+    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool rtl, bool single, bool right, const char *str, Rasterizer::Scene& scene) {
         Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
@@ -113,11 +113,11 @@ struct RasterizerFont {
         do {
             for (; i < len && glyphs[i] < 0; i++)
                 if (glyphs[i] != -nl)
-                    x += (glyphs[i] == -tab ? 4 : 1) * (rtol ? -space : space);
+                    x += (glyphs[i] == -tab ? 4 : 1) * (rtl ? -space : space);
                 else if (!single)
                     x = 0.f, lines.emplace_back(i);
             for (begin = i; i < len && glyphs[i] > 0; i++) {}
-            if (rtol)
+            if (rtl)
                 std::reverse(& glyphs[begin], & glyphs[i]);
             int advances[i - begin], *adv = advances, total = 0;
             for (j = begin; j < i; j++, adv++) {
@@ -127,19 +127,19 @@ struct RasterizerFont {
             }
             if (!single && (fabsf(x) + total > width))
                 x = 0.f, lines.emplace_back(begin);
-            if (rtol)
+            if (rtl)
                 x -= total;
             for (adv = advances, j = begin; j < i; j++, x += *adv++)
                 if (!(single && (fabsf(x) + *adv > width)))
                     xs[j] = x;
-            if (rtol)
+            if (rtl)
                 x -= total;
         } while (i < len);
         lines.emplace_back(i);
         for (y = -font.ascent, i = 0, l0 = lines[0], l1 = lines[1]; i < lines.size() - 1; i++, l0 = l1, l1 = lines[i + 1], y -= lineHeight)
             if (l0 != l1) {
                 float dx = 0.f;
-                if (rtol)
+                if (rtl)
                     dx = width;
                 else
                     for (int j = right ? l1 - 1 : l0; j >= 0 && j < l1; j += (right ? -1 : 1))
