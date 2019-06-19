@@ -15,8 +15,10 @@
 struct RasterizerCG {
     static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
         for (int j = 0; j < list.scenes.size(); j++) {
+            CGContextSaveGState(ctx);
             Rasterizer::Scene& scene = *list.scenes[j].ref;
             Rasterizer::Transform ctm = list.ctms[j], clip = list.clips[j];
+            CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
                 Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
@@ -32,6 +34,7 @@ struct RasterizerCG {
                     CGContextRestoreGState(ctx);
                 }
             }
+            CGContextRestoreGState(ctx);
         }
     }
     struct BGRAColorConverter {
