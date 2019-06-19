@@ -113,7 +113,14 @@ struct Rasterizer {
                 sb = Bounds(shapes[i]), bounds.extend(sb.lx, sb.ly), bounds.extend(sb.ux, sb.uy);
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
-        
+        void addEllipse(Bounds b) {
+            float kMagic = 4.f / 3.f * (sqrtf(2.f) - 1.f), t0 = 0.5f * (1.f - kMagic), s0 = 1.f - t0, t1 = 0.5f * (1.f + kMagic), s1 = 1.f - t1;
+            moveTo(b.ux, 0.5f * (b.ly + b.uy));
+            cubicTo(b.ux, s1 * b.ly + t1 * b.uy, s1 * b.lx + t1 * b.ux, b.uy, 0.5f * (b.lx + b.ux), b.uy);
+            cubicTo(s0 * b.lx + t0 * b.ux, b.uy, b.lx, s1 * b.ly + t1 * b.uy, b.lx, 0.5 * (b.ly + b.uy));
+            cubicTo(b.lx, s0 * b.ly + t0 * b.uy, s0 * b.lx + t0 * b.ux, b.ly, 0.5f * (b.lx + b.ux), b.ly);
+            cubicTo(s1 * b.lx + t1 * b.ux, b.ly, b.ux, s0 * b.ly + t0 * b.uy, b.ux, 0.5 * (b.ly + b.uy));
+        }
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
             px = points[0] = x, py = points[1] = y;
@@ -566,10 +573,10 @@ struct Rasterizer {
                         if (paths->ref->shapesCount == 0)
                             writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                         else {
-                            Path rect;
-                            rect.ref->addBounds(Bounds(0.f, 0.f, 1.f, 1.f));
+                            Path rect, ellipse;
+                            rect.ref->addBounds(Bounds(0.f, 0.f, 1.f, 1.f)), ellipse.ref->addEllipse(Bounds(0.f, 0.f, 1.f, 1.f));
                             for (int i = 0; i < paths->ref->shapesCount; i++)
-                                writeBitmapPath(rect, ctms->concat(paths->ref->shapes[i]), even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                                writeBitmapPath(paths->ref->circles[i] ? ellipse : rect, ctms->concat(paths->ref->shapes[i]), even, & colors->src0, clip, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                         }
                     }
                 }
