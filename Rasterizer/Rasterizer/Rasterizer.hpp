@@ -630,13 +630,13 @@ struct Rasterizer {
                         new (dst) GPU::Molecules::Molecule(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux, bc, *c);
                         instances += (*c - bc + kFastSegments - 1) / kFastSegments, bc = *c + 1, b++, dst++;
                     }
-                    writeEdges(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, instances, true, GPU::Instance::kMolecule, 0.f, int(iz), entry->seg.begin, int(midx), count, gpu);
+                    writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, instances, true, GPU::Instance::kMolecule, 0.f, int(iz), entry->seg.begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
         }
     }
-    static void writeEdges(float lx, float ly, float ux, float uy, size_t iz, size_t cells, size_t instances, bool fast, int type, float cover, int iy, int end, int begin, size_t count, GPU& gpu) {
+    static void writeInstances(float lx, float ly, float ux, float uy, size_t iz, size_t cells, size_t instances, bool fast, int type, float cover, int iy, int end, int begin, size_t count, GPU& gpu) {
         float ox, oy;
         gpu.allocator.alloc(ux - lx, uy - ly, gpu.blends.end, cells, instances, fast, ox, oy);
         new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(lx, ly, ux, uy, ox, oy, cover, iy, end, begin, count), iz, type);
@@ -959,7 +959,7 @@ struct Rasterizer {
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux)
-                            writeEdges(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Instance::kEdge, cover, int(iy - ily), int(segments->idx), int(begin), i - begin, gpu);
+                            writeInstances(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Instance::kEdge, cover, int(iy - ily), int(segments->idx), int(begin), i - begin, gpu);
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque)
@@ -977,7 +977,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
                 if (lx != ux)
-                    writeEdges(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Instance::kEdge, cover, int(iy - ily), int(segments->idx), int(begin), i - begin, gpu);
+                    writeInstances(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Instance::kEdge, cover, int(iy - ily), int(segments->idx), int(begin), i - begin, gpu);
             }
     }
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, Info info, uint8_t *src, Bitmap *bitmap) {
