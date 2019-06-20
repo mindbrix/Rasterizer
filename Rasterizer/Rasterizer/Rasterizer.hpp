@@ -114,12 +114,12 @@ struct Rasterizer {
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
         void addEllipse(Bounds b) {
-            float kMagic = 4.f / 3.f * (sqrtf(2.f) - 1.f), t0 = 0.5f * (1.f - kMagic), t1 = 0.5f * (1.f + kMagic);
-            moveTo(b.ux, 0.5f * (b.ly + b.uy));
-            cubicTo(b.ux, t0 * b.ly + t1 * b.uy, t0 * b.lx + t1 * b.ux, b.uy, 0.5f * (b.lx + b.ux), b.uy);
-            cubicTo(t1 * b.lx + t0 * b.ux, b.uy, b.lx, t0 * b.ly + t1 * b.uy, b.lx, 0.5 * (b.ly + b.uy));
-            cubicTo(b.lx, t1 * b.ly + t0 * b.uy, t1 * b.lx + t0 * b.ux, b.ly, 0.5f * (b.lx + b.ux), b.ly);
-            cubicTo(t0 * b.lx + t1 * b.ux, b.ly, b.ux, t1 * b.ly + t0 * b.uy, b.ux, 0.5 * (b.ly + b.uy));
+            const float t0 = 0.5f - 2.f / 3.f * (sqrtf(2.f) - 1.f), t1 = 1.f - t0, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
+            moveTo(b.ux, my);
+            cubicTo(b.ux, t0 * b.ly + t1 * b.uy, t0 * b.lx + t1 * b.ux, b.uy, mx, b.uy);
+            cubicTo(t1 * b.lx + t0 * b.ux, b.uy, b.lx, t0 * b.ly + t1 * b.uy, b.lx, my);
+            cubicTo(b.lx, t1 * b.ly + t0 * b.uy, t1 * b.lx + t0 * b.ux, b.ly, mx, b.ly);
+            cubicTo(t0 * b.lx + t1 * b.ux, b.ly, b.ux, t1 * b.ly + t0 * b.uy, b.ux, my);
         }
         void moveTo(float x, float y) {
             float *points = alloc(Atom::kMove, 1);
