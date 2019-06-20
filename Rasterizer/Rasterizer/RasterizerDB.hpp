@@ -18,7 +18,7 @@ struct RasterizerDB {
     
     void beginImport(const char *table, const char **names, int count) {
         Rasterizer::Row<char> str;
-        str = str + "BEGIN TRANSACTION; CREATE TABLE IF NOT EXISTS _ts(t REAL, tid INT UNIQUE); INSERT INTO _ts SELECT 1.0, rowid FROM sqlite_master WHERE NOT EXISTS(SELECT t FROM _ts WHERE tid = sqlite_master.rowid); " + "CREATE TABLE IF NOT EXISTS _" + table + " (";
+        str = str + "BEGIN TRANSACTION; CREATE TABLE IF NOT EXISTS ras_ts(t REAL, tid INT UNIQUE); INSERT INTO ras_ts SELECT 1.0, rowid FROM sqlite_master WHERE NOT EXISTS(SELECT t FROM ras_ts WHERE tid = sqlite_master.rowid); " + "CREATE TABLE IF NOT EXISTS _" + table + " (";
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + names[i] + " text";
         str = str + "); DELETE FROM _" + table, sqlite3_exec(db, str.base, NULL, NULL, NULL);
@@ -85,7 +85,7 @@ struct RasterizerDB {
         if (sqlite3_prepare_v2(db, "SELECT SUBSTR(tbl_name, 1, 1) as initial, COUNT(*) AS count FROM sqlite_master WHERE LOWER(initial) != UPPER(initial) AND name NOT LIKE 'sqlite%' GROUP BY initial ORDER BY initial ASC", -1, & pStmt1, NULL) == SQLITE_OK) {
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), i++, x = i % N, y = i / N) {
                 groupCount = sqlite3_column_int(pStmt1, 1);
-                str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, _ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = _ts.tid AND SUBSTR(tbl_name, 1, 1) = '" + (const char *)sqlite3_column_text(pStmt1, 0) + "' ORDER BY tbl_name ASC";
+                str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, ras_ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = ras_ts.tid AND SUBSTR(tbl_name, 1, 1) = '" + (const char *)sqlite3_column_text(pStmt1, 0) + "' ORDER BY tbl_name ASC";
                 if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK) {
                 }
                 sqlite3_finalize(pStmt0);
@@ -94,7 +94,7 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt1);
         
         sqlite3_stmt *pStmt;
-        if (sqlite3_prepare_v2(db, "SELECT tbl_name, t FROM sqlite_master, _ts WHERE name NOT LIKE 'sqlite%' AND sqlite_master.rowid = _ts.tid ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
+        if (sqlite3_prepare_v2(db, "SELECT tbl_name, t FROM sqlite_master, ras_ts WHERE name NOT LIKE 'sqlite%' AND sqlite_master.rowid = ras_ts.tid ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& background = list.addScene();
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt), i++, x = i % N, y = i / N) {
                 Rasterizer::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
