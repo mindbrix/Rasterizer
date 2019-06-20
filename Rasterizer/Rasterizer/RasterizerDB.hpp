@@ -76,9 +76,23 @@ struct RasterizerDB {
     }
     void writeTables(RasterizerFont& font, Rasterizer::Bounds frame, Rasterizer::SceneList& list) {
         Rasterizer::Colorant bg0(244, 255), bg1(250, 255);
-        int count, N;
+        Rasterizer::Row<char> str;
+        int count, groupCount, N;
+        writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         writeColumnValues("SELECT COUNT(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
+        sqlite3_stmt *pStmt0, *pStmt1;
+        if (sqlite3_prepare_v2(db, "SELECT SUBSTR(tbl_name, 1, 1) as initial, COUNT(*) AS count FROM sqlite_master WHERE LOWER(initial) != UPPER(initial) AND name NOT LIKE 'sqlite%' GROUP BY initial ORDER BY initial ASC", -1, & pStmt1, NULL) == SQLITE_OK) {
+            for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), i++, x = i % N, y = i / N) {
+                groupCount = sqlite3_column_int(pStmt1, 1);
+                str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, _ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = _ts.tid AND SUBSTR(tbl_name, 1, 1) = '" + (const char *)sqlite3_column_text(pStmt1, 0) + "' ORDER BY tbl_name ASC";
+                if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK) {
+                }
+                sqlite3_finalize(pStmt0);
+            }
+        }
+        sqlite3_finalize(pStmt1);
+        
         sqlite3_stmt *pStmt;
         if (sqlite3_prepare_v2(db, "SELECT tbl_name, t FROM sqlite_master, _ts WHERE name NOT LIKE 'sqlite%' AND sqlite_master.rowid = _ts.tid ORDER BY tbl_name ASC", -1, & pStmt, NULL) == SQLITE_OK) {
             Rasterizer::Scene& background = list.addScene();
