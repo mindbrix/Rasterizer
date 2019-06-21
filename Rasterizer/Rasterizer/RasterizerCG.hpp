@@ -14,6 +14,7 @@
 
 struct RasterizerCG {
     static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+        CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
         for (int j = 0; j < list.scenes.size(); j++) {
             CGContextSaveGState(ctx);
             Rasterizer::Scene& scene = *list.scenes[j].ref;
@@ -25,17 +26,31 @@ struct RasterizerCG {
                 if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), bounds)) {
                     CGContextSaveGState(ctx);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                    CGContextConcatCTM(ctx, CGFromTransform(t));
-                    CGMutablePathRef path = CGPathCreateMutable();
-                    writePathToCGPath(p, path);
-                    CGContextAddPath(ctx, path);
-                    CGPathRelease(path);
-                    CGContextFillPath(ctx);
+                    if (p.ref->shapesCount == 0) {
+                        CGContextConcatCTM(ctx, CGFromTransform(t));
+                        CGMutablePathRef path = CGPathCreateMutable();
+                        writePathToCGPath(p, path);
+                        CGContextAddPath(ctx, path);
+                        CGPathRelease(path);
+                        CGContextFillPath(ctx);
+                    } else {
+                        for (int i = 0; i < p.ref->shapesCount; i++) {
+                            CGContextSaveGState(ctx);
+                            CGContextConcatCTM(ctx, CGFromTransform(t.concat(p.ref->shapes[i])));
+                            if (p.ref->circles[i])
+                                CGContextAddPath(ctx, ellipse);
+                            else
+                                CGContextAddPath(ctx, rect);
+                            CGContextFillPath(ctx);
+                            CGContextRestoreGState(ctx);
+                        }
+                    }
                     CGContextRestoreGState(ctx);
                 }
             }
             CGContextRestoreGState(ctx);
         }
+        CGPathRelease(rect), CGPathRelease(ellipse);
     }
     struct BGRAColorConverter {
         BGRAColorConverter() : converter(nullptr) { reset(); }
