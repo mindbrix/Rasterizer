@@ -29,9 +29,10 @@
 
 static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
 CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
+    RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
     @autoreleasepool {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [(__bridge RasterizerView *)displayLinkContext timerFired:[NSDate date].timeIntervalSinceReferenceDate];
+            [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
         });
     }
     return kCVReturnSuccess;
