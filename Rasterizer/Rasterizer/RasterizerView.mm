@@ -90,7 +90,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if ([_dbURL isFileURL]) {
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
         RasterizerFont font;
-        if (font.set(data.bytes, self.font.fontName.UTF8String) != 0) {
+        if (font.set(data.bytes, self.font.fontName.UTF8String)) {
             RasterizerDB db;
             db.open(_dbURL.path.UTF8String);
             RasterizerCG::writeFontsTable(db);

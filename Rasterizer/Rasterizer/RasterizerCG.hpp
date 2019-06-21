@@ -200,7 +200,7 @@ struct RasterizerCG {
     static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Rasterizer::Scene& scene) {
         NSData *data = [NSData dataWithContentsOfURL:fontURL(fontName)];
         RasterizerFont font;
-        if (font.set(data.bytes, fontName.UTF8String) != 0) {
+        if (font.set(data.bytes, fontName.UTF8String)) {
             if (string)
                 RasterizerFont::writeGlyphs(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, false, false, string.UTF8String, scene);
             else

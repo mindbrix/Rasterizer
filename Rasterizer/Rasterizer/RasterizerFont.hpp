@@ -12,7 +12,7 @@
 struct RasterizerFont {
     RasterizerFont() { empty(); }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
-    int set(const void *bytes, const char *name) {
+    bool set(const void *bytes, const char *name) {
         const unsigned char *ttf_buffer = (const unsigned char *)bytes;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
         empty();
@@ -36,12 +36,12 @@ struct RasterizerFont {
                             avg = total / 96, em = widths[1], space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
-                            return 1;
+                            return true;
                         }
                     }
                 }
             }
-        return 0;
+        return false;
     }
     Rasterizer::Path glyphPath(int glyph, bool cacheable) {
         if (cacheable) {
