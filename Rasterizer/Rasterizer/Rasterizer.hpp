@@ -575,9 +575,14 @@ struct Rasterizer {
                         else {
                             Path rect, ellipse;
                             rect.ref->addBounds(Bounds(0.f, 0.f, 1.f, 1.f)), ellipse.ref->addEllipse(Bounds(0.f, 0.f, 1.f, 1.f));
-                            for (int i = 0; i < paths->ref->shapesCount; i++)
-                                writeShape(clip, ctms->concat(paths->ref->shapes[i]), & colors->src0, & bitmap);
-                               // writeBitmapPath(paths->ref->circles[i] ? ellipse : rect, ctms->concat(paths->ref->shapes[i]), even, & colors->src0, clip, hit, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                            for (int i = 0; i < paths->ref->shapesCount; i++) {
+                                Transform shape = ctms->concat(paths->ref->shapes[i]);
+                                Bounds shapeClip = Bounds(shape).integral().intersect(clip);
+                                if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy) {
+                                    writeShape(shapeClip, ctms->concat(paths->ref->shapes[i]), & colors->src0, & bitmap);
+                                    //writeBitmapPath(paths->ref->circles[i] ? ellipse : rect, shape, even, & colors->src0, shapeClip, hit, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                                }
+                            }
                         }
                     }
                 }
@@ -1042,30 +1047,26 @@ struct Rasterizer {
         }
     }
     static void writeShape(Bounds clip, Transform shape, uint8_t *src, Bitmap *bitmap) {
-        clip = Bounds(shape).integral().intersect(clip);
-        if (clip.lx != clip.ux && clip.ly != clip.uy) {
-            float rl, bx, by, d[4], dx[2], dy[2];
-            bx = clip.lx - shape.tx, by = clip.ly - shape.ty;
-            rl = 1.f / sqrtf(shape.c * shape.c + shape.d * shape.d);
-            d[0] = rl * (shape.c * by - shape.d * bx);
-            d[1] = rl * (shape.c * (by - shape.b) - shape.d * (bx - shape.a));
-            dx[0] = rl * -shape.d, dy[0] = rl * shape.c;
-            rl = 1.f / sqrtf(shape.a * shape.a + shape.b * shape.b);
-            d[2] = rl * (shape.a * by - shape.b * bx);
-            d[3] = rl * (shape.a * (by - shape.d) - shape.b * (bx - shape.c));
-            dx[1] = rl * -shape.b, dy[1] = rl * shape.a;
-            
-            uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del, d0, d1, d2, d3, alpha;
-            for (y = clip.ly; y < clip.uy; y++, pixelAddress -= bitmap->stride) {
-                del = 0.5f * dx[0] + (y - clip.ly + 0.5f) * dy[0], d0 = 0.5f - (d[0] + del), d1 = 0.5f + d[1] + del;
-                del = 0.5f * dx[1] + (y - clip.ly + 0.5f) * dy[1], d2 = 0.5f + d[2] + del, d3 = 0.5f - (d[3] + del);
-                for (pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp) {
-                    alpha = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
-                    if (alpha > 0.003921568627f)
-                        writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
-                    d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1];
-                }
+        float rl, bx, by, d[4], dx[2], dy[2];
+        bx = clip.lx - shape.tx, by = clip.ly - shape.ty;
+        rl = 1.f / sqrtf(shape.c * shape.c + shape.d * shape.d);
+        d[0] = rl * (shape.c * by - shape.d * bx);
+        d[1] = rl * (shape.c * (by - shape.b) - shape.d * (bx - shape.a));
+        dx[0] = rl * -shape.d, dy[0] = rl * shape.c;
+        rl = 1.f / sqrtf(shape.a * shape.a + shape.b * shape.b);
+        d[2] = rl * (shape.a * by - shape.b * bx);
+        d[3] = rl * (shape.a * (by - shape.d) - shape.b * (bx - shape.c));
+        dx[1] = rl * -shape.b, dy[1] = rl * shape.a;
+        uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del, d0, d1, d2, d3, alpha;
+        for (y = clip.ly; y < clip.uy; y++, pixelAddress -= bitmap->stride) {
+            del = 0.5f * dx[0] + (y - clip.ly + 0.5f) * dy[0], d0 = 0.5f - (d[0] + del), d1 = 0.5f + d[1] + del;
+            del = 0.5f * dx[1] + (y - clip.ly + 0.5f) * dy[1], d2 = 0.5f + d[2] + del, d3 = 0.5f - (d[3] + del);
+            for (pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp) {
+                alpha = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
+                if (alpha > 0.003921568627f)
+                    writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
+                d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1];
             }
         }
     }
