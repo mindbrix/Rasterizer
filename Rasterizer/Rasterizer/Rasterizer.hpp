@@ -573,15 +573,11 @@ struct Rasterizer {
                         if (paths->ref->shapesCount == 0)
                             writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                         else {
-                            Path rect, ellipse;
-                            rect.ref->addBounds(Bounds(0.f, 0.f, 1.f, 1.f)), ellipse.ref->addEllipse(Bounds(0.f, 0.f, 1.f, 1.f));
                             for (int i = 0; i < paths->ref->shapesCount; i++) {
                                 Transform shape = ctms->concat(paths->ref->shapes[i]);
                                 Bounds shapeClip = Bounds(shape).integral().intersect(clip);
-                                if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy) {
-                                    writeShape(shapeClip, ctms->concat(paths->ref->shapes[i]), & colors->src0, & bitmap);
-                                    //writeBitmapPath(paths->ref->circles[i] ? ellipse : rect, shape, even, & colors->src0, shapeClip, hit, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
-                                }
+                                if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy)
+                                    writeShape(shapeClip, ctms->concat(paths->ref->shapes[i]), paths->ref->circles[i], & colors->src0, & bitmap);
                             }
                         }
                     }
@@ -1046,7 +1042,7 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeShape(Bounds clip, Transform shape, uint8_t *src, Bitmap *bitmap) {
+    static void writeShape(Bounds clip, Transform shape, bool circle, uint8_t *src, Bitmap *bitmap) {
         float rl, bx, by, d[4], dx[2], dy[2];
         bx = clip.lx - shape.tx, by = clip.ly - shape.ty;
         rl = 1.f / sqrtf(shape.c * shape.c + shape.d * shape.d);
