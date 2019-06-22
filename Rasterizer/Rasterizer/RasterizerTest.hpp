@@ -16,6 +16,8 @@ struct RasterizerTest {
             scene.addPath(createPhyllotaxisPath(100000), Rasterizer::Transform::identity(), color);
         if (0)
             writePhyllotaxisToScene(100000, scene);
+        if (0)
+            scene.addPath(createBoundsShape(Rasterizer::Bounds(100, 100, 200, 800)), Rasterizer::Transform::identity(), color);
     }
     static void writePhyllotaxisToScene(size_t count, Rasterizer::Scene& scene) {
         Rasterizer::Colorant color(0, 0, 0, 255);
@@ -58,5 +60,13 @@ struct RasterizerTest {
             *dst = scene.paths[i].ref->bounds.unit(scene.ctms[i]);
         shapes.ref->bounds = scene.bounds;
         return shapes;
+    }
+    static Rasterizer::Path createBoundsShape(Rasterizer::Bounds b) {
+        Rasterizer::Path shape;
+        shape.ref->allocShapes(1);
+        shape.ref->shapes[0] = Rasterizer::Transform(b.ux - b.lx, 0.f, 0.f, b.uy - b.ly, b.lx, b.ly);
+        shape.ref->circles[0] = true;
+        shape.ref->bounds = b;
+        return shape;
     }
 };
