@@ -1059,18 +1059,17 @@ struct Rasterizer {
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del, d0, d1, d2, d3, a0, a1, a2, a3, alpha;
             for (y = clip.ly; y < clip.uy; y++, pixelAddress -= bitmap->stride) {
                 del = 0.5f * dx[0] + (y - clip.ly + 0.5f) * dy[0];
-                d0 = d[0] + del, d1 = d[1] + del;
+                d0 = 0.5f - (d[0] + del), d1 = 0.5f + d[1] + del;
                 del = 0.5f * dx[1] + (y - clip.ly + 0.5f) * dy[1];
-                d2 = d[2] + del, d3 = d[3] + del;
+                d2 = 0.5f + d[2] + del, d3 = 0.5f - (d[3] + del);
                 for (pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp) {
-                    a0 = 0.5f - d0, a0 = a0 < 0.f ? 0.f : a0 > 1.f ? 1.f : a0;
-                    a1 = 0.5f + d1, a1 = a1 < 0.f ? 0.f : a1 > 1.f ? 1.f : a1;
-                    a2 = 0.5f + d2, a2 = a2 < 0.f ? 0.f : a2 > 1.f ? 1.f : a2;
-                    a3 = 0.5f - d3, a3 = a3 < 0.f ? 0.f : a3 > 1.f ? 1.f : a3;
-                    alpha = a0 * a1 * a2 * a3;
-                    if (alpha > 0.003921568627f)
+                    a0 = d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0;
+                    a1 = d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1;
+                    a2 = d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2;
+                    a3 = d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3;
+                    if ((alpha = a0 * a1 * a2 * a3) > 0.003921568627f)
                         writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
-                    d0 += dx[0], d1 += dx[0], d2 += dx[1], d3 += dx[1];
+                    d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1];
                 }
             }
         }
