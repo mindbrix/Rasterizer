@@ -55,9 +55,7 @@ struct RasterizerQueue {
     }
     void pop() {
         pthread_mutex_lock(& mtx);
-        for (int i = 0; i < arguments.size() - 1; i++)
-            arguments[i] = arguments[i + 1];
-        arguments.resize(arguments.size() - 1);
+        arguments.erase(arguments.begin());
         pthread_cond_signal(& removed);
         pthread_mutex_unlock(& mtx);
     }
