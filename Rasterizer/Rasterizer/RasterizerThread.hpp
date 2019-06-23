@@ -85,12 +85,7 @@ struct RasterizerThread {
             uint8_t *base = (uint8_t *)arguments;
             for (int i = 0; i < count; i++, base += stride)
                 add(function, (void *)base);
-            
-            //printf("IN MAIN: All threads are created.\n");
-            wait();
-            //printf("MAIN program has ended.\n");
         }
-        
         void wait() {
             pthread_mutex_lock(& mtx);
             while (arguments.size())
