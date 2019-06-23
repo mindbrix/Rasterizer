@@ -1043,14 +1043,14 @@ struct Rasterizer {
         }
     }
     static void writeShape(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
-        float rl, bx, by, d[4], dx[2], dy[2], r;
+        float rl, det, bx, by, d[4], dx[2], dy[2], w0, w1, r;
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del, d0, d1, d2, d3, cx, cy, alpha;
-        bx = clip.lx - ctm.tx, by = clip.ly - ctm.ty;
+        det = ctm.a * ctm.d - ctm.b * ctm.c, bx = clip.lx - ctm.tx, by = clip.ly - ctm.ty;;
         rl = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), dx[0] = rl * -ctm.d, dy[0] = rl * ctm.c;
-        d[0] = rl * (ctm.c * by - ctm.d * bx), d[1] = d[0] + rl * (ctm.a * ctm.d - ctm.b * ctm.c);
+        w0 = rl * det, d[0] = rl * (ctm.c * by - ctm.d * bx), d[1] = d[0] + w0;
         rl = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), dx[1] = rl * -ctm.b, dy[1] = rl * ctm.a;
-        d[2] = rl * (ctm.a * by - ctm.b * bx), d[3] = d[2] - rl * (ctm.a * ctm.d - ctm.b * ctm.c);
-        r = fmaxf(1.f, fminf(1.f + d[1] - d[0], 1.f + d[2] - d[3]) * 0.5f);
+        w1 = rl * det, d[2] = rl * (ctm.a * by - ctm.b * bx), d[3] = d[2] - w1;
+        r = fmaxf(1.f, fminf(1.f + w0, 1.f + w1) * 0.5f);
         uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
         for (y = clip.ly; y < clip.uy; y++, pixelAddress -= bitmap->stride) {
             del = 0.5f * dx[0] + (y - clip.ly + 0.5f) * dy[0], d0 = 0.5f - (d[0] + del), d1 = 0.5f + d[1] + del;
