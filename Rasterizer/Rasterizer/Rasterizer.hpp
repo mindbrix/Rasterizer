@@ -1044,15 +1044,15 @@ struct Rasterizer {
     }
     static void writeShape(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
         float rl0, rl1, det, bx, by, bd0, bd2, dx0, dx1, dy0, dy1, r;
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del, d0, d1, d2, d3, cx, cy, alpha;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del0, del1, d0, d1, d2, d3, cx, cy, alpha;
         det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
         dx0 = rl0 * -ctm.d, dy0 = rl0 * ctm.c, dx1 = rl1 * -ctm.b, dy1 = rl1 * ctm.a;
         bx = clip.lx - ctm.tx, by = clip.ly - ctm.ty, bd0 = rl0 * (ctm.c * by - ctm.d * bx), bd2 = rl1 * (ctm.a * by - ctm.b * bx);
         r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
         uint8_t *pixelAddress = pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
         for (y = clip.ly; y < clip.uy; y++, pixelAddress -= bitmap->stride) {
-            del = 0.5f * dx0 + (y - clip.ly + 0.5f) * dy0, d0 = 0.5f - (bd0 + del), d1 = 0.5f + bd0 + rl0 * det + del;
-            del = 0.5f * dx1 + (y - clip.ly + 0.5f) * dy1, d2 = 0.5f + bd2 + del, d3 = 0.5f - (bd2 - rl1 * det + del);
+            del0 = bd0 + 0.5f * dx0 + (y - clip.ly + 0.5f) * dy0, del1 = bd2 + 0.5f * dx1 + (y - clip.ly + 0.5f) * dy1;
+            d0 = 0.5f - del0, d1 = 0.5f + del0 + rl0 * det, d2 = 0.5f + del1, d3 = 0.5f - (del1 - rl1 * det);
             for (pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx0, d1 += dx0, d2 += dx1, d3 -= dx1) {
                 if (circle)
                     cx = r - fminf(r, fminf(d0, d1)), cy = r - fminf(r, fminf(d2, d3)), alpha = fmaxf(0.f, fminf(1.f, r - sqrtf(cx * cx + cy * cy)));
