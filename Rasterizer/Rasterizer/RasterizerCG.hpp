@@ -5,6 +5,7 @@
 //  Created by Nigel Barber on 23/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
+#import "RasterizerThread.hpp"
 #import "RasterizerState.hpp"
 #import "RasterizerDB.hpp"
 #import "RasterizerWinding.hpp"
@@ -288,7 +289,15 @@ struct RasterizerCG {
             assert(size >= end);
         }
     }
+    static void threadFunction(void *info) {
+        int *index = (int *)info;
+        printf("IN THREAD: %d.\n", *index);
+    }
     static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
+        int indices[5] = { 0, 1, 2, 3, 4 };
+        RasterizerThread::foreach(threadFunction, & indices, 5, sizeof(int));
+        
+        //testThreads();
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
         size_t pathsCount = list.writeVisibles(view, bounds, visibles);
