@@ -186,7 +186,7 @@ struct RasterizerCG {
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;
         BGRAColorConverter converter;
-        RasterizerThread::Queue queues[8];
+        RasterizerQueue queues[8];
     };
     
     static void writeFontsTable(RasterizerDB& db) {
@@ -238,7 +238,7 @@ struct RasterizerCG {
         ThreadContext *tc = (ThreadContext *)info;
         tc->context->drawScenes(*tc->list, tc->ctms, tc->even, tc->colors, tc->clips, tc->width, tc->iz, tc->end);
     }
-    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerThread::Queue *queues) {
+    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0;
         for (int j = 0; j < list.scenes.size(); j++) {
             Rasterizer::Scene& scene = *list.scenes[j].ref;
