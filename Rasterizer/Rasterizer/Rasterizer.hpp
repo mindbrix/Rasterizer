@@ -1049,11 +1049,11 @@ struct Rasterizer {
         dx0 = rl0 * -ctm.d, dy0 = rl0 * ctm.c, dx1 = rl1 * -ctm.b, dy1 = rl1 * ctm.a;
         bx = clip.lx - ctm.tx, by = clip.ly - ctm.ty, bd0 = rl0 * (ctm.c * by - ctm.d * bx), bd2 = rl1 * (ctm.a * by - ctm.b * bx);
         r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
-        uint8_t *pixelAddress = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
-        for (y = clip.ly; y < clip.uy; y++, pixelAddress -= bitmap->stride) {
+        uint8_t *rowaddr, *pixel;
+        for (rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), y = clip.ly; y < clip.uy; y++, rowaddr -= bitmap->stride) {
             del0 = bd0 + 0.5f * dx0 + (y - clip.ly + 0.5f) * dy0, del1 = bd2 + 0.5f * dx1 + (y - clip.ly + 0.5f) * dy1;
             d0 = 0.5f - del0, d1 = 0.5f + del0 + rl0 * det, d2 = 0.5f + del1, d3 = 0.5f - (del1 - rl1 * det);
-            for (pixel = pixelAddress, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx0, d1 += dx0, d2 += dx1, d3 -= dx1) {
+            for (pixel = rowaddr, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx0, d1 += dx0, d2 += dx1, d3 -= dx1) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha;
