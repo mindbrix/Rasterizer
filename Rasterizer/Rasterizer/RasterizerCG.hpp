@@ -186,6 +186,7 @@ struct RasterizerCG {
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;
         BGRAColorConverter converter;
+        RasterizerThread::Queue queue;
     };
     
     static void writeFontsTable(RasterizerDB& db) {
@@ -224,7 +225,20 @@ struct RasterizerCG {
         }
     }
     
-    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread) {
+    struct ThreadContext {
+        Rasterizer::Context *context;
+        Rasterizer::SceneList *list;
+        Rasterizer::Transform *ctms, *clips;
+        bool even;
+        Rasterizer::Colorant *colors;
+        float width;
+        size_t iz, end;
+    };
+    static void drawThread(void *info) {
+        ThreadContext *tc = (ThreadContext *)info;
+        tc->context->drawScenes(*tc->list, tc->ctms, tc->even, tc->colors, tc->clips, tc->width, tc->iz, tc->end);
+    }
+    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerThread::Queue& queue) {
         size_t eiz = 0, total = 0;
         for (int j = 0; j < list.scenes.size(); j++) {
             Rasterizer::Scene& scene = *list.scenes[j].ref;
@@ -259,9 +273,15 @@ struct RasterizerCG {
                     contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
                     count++;
                 }
-                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
-                });
+                ThreadContext threadContexts[count], *tc = & threadContexts[0];
+                for (int i = 0; i < count; i++, tc++)
+                    tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = 0, tc->end = eiz;
+                queue.foreach(drawThread, & threadContexts[0], count, sizeof(ThreadContext));
+                
+                
+//                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+//                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
+//                });
             }
         } else {
             count = 1;
@@ -294,10 +314,6 @@ struct RasterizerCG {
         printf("IN THREAD: %d.\n", *index);
     }
     static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
-        int indices[5] = { 0, 1, 2, 3, 4 };
-        RasterizerThread::foreach(threadFunction, & indices, 5, sizeof(int));
-        
-        //testThreads();
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
         size_t pathsCount = list.writeVisibles(view, bounds, visibles);
@@ -332,7 +348,7 @@ struct RasterizerCG {
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             
-            renderScenes(visibles, ctms, gpuctms, false, colors, clips, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT);
+            renderScenes(visibles, ctms, gpuctms, false, colors, clips, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queue);
             free(ctms), free(gpuctms), free(colors), free(clips);
         }
     }
