@@ -7,7 +7,6 @@
 //
 #import <vector>
 #import <pthread.h>
-#define NUM_THREADS 5
 
 struct RasterizerThread {
     typedef void (*Function)(void *info);
@@ -45,31 +44,15 @@ struct RasterizerThread {
         }
         void add(Function function, void *info) {
             pthread_mutex_lock(& mtx);
-            
-            //printf("IN MAIN: add().\n");
-            
-            /* Add element normally. */
             arguments.emplace_back(function, info);
-            
-            /* Signal waiting threads. */
             pthread_cond_signal(& added);
-            
             pthread_mutex_unlock(& mtx);
         }
         Arguments get() {
             pthread_mutex_lock(& mtx);
-            
-            //printf("IN QUEUE: get().\n");
-            
-            /* Wait for element to become available. */
             while (arguments.size() == 0)
                 pthread_cond_wait(& added, & mtx);
-            //printf("IN QUEUE::get() - size = %ld.\n", arguments.size());
-            /* We have an element. Pop it normally and return it in val_r. */
             Arguments args = arguments[0];
-        
-            //printf("IN QUEUE::get() - size = %ld.\n", arguments.size());
-            
             pthread_mutex_unlock(& mtx);
             return args;
         }
