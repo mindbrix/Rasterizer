@@ -1,5 +1,5 @@
 //
-//  RasterizerThread.hpp
+//  RasterizerQueue.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 23/06/2019.

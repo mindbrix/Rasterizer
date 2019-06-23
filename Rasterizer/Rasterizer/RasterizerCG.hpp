@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 23/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import "RasterizerThread.hpp"
+#import "RasterizerQueue.hpp"
 #import "RasterizerState.hpp"
 #import "RasterizerDB.hpp"
 #import "RasterizerWinding.hpp"
