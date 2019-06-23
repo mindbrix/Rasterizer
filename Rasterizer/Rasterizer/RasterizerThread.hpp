@@ -30,10 +30,10 @@ struct RasterizerThread {
             return 0;
         }
         Queue() {
-            pthread_create(& thread, NULL, queue_main, (void *)this);
             pthread_mutex_init(& mtx, NULL);
             pthread_cond_init(& added, NULL);
             pthread_cond_init(& removed, NULL);
+            pthread_create(& thread, NULL, queue_main, (void *)this);
         }
         ~Queue() {
             pthread_mutex_lock(& mtx);
@@ -51,10 +51,10 @@ struct RasterizerThread {
             /* Add element normally. */
             arguments.emplace_back(function, info);
             
-            pthread_mutex_unlock(& mtx);
-            
             /* Signal waiting threads. */
             pthread_cond_signal(& added);
+            
+            pthread_mutex_unlock(& mtx);
         }
         Arguments get() {
             pthread_mutex_lock(& mtx);
@@ -78,8 +78,8 @@ struct RasterizerThread {
             for (int i = 0; i < arguments.size() - 1; i++)
                 arguments[i] = arguments[i + 1];
             arguments.resize(arguments.size() - 1);
-            pthread_mutex_unlock(& mtx);
             pthread_cond_signal(& removed);
+            pthread_mutex_unlock(& mtx);
         }
         void foreach(Function function, void *arguments, size_t count, size_t stride) {
             uint8_t *base = (uint8_t *)arguments;
