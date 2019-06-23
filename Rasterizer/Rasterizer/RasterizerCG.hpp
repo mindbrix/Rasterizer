@@ -273,15 +273,11 @@ struct RasterizerCG {
                     contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
                     count++;
                 }
-                
                 ThreadContext threadContexts[count], *tc = & threadContexts[0];
                 for (int i = 0; i < count; i++, tc++)
                     tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = 0, tc->end = eiz;
-                for (int i = 0; i < count; i++)
-                    queues[i].foreach(drawThread, & threadContexts[i], 1, sizeof(ThreadContext));
-                for (int i = 0; i < count; i++)
-                    queues[i].wait();
-                
+                RasterizerQueue::scheduleAndWait(queues, count, drawThread, & threadContexts[0], sizeof(ThreadContext));
+
 //                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
 //                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
 //                });

@@ -16,6 +16,13 @@ struct RasterizerQueue {
         Function function = nullptr;
         void *info = nullptr;
     };
+    static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *arguments, size_t stride) {
+        uint8_t *base = (uint8_t *)arguments;
+        for (int i = 0; i < count; i++, base += stride)
+            queues[i].add(function, (void *)base);
+        for (int i = 0; i < count; i++)
+            queues[i].wait();
+    }
     static void *queue_main(void *arguments) {
         RasterizerQueue *queue = (RasterizerQueue *)arguments;
         while (1) {
@@ -37,7 +44,6 @@ struct RasterizerQueue {
         pthread_mutex_destroy(& mtx);
         pthread_cond_destroy(& added);
         pthread_cond_destroy(& removed);
-        // pthread_join(thread, NULL);
     }
     void add(Function function, void *info) {
         pthread_mutex_lock(& mtx);
@@ -58,11 +64,6 @@ struct RasterizerQueue {
         arguments.erase(arguments.begin());
         pthread_cond_signal(& removed);
         pthread_mutex_unlock(& mtx);
-    }
-    void foreach(Function function, void *arguments, size_t count, size_t stride) {
-        uint8_t *base = (uint8_t *)arguments;
-        for (int i = 0; i < count; i++, base += stride)
-            add(function, (void *)base);
     }
     void wait() {
         pthread_mutex_lock(& mtx);
