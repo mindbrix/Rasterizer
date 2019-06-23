@@ -180,13 +180,13 @@ struct RasterizerCG {
     
     struct CGTestContext {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
-        
-        CGTestContext() : rasterizerType(0) { contexts.resize(8); }
+        static const int kQueueCount = 8;
+        CGTestContext() : rasterizerType(0) { contexts.resize(kQueueCount); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
         std::vector<Rasterizer::Context> contexts;
         int rasterizerType;
         BGRAColorConverter converter;
-        RasterizerQueue queues[8];
+        RasterizerQueue queues[kQueueCount];
     };
     
     static void writeFontsTable(RasterizerDB& db) {
@@ -234,7 +234,7 @@ struct RasterizerCG {
         float width;
         size_t iz, end;
     };
-    static void drawThread(void *info) {
+    static void drawScenes(void *info) {
         ThreadContext *tc = (ThreadContext *)info;
         tc->context->drawScenes(*tc->list, tc->ctms, tc->even, tc->colors, tc->clips, tc->width, tc->iz, tc->end);
     }
@@ -248,6 +248,7 @@ struct RasterizerCG {
         }
         size_t slice, ly, uy, count, divisions = contextsCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         if (multithread) {
+            ThreadContext threadContexts[CGTestContext::kQueueCount], *tc;
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
                 auto scene = & list.scenes[0];
@@ -262,9 +263,13 @@ struct RasterizerCG {
                 }
                 for (i = 0; i < divisions; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
-                dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, izs[idx], izs[idx + 1]);
-                });
+                
+                for (tc = & threadContexts[0], i = 0; i < divisions; i++, tc++)
+                    tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = izs[i], tc->end = izs[i + 1];
+                RasterizerQueue::scheduleAndWait(queues, divisions, drawScenes, & threadContexts[0], sizeof(ThreadContext));
+//                dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+//                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, izs[idx], izs[idx + 1]);
+//                });
                 count = divisions;
             } else {
                 slice = (bitmap.height + contextsCount - 1) / contextsCount, slice = slice < 64 ? 64 : slice;
@@ -273,11 +278,9 @@ struct RasterizerCG {
                     contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
                     count++;
                 }
-                ThreadContext threadContexts[count], *tc = & threadContexts[0];
-                for (int i = 0; i < count; i++, tc++)
+                for (tc = & threadContexts[0], i = 0; i < count; i++, tc++)
                     tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = 0, tc->end = eiz;
-                RasterizerQueue::scheduleAndWait(queues, count, drawThread, & threadContexts[0], sizeof(ThreadContext));
-
+                RasterizerQueue::scheduleAndWait(queues, count, drawScenes, & threadContexts[0], sizeof(ThreadContext));
 //                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
 //                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
 //                });
