@@ -273,9 +273,6 @@ struct RasterizerCG {
                 for (tc = & threadContexts[0], i = 0; i < divisions; i++, tc++)
                     tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = izs[i], tc->end = izs[i + 1];
                 RasterizerQueue::scheduleAndWait(queues, divisions, drawScenes, & threadContexts[0], sizeof(ThreadContext));
-//                dispatch_apply(divisions, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-//                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, izs[idx], izs[idx + 1]);
-//                });
                 count = divisions;
             } else {
                 slice = (bitmap.height + contextsCount - 1) / contextsCount, slice = slice < 64 ? 64 : slice;
@@ -287,9 +284,6 @@ struct RasterizerCG {
                 for (tc = & threadContexts[0], i = 0; i < count; i++, tc++)
                     tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = 0, tc->end = eiz;
                 RasterizerQueue::scheduleAndWait(queues, count, drawScenes, & threadContexts[0], sizeof(ThreadContext));
-//                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-//                    contexts[idx].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
-//                });
             }
         } else {
             count = 1;
@@ -309,9 +303,6 @@ struct RasterizerCG {
                 for (tc = & threadContexts[0], i = 0; i < count; i++, tc++)
                     tc->context = & contexts[i], tc->list = & list, tc->ctms = ctms, tc->even = false, tc->colors = colors, tc->clips = clips, tc->width = width, tc->iz = izs[i], tc->begin = b[i], tc->entries = & e[i], tc->buffer = buffer;
                 RasterizerQueue::scheduleAndWait(queues, count, writeContexts, & threadContexts[0], sizeof(ThreadContext));
-//                dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-//                    Rasterizer::writeContextToBuffer(& contexts[idx], list, ctms, colors, b[idx], izs[idx], e[idx], *buffer);
-//                });
             }
             for (int i = 0; i < count; i++)
                 for (auto entry : e[i])
