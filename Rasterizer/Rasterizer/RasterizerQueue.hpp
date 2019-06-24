@@ -9,15 +9,6 @@
 #import <pthread.h>
 
 struct RasterizerQueue {
-    typedef void (*Function)(void *info);
-    static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *info, size_t infostride) {
-        if (queues == nullptr || count == 0 || function == nullptr || info == nullptr || infostride == 0)
-            return;
-        for (int i = 0; i < count; i++)
-            queues[i].add(function, (void *)((uint8_t *)info + i * infostride));
-        for (int i = 0; i < count; i++)
-            queues[i].wait();
-    }
     RasterizerQueue() {
         pthread_mutex_init(& mtx, NULL);
         pthread_cond_init(& notempty, NULL);
@@ -30,6 +21,15 @@ struct RasterizerQueue {
         pthread_mutex_destroy(& mtx);
         pthread_cond_destroy(& notempty);
         pthread_cond_destroy(& empty);
+    }
+    typedef void (*Function)(void *info);
+    static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *info, size_t infostride) {
+        if (queues == nullptr || count == 0 || function == nullptr || info == nullptr || infostride == 0)
+            return;
+        for (int i = 0; i < count; i++)
+            queues[i].add(function, (void *)((uint8_t *)info + i * infostride));
+        for (int i = 0; i < count; i++)
+            queues[i].wait();
     }
 private:
     struct Call {
