@@ -11,17 +11,19 @@
 struct RasterizerQueue {
     typedef void (*Function)(void *info);
     static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *arguments, size_t stride) {
-        uint8_t *base = (uint8_t *)arguments;
-        for (int i = 0; i < count; i++, base += stride)
-            queues[i].add(function, (void *)base);
-        for (int i = 0; i < count; i++)
-            queues[i].wait();
+        if (queues && count && function && arguments && stride) {
+            uint8_t *base = (uint8_t *)arguments;
+            for (int i = 0; i < count; i++, base += stride)
+                queues[i].add(function, (void *)base);
+            for (int i = 0; i < count; i++)
+                queues[i].wait();
+        }
     }
     struct Arguments {
         Arguments() {}
         Arguments(Function function, void *info) : function(function), info(info) {}
-        Function function = nullptr;
-        void *info = nullptr;
+        Function function;
+        void *info;
     };
     static void *queue_main(void *arguments) {
         RasterizerQueue *queue = (RasterizerQueue *)arguments;
