@@ -325,7 +325,8 @@ struct Rasterizer {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
                 Transform unit = path.ref->bounds.unit(ctm);
-                hash += uint64_t(1 + log2f(fabsf(unit.a * unit.d - unit.b * unit.c)));
+                float det = fabsf(unit.a * unit.d - unit.b * unit.c);
+                hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
             }
             Grid::Element *el = grid.find(hash);
             if (el) {
