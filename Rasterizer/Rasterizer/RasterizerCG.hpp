@@ -311,10 +311,6 @@ struct RasterizerCG {
             assert(size >= end);
         }
     }
-    static void threadFunction(void *info) {
-        int *index = (int *)info;
-        printf("IN THREAD: %d.\n", *index);
-    }
     static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
         Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
