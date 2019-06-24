@@ -10,25 +10,23 @@
 
 struct RasterizerQueue {
     typedef void (*Function)(void *info);
-    static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *arguments, size_t stride) {
-        if (queues && count && function && arguments && stride) {
-            uint8_t *base = (uint8_t *)arguments;
-            for (int i = 0; i < count; i++, base += stride)
-                queues[i].add(function, (void *)base);
+    static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *info, size_t infostride) {
+        if (queues && count && function && info && infostride) {
+            for (int i = 0; i < count; i++)
+                queues[i].add(function, (void *)((uint8_t *)info + i * infostride));
             for (int i = 0; i < count; i++)
                 queues[i].wait();
         }
     }
-    struct Arguments {
-        Arguments() {}
-        Arguments(Function function, void *info) : function(function), info(info) {}
+    struct Call {
+        Call() {}
+        Call(Function function, void *info) : function(function), info(info) {}
         Function function;
         void *info;
     };
-    static void *queue_main(void *arguments) {
-        RasterizerQueue *queue = (RasterizerQueue *)arguments;
+    static void *queue_main(void *args) {
         while (1)
-            queue->cycle();
+            ((RasterizerQueue *)args)->cycle();
         return 0;
     }
     RasterizerQueue() {
@@ -46,33 +44,33 @@ struct RasterizerQueue {
     }
     void add(Function function, void *info) {
         pthread_mutex_lock(& mtx);
-        arguments.emplace_back(function, info);
+        calls.emplace_back(function, info);
         pthread_cond_signal(& added);
         pthread_mutex_unlock(& mtx);
     }
-    void cycle(void) {
+    void cycle() {
         pthread_mutex_lock(& mtx);
-        while (arguments.size() == 0)
+        while (calls.size() == 0)
             pthread_cond_wait(& added, & mtx);
-        Arguments args = arguments[0];
+        Call call = calls[0];
         pthread_mutex_unlock(& mtx);
         
-        (*args.function)(args.info);
+        (*call.function)(call.info);
         
         pthread_mutex_lock(& mtx);
-        arguments.erase(arguments.begin());
-        if (arguments.size() == 0)
+        calls.erase(calls.begin());
+        if (calls.size() == 0)
             pthread_cond_signal(& empty);
         pthread_mutex_unlock(& mtx);
     }
     void wait() {
         pthread_mutex_lock(& mtx);
-        while (arguments.size())
+        while (calls.size())
             pthread_cond_wait(& empty, & mtx);
         pthread_mutex_unlock(& mtx);
     }
     pthread_t thread;
     pthread_mutex_t mtx;
     pthread_cond_t added, empty;
-    std::vector<Arguments> arguments;
+    std::vector<Call> calls;
 };
