@@ -31,7 +31,7 @@ struct RasterizerQueue {
     }
     RasterizerQueue() {
         pthread_mutex_init(& mtx, NULL);
-        pthread_cond_init(& added, NULL);
+        pthread_cond_init(& notempty, NULL);
         pthread_cond_init(& empty, NULL);
         pthread_create(& thread, NULL, queue_main, (void *)this);
     }
@@ -39,19 +39,20 @@ struct RasterizerQueue {
         pthread_mutex_lock(& mtx);
         pthread_cancel(thread);
         pthread_mutex_destroy(& mtx);
-        pthread_cond_destroy(& added);
+        pthread_cond_destroy(& notempty);
         pthread_cond_destroy(& empty);
     }
     void add(Function function, void *info) {
         pthread_mutex_lock(& mtx);
+        if (calls.size() == 0)
+            pthread_cond_signal(& notempty);
         calls.emplace_back(function, info);
-        pthread_cond_signal(& added);
         pthread_mutex_unlock(& mtx);
     }
     void cycle() {
         pthread_mutex_lock(& mtx);
         while (calls.size() == 0)
-            pthread_cond_wait(& added, & mtx);
+            pthread_cond_wait(& notempty, & mtx);
         Call call = calls[0];
         pthread_mutex_unlock(& mtx);
         
@@ -71,6 +72,6 @@ struct RasterizerQueue {
     }
     pthread_t thread;
     pthread_mutex_t mtx;
-    pthread_cond_t added, empty;
+    pthread_cond_t notempty, empty;
     std::vector<Call> calls;
 };
