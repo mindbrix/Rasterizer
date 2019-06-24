@@ -25,11 +25,8 @@ struct RasterizerQueue {
     };
     static void *queue_main(void *arguments) {
         RasterizerQueue *queue = (RasterizerQueue *)arguments;
-        while (1) {
-            Arguments args = queue->get();
-            (*args.function)(args.info);
-            queue->pop();
-        }
+        while (1)
+            queue->cycle();
         return 0;
     }
     RasterizerQueue() {
@@ -51,15 +48,15 @@ struct RasterizerQueue {
         pthread_cond_signal(& added);
         pthread_mutex_unlock(& mtx);
     }
-    Arguments get() {
+    void cycle(void) {
         pthread_mutex_lock(& mtx);
         while (arguments.size() == 0)
             pthread_cond_wait(& added, & mtx);
         Arguments args = arguments[0];
         pthread_mutex_unlock(& mtx);
-        return args;
-    }
-    void pop() {
+        
+        (*args.function)(args.info);
+        
         pthread_mutex_lock(& mtx);
         arguments.erase(arguments.begin());
         if (arguments.size() == 0)
