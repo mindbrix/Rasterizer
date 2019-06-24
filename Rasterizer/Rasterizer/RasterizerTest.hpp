@@ -42,8 +42,6 @@ struct RasterizerTest {
             shapes.ref->circles[i] = i & 1;
             s = sqrtf(i);
             new (dst) Rasterizer::Transform(1.f, 0.f, 0.f, 1.f, s * vx - 0.5f, s * vy - 0.5f);
-            Rasterizer::Bounds b(*dst);
-            shapes.ref->bounds.extend(b.lx, b.ly), shapes.ref->bounds.extend(b.ux, b.uy);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }

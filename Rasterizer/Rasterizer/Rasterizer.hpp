@@ -51,6 +51,9 @@ struct Rasterizer {
         inline void extend(float x, float y) {
             lx = lx < x ? lx : x, ux = ux > x ? ux : x, ly = ly < y ? ly : y, uy = uy > y ? uy : y;
         }
+        inline void extend(Bounds b) {
+            extend(b.lx, b.ly), extend(b.ux, b.uy);
+        }
         inline Bounds integral() const { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
         inline Bounds intersect(Bounds b) const {
             return {
@@ -108,9 +111,8 @@ struct Rasterizer {
         }
         void updateShapes(size_t count) {
             bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-            Bounds sb;
             for (int i = 0; i < shapesCount; i++)
-                sb = Bounds(shapes[i]), bounds.extend(sb.lx, sb.ly), bounds.extend(sb.ux, sb.uy);
+                bounds.extend(Bounds(shapes[i]));
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
         void addEllipse(Bounds b) {
@@ -184,18 +186,16 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Scene {
-        Bounds addBounds(Bounds bounds, Transform ctm, Colorant colorant) {
+        void addBounds(Bounds bounds, Transform ctm, Colorant colorant) {
             Path path;
             path.ref->addBounds(bounds);
-            return addPath(path, ctm, colorant);
+            addPath(path, ctm, colorant);
         }
-        Bounds addPath(Path path, Transform ctm, Colorant colorant) {
-            if (!path.ref->isDrawable())
-                return Bounds(0.f, 0.f, 0.f, 0.f);
-            paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
-            Bounds user = Bounds(path.ref->bounds.unit(ctm));
-            bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
-            return user;
+        void addPath(Path path, Transform ctm, Colorant colorant) {
+            if (path.ref->isDrawable()) {
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
+                bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
+            }
         }
         size_t refCount = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
