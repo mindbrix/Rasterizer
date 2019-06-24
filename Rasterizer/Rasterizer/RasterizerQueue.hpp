@@ -10,12 +10,6 @@
 
 struct RasterizerQueue {
     typedef void (*Function)(void *info);
-    struct Arguments {
-        Arguments() {}
-        Arguments(Function function, void *info) : function(function), info(info) {}
-        Function function = nullptr;
-        void *info = nullptr;
-    };
     static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *arguments, size_t stride) {
         uint8_t *base = (uint8_t *)arguments;
         for (int i = 0; i < count; i++, base += stride)
@@ -23,6 +17,12 @@ struct RasterizerQueue {
         for (int i = 0; i < count; i++)
             queues[i].wait();
     }
+    struct Arguments {
+        Arguments() {}
+        Arguments(Function function, void *info) : function(function), info(info) {}
+        Function function = nullptr;
+        void *info = nullptr;
+    };
     static void *queue_main(void *arguments) {
         RasterizerQueue *queue = (RasterizerQueue *)arguments;
         while (1) {
