@@ -106,7 +106,7 @@ struct Rasterizer {
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
         }
-        void setShapesBounds(size_t count) {
+        void updateShapes(size_t count) {
             bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
             Bounds sb;
             for (int i = 0; i < shapesCount; i++)

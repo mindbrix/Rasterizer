@@ -47,7 +47,7 @@ struct RasterizerTest {
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
-        shapes.ref->setShapesBounds(count);
+        shapes.ref->updateShapes(count);
         return shapes;
     }
     static Rasterizer::Path createBoundsShapes(Rasterizer::Scene& scene, bool circles) {
