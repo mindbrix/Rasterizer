@@ -51,7 +51,7 @@ struct RasterizerQueue {
     }
     void cycle() {
         pthread_mutex_lock(& mtx);
-        while (calls.size() == 0)
+        if (calls.size() == 0)
             pthread_cond_wait(& notempty, & mtx);
         Call call = calls[0];
         pthread_mutex_unlock(& mtx);
@@ -66,7 +66,7 @@ struct RasterizerQueue {
     }
     void wait() {
         pthread_mutex_lock(& mtx);
-        while (calls.size())
+        if (calls.size())
             pthread_cond_wait(& empty, & mtx);
         pthread_mutex_unlock(& mtx);
     }
