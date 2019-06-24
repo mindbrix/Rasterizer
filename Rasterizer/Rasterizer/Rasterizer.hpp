@@ -332,9 +332,12 @@ struct Rasterizer {
             if (el) {
                 Entry *srch = entries.base + el->index;
                 *m = ctm.concat(srch->ctm);
-                bool hit = m->a == m->d && m->b == -m->c;
-                srch->hit |= hit;
-                return hit ? srch : nullptr;
+                if (m->a != m->d || m->b != -m->c)
+                    return nullptr;
+                else {
+                    srch->hit |= true;
+                    return srch;
+                }
             }
             size_t begin = segments.idx, cbegin = counts.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
