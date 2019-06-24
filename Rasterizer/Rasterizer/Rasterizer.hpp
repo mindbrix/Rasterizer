@@ -184,12 +184,14 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Scene {
-        Bounds addBounds(Bounds bounds, Transform ctm, Colorant col) {
+        Bounds addBounds(Bounds bounds, Transform ctm, Colorant colorant) {
             Path path;
             path.ref->addBounds(bounds);
-            return addPath(path, ctm, col);
+            return addPath(path, ctm, colorant);
         }
         Bounds addPath(Path path, Transform ctm, Colorant colorant) {
+            if (!path.ref->isDrawable())
+                return Bounds(0.f, 0.f, 0.f, 0.f);
             paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
             Bounds user = Bounds(path.ref->bounds.unit(ctm));
             bounds.extend(user.lx, user.ly), bounds.extend(user.ux, user.uy);
