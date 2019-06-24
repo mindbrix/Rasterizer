@@ -23,12 +23,12 @@ struct RasterizerQueue {
         pthread_cond_destroy(& empty);
     }
     typedef void (*Function)(void *info);
-    static void scheduleAndWait(RasterizerQueue *queues, size_t count, Function function, void *info, size_t infostride) {
-        if (queues == nullptr || count == 0 || function == nullptr || info == nullptr || infostride == 0)
+    static void scheduleAndWait(RasterizerQueue *queues, size_t qcount, Function function, void *info, size_t infostride) {
+        if (queues == nullptr || qcount == 0 || function == nullptr || info == nullptr || infostride == 0)
             return;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < qcount; i++)
             queues[i].add(function, (void *)((uint8_t *)info + i * infostride));
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < qcount; i++)
             queues[i].wait();
     }
 private:
