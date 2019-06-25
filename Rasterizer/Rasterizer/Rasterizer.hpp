@@ -563,7 +563,7 @@ struct Rasterizer {
             }
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
-            Transform inv = bitmap.width ? Transform::nullclip().invert() : clipctm.invert();
+            Transform inv = clipctm.invert();
             Bounds device = Bounds(clipctm).integral().intersect(bounds);
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
@@ -1035,15 +1035,20 @@ struct Rasterizer {
                 *deltas = 0.f;
         else {
             float d[4], dx[2], dy[2], r, d0, d1, d2, d3;
-//            writeShapeDistances(clip, ctm, d, dx, dy, & r);
+            if (hit)
+                writeShapeDistances(clip, clipctm, d, dx, dy, & r);
             uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
-            for (y = clip.ly; y < clip.uy; y++, deltas += info.stride, rowaddr -= bitmap->stride, *delta = 0.f)
-                for (cover = alpha = 0.f, delta = deltas, pixel = rowaddr, x = clip.lx; x < clip.ux; x++, delta++, pixel += bitmap->bytespp) {
+            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta, soft = 1.f;
+            for (y = 0.f; y < clip.uy - clip.ly; y++, deltas += info.stride, rowaddr -= bitmap->stride, *delta = 0.f)
+                for (cover = alpha = 0.f, delta = deltas, pixel = rowaddr, x = 0.f; x < clip.ux - clip.lx; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
-                    if (alpha > 0.003921568627f)
-                        writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
+                    if (hit) {
+                        d0 = d[0] - x * dx[0] - y * dy[0], d1 = d[1] + x * dx[0] + y * dy[0], d2 = d[2] + x * dx[1] + y * dy[1], d3 = d[3] - x * dx[1] - y * dy[1];
+                        soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
+                    }
+                    if (alpha * soft > 0.003921568627f)
+                        writePixel(src0, src1, src2, alpha * soft * srcAlpha, pixel);
                 }
         }
     }
