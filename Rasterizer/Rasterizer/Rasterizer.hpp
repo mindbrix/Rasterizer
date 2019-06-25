@@ -66,8 +66,8 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
-    static bool isVisible(Bounds bounds, Transform ctm, Transform clip, Bounds device) {
-        Transform unit = bounds.unit(ctm);
+    static bool isVisible(Bounds user, Transform ctm, Transform clip, Bounds device) {
+        Transform unit = user.unit(ctm);
         Bounds dev = Bounds(unit).intersect(device.intersect(Bounds(clip)));
         Bounds clu = Bounds(clip.invert().concat(unit));
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
@@ -210,10 +210,10 @@ struct Rasterizer {
             scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
             return *scenes.back().ref;
         }
-        size_t writeVisibles(Transform view, Bounds bounds, SceneList& visibles) {
+        size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
-                if (scenes[i].ref->paths.size() && isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), bounds))
+                if (scenes[i].ref->paths.size() && isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device))
                     pathsCount += scenes[i].ref->paths.size(), visibles.scenes.emplace_back(scenes[i]), visibles.ctms.emplace_back(ctms[i]), visibles.clips.emplace_back(clips[i]);
             return pathsCount;
         }

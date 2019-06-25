@@ -14,7 +14,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, const Rasterizer::Bounds bounds, CGContextRef ctx) {
+    static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, const Rasterizer::Bounds device, CGContextRef ctx) {
         CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
         for (int j = 0; j < list.scenes.size(); j++) {
             CGContextSaveGState(ctx);
@@ -24,7 +24,7 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Rasterizer::Path& p = scene.paths[i];
                 Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
-                if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), bounds)) {
+                if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
                     CGContextSaveGState(ctx);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     if (p.ref->shapesCount == 0) {
