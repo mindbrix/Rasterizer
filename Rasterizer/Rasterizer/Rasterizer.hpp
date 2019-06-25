@@ -1045,21 +1045,23 @@ struct Rasterizer {
                 }
         }
     }
+    static void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
+        float det, rl0, rl1, del0, del1;
+        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
+        dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
+        del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
+        del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
+        d[0] = 0.5f - del0, d[1] = 0.5f + del0 + rl0 * det, d[2] = 0.5f + del1, d[3] = 0.5f - (del1 - rl1 * det);
+        *r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
+    }
     static void writeShape(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float det, rl0, rl1, dx0, dy0, dx1, dy1, bx, by, del0, del1, r0, r1, r2, r3, r;
-        float y, x, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
-        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
-        dx0 = rl0 * -ctm.d, dy0 = rl0 * ctm.c, dx1 = rl1 * -ctm.b, dy1 = rl1 * ctm.a;
-        bx = clip.lx - ctm.tx, by = clip.ly - ctm.ty;
-        del0 = rl0 * (ctm.c * by - ctm.d * bx) + 0.5f * (dx0 + dy0),
-        del1 = rl1 * (ctm.a * by - ctm.b * bx) + 0.5f * (dx1 + dy1);
-        r0 = 0.5f - del0, r1 = 0.5f + del0 + rl0 * det, r2 = 0.5f + del1, r3 = 0.5f - (del1 - rl1 * det);
-        r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
+        float d[4], dx[2], dy[2], r, y, x, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
+        writeShapeDistances(clip, ctm, d, dx, dy, & r);
         uint8_t *rowaddr, *pixel;
-        for (rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), y = clip.ly; y < clip.uy; y++, r0 -= dy0, r1 += dy0, r2 += dy1, r3 -= dy1, rowaddr -= bitmap->stride) {
-            d0 = r0, d1 = r1, d2 = r2, d3 = r3;
-            for (pixel = rowaddr, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx0, d1 += dx0, d2 += dx1, d3 -= dx1) {
+        for (rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), y = clip.ly; y < clip.uy; y++, d[0] -= dy[0], d[1] += dy[0], d[2] += dy[1], d[3] -= dy[1], rowaddr -= bitmap->stride) {
+            d0 = d[0], d1 = d[1], d2 = d[2], d3 = d[3];
+            for (pixel = rowaddr, x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha;
