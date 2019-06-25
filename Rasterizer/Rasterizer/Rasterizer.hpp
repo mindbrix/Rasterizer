@@ -562,9 +562,9 @@ struct Rasterizer {
                     drawPaths(& list.scenes[i].ref->paths[0] + liz - base, ctms + liz, even, colors + liz, clips[liz], width, liz, eiz);
             }
         }
-        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clip, float width, size_t iz, size_t eiz) {
-            Transform inv = bitmap.width ? Transform::nullclip().invert() : clip.invert();
-            Bounds device = Bounds(clip).integral().intersect(bounds);
+        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
+            Transform inv = bitmap.width ? Transform::nullclip().invert() : clipctm.invert();
+            Bounds device = Bounds(clipctm).integral().intersect(bounds);
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
                 Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
@@ -574,7 +574,7 @@ struct Rasterizer {
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
                     else {
                         if (paths->ref->shapesCount == 0)
-                            writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                            writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                         else {
                             for (int i = 0; i < paths->ref->shapesCount; i++) {
                                 Transform shape = ctms->concat(paths->ref->shapes[i]);
@@ -594,14 +594,14 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, bool hit, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
+    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, bool hit, Transform clipctm, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
         if (stride * h < deltasSize) {
             writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
-            writeDeltas(Info(deltas, stride), clip, hit, even, src, bm);
+            writeDeltas(Info(deltas, stride), clip, hit, clipctm, even, src, bm);
         } else {
             writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-            writeSegments(sgmnts.segments, clip, hit, even, Info(deltas, stride), src, bm);
+            writeSegments(sgmnts.segments, clip, hit, clipctm, even, Info(deltas, stride), src, bm);
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
@@ -985,7 +985,7 @@ struct Rasterizer {
                     writeInstances(lx, ly, ux, uy, iz, 1, (i - begin + 1) / 2, false, GPU::Instance::kEdge, cover, int(iy - ily), int(segments->idx), int(begin), i - begin, gpu);
             }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, bool even, Info info, uint8_t *src, Bitmap *bitmap) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, Transform clipctm, bool even, Info info, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
@@ -1003,7 +1003,7 @@ struct Rasterizer {
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux && cover - floorf(cover) < 1e-6f) {
-                        writeDeltas(info, Bounds(lx, ly, ux, uy), hit, even, src, bitmap);
+                        writeDeltas(info, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
                         lx = ux, ux = index->x;
                         if (alphaForCover(cover, even) > 0.998f)
                             for (delta = info.deltas, y = ly; y < uy; y++, delta += info.stride) {
@@ -1022,18 +1022,20 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, & info);
                 }
-                writeDeltas(info, Bounds(lx, ly, ux, uy), hit, even, src, bitmap);
+                writeDeltas(info, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
         }
     }
-    static void writeDeltas(Info info, Bounds clip, bool hit, bool even, uint8_t *src, Bitmap *bitmap) {
+    static void writeDeltas(Info info, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
         float *deltas = info.deltas;
         if (clip.lx == clip.ux)
             for (float y = clip.ly; y < clip.uy; y++, deltas += info.stride)
                 *deltas = 0.f;
         else {
+            float d[4], dx[2], dy[2], r, d0, d1, d2, d3;
+//            writeShapeDistances(clip, ctm, d, dx, dy, & r);
             uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta;
             for (y = clip.ly; y < clip.uy; y++, deltas += info.stride, rowaddr -= bitmap->stride, *delta = 0.f)
