@@ -246,12 +246,9 @@ struct RasterizerCG {
     }
     static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0;
-        for (int j = 0; j < list.scenes.size(); j++) {
-            Rasterizer::Scene& scene = *list.scenes[j].ref;
-            eiz += scene.paths.size();
-            for (int p = 0; p < scene.paths.size(); p++)
-                total += scene.paths[p].ref->atomsCount ?: (scene.paths[p].ref->shapes ? scene.paths[p].ref->end >> 4 : 0);
-        }
+        for (int j = 0; j < list.scenes.size(); j++)
+            eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;
+        
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti;
         size_t slice, ly, uy, count, divisions = contextsCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         if (multithread) {
@@ -262,8 +259,7 @@ struct RasterizerCG {
                     for (target = total * i / divisions; count < target; iz++) {
                         if (iz - base == scene->ref->paths.size())
                             scene++, base = iz;
-                        Rasterizer::Path& path = scene->ref->paths[iz - base];
-                        count += path.ref->atomsCount ?: (path.ref->shapes ? path.ref->shapesCount >> 4: 0);
+                        count += scene->ref->paths[iz - base].ref->weight;
                     }
                     izeds[i] = iz;
                 }

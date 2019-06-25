@@ -96,6 +96,7 @@ struct Rasterizer {
                 end = 0, atoms.emplace_back();
             atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
             end += size, atomsCount += size;
+            weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
             return atoms.back().points + (end - size) * 2;
         }
         void update(Atom::Type type, size_t size, float *p) {
@@ -160,7 +161,7 @@ struct Rasterizer {
         void close() {
             update(Atom::kClose, 0, alloc(Atom::kClose, 1));
         }
-        size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kCountSize];
+        size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kCountSize], weight;
         std::vector<Atom> atoms;
         std::vector<Bounds> molecules;
         float px, py;
@@ -195,9 +196,10 @@ struct Rasterizer {
             if (path.ref->isDrawable()) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
+                weight += path.ref->weight;
             }
         }
-        size_t refCount = 0;
+        size_t refCount = 0, weight = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
         Bounds bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
     };
