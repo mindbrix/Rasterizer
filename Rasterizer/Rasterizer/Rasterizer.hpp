@@ -1045,7 +1045,7 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
+    static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
         float det, rl0, rl1, del0, del1;
         det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
         dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
