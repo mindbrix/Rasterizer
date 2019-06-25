@@ -1028,6 +1028,15 @@ struct Rasterizer {
             }
         }
     }
+    static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
+        float det, rl0, rl1, del0, del1;
+        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
+        dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
+        del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
+        del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
+        d[0] = 0.5f - del0, d[1] = 0.5f + del0 + rl0 * det, d[2] = 0.5f + del1, d[3] = 0.5f - (del1 - rl1 * det);
+        *r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
+    }
     static void writeDeltas(Info info, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
         float *deltas = info.deltas;
         if (clip.lx == clip.ux)
@@ -1051,15 +1060,6 @@ struct Rasterizer {
                         writePixel(src0, src1, src2, alpha * soft * srcAlpha, pixel);
                 }
         }
-    }
-    static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
-        float det, rl0, rl1, del0, del1;
-        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
-        dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
-        del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
-        del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
-        d[0] = 0.5f - del0, d[1] = 0.5f + del0 + rl0 * det, d[2] = 0.5f + del1, d[3] = 0.5f - (del1 - rl1 * det);
-        *r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
     }
     static void writeShape(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
