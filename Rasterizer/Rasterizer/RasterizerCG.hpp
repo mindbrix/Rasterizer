@@ -272,7 +272,7 @@ struct RasterizerCG {
                 
                 for (ti = & threadInfo[0], i = 0; i < divisions; i++, ti++)
                     ti->context = & contexts[i], ti->list = & list, ti->ctms = ctms, ti->even = false, ti->colors = colors, ti->clips = clips, ti->width = width, ti->iz = izs[i], ti->end = izs[i + 1];
-                RasterizerQueue::scheduleAndWait(queues, divisions, drawScenes, & threadInfo[0], sizeof(ThreadInfo));
+                RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, drawScenes, & threadInfo[0], sizeof(ThreadInfo), divisions);
                 count = divisions;
             } else {
                 slice = (bitmap.height + contextsCount - 1) / contextsCount, slice = slice < 64 ? 64 : slice;
@@ -283,7 +283,7 @@ struct RasterizerCG {
                 }
                 for (ti = & threadInfo[0], i = 0; i < count; i++, ti++)
                     ti->context = & contexts[i], ti->list = & list, ti->ctms = ctms, ti->even = false, ti->colors = colors, ti->clips = clips, ti->width = width, ti->iz = 0, ti->end = eiz;
-                RasterizerQueue::scheduleAndWait(queues, count, drawScenes, & threadInfo[0], sizeof(ThreadInfo));
+                RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, drawScenes, & threadInfo[0], sizeof(ThreadInfo), count);
             }
         } else {
             count = 1;
@@ -302,7 +302,7 @@ struct RasterizerCG {
             else {
                 for (ti = & threadInfo[0], i = 0; i < count; i++, ti++)
                     ti->context = & contexts[i], ti->list = & list, ti->ctms = ctms, ti->even = false, ti->colors = colors, ti->clips = clips, ti->width = width, ti->iz = izs[i], ti->begin = b[i], ti->entries = & e[i], ti->buffer = buffer;
-                RasterizerQueue::scheduleAndWait(queues, count, writeContexts, & threadInfo[0], sizeof(ThreadInfo));
+                RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, writeContexts, & threadInfo[0], sizeof(ThreadInfo), count);
             }
             for (int i = 0; i < count; i++)
                 for (auto entry : e[i])
