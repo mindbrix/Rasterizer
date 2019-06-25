@@ -94,7 +94,9 @@ struct RasterizerDB {
                         float lx = gb.lx + gx * (gdim + gpad), uy = gb.uy - gy * (gdim + gpad);
                         Rasterizer::Bounds tb = { lx, uy - gdim, lx + gdim, uy };
                         Rasterizer::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
-                        background.addBounds(bb, Rasterizer::Transform::identity(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))]);
+                        Rasterizer::Path path;
+                        path.ref->addBounds(bb);
+                        background.addPath(path, Rasterizer::Transform::identity(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))]);
                         if (status == SQLITE_ROW)
                             writeTable(font, sqlite3_column_double(pStmt0, 1), tb, (const char *)sqlite3_column_text(pStmt0, 0), list);
                     }
@@ -135,7 +137,9 @@ struct RasterizerDB {
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                         RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Rasterizer::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], header);
                 Rasterizer::Scene& line = list.addScene();
-                line.addBounds(Rasterizer::Bounds(frame.lx, my - h / 256.f, frame.ux, my + h / 256.f), Rasterizer::Transform::identity(), red);
+                Rasterizer::Path path;
+                path.ref->addBounds(Rasterizer::Bounds(frame.lx, my - h / 256.f, frame.ux, my + h / 256.f));
+                line.addPath(path, Rasterizer::Transform::identity(), red);
                 Rasterizer::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {
                     Rasterizer::Scene& row = list.addScene();
