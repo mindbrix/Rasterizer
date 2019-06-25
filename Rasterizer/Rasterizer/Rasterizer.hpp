@@ -1046,8 +1046,9 @@ struct Rasterizer {
         }
     }
     static void writeShape(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
-        float rl0, rl1, det, bx, by, dx0, dx1, dy0, dy1, r;
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, del0, del1, d0, d1, d2, d3, cx, cy, m0, m1, alpha, r0, r1, r2, r3;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
+        float det, rl0, rl1, dx0, dy0, dx1, dy1, bx, by, del0, del1, r0, r1, r2, r3, r;
+        float y, x, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
         det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
         dx0 = rl0 * -ctm.d, dy0 = rl0 * ctm.c, dx1 = rl1 * -ctm.b, dy1 = rl1 * ctm.a;
         bx = clip.lx - ctm.tx, by = clip.ly - ctm.ty;
