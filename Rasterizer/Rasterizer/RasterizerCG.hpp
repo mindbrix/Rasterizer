@@ -312,13 +312,13 @@ struct RasterizerCG {
         }
     }
     static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
-        Rasterizer::Bounds bounds(0, 0, bitmap.width, bitmap.height);
+        Rasterizer::Bounds device(0, 0, bitmap.width, bitmap.height);
         Rasterizer::SceneList visibles;
-        size_t pathsCount = list.writeVisibles(view, bounds, visibles);
+        size_t pathsCount = list.writeVisibles(view, device, visibles);
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
-            drawScenes(visibles, view, bounds, ctx);
+            drawScenes(visibles, view, device, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
