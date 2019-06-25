@@ -244,13 +244,13 @@ struct RasterizerCG {
         ThreadInfo *ti = (ThreadInfo *)info;
         Rasterizer::writeContextToBuffer(ti->context, *ti->list, ti->ctms, ti->colors, ti->begin, ti->iz, *ti->entries, *ti->buffer);
     }
-    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, size_t contextsCount, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;
         
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti;
-        size_t slice, ly, uy, count, divisions = contextsCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+        size_t slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         if (multithread) {
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
@@ -271,7 +271,7 @@ struct RasterizerCG {
                 RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, drawScenes, & threadInfo[0], sizeof(ThreadInfo), divisions);
                 count = divisions;
             } else {
-                slice = (bitmap.height + contextsCount - 1) / contextsCount, slice = slice < 64 ? 64 : slice;
+                slice = (bitmap.height + CGTestContext::kQueueCount - 1) / CGTestContext::kQueueCount, slice = slice < 64 ? 64 : slice;
                 for (count = ly = 0; ly < bitmap.height; ly = uy) {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                     contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
@@ -342,7 +342,7 @@ struct RasterizerCG {
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             
-            renderScenes(visibles, ctms, gpuctms, false, colors, clips, width, & testScene.contexts[0], testScene.contexts.size(), bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+            renderScenes(visibles, ctms, gpuctms, false, colors, clips, width, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
             free(ctms), free(gpuctms), free(colors), free(clips);
         }
     }
