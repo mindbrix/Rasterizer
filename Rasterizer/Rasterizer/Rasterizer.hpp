@@ -988,7 +988,10 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, Transform clipctm, bool even, Info info, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta, soft = 1.f;
+        float d[4], dx[2], dy[2], r, d0, d1, d2, d3;
+        if (hit)
+            writeShapeDistances(clip, clipctm, d, dx, dy, & r);
         Segment *segment;
         Row<Index> indices;    Index *index;
         for (iy = ily; iy < iuy; iy++, segments++) {
@@ -1009,11 +1012,19 @@ struct Rasterizer {
                             for (delta = info.deltas, y = ly; y < uy; y++, delta += info.stride) {
                                 *delta = cover;
                                 uint8_t *dst = bitmap->pixelAddress(lx, y);
-                                if (src[3] == 255)
+                                if (src[3] == 255 && !hit)
                                     memset_pattern4(dst, src, (ux - lx) * bitmap->bytespp);
                                 else
-                                    for (size_t x = lx; x < ux; x++, dst += bitmap->bytespp)
-                                        writePixel(src0, src1, src2, srcAlpha, dst);
+                                    for (float ix = lx - clip.lx, iy = y - clip.ly; ix < ux - clip.lx; ix++, dst += bitmap->bytespp) {
+                                        if (hit) {
+                                            d0 = d[0] - ix * dx[0] - iy * dy[0], d1 = d[1] + ix * dx[0] + iy * dy[0],
+                                            d2 = d[2] + ix * dx[1] + iy * dy[1], d3 = d[3] - ix * dx[1] - iy * dy[1];
+                                            soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
+                                            if (soft > 0.003921568627f)
+                                                writePixel(src0, src1, src2, soft * srcAlpha, dst);
+                                        } else
+                                            writePixel(src0, src1, src2, srcAlpha, dst);
+                                    }
                             }
                         lx = ux = index->x;
                     }
