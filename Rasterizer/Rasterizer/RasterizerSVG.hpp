@@ -39,7 +39,7 @@ struct RasterizerSVG {
                     scene.addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     Rasterizer::Path s = createPathFromShape(shape);
-                    if (s.ref->isDrawable()) {
+                    if (s.ref->isDrawable) {
                         float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
                         CGMutablePathRef path = CGPathCreateMutable();
                         RasterizerCG::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);

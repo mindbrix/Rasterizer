@@ -85,18 +85,14 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
-        bool isDrawable() {
-            return !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
-        }
         float *alloc(Atom::Type type, size_t size) {
             if (end + size > Atom::kCapacity)
                 end = 0, atoms.emplace_back();
             atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
             end += size, atomsCount += size;
-            weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
             return atoms.back().points + (end - size) * 2;
         }
         void update(Atom::Type type, size_t size, float *p) {
@@ -104,6 +100,8 @@ struct Rasterizer {
             if (type == Atom::kMove)
                 molecules.emplace_back(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
             isPolygon &= type != Atom::kQuadratic && type != Atom::kCubic;
+            isDrawable |= !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
+            weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
         }
@@ -166,7 +164,7 @@ struct Rasterizer {
         std::vector<Bounds> molecules;
         float px, py;
         Transform *shapes;
-        bool *circles, isGlyph, isPolygon;
+        bool *circles, isGlyph, isDrawable, isPolygon;
         Bounds bounds;
     };
     template<typename T>
@@ -193,7 +191,7 @@ struct Rasterizer {
             addPath(path, ctm, colorant);
         }
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            if (path.ref->isDrawable()) {
+            if (path.ref->isDrawable) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
                 weight += path.ref->weight;
