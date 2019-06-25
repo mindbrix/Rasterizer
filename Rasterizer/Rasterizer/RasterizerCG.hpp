@@ -245,15 +245,14 @@ struct RasterizerCG {
         Rasterizer::writeContextToBuffer(ti->context, *ti->list, ti->ctms, ti->colors, ti->begin, ti->iz, *ti->entries, *ti->buffer);
     }
     static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
-        size_t eiz = 0, total = 0;
+        size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
-            eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;
-        
-        ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti;
-        size_t slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+            eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
+        ThreadInfo threadInfo[CGTestContext::kQueueCount];
+        threadInfo->context = contexts, threadInfo->list = & list, threadInfo->ctms = ctms, threadInfo->even = false, threadInfo->colors = colors, threadInfo->clips = clips, threadInfo->width = width, threadInfo->iz = 0, threadInfo->end = eiz;
+        for (i = 1; i < CGTestContext::kQueueCount; i++)
+            threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
-            for (ti = & threadInfo[0], i = 0; i < CGTestContext::kQueueCount; i++, ti++)
-                ti->context = & contexts[i], ti->list = & list, ti->ctms = ctms, ti->even = false, ti->colors = colors, ti->clips = clips, ti->width = width, ti->iz = 0, ti->end = eiz;
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
                 auto scene = & list.scenes[0];
@@ -268,18 +267,16 @@ struct RasterizerCG {
                 count = CGTestContext::kQueueCount;
                 for (i = 0; i < count; i++)
                     contexts[i].setGPU(bitmap.width, bitmap.height, gpuctms);
-                for (ti = & threadInfo[0], i = 0; i < count; i++, ti++)
-                    ti->iz = izs[i], ti->end = izs[i + 1];
+                for (i = 0; i < count; i++)
+                    threadInfo[i].iz = izs[i], threadInfo[i].end = izs[i + 1];
             } else {
                 slice = (bitmap.height + CGTestContext::kQueueCount - 1) / CGTestContext::kQueueCount, slice = slice < 64 ? 64 : slice;
-                for (count = ly = 0; ly < bitmap.height; ly = uy) {
+                for (count = ly = 0; ly < bitmap.height; ly = uy, count++) {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
                     contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
-                    count++;
                 }
             }
-            RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, drawScenes, & threadInfo[0], sizeof(ThreadInfo), count);
-            
+            RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, drawScenes, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
             if (buffer)
@@ -295,9 +292,9 @@ struct RasterizerCG {
             if (count == 1)
                 Rasterizer::writeContextToBuffer(contexts, list, ctms, colors, b[0], 0, e[0], *buffer);
             else {
-                for (ti = & threadInfo[0], i = 0; i < count; i++, ti++)
-                    ti->context = & contexts[i], ti->list = & list, ti->ctms = ctms, ti->even = false, ti->colors = colors, ti->clips = clips, ti->width = width, ti->iz = izs[i], ti->begin = b[i], ti->entries = & e[i], ti->buffer = buffer;
-                RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, writeContexts, & threadInfo[0], sizeof(ThreadInfo), count);
+                for (i = 0; i < count; i++)
+                    threadInfo[i].iz = izs[i], threadInfo[i].begin = b[i], threadInfo[i].entries = & e[i], threadInfo[i].buffer = buffer;
+                RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, writeContexts, threadInfo, sizeof(ThreadInfo), count);
             }
             for (int i = 0; i < count; i++)
                 for (auto entry : e[i])
