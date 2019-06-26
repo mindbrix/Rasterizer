@@ -179,6 +179,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 49) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
+        [self.layer setNeedsDisplay];
     } else {
         [super keyDown:event];
     }
