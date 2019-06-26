@@ -58,14 +58,10 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     det = ctm.a * ctm.d - ctm.b * ctm.c;
     rlab = copysign(rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), det);
     rlcd = copysign(rsqrt(ctm.c * ctm.c + ctm.d * ctm.d), det);
-    vx = ctm.tx - dx, vy = ctm.ty - dy;
-    d.x = (vx * ctm.b - vy * ctm.a) * rlab + 0.5;
-    vx += ctm.a, vy += ctm.b;
-    d.y = (vx * ctm.d - vy * ctm.c) * rlcd + 0.5;
-    vx += ctm.c, vy += ctm.d;
-    d.z = (vx * -ctm.b - vy * -ctm.a) * rlab + 0.5;
-    vx -= ctm.a, vy -= ctm.b;
-    d.w = (vx * -ctm.d - vy * -ctm.c) * rlcd + 0.5;
+    vx = ctm.tx - dx, vy = ctm.ty - dy, d.x = (vx * ctm.b - vy * ctm.a) * rlab + 0.5;
+    vx += ctm.a, vy += ctm.b, d.y = (vx * ctm.d - vy * ctm.c) * rlcd + 0.5;
+    vx += ctm.c, vy += ctm.d, d.z = (vx * -ctm.b - vy * -ctm.a) * rlab + 0.5;
+    vx -= ctm.a, vy -= ctm.b, d.w = (vx * -ctm.d - vy * -ctm.c) * rlcd + 0.5;
     return d;
 }
 
