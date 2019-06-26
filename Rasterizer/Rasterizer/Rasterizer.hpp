@@ -554,11 +554,12 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t iz, size_t end) {
-            for (size_t count = 0, base = 0, i = 0, liz, eiz; i < list.scenes.size(); base = count, i++) {
-                count += list.scenes[i].ref->paths.size();
-                if ((liz = base < iz ? iz : base > end ? end : base) != (eiz = count < iz ? iz : count > end ? end : count))
-                    drawPaths(& list.scenes[i].ref->paths[0] + liz - base, ctms + liz, even, colors + liz, clips[liz], width, liz, eiz);
+        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t slz, size_t suz) {
+            size_t lz, uz, i, clz, cuz;
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
+                uz = lz + list.scenes[i].ref->paths.size();
+                if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
+                    drawPaths(& list.scenes[i].ref->paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], width, clz, cuz);
             }
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
