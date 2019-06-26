@@ -989,6 +989,8 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, Transform clipctm, bool even, Info info, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
+        bool single = clip.ux - clip.lx < 256.f;
+        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta, soft = 1.f;
         float d[4], dx[2], dy[2], r, d0, d1, d2, d3;
         if (hit)
@@ -1002,7 +1004,7 @@ struct Rasterizer {
                 for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
                     new (index) Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
                 if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, int(indices.end), 0, 256, false, counts);
+                    radixSort((uint32_t *)indices.base, int(indices.end), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
