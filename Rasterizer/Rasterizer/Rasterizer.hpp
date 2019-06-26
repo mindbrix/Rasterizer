@@ -574,18 +574,8 @@ struct Rasterizer {
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                     if (bitmap.width == 0)
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
-                    else {
-                        if (paths->ref->shapesCount == 0)
-                            writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
-                        else {
-                            for (int i = 0; i < paths->ref->shapesCount; i++) {
-                                Transform shape = ctms->concat(paths->ref->shapes[i]);
-                                Bounds shapeClip = Bounds(shape).integral().intersect(clip);
-                                if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy)
-                                    writeShape(shapeClip, ctms->concat(paths->ref->shapes[i]), paths->ref->circles[i], & colors->src0, & bitmap);
-                            }
-                        }
-                    }
+                    else
+                        writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                 }
             }
         }
@@ -597,13 +587,22 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, bool hit, Transform clipctm, Info sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
-        float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-        if (stride * h < deltasSize) {
-            writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
-            writeDeltas(Info(deltas, stride), clip, hit, clipctm, even, src, bm);
+        if (path.ref->shapesCount == 0) {
+            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+            if (stride * h < deltasSize) {
+                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
+                writeDeltas(Info(deltas, stride), clip, hit, clipctm, even, src, bm);
+            } else {
+                writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+                writeSegments(sgmnts.segments, clip, hit, clipctm, even, Info(deltas, stride), src, bm);
+            }
         } else {
-            writePath(path, ctm, clip, writeClippedSegment, sgmnts);
-            writeSegments(sgmnts.segments, clip, hit, clipctm, even, Info(deltas, stride), src, bm);
+            for (int i = 0; i < path.ref->shapesCount; i++) {
+                Transform shape = ctm.concat(path.ref->shapes[i]);
+                Bounds shapeClip = Bounds(shape).integral().intersect(clip);
+                if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy)
+                    writeShape(shapeClip, shape, path.ref->circles[i], src, bm);
+            }
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
