@@ -7,6 +7,7 @@
 //
 #import "Rasterizer.h"
 #import "crc64.h"
+#import <unordered_map>
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
@@ -271,6 +272,20 @@ struct Rasterizer {
         union { void *info;  float *deltas;  Row<Segment> *segments; };
         uint32_t stride;
     };
+    struct SceneCache {
+        struct Entry {
+            void alloc(size_t size) {
+                bzero(idxes.alloc(size), size * sizeof(int));
+            }
+            ~Entry() {
+                hit = false;
+            }
+            size_t refCount = 0;
+            bool hit = true;
+            Row<int> idxes;
+        };
+        std::unordered_map<size_t, Ref<Entry>> cache;
+    };
     struct Cache {
         struct Entry {
             Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm) : hash(hash), seg(begin, end), cnt(cbegin, cend), ctm(ctm), hit(true) {}
@@ -471,6 +486,7 @@ struct Rasterizer {
         Row<Segment> outlines;
         Transform *ctms = nullptr;
         Cache cache;
+        SceneCache sceneCache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
