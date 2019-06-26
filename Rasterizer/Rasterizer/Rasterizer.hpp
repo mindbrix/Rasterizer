@@ -192,10 +192,11 @@ struct Rasterizer {
             if (path.ref->isDrawable) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
+                hash = ::crc64(::crc64(hash, & path.ref->hash, sizeof(path.ref->hash)), & ctm, sizeof(Transform));
                 weight += path.ref->weight;
             }
         }
-        size_t refCount = 0, weight = 0;
+        size_t refCount = 0, hash = 0, weight = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
         Bounds bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
     };
