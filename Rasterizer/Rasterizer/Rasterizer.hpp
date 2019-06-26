@@ -565,10 +565,12 @@ struct Rasterizer {
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
             Bounds device = Bounds(clipctm).integral().intersect(bounds);
+            float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c)));
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
                 Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
-                bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy, hit = clu.lx < 0.f || clu.ux > 1.f || clu.ly < 0.f || clu.uy > 1.f;
+                bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                bool hit = clu.lx < -err || clu.ux > (1.f + err) || clu.ly < -err || clu.uy > (1.f + err);
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                     if (bitmap.width == 0)
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
@@ -1041,7 +1043,7 @@ struct Rasterizer {
     }
     static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
         float det, rl0, rl1, del0, del1;
-        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = 1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), rl1 = 1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b);
+        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = copysign(1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), det), rl1 = copysign(1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), det);
         dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
         del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
         del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
