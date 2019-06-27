@@ -650,11 +650,17 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz;
+            gpu.sceneCache.unhit();
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
-                uz = lz + list.scenes[i].ref->paths.size();
+                Scene& scene = *list.scenes[i].ref;
+            
+                SceneCache::Entry *entry = gpu.sceneCache.getScene(scene.hash, scene.paths.size());
+            
+                uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
-                    drawPaths(& list.scenes[i].ref->paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], width, clz, cuz);
+                    drawPaths(& scene.paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], width, clz, cuz);
             }
+            gpu.sceneCache.compact();
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
