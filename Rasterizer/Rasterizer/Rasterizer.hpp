@@ -277,10 +277,13 @@ struct Rasterizer {
         struct Entry {
             void alloc(size_t size) {
                 bzero(idxes.alloc(size), size * sizeof(int));
+                bzero(cnts.alloc(size), size * sizeof(short));
+                bzero(hits.alloc(size), size * sizeof(short));
             }
             size_t refCount = 0;
             bool hit = true;
             Row<int> idxes;
+            Row<short> cnts, hits;
         };
         struct Element {
             size_t hash = 0;
@@ -303,8 +306,11 @@ struct Rasterizer {
             return entry.ref;
         }
         void unhit() {
-            for (auto& entry : cache)
-                entry.second.ref->hit = false;
+            for (auto& e : cache) {
+                Entry *entry = e.second.ref;
+                entry->hit = false;
+                bzero(entry->hits.base, entry->hits.end * sizeof(short));
+            }
             for (int i = 0; i < elements.end; i++)
                 elements.base[i].hit = false;
         }
@@ -316,12 +322,15 @@ struct Rasterizer {
                     freeScene(entry);
                     it = cache.erase(it);
                 } else {
-//                    for (int si = 0; si < entry->idxes.end; si++) {
-//                        int *idx = entry->idxes.base + si, next = *idx;
-//                        Element *el;
-//                        for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr) {
-//                        }
-//                    }
+                    for (int si = 0; si < entry->idxes.end; si++) {
+                        if (entry->cnts.base[si] != entry->hits.base[si]) {
+                            assert(entry->idxes.base[si]);
+                            Element *el = elements.base + entry->idxes.base[si];
+                            
+                            for (; el; el = el->next ? elements.base + el->next : nullptr) {
+                            }
+                        }
+                    }
                     it++;
                 }
             }
@@ -339,24 +348,26 @@ struct Rasterizer {
                 }
             }
         }
-        Element *getPath(Entry *entry, size_t i, Path& path, Transform ctm, Transform *m) {
+        Element *getPath(Entry *entry, size_t si, Path& path, Transform ctm, Transform *m) {
             int mantissa = 0;
             if (!path.ref->isPolygon) {
                 float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
                 mantissa += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
             }
             Element *el;
-            int *idx = entry->idxes.base + i, next = *idx;
+            int *idx = entry->idxes.base + si, next = *idx;
             for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
                 if (el->mantissa == mantissa) {
                     *m = ctm.concat(el->inv);
                     if (m->a != m->d || m->b != -m->c)
                         return nullptr;
                     else {
+                        entry->hits.base[si]++;
                         el->hit = true;
                         return el;
                     }
                 }
+            entry->cnts.base[si]++;
             if (freelist)
                 el = elements.base + freelist, *idx = freelist, freelist = elements.base[*idx].next;
             else
