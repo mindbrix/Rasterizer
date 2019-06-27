@@ -308,15 +308,26 @@ struct Rasterizer {
         void unhit() {
             for (auto& entry : cache)
                 entry.second.ref->hit = false;
+            for (int i = 0; i < elements.end; i++)
+                elements.base[i].hit = false;
         }
         void compact() {
             auto it = cache.begin();
-            while (it != cache.end())
-                if (!it->second.ref->hit) {
-                    freeScene(it->second.ref);
+            while (it != cache.end()) {
+                Entry *entry = it->second.ref;
+                if (!entry->hit) {
+                    freeScene(entry);
                     it = cache.erase(it);
-                } else
+                } else {
+//                    for (int si = 0; si < entry->idxes.end; si++) {
+//                        int *idx = entry->idxes.base + si, next = *idx;
+//                        Element *el;
+//                        for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr) {
+//                        }
+//                    }
                     it++;
+                }
+            }
         }
         void freeScene(Entry *entry) {
             int i, idx, next;
@@ -333,10 +344,10 @@ struct Rasterizer {
         }
         Element *getPath(Entry *entry, size_t i, Path& path, Transform ctm, Transform *m) {
             uint64_t hash = path.ref->hash;
-//            if (!path.ref->isPolygon) {
-//                float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
-//                hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
-//            }
+            if (!path.ref->isPolygon) {
+                float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
+                hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
+            }
             Element *el;
             int *idx = entry->idxes.base + i, next = *idx;
             for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
@@ -345,7 +356,7 @@ struct Rasterizer {
                     if (m->a != m->d || m->b != -m->c)
                         return nullptr;
                     else {
-                        el->hit |= true;
+                        el->hit = true;
                         return el;
                     }
                 }
@@ -718,11 +729,12 @@ struct Rasterizer {
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
+                SceneCache::Element *el = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, m1 = m;
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped) {
                     entry = gpu.cache.getPath(path, ctm, & m);
-                    SceneCache::Element *el = gpu.sceneCache.getPath(sentry, si, path, ctm, & m1);
+                    el = gpu.sceneCache.getPath(sentry, si, path, ctm, & m1);
                 }
                 if (entry == nullptr)
                     writePath(path, ctm, clip, writeClippedSegment, segments);
