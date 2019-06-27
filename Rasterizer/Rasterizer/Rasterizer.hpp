@@ -286,18 +286,35 @@ struct Rasterizer {
             Row<int> idxes;
         };
         struct Element {
-            size_t hash;
+            size_t hash = 0, count = 0;
+            bool hit = true;
             int page = 0, next = 0;
         };
-        Entry *add(size_t hash, size_t size) {
+        Entry *addScene(size_t hash, size_t size) {
             Ref<Entry> entry;
             entry.ref->alloc(size);
             cache.emplace(hash, entry);
             return entry.ref;
         }
-        Entry *find(size_t hash) {
+        Entry *findScene(size_t hash) {
             auto it = cache.find(hash);
             return it != cache.end() ? it->second.ref : nullptr;
+        }
+        Element *getPath(Entry *entry, size_t i, Path& path, Transform ctm, Transform *m) {
+            uint64_t hash = path.ref->hash;
+            if (!path.ref->isPolygon) {
+                float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
+                hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
+            }
+            Element *el;
+            int idx = entry->idxes.base[i];
+            for (el = idx ? elements.base + idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr) {
+                if (el->hash == hash) {
+                    return el;
+                }
+            }
+            
+            return nullptr;
         }
         void compact() {
             
