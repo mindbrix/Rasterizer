@@ -308,8 +308,8 @@ struct Rasterizer {
                 hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
             }
             Element *el;
-            int idx = entry->idxes.base[i];
-            for (el = idx ? elements.base + idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
+            int *idx = entry->idxes.base + i, next = *idx;
+            for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
                 if (el->hash == hash) {
                     *m = ctm.concat(el->inv);
                     if (m->a != m->d || m->b != -m->c)
@@ -319,10 +319,11 @@ struct Rasterizer {
                         return el;
                     }
                 }
-            idx = int(elements.end);
-            el = new (elements.alloc(1)) Element();
-            el->hash = hash, el->next = entry->idxes.base[i], el->inv = ctm.invert();
-            entry->idxes.base[i] = idx;
+            if (freelist)
+                el = elements.base + freelist, *idx = freelist, freelist = elements.base[*idx].next;
+            else
+                *idx = int(elements.end), el = new (elements.alloc(1)) Element();
+            el->hash = hash, el->next = next, el->inv = ctm.invert();
             
             return el;
         }
@@ -331,11 +332,11 @@ struct Rasterizer {
         }
         void reset() {
             cache.clear();
-            freelist = list = 0;
+            freelist = 0;
             elements.reset();
         }
         std::unordered_map<size_t, Ref<Entry>> cache;
-        size_t freelist = 0, list = 0;
+        int freelist = 0;
         Row<Element> elements;
     };
     struct Cache {
