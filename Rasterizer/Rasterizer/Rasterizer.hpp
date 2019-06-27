@@ -322,118 +322,6 @@ struct Rasterizer {
         std::unordered_map<size_t, Ref<Element>> elements;
         std::unordered_map<size_t, Ref<Entry>> entries;
     };
-    struct SceneCache {
-        struct Entry {
-            void alloc(size_t size) {
-                bzero(idxes.alloc(size), size * sizeof(int));
-                bzero(cnts.alloc(size), size * sizeof(short));
-                bzero(hits.alloc(size), size * sizeof(short));
-            }
-            size_t refCount = 0;
-            bool hit = true;
-            Row<int> idxes;
-            Row<short> cnts, hits;
-        };
-        struct Element {
-            size_t hash = 0;
-            bool hit = true;
-            int page = 0, count = 0, next = 0, mantissa = 0;
-            Transform inv;
-        };
-        SceneCache() {
-            reset();
-        }
-        Entry *getScene(size_t hash, size_t size) {
-            auto it = cache.find(hash);
-            if (it != cache.end()) {
-                it->second.ref->hit = true;
-                return it->second.ref;
-            }
-            Ref<Entry> entry;
-            entry.ref->alloc(size);
-            cache.emplace(hash, entry);
-            return entry.ref;
-        }
-        void unhit() {
-            for (auto& e : cache) {
-                Entry *entry = e.second.ref;
-                entry->hit = false;
-                bzero(entry->hits.base, entry->hits.end * sizeof(short));
-            }
-            for (int i = 0; i < elements.end; i++)
-                elements.base[i].hit = false;
-        }
-        void compact() {
-            auto it = cache.begin();
-            while (it != cache.end()) {
-                Entry *entry = it->second.ref;
-                if (!entry->hit) {
-                    freeScene(entry);
-                    it = cache.erase(it);
-                } else {
-                    for (int si = 0; si < entry->idxes.end; si++) {
-                        if (entry->cnts.base[si] != entry->hits.base[si]) {
-                            assert(entry->idxes.base[si]);
-                            Element *el = elements.base + entry->idxes.base[si];
-                            
-                            for (; el; el = el->next ? elements.base + el->next : nullptr) {
-                            }
-                        }
-                    }
-                    it++;
-                }
-            }
-        }
-        void freeScene(Entry *entry) {
-            int i, idx, next;
-            for (i = 0; i < entry->idxes.end; i++) {
-                idx = entry->idxes.base[i];
-                if (idx) {
-                    next = freelist, freelist = idx;
-                    Element *el = elements.base + idx;
-                    while (el->next)
-                        el = elements.base + el->next;
-                    el->next = next;
-                }
-            }
-        }
-        Element *getPath(Entry *entry, size_t si, Path& path, Transform ctm, Transform *m) {
-            int mantissa = 0;
-            if (!path.ref->isPolygon) {
-                float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
-                mantissa += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
-            }
-            Element *el;
-            int *idx = entry->idxes.base + si, next = *idx;
-            for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
-                if (el->mantissa == mantissa) {
-                    *m = ctm.concat(el->inv);
-                    if (m->a != m->d || m->b != -m->c)
-                        return nullptr;
-                    else {
-                        entry->hits.base[si]++;
-                        el->hit = true;
-                        return el;
-                    }
-                }
-            entry->cnts.base[si]++;
-            if (freelist)
-                el = elements.base + freelist, *idx = freelist, freelist = elements.base[*idx].next;
-            else
-                *idx = int(elements.end), el = new (elements.alloc(1)) Element();
-            el->hash = path.ref->hash, el->mantissa = mantissa, el->next = next, el->inv = ctm.invert();
-            
-            return el;
-        }
-        void reset() {
-            cache = std::unordered_map<size_t, Ref<Entry>>();
-            freelist = 0;
-            elements.reset(), bzero(elements.alloc(1), sizeof(Element));
-        }
-        std::unordered_map<size_t, Ref<Entry>> cache;
-        int freelist = 0;
-        Row<Element> elements;
-    };
     struct Cache {
         struct Entry {
             Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm) : hash(hash), seg(begin, end), cnt(cbegin, cend), ctm(ctm), hit(true) {}
@@ -621,10 +509,10 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.compact();
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.compact(), refCache.compact(frameCount);
         }
         void reset() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset(), sceneCache.reset();
+            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset(), refCache.reset();
         }
         size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, frameCount = 0;
         Allocator allocator;
@@ -634,7 +522,7 @@ struct Rasterizer {
         Row<Segment> outlines;
         Transform *ctms = nullptr;
         Cache cache;
-        RefCache sceneCache;
+        RefCache refCache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
@@ -723,13 +611,12 @@ struct Rasterizer {
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
             
-                RefCache::Entry *entry = gpu.sceneCache.getScene(scene, gpu.frameCount);
+                RefCache::Entry *entry = gpu.refCache.getScene(scene, gpu.frameCount);
             
                 uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
                     drawPaths(& scene.paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], width, entry, clz - lz, clz, cuz);
             }
-            gpu.sceneCache.compact(gpu.frameCount);
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, RefCache::Entry *entry, size_t si, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
