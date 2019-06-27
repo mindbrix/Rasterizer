@@ -575,7 +575,7 @@ struct Rasterizer {
             shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.compact();
         }
         void reset() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset();
+            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset(), sceneCache.reset();
         }
         size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
         Allocator allocator;
