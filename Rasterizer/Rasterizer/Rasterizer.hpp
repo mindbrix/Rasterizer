@@ -307,14 +307,12 @@ struct Rasterizer {
                 entry.second.ref->hit = false;
         }
         void compact() {
-            std::unordered_map<size_t, Ref<Entry>> _cache;
-            for (auto& entry : cache) {
-                if (entry.second.ref->hit)
-                    _cache.emplace(entry);
+            auto it = cache.begin();
+            while (it != cache.end())
+                if (!it->second.ref->hit)
+                    it = cache.erase(it);
                 else
-                    freeScene(entry.second.ref);
-            }
-            cache = _cache;
+                    it++;
         }
         void freeScene(Entry *entry) {
             int i, idx, next;
