@@ -327,8 +327,18 @@ struct Rasterizer {
             
             return el;
         }
-        void compact() {
-            
+        void freeScene(Entry *entry) {
+            int i, idx, next;
+            for (i = 0; i < entry->idxes.end; i++) {
+                idx = entry->idxes.base[i];
+                if (idx) {
+                    next = freelist, freelist = idx;
+                    Element *el = elements.base + idx;
+                    while (el->next)
+                        el = elements.base + el->next;
+                    el->next = next;
+                }
+            }
         }
         void reset() {
             cache.clear();
