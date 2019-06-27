@@ -285,7 +285,7 @@ struct Rasterizer {
         struct Element {
             size_t hash = 0;
             bool hit = true;
-            int page = 0, count = 0, next = 0;
+            int page = 0, count = 0, next = 0, mantissa = 0;
             Transform inv;
         };
         SceneCache() {
@@ -340,15 +340,15 @@ struct Rasterizer {
             }
         }
         Element *getPath(Entry *entry, size_t i, Path& path, Transform ctm, Transform *m) {
-            uint64_t hash = path.ref->hash;
+            int mantissa = 0;
             if (!path.ref->isPolygon) {
                 float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
-                hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
+                mantissa += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
             }
             Element *el;
             int *idx = entry->idxes.base + i, next = *idx;
             for (el = *idx ? elements.base + *idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
-                if (el->hash == hash) {
+                if (el->mantissa == mantissa) {
                     *m = ctm.concat(el->inv);
                     if (m->a != m->d || m->b != -m->c)
                         return nullptr;
@@ -361,7 +361,7 @@ struct Rasterizer {
                 el = elements.base + freelist, *idx = freelist, freelist = elements.base[*idx].next;
             else
                 *idx = int(elements.end), el = new (elements.alloc(1)) Element();
-            el->hash = hash, el->next = next, el->inv = ctm.invert();
+            el->hash = path.ref->hash, el->mantissa = mantissa, el->next = next, el->inv = ctm.invert();
             
             return el;
         }
