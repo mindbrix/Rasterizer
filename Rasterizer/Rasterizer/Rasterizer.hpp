@@ -285,7 +285,31 @@ struct Rasterizer {
             bool hit = true;
             Row<int> idxes;
         };
+        struct Element {
+            size_t hash;
+            int page = 0, next = 0;
+        };
+        Entry *add(size_t hash, size_t size) {
+            Ref<Entry> entry;
+            entry.ref->alloc(size);
+            cache.emplace(hash, entry);
+            return entry.ref;
+        }
+        Entry *find(size_t hash) {
+            auto it = cache.find(hash);
+            return it != cache.end() ? it->second.ref : nullptr;
+        }
+        void compact() {
+            
+        }
+        void reset() {
+            cache.clear();
+            freelist = list = 0;
+            elements.reset();
+        }
         std::unordered_map<size_t, Ref<Entry>> cache;
+        size_t freelist = 0, list = 0;
+        Row<Element> elements;
     };
     struct Cache {
         struct Entry {
