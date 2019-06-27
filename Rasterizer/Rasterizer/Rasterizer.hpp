@@ -291,16 +291,18 @@ struct Rasterizer {
             int page = 0, next = 0;
             Transform inv;
         };
-        Entry *addScene(size_t hash, size_t size) {
+        Entry *getScene(size_t hash, size_t size) {
+            auto it = cache.find(hash);
+            if (it != cache.end()) {
+                it->second.ref->hit = true;
+                return it->second.ref;
+            }
             Ref<Entry> entry;
             entry.ref->alloc(size);
             cache.emplace(hash, entry);
             return entry.ref;
         }
-        Entry *findScene(size_t hash) {
-            auto it = cache.find(hash);
-            return it != cache.end() ? it->second.ref : nullptr;
-        }
+        
         Element *getPath(Entry *entry, size_t i, Path& path, Transform ctm, Transform *m) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
