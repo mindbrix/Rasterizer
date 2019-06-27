@@ -274,8 +274,12 @@ struct Rasterizer {
         uint32_t stride;
     };
     struct RefCache {
+        struct Atom {
+            size_t hash = 0;
+        };
         struct Element {
             size_t refCount = 0, hash = 0;
+            std::vector<Atom> atoms;
         };
         struct Entry {
             size_t refCount = 0;
