@@ -282,8 +282,18 @@ struct Rasterizer {
             bool hit = true;
             std::vector<Ref<Element>> elements;
         };
-        void unhit() {}
-        void compact() {}
+        void unhit() {
+            for (auto it = entries.begin(); it != entries.end(); it++)
+                it->second.ref->hit = false;
+        }
+        void compact() {
+            auto it = entries.begin();
+            while (it != entries.end())
+                if (!it->second.ref->hit)
+                    it = entries.erase(it);
+                else
+                    it++;
+        }
         void reset() {
             entries = std::unordered_map<size_t, Ref<Entry>>();
             elements = std::unordered_map<size_t, Ref<Element>>();
