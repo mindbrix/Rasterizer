@@ -302,7 +302,33 @@ struct Rasterizer {
             cache.emplace(hash, entry);
             return entry.ref;
         }
-        
+        void unhit() {
+            for (auto& entry : cache)
+                entry.second.ref->hit = false;
+        }
+        void compact() {
+            std::unordered_map<size_t, Ref<Entry>> _cache;
+            for (auto& entry : cache) {
+                if (entry.second.ref->hit)
+                    _cache.emplace(entry);
+                else
+                    freeScene(entry.second.ref);
+            }
+            cache = _cache;
+        }
+        void freeScene(Entry *entry) {
+            int i, idx, next;
+            for (i = 0; i < entry->idxes.end; i++) {
+                idx = entry->idxes.base[i];
+                if (idx) {
+                    next = freelist, freelist = idx;
+                    Element *el = elements.base + idx;
+                    while (el->next)
+                        el = elements.base + el->next;
+                    el->next = next;
+                }
+            }
+        }
         Element *getPath(Entry *entry, size_t i, Path& path, Transform ctm, Transform *m) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
@@ -329,21 +355,8 @@ struct Rasterizer {
             
             return el;
         }
-        void freeScene(Entry *entry) {
-            int i, idx, next;
-            for (i = 0; i < entry->idxes.end; i++) {
-                idx = entry->idxes.base[i];
-                if (idx) {
-                    next = freelist, freelist = idx;
-                    Element *el = elements.base + idx;
-                    while (el->next)
-                        el = elements.base + el->next;
-                    el->next = next;
-                }
-            }
-        }
         void reset() {
-            cache.clear();
+            cache = std::unordered_map<size_t, Ref<Entry>>();
             freelist = 0;
             elements.reset();
         }
