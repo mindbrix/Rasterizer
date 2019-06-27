@@ -273,27 +273,44 @@ struct Rasterizer {
         union { void *info;  float *deltas;  Row<Segment> *segments; };
         uint32_t stride;
     };
-    struct HashMap {
-        static constexpr size_t kSize = 4096, kMask = kSize - 1, kHashMax = ~0UL;
-        struct Entry {
-            Entry(uint64_t hash, size_t i) : hash(hash), i(i) {}
-            uint64_t hash;
-            size_t i;
-            inline bool operator< (const Entry& other) const { return hash < other.hash; }
+    struct RefCache {
+        struct Element {
+            size_t refCount = 0, hash = 0;
         };
-        void compact(Row<Entry>& row) {
-            std::sort(row.base, row.base + row.end);
-            while (row.end && row.base[row.end - 1].hash == kHashMax)
-                row.end--;
+        struct Entry {
+            size_t refCount = 0;
+            bool hit = true;
+            std::vector<Ref<Element>> elements;
+        };
+        void unhit() {}
+        void compact() {}
+        void reset() {
+            entries = std::unordered_map<size_t, Ref<Entry>>();
+            elements = std::unordered_map<size_t, Ref<Element>>();
         }
-        Entry *find(uint64_t hash) {
-            Row<Entry>& row = map[hash & kMask];
-            for (Entry *e = row.base, *ue = e + row.end; e < ue; e++)
-            if (e->hash == hash)
-                return e;
-            return nullptr;
+        Entry *getScene(Scene& scene) {
+            auto it = entries.find(scene.hash);
+            if (it != entries.end()) {
+                it->second.ref->hit = true;
+                return it->second.ref;
+            }
+            Ref<Entry> entry;
+            for (int i = 0; i < scene.paths.size(); i++) {
+                auto it = elements.find(scene.paths[i].ref->hash);
+                if (it != elements.end()) {
+                    entry.ref->elements.emplace_back(it->second);
+                } else {
+                    Ref<Element> el;
+                    el.ref->hash = scene.paths[i].ref->hash;
+                    elements.emplace(el.ref->hash, el);
+                    entry.ref->elements.emplace_back(el);
+                }
+            }
+            entries.emplace(scene.hash, entry);
+            return entry.ref;
         }
-        Row<Entry> map[kSize];
+        std::unordered_map<size_t, Ref<Element>> elements;
+        std::unordered_map<size_t, Ref<Entry>> entries;
     };
     struct SceneCache {
         struct Entry {
@@ -607,7 +624,7 @@ struct Rasterizer {
         Row<Segment> outlines;
         Transform *ctms = nullptr;
         Cache cache;
-        SceneCache sceneCache;
+        RefCache sceneCache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
@@ -697,7 +714,7 @@ struct Rasterizer {
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
             
-                SceneCache::Entry *entry = gpu.sceneCache.getScene(scene.hash, scene.paths.size());
+                RefCache::Entry *entry = gpu.sceneCache.getScene(scene);
             
                 uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
@@ -705,7 +722,7 @@ struct Rasterizer {
             }
             gpu.sceneCache.compact();
         }
-        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, SceneCache::Entry *entry, size_t si, size_t iz, size_t eiz) {
+        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, RefCache::Entry *entry, size_t si, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
             Bounds device = Bounds(clipctm).integral().intersect(bounds);
             float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c)));
@@ -748,7 +765,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, SceneCache::Entry *sentry, size_t si, GPU& gpu) {
+    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, RefCache::Entry *sentry, size_t si, GPU& gpu) {
         if (path.ref->shapesCount) {
             new (gpu.blends.alloc(1)) GPU::Instance(ctm, iz, GPU::Instance::kShapes);
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
@@ -759,12 +776,13 @@ struct Rasterizer {
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
-                SceneCache::Element *el = nullptr;
+                RefCache::Element *el = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, m1 = m;
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped) {
                     entry = gpu.cache.getPath(path, ctm, & m);
-                    el = gpu.sceneCache.getPath(sentry, si, path, ctm, & m1);
+                    el = sentry->elements[si].ref;
+//                    el = gpu.sceneCache.getPath(sentry, si, path, ctm, & m1);
                 }
                 if (entry == nullptr)
                     writePath(path, ctm, clip, writeClippedSegment, segments);
