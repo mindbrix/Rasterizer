@@ -289,7 +289,7 @@ struct Rasterizer {
             size_t hash = 0, count = 0;
             bool hit = true;
             int page = 0, next = 0;
-            Transform ctm;
+            Transform inv;
         };
         Entry *addScene(size_t hash, size_t size) {
             Ref<Entry> entry;
@@ -309,9 +309,9 @@ struct Rasterizer {
             }
             Element *el;
             int idx = entry->idxes.base[i];
-            for (el = idx ? elements.base + idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr) {
+            for (el = idx ? elements.base + idx : nullptr; el; el = el->next ? elements.base + el->next : nullptr)
                 if (el->hash == hash) {
-                    *m = ctm.concat(el->ctm);
+                    *m = ctm.concat(el->inv);
                     if (m->a != m->d || m->b != -m->c)
                         return nullptr;
                     else {
@@ -319,8 +319,12 @@ struct Rasterizer {
                         return el;
                     }
                 }
-            }
-            return nullptr;
+            idx = int(elements.end);
+            el = new (elements.alloc(1)) Element();
+            el->hash = hash, el->next = entry->idxes.base[i], el->inv = ctm.invert();
+            entry->idxes.base[i] = idx;
+            
+            return el;
         }
         void compact() {
             
