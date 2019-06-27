@@ -273,6 +273,28 @@ struct Rasterizer {
         union { void *info;  float *deltas;  Row<Segment> *segments; };
         uint32_t stride;
     };
+    struct HashMap {
+        static constexpr size_t kSize = 4096, kMask = kSize - 1, kHashMax = ~0UL;
+        struct Entry {
+            Entry(uint64_t hash, size_t i) : hash(hash), i(i) {}
+            uint64_t hash;
+            size_t i;
+            inline bool operator< (const Entry& other) const { return hash < other.hash; }
+        };
+        void compact(Row<Entry>& row) {
+            std::sort(row.base, row.base + row.end);
+            while (row.end && row.base[row.end - 1].hash == kHashMax)
+                row.end--;
+        }
+        Entry *find(uint64_t hash) {
+            Row<Entry>& row = map[hash & kMask];
+            for (Entry *e = row.base, *ue = e + row.end; e < ue; e++)
+            if (e->hash == hash)
+                return e;
+            return nullptr;
+        }
+        Row<Entry> map[kSize];
+    };
     struct SceneCache {
         struct Entry {
             void alloc(size_t size) {
