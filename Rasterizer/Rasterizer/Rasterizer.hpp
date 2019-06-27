@@ -282,18 +282,13 @@ struct Rasterizer {
             std::vector<Atom> atoms;
         };
         struct Entry {
-            size_t refCount = 0;
-            bool hit = true;
+            size_t refCount = 0, frameCount = 1;
             std::vector<Ref<Element>> elements;
         };
-        void unhit() {
-            for (auto it = entries.begin(); it != entries.end(); it++)
-                it->second.ref->hit = false;
-        }
-        void compact() {
+        void compact(size_t frameCount) {
             auto it = entries.begin();
             while (it != entries.end())
-                if (!it->second.ref->hit)
+                if (frameCount != it->second.ref->frameCount)
                     it = entries.erase(it);
                 else
                     it++;
@@ -302,13 +297,14 @@ struct Rasterizer {
             entries = std::unordered_map<size_t, Ref<Entry>>();
             elements = std::unordered_map<size_t, Ref<Element>>();
         }
-        Entry *getScene(Scene& scene) {
+        Entry *getScene(Scene& scene, size_t frameCount) {
             auto it = entries.find(scene.hash);
             if (it != entries.end()) {
-                it->second.ref->hit = true;
+                it->second.ref->frameCount = frameCount;
                 return it->second.ref;
             }
             Ref<Entry> entry;
+            entry.ref->frameCount = frameCount;
             for (int i = 0; i < scene.paths.size(); i++) {
                 auto it = elements.find(scene.paths[i].ref->hash);
                 if (it != elements.end()) {
@@ -724,17 +720,16 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz;
-            gpu.sceneCache.unhit();
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
             
-                RefCache::Entry *entry = gpu.sceneCache.getScene(scene);
+                RefCache::Entry *entry = gpu.sceneCache.getScene(scene, gpu.frameCount);
             
                 uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
                     drawPaths(& scene.paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], width, entry, clz - lz, clz, cuz);
             }
-            gpu.sceneCache.compact();
+            gpu.sceneCache.compact(gpu.frameCount);
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, RefCache::Entry *entry, size_t si, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
