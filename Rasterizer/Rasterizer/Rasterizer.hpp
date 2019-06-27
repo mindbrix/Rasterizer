@@ -278,17 +278,14 @@ struct Rasterizer {
             void alloc(size_t size) {
                 bzero(idxes.alloc(size), size * sizeof(int));
             }
-            ~Entry() {
-                hit = false;
-            }
             size_t refCount = 0;
             bool hit = true;
             Row<int> idxes;
         };
         struct Element {
-            size_t hash = 0, count = 0;
+            size_t hash = 0;
             bool hit = true;
-            int page = 0, next = 0;
+            int page = 0, count = 0, next = 0;
             Transform inv;
         };
         SceneCache() {
