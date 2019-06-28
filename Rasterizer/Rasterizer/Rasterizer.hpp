@@ -293,11 +293,24 @@ struct Rasterizer {
             std::vector<Ref<Element>> elements;
         };
         void compact(size_t frameCount) {
+            bool compacted = false;
             for (auto it = entries.begin(); it != entries.end(); )
                 if (frameCount != it->second.ref->frameCount)
-                    it = entries.erase(it);
+                    it = entries.erase(it), compacted = true;
                 else
                     it++;
+            if (compacted) {
+                for (auto& el : elements) {
+                    if (el.ref->refCount == 1)
+                        el.ref->hash = ~0UL;
+                    }
+                std::sort(elements.begin(), elements.end());
+                size_t size = elements.size();
+                while (elements[size - 1].ref->hash == ~0UL)
+                    size--;
+                elements.resize(size);
+            size = size;
+            }
         }
         Entry *getScene(Scene& scene, size_t frameCount) {
             auto it = entries.find(scene.hash);
