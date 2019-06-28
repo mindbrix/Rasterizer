@@ -14,8 +14,10 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, const Rasterizer::Bounds device, CGContextRef ctx) {
+    static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, const Rasterizer::Bounds device, CGContextRef ctx) {
+        const CGFloat kVGLineWidthHairline = (CGFloat)-109.05473e+14;
         CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
+        CGContextSetLineWidth(ctx, kVGLineWidthHairline);
         for (int j = 0; j < list.scenes.size(); j++) {
             CGContextSaveGState(ctx);
             Rasterizer::Scene& scene = *list.scenes[j].ref;
@@ -33,7 +35,10 @@ struct RasterizerCG {
                         writePathToCGPath(p, path);
                         CGContextAddPath(ctx, path);
                         CGPathRelease(path);
-                        CGContextFillPath(ctx);
+                        if (useOutline)
+                            CGContextStrokePath(ctx);
+                        else
+                            CGContextFillPath(ctx);
                     } else {
                         for (int i = 0; i < p.ref->shapesCount; i++) {
                             CGContextSaveGState(ctx);
@@ -310,7 +315,7 @@ struct RasterizerCG {
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
-            drawScenes(visibles, view, device, ctx);
+            drawScenes(visibles, view, useOutline, device, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
             Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
