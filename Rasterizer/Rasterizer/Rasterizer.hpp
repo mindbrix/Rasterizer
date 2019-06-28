@@ -326,7 +326,7 @@ struct Rasterizer {
             Ref<Element> srch, el;
             size_t size = elements.size();
             entry.ref->elements.resize(scene.paths.size());
-            for (int i = 0; i < scene.paths.size(); i++) {
+            for (int i = 0; i < scene.paths.size(); ) {
                 srch.ref->hash = indices[i].hash;
                 auto it = lower_bound(elements.begin(), elements.begin() + size, srch);
                 if (it != elements.end() && it->ref->hash == srch.ref->hash) {
@@ -338,7 +338,6 @@ struct Rasterizer {
                 }
                 while (srch.ref->hash == indices[i].hash && i < scene.paths.size())
                     entry.ref->elements[indices[i].i] = el, i++;
-                --i;
             }
             std::sort(elements.begin(), elements.end());
             return entry.ref;
