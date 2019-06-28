@@ -291,7 +291,6 @@ struct Rasterizer {
         struct Entry {
             size_t refCount = 0, frameCount = 0;
             std::vector<Ref<Element>> elements;
-            std::vector<Index> indices;
         };
         void compact(size_t frameCount) {
             for (auto it = entries.begin(); it != entries.end(); )
@@ -309,28 +308,35 @@ struct Rasterizer {
             Ref<Entry> entry;
             entries.emplace(scene.hash, entry);
             entry.ref->frameCount = frameCount;
+            std::vector<Index> indices;
             for (int i = 0; i < scene.paths.size(); i++)
-                entry.ref->indices.emplace_back(scene.paths[i].ref->hash, i);
-            std::sort(entry.ref->indices.begin(), entry.ref->indices.end());
-            
+                indices.emplace_back(scene.paths[i].ref->hash, i);
+            std::sort(indices.begin(), indices.end());
+            Ref<Element> srch, el;
+            size_t size = elements.size();
+            entry.ref->elements.resize(scene.paths.size());
             for (int i = 0; i < scene.paths.size(); i++) {
-                auto it = elements.find(scene.paths[i].ref->hash);
-                if (it != elements.end()) {
-                    entry.ref->elements.emplace_back(it->second);
+                srch.ref->hash = indices[i].hash;
+                auto it = lower_bound(elements.begin(), elements.begin() + size, srch);
+                if (it != elements.end() && it->ref->hash == srch.ref->hash) {
+                    el = *it;
                 } else {
-                    Ref<Element> el;
-                    el.ref->hash = scene.paths[i].ref->hash;
-                    elements.emplace(el.ref->hash, el);
-                    entry.ref->elements.emplace_back(el);
+                    el = Ref<Element>();
+                    el.ref->hash = srch.ref->hash;
+                    elements.emplace_back(el);
                 }
+                while (srch.ref->hash == indices[i].hash && i < scene.paths.size())
+                    entry.ref->elements[indices[i].i] = el, i++;
+                --i;
             }
+            std::sort(elements.begin(), elements.end());
             return entry.ref;
         }
         void reset() {
+            elements = std::vector<Ref<Element>>();
             entries = std::unordered_map<size_t, Ref<Entry>>();
-            elements = std::unordered_map<size_t, Ref<Element>>();
         }
-        std::unordered_map<size_t, Ref<Element>> elements;
+        std::vector<Ref<Element>> elements;
         std::unordered_map<size_t, Ref<Entry>> entries;
     };
     struct Cache {
