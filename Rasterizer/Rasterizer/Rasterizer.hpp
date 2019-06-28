@@ -276,11 +276,11 @@ struct Rasterizer {
     };
     struct RefCache {
         struct Atom {
-            size_t hash = 0, frameCount = 0;
+            size_t refCount = 0, hash = 0, frameCount = 0;
         };
         struct Element {
             size_t refCount = 0, hash = 0;
-            std::vector<Atom> atoms;
+            std::vector<Ref<Atom>> atoms;
             inline bool operator< (const Element& other) const { return hash < other.hash; }
         };
         struct Index {
