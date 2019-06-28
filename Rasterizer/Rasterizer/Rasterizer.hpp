@@ -283,9 +283,15 @@ struct Rasterizer {
             std::vector<Atom> atoms;
             inline bool operator< (const Element& other) const { return hash < other.hash; }
         };
+        struct Index {
+            Index(size_t hash, size_t i) : hash(hash), i(i) {}
+            size_t hash, i;
+            inline bool operator< (const Index& other) const { return hash < other.hash; }
+        };
         struct Entry {
             size_t refCount = 0, frameCount = 0;
             std::vector<Ref<Element>> elements;
+            std::vector<Index> indices;
         };
         void compact(size_t frameCount) {
             for (auto it = entries.begin(); it != entries.end(); )
@@ -305,7 +311,12 @@ struct Rasterizer {
                 return it->second.ref;
             }
             Ref<Entry> entry;
+            entries.emplace(scene.hash, entry);
             entry.ref->frameCount = frameCount;
+            for (int i = 0; i < scene.paths.size(); i++)
+                entry.ref->indices.emplace_back(scene.paths[i].ref->hash, i);
+            std::sort(entry.ref->indices.begin(), entry.ref->indices.end());
+            
             for (int i = 0; i < scene.paths.size(); i++) {
                 auto it = elements.find(scene.paths[i].ref->hash);
                 if (it != elements.end()) {
@@ -317,8 +328,6 @@ struct Rasterizer {
                     entry.ref->elements.emplace_back(el);
                 }
             }
-            std::sort(entry.ref->elements.begin(), entry.ref->elements.end());
-            entries.emplace(scene.hash, entry);
             return entry.ref;
         }
         std::unordered_map<size_t, Ref<Element>> elements;
