@@ -300,10 +300,6 @@ struct Rasterizer {
                 else
                     it++;
         }
-        void reset() {
-            entries = std::unordered_map<size_t, Ref<Entry>>();
-            elements = std::unordered_map<size_t, Ref<Element>>();
-        }
         Entry *getScene(Scene& scene, size_t frameCount) {
             auto it = entries.find(scene.hash);
             if (it != entries.end()) {
@@ -329,6 +325,10 @@ struct Rasterizer {
                 }
             }
             return entry.ref;
+        }
+        void reset() {
+            entries = std::unordered_map<size_t, Ref<Entry>>();
+            elements = std::unordered_map<size_t, Ref<Element>>();
         }
         std::unordered_map<size_t, Ref<Element>> elements;
         std::unordered_map<size_t, Ref<Entry>> entries;
