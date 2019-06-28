@@ -183,6 +183,7 @@ struct Rasterizer {
             }
             return *this;
         }
+        inline bool operator< (const Ref& other) const { return *ref < *other.ref; }
         T *ref = nullptr;
     };
     typedef Ref<Geometry> Path;
@@ -275,19 +276,19 @@ struct Rasterizer {
     };
     struct RefCache {
         struct Atom {
-            size_t hash = 0;
+            size_t hash = 0, frameCount = 0;
         };
         struct Element {
             size_t refCount = 0, hash = 0;
             std::vector<Atom> atoms;
+            inline bool operator< (const Element& other) const { return hash < other.hash; }
         };
         struct Entry {
-            size_t refCount = 0, frameCount = 1;
+            size_t refCount = 0, frameCount = 0;
             std::vector<Ref<Element>> elements;
         };
         void compact(size_t frameCount) {
-            auto it = entries.begin();
-            while (it != entries.end())
+            for (auto it = entries.begin(); it != entries.end(); )
                 if (frameCount != it->second.ref->frameCount)
                     it = entries.erase(it);
                 else
@@ -316,6 +317,7 @@ struct Rasterizer {
                     entry.ref->elements.emplace_back(el);
                 }
             }
+            std::sort(entry.ref->elements.begin(), entry.ref->elements.end());
             entries.emplace(scene.hash, entry);
             return entry.ref;
         }
