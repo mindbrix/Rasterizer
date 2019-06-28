@@ -620,7 +620,7 @@ struct Rasterizer {
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
-                Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }, m1 = m;
+                Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped)
                     entry = gpu.cache.getPath(path, ctm, & m);
