@@ -466,7 +466,7 @@ struct Rasterizer {
         void reset() {
             shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset();
         }
-        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, frameCount = 0;
+        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
         Allocator allocator;
         Molecules molecules;
         Row<Index> indices;
@@ -555,7 +555,7 @@ struct Rasterizer {
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
-            gpu.allocator.init(width, height), gpu.ctms = ctms, gpu.frameCount++;
+            gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
         void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz;
