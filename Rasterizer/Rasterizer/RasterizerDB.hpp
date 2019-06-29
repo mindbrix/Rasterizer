@@ -78,6 +78,7 @@ struct RasterizerDB {
         Rasterizer::Colorant bg[4] = { Rasterizer::Colorant(240, 255), Rasterizer::Colorant(244, 255), Rasterizer::Colorant(248, 255), Rasterizer::Colorant(253, 255) };
         Rasterizer::Row<char> str;
         int count, N;
+        Rasterizer::SceneList tables;
         writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
         sqlite3_stmt *pStmt0, *pStmt1;
@@ -98,12 +99,14 @@ struct RasterizerDB {
                         path.ref->addBounds(bb);
                         background.ref->addPath(path, Rasterizer::Transform::identity(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))]);
                         if (status == SQLITE_ROW)
-                            writeTable(font, sqlite3_column_double(pStmt0, 1), tb, (const char *)sqlite3_column_text(pStmt0, 0), list);
+                            writeTable(font, sqlite3_column_double(pStmt0, 1), tb, (const char *)sqlite3_column_text(pStmt0, 0), tables);
                     }
                 }
                 sqlite3_finalize(pStmt0);
             }
-           // list.addScene(background);
+            list.addScene(background);
+            for (int i = 0; i < tables.scenes.size(); i++)
+                list.addScene(tables.scenes[i], tables.ctms[i], tables.clips[i]);
         }
         sqlite3_finalize(pStmt1);
     }
