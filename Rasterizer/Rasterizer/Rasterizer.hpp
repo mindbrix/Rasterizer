@@ -580,7 +580,7 @@ struct Rasterizer {
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
                 Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
-                bool unclipped = dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                bool unclipped = dev.lx > 0.f && dev.ly > 0.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
                 bool hit = clu.lx < -err || clu.ux > (1.f + err) || clu.ly < -err || clu.uy > (1.f + err);
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                     if (bitmap.width == 0)
