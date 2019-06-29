@@ -50,8 +50,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     Rasterizer::Ref<Rasterizer::Scene> glyphs;
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, *glyphs.ref);
-    _list.empty().addScene(glyphs);
-    _state.user = _list.bounds;
+    _state.user = _list.empty().addScene(glyphs).bounds;
     return self;
 }
 
@@ -199,8 +198,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     Rasterizer::Ref<Rasterizer::Scene> glyphs;
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, *glyphs.ref);
-    _list.empty().addScene(glyphs);
-    _state.user = _list.bounds;
+    _state.user = _list.empty().addScene(glyphs).bounds;
 	[self.layer setNeedsDisplay];
 }
 
@@ -257,10 +255,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if ((_svgData = svgData)) {
         Rasterizer::Ref<Rasterizer::Scene> scene, test;
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, *scene.ref);
-        _list.empty().addScene(scene);
         RasterizerTest::addTestPaths(*test.ref);
-        _list.addScene(test);
-        _state.user = _list.bounds;
+        _state.user = _list.empty().addScene(scene).addScene(test).bounds;
     }
     [self.layer setNeedsDisplay];
 }
