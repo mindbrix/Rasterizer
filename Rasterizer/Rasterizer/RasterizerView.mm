@@ -48,7 +48,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         return nil;
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, _list.empty().addScene());
+    Rasterizer::Ref<Rasterizer::Scene> glyphs;
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, *glyphs.ref);
+    _list.empty().addScene(glyphs);
     return self;
 }
 
@@ -96,8 +98,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             RasterizerCG::writeFontsTable(db);
             db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
         }
-    } else
-        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());
+    } else {
+        Rasterizer::Ref<Rasterizer::Scene> glyphs;
+        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, *glyphs.ref);
+        _list.empty().addScene(glyphs);
+    }
     _state.user = _list.bounds;
     [self.layer setNeedsDisplay];
 }
@@ -191,7 +196,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());
+    Rasterizer::Ref<Rasterizer::Scene> glyphs;
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, *glyphs.ref);
+    _list.empty().addScene(glyphs);
 	[self.layer setNeedsDisplay];
 }
 
@@ -246,9 +253,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)setSvgData:(NSData *)svgData {
     if ((_svgData = svgData)) {
-        Rasterizer::Scene& scene = _list.empty().addScene();
-        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
-        RasterizerTest::addTestPaths(_list.addScene());
+        Rasterizer::Ref<Rasterizer::Scene> scene, test;
+        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, *scene.ref);
+        _list.empty().addScene(scene);
+        RasterizerTest::addTestPaths(*test.ref);
+        _list.addScene(test);
         _state.user = _list.bounds;
     }
     [self.layer setNeedsDisplay];

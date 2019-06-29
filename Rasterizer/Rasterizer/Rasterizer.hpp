@@ -204,17 +204,17 @@ struct Rasterizer {
     struct SceneList {
         SceneList& empty() {
             scenes.resize(0), ctms.resize(0), clips.resize(0);
+            bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
             return *this;
+        }
+        void addScene(Ref<Scene> sceneRef) {
+            addScene(sceneRef, Transform::identity(), Transform::nullclip());
         }
         void addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
             if (sceneRef.ref->paths.size()) {
                 scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip);
                 bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
             }
-        }
-        Scene& addScene() {
-            scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
-            return *scenes.back().ref;
         }
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;
