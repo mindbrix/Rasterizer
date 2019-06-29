@@ -63,10 +63,10 @@ struct RasterizerState {
                     else if (e.keyCode == 35)
                         mouseMove = !mouseMove;
                     else if (e.keyCode == 36) {
-                        if (user.lx == FLT_MAX)
+//                        if (user.lx == FLT_MAX)
                             ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
-                        else
-                            ctm = { (bounds.ux - bounds.lx) / (user.ux - user.lx), 0.f, 0.f, (bounds.uy - bounds.ly) / (user.uy - user.ly), 0.f, 0.f };
+//                        else
+//                            ctm = { (bounds.ux - bounds.lx) / (user.ux - user.lx), 0.f, 0.f, (bounds.uy - bounds.ly) / (user.uy - user.ly), 0.f, 0.f };
                     }
                     break;
                 case Event::kKeyUp:

@@ -206,16 +206,15 @@ struct Rasterizer {
             scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
+        void addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
+            if (sceneRef.ref->paths.size()) {
+                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
+            }
+        }
         Scene& addScene() {
             scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
             return *scenes.back().ref;
-        }
-        Bounds getBounds() {
-            Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
-            for (int i = 0; i < scenes.size(); i++)
-                if (scenes[i].ref->paths.size())
-                    bounds.extend(Bounds(scenes[i].ref->bounds.unit(ctms[i])));
-            return bounds;
         }
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;
@@ -225,6 +224,7 @@ struct Rasterizer {
             return pathsCount;
         }
         std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;
+        Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
     };
     template<typename T>
     struct Memory {
