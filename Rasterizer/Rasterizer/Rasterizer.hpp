@@ -199,7 +199,7 @@ struct Rasterizer {
         }
         size_t refCount = 0, hash = 0, weight = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
-        Bounds bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+        Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
     };
     struct SceneList {
         SceneList& empty() {
@@ -209,6 +209,13 @@ struct Rasterizer {
         Scene& addScene() {
             scenes.emplace_back(Ref<Scene>()), ctms.emplace_back(Transform(1.f, 0.f, 0.f, 1.f, 0.f, 0.f)), clips.emplace_back(Transform::nullclip());
             return *scenes.back().ref;
+        }
+        Bounds getBounds() {
+            Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
+            for (int i = 0; i < scenes.size(); i++)
+                if (scenes[i].ref->paths.size())
+                    bounds.extend(Bounds(scenes[i].ref->bounds.unit(ctms[i])));
+            return bounds;
         }
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;

@@ -98,6 +98,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         }
     } else
         RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, _list.empty().addScene());
+    _state.user = _list.getBounds();
     [self.layer setNeedsDisplay];
 }
 
@@ -248,6 +249,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         Rasterizer::Scene& scene = _list.empty().addScene();
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, scene);
         RasterizerTest::addTestPaths(_list.addScene());
+        _state.user = _list.getBounds();
     }
     [self.layer setNeedsDisplay];
 }

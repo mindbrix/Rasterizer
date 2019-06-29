@@ -62,8 +62,12 @@ struct RasterizerState {
                         useOutline = !useOutline;
                     else if (e.keyCode == 35)
                         mouseMove = !mouseMove;
-                    else if (e.keyCode == 36)
-                        ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                    else if (e.keyCode == 36) {
+                        if (user.lx == FLT_MAX)
+                            ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                        else
+                            ctm = { (bounds.ux - bounds.lx) / (user.ux - user.lx), 0.f, 0.f, (bounds.uy - bounds.ly) / (user.uy - user.ly), 0.f, 0.f };
+                    }
                     break;
                 case Event::kKeyUp:
                     keyDown = true, keyCode = e.keyCode;
@@ -109,5 +113,5 @@ struct RasterizerState {
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
     Rasterizer::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
-    Rasterizer::Bounds bounds, device;
+    Rasterizer::Bounds bounds, device, user = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
 };
