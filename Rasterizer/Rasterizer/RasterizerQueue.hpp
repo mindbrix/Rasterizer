@@ -15,7 +15,6 @@ struct RasterizerQueue {
         pthread_create(& thread, NULL, queue_main, (void *)this);
     }
     ~RasterizerQueue() {
-        pthread_mutex_lock(& mtx);
         pthread_cancel(thread);
         pthread_mutex_destroy(& mtx), pthread_cond_destroy(& notempty), pthread_cond_destroy(& empty);
     }
@@ -32,8 +31,8 @@ private:
     struct Call {
         Call() {}
         Call(Function function, void *info) : function(function), info(info) {}
-        Function function;
-        void *info;
+        Function function = nullptr;
+        void *info = nullptr;
     };
     static void *queue_main(void *args) {
         while (1)
@@ -51,9 +50,10 @@ private:
         pthread_mutex_lock(& mtx);
         if (calls.size() == 0)
             pthread_cond_wait(& notempty, & mtx);
-        Call call = calls[0];
+        Call call = calls.size() ? calls[0] : Call();
         pthread_mutex_unlock(& mtx);
-        (*call.function)(call.info);
+        if (call.function && call.info)
+            (*call.function)(call.info);
         pthread_mutex_lock(& mtx);
         calls.erase(calls.begin());
         if (calls.size() == 0)
