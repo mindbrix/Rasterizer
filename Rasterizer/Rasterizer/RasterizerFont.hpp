@@ -136,9 +136,8 @@ struct RasterizerFont {
                 x -= total;
         } while (i < len);
         lines.emplace_back(i);
-        for (y = -font.ascent, i = 0, l0 = lines[0]; i < lines.size() - 1; i++, l0 = l1, y -= lineHeight) {
-            l1 = lines[i + 1];
-            if (l0 != l1) {
+        for (y = -font.ascent, i = 0; i < lines.size() - 1; i++, y -= lineHeight) {
+            if ((l0 = lines[i]) != (l1 = lines[i + 1])) {
                 float dx = 0.f;
                 if (rtl)
                     dx = width;
