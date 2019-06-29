@@ -183,7 +183,6 @@ struct Rasterizer {
             }
             return *this;
         }
-        inline bool operator< (const Ref& other) const { return *ref < *other.ref; }
         T *ref = nullptr;
     };
     typedef Ref<Geometry> Path;
