@@ -200,6 +200,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     Rasterizer::Ref<Rasterizer::Scene> glyphs;
     RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, *glyphs.ref);
     _list.empty().addScene(glyphs);
+    _state.user = _list.bounds;
 	[self.layer setNeedsDisplay];
 }
 
