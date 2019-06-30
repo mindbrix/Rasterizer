@@ -12,7 +12,7 @@
 struct RasterizerQueue {
     RasterizerQueue() {
         pthread_mutex_init(& mtx, NULL), pthread_cond_init(& notempty, NULL), pthread_cond_init(& empty, NULL);
-        pthread_create(& thread, NULL, queue_main, (void *)this);
+        pthread_create(& thread, NULL, thread_main, (void *)this);
     }
     ~RasterizerQueue() {
         pthread_cond_signal(& notempty);
@@ -35,9 +35,8 @@ private:
         Function function = nullptr;
         void *info = nullptr;
     };
-    static void *queue_main(void *args) {
-        while (((RasterizerQueue *)args)->cycle()) {}
-        return 0;
+    static void *thread_main(void *args) {
+        return ((RasterizerQueue *)args)->loop();
     }
     void add(Function function, void *info) {
         pthread_mutex_lock(& mtx);
@@ -46,21 +45,23 @@ private:
         calls.emplace_back(function, info);
         pthread_mutex_unlock(& mtx);
     }
-    bool cycle() {
-        pthread_mutex_lock(& mtx);
-        if (calls.size() == 0)
-            pthread_cond_wait(& notempty, & mtx);
-        Call call = calls.size() ? calls[0] : Call();
-        pthread_mutex_unlock(& mtx);
-        if (call.function == nullptr || call.info == nullptr)
-            return false;
-        (*call.function)(call.info);
-        pthread_mutex_lock(& mtx);
-        calls.erase(calls.begin());
-        if (calls.size() == 0)
-            pthread_cond_signal(& empty);
-        pthread_mutex_unlock(& mtx);
-        return true;
+    void *loop() {
+        while (1) {
+            pthread_mutex_lock(& mtx);
+            if (calls.size() == 0)
+                pthread_cond_wait(& notempty, & mtx);
+            Call call = calls.size() ? calls[0] : Call();
+            pthread_mutex_unlock(& mtx);
+            if (call.function == nullptr || call.info == nullptr)
+                return nullptr;
+            (*call.function)(call.info);
+            pthread_mutex_lock(& mtx);
+            calls.erase(calls.begin());
+            if (calls.size() == 0)
+                pthread_cond_signal(& empty);
+            pthread_mutex_unlock(& mtx);
+        }
+        return nullptr;
     }
     void wait() {
         pthread_mutex_lock(& mtx);
