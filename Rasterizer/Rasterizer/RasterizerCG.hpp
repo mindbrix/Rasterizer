@@ -185,11 +185,10 @@ struct RasterizerCG {
     struct CGTestContext {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         static const int kQueueCount = 8;
-        CGTestContext() : rasterizerType(0) { contexts.resize(kQueueCount); }
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
-        std::vector<Rasterizer::Context> contexts;
-        int rasterizerType;
+        int rasterizerType = 0;
         BGRAColorConverter converter;
+        Rasterizer::Context contexts[kQueueCount];
         RasterizerQueue queues[kQueueCount];
     };
     
