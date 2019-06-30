@@ -15,8 +15,9 @@ struct RasterizerQueue {
         pthread_create(& thread, NULL, queue_main, (void *)this);
     }
     ~RasterizerQueue() {
-        pthread_cancel(thread);
-        pthread_mutex_destroy(& mtx), pthread_cond_destroy(& notempty), pthread_cond_destroy(& empty);
+        pthread_cond_signal(& notempty);
+        pthread_join(thread, NULL);
+        assert(pthread_mutex_destroy(& mtx) == 0), pthread_cond_destroy(& notempty), pthread_cond_destroy(& empty);
     }
     typedef void (*Function)(void *info);
     static void scheduleAndWait(RasterizerQueue *queues, size_t qcount, Function function, void *info, size_t infostride, size_t count) {
@@ -35,8 +36,7 @@ private:
         void *info = nullptr;
     };
     static void *queue_main(void *args) {
-        while (1)
-            ((RasterizerQueue *)args)->cycle();
+        while (((RasterizerQueue *)args)->cycle()) {}
         return 0;
     }
     void add(Function function, void *info) {
@@ -46,19 +46,21 @@ private:
         calls.emplace_back(function, info);
         pthread_mutex_unlock(& mtx);
     }
-    void cycle() {
+    bool cycle() {
         pthread_mutex_lock(& mtx);
         if (calls.size() == 0)
             pthread_cond_wait(& notempty, & mtx);
         Call call = calls.size() ? calls[0] : Call();
         pthread_mutex_unlock(& mtx);
-        if (call.function && call.info)
-            (*call.function)(call.info);
+        if (call.function == nullptr || call.info == nullptr)
+            return false;
+        (*call.function)(call.info);
         pthread_mutex_lock(& mtx);
         calls.erase(calls.begin());
         if (calls.size() == 0)
             pthread_cond_signal(& empty);
         pthread_mutex_unlock(& mtx);
+        return true;
     }
     void wait() {
         pthread_mutex_lock(& mtx);
