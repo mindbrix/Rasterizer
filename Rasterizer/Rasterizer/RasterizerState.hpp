@@ -67,7 +67,11 @@ struct RasterizerState {
                             ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         else {
                             float sx = w / (user.ux - user.lx), sy = h / (user.uy - user.ly), s = sx < sy ? sx : sy;
-                            ctm = { s, 0.f, 0.f, s, -s * user.lx, -s * user.ly };
+                            Rasterizer::Transform fit = { s, 0.f, 0.f, s, -s * user.lx, -s * user.ly };
+                            if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
+                                ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                            else
+                                ctm = fit;
                         }
                     }
                     break;
