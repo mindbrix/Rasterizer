@@ -211,10 +211,10 @@ struct Rasterizer {
             bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
             return *this;
         }
-        SceneList&  addScene(Ref<Scene> sceneRef) {
+        SceneList& addScene(Ref<Scene> sceneRef) {
             return addScene(sceneRef, Transform::identity(), Transform::nullclip());
         }
-        SceneList&  addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
+        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
             if (sceneRef.ref->paths.size()) {
                 scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip);
                 bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
