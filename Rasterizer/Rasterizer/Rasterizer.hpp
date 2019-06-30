@@ -579,12 +579,12 @@ struct Rasterizer {
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
             Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
-            float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c)));
+            float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
                 Bounds dev = Bounds(unit), clip = dev.integral().intersect(device), clu = Bounds(inv.concat(unit));
                 bool unclipped = dev.lx > uc.lx && dev.ly > uc.ly && dev.ux < uc.ux && dev.uy < uc.uy;
-                bool hit = clu.lx < -err || clu.ux > (1.f + err) || clu.ly < -err || clu.uy > (1.f + err);
+                bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                     if (bitmap.width == 0)
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
