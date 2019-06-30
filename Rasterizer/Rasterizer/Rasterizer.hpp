@@ -49,6 +49,9 @@ struct Rasterizer {
             lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
             ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
         }
+        inline bool contains(Bounds b) const {
+            return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
+        }
         inline void extend(float x, float y) {
             lx = lx < x ? lx : x, ux = ux > x ? ux : x, ly = ly < y ? ly : y, uy = uy > y ? uy : y;
         }
@@ -583,11 +586,10 @@ struct Rasterizer {
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
                 Bounds dev = Bounds(unit), clip = dev.integral().intersect(device), clu = Bounds(inv.concat(unit));
-                bool unclipped = dev.lx > uc.lx && dev.ly > uc.ly && dev.ux < uc.ux && dev.uy < uc.uy;
-                bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
+                    bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                     if (bitmap.width == 0)
-                        writeGPUPath(*paths, *ctms, even, & colors->src0, iz, unclipped, clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
+                        writeGPUPath(*paths, *ctms, even, & colors->src0, iz, uc.contains(dev), clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
                     else
                         writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                 }
