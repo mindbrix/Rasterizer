@@ -1177,7 +1177,6 @@ struct Rasterizer {
     static void writeContextToBuffer(Context *ctx,
                                      SceneList& list,
                                      Transform *ctms,
-                                     Colorant *colorants,
                                      size_t begin,
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
