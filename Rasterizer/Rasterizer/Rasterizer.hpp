@@ -55,6 +55,9 @@ struct Rasterizer {
         inline void extend(Bounds b) {
             extend(b.lx, b.ly), extend(b.ux, b.uy);
         }
+        inline Bounds inset(float dx, float dy) const {
+            return dx * 2.f < ux - lx && dy * 2.f < uy - ly ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
+        }
         inline Bounds integral() const { return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) }; }
         inline Bounds intersect(Bounds b) const {
             return {
@@ -575,12 +578,12 @@ struct Rasterizer {
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
-            Bounds device = Bounds(clipctm).integral().intersect(bounds);
+            Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
             float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c)));
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
-                Bounds dev = Bounds(unit).integral(), clip = dev.intersect(device), clu = Bounds(inv.concat(unit));
-                bool unclipped = dev.lx > 0.f && dev.ly > 0.f && dev.lx == clip.lx && dev.ly == clip.ly && dev.ux == clip.ux && dev.uy == clip.uy;
+                Bounds dev = Bounds(unit), clip = dev.integral().intersect(device), clu = Bounds(inv.concat(unit));
+                bool unclipped = dev.lx > uc.lx && dev.ly > uc.ly && dev.ux < uc.ux && dev.uy < uc.uy;
                 bool hit = clu.lx < -err || clu.ux > (1.f + err) || clu.ly < -err || clu.uy > (1.f + err);
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                     if (bitmap.width == 0)
