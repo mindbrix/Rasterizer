@@ -43,12 +43,11 @@ private:
             pthread_mutex_lock(& mtx);
             if (calls.size() == 0)
                 pthread_cond_wait(& notempty, & mtx);
-            Function function = calls.size() ? (Function)calls[0] : nullptr;
-            void *info = calls.size() ? calls[1] : nullptr;
+            void *function = calls.size() ? calls[0] : nullptr, *info = calls.size() ? calls[1] : nullptr;
             pthread_mutex_unlock(& mtx);
             if (function == nullptr || info == nullptr)
                 return nullptr;
-            (*function)(info);
+            (*(Function)function)(info);
             pthread_mutex_lock(& mtx);
             calls.erase(calls.begin()), calls.erase(calls.begin());
             if (calls.size() == 0)
