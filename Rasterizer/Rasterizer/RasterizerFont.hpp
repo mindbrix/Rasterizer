@@ -43,13 +43,13 @@ struct RasterizerFont {
             }
         return false;
     }
-    Rasterizer::Path glyphPath(int glyph, bool cacheable) {
+    Ra::Path glyphPath(int glyph, bool cacheable) {
         if (cacheable) {
             auto it = cache.find(glyph);
             if (it != cache.end())
                 return it->second;
         }
-        Rasterizer::Path path;
+        Ra::Path path;
         stbtt_vertex *vertices, *vertex;
         int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
         if (nverts) {
@@ -75,12 +75,12 @@ struct RasterizerFont {
         }
         return path;
     }
-    std::unordered_map<int, Rasterizer::Path> cache;
+    std::unordered_map<int, Ra::Path> cache;
     int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static Rasterizer::Bounds writeGlyphs(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Bounds bounds, bool rtl, bool single, bool right, const char *str, Rasterizer::Scene& scene) {
-        Rasterizer::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+    static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
+        Ra::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
         int i, j, begin, step, len, codepoint, glyph, l0, l1;
@@ -144,27 +144,27 @@ struct RasterizerFont {
                 else
                     for (int j = right ? l1 - 1 : l0; j >= 0 && j < l1; j += (right ? -1 : 1))
                         if ((x = xs[j]) != FLT_MAX) {
-                            Rasterizer::Path path = font.glyphPath(glyphs[j], true);
+                            Ra::Path path = font.glyphPath(glyphs[j], true);
                             dx += right ? width - (x + path.ref->bounds.ux) : -path.ref->bounds.lx;
                             break;
                         }
                 for (int j = l0; j < l1; j++) 
                     if ((x = xs[j]) != FLT_MAX) {
-                        Rasterizer::Path path = font.glyphPath(glyphs[j], true);
-                        Rasterizer::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
+                        Ra::Path path = font.glyphPath(glyphs[j], true);
+                        Ra::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
                         scene.addPath(path, ctm, color);
-                        glyphBounds.extend(Rasterizer::Bounds(path.ref->bounds.unit(ctm)));
+                        glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                     }
             }
         }
         return glyphBounds;
     }
-    static void writeGlyphGrid(RasterizerFont& font, float size, Rasterizer::Colorant color, Rasterizer::Scene& scene) {
+    static void writeGlyphGrid(RasterizerFont& font, float size, Ra::Colorant color, Ra::Scene& scene) {
         if (font.info.numGlyphs == 0 || font.space == 0)
             return;
         float s = size / float(font.unitsPerEm);
         for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
-                scene.addPath(font.glyphPath(glyph, false), Rasterizer::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color);
+                scene.addPath(font.glyphPath(glyph, false), Ra::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color);
     }
 };
