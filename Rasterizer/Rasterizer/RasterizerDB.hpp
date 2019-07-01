@@ -112,7 +112,7 @@ struct RasterizerDB {
         Ra::Colorant red(0, 0, 255, 255), black(0, 255), gray(144, 255);
         Ra::Row<char> str;
         str = str + "SELECT * FROM " + table + " LIMIT 1";
-        sqlite3_stmt *pStmt0, *pStmt1;
+        sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status, rows, count, n, range, lower, upper;
             float fw, fh, fs, lx, ux, my, h;
@@ -150,9 +150,8 @@ struct RasterizerDB {
                     list.addScene(row, ctm, clip);
                 }
             }
-            sqlite3_finalize(pStmt1);
         }
-        sqlite3_finalize(pStmt0);
+        sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
