@@ -15,8 +15,7 @@ struct RasterizerQueue {
         pthread_create(& thread, NULL, thread_main, (void *)this);
     }
     ~RasterizerQueue() {
-        pthread_cond_signal(& notempty);
-        pthread_join(thread, NULL);
+        pthread_cond_signal(& notempty), pthread_join(thread, NULL);
         pthread_mutex_destroy(& mtx), pthread_cond_destroy(& notempty), pthread_cond_destroy(& empty);
     }
     typedef void (*Function)(void *info);
