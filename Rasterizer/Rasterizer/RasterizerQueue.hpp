@@ -60,7 +60,6 @@ private:
                 pthread_cond_signal(& empty);
             pthread_mutex_unlock(& mtx);
         }
-        return nullptr;
     }
     void wait() {
         pthread_mutex_lock(& mtx);
