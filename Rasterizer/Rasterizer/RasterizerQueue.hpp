@@ -17,7 +17,7 @@ struct RasterizerQueue {
     ~RasterizerQueue() {
         pthread_cond_signal(& notempty);
         pthread_join(thread, NULL);
-        assert(pthread_mutex_destroy(& mtx) == 0), pthread_cond_destroy(& notempty), pthread_cond_destroy(& empty);
+        pthread_mutex_destroy(& mtx), pthread_cond_destroy(& notempty), pthread_cond_destroy(& empty);
     }
     typedef void (*Function)(void *info);
     static void scheduleAndWait(RasterizerQueue *queues, size_t qcount, Function function, void *info, size_t infostride, size_t count) {
