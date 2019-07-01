@@ -25,8 +25,8 @@ struct RasterizerState {
         size_t flags;
     };
     void update(float s, float w, float h) {
-        scale = s, view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
-        bounds = Rasterizer::Bounds(0.f, 0.f, w, h), device = Rasterizer::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+        scale = s, view = Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+        bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
     }
     bool writeEvent(Event e) {
         bool written = e.type != Event::kKeyDown || (e.type == Event::kKeyDown && (e.keyCode == 8 || e.keyCode == 31 || e.keyCode == 35 || e.keyCode == 36));
@@ -34,7 +34,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    bool readEvents(float s, float w, float h, double time, Rasterizer::SceneList& list) {
+    bool readEvents(float s, float w, float h, double time, Ra::SceneList& list) {
         bool redraw = false;
         float sine, cosine;
         update(s, w, h);
@@ -67,7 +67,7 @@ struct RasterizerState {
                             ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         else {
                             float sx = w / (user.ux - user.lx), sy = h / (user.uy - user.ly), s = sx < sy ? sx : sy;
-                            Rasterizer::Transform fit = { s, 0.f, 0.f, s, -s * user.lx, -s * user.ly };
+                            Ra::Transform fit = { s, 0.f, 0.f, s, -s * user.lx, -s * user.ly };
                             if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
                                 ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                             else
@@ -79,12 +79,12 @@ struct RasterizerState {
                     keyDown = true, keyCode = e.keyCode;
                     break;
                 case Event::kMagnify:
-                    ctm = ctm.concat(Rasterizer::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    ctm = ctm.concat(Ra::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     redraw = true;
                     break;
                 case Event::kRotate:
                     __sincosf(e.x, & sine, & cosine);
-                    ctm = ctm.concat(Rasterizer::Transform(cosine, sine, -sine, cosine, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    ctm = ctm.concat(Ra::Transform(cosine, sine, -sine, cosine, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     redraw = true;
                     break;
                 case Event::kTranslate:
@@ -95,13 +95,13 @@ struct RasterizerState {
                     assert(0);
             }
         }
-        view = Rasterizer::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+        view = Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
         index = INT_MAX;
         if (mouseMove) {
-            Rasterizer::SceneList visibles;
+            Ra::SceneList visibles;
             size_t pathsCount = list.writeVisibles(view, device, visibles);
             if (pathsCount) {
-                Rasterizer::Range indices = RasterizerWinding::indicesForPoint(visibles, false, view, device, scale * x, scale * y);
+                Ra::Range indices = RasterizerWinding::indicesForPoint(visibles, false, view, device, scale * x, scale * y);
                 if (indices.begin != INT_MAX) {
                     int idx = 0;
                     for (int j = 0; j < indices.begin; j++)
@@ -118,6 +118,6 @@ struct RasterizerState {
     int keyCode = 0;
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
-    Rasterizer::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
-    Rasterizer::Bounds bounds, device, user = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
+    Ra::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
+    Ra::Bounds bounds, device, user = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
 };
