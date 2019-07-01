@@ -8,36 +8,36 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    static Rasterizer::Range indicesForPoint(Rasterizer::SceneList& list, bool even, Rasterizer::Transform view, Rasterizer::Bounds bounds, float dx, float dy) {
+    static Ra::Range indicesForPoint(Ra::SceneList& list, bool even, Ra::Transform view, Ra::Bounds bounds, float dx, float dy) {
         if (dx >= bounds.lx && dx < bounds.ux && dy >= bounds.ly && dy < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
-                Rasterizer::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
-                Rasterizer::Scene& scene = *list.scenes[li].ref;
+                Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
+                Ra::Scene& scene = *list.scenes[li].ref;
                 for (int si = int(scene.paths.size()) - 1; si >= 0; si--) {
                     int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy);
                     if ((even && (winding & 1)) || winding)
-                        return Rasterizer::Range(li, si);
+                        return Ra::Range(li, si);
                 }
             }
-        return Rasterizer::Range(INT_MAX, INT_MAX);
+        return Ra::Range(INT_MAX, INT_MAX);
     }
     struct WindingInfo {
         WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
         float dx, dy;
         int winding;
     };
-    static int pointWinding(Rasterizer::Path& path, Rasterizer::Transform ctm, Rasterizer::Transform inv, Rasterizer::Bounds bounds, float dx, float dy) {
+    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
         if (path.ref->atomsCount > 2 || path.ref->shapesCount != 0) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                Rasterizer::Transform unit = path.ref->bounds.unit(ctm);
-                Rasterizer::Bounds clip = Rasterizer::Bounds(unit).intersect(bounds);
+                Ra::Transform unit = path.ref->bounds.unit(ctm);
+                Ra::Bounds clip = Ra::Bounds(unit).intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->atomsCount)
-                            Rasterizer::writePath(path, ctm, clip, countWinding, Rasterizer::Info((void *)& info));
+                            Ra::writePath(path, ctm, clip, countWinding, Ra::Info((void *)& info));
                         else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
                                 inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
@@ -55,7 +55,7 @@ struct RasterizerWinding {
         }
         return info.winding;
     }
-    static void countWinding(float x0, float y0, float x1, float y1, Rasterizer::Info *info) {
+    static void countWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
         WindingInfo& winding = *((WindingInfo *)info->info);
         if (winding.dy >= (y0 < y1 ? y0 : y1) && winding.dy < (y0 > y1 ? y0 : y1)) {
             float det = (x1 - x0) * (winding.dy - y0) - (y1 - y0) * (winding.dx - x0);

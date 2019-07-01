@@ -11,7 +11,7 @@
 
 @interface MetalLayer ()
 {
-    Rasterizer::Buffer _buffer0, _buffer1;
+    Ra::Buffer _buffer0, _buffer1;
 }
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
@@ -107,7 +107,7 @@
 
 - (void)draw {
     _odd = !_odd;
-    Rasterizer::Buffer *buffer = _odd ? & _buffer1 : & _buffer0;
+    Ra::Buffer *buffer = _odd ? & _buffer1 : & _buffer0;
     buffer->entries.empty();
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
@@ -166,32 +166,32 @@
     uint32_t reverse, pathCount;
     size_t colorantsOffset = 0, affineTransformsOffset = 0, clipsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
-    Rasterizer::Transform clip;
+    Ra::Transform clip;
     for (size_t i = 0; i < buffer->entries.end; i++) {
-        Rasterizer::Buffer::Entry& entry = buffer->entries.base[i];
+        Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Rasterizer::Buffer::Entry::kColorants:
-                pathCount = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::Colorant));
+            case Ra::Buffer::Entry::kColorants:
+                pathCount = uint32_t((entry.end - entry.begin) / sizeof(Ra::Colorant));
                 colorantsOffset = entry.begin;
                 break;
-            case Rasterizer::Buffer::Entry::kAffineTransforms:
+            case Ra::Buffer::Entry::kAffineTransforms:
                 affineTransformsOffset = entry.begin;
                 break;
-            case Rasterizer::Buffer::Entry::kClips:
+            case Ra::Buffer::Entry::kClips:
                 clipsOffset = entry.begin;
                 break;
-            case Rasterizer::Buffer::Entry::kSegments:
+            case Ra::Buffer::Entry::kSegments:
                 segmentsOffset = entry.begin;
                 break;
-            case Rasterizer::Buffer::Entry::kEdgeCells:
+            case Ra::Buffer::Entry::kEdgeCells:
                 edgeCellsOffset = entry.begin;
                 break;
-            case Rasterizer::Buffer::Entry::kOpaques:
+            case Ra::Buffer::Entry::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                reverse = uint32_t((entry.end - entry.begin) / sizeof(Rasterizer::GPU::Instance));
+                reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::GPU::Instance));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
@@ -202,9 +202,9 @@
                                  instanceCount:reverse
                                   baseInstance:0];
                 break;
-            case Rasterizer::Buffer::Entry::kEdges:
-            case Rasterizer::Buffer::Entry::kFastEdges:
-                if (entry.type == Rasterizer::Buffer::Entry::kEdges) {
+            case Ra::Buffer::Entry::kEdges:
+            case Ra::Buffer::Entry::kFastEdges:
+                if (entry.type == Ra::Buffer::Entry::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
@@ -220,15 +220,15 @@
                     [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Edge)
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Edge)
                                       baseInstance:0];
                 }
-                if (entry.type == Rasterizer::Buffer::Entry::kFastEdges) {
+                if (entry.type == Ra::Buffer::Entry::kFastEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
-            case Rasterizer::Buffer::Entry::kQuads:
+            case Ra::Buffer::Entry::kQuads:
                 [commandEncoder setDepthStencilState:_quadsDepthState];
                 [commandEncoder setRenderPipelineState:_quadsPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
@@ -241,10 +241,10 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Instance)
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
                                   baseInstance:0];
                 break;
-            case Rasterizer::Buffer::Entry::kShapes:
+            case Ra::Buffer::Entry::kShapes:
                 [commandEncoder setDepthStencilState:_quadsDepthState];
                 [commandEncoder setRenderPipelineState:_shapesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
@@ -257,7 +257,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Rasterizer::GPU::Instance)
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
                                   baseInstance:0];
                 break;
         }
