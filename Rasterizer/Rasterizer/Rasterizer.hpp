@@ -1274,3 +1274,4 @@ struct Rasterizer {
             ctx->segments[j].empty();
     }
 };
+typedef Rasterizer Ra;
