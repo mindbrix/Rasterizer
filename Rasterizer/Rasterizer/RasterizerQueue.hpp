@@ -28,12 +28,6 @@ struct RasterizerQueue {
             queues[i].wait();
     }
 private:
-    struct Call {
-        Call() {}
-        Call(Function function, void *info) : function(function), info(info) {}
-        Function function = nullptr;
-        void *info = nullptr;
-    };
     static void *thread_main(void *args) {
         return ((RasterizerQueue *)args)->loop();
     }
@@ -41,7 +35,7 @@ private:
         pthread_mutex_lock(& mtx);
         if (calls.size() == 0)
             pthread_cond_signal(& notempty);
-        calls.emplace_back(function, info);
+        calls.emplace_back((void *)function), calls.emplace_back(info);
         pthread_mutex_unlock(& mtx);
     }
     void *loop() {
@@ -49,13 +43,14 @@ private:
             pthread_mutex_lock(& mtx);
             if (calls.size() == 0)
                 pthread_cond_wait(& notempty, & mtx);
-            Call call = calls.size() ? calls[0] : Call();
+            Function function = calls.size() ? (Function)calls[0] : nullptr;
+            void *info = calls.size() ? calls[1] : nullptr;
             pthread_mutex_unlock(& mtx);
-            if (call.function == nullptr || call.info == nullptr)
+            if (function == nullptr || info == nullptr)
                 return nullptr;
-            (*call.function)(call.info);
+            (*function)(info);
             pthread_mutex_lock(& mtx);
-            calls.erase(calls.begin());
+            calls.erase(calls.begin()), calls.erase(calls.begin());
             if (calls.size() == 0)
                 pthread_cond_signal(& empty);
             pthread_mutex_unlock(& mtx);
@@ -70,5 +65,5 @@ private:
     pthread_t thread;
     pthread_mutex_t mtx;
     pthread_cond_t notempty, empty;
-    std::vector<Call> calls;
+    std::vector<void *> calls;
 };
