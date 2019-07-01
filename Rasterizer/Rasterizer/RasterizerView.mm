@@ -95,7 +95,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         if (font.set(data.bytes, self.font.fontName.UTF8String)) {
             RasterizerDB db;
             db.open(_dbURL.path.UTF8String);
-            RasterizerCG::writeFontsTable(db);
             db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
         }
     } else {
@@ -247,6 +246,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)setDbURL:(NSURL *)dbURL {
+    if (_dbURL == nil && dbURL != nil) {
+        RasterizerDB db;
+        db.open(dbURL.path.UTF8String);
+        RasterizerCG::writeFontsTable(db);
+    }
     if ((_dbURL = dbURL))
         [self changeFont:nil];
 }
