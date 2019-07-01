@@ -95,9 +95,7 @@ struct RasterizerDB {
                         float lx = gb.lx + gx * (gdim + gpad), uy = gb.uy - gy * (gdim + gpad);
                         Ra::Bounds tb = { lx, uy - gdim, lx + gdim, uy };
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
-                        Ra::Path path;
-                        path.ref->addBounds(bb);
-                        background.ref->addPath(path, Ra::Transform::identity(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))]);
+                        background.ref->addPath(Ra::boundsPath(bb), Ra::Transform::identity(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))]);
                         if (status == SQLITE_ROW)
                             writeTable(font, sqlite3_column_double(pStmt0, 1), tb, (const char *)sqlite3_column_text(pStmt0, 0), tables);
                     }
@@ -140,9 +138,7 @@ struct RasterizerDB {
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                         RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], *header.ref);
                 list.addScene(header, Ra::Transform(1.f, 0.f, 0.f, 1.f, frame.lx, frame.uy), Ra::Transform::nullclip());
-                Ra::Path path;
-                path.ref->addBounds(Ra::Bounds(frame.lx, my - h / 256.f, frame.ux, my + h / 256.f));
-                line.ref->addPath(path, Ra::Transform::identity(), red);
+                line.ref->addPath(Ra::boundsPath(Ra::Bounds(frame.lx, my - h / 256.f, frame.ux, my + h / 256.f)), Ra::Transform::identity(), red);
                 list.addScene(line);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {

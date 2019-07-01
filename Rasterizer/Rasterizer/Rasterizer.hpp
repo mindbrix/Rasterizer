@@ -191,7 +191,11 @@ struct Rasterizer {
         T *ref = nullptr;
     };
     typedef Ref<Geometry> Path;
-    
+    static Path boundsPath(Bounds b) {
+        Path path;
+        path.ref->addBounds(b);
+        return path;
+    }
     struct Scene {
         void addPath(Path path, Transform ctm, Colorant colorant) {
             if (path.ref->isDrawable) {
