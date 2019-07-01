@@ -14,18 +14,18 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, const Rasterizer::Bounds device, CGContextRef ctx) {
+    static void drawScenes(Ra::SceneList& list, const Ra::Transform view, bool useOutline, const Ra::Bounds device, CGContextRef ctx) {
         CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
         CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
         for (int j = 0; j < list.scenes.size(); j++) {
             CGContextSaveGState(ctx);
-            Rasterizer::Scene& scene = *list.scenes[j].ref;
-            Rasterizer::Transform ctm = list.ctms[j], clip = list.clips[j];
+            Ra::Scene& scene = *list.scenes[j].ref;
+            Ra::Transform ctm = list.ctms[j], clip = list.clips[j];
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
             for (size_t i = 0; i < scene.paths.size(); i++) {
-                Rasterizer::Path& p = scene.paths[i];
-                Rasterizer::Transform t = ctm.concat(scene.ctms[i]);
-                if (Rasterizer::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
+                Ra::Path& p = scene.paths[i];
+                Ra::Transform t = ctm.concat(scene.ctms[i]);
+                if (Ra::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
                     CGContextSaveGState(ctx);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     if (p.ref->shapesCount == 0) {
@@ -94,20 +94,20 @@ struct RasterizerCG {
         vImage_CGImageFormat srcFormat, dstFormat;
     };
     
-    static Rasterizer::Transform transformFromCG(CGAffineTransform t) {
-        return Rasterizer::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
+    static Ra::Transform transformFromCG(CGAffineTransform t) {
+        return Ra::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
     }
-    static CGAffineTransform CGFromTransform(Rasterizer::Transform t) {
+    static CGAffineTransform CGFromTransform(Ra::Transform t) {
         return CGAffineTransformMake(t.a, t.b, t.c, t.d, t.tx, t.ty);
     }
-    static Rasterizer::Bounds boundsFromCGRect(CGRect rect) {
-        return Rasterizer::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
+    static Ra::Bounds boundsFromCGRect(CGRect rect) {
+        return Ra::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
     }
-    static CGRect CGRectFromBounds(Rasterizer::Bounds bounds) {
+    static CGRect CGRectFromBounds(Ra::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
     struct CGPathApplier {
-        CGPathApplier(Rasterizer::Path path) : p(path) {}
+        CGPathApplier(Ra::Path path) : p(path) {}
         void apply(const CGPathElement *element) {
             switch (element->type) {
                 case kCGPathElementMoveToPoint:
@@ -127,42 +127,42 @@ struct RasterizerCG {
                     break;
             }
         }
-        Rasterizer::Path p;
+        Ra::Path p;
     };
     static void CGPathApplierFunction(void *info, const CGPathElement *element) {
         ((CGPathApplier *)info)->apply(element);
     };
-    static Rasterizer::Path createPathFromCGPath(CGPathRef path) {
-        Rasterizer::Path p;
+    static Ra::Path createPathFromCGPath(CGPathRef path) {
+        Ra::Path p;
         CGPathApplier applier(p);
         CGPathApply(path, & applier, CGPathApplierFunction);
         return p;
     }
-    static void writePathToCGPath(Rasterizer::Path p, CGMutablePathRef path) {
+    static void writePathToCGPath(Ra::Path p, CGMutablePathRef path) {
         float *points;
-        for (Rasterizer::Geometry::Atom& atom : p.ref->atoms) {
+        for (Ra::Geometry::Atom& atom : p.ref->atoms) {
             size_t index = 0;
             auto type = 0xF & atom.types[0];
             while (type) {
                 points = atom.points + index * 2;
                 switch (type) {
-                    case Rasterizer::Geometry::Atom::kMove:
+                    case Ra::Geometry::Atom::kMove:
                         CGPathMoveToPoint(path, NULL, points[0], points[1]);
                         index++;
                         break;
-                    case Rasterizer::Geometry::Atom::kLine:
+                    case Ra::Geometry::Atom::kLine:
                         CGPathAddLineToPoint(path, NULL, points[0], points[1]);
                         index++;
                         break;
-                    case Rasterizer::Geometry::Atom::kQuadratic:
+                    case Ra::Geometry::Atom::kQuadratic:
                         CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[2], points[3]);
                         index += 2;
                         break;
-                    case Rasterizer::Geometry::Atom::kCubic:
+                    case Ra::Geometry::Atom::kCubic:
                         CGPathAddCurveToPoint(path, NULL, points[0], points[1], points[2], points[3], points[4], points[5]);
                         index += 3;
                         break;
-                    case Rasterizer::Geometry::Atom::kClose:
+                    case Ra::Geometry::Atom::kClose:
                         CGPathCloseSubpath(path);
                         index++;
                         break;
@@ -188,7 +188,7 @@ struct RasterizerCG {
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
         int rasterizerType = 0;
         BGRAColorConverter converter;
-        Rasterizer::Context contexts[kQueueCount];
+        Ra::Context contexts[kQueueCount];
         RasterizerQueue queues[kQueueCount];
     };
     
@@ -217,25 +217,25 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
-    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Rasterizer::Scene& scene) {
+    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Ra::Scene& scene) {
         NSData *data = [NSData dataWithContentsOfURL:fontURL(fontName)];
         RasterizerFont font;
         if (font.set(data.bytes, fontName.UTF8String)) {
             if (string)
-                RasterizerFont::writeGlyphs(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, false, false, string.UTF8String, scene);
+                RasterizerFont::writeGlyphs(font, float(pointSize), Ra::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, false, false, string.UTF8String, scene);
             else
-                RasterizerFont::writeGlyphGrid(font, float(pointSize), Rasterizer::Colorant(0, 0, 0, 255), scene);
+                RasterizerFont::writeGlyphGrid(font, float(pointSize), Ra::Colorant(0, 0, 0, 255), scene);
         }
     }
     
     struct ThreadInfo {
-        Rasterizer::Context *context;
-        Rasterizer::SceneList *list;
-        Rasterizer::Transform *ctms, *clips;
+        Ra::Context *context;
+        Ra::SceneList *list;
+        Ra::Transform *ctms, *clips;
         bool even;
-        Rasterizer::Colorant *colors;
-        Rasterizer::Buffer *buffer;
-        std::vector<Rasterizer::Buffer::Entry> *entries;
+        Ra::Colorant *colors;
+        Ra::Buffer *buffer;
+        std::vector<Ra::Buffer::Entry> *entries;
         float width;
         size_t iz, begin, end;
     };
@@ -245,9 +245,9 @@ struct RasterizerCG {
     }
     static void writeContexts(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        Rasterizer::writeContextToBuffer(ti->context, *ti->list, ti->ctms, ti->begin, ti->iz, *ti->entries, *ti->buffer);
+        Ra::writeContextToBuffer(ti->context, *ti->list, ti->ctms, ti->begin, ti->iz, *ti->entries, *ti->buffer);
     }
-    static void renderScenes(Rasterizer::SceneList& list, Rasterizer::Transform *ctms, Rasterizer::Transform *gpuctms, bool even, Rasterizer::Colorant *colors, Rasterizer::Transform *clips, float width, Rasterizer::Context *contexts, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+    static void renderScenes(Ra::SceneList& list, Ra::Transform *ctms, Ra::Transform *gpuctms, bool even, Ra::Colorant *colors, Ra::Transform *clips, float width, Ra::Context *contexts, Ra::Bitmap bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
@@ -276,7 +276,7 @@ struct RasterizerCG {
                 slice = (bitmap.height + CGTestContext::kQueueCount - 1) / CGTestContext::kQueueCount, slice = slice < 64 ? 64 : slice;
                 for (count = ly = 0; ly < bitmap.height; ly = uy, count++) {
                     uy = ly + slice, uy = uy < bitmap.height ? uy : bitmap.height;
-                    contexts[count].setBitmap(bitmap, Rasterizer::Bounds(0, ly, bitmap.width, uy));
+                    contexts[count].setBitmap(bitmap, Ra::Bounds(0, ly, bitmap.width, uy));
                 }
             }
             RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, drawScenes, threadInfo, sizeof(ThreadInfo), count);
@@ -285,15 +285,15 @@ struct RasterizerCG {
             if (buffer)
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
-                contexts[0].setBitmap(bitmap, Rasterizer::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
+                contexts[0].setBitmap(bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
             contexts[0].drawScenes(list, ctms, false, colors, clips, width, 0, eiz);
         }
         if (buffer) {
-            std::vector<Rasterizer::Buffer::Entry> entries[count], *e = & entries[0];
+            std::vector<Ra::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Rasterizer::writeContextsToBuffer(contexts, count, ctms, colors, clips, eiz, begins, *buffer);
+            size_t size = Ra::writeContextsToBuffer(contexts, count, ctms, colors, clips, eiz, begins, *buffer);
             if (count == 1)
-                Rasterizer::writeContextToBuffer(contexts, list, ctms, b[0], 0, e[0], *buffer);
+                Ra::writeContextToBuffer(contexts, list, ctms, b[0], 0, e[0], *buffer);
             else {
                 for (i = 0; i < count; i++)
                     threadInfo[i].iz = izs[i], threadInfo[i].begin = b[i], threadInfo[i].entries = & e[i], threadInfo[i].buffer = buffer;
@@ -306,27 +306,27 @@ struct RasterizerCG {
             assert(size >= end);
         }
     }
-    static void drawTestScene(CGTestContext& testScene, Rasterizer::SceneList& list, const Rasterizer::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Rasterizer::Bitmap bitmap, Rasterizer::Buffer *buffer, size_t index) {
-        Rasterizer::Bounds device(0, 0, bitmap.width, bitmap.height);
-        Rasterizer::SceneList visibles;
+    static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, const Ra::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Ra::Bitmap bitmap, Ra::Buffer *buffer, size_t index) {
+        Ra::Bounds device(0, 0, bitmap.width, bitmap.height);
+        Ra::SceneList visibles;
         size_t pathsCount = list.writeVisibles(view, device, visibles);
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
             drawScenes(visibles, view, useOutline, device, ctx);
         else {
-            assert(sizeof(uint32_t) == sizeof(Rasterizer::Colorant));
-            Rasterizer::Transform *ctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
-            Rasterizer::Transform *gpuctms = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
-            Rasterizer::Colorant *colors = (Rasterizer::Colorant *)malloc(pathsCount * sizeof(Rasterizer::Colorant));
-            Rasterizer::Transform *clips = (Rasterizer::Transform *)malloc(pathsCount * sizeof(view));
+            assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
+            Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(view));
+            Ra::Transform *gpuctms = (Ra::Transform *)malloc(pathsCount * sizeof(view));
+            Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
+            Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(view));
             CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
             testScene.converter.set(srcSpace, dstSpace);
             for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++) {
-                Rasterizer::Scene& scene = *visibles.scenes[i].ref;
+                Ra::Scene& scene = *visibles.scenes[i].ref;
                 testScene.converter.convert(& scene.colors[0].src0, scene.paths.size(), colors + iz);
-                Rasterizer::Transform ctm = view.concat(visibles.ctms[i]);
-                Rasterizer::Transform clip = view.concat(visibles.clips[i]);
+                Ra::Transform ctm = view.concat(visibles.ctms[i]);
+                Ra::Transform clip = view.concat(visibles.clips[i]);
                 for (size_t j = 0; j < scene.paths.size(); iz++, j++)
                     ctms[iz] = ctm.concat(scene.ctms[j]), clips[iz] = clip;
             }
@@ -335,8 +335,8 @@ struct RasterizerCG {
             
             float width = useOutline ? 1.f : 0.f;
             if (useOutline) {
-                Rasterizer::Colorant black(0, 0, 0, 255);
-                memset_pattern4(colors, & black, pathsCount * sizeof(Rasterizer::Colorant));
+                Ra::Colorant black(0, 0, 0, 255);
+                memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
             }
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
