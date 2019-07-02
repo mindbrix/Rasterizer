@@ -521,6 +521,35 @@ struct Rasterizer {
     static void writeDeltaSegment(float x0, float y0, float x1, float y1, Info *info) {
         if (y0 == y1)
             return;
+        {
+            float lx, ux, ly, uy, m, b, y, iuy, sly, suy, n0, n1, slx, sux, iux, x, nx, clx, cux, cover, area, *delta, last;
+            lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+            ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, iuy = ceilf(uy);
+            m = (x1 - x0) / (y1 - y0), b = x0 - m * y0;
+            delta = info->deltas + size_t(ly) * info->stride;
+            for (y = floorf(ly), sly = ly; y < iuy; y++, sly = suy, delta += info->stride) {
+                suy = y + 1.f, suy = uy < suy ? uy : suy;
+                if (m != 0.0) {
+                    n0 = m * sly + b, n1 = m * suy + b;
+                    slx = n0 < n1 ? n0 : n1, sux = n0 > n1 ? n0 : n1;
+                    slx = lx > slx ? lx : slx, sux = ux < sux ? ux : sux;
+                    iux = ceilf(sux);
+                    for (x = floorf(slx), clx = slx, last = 0.f; x < iux; x++, clx = cux) {
+                        nx = x + 1.f, cux = sux < nx ? sux : nx;
+                        n0 = (clx - b) / m, n1 = (cux - b) / m;
+                        n0 = n0 < sly ? sly : n0 > suy ? suy : n0;
+                        n1 = n1 < sly ? sly : n1 > suy ? suy : n1;
+                        cover = n1 - n0;
+                        area = (nx - (cux + clx) * 0.5f);
+                        delta[int(x)] += cover * area + last;
+                        last = cover * (1.f - area);
+                    }
+                    if (x < info->stride)
+                        delta[int(x)] += last;
+                }
+            }
+        }
+            return;
         float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
         if (scale < 0.f)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
