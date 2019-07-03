@@ -75,7 +75,7 @@ float parametricWinding(float x0, float y0, float x1, float y1) {
     float area = 1.0 - 0.5 * (saturate(mix(x0, x1, ct0)) + saturate(mix(x0, x1, ct1)));
     
     float tt = x0 < x1 ? min(ct0, ct1) - st0 : st1 - max(ct0, ct1);
-    return (y1 - y0) * tt + area * (y1 - y0) * abs(ct0 - ct1);
+    return (y1 - y0) * (tt + area * abs(ct0 - ct1));
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
