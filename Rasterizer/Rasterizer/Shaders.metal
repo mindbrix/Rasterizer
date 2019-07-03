@@ -66,10 +66,10 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
 }
 
 float parametricWinding(float x0, float y0, float x1, float y1) {
-    float rdx = x0 == x1 ? 1.0 : 1.0 / (x1 - x0), xt0 = x0 == x1 ? 0.0 : -x0 * rdx;
     float rdy = 1.0 / (y1 - y0), yt0 = -y0 * rdy;
     float st0 = saturate(yt0), st1 = saturate(yt0 + rdy), tmp;
     tmp = st0, st0 = min(st0, st1), st1 = max(tmp, st1);
+    float rdx = x0 == x1 ? 1e12 : 1.0 / (x1 - x0), xt0 = -x0 * rdx;
     float ct0 = clamp(xt0, st0, st1), ct1 = clamp(xt0 + rdx, st0, st1);
     float area = 1.0 - 0.5 * (saturate(mix(x0, x1, ct0)) + saturate(mix(x0, x1, ct1)));
     float tt = x0 <= x1 ? ct0 - st0 : st1 - ct0;
@@ -80,7 +80,7 @@ float edgeWinding(float x0, float y0, float x1, float y1) {
     float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
-    return parametricWinding(x0, y0, x1, y1);
+//    return parametricWinding(x0, y0, x1, y1);
     
     float dxdy = (x1 - x0) / (y1 - y0);
     float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
