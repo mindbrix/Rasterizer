@@ -80,8 +80,6 @@ float edgeWinding(float x0, float y0, float x1, float y1) {
     float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
-    return parametricWinding(x0, y0, x1, y1);
-    
     float dxdy = (x1 - x0) / (y1 - y0);
     float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
     float minx = min(sx0, sx1), range = abs(sx1 - sx0);
