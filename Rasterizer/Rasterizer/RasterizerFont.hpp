@@ -136,7 +136,7 @@ struct RasterizerFont {
                 x -= total;
         } while (i < len);
         lines.emplace_back(i);
-        for (y = -font.ascent, i = 0; i < lines.size() - 1; i++, y -= lineHeight) {
+        for (y = -font.ascent, i = 0; i < lines.size() - 1; i++, y -= lineHeight)
             if ((l0 = lines[i]) != (l1 = lines[i + 1])) {
                 float dx = 0.f;
                 if (rtl)
@@ -156,7 +156,6 @@ struct RasterizerFont {
                         glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                     }
             }
-        }
         return glyphBounds;
     }
     static void writeGlyphGrid(RasterizerFont& font, float size, Ra::Colorant color, Ra::Scene& scene) {
