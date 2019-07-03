@@ -71,10 +71,8 @@ float parametricWinding(float x0, float y0, float x1, float y1) {
     float st0 = saturate(yt0), st1 = saturate(yt0 + rdy), tmp;
     tmp = st0, st0 = min(st0, st1), st1 = max(tmp, st1);
     float ct0 = clamp(xt0, st0, st1), ct1 = clamp(xt0 + rdx, st0, st1);
-    
     float area = 1.0 - 0.5 * (saturate(mix(x0, x1, ct0)) + saturate(mix(x0, x1, ct1)));
-    
-    float tt = x0 < x1 ? min(ct0, ct1) - st0 : st1 - max(ct0, ct1);
+    float tt = x0 <= x1 ? ct0 - st0 : st1 - ct0;
     return (y1 - y0) * (tt + area * abs(ct0 - ct1));
 }
 
