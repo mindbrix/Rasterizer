@@ -66,44 +66,23 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
 }
 
 float parametricWinding(float x0, float y0, float x1, float y1) {
-//    x0 = x1 = 0.5 * (x0 + x1);
-    float cover = saturate(y1) - saturate(y0), area = 1.0 - saturate(0.5 * (x0 + x1));
-    
     float rdx = x0 == x1 ? 1.0 : 1.0 / (x1 - x0), xt0 = x0 == x1 ? 0.0 : -x0 * rdx;
     float rdy = 1.0 / (y1 - y0), yt0 = -y0 * rdy;
     float st0 = saturate(yt0), st1 = saturate(yt0 + rdy), tmp;
     tmp = st0, st0 = min(st0, st1), st1 = max(tmp, st1);
     float ct0 = clamp(xt0, st0, st1), ct1 = clamp(xt0 + rdx, st0, st1);
     
-    area = 1.0 - 0.5 * (saturate(mix(x0, x1, ct0)) + saturate(mix(x0, x1, ct1)));
-    cover = (y1 - y0) * (st1 - st0);
+    float area = 1.0 - 0.5 * (saturate(mix(x0, x1, ct0)) + saturate(mix(x0, x1, ct1)));
     
-    return cover * area;
-    
-    
-    /*
-     
-    float xt0 = x0 == x1 ? 0.0 : -x0 / (x1 - x0), yt0 = -y0 / (y1 - y0);
-//    float st0 = saturate(yt0), st1 = saturate(yt0 + dfdy(yt0)), tmp;
-    if (st0 == st1)
-        return 0;
-    tmp = st0, st0 = min(st0, st1), st1 = max(tmp, st1);
-    
-    float ct0 = clamp(xt0, st0, st1), ct1 = clamp(xt0 + x0 == x1 ? 1.0 : dfdx(xt0), st0, st1);
-    float tm = 0.5 * (st0 + st1);
-    area = 1.0 - saturate(x0);
-    return (y1 - y0) * (st1 - st0) * area;
-    
-//    float area = 0.5 * (x0 * (2.f - ct0 - ct1) + x1 * (ct0 + ct1));
-//    return (y1 - y0) * ((min(ct0, ct1) - st0) + (st1 - st0) * area);
-     */
+    float tt = x0 < x1 ? min(ct0, ct1) - st0 : st1 - max(ct0, ct1);
+    return (y1 - y0) * tt + area * (y1 - y0) * abs(ct0 - ct1);
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
-    return parametricWinding(x0, y0, x1, y1);
     float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
+    return parametricWinding(x0, y0, x1, y1);
     
     float dxdy = (x1 - x0) / (y1 - y0);
     float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
