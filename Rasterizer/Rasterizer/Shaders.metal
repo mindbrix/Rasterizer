@@ -69,7 +69,7 @@ float linearWinding(float x0, float y0, float x1, float y1) {
     constexpr float r = 0.5;
     float f0, f1, cover, dx, dy, a0, a1;
     f0 = clamp(y0, -r, r), f1 = clamp(y1, -r, r), cover = f1 - f0;
-    if (cover == 0.0 || (x0 <= -r && x1 <= -r))
+    if (cover == 0.0 || (x0 < -r && x1 < -r))
         return cover;
     dx = x1 - x0, dy = y1 - y0;
     a0 = dx * ((dx > 0.0 ? f0 : f1) - y0) - dy * (r - x0);
