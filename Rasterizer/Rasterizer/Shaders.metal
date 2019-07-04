@@ -65,18 +65,23 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     return d;
 }
 
-float parametricWinding(float x0, float y0, float x1, float y1) {
-    float rdy = 1.0 / (y1 - y0), yt0 = -y0 * rdy;
-    float st0 = saturate(yt0), st1 = saturate(yt0 + rdy), tmp;
-    tmp = st0, st0 = min(st0, st1), st1 = max(tmp, st1);
-    float rdx = x0 == x1 ? 1e12 : 1.0 / (x1 - x0), xt0 = -x0 * rdx;
-    float ct0 = clamp(xt0, st0, st1), ct1 = clamp(xt0 + rdx, st0, st1);
-    float area = 1.0 - 0.5 * (saturate(mix(x0, x1, ct0)) + saturate(mix(x0, x1, ct1)));
-    float tt = x0 <= x1 ? ct0 - st0 : st1 - ct0;
-    return (y1 - y0) * (tt + area * abs(ct0 - ct1));
+float linearWinding(float x0, float y0, float x1, float y1) {
+    const float f = 0.5;
+    float dx, dy, rl, cosine, ay0, ay1, a0, a1;
+    x0 -= 0.5, y0 -= 0.5, x1 -= 0.5, y1 -= 0.5;
+    dx = x1 - x0, dy = y1 - y0, rl = rsqrt(dx * dx + dy * dy), cosine = abs(dx) * rl;
+    ay0 = sign(dx) == sign(dy) ? f : -f, ay1 = sign(dx) == sign(dy) ? -f : f;
+    a0 = dx * (ay0 - y0) - dy * (-f - x0);
+    a1 = dx * (ay1 - y0) - dy * (f - x0);
+    float up, cy0, cy1;
+    up = sign(a1 - a0) * cosine;
+    cy0 = clamp(y0, -f, f), cy1 = clamp(y1, -f, f);
+    a0 = fma((f + cy0), -up, a0), a1 = fma((f - cy1), up, a1);
+    return saturate(-a0 / (a1 - a0)) * copysign(cy1 - cy0, up);
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
+    return linearWinding(x0, y0, x1, y1);
     float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
