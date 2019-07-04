@@ -73,7 +73,7 @@ float linearWinding(float x0, float y0, float x1, float y1) {
         return cover;
     dx = x1 - x0, dy = y1 - y0;
     a0 = dx * ((dx > 0.0 ? f0 : f1) - y0) - dy * (r - x0);
-    a1 = dx * ((dx > 0.0 ? f1 : f0) - y0) - dy * (-r - x0);
+    a1 = dx * ((dx > 0.0 ? f1 : f0) - y0) + dy * (r + x0);
     return saturate(-a0 / (a1 - a0)) * cover;
 }
 
