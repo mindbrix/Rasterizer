@@ -66,7 +66,7 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
 }
 
 float linearWinding(float x0, float y0, float x1, float y1) {
-    constexpr float r = 0.5, f = 0.0, rf = 1.0 / (1.0 - 2.0 * f);
+    constexpr float r = 0.5;
     float f0, f1, cover, dx, dy, a0, a1;
     f0 = clamp(y0, -r, r), f1 = clamp(y1, -r, r), cover = f1 - f0;
     if (cover == 0.0 || (x0 <= -r && x1 <= -r))
@@ -74,7 +74,7 @@ float linearWinding(float x0, float y0, float x1, float y1) {
     dx = x1 - x0, dy = y1 - y0;
     a0 = dx * ((dx > 0.0 ? f0 : f1) - y0) - dy * (r - x0);
     a1 = dx * ((dx > 0.0 ? f1 : f0) - y0) - dy * (-r - x0);
-    return saturate((-a0 / (a1 - a0) - f) * rf) * cover;
+    return saturate(-a0 / (a1 - a0)) * cover;
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
@@ -159,7 +159,8 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
     float dx = tx + clamp(select(floor(slx), float(cell.ux), vid & 1), float(cell.lx), float(cell.ux)), x = dx / *width * 2.0 - 1.0;
     float dy = ty + clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy)), y = dy / *height * 2.0 - 1.0;
-    tx -= (dx), ty -= (dy);
+ //   tx -= (dx - 0.5), ty -= (dy - 0.5);
+    tx -= dx, ty -= dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
@@ -216,7 +217,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], con
     float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
     float dx = tx + select(floor(slx), float(cell.ux), vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = ty + select(floor(sly), ceil(suy), vid >> 1), y = dy / *height * 2.0 - 1.0;
-    tx -= (dx), ty -= (dy);
+   // tx -= (dx - 0.5), ty -= (dy - 0.5);
+    tx -= dx, ty -= dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
