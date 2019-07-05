@@ -292,8 +292,8 @@ struct Rasterizer {
     };
     struct Cache {
         struct Entry {
-            Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm) : hash(hash), seg(begin, end), cnt(cbegin, cend), ctm(ctm), hit(true) {}
-            size_t hash; Range seg, cnt; Transform ctm; bool hit;
+            Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm, int instances) : hash(hash), seg(begin, end), cnt(cbegin, cend), ctm(ctm), instances(instances), hit(true) {}
+            size_t hash; Range seg, cnt; Transform ctm; int instances; bool hit;
         };
         struct Grid {
             static constexpr size_t kSize = 4096, kMask = kSize - 1;
@@ -325,6 +325,7 @@ struct Rasterizer {
                     if (src != dst) {
                         dst->hash = src->hash, dst->seg.begin = int(sdst - segments.base), dst->seg.end = dst->seg.begin + count;
                         dst->cnt.begin = int(cdst - counts.base), dst->cnt.end = dst->cnt.begin + ccount, dst->ctm = src->ctm;
+                        dst->instances = src->instances;
                         memmove(sdst, ssrc, count * sizeof(Segment)), memmove(cdst, csrc, ccount * sizeof(int));
                     }
                     new (grid.grid[src->hash & Grid::kMask].alloc(1)) Grid::Element(src->hash, i);
@@ -357,13 +358,13 @@ struct Rasterizer {
             size_t begin = segments.idx, cbegin = counts.idx;
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
-            int *c = counts.alloc(path.ref->molecules.size());
+            int *c = counts.alloc(path.ref->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
                 if (s->x0 == FLT_MAX)
-                    *c++ = int(s - ls);
+                    *c = int(s - ls), instances += (*c - bc + kFastSegments - 1) / kFastSegments, bc = *c + 1, c++;
             counts.idx = counts.end;
             new (grid.alloc(hash)) Grid::Element(hash, entries.end);
-            return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert());
+            return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert(), instances);
         }
         void writeCachedOutline(Entry *e, Transform m, Bounds clip, Info info) {
             float x0, y0, x1, y1, iy0, iy1;
@@ -644,7 +645,7 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    size_t midx = gpu.molecules.ranges.end, count = entry->seg.end - entry->seg.begin, ccount = entry->cnt.end - entry->cnt.begin, molecules = path.ref->molecules.size(), instances = 0;
+                    size_t midx = gpu.molecules.ranges.end, count = entry->seg.end - entry->seg.begin, ccount = entry->cnt.end - entry->cnt.begin, molecules = path.ref->molecules.size();
                     gpu.ctms[iz] = m;
                     GPU::Molecules::Molecule *dst = gpu.molecules.alloc(molecules);
                     Bounds *b = & path.ref->molecules[0];
@@ -653,9 +654,9 @@ struct Rasterizer {
                         ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                         ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                         new (dst) GPU::Molecules::Molecule(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux, bc, *c);
-                        instances += (*c - bc + kFastSegments - 1) / kFastSegments, bc = *c + 1, b++, dst++;
+                        bc = *c + 1, b++, dst++;
                     }
-                    writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, instances, true, GPU::Instance::kMolecule, 0.f, int(iz), entry->seg.begin, int(midx), count, gpu);
+                    writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, entry->instances, true, GPU::Instance::kMolecule, 0.f, int(iz), entry->seg.begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
