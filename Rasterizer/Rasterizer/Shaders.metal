@@ -65,7 +65,7 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     return d;
 }
 
-float linearWinding(float x0, float y0, float x1, float y1) {
+float winding(float x0, float y0, float x1, float y1) {
     constexpr float r = 0.5;
     float f0, f1, cover, dx, dy, a0;
     f0 = clamp(y0, -r, r), f1 = clamp(y1, -r, r), cover = f1 - f0;
@@ -77,7 +77,7 @@ float linearWinding(float x0, float y0, float x1, float y1) {
 }
 
 float edgeWinding(float x0, float y0, float x1, float y1) {
-    return linearWinding(x0, y0, x1, y1);
+    return winding(x0, y0, x1, y1);
     float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
