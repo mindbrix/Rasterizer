@@ -645,12 +645,12 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    size_t midx = gpu.molecules.ranges.end, count = entry->seg.end - entry->seg.begin, ccount = entry->cnt.end - entry->cnt.begin, molecules = path.ref->molecules.size();
+                    size_t midx = gpu.molecules.ranges.end, count = entry->seg.end - entry->seg.begin, molecules = path.ref->molecules.size();
                     gpu.ctms[iz] = m;
                     GPU::Molecules::Molecule *dst = gpu.molecules.alloc(molecules);
                     Bounds *b = & path.ref->molecules[0];
                     float ta, tc, ux;
-                    for (int bc = 0, *lc = gpu.cache.counts.base + entry->cnt.begin, *uc = lc + ccount, *c = lc; c < uc; c++) {
+                    for (int bc = 0, *lc = gpu.cache.counts.base + entry->cnt.begin, *uc = gpu.cache.counts.base + entry->cnt.end, *c = lc; c < uc; c++) {
                         ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                         ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                         new (dst) GPU::Molecules::Molecule(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux, bc, *c);
