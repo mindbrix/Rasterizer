@@ -140,11 +140,11 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         } else
             dst[0] = dst[1] = dst[2] = dst[3] = 0.0;
     }
-    float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
-    float dx = tx + clamp(select(floor(slx), float(cell.ux), vid & 1), float(cell.lx), float(cell.ux)), x = dx / *width * 2.0 - 1.0;
-    float dy = ty + clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy)), y = dy / *height * 2.0 - 1.0;
-    tx -= (dx - 0.5), ty -= (dy - 0.5);
-    
+    float ox = clamp(select(floor(slx), float(cell.ux), vid & 1), float(cell.lx), float(cell.ux));
+    float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
+    float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0;
+    float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0;
+    float tx = 0.5 - ox, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
     vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty, vert.x6 += tx, vert.y6 += ty, vert.x7 += tx, vert.y7 += ty;
