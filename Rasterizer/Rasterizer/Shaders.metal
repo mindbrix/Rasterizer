@@ -11,7 +11,7 @@ using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
-struct AffineTransform {
+struct Transform {
     float a, b, c, d, tx, ty;
 };
 
@@ -40,7 +40,7 @@ struct Outline {
 };
 struct Instance {
     enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-    union { Quad quad;  AffineTransform unit;  Outline outline; };
+    union { Quad quad;  Transform unit;  Outline outline; };
     uint32_t iz;
 };
 struct EdgeCell {
@@ -52,7 +52,7 @@ struct Edge {
     uint16_t i0, i1;
 };
 
-float4 distances(AffineTransform ctm, float dx, float dy) {
+float4 distances(Transform ctm, float dx, float dy) {
     float det, rlab, rlcd, vx, vy;
     float4 d;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
@@ -131,7 +131,7 @@ struct FastEdgesVertex
 };
 
 vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
-                                     const device EdgeCell *edgeCells [[buffer(3)]], const device AffineTransform *affineTransforms [[buffer(4)]],
+                                     const device EdgeCell *edgeCells [[buffer(3)]], const device Transform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
@@ -140,7 +140,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Edge& edge = edges[iid];
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
     const device Cell& cell = edgeCell.cell;
-    const device AffineTransform& m = affineTransforms[edgeCell.im];
+    const device Transform& m = affineTransforms[edgeCell.im];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
@@ -248,7 +248,7 @@ struct QuadsVertex
 };
 
 vertex QuadsVertex quads_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-                                     const device AffineTransform *clips [[buffer(5)]],
+                                     const device Transform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -294,7 +294,7 @@ struct ShapesVertex
 };
 
 vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-                                       const device AffineTransform *affineTransforms [[buffer(4)]], const device AffineTransform *clips [[buffer(5)]],
+                                       const device Transform *affineTransforms [[buffer(4)]], const device Transform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -303,7 +303,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
     const device Instance& inst = instances[iid];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (inst.iz & Instance::kOutlines) {
-        AffineTransform m = { 1, 0, 0, 1, 0, 0 };
+        Transform m = { 1, 0, 0, 1, 0, 0 };
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
@@ -330,8 +330,8 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
-        const device AffineTransform& m = affineTransforms[inst.iz & kPathIndexMask];
-        AffineTransform ctm = {
+        const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+        Transform ctm = {
             inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
             inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
             inst.unit.tx * m.a + inst.unit.ty * m.c + m.tx, inst.unit.tx * m.b + inst.unit.ty * m.d + m.ty };
