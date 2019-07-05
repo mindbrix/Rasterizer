@@ -1250,7 +1250,7 @@ struct Rasterizer {
                         Range *mr = & ctx->gpu.molecules.ranges.base[inst->quad.begin];
                         GPU::Molecules::Molecule *mc = & ctx->gpu.molecules.cells.base[mr->begin];
                         for (uint32_t ic = uint32_t(cell - c0), c = mr->begin; c < mr->end; c++, ic++, cell++, mc++) {
-                            cell->cell = inst->quad.cell, cell->cell.ux = mc->ux, cell->im = inst->quad.iy, cell->base = uint32_t(inst->quad.end);
+                            cell->cell = inst->quad.cell, cell->cell.ux = mc->ux, cell->im = int(iz), cell->base = uint32_t(inst->quad.end);
                             for (j = mc->begin; j < mc->end; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = mc->end;
