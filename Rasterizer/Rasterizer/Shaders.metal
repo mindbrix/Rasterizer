@@ -66,11 +66,11 @@ float4 distances(Transform ctm, float dx, float dy) {
 }
 
 float winding(float x0, float y0, float x1, float y1) {
-    float f0, f1, cover, dx, dy, a0;
-    f0 = saturate(y0), f1 = saturate(y1), cover = f1 - f0;
+    float w0, w1, cover, dx, dy, a0;
+    w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
     if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return cover;
-    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? f0 : f1) - y0) - dy * (1.0 - x0);
+    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
     return saturate(-a0 / (abs(dx) * cover + dy)) * cover;
 }
 
