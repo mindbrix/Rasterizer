@@ -11,7 +11,7 @@ using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
-struct AffineTransform {
+struct Transform {
     float a, b, c, d, tx, ty;
 };
 
@@ -40,7 +40,7 @@ struct Outline {
 };
 struct Instance {
     enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-    union { Quad quad;  AffineTransform unit;  Outline outline; };
+    union { Quad quad;  Transform unit;  Outline outline; };
     uint32_t iz;
 };
 struct EdgeCell {
@@ -52,7 +52,7 @@ struct Edge {
     uint16_t i0, i1;
 };
 
-float4 distances(AffineTransform ctm, float dx, float dy) {
+float4 distances(Transform ctm, float dx, float dy) {
     float det, rlab, rlcd, vx, vy;
     float4 d;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
@@ -65,7 +65,7 @@ float4 distances(AffineTransform ctm, float dx, float dy) {
     return d;
 }
 
-float linearWinding(float x0, float y0, float x1, float y1) {
+float winding(float x0, float y0, float x1, float y1) {
     constexpr float r = 0.5;
     float f0, f1, cover, dx, dy, a0;
     f0 = clamp(y0, -r, r), f1 = clamp(y1, -r, r), cover = f1 - f0;
@@ -73,20 +73,7 @@ float linearWinding(float x0, float y0, float x1, float y1) {
         return cover;
     dx = x1 - x0, dy = y1 - y0;
     a0 = dx * ((dx > 0.0 ? f0 : f1) - y0) - dy * (r - x0);
-    return saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
-}
-
-float edgeWinding(float x0, float y0, float x1, float y1) {
-    return linearWinding(x0, y0, x1, y1);
-    float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
-    if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
-        return coverage;
-    float dxdy = (x1 - x0) / (y1 - y0);
-    float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
-    float minx = min(sx0, sx1), range = abs(sx1 - sx0);
-    float t0 = saturate(-minx / range), t1 = saturate((1.0 - minx) / range);
-    float area = (saturate(sx0) + saturate(sx1)) * 0.5;
-    return coverage * (t1 - ((t1 - t0) * area));
+    return saturate(-a0 / (abs(dx) * cover + dy)) * cover;
 }
 
 #pragma mark - Opaques
@@ -131,7 +118,7 @@ struct FastEdgesVertex
 };
 
 vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
-                                     const device EdgeCell *edgeCells [[buffer(3)]], const device AffineTransform *affineTransforms [[buffer(4)]],
+                                     const device EdgeCell *edgeCells [[buffer(3)]], const device Transform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
@@ -140,7 +127,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Edge& edge = edges[iid];
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
     const device Cell& cell = edgeCell.cell;
-    const device AffineTransform& m = affineTransforms[edgeCell.im];
+    const device Transform& m = affineTransforms[edgeCell.im];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
@@ -158,28 +145,19 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
     float dx = tx + clamp(select(floor(slx), float(cell.ux), vid & 1), float(cell.lx), float(cell.ux)), x = dx / *width * 2.0 - 1.0;
     float dy = ty + clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy)), y = dy / *height * 2.0 - 1.0;
- //   tx -= (dx - 0.5), ty -= (dy - 0.5);
     tx -= dx, ty -= dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
-    vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
-    vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty;
-    vert.x6 += tx, vert.y6 += ty, vert.x7 += tx, vert.y7 += ty;
+    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
+    vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty, vert.x6 += tx, vert.y6 += ty, vert.x7 += tx, vert.y7 += ty;
     return vert;
 }
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    float winding = 0;
-    winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
-    winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
-    winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
-    winding += edgeWinding(vert.x6, vert.y6, vert.x7, vert.y7);
-    return float4(winding);
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3)
+         + winding(vert.x4, vert.y4, vert.x5, vert.y5) + winding(vert.x6, vert.y6, vert.x7, vert.y7);
 }
-
-
 
 #pragma mark - Edges
 
@@ -216,22 +194,17 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], con
     float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
     float dx = tx + select(floor(slx), float(cell.ux), vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = ty + select(floor(sly), ceil(suy), vid >> 1), y = dy / *height * 2.0 - 1.0;
-   // tx -= (dx - 0.5), ty -= (dy - 0.5);
     tx -= dx, ty -= dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty;
-    vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
+    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
 
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    float winding = 0;
-    winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
-    winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
-    return float4(winding);
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3);
 }
 
 
@@ -248,7 +221,7 @@ struct QuadsVertex
 };
 
 vertex QuadsVertex quads_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-                                     const device AffineTransform *clips [[buffer(5)]],
+                                     const device Transform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -294,7 +267,7 @@ struct ShapesVertex
 };
 
 vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-                                       const device AffineTransform *affineTransforms [[buffer(4)]], const device AffineTransform *clips [[buffer(5)]],
+                                       const device Transform *affineTransforms [[buffer(4)]], const device Transform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -303,7 +276,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
     const device Instance& inst = instances[iid];
     float area = 1.0, visible = 1.0, dx, dy, d0, d1;
     if (inst.iz & Instance::kOutlines) {
-        AffineTransform m = { 1, 0, 0, 1, 0, 0 };
+        Transform m = { 1, 0, 0, 1, 0, 0 };
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
@@ -330,8 +303,8 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
-        const device AffineTransform& m = affineTransforms[inst.iz & kPathIndexMask];
-        AffineTransform ctm = {
+        const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+        Transform ctm = {
             inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
             inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
             inst.unit.tx * m.a + inst.unit.ty * m.c + m.tx, inst.unit.tx * m.b + inst.unit.ty * m.d + m.ty };
