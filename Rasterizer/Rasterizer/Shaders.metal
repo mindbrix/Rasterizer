@@ -76,19 +76,6 @@ float winding(float x0, float y0, float x1, float y1) {
     return saturate(-a0 / (abs(dx) * cover + dy)) * cover;
 }
 
-float edgeWinding(float x0, float y0, float x1, float y1) {
-    return winding(x0, y0, x1, y1);
-    float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
-    if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
-        return coverage;
-    float dxdy = (x1 - x0) / (y1 - y0);
-    float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
-    float minx = min(sx0, sx1), range = abs(sx1 - sx0);
-    float t0 = saturate(-minx / range), t1 = saturate((1.0 - minx) / range);
-    float area = (saturate(sx0) + saturate(sx1)) * 0.5;
-    return coverage * (t1 - ((t1 - t0) * area));
-}
-
 #pragma mark - Opaques
 
 struct OpaquesVertex
@@ -158,7 +145,6 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
     float dx = tx + clamp(select(floor(slx), float(cell.ux), vid & 1), float(cell.lx), float(cell.ux)), x = dx / *width * 2.0 - 1.0;
     float dy = ty + clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy)), y = dy / *height * 2.0 - 1.0;
- //   tx -= (dx - 0.5), ty -= (dy - 0.5);
     tx -= dx, ty -= dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
@@ -171,15 +157,9 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    float winding = 0;
-    winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
-    winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
-    winding += edgeWinding(vert.x4, vert.y4, vert.x5, vert.y5);
-    winding += edgeWinding(vert.x6, vert.y6, vert.x7, vert.y7);
-    return float4(winding);
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3)
+         + winding(vert.x4, vert.y4, vert.x5, vert.y5) + winding(vert.x6, vert.y6, vert.x7, vert.y7);
 }
-
-
 
 #pragma mark - Edges
 
@@ -216,7 +196,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], con
     float tx = cell.ox - cell.lx, ty = cell.oy - cell.ly;
     float dx = tx + select(floor(slx), float(cell.ux), vid & 1), x = dx / *width * 2.0 - 1.0;
     float dy = ty + select(floor(sly), ceil(suy), vid >> 1), y = dy / *height * 2.0 - 1.0;
-   // tx -= (dx - 0.5), ty -= (dy - 0.5);
     tx -= dx, ty -= dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
@@ -228,10 +207,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], con
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    float winding = 0;
-    winding += edgeWinding(vert.x0, vert.y0, vert.x1, vert.y1);
-    winding += edgeWinding(vert.x2, vert.y2, vert.x3, vert.y3);
-    return float4(winding);
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3);
 }
 
 
