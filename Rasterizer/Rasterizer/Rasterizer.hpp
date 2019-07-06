@@ -441,7 +441,6 @@ struct Rasterizer {
         };
         struct Outline {
             Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
-            Outline(size_t begin, size_t end, float width) : r(begin, end), width(width), prev(-1), next(1) {}
             union { Segment s;  Range r; };
             float width;
             short prev, next;
@@ -615,7 +614,7 @@ struct Rasterizer {
             if (width) {
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
-                inst->outline = GPU::Outline(gpu.outlines.idx, gpu.outlines.end, width);
+                inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
