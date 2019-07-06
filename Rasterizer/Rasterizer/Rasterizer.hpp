@@ -647,15 +647,6 @@ struct Rasterizer {
                 if (entry && !slow) {
                     size_t midx = gpu.molecules.ranges.end, count = entry->seg.end - entry->seg.begin, eidx = entry - gpu.cache.entries.base, molecules = path.ref->molecules.size();
                     gpu.ctms[iz] = m;
-                    GPU::Molecules::Molecule *dst = gpu.molecules.alloc(molecules);
-                    Bounds *b = & path.ref->molecules[0];
-                    float ta, tc, ux;
-                    for (int bc = 0, *lc = gpu.cache.counts.base + entry->cnt.begin, *uc = gpu.cache.counts.base + entry->cnt.end, *c = lc; c < uc; c++) {
-                        ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                        ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                        new (dst) GPU::Molecules::Molecule(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux, bc, *c);
-                        bc = *c + 1, b++, dst++;
-                    }
                     writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, entry->instances, true, GPU::Instance::kMolecule, 0.f, int(eidx), entry->seg.begin, int(midx), count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
@@ -1247,10 +1238,19 @@ struct Rasterizer {
                 } else {
                     entry->end += sizeof(GPU::Instance);
                     if (inst->iz & GPU::Instance::kMolecule) {
+                        Path& path = scene->ref->paths[iz - base];
                         Cache::Entry *entry = ctx->gpu.cache.entries.base + inst->quad.iy;
                         int bc = 0, *lc = ctx->gpu.cache.counts.base + entry->cnt.begin, *uc = ctx->gpu.cache.counts.base + entry->cnt.end, *c = lc;
-                        for (uint32_t ic = uint32_t(cell - c0); c < uc; ic++, cell++, bc = *c++ + 1) {
+                        Bounds *b = & path.ref->molecules[0];
+                        float ta, tc, ux;
+                        Transform& ctm = ctms[iz];
+                        for (uint32_t ic = uint32_t(cell - c0); c < uc; ic++, cell++, bc = *c++ + 1, b++) {
                             cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.end);
+            
+                            ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+                            ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                            cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+            
                             for (j = bc; j < *c; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = *c;
