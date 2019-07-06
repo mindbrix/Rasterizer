@@ -1227,8 +1227,8 @@ struct Rasterizer {
                     entry->end += sizeof(GPU::Instance);
                     if (inst->iz & GPU::Instance::kMolecule) {
                         Path& path = scene->ref->paths[iz - base];
-                        Cache::Entry *entry = ctx->gpu.cache.entries.base + inst->quad.iy;
-                        int bc = 0, *lc = ctx->gpu.cache.counts.base + entry->cnt.begin, *uc = ctx->gpu.cache.counts.base + entry->cnt.end, *cnt = lc;
+                        Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+                        int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
                         Bounds *b = & path.ref->molecules[0];
                         float ta, tc, ux;
                         Transform& ctm = ctms[iz];
