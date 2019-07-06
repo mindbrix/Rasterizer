@@ -448,10 +448,7 @@ struct Rasterizer {
         };
         struct Instance {
             enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-            Instance(Quad quad, size_t iz, int type) : quad(quad), iz((uint32_t)iz | type) {}
-            Instance(Transform unit, size_t iz, int type) : unit(unit), iz((uint32_t)iz | type) {}
-            Instance(Outline outline, size_t iz, int type) : outline(outline), iz((uint32_t)iz | type) {}
-            
+            Instance(size_t iz, int type) : iz((uint32_t)iz | type) {}
             union { Quad quad;  Transform unit;  Outline outline; };
             uint32_t iz;
         };
@@ -612,12 +609,14 @@ struct Rasterizer {
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         if (path.ref->shapesCount) {
-            new (gpu.blends.alloc(1)) GPU::Instance(ctm, iz, GPU::Instance::kShapes);
+            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kShapes);
+            inst->unit = ctm;
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
         } else {
             if (width) {
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
-                new (gpu.blends.alloc(1)) GPU::Instance(GPU::Outline(gpu.outlines.idx, gpu.outlines.end, width), iz, GPU::Instance::kOutlines);
+                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
+                inst->outline = GPU::Outline(gpu.outlines.idx, gpu.outlines.end, width);
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
@@ -634,7 +633,8 @@ struct Rasterizer {
                     gpu.ctms[iz] = m;
                     float ox, oy;
                     gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, gpu.blends.end, path.ref->molecules.size(), entry->instances, true, ox, oy);
-                    new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, 0.f, int(eidx), entry->seg.begin, 0, count), iz, GPU::Instance::kMolecule);
+                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
+                    inst->quad = GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, 0.f, int(eidx), entry->seg.begin, 0, count);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
@@ -959,15 +959,18 @@ struct Rasterizer {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux) {
                             gpu.allocator.alloc(ux - lx, uy - ly, gpu.blends.end, 1, (i - begin + 1) / 2, false, ox, oy);
-                            new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(lx, ly, ux, uy, ox, oy, cover, int(iy - ily), int(segments->idx), int(begin), i - begin), iz, GPU::Instance::kEdge);
+                            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge);
+                            inst->quad = GPU::Quad(lx, ly, ux, uy, ox, oy, cover, int(iy - ily), int(segments->idx), int(begin), i - begin);
                         }
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
-                            if (opaque)
-                                new (gpu.opaques.alloc(1)) GPU::Instance(GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0), iz, GPU::Instance::kOpaque);
-                            else {
-                                new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(ux, ly, index->x, uy, 0.f, 0.f, 1.f, 0, 0, 0, 0), iz, GPU::Instance::kSolidCell);
-                                 gpu.allocator.countInstance();
+                            if (opaque) {
+                                GPU::Instance *inst = new (gpu.opaques.alloc(1)) GPU::Instance(iz, GPU::Instance::kOpaque);
+                                new (& inst->quad.cell) GPU::Cell(ux, ly, index->x, uy, 0.f, 0.f);
+                            } else {
+                                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kSolidCell);
+                                new (& inst->quad.cell) GPU::Cell(ux, ly, index->x, uy, 0.f, 0.f);
+                                gpu.allocator.countInstance();
                             }
                         }
                         lx = ux = index->x;
@@ -979,7 +982,8 @@ struct Rasterizer {
                 }
                 if (lx != ux) {
                     gpu.allocator.alloc(ux - lx, uy - ly, gpu.blends.end, 1, (i - begin + 1) / 2, false, ox, oy);
-                    new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(lx, ly, ux, uy, ox, oy, cover, int(iy - ily), int(segments->idx), int(begin), i - begin), iz, GPU::Instance::kEdge);
+                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge);
+                    inst->quad = GPU::Quad(lx, ly, ux, uy, ox, oy, cover, int(iy - ily), int(segments->idx), int(begin), i - begin);
                 }
             }
     }
@@ -1208,15 +1212,18 @@ struct Rasterizer {
                 if (inst->iz & GPU::Instance::kShapes) {
                     Path& path = scene->ref->paths[iz - base];
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end);
-                    for (int k = 0; k < path.ref->shapesCount; k++, dst++)
-                        new (dst) GPU::Instance(path.ref->shapes[k], iz, path.ref->circles[k] ? GPU::Instance::kCircle : GPU::Instance::kRect);
+                    for (int k = 0; k < path.ref->shapesCount; k++, dst++) {
+                        new (dst) GPU::Instance(iz, path.ref->circles[k] ? GPU::Instance::kCircle : GPU::Instance::kRect);
+                        dst->unit = path.ref->shapes[k];
+                    }
                     entry->end += path.ref->shapesCount * sizeof(GPU::Instance);
                 } else if (inst->iz & GPU::Instance::kOutlines) {
                     size_t count = inst->outline.r.end - inst->outline.r.begin;
                     Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = src + count;
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
-                        new (dst) GPU::Instance(GPU::Outline(src, inst->outline.width), iz, GPU::Instance::kOutlines);
+                        new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
+                        new (& dst->outline) GPU::Outline(src, inst->outline.width);
                         if (src->x0 == FLT_MAX && dst - dst0 > 1)
                             dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                     }
