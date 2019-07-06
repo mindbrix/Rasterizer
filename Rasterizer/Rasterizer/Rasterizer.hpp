@@ -391,6 +391,10 @@ struct Rasterizer {
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct GPU {
+        struct Cell {
+            Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
+            uint16_t lx, ly, ux, uy, ox, oy;
+        };
         struct Allocator {
             struct Pass {
                 Pass(size_t idx) : li(idx), ui(idx) {}
@@ -399,7 +403,8 @@ struct Rasterizer {
             void init(size_t w, size_t h) {
                 width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
-            void alloc(float w, float h, size_t idx, size_t cells, size_t instances, bool isFast, float& ox, float& oy) {
+            Cell alloc(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t instances, bool isFast) {
+                float w = ux - lx, h = uy - ly;
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 Bounds *b = & strip;
                 float hght = kfh;
@@ -416,8 +421,10 @@ struct Rasterizer {
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
+                float ox, oy;
                 ox = b->lx, b->lx += w, oy = b->ly;
                 pass->cells += cells, pass->ui++, pass->fastInstances += isFast * instances, pass->edgeInstances += !isFast * instances;
+                return Cell(lx, ly, ux, uy, ox, oy);
             }
             inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
@@ -428,10 +435,6 @@ struct Rasterizer {
             Bounds sheet, strip, fast, molecules;
         };
         
-        struct Cell {
-            Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
-            uint16_t lx, ly, ux, uy, ox, oy;
-        };
         struct Quad {
             Cell cell;
             short cover;
@@ -630,10 +633,8 @@ struct Rasterizer {
                 if (entry && !slow) {
                     size_t count = entry->seg.end - entry->seg.begin, eidx = entry - gpu.cache.entries.base;
                     gpu.ctms[iz] = m;
-                    float ox, oy;
-                    gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, gpu.blends.end, path.ref->molecules.size(), entry->instances, true, ox, oy);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
-                    new (& inst->quad.cell) GPU::Cell(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy);
+                    inst->quad.cell = gpu.allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true),
                     inst->quad.cover = 0, inst->quad.count = uint16_t(count), inst->quad.iy = int(eidx), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
@@ -939,7 +940,7 @@ struct Rasterizer {
     static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
-        float ly, uy, scale, cover, winding, lx, ux, x, ox, oy;
+        float ly, uy, scale, cover, winding, lx, ux, x;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Segment *segment;
@@ -958,9 +959,8 @@ struct Rasterizer {
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux) {
-                            gpu.allocator.alloc(ux - lx, uy - ly, gpu.blends.end, 1, (i - begin + 1) / 2, false, ox, oy);
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge);
-                            new (& inst->quad.cell) GPU::Cell(lx, ly, ux, uy, ox, oy);
+                            inst->quad.cell = gpu.allocator.alloc(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
                             inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
                         }
                         begin = i;
@@ -982,9 +982,8 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
                 if (lx != ux) {
-                    gpu.allocator.alloc(ux - lx, uy - ly, gpu.blends.end, 1, (i - begin + 1) / 2, false, ox, oy);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge);
-                    new (& inst->quad.cell) GPU::Cell(lx, ly, ux, uy, ox, oy);
+                    inst->quad.cell = gpu.allocator.alloc(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
                     inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
                 }
             }
