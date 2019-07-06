@@ -427,21 +427,7 @@ struct Rasterizer {
             Row<Pass> passes;
             Bounds sheet, strip, fast, molecules;
         };
-        struct Molecules {
-            struct Molecule {
-                Molecule(float ux, int begin, int end) : ux(ux), begin(begin), end(end) {}
-                float ux;
-                int begin, end;
-            };
-            Molecule *alloc(size_t size) {
-                new (ranges.alloc(1)) Range(cells.idx, cells.idx + size), cells.idx += size;
-                return cells.alloc(size);
-            }
-            void empty() { ranges.empty(), cells.empty(); }
-            void reset() { ranges.reset(), cells.reset(); }
-            Row<Range> ranges;
-            Row<Molecule> cells;
-        };
+        
         struct Cell {
             Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
             uint16_t lx, ly, ux, uy, ox, oy;
@@ -478,14 +464,13 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, molecules.empty(), cache.compact();
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, cache.compact();
         }
         void reset() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, molecules.reset(), cache.reset();
+            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, cache.reset();
         }
         size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
         Allocator allocator;
-        Molecules molecules;
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Row<Segment> outlines;
@@ -645,9 +630,9 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    size_t midx = gpu.molecules.ranges.end, count = entry->seg.end - entry->seg.begin, eidx = entry - gpu.cache.entries.base, molecules = path.ref->molecules.size();
+                    size_t count = entry->seg.end - entry->seg.begin, eidx = entry - gpu.cache.entries.base;
                     gpu.ctms[iz] = m;
-                    writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, molecules, entry->instances, true, GPU::Instance::kMolecule, 0.f, int(eidx), entry->seg.begin, int(midx), count, gpu);
+                    writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, path.ref->molecules.size(), entry->instances, true, GPU::Instance::kMolecule, 0.f, int(eidx), entry->seg.begin, 0, count, gpu);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
