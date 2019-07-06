@@ -1228,18 +1228,18 @@ struct Rasterizer {
                     if (inst->iz & GPU::Instance::kMolecule) {
                         Path& path = scene->ref->paths[iz - base];
                         Cache::Entry *entry = ctx->gpu.cache.entries.base + inst->quad.iy;
-                        int bc = 0, *lc = ctx->gpu.cache.counts.base + entry->cnt.begin, *uc = ctx->gpu.cache.counts.base + entry->cnt.end, *c = lc;
+                        int bc = 0, *lc = ctx->gpu.cache.counts.base + entry->cnt.begin, *uc = ctx->gpu.cache.counts.base + entry->cnt.end, *cnt = lc;
                         Bounds *b = & path.ref->molecules[0];
                         float ta, tc, ux;
                         Transform& ctm = ctms[iz];
-                        for (uint32_t ic = uint32_t(cell - c0); c < uc; ic++, cell++, bc = *c++ + 1, b++) {
+                        for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
                             cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.base);
                             ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                             ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                             cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                            for (j = bc; j < *c; fast++)
+                            for (j = bc; j < *cnt; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                            (fast - 1)->i1 = *c;
+                            (fast - 1)->i1 = *cnt;
                         }
                     } else if (inst->iz & GPU::Instance::kEdge) {
                         cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
