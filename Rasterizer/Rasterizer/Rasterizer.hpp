@@ -632,7 +632,9 @@ struct Rasterizer {
                 if (entry && !slow) {
                     size_t count = entry->seg.end - entry->seg.begin, eidx = entry - gpu.cache.entries.base;
                     gpu.ctms[iz] = m;
-                    writeInstances(clip.lx, clip.ly, clip.ux, clip.uy, iz, path.ref->molecules.size(), entry->instances, true, GPU::Instance::kMolecule, 0.f, int(eidx), entry->seg.begin, 0, count, gpu);
+                    float ox, oy;
+                    gpu.allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, gpu.blends.end, path.ref->molecules.size(), entry->instances, true, ox, oy);
+                    new (gpu.blends.alloc(1)) GPU::Instance(GPU::Quad(clip.lx, clip.ly, clip.ux, clip.uy, ox, oy, 0.f, int(eidx), entry->seg.begin, 0, count), iz, GPU::Instance::kMolecule);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
