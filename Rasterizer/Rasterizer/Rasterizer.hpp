@@ -440,7 +440,6 @@ struct Rasterizer {
             int iy, begin, base;
         };
         struct Outline {
-            Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
             union { Segment s;  Range r; };
             float width;
             short prev, next;
@@ -1219,7 +1218,7 @@ struct Rasterizer {
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
                         new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
-                        new (& dst->outline) GPU::Outline(src, inst->outline.width);
+                        dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
                         if (src->x0 == FLT_MAX && dst - dst0 > 1)
                             dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                     }
