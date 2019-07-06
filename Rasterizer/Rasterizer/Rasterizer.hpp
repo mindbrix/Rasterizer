@@ -433,11 +433,11 @@ struct Rasterizer {
             uint16_t lx, ly, ux, uy, ox, oy;
         };
         struct Quad {
-            Quad(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int end, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), begin(begin), end(end) {}
+            Quad(float lx, float ly, float ux, float uy, float ox, float oy, float cover, int iy, int base, int begin, size_t count) : cell(lx, ly, ux, uy, ox, oy), cover(short(roundf(cover))), count(uint16_t(count)), iy(iy), begin(begin), base(base) {}
             Cell cell;
             short cover;
             uint16_t count;
-            int iy, begin, end;
+            int iy, begin, base;
         };
         struct Outline {
             Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
@@ -1231,7 +1231,7 @@ struct Rasterizer {
                         float ta, tc, ux;
                         Transform& ctm = ctms[iz];
                         for (uint32_t ic = uint32_t(cell - c0); c < uc; ic++, cell++, bc = *c++ + 1, b++) {
-                            cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.end);
+                            cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.base);
                             ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                             ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                             cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
@@ -1240,7 +1240,7 @@ struct Rasterizer {
                             (fast - 1)->i1 = *c;
                         }
                     } else if (inst->iz & GPU::Instance::kEdge) {
-                        cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.end);
+                        cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
                         uint32_t ic = uint32_t(cell - c0);
                         Index *is = ctx->gpu.indices.base + inst->quad.begin;
                         for (j = 0; j < inst->quad.count; j++, edge++) {
