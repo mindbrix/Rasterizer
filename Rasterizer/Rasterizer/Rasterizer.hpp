@@ -434,7 +434,6 @@ struct Rasterizer {
             Row<Pass> passes;
             Bounds sheet, strip, fast, molecules;
         };
-        
         struct Quad {
             Cell cell;
             short cover;
