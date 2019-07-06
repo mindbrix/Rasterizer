@@ -1231,11 +1231,9 @@ struct Rasterizer {
                         Transform& ctm = ctms[iz];
                         for (uint32_t ic = uint32_t(cell - c0); c < uc; ic++, cell++, bc = *c++ + 1, b++) {
                             cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.end);
-            
                             ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                             ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                             cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-            
                             for (j = bc; j < *c; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = *c;
