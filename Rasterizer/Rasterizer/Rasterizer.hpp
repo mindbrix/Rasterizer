@@ -421,10 +421,9 @@ struct Rasterizer {
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
-                float ox, oy;
-                ox = b->lx, b->lx += w, oy = b->ly;
-                pass->cells += cells, pass->ui++, pass->fastInstances += isFast * instances, pass->edgeInstances += !isFast * instances;
-                return Cell(lx, ly, ux, uy, ox, oy);
+                Cell cell(lx, ly, ux, uy, b->lx, b->ly);
+                b->lx += w, pass->cells += cells, pass->ui++, pass->fastInstances += isFast * instances, pass->edgeInstances += !isFast * instances;
+                return cell;
             }
             inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
