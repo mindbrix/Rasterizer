@@ -280,9 +280,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        float2 vo = float2(x1 - x0, y1 - y0);
-        float2 vp = float2(x0 - px, y0 - py);
-        float2 vn = float2(nx - x1, ny - y1);
+        float2 vo = float2(x1 - x0, y1 - y0), vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
         np = dot(np, no) < -0.7071 || rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 ? no : np;
