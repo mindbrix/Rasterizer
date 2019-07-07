@@ -574,7 +574,7 @@ struct Rasterizer {
                     bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                     if (bitmap.width == 0)
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, uc.contains(dev) && clip.contains(dev), clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
-                    else
+                    else if (width == 0.f)
                         writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                 }
             }
