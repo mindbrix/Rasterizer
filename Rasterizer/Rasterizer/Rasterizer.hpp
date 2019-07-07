@@ -211,16 +211,16 @@ struct Rasterizer {
     };
     struct SceneList {
         SceneList& empty() {
-            scenes.resize(0), ctms.resize(0), clips.resize(0), widths.resize(0);
+            scenes.resize(0), ctms.resize(0), clips.resize(0), widths.resize(0), evens.resize(0);
             bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
             return *this;
         }
         SceneList& addScene(Ref<Scene> sceneRef) {
-            return addScene(sceneRef, Transform::identity(), Transform::nullclip(), 0.f);
+            return addScene(sceneRef, Transform::identity(), Transform::nullclip(), 0.f, false);
         }
-        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip, float width) {
+        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip, float width, bool even) {
             if (sceneRef.ref->paths.size()) {
-                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), widths.emplace_back(width);
+                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), widths.emplace_back(width), evens.emplace_back(even);
                 bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
             }
             return *this;
@@ -229,10 +229,10 @@ struct Rasterizer {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
                 if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device))
-                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i], widths[i]);
+                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i], widths[i], evens[i]);
             return pathsCount;
         }
-        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips; std::vector<float> widths;
+        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips; std::vector<float> widths; std::vector<bool> evens;
         Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
     };
     template<typename T>
@@ -554,13 +554,13 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform *ctms, Colorant *colors, Transform *clips, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
                 uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
-                    drawPaths(& scene.paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], list.widths[i], clz, cuz);
+                    drawPaths(& scene.paths[0] + clz - lz, ctms + clz, list.evens[i], colors + clz, clips[clz], list.widths[i], clz, cuz);
             }
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
