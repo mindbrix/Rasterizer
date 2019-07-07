@@ -211,16 +211,16 @@ struct Rasterizer {
     };
     struct SceneList {
         SceneList& empty() {
-            scenes.resize(0), ctms.resize(0), clips.resize(0);
+            scenes.resize(0), ctms.resize(0), clips.resize(0), widths.resize(0), evens.resize(0);
             bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
             return *this;
         }
         SceneList& addScene(Ref<Scene> sceneRef) {
-            return addScene(sceneRef, Transform::identity(), Transform::nullclip());
+            return addScene(sceneRef, Transform::identity(), Transform::nullclip(), 0.f, false);
         }
-        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
+        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip, float width, bool even) {
             if (sceneRef.ref->paths.size()) {
-                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), widths.emplace_back(width), evens.emplace_back(even);
                 bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
             }
             return *this;
@@ -229,10 +229,10 @@ struct Rasterizer {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
                 if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device))
-                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i]);
+                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i], widths[i], evens[i]);
             return pathsCount;
         }
-        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;
+        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips; std::vector<float> widths; std::vector<bool> evens;
         Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
     };
     template<typename T>
@@ -403,7 +403,7 @@ struct Rasterizer {
             void init(size_t w, size_t h) {
                 width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
-            Cell alloc(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t instances, bool isFast) {
+            Cell allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t instances, bool isFast) {
                 float w = ux - lx, h = uy - ly;
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 Bounds *b = & strip;
@@ -440,8 +440,6 @@ struct Rasterizer {
             int iy, begin, base;
         };
         struct Outline {
-            Outline(Segment *s, float width) : s(*s), width(width), prev(-1), next(1) {}
-            Outline(size_t begin, size_t end, float width) : r(begin, end), width(width), prev(-1), next(1) {}
             union { Segment s;  Range r; };
             float width;
             short prev, next;
@@ -556,18 +554,18 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& list, Transform *ctms, bool even, Colorant *colors, Transform *clips, float width, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform *ctms, Colorant *colors, Transform *clips, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
                 uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
-                    drawPaths(& scene.paths[0] + clz - lz, ctms + clz, even, colors + clz, clips[clz], width, clz, cuz);
+                    drawPaths(& scene.paths[0] + clz - lz, ctms + clz, list.evens[i], colors + clz, clips[clz], list.widths[i], clz, cuz);
             }
         }
         void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
             Transform inv = clipctm.invert();
-            Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
+            Bounds device = Bounds(clipctm).integral().intersect(bounds).inset(-width, -width), uc = bounds.inset(1.f, 1.f);
             float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
@@ -576,7 +574,7 @@ struct Rasterizer {
                     bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                     if (bitmap.width == 0)
                         writeGPUPath(*paths, *ctms, even, & colors->src0, iz, uc.contains(dev) && clip.contains(dev), clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
-                    else
+                    else if (width == 0.f)
                         writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
                 }
             }
@@ -615,7 +613,7 @@ struct Rasterizer {
             if (width) {
                 writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
-                new (& inst->outline) GPU::Outline(gpu.outlines.idx, gpu.outlines.end, width);
+                inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
@@ -628,11 +626,10 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    size_t count = entry->seg.end - entry->seg.begin, eidx = entry - gpu.cache.entries.base;
                     gpu.ctms[iz] = m;
+                    GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
-                    inst->quad.cell = gpu.allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true),
-                    inst->quad.cover = 0, inst->quad.count = uint16_t(count), inst->quad.iy = int(eidx), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
+                    inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
                 } else
                     writeSegments(segments.segments, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
@@ -956,9 +953,9 @@ struct Rasterizer {
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux) {
+                            GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge);
-                            inst->quad.cell = gpu.allocator.alloc(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
-                            inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
+                            inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
                         }
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
@@ -979,9 +976,9 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
                 if (lx != ux) {
+                    GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge);
-                    inst->quad.cell = gpu.allocator.alloc(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
-                    inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
+                    inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
                 }
             }
     }
@@ -1221,7 +1218,7 @@ struct Rasterizer {
                     GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
                         new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
-                        new (& dst->outline) GPU::Outline(src, inst->outline.width);
+                        dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
                         if (src->x0 == FLT_MAX && dst - dst0 > 1)
                             dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
                     }
@@ -1230,19 +1227,19 @@ struct Rasterizer {
                     entry->end += sizeof(GPU::Instance);
                     if (inst->iz & GPU::Instance::kMolecule) {
                         Path& path = scene->ref->paths[iz - base];
-                        Cache::Entry *entry = ctx->gpu.cache.entries.base + inst->quad.iy;
-                        int bc = 0, *lc = ctx->gpu.cache.counts.base + entry->cnt.begin, *uc = ctx->gpu.cache.counts.base + entry->cnt.end, *c = lc;
+                        Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+                        int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
                         Bounds *b = & path.ref->molecules[0];
                         float ta, tc, ux;
                         Transform& ctm = ctms[iz];
-                        for (uint32_t ic = uint32_t(cell - c0); c < uc; ic++, cell++, bc = *c++ + 1, b++) {
+                        for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
                             cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.base);
                             ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                             ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                             cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                            for (j = bc; j < *c; fast++)
+                            for (j = bc; j < *cnt; fast++)
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                            (fast - 1)->i1 = *c;
+                            (fast - 1)->i1 = *cnt;
                         }
                     } else if (inst->iz & GPU::Instance::kEdge) {
                         cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
