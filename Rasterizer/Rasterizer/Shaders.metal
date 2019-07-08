@@ -283,11 +283,11 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         float2 vo = float2(x1 - x0, y1 - y0), vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
-        constexpr float guard = 0.2071067812, err = 1e-2;
+        constexpr float err = 1e-2;
         np = dot(np, no) < -0.7071 || rp > 1e2 || abs(o.x0 - p.x1) > 1.0 || abs(o.y0 - p.y1) > 1.0 ? no : np;
         nn = dot(no, nn) < -0.7071 || rn > 1e2 || abs(o.x1 - n.x0) > 1.0 || abs(o.y1 - n.y0) > 1.0 ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float s = 0.5 * inst.outline.width + 0.5 + guard;//, et = err / s;
+        float s = 0.5 * inst.outline.width + 0.5;
         float spo = s / (tpo.y * np.y + tpo.x * np.x);
         float son = s / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
@@ -300,7 +300,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         bool left = t > 0.0 && t < 1.0, right = t < 0.0 && t > -1.0, crossed = ((vid & 1) == 0 && left) || ((vid & 1) && right);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
-        d0 = -guard, d1 = inst.outline.width + 1.0 + guard;
+        d0 = 0.0, d1 = inst.outline.width + 1.0;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
