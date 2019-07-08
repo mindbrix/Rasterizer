@@ -611,7 +611,7 @@ struct Rasterizer {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
         } else {
             if (width) {
-                writePath(path, ctm, Bounds(clip.lx - width, clip.ly - width, clip.ux + width, clip.uy + width), writeOutlineSegment, Info(& gpu.outlines));
+                writePath(path, ctm, clip, writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
