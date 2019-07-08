@@ -270,7 +270,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
 {
     ShapesVertex vert;
     const device Instance& inst = instances[iid];
-    float area = 1.0, visible = 1.0, dx, dy, d0, d1;
+    float area = 1.0, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         Transform m = { 1, 0, 0, 1, 0, 0 };
         const device Segment& o = inst.outline.s;
@@ -300,9 +300,8 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         bool left = t > 0.0 && t < 1.0, right = t < 0.0 && t > -1.0, crossed = ((vid & 1) == 0 && left) || ((vid & 1) && right);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
-        d0 = 0.0, d1 = inst.outline.width + 1.0;
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
-        vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
+        vert.shape = float4(1e6, vid & 1 ? 2.0 * s : 0.0, 1e6, vid & 1 ? 0.0 : 2.0 * s);
     } else {
         const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
         Transform ctm = {
