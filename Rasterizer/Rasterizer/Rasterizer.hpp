@@ -198,7 +198,7 @@ struct Rasterizer {
     }
     struct Scene {
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            if (path.ref->isDrawable) {
+            if (path.ref->isDrawable && path.ref->atomsCount < 32767) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
                 hash = ::crc64(::crc64(hash, & path.ref->hash, sizeof(path.ref->hash)), & ctm, sizeof(Transform));

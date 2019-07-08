@@ -47,9 +47,7 @@ struct RasterizerSVG {
                                                                             shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound,
                                                                             shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel,
                                                                             shape->miterLimit, shape->strokeWidth > dim ? 1 : 10);
-                        Ra::Path p = RasterizerCG::createPathFromCGPath(stroked);
-                        if (p.ref->atomsCount < 32767)
-                            scene.addPath(p, flip, colorFromPaint(shape->stroke));
+                        scene.addPath(RasterizerCG::createPathFromCGPath(stroked), flip, colorFromPaint(shape->stroke));
                         CGPathRelease(path);
                         CGPathRelease(stroked);
                     }
