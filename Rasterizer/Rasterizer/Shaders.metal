@@ -301,13 +301,8 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
         d0 = -guard, d1 = inst.outline.width + 1.0 + guard;
-        //d0 += left ? (1.0 - t + et) * s : 0.0;
-        //d1 += right ? (1.0 + t + et) * s : 0.0;
-        //d0 = left ? 1e6 : d0;
-        //d1 = right ? 1e6 : d1;
-        
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
-        vert.shape = float4(1e6);//, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
+        vert.shape = float4(1e6, vid & 1 ? d1 : d0, 1e6, vid & 1 ? d0 : d1);
     } else {
         const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
         Transform ctm = {
