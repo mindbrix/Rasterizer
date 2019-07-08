@@ -27,32 +27,34 @@ struct RasterizerSVG {
         }
         return p;
     }
-    static void writeScene(const void *bytes, size_t size, Ra::Scene& scene) {
+    static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
         char *data = (char *)malloc(size + 1);
         memcpy(data, bytes, size);
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
+            Ra::Ref<Ra::Scene> scene;
             Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                 if (shape->fill.type == NSVG_PAINT_COLOR)
-                    scene.addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
+                    scene.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     Ra::Path s = createPathFromShape(shape);
                     if (s.ref->isDrawable) {
                         float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
                         CGMutablePathRef path = CGPathCreateMutable();
-                        RasterizerCG::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.paths.back(), path);
+                        RasterizerCG::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : scene.ref->paths.back(), path);
                         CGPathRef stroked = RasterizerCG::createStrokedPath(path, shape->strokeWidth,
                                                                             shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound,
                                                                             shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel,
                                                                             shape->miterLimit, shape->strokeWidth > dim ? 1 : 10);
-                        scene.addPath(RasterizerCG::createPathFromCGPath(stroked), flip, colorFromPaint(shape->stroke));
+                        scene.ref->addPath(RasterizerCG::createPathFromCGPath(stroked), flip, colorFromPaint(shape->stroke));
                         CGPathRelease(path);
                         CGPathRelease(stroked);
                     }
                 }
             }
+            list.addScene(scene);
             nsvgDelete(image);
         }
         free(data);
