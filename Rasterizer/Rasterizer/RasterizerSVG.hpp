@@ -72,7 +72,7 @@ struct RasterizerSVG {
             }
             
             list.addScene(fills);
-            list.addScene(strokes, Ra::Transform::identity(), Ra::Transform::nullclip(), width, false);
+            list.addScene(strokes, Ra::Transform(), Ra::Transform::nullclip(), width, false);
             nsvgDelete(image);
         }
         free(data);

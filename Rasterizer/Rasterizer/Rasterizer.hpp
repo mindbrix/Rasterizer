@@ -13,9 +13,8 @@
 
 struct Rasterizer {
     struct Transform {
-        Transform() {}
+        Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        static Transform identity() { return { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f }; }
         static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         inline Transform concat(Transform t, float ax, float ay) const {
             Transform inv = invert(), m = Transform(a, b, c, d, ax, ay).concat(t);
@@ -217,7 +216,7 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(Ref<Scene> sceneRef) {
-            return addScene(sceneRef, Transform::identity(), Transform::nullclip(), 0.f, false);
+            return addScene(sceneRef, Transform(), Transform::nullclip(), 0.f, false);
         }
         SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip, float width, bool even) {
             if (sceneRef.ref->paths.size()) {
