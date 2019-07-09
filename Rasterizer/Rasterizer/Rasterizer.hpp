@@ -476,10 +476,6 @@ struct Rasterizer {
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
         new (info->segments->alloc(1)) Segment(x0, y0, x1, y1);
     }
-    static void writeOutlineEnd(Info *info) {
-        if (info->segments->end == 0 || info->segments->base[info->segments->end - 1].x0 != FLT_MAX)
-            new (info->segments->alloc(1)) Segment(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
-    }
     static void writeClippedSegment(float x0, float y0, float x1, float y1, Info *info) {
         if (y0 == y1)
             return;
@@ -654,7 +650,7 @@ struct Rasterizer {
                                 (*function)(x0, y0, sx, sy, & info);
                         }
                         if (sx != FLT_MAX && function == writeOutlineSegment)
-                            writeOutlineEnd(& info);
+                            new (info.segments->alloc(1)) Segment(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
                         sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                         fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
                         index++;
@@ -707,7 +703,7 @@ struct Rasterizer {
                 (*function)(x0, y0, sx, sy, & info);
         }
         if (sx != FLT_MAX && function == writeOutlineSegment)
-            writeOutlineEnd(& info);
+            new (info.segments->alloc(1)) Segment(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
