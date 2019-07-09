@@ -17,11 +17,23 @@ struct RasterizerSVG {
     }
     static Ra::Path createPathFromShape(NSVGshape *shape) {
         Ra::Path p;
-        float *pts;
-        int i;
+        float *pts, x, y, w, h, point, limit, dx, dy;
+        int i, j;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            for (pts = path->pts, p.ref->moveTo(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
-                p.ref->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
+            Ra::Bounds b;
+            for (pts = path->pts, b.extend(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
+                b.extend(pts[2], pts[3]), b.extend(pts[4], pts[5]), b.extend(pts[6], pts[7]);
+            w = b.ux - b.lx, h = b.uy - b.ly, point = 1e-3f * (w > h ? w : h), limit = point * point;
+            for (pts = path->pts, x = pts[0], y = pts[1], p.ref->moveTo(x, y), i = 0; i < path->npts - 1; i += 3, pts += 6) {
+                for (j = 0; j < 8; j += 2) {
+                    dx = pts[j] - x, dy = pts[j + 1] - y;
+                    if (dx * dx + dy * dy > limit) {
+                        p.ref->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
+                        x = pts[6], y = pts[7];
+                        break;
+                    }
+                }
+            }
             if (path->closed)
                 p.ref->close();
         }
