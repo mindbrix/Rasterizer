@@ -307,7 +307,7 @@ struct RasterizerCG {
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, const Ra::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Ra::Bitmap bitmap, Ra::Buffer *buffer, size_t index) {
         Ra::Bounds device(0, 0, bitmap.width, bitmap.height);
         for (int i = 0; i < list.scenes.size(); i++)
-            list.widths[i] = useOutline ? -1.f : 0.f;
+            list.widths[i] = useOutline ? 1.f : 0.f;
         Ra::SceneList visibles;
         size_t pathsCount = list.writeVisibles(view, device, visibles);
         if (pathsCount == 0)

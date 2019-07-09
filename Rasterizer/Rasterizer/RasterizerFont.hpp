@@ -80,7 +80,7 @@ struct RasterizerFont {
     stbtt_fontinfo info;
     
     static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
-        Ra::Bounds glyphBounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+        Ra::Bounds glyphBounds;
         if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
             return glyphBounds;
         int i, j, begin, step, len, codepoint, glyph, l0, l1;

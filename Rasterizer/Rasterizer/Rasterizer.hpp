@@ -42,7 +42,7 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
-        Bounds() {}
+        Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         Bounds(Transform t) {
             lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
@@ -91,7 +91,7 @@ struct Rasterizer {
             float       points[30];
             uint8_t     types[8];
         };
-        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
@@ -104,7 +104,7 @@ struct Rasterizer {
         void update(Atom::Type type, size_t size, float *p) {
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == Atom::kMove)
-                molecules.emplace_back(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+                molecules.emplace_back(Bounds());
             isPolygon &= type != Atom::kQuadratic && type != Atom::kCubic;
             isDrawable |= !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
             weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
@@ -117,7 +117,7 @@ struct Rasterizer {
             isDrawable |= count != 0, weight = count >> 4;
         }
         void updateShapes(size_t count) {
-            bounds = Bounds(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+            bounds = Bounds();
             for (int i = 0; i < shapesCount; i++)
                 bounds.extend(Bounds(shapes[i]));
         }
@@ -208,12 +208,12 @@ struct Rasterizer {
         }
         size_t refCount = 0, hash = 0, weight = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
-        Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
+        Bounds bounds;
     };
     struct SceneList {
         SceneList& empty() {
             scenes.resize(0), ctms.resize(0), clips.resize(0), widths.resize(0), evens.resize(0);
-            bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
+            bounds = Bounds();
             return *this;
         }
         SceneList& addScene(Ref<Scene> sceneRef) {
@@ -234,7 +234,7 @@ struct Rasterizer {
             return pathsCount;
         }
         std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips; std::vector<float> widths; std::vector<bool> evens;
-        Bounds bounds = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
+        Bounds bounds;
     };
     template<typename T>
     struct Memory {
