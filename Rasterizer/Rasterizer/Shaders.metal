@@ -274,7 +274,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
     if (inst.iz & Instance::kOutlines) {
         Transform m = { 1, 0, 0, 1, 0, 0 };
         const device Segment& o = inst.outline.s;
-        const float s = 0.5 * inst.outline.width + 0.5;
+        const float dw = 1.0 + inst.outline.width;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
@@ -294,8 +294,8 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
 //        tpo = dot(np, no) < -0.866025403784439 ? float2(tpo.y, -tpo.x) : tpo;
 //        ton = dot(no, nn) < -0.866025403784439 ? float2(ton.y, -ton.x) : ton;
         
-        float spo = s / (tpo.y * np.y + tpo.x * np.x);
-        float son = s / (ton.y * no.y + ton.x * no.x);
+        float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
+        float son = 0.5 * dw / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         float t = (vo.x * vy1 - vo.y * vx1) / (vx0 * vy1 - vy0 * vx1);
         float ix = vx0 * t + x0 - no.y * copysign(err, t), iy = vy0 * t + y0 + no.x * copysign(err, t);
@@ -307,7 +307,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
-        vert.shape = float4(1e6, vid & 1 ? 2.0 * s : 0.0, 1e6, vid & 1 ? 0.0 : 2.0 * s);
+        vert.shape = float4(1e6, vid & 1 ? dw : 0.0, 1e6, vid & 1 ? 0.0 : dw);
     } else {
         const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
         Transform ctm = {
