@@ -110,6 +110,7 @@ struct Rasterizer {
             weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
+            isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy;
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
