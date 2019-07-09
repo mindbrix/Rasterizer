@@ -50,25 +50,28 @@ struct RasterizerFont {
                 return it->second;
         }
         Ra::Path path;
-        stbtt_vertex *vertices, *v, *pv;
-        int i, lx, ly, ux, uy, w, h, point, limit, dx, dy, dd, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
+        stbtt_vertex *vertices, *v;
+        int i, lx, ly, ux, uy, w, h, point, limit, x, y, dx, dy, dd, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
         stbtt_GetFontBoundingBox(& info, & lx, & ly, & ux, & uy);
         w = ux - lx, h = uy - ly, point = (w > h ? w : h) / 1000, limit = point * point;
         if (nverts) {
-            for (pv = v = vertices, i = 0; i < nverts; i++, pv = v, v++) {
-                dx = pv->x - v->x, dy = pv->x - v->x, dd = dx * dx + dy * dy;
+            for (v = vertices, x = v->x, y = v->y, i = 0; i < nverts; i++, v++) {
+                dx = v->x - x, dy = v->y - y, dd = dx * dx + dy * dy;
                 switch (v->type) {
                     case STBTT_vmove:
-                        path.ref->moveTo(v->x, v->y);
+                        path.ref->moveTo(v->x, v->y), x = v->x, y = v->y;
                         break;
                     case STBTT_vline:
-                        path.ref->lineTo(v->x, v->y);
+                        if (dd > limit)
+                            path.ref->lineTo(v->x, v->y), x = v->x, y = v->y;
                         break;
                     case STBTT_vcurve:
-                        path.ref->quadTo(v->cx, v->cy, v->x, v->y);
+                        if (dd > limit)
+                            path.ref->quadTo(v->cx, v->cy, v->x, v->y), x = v->x, y = v->y;
                         break;
                     case STBTT_vcubic:
-                        path.ref->cubicTo(v->cx, v->cy, v->cx1, v->cy1, v->x, v->y);
+                        if (dd > limit)
+                            path.ref->cubicTo(v->cx, v->cy, v->cx1, v->cy1, v->x, v->y), x = v->x, y = v->y;
                         break;
                 }
             }
