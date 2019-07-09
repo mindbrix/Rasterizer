@@ -50,22 +50,23 @@ struct RasterizerFont {
                 return it->second;
         }
         Ra::Path path;
-        stbtt_vertex *vertices, *vertex;
-        int i, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
+        stbtt_vertex *vertices, *v, *pv;
+        int i, lx, ly, ux, uy, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
+        stbtt_GetFontBoundingBox(& info, & lx, & ly, & ux, & uy);
         if (nverts) {
-            for (vertex = vertices, i = 0; i < nverts; i++, vertex++)
-                switch (vertex->type) {
+            for (pv = v = vertices, i = 0; i < nverts; i++, pv = v, v++)
+                switch (v->type) {
                     case STBTT_vmove:
-                        path.ref->moveTo(vertex->x, vertex->y);
+                        path.ref->moveTo(v->x, v->y);
                         break;
                     case STBTT_vline:
-                        path.ref->lineTo(vertex->x, vertex->y);
+                        path.ref->lineTo(v->x, v->y);
                         break;
                     case STBTT_vcurve:
-                        path.ref->quadTo(vertex->cx, vertex->cy, vertex->x, vertex->y);
+                        path.ref->quadTo(v->cx, v->cy, v->x, v->y);
                         break;
                     case STBTT_vcubic:
-                        path.ref->cubicTo(vertex->cx, vertex->cy, vertex->cx1, vertex->cy1, vertex->x, vertex->y);
+                        path.ref->cubicTo(v->cx, v->cy, v->cx1, v->cy1, v->x, v->y);
                         break;
                 }
             stbtt_FreeShape(& info, vertices);
