@@ -51,10 +51,12 @@ struct RasterizerFont {
         }
         Ra::Path path;
         stbtt_vertex *vertices, *v, *pv;
-        int i, lx, ly, ux, uy, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
+        int i, lx, ly, ux, uy, w, h, point, limit, dx, dy, dd, nverts = stbtt_GetGlyphShape(& info, glyph, & vertices);
         stbtt_GetFontBoundingBox(& info, & lx, & ly, & ux, & uy);
+        w = ux - lx, h = uy - ly, point = (w > h ? w : h) / 1000, limit = point * point;
         if (nverts) {
-            for (pv = v = vertices, i = 0; i < nverts; i++, pv = v, v++)
+            for (pv = v = vertices, i = 0; i < nverts; i++, pv = v, v++) {
+                dx = pv->x - v->x, dy = pv->x - v->x, dd = dx * dx + dy * dy;
                 switch (v->type) {
                     case STBTT_vmove:
                         path.ref->moveTo(v->x, v->y);
@@ -69,6 +71,7 @@ struct RasterizerFont {
                         path.ref->cubicTo(v->cx, v->cy, v->cx1, v->cy1, v->x, v->y);
                         break;
                 }
+            }
             stbtt_FreeShape(& info, vertices);
             if (cacheable)
                 cache.emplace(glyph, path);
