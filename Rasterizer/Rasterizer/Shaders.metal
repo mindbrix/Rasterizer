@@ -274,6 +274,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
     if (inst.iz & Instance::kOutlines) {
         Transform m = { 1, 0, 0, 1, 0, 0 };
         const device Segment& o = inst.outline.s;
+        const float s = 0.5 * inst.outline.width + 0.5;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
@@ -284,10 +285,15 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
         constexpr float err = 1e-2;
-        np = dot(np, no) < -0.7071 || rp > 1e2 || abs(o.x0 - p.x1) > 1.0 || abs(o.y0 - p.y1) > 1.0 ? no : np;
-        nn = dot(no, nn) < -0.7071 || rn > 1e2 || abs(o.x1 - n.x0) > 1.0 || abs(o.y1 - n.y0) > 1.0 ? no : nn;
+//        np = rp > 1e2 || abs(o.x0 - p.x1) > 1.0 || abs(o.y0 - p.y1) > 1.0 ? no : np;
+//        nn = rn > 1e2 || abs(o.x1 - n.x0) > 1.0 || abs(o.y1 - n.y0) > 1.0 ? no : nn;
+        np = dot(np, no) < -0.939692620785908 || rp > 1e2 || abs(o.x0 - p.x1) > 1.0 || abs(o.y0 - p.y1) > 1.0 ? no : np;
+        nn = dot(no, nn) < -0.939692620785908 || rn > 1e2 || abs(o.x1 - n.x0) > 1.0 || abs(o.y1 - n.y0) > 1.0 ? no : nn;
+        
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float s = 0.5 * inst.outline.width + 0.5;
+//        tpo = dot(np, no) < -0.866025403784439 ? float2(tpo.y, -tpo.x) : tpo;
+//        ton = dot(no, nn) < -0.866025403784439 ? float2(ton.y, -ton.x) : ton;
+        
         float spo = s / (tpo.y * np.y + tpo.x * np.x);
         float son = s / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
