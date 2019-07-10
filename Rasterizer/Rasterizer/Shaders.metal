@@ -259,7 +259,9 @@ struct ShapesVertex
     float4 position [[position]];
     float4 color;
     float4 clip, shape;
-    bool circle;
+    float u, v;
+    float cover;
+    bool isShape, even, solid, circle;
 };
 
 vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
@@ -269,6 +271,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     ShapesVertex vert;
+    vert.isShape = true;
     constexpr float err = 1e-2;
     const device Instance& inst = instances[iid];
     float area = 1.0, visible = 1.0, dx, dy;
@@ -305,7 +308,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
         vert.shape = float4(1e6, vid & 1 ? dw : 0.0, 1e6, vid & 1 ? 0.0 : dw);
-    } else {
+    } else if (inst.iz & Instance::kCircle || inst.iz & Instance::kRect) {
         const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
         Transform ctm = {
             inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
@@ -319,6 +322,15 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
         float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
         dx = ix * ctm.a + iy * ctm.c + ctm.tx, dy = ix * ctm.b + iy * ctm.d + ctm.ty;
         vert.shape = distances(ctm, dx, dy);
+    } else {
+        const device Cell& cell = inst.quad.cell;
+        dx = select(cell.lx, cell.ux, vid & 1);
+        dy = select(cell.ly, cell.uy, vid >> 1);
+        vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
+        vert.cover = inst.quad.cover;
+        vert.even = false;
+        vert.solid = inst.iz & Instance::kSolidCell;
+        vert.isShape = false;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
@@ -332,10 +344,19 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
     return vert;
 }
 
-fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]])
+fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle));
-    float x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
-    float shape = saturate(r - sqrt(x * x + y * y));
-    return vert.color * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+    if (vert.isShape) {
+        float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle));
+        float x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
+        float shape = saturate(r - sqrt(x * x + y * y));
+        return vert.color * shape * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+    } else {
+        float alpha = 1.0;
+        if (!vert.solid) {
+            alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
+            alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
+        }
+        return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
+    }
 }

@@ -1200,7 +1200,7 @@ struct Rasterizer {
                 for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                     base += scene->ref->paths.size();
                 
-                type = inst->iz & GPU::Instance::kShapes || inst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
+            type = 1 || inst->iz & GPU::Instance::kShapes || inst->iz & GPU::Instance::kOutlines ? Buffer::Entry::kShapes : Buffer::Entry::kQuads;
                 if (type != entry->type)
                     begin = entry->end, entries.emplace_back(Buffer::Entry::Type(type), begin, begin), entry = & entries.back();
                 if (inst->iz & GPU::Instance::kShapes) {
