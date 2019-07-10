@@ -14,7 +14,7 @@ struct RasterizerWinding {
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 Ra::Scene& scene = *list.scenes[li].ref;
                 for (int si = int(scene.paths.size()) - 1; si >= 0; si--) {
-                    int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy);
+                    int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy, 0.f);
                     if ((even && (winding & 1)) || winding)
                         return Ra::Range(li, si);
                 }
@@ -22,7 +22,7 @@ struct RasterizerWinding {
         return Ra::Range(INT_MAX, INT_MAX);
     }
     struct WindingInfo {
-        WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
+        WindingInfo(float dx, float dy, float width) : dx(dx), dy(dy), width(width), winding(0) {}
         inline void count(float x0, float y0, float x1, float y1) {
             if (dy >= (y0 < y1 ? y0 : y1) && dy < (y0 > y1 ? y0 : y1)) {
                 float det = (x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0);
@@ -32,14 +32,14 @@ struct RasterizerWinding {
                     winding--;
             }
         }
-        float dx, dy;
+        float dx, dy, width;
         int winding;
     };
     static void countWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
         ((WindingInfo *)info->info)->count(x0, y0, x1, y1);
     }
-    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy) {
-        WindingInfo info(dx, dy);
+    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy, float width) {
+        WindingInfo info(dx, dy, width);
         if (path.ref->atomsCount > 2 || path.ref->shapesCount != 0) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
