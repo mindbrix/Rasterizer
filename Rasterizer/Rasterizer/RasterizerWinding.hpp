@@ -65,7 +65,7 @@ struct RasterizerWinding {
                                 Ra::writePath(path, ctm, clip, false, countOutlineWinding, Ra::Info((void *)& info));
                             else
                                 Ra::writePath(path, ctm, clip, true, countWinding, Ra::Info((void *)& info));
-                        }  else {
+                        } else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
                                 inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                                 if (path.ref->circles[i]) {
