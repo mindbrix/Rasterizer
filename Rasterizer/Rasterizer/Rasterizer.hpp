@@ -1192,25 +1192,21 @@ struct Rasterizer {
             GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
             entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
             
-            Buffer::Entry *entry;
-            GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst;
-            entries.emplace_back(Buffer::Entry::kInstances, begin, begin), entry = & entries.back();
+            GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *t, *dst0;
+            t = dst = (GPU::Instance *)(buffer.data.base + begin);
             for (inst = linst; inst < uinst; inst++) {
                 for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                     base += scene->ref->paths.size();
         
                 if (inst->iz & GPU::Instance::kShapes) {
                     Path& path = scene->ref->paths[iz - base];
-                    GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end);
                     for (int k = 0; k < path.ref->shapesCount; k++, dst++) {
                         new (dst) GPU::Instance(iz, path.ref->circles[k] ? GPU::Instance::kCircle : GPU::Instance::kRect);
                         dst->unit = path.ref->shapes[k];
                     }
-                    entry->end += path.ref->shapesCount * sizeof(GPU::Instance);
                 } else if (inst->iz & GPU::Instance::kOutlines) {
                     size_t count = inst->outline.r.end - inst->outline.r.begin;
                     Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = src + count;
-                    GPU::Instance *dst = (GPU::Instance *)(buffer.data.base + entry->end), *dst0;
                     for (dst0 = dst; src < es; src++, dst++) {
                         new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
                         dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
@@ -1220,9 +1216,8 @@ struct Rasterizer {
                             dst0 = dst + 1;
                         }
                     }
-                    entry->end += count * sizeof(GPU::Instance);
                 } else {
-                    *(GPU::Instance *)(buffer.data.base + entry->end) = *inst, entry->end += sizeof(GPU::Instance);
+                    *dst++ = *inst;
                     if (inst->iz & GPU::Instance::kMolecule) {
                         Path& path = scene->ref->paths[iz - base];
                         Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
@@ -1254,6 +1249,7 @@ struct Rasterizer {
                     }
                 }
             }
+            entries.emplace_back(Buffer::Entry::kInstances, begin, begin + (dst - t) * sizeof(GPU::Instance));
         }
         ctx->gpu.empty();
         for (j = 0; j < ctx->segments.size(); j++)
