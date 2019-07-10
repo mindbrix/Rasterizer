@@ -21,13 +21,17 @@ struct RasterizerSVG {
         int i, j;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
             Ra::Bounds b;
+            dx = path->pts[path->npts * 2 - 2] - path->pts[0];
+            dy = path->pts[path->npts * 2 - 1] - path->pts[1];
+            
             for (pts = path->pts, b.extend(pts[0], pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
                 b.extend(pts[2], pts[3]), b.extend(pts[4], pts[5]), b.extend(pts[6], pts[7]);
-            w = b.ux - b.lx, h = b.uy - b.ly, point = 1e-2f * (w > h ? w : h), limit = point * point;
+            
+            w = b.ux - b.lx, h = b.uy - b.ly, point = 1e-2f * (w > h ? w : h), limit = 0;//point * point;
             cub[0] = path->pts[0], cub[1] = path->pts[1];
             for (x = path->pts[0], y = path->pts[1], p.ref->moveTo(x, y), i = 0; i < path->npts - 1; i += 3) {
                 pts = path->pts + i * 2;
-                if (1) {
+                if (0) {
                     for (j = 0; j < 8; j += 2)
                         if ((pts[j] - x) * (pts[j] - x) + (pts[j + 1] - y) * (pts[j + 1] - y) > limit) {
                             p.ref->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
@@ -56,36 +60,35 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            Ra::Ref<Ra::Scene> fills, strokes;
-            float width = 1.f;
+            Ra::Ref<Ra::Scene> fills, strokes, scene;
+            float width = FLT_MAX;
             Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
-                if (shape->fill.type == NSVG_PAINT_COLOR)
-                    fills.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
+                if (shape->fill.type == NSVG_PAINT_COLOR) {
+                    if (width != 0.f) {
+                        list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
+                        scene = Ra::Ref<Ra::Scene>();
+                        width = 0.f;
+                    }
+                    scene.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
+                    
+                   // fills.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
+                }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     Ra::Path s = createPathFromShape(shape);
                     if (s.ref->isDrawable) {
-                        if (0) {
-                            strokes.ref->addPath(s, flip, colorFromPaint(shape->stroke));
+                        if (width != shape->strokeWidth) {
+                            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
+                            scene = Ra::Ref<Ra::Scene>();
                             width = shape->strokeWidth;
-                        } else {
-                            float w = s.ref->bounds.ux - s.ref->bounds.lx, h = s.ref->bounds.uy - s.ref->bounds.ly, dim = w < h ? w : h;
-                            CGMutablePathRef path = CGPathCreateMutable();
-                            RasterizerCG::writePathToCGPath(shape->fill.type == NSVG_PAINT_NONE ? s : fills.ref->paths.back(), path);
-                            CGPathRef stroked = RasterizerCG::createStrokedPath(path, shape->strokeWidth,
-                                                                                shape->strokeLineCap == NSVG_CAP_BUTT ? kCGLineCapButt : shape->strokeLineCap == NSVG_CAP_SQUARE ? kCGLineCapSquare : kCGLineCapRound,
-                                                                                shape->strokeLineJoin == NSVG_JOIN_MITER ? kCGLineJoinMiter : shape->strokeLineJoin == NSVG_JOIN_ROUND ? kCGLineJoinRound : kCGLineJoinBevel,
-                                                                                shape->miterLimit, shape->strokeWidth > dim ? 1 : 10);
-                            fills.ref->addPath(RasterizerCG::createPathFromCGPath(stroked), flip, colorFromPaint(shape->stroke));
-                            CGPathRelease(path);
-                            CGPathRelease(stroked);
                         }
+                        scene.ref->addPath(s, flip, colorFromPaint(shape->stroke));
                     }
                 }
             }
-            
-            list.addScene(fills);
-            list.addScene(strokes, Ra::Transform(), Ra::Transform::nullclip(), width, false);
+            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
+//            list.addScene(fills);
+//            list.addScene(strokes, Ra::Transform(), Ra::Transform::nullclip(), width, false);
             nsvgDelete(image);
         }
         free(data);
