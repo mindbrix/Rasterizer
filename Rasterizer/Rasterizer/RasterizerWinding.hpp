@@ -62,7 +62,7 @@ struct RasterizerWinding {
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->atomsCount) {
                             if (width)
-                                Ra::writePath(path, ctm, clip, true, countOutlineWinding, Ra::Info((void *)& info));
+                                Ra::writePath(path, ctm, clip, false, countOutlineWinding, Ra::Info((void *)& info));
                             else
                                 Ra::writePath(path, ctm, clip, true, countWinding, Ra::Info((void *)& info));
                         }  else {
