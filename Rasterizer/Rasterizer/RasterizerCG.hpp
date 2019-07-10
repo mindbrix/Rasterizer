@@ -317,10 +317,11 @@ struct RasterizerCG {
     }
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, const Ra::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Ra::Bitmap bitmap, Ra::Buffer *buffer, size_t index) {
         Ra::Bounds device(0, 0, bitmap.width, bitmap.height);
-        for (int i = 0; i < list.scenes.size(); i++)
-            list.widths[i] = useOutline ? -1.f : 0.f;
         Ra::SceneList visibles;
         size_t pathsCount = list.writeVisibles(view, device, visibles);
+        if (useOutline)
+            for (int i = 0; i < visibles.scenes.size(); i++)
+                visibles.widths[i] = -1.f;
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
@@ -346,7 +347,7 @@ struct RasterizerCG {
             CGColorSpaceRelease(srcSpace);
             if (useOutline) {
                 Ra::Colorant black(0, 0, 0, 255);
-               // memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
+                memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
             }
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
