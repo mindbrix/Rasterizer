@@ -356,7 +356,7 @@ struct Rasterizer {
                 }
             }
             size_t begin = segments.idx, cbegin = counts.idx;
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), writeOutlineSegment, Info(& segments));
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, Info(& segments));
             segments.idx = segments.end;
             int *c = counts.alloc(path.ref->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
@@ -590,10 +590,10 @@ struct Rasterizer {
         if (path.ref->shapesCount == 0) {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             if (stride * h < deltasSize) {
-                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), writeDeltaSegment, Info(deltas, stride));
+                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, writeDeltaSegment, Info(deltas, stride));
                 writeDeltas(Info(deltas, stride), clip, hit, clipctm, even, src, bm);
             } else {
-                writePath(path, ctm, clip, writeClippedSegment, sgmnts);
+                writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
                 writeSegments(sgmnts.segments, clip, hit, clipctm, even, Info(deltas, stride), src, bm);
             }
         } else {
@@ -611,7 +611,7 @@ struct Rasterizer {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
         } else {
             if (width) {
-                writePath(path, ctm, clip, writeOutlineSegment, Info(& gpu.outlines));
+                writePath(path, ctm, clip, false, writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
@@ -622,7 +622,7 @@ struct Rasterizer {
                 if (!slow || unclipped)
                     entry = gpu.cache.getPath(path, ctm, & m);
                 if (entry == nullptr)
-                    writePath(path, ctm, clip, writeClippedSegment, segments);
+                    writePath(path, ctm, clip, true, writeClippedSegment, segments);
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
@@ -635,7 +635,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writePath(Path& path, Transform ctm, Bounds clip, Function function, Info info) {
+    static void writePath(Path& path, Transform ctm, Bounds clip, bool close, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
         bool fs = false, f0 = false, f1, f2, f3;
         for (Geometry::Atom& atom : path.ref->atoms)
@@ -643,7 +643,7 @@ struct Rasterizer {
                 float *p = atom.points + index * 2;
                 switch (type) {
                     case Geometry::Atom::kMove:
-                        if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
+                        if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                             if (f0 || fs)
                                 writeClippedLine(x0, y0, sx, sy, clip, function, & info);
                             else
@@ -696,7 +696,7 @@ struct Rasterizer {
                         break;
                 }
             }
-        if (sx != FLT_MAX && (sx != x0 || sy != y0)) {
+        if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
             if (f0 || fs)
                 writeClippedLine(x0, y0, sx, sy, clip, function, & info);
             else

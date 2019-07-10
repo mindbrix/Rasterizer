@@ -37,7 +37,7 @@ struct RasterizerWinding {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->atomsCount)
-                            Ra::writePath(path, ctm, clip, countWinding, Ra::Info((void *)& info));
+                            Ra::writePath(path, ctm, clip, true, countWinding, Ra::Info((void *)& info));
                         else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
                                 inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
