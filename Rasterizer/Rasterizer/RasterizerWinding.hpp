@@ -23,9 +23,21 @@ struct RasterizerWinding {
     }
     struct WindingInfo {
         WindingInfo(float dx, float dy) : dx(dx), dy(dy), winding(0) {}
+        inline void count(float x0, float y0, float x1, float y1) {
+            if (dy >= (y0 < y1 ? y0 : y1) && dy < (y0 > y1 ? y0 : y1)) {
+                float det = (x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0);
+                if (y0 < y1 && det < 0.f)
+                    winding++;
+                else if (y0 > y1 && det > 0.f)
+                    winding--;
+            }
+        }
         float dx, dy;
         int winding;
     };
+    static void countWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
+        ((WindingInfo *)info->info)->count(x0, y0, x1, y1);
+    }
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy) {
         WindingInfo info(dx, dy);
         if (path.ref->atomsCount > 2 || path.ref->shapesCount != 0) {
@@ -54,15 +66,5 @@ struct RasterizerWinding {
             }
         }
         return info.winding;
-    }
-    static void countWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
-        WindingInfo& winding = *((WindingInfo *)info->info);
-        if (winding.dy >= (y0 < y1 ? y0 : y1) && winding.dy < (y0 > y1 ? y0 : y1)) {
-            float det = (x1 - x0) * (winding.dy - y0) - (y1 - y0) * (winding.dx - x0);
-            if (y0 < y1 && det < 0.f)
-                winding.winding++;
-            else if (y0 > y1 && det > 0.f)
-                winding.winding--;
-        }
     }
 };
