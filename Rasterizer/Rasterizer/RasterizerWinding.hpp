@@ -39,6 +39,17 @@ struct RasterizerWinding {
     static void countWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
         ((WindingInfo *)info->info)->count(x0, y0, x1, y1);
     }
+    static void countOutlineWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
+        if (x0 != x1 || y0 != y1) {
+            WindingInfo *wi = (WindingInfo *)info->info;
+            float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
+            float vx = -dy * rl * 0.5f * wi->width, vy = dx * rl * 0.5f * wi->width;
+            wi->count(x0 + vx, y0 + vy, x0 - vx, y0 - vy);
+            wi->count(x0 - vx, y0 - vy, x1 - vx, y1 - vy);
+            wi->count(x1 - vx, y1 - vy, x1 + vx, y1 + vy);
+            wi->count(x1 + vx, y1 + vy, x0 + vx, y0 + vy);
+        }
+    }
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy, float width) {
         WindingInfo info(dx, dy, width);
         if (path.ref->atomsCount > 2 || path.ref->shapesCount != 0) {
@@ -49,9 +60,12 @@ struct RasterizerWinding {
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        if (path.ref->atomsCount)
-                            Ra::writePath(path, ctm, clip, true, countWinding, Ra::Info((void *)& info));
-                        else {
+                        if (path.ref->atomsCount) {
+                            if (width)
+                                Ra::writePath(path, ctm, clip, true, countOutlineWinding, Ra::Info((void *)& info));
+                            else
+                                Ra::writePath(path, ctm, clip, true, countWinding, Ra::Info((void *)& info));
+                        }  else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
                                 inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                                 if (path.ref->circles[i]) {
