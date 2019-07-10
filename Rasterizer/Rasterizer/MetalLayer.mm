@@ -21,7 +21,6 @@
 @property (nonatomic) id <MTLBuffer> mtlBuffer1;
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> quadsPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> shapesPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> quadsDepthState;
@@ -71,11 +70,6 @@
     descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quads_vertex_main"];
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quads_fragment_main"];
-    descriptor.label = @"quads";
-    self.quadsPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"shapes_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"shapes_fragment_main"];
     descriptor.label = @"shapes";
@@ -227,22 +221,6 @@
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
-                break;
-            case Ra::Buffer::Entry::kQuads:
-                [commandEncoder setDepthStencilState:_quadsDepthState];
-                [commandEncoder setRenderPipelineState:_quadsPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:clipsOffset atIndex:5];
-                [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
-                [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
-                [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
-                [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                   vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
-                                  baseInstance:0];
                 break;
             case Ra::Buffer::Entry::kShapes:
                 [commandEncoder setDepthStencilState:_quadsDepthState];

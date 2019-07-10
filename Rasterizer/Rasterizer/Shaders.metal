@@ -203,55 +203,6 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
     return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3);
 }
 
-
-#pragma mark - Quads
-
-struct QuadsVertex
-{
-    float4 position [[position]];
-    float4 color;
-    float4 clip;
-    float u, v;
-    float cover;
-    bool even, solid;
-};
-
-vertex QuadsVertex quads_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-                                     const device Transform *clips [[buffer(5)]],
-                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                     constant uint *pathCount [[buffer(13)]],
-                                     uint vid [[vertex_id]], uint iid [[instance_id]])
-{
-    const device Instance& inst = instances[iid];
-
-    float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
-    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0;
-    
-    QuadsVertex vert;
-    const device Cell& cell = inst.quad.cell;
-    float dx = select(cell.lx, cell.ux, vid & 1), u = dx / *width, du = (cell.lx - cell.ox) / *width, x = u * 2.0 - 1.0;
-    float dy = select(cell.ly, cell.uy, vid >> 1), v = dy / *height, dv = (cell.ly - cell.oy) / *height, y = v * 2.0 - 1.0;
-    vert.position = float4(x, y, z, 1.0);
-    vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
-    vert.u = u - du, vert.v = v - dv;
-    vert.cover = inst.quad.cover;
-    vert.even = false;
-    vert.solid = inst.iz & Instance::kSolidCell;
-    return vert;
-}
-
-fragment float4 quads_fragment_main(QuadsVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
-{
-    float alpha = 1.0;
-    if (!vert.solid) {
-        alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
-        alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
-    }
-    return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.y) * saturate(vert.clip.z) * saturate(vert.clip.w);
-}
-
 #pragma mark - Shapes
 
 struct ShapesVertex
