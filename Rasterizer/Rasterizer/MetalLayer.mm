@@ -22,8 +22,8 @@
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> shapesPipelineState;
-@property (nonatomic) id <MTLDepthStencilState> quadsDepthState;
+@property (nonatomic) id <MTLRenderPipelineState> instancesPipelineState;
+@property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
 @property (nonatomic) id <MTLTexture> depthTexture;
 @property (nonatomic) id <MTLTexture> accumulationTexture;
@@ -52,7 +52,7 @@
     depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreaterEqual;
     self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     depthStencilDescriptor.depthWriteEnabled = NO;
-    self.quadsDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    self.instancesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     
     MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
     descriptor.colorAttachments[0].pixelFormat = self.pixelFormat;
@@ -72,8 +72,8 @@
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"shapes_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"shapes_fragment_main"];
-    descriptor.label = @"shapes";
-    self.shapesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    descriptor.label = @"instances";
+    self.instancesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
@@ -222,9 +222,9 @@
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
-            case Ra::Buffer::Entry::kShapes:
-                [commandEncoder setDepthStencilState:_quadsDepthState];
-                [commandEncoder setRenderPipelineState:_shapesPipelineState];
+            case Ra::Buffer::Entry::kInstances:
+                [commandEncoder setDepthStencilState:_instancesDepthState];
+                [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];

@@ -1108,7 +1108,7 @@ struct Rasterizer {
     }
     struct Buffer {
         struct Entry {
-            enum Type { kColorants, kAffineTransforms, kClips, kEdgeCells, kEdges, kFastEdges, kOpaques, kShapes, kSegments };
+            enum Type { kColorants, kAffineTransforms, kClips, kEdgeCells, kEdges, kFastEdges, kOpaques, kInstances, kSegments };
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
             size_t begin, end;
@@ -1194,7 +1194,7 @@ struct Rasterizer {
             
             Buffer::Entry *entry;
             GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst;
-            entries.emplace_back(Buffer::Entry::Type(Buffer::Entry::kShapes), begin, begin), entry = & entries.back();
+            entries.emplace_back(Buffer::Entry::Type(Buffer::Entry::kInstances), begin, begin), entry = & entries.back();
             for (inst = linst; inst < uinst; inst++) {
                 for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                     base += scene->ref->paths.size();
