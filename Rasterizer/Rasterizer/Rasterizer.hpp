@@ -1219,8 +1219,11 @@ struct Rasterizer {
                     for (dst0 = dst; src < es; src++, dst++) {
                         new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
                         dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
-                        if (src->x0 == FLT_MAX && dst - dst0 > 1)
-                            dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev, dst0 = dst + 1;
+                        if (src->x0 == FLT_MAX) {
+                            if (dst - dst0 > 1)
+                                dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev;
+                            dst0 = dst + 1;
+                        }
                     }
                     entry->end += count * sizeof(GPU::Instance);
                 } else {
