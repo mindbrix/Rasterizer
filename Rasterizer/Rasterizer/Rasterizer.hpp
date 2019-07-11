@@ -569,7 +569,7 @@ struct Rasterizer {
             float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
             for (; iz < eiz; iz++, paths++, ctms++, colors++) {
                 Transform unit = paths->ref->bounds.unit(*ctms);
-                Bounds dev = Bounds(unit), clip = dev.integral().intersect(device), clu = Bounds(inv.concat(unit));
+                Bounds dev = Bounds(unit), clip = dev.integral().inset(-width, -width).intersect(device), clu = Bounds(inv.concat(unit));
                 if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                     bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                     if (bitmap.width == 0)
