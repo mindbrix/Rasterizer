@@ -203,9 +203,9 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
     return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3);
 }
 
-#pragma mark - Shapes
+#pragma mark - Instances
 
-struct ShapesVertex
+struct InstancesVertex
 {
     float4 position [[position]];
     float4 color;
@@ -215,13 +215,13 @@ struct ShapesVertex
     bool isShape, even, solid, circle;
 };
 
-vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
+vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
                                        const device Transform *affineTransforms [[buffer(4)]], const device Transform *clips [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant uint *pathCount [[buffer(13)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    ShapesVertex vert;
+    InstancesVertex vert;
     vert.isShape = true;
     constexpr float err = 1e-2;
     const device Instance& inst = instances[iid];
@@ -295,7 +295,7 @@ vertex ShapesVertex shapes_vertex_main(const device Colorant *paints [[buffer(0)
     return vert;
 }
 
-fragment float4 shapes_fragment_main(ShapesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
+fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
     if (vert.isShape) {
         float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle));

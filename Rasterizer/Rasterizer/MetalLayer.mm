@@ -70,8 +70,8 @@
     descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"shapes_vertex_main"];
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"shapes_fragment_main"];
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_fragment_main"];
     descriptor.label = @"instances";
     self.instancesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
