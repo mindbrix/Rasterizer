@@ -59,7 +59,7 @@ float4 distances(Transform ctm, float dx, float dy) {
     rlcd = copysign(rsqrt(ctm.c * ctm.c + ctm.d * ctm.d), det);
     d0 = ((ctm.tx - dx) * ctm.b - (ctm.ty - dy) * ctm.a) * rlab;
     d1 = ((ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c) * rlcd;
-    return { d0 + 0.5, d1 + 0.5, 0.5 - (d0 - det * rlab), 0.5 - (d1 - det * rlcd) };
+    return { 0.5 + d0, 0.5 + d0, 0.5 - (d0 - det * rlab), 0.5 - (d1 - det * rlcd) };
 }
 
 float winding(float x0, float y0, float x1, float y1) {
