@@ -312,7 +312,7 @@ struct RasterizerCG {
                 for (auto entry : e[i])
                     *(buffer->entries.alloc(1)) = entry;
             size_t end = buffer->entries.base[buffer->entries.end - 1].end;
-            assert(size == end);
+            assert(size >= end);
         }
     }
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, const Ra::Transform view, bool useOutline, CGContextRef ctx, CGColorSpaceRef dstSpace, Ra::Bitmap bitmap, Ra::Buffer *buffer, size_t index) {
