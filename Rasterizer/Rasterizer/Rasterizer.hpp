@@ -1184,13 +1184,16 @@ struct Rasterizer {
         }
         for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
             GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
-            entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + pass->cells * sizeof(GPU::EdgeCell)), begin = entries.back().end;
+            if (pass->cells)
+                entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + pass->cells * sizeof(GPU::EdgeCell)), begin = entries.back().end;
             
             GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
-            entries.emplace_back(Buffer::Entry::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+            if (pass->cells)
+                entries.emplace_back(Buffer::Entry::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
 
             GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
-            entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+            if (pass->cells)
+                entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
             
             GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *t, *dst0;
             t = dst = (GPU::Instance *)(buffer.data.base + begin);
