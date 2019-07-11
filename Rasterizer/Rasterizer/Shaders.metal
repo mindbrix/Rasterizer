@@ -53,16 +53,15 @@ struct Edge {
 };
 
 float4 distances(Transform ctm, float dx, float dy) {
-    float det, rlab, rlcd, vx, vy;
-    float4 d;
+    float det, rlab, rlcd, d0, d1, del0, del1;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
     rlab = copysign(rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), det);
     rlcd = copysign(rsqrt(ctm.c * ctm.c + ctm.d * ctm.d), det);
-    vx = ctm.tx - dx, vy = ctm.ty - dy, d.x = (vx * ctm.b - vy * ctm.a) * rlab + 0.5;
-    vx += ctm.a, vy += ctm.b, d.y = (vx * ctm.d - vy * ctm.c) * rlcd + 0.5;
-    vx += ctm.c, vy += ctm.d, d.z = (vx * -ctm.b - vy * -ctm.a) * rlab + 0.5;
-    vx -= ctm.a, vy -= ctm.b, d.w = (vx * -ctm.d - vy * -ctm.c) * rlcd + 0.5;
-    return d;
+    del0 = ((ctm.a + ctm.c) * ctm.b - (ctm.b + ctm.d) * ctm.a) * rlab;
+    del1 = ((ctm.c - ctm.a) * ctm.d - (ctm.d - ctm.b) * ctm.c) * rlcd;
+    d0 = ((ctm.tx - dx) * ctm.b - (ctm.ty - dy) * ctm.a) * rlab;
+    d1 = ((ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c) * rlcd;
+    return { d0 + 0.5, d1 + 0.5, 0.5 - (d0 + del0), 0.5 - (d1 + del1) };
 }
 
 float winding(float x0, float y0, float x1, float y1) {
