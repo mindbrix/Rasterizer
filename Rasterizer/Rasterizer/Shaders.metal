@@ -236,8 +236,11 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float2 vo = float2(x1 - x0, y1 - y0), vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
-        bool pcap = dot(np, no) < -0.939692620785908 || rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1;
-        bool ncap = dot(no, nn) < -0.939692620785908 || rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0;
+        float ax, ay;
+        ax = o.x0 - p.x1, ay = o.y0 - p.y1;
+        bool pcap = dot(np, no) < -0.939692620785908 || rp > 1e2 || ax * ax + ay * ay > 1.0;
+        ax = o.x1 - n.x0, ay = o.y1 - n.y0;
+        bool ncap = dot(no, nn) < -0.939692620785908 || rn > 1e2 || ax * ax + ay * ay > 1.0;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
