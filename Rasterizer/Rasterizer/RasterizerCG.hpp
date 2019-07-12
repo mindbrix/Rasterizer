@@ -21,23 +21,14 @@ struct RasterizerCG {
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
             CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
-            
-            CGFloat width = list.widths[j];
-            if (width) {
-                if (width < 0) {
-//                    om = transformFromCG(CGContextGetCTM(ctx));
-//                    width = -width / sqrtf(fabsf(om.a * om.d - om.b * om.c));
-//                    if (width == 1)
-                        width = (CGFloat)-109.05473e+14;
-                }
-                CGContextSetLineWidth(ctx, width);
-            }
+            if (list.widths[j])
+                CGContextSetLineWidth(ctx, list.widths[j] < 0.f ? (CGFloat)-109.05473e+14 : list.widths[j]);
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Ra::Path& p = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
                 if (Ra::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
                     CGContextSaveGState(ctx);
-                    if (list.widths[j] > 0)
+                    if (list.widths[j] > 0.f)
                         CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     if (p.ref->shapesCount == 0) {
@@ -46,7 +37,7 @@ struct RasterizerCG {
                         writePathToCGPath(p, path);
                         CGContextAddPath(ctx, path);
                         CGPathRelease(path);
-                        if (width)
+                        if (list.widths[j])
                             CGContextStrokePath(ctx);
                         else
                             CGContextFillPath(ctx);
