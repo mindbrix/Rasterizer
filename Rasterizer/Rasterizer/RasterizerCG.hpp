@@ -16,7 +16,6 @@
 struct RasterizerCG {
     static void drawScenes(Ra::SceneList& list, const Ra::Transform view, bool useOutline, const Ra::Bounds device, CGContextRef ctx) {
         CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
-        CGContextSetLineWidth(ctx, (CGFloat)-109.05473e+14);
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = *list.scenes[j].ref;
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
@@ -31,13 +30,14 @@ struct RasterizerCG {
                     if (width == 1)
                         width = (CGFloat)-109.05473e+14;
                 }
-               // CGContextSetLineWidth(ctx, 20);
+                CGContextSetLineWidth(ctx, width);
             }
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Ra::Path& p = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
                 if (Ra::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
                     CGContextSaveGState(ctx);
+                    CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     if (p.ref->shapesCount == 0) {
                         CGContextConcatCTM(ctx, CGFromTransform(t));
@@ -45,7 +45,7 @@ struct RasterizerCG {
                         writePathToCGPath(p, path);
                         CGContextAddPath(ctx, path);
                         CGPathRelease(path);
-                        if (useOutline)
+                        if (width)
                             CGContextStrokePath(ctx);
                         else
                             CGContextFillPath(ctx);
