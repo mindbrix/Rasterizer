@@ -110,8 +110,7 @@ struct RasterizerCG {
         float *points;
         for (Ra::Geometry::Atom& atom : p.ref->atoms) {
             size_t index = 0;
-            auto type = 0xF & atom.types[0];
-            while (type) {
+            for (auto type = 0xF & atom.types[0]; type; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
                 points = atom.points + index * 2;
                 switch (type) {
                     case Ra::Geometry::Atom::kMove:
@@ -135,7 +134,6 @@ struct RasterizerCG {
                         index++;
                         break;
                 }
-                type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4));
             }
         }
     }
