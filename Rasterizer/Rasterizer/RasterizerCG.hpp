@@ -14,7 +14,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Ra::SceneList& list, const Ra::Transform view, bool useOutline, const Ra::Bounds device, CGContextRef ctx) {
+    static void drawScenes(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, CGContextRef ctx) {
         CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = *list.scenes[j].ref;
@@ -271,7 +271,7 @@ struct RasterizerCG {
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
-            drawScenes(visibles, view, useOutline, device, ctx);
+            drawScenes(visibles, view, device, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
             Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(view));
