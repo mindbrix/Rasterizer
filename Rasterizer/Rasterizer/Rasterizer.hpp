@@ -635,8 +635,7 @@ struct Rasterizer {
     static void writePath(Path& path, Transform ctm, Bounds clip, bool close, Function function, Info info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
-        size_t index = 0;
-        while (index < path.ref->types.size()) {
+        for (size_t index = 0; index < path.ref->types.size(); ) {
             p = path.ref->pts + index * 2;
             switch (path.ref->types[index]) {
                 case Geometry::Atom::kMove:
