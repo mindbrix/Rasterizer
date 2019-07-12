@@ -37,7 +37,8 @@ struct RasterizerCG {
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
                 if (Ra::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
                     CGContextSaveGState(ctx);
-                    CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
+                    if (list.widths[j] > 0)
+                        CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     if (p.ref->shapesCount == 0) {
                         CGContextConcatCTM(ctx, CGFromTransform(t));
