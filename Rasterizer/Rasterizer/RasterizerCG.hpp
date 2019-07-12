@@ -25,9 +25,9 @@ struct RasterizerCG {
             CGFloat width = list.widths[j];
             if (width) {
                 if (width < 0) {
-                    om = transformFromCG(CGContextGetCTM(ctx));
-                    width = -width / sqrtf(fabsf(om.a * om.d - om.b * om.c));
-                    if (width == 1)
+//                    om = transformFromCG(CGContextGetCTM(ctx));
+//                    width = -width / sqrtf(fabsf(om.a * om.d - om.b * om.c));
+//                    if (width == 1)
                         width = (CGFloat)-109.05473e+14;
                 }
                 CGContextSetLineWidth(ctx, width);
