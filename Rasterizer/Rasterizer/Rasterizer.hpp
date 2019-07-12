@@ -84,21 +84,17 @@ struct Rasterizer {
         uint8_t src0, src1, src2, src3;
     };
     struct Geometry {
-        struct Atom {
-            enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize, kCapacity = 15 };
-            Atom() { bzero(points, sizeof(points)), bzero(types, sizeof(types)); }
-            float       points[30];
-            uint8_t     types[8];
-        };
-        Geometry() : end(Atom::kCapacity), atomsCount(0), shapesCount(0), px(0), py(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        struct Atom { enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize }; };
+        Geometry() : atomsCount(0), shapesCount(0), px(0), py(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Atom::Type type, size_t size) {
-            if (end + size > Atom::kCapacity)
-                end = 0, atoms.emplace_back();
-            atoms.back().types[end / 2] |= (uint8_t(type) << ((end & 1) * 4));
-            end += size, atomsCount += size;
-            return atoms.back().points + (end - size) * 2;
+            for (int i = 0; i < size; i++)
+                types.emplace_back(type);
+            size_t idx = points.size();
+            points.resize(idx + size * 2), pts = & points[0];
+            atomsCount += size;
+            return & points[idx];
         }
         void update(Atom::Type type, size_t size, float *p) {
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
@@ -167,10 +163,11 @@ struct Rasterizer {
         void close() {
             update(Atom::kClose, 0, alloc(Atom::kClose, 1));
         }
-        size_t refCount, atomsCount, shapesCount, hash, end, counts[Atom::kCountSize], weight;
-        std::vector<Atom> atoms;
+        size_t refCount, atomsCount, shapesCount, hash, counts[Atom::kCountSize], weight;
+        std::vector<uint8_t> types;
+        std::vector<float> points;
         std::vector<Bounds> molecules;
-        float px, py;
+        float px, py, *pts;
         Transform *shapes;
         bool *circles, isGlyph, isDrawable, isPolygon;
         Bounds bounds, *mols;
@@ -636,66 +633,66 @@ struct Rasterizer {
         }
     }
     static void writePath(Path& path, Transform ctm, Bounds clip, bool close, Function function, Info info) {
-        float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3;
+        float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
-        for (Geometry::Atom& atom : path.ref->atoms)
-            for (uint8_t index = 0, type = 0xF & atom.types[0]; type != Geometry::Atom::kNull; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
-                float *p = atom.points + index * 2;
-                switch (type) {
-                    case Geometry::Atom::kMove:
-                        if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
-                            if (f0 || fs)
-                                writeClippedLine(x0, y0, sx, sy, clip, function, & info);
-                            else
-                                (*function)(x0, y0, sx, sy, & info);
-                        }
-                        if (sx != FLT_MAX && function == writeOutlineSegment)
-                            new (info.segments->alloc(1)) Segment(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
-                        sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
-                        index++;
-                        break;
-                    case Geometry::Atom::kLine:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        if (f0 || f1)
-                            writeClippedLine(x0, y0, x1, y1, clip, function, & info);
+        size_t index = 0;
+        while (index < path.ref->types.size()) {
+            p = path.ref->pts + index * 2;
+            switch (path.ref->types[index]) {
+                case Geometry::Atom::kMove:
+                    if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
+                        if (f0 || fs)
+                            writeClippedLine(x0, y0, sx, sy, clip, function, & info);
                         else
-                            (*function)(x0, y0, x1, y1, & info);
-                        x0 = x1, y0 = y1, f0 = f1;
-                        index++;
-                        break;
-                    case Geometry::Atom::kQuadratic:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
-                        if (f0 || f1 || f2)
-                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, function, & info);
-                        else
-                            writeQuadratic(x0, y0, x1, y1, x2, y2, function, & info);
-                        x0 = x2, y0 = y2, f0 = f2;
-                        index += 2;
-                        break;
-                    case Geometry::Atom::kCubic:
-                        x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
-                        x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                        f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
-                        if (f0 || f1 || f2 || f3)
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, function, & info);
-                        else
-                            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, & info);
-                        x0 = x3, y0 = y3, f0 = f3;
-                        index += 3;
-                        break;
-                    case Geometry::Atom::kClose:
-                        index++;
-                        break;
-                }
+                            (*function)(x0, y0, sx, sy, & info);
+                    }
+                    if (sx != FLT_MAX && function == writeOutlineSegment)
+                        new (info.segments->alloc(1)) Segment(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
+                    sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                    fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
+                    index++;
+                    break;
+                case Geometry::Atom::kLine:
+                    x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                    f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
+                    if (f0 || f1)
+                        writeClippedLine(x0, y0, x1, y1, clip, function, & info);
+                    else
+                        (*function)(x0, y0, x1, y1, & info);
+                    x0 = x1, y0 = y1, f0 = f1;
+                    index++;
+                    break;
+                case Geometry::Atom::kQuadratic:
+                    x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                    f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
+                    x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                    f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
+                    if (f0 || f1 || f2)
+                        writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, function, & info);
+                    else
+                        writeQuadratic(x0, y0, x1, y1, x2, y2, function, & info);
+                    x0 = x2, y0 = y2, f0 = f2;
+                    index += 2;
+                    break;
+                case Geometry::Atom::kCubic:
+                    x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                    f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
+                    x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                    f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
+                    x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
+                    f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
+                    if (f0 || f1 || f2 || f3)
+                        writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, function, & info);
+                    else
+                        writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, & info);
+                    x0 = x3, y0 = y3, f0 = f3;
+                    index += 3;
+                    break;
+                case Geometry::Atom::kClose:
+                    index++;
+                    break;
             }
+        }
         if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
             if (f0 || fs)
                 writeClippedLine(x0, y0, sx, sy, clip, function, & info);

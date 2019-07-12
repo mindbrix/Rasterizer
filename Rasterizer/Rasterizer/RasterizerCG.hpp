@@ -106,34 +106,32 @@ struct RasterizerCG {
     static CGRect CGRectFromBounds(Ra::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
-    static void writePathToCGContext(Ra::Path p, CGContextRef ctx) {
-        float *points;
-        for (Ra::Geometry::Atom& atom : p.ref->atoms) {
-            size_t index = 0;
-            for (auto type = 0xF & atom.types[0]; type; type = 0xF & (atom.types[index / 2] >> ((index & 1) * 4))) {
-                points = atom.points + index * 2;
-                switch (type) {
-                    case Ra::Geometry::Atom::kMove:
-                        CGContextMoveToPoint(ctx, points[0], points[1]);
-                        index++;
-                        break;
-                    case Ra::Geometry::Atom::kLine:
-                        CGContextAddLineToPoint(ctx, points[0], points[1]);
-                        index++;
-                        break;
-                    case Ra::Geometry::Atom::kQuadratic:
-                        CGContextAddQuadCurveToPoint(ctx, points[0], points[1], points[2], points[3]);
-                        index += 2;
-                        break;
-                    case Ra::Geometry::Atom::kCubic:
-                        CGContextAddCurveToPoint(ctx, points[0], points[1], points[2], points[3], points[4], points[5]);
-                        index += 3;
-                        break;
-                    case Ra::Geometry::Atom::kClose:
-                        CGContextClosePath(ctx);
-                        index++;
-                        break;
-                }
+    static void writePathToCGContext(Ra::Path path, CGContextRef ctx) {
+        float *p;
+        size_t index = 0;
+        while (index < path.ref->types.size()) {
+            p = path.ref->pts + index * 2;
+            switch (path.ref->types[index]) {
+                case Ra::Geometry::Atom::kMove:
+                    CGContextMoveToPoint(ctx, p[0], p[1]);
+                    index++;
+                    break;
+                case Ra::Geometry::Atom::kLine:
+                    CGContextAddLineToPoint(ctx, p[0], p[1]);
+                    index++;
+                    break;
+                case Ra::Geometry::Atom::kQuadratic:
+                    CGContextAddQuadCurveToPoint(ctx, p[0], p[1], p[2], p[3]);
+                    index += 2;
+                    break;
+                case Ra::Geometry::Atom::kCubic:
+                    CGContextAddCurveToPoint(ctx, p[0], p[1], p[2], p[3], p[4], p[5]);
+                    index += 3;
+                    break;
+                case Ra::Geometry::Atom::kClose:
+                    CGContextClosePath(ctx);
+                    index++;
+                    break;
             }
         }
     }
