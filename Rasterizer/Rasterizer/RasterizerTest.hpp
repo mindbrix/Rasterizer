@@ -13,7 +13,7 @@ struct RasterizerTest {
         if (0)
             scene.addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color);
         if (0)
-            scene.addPath(createPhyllotaxisPath(100000), Ra::Transform(), color);
+            scene.addPath(createPhyllotaxisPath(100000), Ra::Transform(), color); // 687, 688
         if (0)
             writePhyllotaxisToScene(100000, scene);
         if (0)
