@@ -60,7 +60,7 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            Ra::Ref<Ra::Scene> fills, strokes, scene;
+            Ra::Ref<Ra::Scene> scene;
             float width = FLT_MAX;
             Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
@@ -71,8 +71,6 @@ struct RasterizerSVG {
                         width = 0.f;
                     }
                     scene.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
-                    
-                   // fills.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
                 }
                 if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
                     Ra::Path s = createPathFromShape(shape);
@@ -87,8 +85,6 @@ struct RasterizerSVG {
                 }
             }
             list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
-//            list.addScene(fills);
-//            list.addScene(strokes, Ra::Transform(), Ra::Transform::nullclip(), width, false);
             nsvgDelete(image);
         }
         free(data);
