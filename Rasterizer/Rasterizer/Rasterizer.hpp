@@ -103,7 +103,7 @@ struct Rasterizer {
         void update(Atom::Type type, size_t size, float *p) {
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == Atom::kMove)
-                molecules.emplace_back(Bounds());
+                molecules.emplace_back(Bounds()), mols = & molecules[0];
             isPolygon &= type != Atom::kQuadratic && type != Atom::kCubic;
             isDrawable |= !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
             weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
@@ -173,7 +173,7 @@ struct Rasterizer {
         float px, py;
         Transform *shapes;
         bool *circles, isGlyph, isDrawable, isPolygon;
-        Bounds bounds;
+        Bounds bounds, *mols;
     };
     template<typename T>
     struct Ref {
@@ -1225,7 +1225,7 @@ struct Rasterizer {
                         Path& path = scene->ref->paths[iz - base];
                         Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
                         int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                        Bounds *b = & path.ref->molecules[0];
+                        Bounds *b = path.ref->mols;
                         float ta, tc, ux;
                         Transform& ctm = ctms[iz];
                         for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
