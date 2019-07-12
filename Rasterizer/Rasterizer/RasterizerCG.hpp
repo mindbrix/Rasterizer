@@ -24,25 +24,25 @@ struct RasterizerCG {
             if (list.widths[j])
                 CGContextSetLineWidth(ctx, list.widths[j] < 0.f ? (CGFloat)-109.05473e+14 : list.widths[j]);
             for (size_t i = 0; i < scene.paths.size(); i++) {
-                Ra::Path& p = scene.paths[i];
+                Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
-                if (Ra::isVisible(p.ref->bounds, view.concat(t), view.concat(clip), device)) {
+                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device)) {
                     CGContextSaveGState(ctx);
                     if (list.widths[j] > 0.f)
                         CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                    if (p.ref->shapesCount == 0) {
+                    if (path.ref->shapesCount == 0) {
                         CGContextConcatCTM(ctx, CGFromTransform(t));
-                        writePathToCGContext(p, ctx);
+                        writePathToCGContext(path, ctx);
                         if (list.widths[j])
                             CGContextStrokePath(ctx);
                         else
                             CGContextFillPath(ctx);
                     } else {
-                        for (int i = 0; i < p.ref->shapesCount; i++) {
+                        for (int i = 0; i < path.ref->shapesCount; i++) {
                             CGContextSaveGState(ctx);
-                            CGContextConcatCTM(ctx, CGFromTransform(t.concat(p.ref->shapes[i])));
-                            if (p.ref->circles[i])
+                            CGContextConcatCTM(ctx, CGFromTransform(t.concat(path.ref->shapes[i])));
+                            if (path.ref->circles[i])
                                 CGContextAddPath(ctx, ellipse);
                             else
                                 CGContextAddPath(ctx, rect);
