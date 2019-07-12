@@ -174,17 +174,6 @@ struct RasterizerCG {
             }
         }
     }
-    static CGPathRef createStrokedPath(CGPathRef path, CGFloat width, CGLineCap cap, CGLineJoin join, CGFloat limit, CGFloat scale) {
-        CGAffineTransform scaleUp = { scale, 0, 0, scale, 0, 0 };
-        CGAffineTransform scaleDown = { 1.0 / scale, 0, 0, 1.0 / scale, 0, 0 };
-        CGPathRef scaledUp = CGPathCreateCopyByTransformingPath(path, & scaleUp);
-        CGPathRef stroked = CGPathCreateCopyByStrokingPath(scaledUp, NULL, width * scale, cap, join, limit);
-        CGPathRef scaledDown = CGPathCreateCopyByTransformingPath(stroked, & scaleDown);
-        CGPathRelease(scaledUp);
-        CGPathRelease(stroked);
-        return scaledDown;
-    }
-    
     struct CGTestContext {
         enum RasterizerType : int { kRasterizerMT = 0, kRasterizer, kCoreGraphics, kRasterizerCount };
         static const int kQueueCount = 8;
