@@ -33,10 +33,7 @@ struct RasterizerCG {
                     CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                     if (p.ref->shapesCount == 0) {
                         CGContextConcatCTM(ctx, CGFromTransform(t));
-                        CGMutablePathRef path = CGPathCreateMutable();
-                        writePathToCGPath(p, path);
-                        CGContextAddPath(ctx, path);
-                        CGPathRelease(path);
+                        writePathToCGContext(p, ctx);
                         if (list.widths[j])
                             CGContextStrokePath(ctx);
                         else
@@ -109,39 +106,7 @@ struct RasterizerCG {
     static CGRect CGRectFromBounds(Ra::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
-    struct CGPathApplier {
-        CGPathApplier(Ra::Path path) : p(path) {}
-        void apply(const CGPathElement *element) {
-            switch (element->type) {
-                case kCGPathElementMoveToPoint:
-                    p.ref->moveTo(float(element->points[0].x), float(element->points[0].y));
-                    break;
-                case kCGPathElementAddLineToPoint:
-                    p.ref->lineTo(float(element->points[0].x), float(element->points[0].y));
-                    break;
-                case kCGPathElementAddQuadCurveToPoint:
-                    p.ref->quadTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y));
-                    break;
-                case kCGPathElementAddCurveToPoint:
-                    p.ref->cubicTo(float(element->points[0].x), float(element->points[0].y), float(element->points[1].x), float(element->points[1].y), float(element->points[2].x), float(element->points[2].y));
-                    break;
-                case kCGPathElementCloseSubpath:
-                    p.ref->close();
-                    break;
-            }
-        }
-        Ra::Path p;
-    };
-    static void CGPathApplierFunction(void *info, const CGPathElement *element) {
-        ((CGPathApplier *)info)->apply(element);
-    };
-    static Ra::Path createPathFromCGPath(CGPathRef path) {
-        Ra::Path p;
-        CGPathApplier applier(p);
-        CGPathApply(path, & applier, CGPathApplierFunction);
-        return p;
-    }
-    static void writePathToCGPath(Ra::Path p, CGMutablePathRef path) {
+    static void writePathToCGContext(Ra::Path p, CGContextRef ctx) {
         float *points;
         for (Ra::Geometry::Atom& atom : p.ref->atoms) {
             size_t index = 0;
@@ -150,23 +115,23 @@ struct RasterizerCG {
                 points = atom.points + index * 2;
                 switch (type) {
                     case Ra::Geometry::Atom::kMove:
-                        CGPathMoveToPoint(path, NULL, points[0], points[1]);
+                        CGContextMoveToPoint(ctx, points[0], points[1]);
                         index++;
                         break;
                     case Ra::Geometry::Atom::kLine:
-                        CGPathAddLineToPoint(path, NULL, points[0], points[1]);
+                        CGContextAddLineToPoint(ctx, points[0], points[1]);
                         index++;
                         break;
                     case Ra::Geometry::Atom::kQuadratic:
-                        CGPathAddQuadCurveToPoint(path, NULL, points[0], points[1], points[2], points[3]);
+                        CGContextAddQuadCurveToPoint(ctx, points[0], points[1], points[2], points[3]);
                         index += 2;
                         break;
                     case Ra::Geometry::Atom::kCubic:
-                        CGPathAddCurveToPoint(path, NULL, points[0], points[1], points[2], points[3], points[4], points[5]);
+                        CGContextAddCurveToPoint(ctx, points[0], points[1], points[2], points[3], points[4], points[5]);
                         index += 3;
                         break;
                     case Ra::Geometry::Atom::kClose:
-                        CGPathCloseSubpath(path);
+                        CGContextClosePath(ctx);
                         index++;
                         break;
                 }
