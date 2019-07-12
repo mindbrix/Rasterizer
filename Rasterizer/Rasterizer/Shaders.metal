@@ -236,8 +236,9 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float2 vo = float2(x1 - x0, y1 - y0), vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
-        np = dot(np, no) < -0.939692620785908 || rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1 ? no : np;
-        nn = dot(no, nn) < -0.939692620785908 || rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0 ? no : nn;
+        bool pcap = dot(np, no) < -0.939692620785908 || rp > 1e2 || o.x0 != p.x1 || o.y0 != p.y1;
+        bool ncap = dot(no, nn) < -0.939692620785908 || rn > 1e2 || o.x1 != n.x0 || o.y1 != n.y0;
+        np = pcap ? no : np, nn = ncap ? no : nn;
         
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
 //        tpo = dot(np, no) < -0.866025403784439 ? float2(tpo.y, -tpo.x) : tpo;
@@ -248,14 +249,16 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float t = (vo.x * vy1 - vo.y * vx1) / (vx0 * vy1 - vy0 * vx1);
         float ix = vx0 * t + x0 - no.y * copysign(err, t), iy = vy0 * t + y0 + no.x * copysign(err, t);
         // -y, x
-        float sgn = vid & 1 ? -1.0 : 1.0;
-        dx = select(x0 + vx0 * sgn, x1 + vx1 * sgn, vid >> 1);
-        dy = select(y0 + vy0 * sgn, y1 + vy1 * sgn, vid >> 1);
-        bool left = t > 0.0 && t < 1.0, right = t < 0.0 && t > -1.0, crossed = ((vid & 1) == 0 && left) || ((vid & 1) && right);
+        bool isRight = vid & 1, isUp = vid & 2;
+        float sgn = isRight ? -1.0 : 1.0;
+        dx = select(x0 + vx0 * sgn, x1 + vx1 * sgn, isUp);
+        dy = select(y0 + vy0 * sgn, y1 + vy1 * sgn, isUp);
+        bool crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
-        vert.shape = float4(1e6, vid & 1 ? dw : 0.0, 1e6, vid & 1 ? 0.0 : dw);
+        float lo = 1.0 / ro;
+        vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
     } else if (inst.iz & Instance::kCircle || inst.iz & Instance::kRect) {
         const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
         Transform ctm = {
