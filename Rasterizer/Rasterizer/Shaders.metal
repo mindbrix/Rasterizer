@@ -248,8 +248,8 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         // -y, x
         bool isRight = vid & 1, isUp = vid & 2;
         float sgn = isRight ? -1.0 : 1.0;
-        dx = select(x0 + vx0 * sgn, x1 + vx1 * sgn, isUp);
-        dy = select(y0 + vy0 * sgn, y1 + vy1 * sgn, isUp);
+        dx = select(x0 + vx0 * sgn - 0.5 * no.x * float(pcap), x1 + vx1 * sgn + 0.5 * no.x * float(ncap), isUp);
+        dy = select(y0 + vy0 * sgn - 0.5 * no.y * float(pcap), y1 + vy1 * sgn + 0.5 * no.y * float(ncap), isUp);
         bool crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
