@@ -555,28 +555,30 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& list, Transform *ctms, Transform *clips, size_t slz, size_t suz) {
-            size_t lz, uz, i, clz, cuz;
+        void drawScenes(SceneList& list, Transform view, Transform *ctms, Transform *clips, size_t slz, size_t suz) {
+            size_t lz, uz, i, clz, cuz, iz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
                 uz = lz + scene.paths.size();
-                if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz))
-                    drawPaths(& scene.paths[0] + clz - lz, ctms + clz, list.evens[i], & scene.colors[0] + clz - lz, clips[clz], list.widths[i], clz, cuz);
-            }
-        }
-        void drawPaths(Path *paths, Transform *ctms, bool even, Colorant *colors, Transform clipctm, float width, size_t iz, size_t eiz) {
-            Transform inv = clipctm.invert();
-            Bounds device = Bounds(clipctm).integral().intersect(bounds).inset(-width, -width), uc = bounds.inset(1.f, 1.f);
-            float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
-            for (; iz < eiz; iz++, paths++, ctms++, colors++) {
-                Transform unit = paths->ref->bounds.unit(*ctms);
-                Bounds dev = Bounds(unit), clip = dev.integral().inset(-width, -width).intersect(device), clu = Bounds(inv.concat(unit));
-                if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
-                    bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                    if (bitmap.width == 0)
-                        writeGPUPath(*paths, *ctms, even, & colors->src0, iz, uc.contains(dev) && clip.contains(dev), clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
-                    else if (width == 0.f)
-                        writeBitmapPath(*paths, *ctms, even, & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
+                    float width = list.widths[i];
+                    Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
+                    Bounds device = Bounds(clipctm).integral().intersect(bounds).inset(-width, -width), uc = bounds.inset(1.f, 1.f);
+                    float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
+                    Path *paths = & scene.paths[clz - lz];
+                    Colorant *colors = & scene.colors[clz - lz];
+                    for (iz = clz; iz < cuz; iz++, paths++, colors++) {
+                        Transform m = ctm.concat(scene.ctms[iz - lz]);
+                        Transform unit = paths->ref->bounds.unit(m);
+                        Bounds dev = Bounds(unit), clip = dev.integral().inset(-width, -width).intersect(device), clu = Bounds(inv.concat(unit));
+                        if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
+                            bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
+                            if (bitmap.width == 0)
+                                writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), clip, hit, width, Info(& segments[0], clip.ly * krfh), gpu);
+                            else if (width == 0.f)
+                                writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, hit, clipctm, Info(& segments[0], clip.ly * krfh), deltas.base, deltas.end, & bitmap);
+                        }
+                    }
                 }
             }
         }
