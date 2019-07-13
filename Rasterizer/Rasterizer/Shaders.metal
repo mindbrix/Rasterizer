@@ -220,7 +220,7 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
 {
     InstancesVertex vert;
     vert.isShape = true;
-    constexpr float err = 1e-2;
+    constexpr float err = 1.0 / 32.0;
     const device Instance& inst = instances[iid];
     float area = 1.0, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
@@ -250,10 +250,11 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float ix = vx0 * t + x0 - no.y * copysign(err, t), iy = vy0 * t + y0 + no.x * copysign(err, t);
         // -y, x
         bool isRight = vid & 1, isUp = vid & 2;
-        float sgn = isRight ? -1.0 : 1.0;
-        dx = select(x0 + vx0 * sgn - 0.5 * no.x * float(pcap), x1 + vx1 * sgn + 0.5 * no.x * float(ncap), isUp);
-        dy = select(y0 + vy0 * sgn - 0.5 * no.y * float(pcap), y1 + vy1 * sgn + 0.5 * no.y * float(ncap), isUp);
         bool crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
+        float sgn = isRight ? -1.0 : 1.0;
+        float ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
+        dx = select(x0 + vx0 * sgn - 0.5 * no.x * float(pcap) - ex, x1 + vx1 * sgn + 0.5 * no.x * float(ncap) + ex, isUp);
+        dy = select(y0 + vy0 * sgn - 0.5 * no.y * float(pcap) - ey, y1 + vy1 * sgn + 0.5 * no.y * float(ncap) + ey, isUp);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && ro < 1e2);
