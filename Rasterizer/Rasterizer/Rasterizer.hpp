@@ -1120,7 +1120,8 @@ struct Rasterizer {
         Pages<uint8_t> data;
         Row<Entry> entries;
         Colorant clearColor;
-        size_t colors, transforms, clips, pathsCount;
+        size_t colors, transforms, clips;
+        uint32_t pathsCount;
     };
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Transform *ctms,
@@ -1146,7 +1147,7 @@ struct Rasterizer {
             
         size_t ncolors = pathsCount * sizeof(Colorant), ntransforms = pathsCount * sizeof(Transform);
         buffer.colors = 0, buffer.transforms = buffer.colors + ncolors, buffer.clips = buffer.transforms + ntransforms;
-        buffer.pathsCount = pathsCount;
+        buffer.pathsCount = uint32_t(pathsCount);
         memcpy(buffer.data.base + buffer.colors, colorants, ncolors);
         memcpy(buffer.data.base + buffer.transforms, contexts[0].gpu.ctms, ntransforms);
         memcpy(buffer.data.base + buffer.clips, clips, ntransforms);
