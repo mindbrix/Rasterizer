@@ -24,7 +24,7 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
-                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device)) {
+                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, list.widths[j])) {
                     CGContextSaveGState(ctx);
                     if (list.widths[j] > 0.f)
                         CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);

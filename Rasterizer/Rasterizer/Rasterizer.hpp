@@ -75,8 +75,9 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
-    static bool isVisible(Bounds user, Transform ctm, Transform clip, Bounds device) {
-        Transform unit = user.unit(ctm);
+    static bool isVisible(Bounds user, Transform ctm, Transform clip, Bounds device, float width) {
+        float uw = width < 0.f ? -width / sqrtf(fabsf(ctm.det())) : width;
+        Transform unit = user.inset(-uw, -uw).unit(ctm);
         Bounds dev = Bounds(unit).intersect(device.intersect(Bounds(clip)));
         Bounds clu = Bounds(clip.invert().concat(unit));
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
@@ -229,7 +230,7 @@ struct Rasterizer {
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
-                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device))
+                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device, widths[i]))
                     pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i], widths[i], evens[i]);
             return pathsCount;
         }
