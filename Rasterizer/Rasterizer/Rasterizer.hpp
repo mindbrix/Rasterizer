@@ -555,7 +555,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height), gpu.ctms = ctms;
         }
-        void drawScenes(SceneList& list, Transform view, Transform *ctms, Transform *clips, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform view, Transform *clips, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
