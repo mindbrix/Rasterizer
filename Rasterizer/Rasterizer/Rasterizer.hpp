@@ -48,6 +48,9 @@ struct Rasterizer {
             lx = t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f), ly = t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f);
             ux = t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f), uy = t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f);
         }
+        inline float area() {
+            return (ux - lx) * (uy - ly);
+        }
         inline bool contains(Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
@@ -339,7 +342,7 @@ struct Rasterizer {
         Entry *getPath(Path& path, Transform ctm, Transform *m) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
-                float det = (path.ref->bounds.ux - path.ref->bounds.lx) * (path.ref->bounds.uy - path.ref->bounds.ly) * fabsf(ctm.a * ctm.d - ctm.b * ctm.c);
+                float det = path.ref->bounds.area() * fabsf(ctm.det());
                 hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
             }
             Grid::Element *el = grid.find(hash);
@@ -1037,7 +1040,7 @@ struct Rasterizer {
     }
     static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float dx[2], float dy[2], float *r) {
         float det, rl0, rl1, del0, del1;
-        det = ctm.a * ctm.d - ctm.b * ctm.c, rl0 = copysign(1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), det), rl1 = copysign(1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), det);
+        det = ctm.det(), rl0 = copysign(1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), det), rl1 = copysign(1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), det);
         dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
         del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
         del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
