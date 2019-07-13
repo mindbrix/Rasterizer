@@ -1111,8 +1111,8 @@ struct Rasterizer {
 #endif
     }
     struct Buffer {
+        enum Type { kEdges, kFastEdges, kOpaques, kInstances };
         struct Entry {
-            enum Type { kEdges, kFastEdges, kOpaques, kInstances };
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
             Type type;
             size_t begin, end, segments, cells;
@@ -1156,7 +1156,7 @@ struct Rasterizer {
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
                 memcpy(buffer.data.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
         if (begin != end)
-            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::Entry::kOpaques, begin, end);
+            new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
@@ -1192,12 +1192,12 @@ struct Rasterizer {
             
             GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
             if (pass->cells) {
-                entries.emplace_back(Buffer::Entry::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
                 entries.back().segments = nsegments, entries.back().cells = ncells;
             }
             GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
             if (pass->cells) {
-                entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
                 entries.back().segments = nsegments, entries.back().cells = ncells;
             }
             GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *t, *dst0;
@@ -1257,7 +1257,7 @@ struct Rasterizer {
                     }
                 }
             }
-            entries.emplace_back(Buffer::Entry::kInstances, begin, begin + (dst - t) * sizeof(GPU::Instance));
+            entries.emplace_back(Buffer::kInstances, begin, begin + (dst - t) * sizeof(GPU::Instance));
         }
         ctx->gpu.empty();
         for (j = 0; j < ctx->segments.size(); j++)

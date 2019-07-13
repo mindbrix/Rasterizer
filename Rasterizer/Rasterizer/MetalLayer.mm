@@ -163,7 +163,7 @@
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Ra::Buffer::Entry::kOpaques:
+            case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
@@ -179,9 +179,9 @@
                                  instanceCount:reverse
                                   baseInstance:0];
                 break;
-            case Ra::Buffer::Entry::kEdges:
-            case Ra::Buffer::Entry::kFastEdges:
-                if (entry.type == Ra::Buffer::Entry::kEdges) {
+            case Ra::Buffer::kEdges:
+            case Ra::Buffer::kFastEdges:
+                if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
@@ -200,12 +200,12 @@
                                      instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Edge)
                                       baseInstance:0];
                 }
-                if (entry.type == Ra::Buffer::Entry::kFastEdges) {
+                if (entry.type == Ra::Buffer::kFastEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
-            case Ra::Buffer::Entry::kInstances:
+            case Ra::Buffer::kInstances:
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
