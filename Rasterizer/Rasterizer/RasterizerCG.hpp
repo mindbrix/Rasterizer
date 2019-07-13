@@ -182,14 +182,13 @@ struct RasterizerCG {
         Ra::Context *context;
         Ra::SceneList *list;
         Ra::Transform *ctms, *clips;
-        Ra::Colorant *colors;
         Ra::Buffer *buffer;
         std::vector<Ra::Buffer::Entry> *entries;
         size_t iz, begin, end;
     };
     static void drawScenes(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        ti->context->drawScenes(*ti->list, ti->ctms, ti->colors, ti->clips, ti->iz, ti->end);
+        ti->context->drawScenes(*ti->list, ti->ctms, ti->clips, ti->iz, ti->end);
     }
     static void writeContexts(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
@@ -200,7 +199,7 @@ struct RasterizerCG {
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
         ThreadInfo threadInfo[CGTestContext::kQueueCount];
-        threadInfo->context = contexts, threadInfo->list = & list, threadInfo->ctms = ctms, threadInfo->colors = colors, threadInfo->clips = clips, threadInfo->iz = 0, threadInfo->end = eiz;
+        threadInfo->context = contexts, threadInfo->list = & list, threadInfo->ctms = ctms, threadInfo->clips = clips, threadInfo->iz = 0, threadInfo->end = eiz;
         for (i = 1; i < CGTestContext::kQueueCount; i++)
             threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
@@ -234,7 +233,7 @@ struct RasterizerCG {
                 contexts[0].setGPU(bitmap.width, bitmap.height, gpuctms);
             else
                 contexts[0].setBitmap(bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(list, ctms, colors, clips, 0, eiz);
+            contexts[0].drawScenes(list, ctms, clips, 0, eiz);
         }
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count], *e = & entries[0];
@@ -260,7 +259,7 @@ struct RasterizerCG {
         size_t pathsCount = list.writeVisibles(view, device, visibles);
         if (useOutline)
             for (int i = 0; i < visibles.scenes.size(); i++)
-                visibles.widths[i] = -1.f;
+                visibles.widths[i] = 1.f;
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
