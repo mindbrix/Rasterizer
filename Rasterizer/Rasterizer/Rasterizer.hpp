@@ -611,6 +611,7 @@ struct Rasterizer {
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
+        gpu.ctms[iz] = ctm;
         if (path.ref->shapesCount) {
             new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kShapes);
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
@@ -631,7 +632,6 @@ struct Rasterizer {
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, segments);
                 if (entry && !slow) {
-                    gpu.ctms[iz] = m;
                     GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
                     inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
@@ -1167,6 +1167,7 @@ struct Rasterizer {
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
+        ctms = (Transform *)(buffer.data.base + buffer.transforms);
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count, nsegments = 0, ncells = 0;
         Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
         for (base = 0, count = 0; scene < uscene; base = count, scene++) {
@@ -1243,6 +1244,7 @@ struct Rasterizer {
                                 fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
                             (fast - 1)->i1 = *cnt;
                         }
+                        ctm = ctm.concat(e->ctm);
                     } else if (inst->iz & GPU::Instance::kEdge) {
                         cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
                         uint32_t ic = uint32_t(cell - c0);
