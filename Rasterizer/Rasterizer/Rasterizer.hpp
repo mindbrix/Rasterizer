@@ -88,11 +88,11 @@ struct Rasterizer {
         uint8_t src0, src1, src2, src3;
     };
     struct Geometry {
-        struct Atom { enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize }; };
+        enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         Geometry() : atomsCount(0), shapesCount(0), px(0), py(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
-        float *alloc(Atom::Type type, size_t size) {
+        float *alloc(Type type, size_t size) {
             for (int i = 0; i < size; i++)
                 types.emplace_back(type);
             size_t idx = points.size();
@@ -100,11 +100,11 @@ struct Rasterizer {
             atomsCount += size;
             return & points[idx];
         }
-        void update(Atom::Type type, size_t size, float *p) {
+        void update(Type type, size_t size, float *p) {
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
-            if (type == Atom::kMove)
+            if (type == kMove)
                 molecules.emplace_back(Bounds()), mols = & molecules[0];
-            isPolygon &= type != Atom::kQuadratic && type != Atom::kCubic;
+            isPolygon &= type != kQuadratic && type != kCubic;
             isDrawable |= !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
             weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
             while (size--)
@@ -131,15 +131,15 @@ struct Rasterizer {
             close();
         }
         void moveTo(float x, float y) {
-            float *points = alloc(Atom::kMove, 1);
+            float *points = alloc(kMove, 1);
             px = points[0] = x, py = points[1] = y;
-            update(Atom::kMove, 1, points);
+            update(kMove, 1, points);
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
-                float *points = alloc(Atom::kLine, 1);
+                float *points = alloc(kLine, 1);
                 px = points[0] = x, py = points[1] = y;
-                update(Atom::kLine, 1, points);
+                update(kLine, 1, points);
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -149,9 +149,9 @@ struct Rasterizer {
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
                 lineTo(x, y);
             } else {
-                float *points = alloc(Atom::kQuadratic, 2);
+                float *points = alloc(kQuadratic, 2);
                 points[0] = cx, points[1] = cy, px = points[2] = x, py = points[3] = y;
-                update(Atom::kQuadratic, 2, points);
+                update(kQuadratic, 2, points);
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -159,15 +159,15 @@ struct Rasterizer {
             if (dx * dx + dy * dy < 1e-4f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
-                float *points = alloc(Atom::kCubic, 3);
+                float *points = alloc(kCubic, 3);
                 points[0] = cx0, points[1] = cy0, points[2] = cx1, points[3] = cy1, px = points[4] = x, py = points[5] = y;
-                update(Atom::kCubic, 3, points);
+                update(kCubic, 3, points);
             }
         }
         void close() {
-            update(Atom::kClose, 0, alloc(Atom::kClose, 1));
+            update(kClose, 0, alloc(kClose, 1));
         }
-        size_t refCount, atomsCount, shapesCount, hash, counts[Atom::kCountSize], weight;
+        size_t refCount, atomsCount, shapesCount, hash, counts[kCountSize], weight;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
@@ -646,7 +646,7 @@ struct Rasterizer {
         for (size_t index = 0; index < path.ref->types.size(); ) {
             p = path.ref->pts + index * 2;
             switch (path.ref->types[index]) {
-                case Geometry::Atom::kMove:
+                case Geometry::kMove:
                     if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                         if (f0 || fs)
                             writeClippedLine(x0, y0, sx, sy, clip, function, & info);
@@ -659,7 +659,7 @@ struct Rasterizer {
                     fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
                     index++;
                     break;
-                case Geometry::Atom::kLine:
+                case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     if (f0 || f1)
@@ -669,7 +669,7 @@ struct Rasterizer {
                     x0 = x1, y0 = y1, f0 = f1;
                     index++;
                     break;
-                case Geometry::Atom::kQuadratic:
+                case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
@@ -681,7 +681,7 @@ struct Rasterizer {
                     x0 = x2, y0 = y2, f0 = f2;
                     index += 2;
                     break;
-                case Geometry::Atom::kCubic:
+                case Geometry::kCubic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
@@ -695,7 +695,7 @@ struct Rasterizer {
                     x0 = x3, y0 = y3, f0 = f3;
                     index += 3;
                     break;
-                case Geometry::Atom::kClose:
+                case Geometry::kClose:
                     index++;
                     break;
             }

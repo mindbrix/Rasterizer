@@ -109,23 +109,23 @@ struct RasterizerCG {
         for (size_t index = 0; index < path.ref->types.size(); ) {
             float *p = path.ref->pts + index * 2;
             switch (path.ref->types[index]) {
-                case Ra::Geometry::Atom::kMove:
+                case Ra::Geometry::kMove:
                     CGContextMoveToPoint(ctx, p[0], p[1]);
                     index++;
                     break;
-                case Ra::Geometry::Atom::kLine:
+                case Ra::Geometry::kLine:
                     CGContextAddLineToPoint(ctx, p[0], p[1]);
                     index++;
                     break;
-                case Ra::Geometry::Atom::kQuadratic:
+                case Ra::Geometry::kQuadratic:
                     CGContextAddQuadCurveToPoint(ctx, p[0], p[1], p[2], p[3]);
                     index += 2;
                     break;
-                case Ra::Geometry::Atom::kCubic:
+                case Ra::Geometry::kCubic:
                     CGContextAddCurveToPoint(ctx, p[0], p[1], p[2], p[3], p[4], p[5]);
                     index += 3;
                     break;
-                case Ra::Geometry::Atom::kClose:
+                case Ra::Geometry::kClose:
                     CGContextClosePath(ctx);
                     index++;
                     break;
