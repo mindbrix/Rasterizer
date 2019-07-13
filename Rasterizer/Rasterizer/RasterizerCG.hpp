@@ -21,8 +21,6 @@ struct RasterizerCG {
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
             CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
-            if (list.widths[j])
-                CGContextSetLineWidth(ctx, list.widths[j] < 0.f ? (CGFloat)-109.05473e+14 : list.widths[j]);
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
@@ -34,9 +32,10 @@ struct RasterizerCG {
                     if (path.ref->shapesCount == 0) {
                         CGContextConcatCTM(ctx, CGFromTransform(t));
                         writePathToCGContext(path, ctx);
-                        if (list.widths[j])
+                        if (list.widths[j]) {
+                            CGContextSetLineWidth(ctx, list.widths[j] < 0.f ? (CGFloat)-109.05473e+14 : (list.widths[j]) / sqrtf(fabsf(scene.ctms[i].det())));
                             CGContextStrokePath(ctx);
-                        else
+                        } else
                             CGContextFillPath(ctx);
                     } else {
                         for (int i = 0; i < path.ref->shapesCount; i++) {
