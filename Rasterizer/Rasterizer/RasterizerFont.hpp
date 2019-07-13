@@ -50,32 +50,24 @@ struct RasterizerFont {
                 return it->second;
         }
         Ra::Path path;
-        stbtt_vertex *vertices, *v;
-        int i, lx, ly, ux, uy, w, h, point, limit, x, y, dx, dy, dd, nverts;
-        stbtt_GetFontBoundingBox(& info, & lx, & ly, & ux, & uy);
-        w = ux - lx, h = uy - ly, point = (w > h ? w : h) / 1000, limit = point * point;
-        if ((nverts = stbtt_GetGlyphShape(& info, glyph, & vertices))) {
-            for (v = vertices, x = v->x, y = v->y, i = 0; i < nverts; i++, v++) {
-                dx = v->x - x, dy = v->y - y, dd = dx * dx + dy * dy;
-                switch (v->type) {
+        stbtt_vertex *v;
+        int i, nverts;
+        if ((nverts = stbtt_GetGlyphShape(& info, glyph, & v)))
+            for (i = 0; i < nverts; i++)
+                switch (v[i].type) {
                     case STBTT_vmove:
-                        path.ref->moveTo(v->x, v->y), x = v->x, y = v->y;
+                        path.ref->moveTo(v[i].x, v[i].y);
                         break;
                     case STBTT_vline:
-                        if (dd > limit)
-                            path.ref->lineTo(v->x, v->y), x = v->x, y = v->y;
+                        path.ref->lineTo(v[i].x, v[i].y);
                         break;
                     case STBTT_vcurve:
-                        if (dd > limit)
-                            path.ref->quadTo(v->cx, v->cy, v->x, v->y), x = v->x, y = v->y;
+                        path.ref->quadTo(v[i].cx, v[i].cy, v[i].x, v[i].y);
                         break;
                     case STBTT_vcubic:
-                        if (dd > limit)
-                            path.ref->cubicTo(v->cx, v->cy, v->cx1, v->cy1, v->x, v->y), x = v->x, y = v->y;
+                        path.ref->cubicTo(v[i].cx, v[i].cy, v[i].cx1, v[i].cy1, v[i].x, v[i].y);
                         break;
-                }
-            }
-            stbtt_FreeShape(& info, vertices);
+            stbtt_FreeShape(& info, v);
             if (cacheable)
                 cache.emplace(glyph, path);
             path.ref->isGlyph = true;
