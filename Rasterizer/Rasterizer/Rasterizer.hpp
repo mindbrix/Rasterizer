@@ -1112,10 +1112,10 @@ struct Rasterizer {
     }
     struct Buffer {
         struct Entry {
-            enum Type { kEdgeCells, kEdges, kFastEdges, kOpaques, kInstances, kSegments };
-            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
+            enum Type { kEdges, kFastEdges, kOpaques, kInstances };
+            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
             Type type;
-            size_t begin, end;
+            size_t begin, end, segments, cells;
         };
         Pages<uint8_t> data;
         Row<Entry> entries;
@@ -1166,7 +1166,7 @@ struct Rasterizer {
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
-        size_t j, iz, sbegins[ctx->segments.size()], size, base, count;
+        size_t j, iz, sbegins[ctx->segments.size()], size, base, count, nsegments = 0, ncells = 0;
         Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
         for (base = 0, count = 0; scene < uscene; base = count, scene++) {
             count += scene->ref->paths.size();
@@ -1184,21 +1184,22 @@ struct Rasterizer {
                 memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
             for (j = 0; j < ctx->segments.size(); j++)
                 memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
-            entries.emplace_back(Buffer::Entry::kSegments, begin, begin + size * sizeof(Segment)), begin = entries.back().end;
+            nsegments = begin, begin = begin + size * sizeof(Segment);
         }
         for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
             GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
-            if (pass->cells)
-                entries.emplace_back(Buffer::Entry::kEdgeCells, begin, begin + pass->cells * sizeof(GPU::EdgeCell)), begin = entries.back().end;
+            ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
             
             GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
-            if (pass->cells)
+            if (pass->cells) {
                 entries.emplace_back(Buffer::Entry::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-
+                entries.back().segments = nsegments, entries.back().cells = ncells;
+            }
             GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
-            if (pass->cells)
+            if (pass->cells) {
                 entries.emplace_back(Buffer::Entry::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-            
+                entries.back().segments = nsegments, entries.back().cells = ncells;
+            }
             GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *t, *dst0;
             t = dst = (GPU::Instance *)(buffer.data.base + begin);
             for (inst = linst; inst < uinst; inst++) {

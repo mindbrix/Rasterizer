@@ -158,18 +158,11 @@
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
     uint32_t reverse, pathCount = uint32_t(buffer->pathsCount);
-    size_t segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
     
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Ra::Buffer::Entry::kSegments:
-                segmentsOffset = entry.begin;
-                break;
-            case Ra::Buffer::Entry::kEdgeCells:
-                edgeCellsOffset = entry.begin;
-                break;
             case Ra::Buffer::Entry::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
@@ -196,8 +189,8 @@
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:edgeCellsOffset atIndex:3];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.cells atIndex:3];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->transforms atIndex:4];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
