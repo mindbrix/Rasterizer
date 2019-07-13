@@ -69,7 +69,7 @@ struct RasterizerSVG {
             float width = FLT_MAX;
             Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
-                if (shape->fill.type == NSVG_PAINT_COLOR) {
+                if (shape->fill.type != NSVG_PAINT_NONE) {
                     if (width != 0.f) {
                         list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
                         scene = Ra::Ref<Ra::Scene>();
@@ -77,7 +77,7 @@ struct RasterizerSVG {
                     }
                     scene.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
                 }
-                if (shape->stroke.type == NSVG_PAINT_COLOR && shape->strokeWidth) {
+                if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                     Ra::Path s = createPathFromShape(shape);
                     if (s.ref->isDrawable) {
                         if (width != shape->strokeWidth) {
