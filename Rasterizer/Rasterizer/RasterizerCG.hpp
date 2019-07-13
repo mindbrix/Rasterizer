@@ -266,7 +266,6 @@ struct RasterizerCG {
             drawScenes(visibles, view, device, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
-            Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(view));
             Ra::Transform *gpuctms = (Ra::Transform *)malloc(pathsCount * sizeof(view));
             Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(view));
@@ -284,8 +283,8 @@ struct RasterizerCG {
             if (index != INT_MAX)
                 colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
             
-            renderScenes(visibles, view, ctms, gpuctms, colors, clips, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
-            free(ctms), free(gpuctms), free(colors), free(clips);
+            renderScenes(visibles, view, NULL, gpuctms, colors, clips, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+            free(gpuctms), free(colors), free(clips);
         }
     }
 };
