@@ -1110,19 +1110,15 @@ struct Rasterizer {
     }
     struct Buffer {
         struct Entry {
-            enum Type { kColorants, kAffineTransforms, kClips, kEdgeCells, kEdges, kFastEdges, kOpaques, kInstances, kSegments };
+            enum Type { kEdgeCells, kEdges, kFastEdges, kOpaques, kInstances, kSegments };
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;
             size_t begin, end;
         };
-        Entry *writeEntry(Entry::Type type, size_t begin, size_t size, void *src, size_t stride) {
-            for (uint8_t *dst = data.base + begin, *end = dst + size; dst < end; dst += (stride ?: size))
-                memcpy(dst, src, stride ?: size);
-            return new (entries.alloc(1)) Entry(type, begin, begin + size);
-        }
         Pages<uint8_t> data;
         Row<Entry> entries;
         Colorant clearColor;
+        size_t colors, transforms, clips, pathsCount;
     };
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Transform *ctms,
@@ -1145,12 +1141,16 @@ struct Rasterizer {
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
         buffer.data.resize(size);
-        
-        Buffer::Entry *entry = buffer.writeEntry(Buffer::Entry::kColorants, 0, pathsCount * sizeof(Colorant), colorants, 0);
-        entry = buffer.writeEntry(Buffer::Entry::kAffineTransforms, entry->end, pathsCount * sizeof(Transform), contexts[0].gpu.ctms, 0);
-        entry = buffer.writeEntry(Buffer::Entry::kClips, entry->end, pathsCount * sizeof(Transform), clips, 0);
-    
-        for (begin = end = entry->end, i = 0; i < count; i++)
+            
+        size_t ncolors = pathsCount * sizeof(Colorant), ntransforms = pathsCount * sizeof(Transform);
+        buffer.colors = 0, buffer.transforms = buffer.colors + ncolors, buffer.clips = buffer.transforms + ntransforms;
+        buffer.pathsCount = pathsCount;
+        memcpy(buffer.data.base + buffer.colors, colorants, ncolors);
+        memcpy(buffer.data.base + buffer.transforms, contexts[0].gpu.ctms, ntransforms);
+        memcpy(buffer.data.base + buffer.clips, clips, ntransforms);
+        begin = end = buffer.clips + ntransforms;
+            
+        for (i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
                 memcpy(buffer.data.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
         if (begin != end)

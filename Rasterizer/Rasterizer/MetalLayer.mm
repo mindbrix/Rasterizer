@@ -157,23 +157,13 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
-    uint32_t reverse, pathCount;
-    size_t colorantsOffset = 0, affineTransformsOffset = 0, clipsOffset = 0, segmentsOffset = 0, edgeCellsOffset = 0;
+    uint32_t reverse, pathCount = uint32_t(buffer->pathsCount);
+    size_t segmentsOffset = 0, edgeCellsOffset = 0;
     float width = drawable.texture.width, height = drawable.texture.height;
-    Ra::Transform clip;
+    
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Ra::Buffer::Entry::kColorants:
-                pathCount = uint32_t((entry.end - entry.begin) / sizeof(Ra::Colorant));
-                colorantsOffset = entry.begin;
-                break;
-            case Ra::Buffer::Entry::kAffineTransforms:
-                affineTransformsOffset = entry.begin;
-                break;
-            case Ra::Buffer::Entry::kClips:
-                clipsOffset = entry.begin;
-                break;
             case Ra::Buffer::Entry::kSegments:
                 segmentsOffset = entry.begin;
                 break;
@@ -183,7 +173,7 @@
             case Ra::Buffer::Entry::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::GPU::Instance));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
@@ -208,7 +198,7 @@
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:segmentsOffset atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:edgeCellsOffset atIndex:3];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->transforms atIndex:4];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
@@ -225,10 +215,10 @@
             case Ra::Buffer::Entry::kInstances:
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:colorantsOffset atIndex:0];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:affineTransformsOffset atIndex:4];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:clipsOffset atIndex:5];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->transforms atIndex:4];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathCount length:sizeof(pathCount) atIndex:13];
