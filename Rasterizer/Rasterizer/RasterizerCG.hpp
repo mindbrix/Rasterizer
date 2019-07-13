@@ -259,7 +259,7 @@ struct RasterizerCG {
         size_t pathsCount = list.writeVisibles(view, device, visibles);
         if (useOutline)
             for (int i = 0; i < visibles.scenes.size(); i++)
-                visibles.widths[i] = 1.f;
+                visibles.widths[i] = -1.f;
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
@@ -276,7 +276,6 @@ struct RasterizerCG {
                 Ra::Scene& scene = *visibles.scenes[i].ref;
                 testScene.converter.convert(& scene.colors[0].src0, scene.paths.size(), colors + iz);
                 Ra::Transform ctm = view.concat(visibles.ctms[i]);
-                visibles.widths[i] *= visibles.widths[i] < 0.f ? -1.f : sqrtf(fabsf(ctm.det()));
                 Ra::Transform clip = view.concat(visibles.clips[i]);
                 for (size_t j = 0; j < scene.paths.size(); iz++, j++)
                     ctms[iz] = ctm.concat(scene.ctms[j]), clips[iz] = clip;
