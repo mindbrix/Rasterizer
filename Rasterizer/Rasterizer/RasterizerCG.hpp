@@ -276,9 +276,8 @@ struct RasterizerCG {
                 Ra::Scene& scene = *visibles.scenes[i].ref;
                 testScene.converter.convert(& scene.colors[0].src0, scene.paths.size(), colors + iz);
                 Ra::Transform ctm = view.concat(visibles.ctms[i]);
-                Ra::Transform clip = view.concat(visibles.clips[i]);
                 for (size_t j = 0; j < scene.paths.size(); iz++, j++)
-                    ctms[iz] = ctm.concat(scene.ctms[j]), clips[iz] = clip;
+                    ctms[iz] = ctm.concat(scene.ctms[j]);
             }
             memcpy(gpuctms, ctms, pathsCount * sizeof(view));
             CGColorSpaceRelease(srcSpace);

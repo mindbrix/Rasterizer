@@ -567,6 +567,8 @@ struct Rasterizer {
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
                     Path *paths = & scene.paths[clz - lz];
                     Colorant *colors = & scene.colors[clz - lz];
+                    for (iz = clz; iz < cuz; iz++)
+                        clips[iz] = clipctm;
                     for (iz = clz; iz < cuz; iz++, paths++, colors++) {
                         Transform m = ctm.concat(scene.ctms[iz - lz]);
                         Transform unit = paths->ref->bounds.unit(m);
