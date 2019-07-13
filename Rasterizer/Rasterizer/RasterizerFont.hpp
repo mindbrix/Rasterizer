@@ -52,7 +52,7 @@ struct RasterizerFont {
         Ra::Path path;
         stbtt_vertex *v;
         int i, nverts;
-        if ((nverts = stbtt_GetGlyphShape(& info, glyph, & v)))
+        if ((nverts = stbtt_GetGlyphShape(& info, glyph, & v))) {
             for (i = 0; i < nverts; i++)
                 switch (v[i].type) {
                     case STBTT_vmove:
@@ -67,6 +67,7 @@ struct RasterizerFont {
                     case STBTT_vcubic:
                         path.ref->cubicTo(v[i].cx, v[i].cy, v[i].cx1, v[i].cy1, v[i].x, v[i].y);
                         break;
+                }
             stbtt_FreeShape(& info, v);
             if (cacheable)
                 cache.emplace(glyph, path);
