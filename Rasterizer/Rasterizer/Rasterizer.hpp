@@ -1124,7 +1124,6 @@ struct Rasterizer {
         uint32_t pathsCount;
     };
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
-                                        Transform *ctms,
                                         Colorant *colorants,
                                         Transform *clips,
                                         size_t pathsCount,
@@ -1162,12 +1161,11 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(Context *ctx,
                                      SceneList& list,
-                                     Transform *ctms,
                                      size_t begin,
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
-        ctms = (Transform *)(buffer.data.base + buffer.transforms);
+        Transform *ctms = (Transform *)(buffer.data.base + buffer.transforms);
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count, nsegments = 0, ncells = 0;
         Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
         for (base = 0, count = 0; scene < uscene; base = count, scene++) {

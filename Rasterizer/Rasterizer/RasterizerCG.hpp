@@ -192,7 +192,7 @@ struct RasterizerCG {
     }
     static void writeContexts(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        Ra::writeContextToBuffer(ti->context, *ti->list, NULL, ti->begin, ti->iz, *ti->entries, *ti->buffer);
+        Ra::writeContextToBuffer(ti->context, *ti->list, ti->begin, ti->iz, *ti->entries, *ti->buffer);
     }
     static void renderScenes(Ra::SceneList& list, const Ra::Transform view, Ra::Transform *gpuctms, Ra::Colorant *colors, Ra::Transform *clips, Ra::Context *contexts, Ra::Bitmap bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
@@ -238,9 +238,9 @@ struct RasterizerCG {
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count], *e = & entries[0];
             size_t begins[count], *b = begins;
-            size_t size = Ra::writeContextsToBuffer(contexts, count, NULL, colors, clips, eiz, begins, *buffer);
+            size_t size = Ra::writeContextsToBuffer(contexts, count, colors, clips, eiz, begins, *buffer);
             if (count == 1)
-                Ra::writeContextToBuffer(contexts, list, NULL, b[0], 0, e[0], *buffer);
+                Ra::writeContextToBuffer(contexts, list, b[0], 0, e[0], *buffer);
             else {
                 for (i = 0; i < count; i++)
                     threadInfo[i].iz = izs[i], threadInfo[i].begin = b[i], threadInfo[i].entries = & e[i], threadInfo[i].buffer = buffer;
