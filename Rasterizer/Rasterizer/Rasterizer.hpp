@@ -121,6 +121,10 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy;
         }
+        float upperBound(Bounds clip) {
+            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
+                + ceilf(sqrtf(sqrtf(clip.area() / bounds.area())) * (sqrsums[kQuadratic] + sqrsums[kCubic]));
+        }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
             isDrawable |= count != 0, weight = count >> 4;
@@ -620,12 +624,6 @@ struct Rasterizer {
             }
         }
     }
-    static float upperBound(Path& path, Bounds clip) {
-        size_t upper = 2 * path.ref->molecules.size() + 2 * (path.ref->counts[Geometry::kLine] + path.ref->counts[Geometry::kQuadratic] + path.ref->counts[Geometry::kCubic]);
-        float s = clip.area() / path.ref->bounds.area();
-        upper += ceilf(sqrtf(sqrtf(s)) * (path.ref->sqrsums[Geometry::kQuadratic] + path.ref->sqrsums[Geometry::kCubic]));
-        return upper;
-    }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         gpu.ctms[iz] = ctm;
         if (path.ref->shapesCount) {
@@ -636,7 +634,7 @@ struct Rasterizer {
                 writePath(path, ctm, clip, false, writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
-                size_t upper = upperBound(path, clip), count = gpu.outlines.end - gpu.outlines.idx;
+                size_t upper = path.ref->upperBound(clip), count = gpu.outlines.end - gpu.outlines.idx;
                 assert(upper >= count);
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
