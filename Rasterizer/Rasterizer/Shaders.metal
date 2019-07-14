@@ -71,6 +71,10 @@ float winding(float x0, float y0, float x1, float y1) {
     return saturate(-a0 / (abs(dx) * cover + dy)) * cover;
 }
 
+float sum_of_squares(float a, float b) {
+    return a * a + b * b;
+}
+
 #pragma mark - Opaques
 
 struct OpaquesVertex
@@ -233,14 +237,15 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        float2 vo = float2(x1 - x0, y1 - y0), vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
+        float2 vo = float2(x1 - x0, y1 - y0);
+        bool pcap = sum_of_squares(o.x0 - p.x1, o.y0 - p.y1) > 1.0;
+        float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
+        bool ncap = sum_of_squares(o.x1 - n.x0, o.y1 - n.y0) > 1.0;
+        float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
-        float ax, ay;
-        ax = o.x0 - p.x1, ay = o.y0 - p.y1;
-        bool pcap = dot(np, no) < -0.939692620785908 || rp * dw > 1e3 || ax * ax + ay * ay > 1.0;
-        ax = o.x1 - n.x0, ay = o.y1 - n.y0;
-        bool ncap = dot(no, nn) < -0.939692620785908 || rn * dw > 1e3 || ax * ax + ay * ay > 1.0;
+        pcap |= dot(np, no) < -0.939692620785908 || rp * dw > 1e3;
+        ncap |= dot(no, nn) < -0.939692620785908 || rn * dw > 1e3;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
