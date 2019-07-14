@@ -238,9 +238,9 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
         float ax, ay;
         ax = o.x0 - p.x1, ay = o.y0 - p.y1;
-        bool pcap = dot(np, no) < -0.939692620785908 || rp > 1e2 || ax * ax + ay * ay > 1.0;
+        bool pcap = dot(np, no) < -0.939692620785908 || rp * dw > 1e3 || ax * ax + ay * ay > 1.0;
         ax = o.x1 - n.x0, ay = o.y1 - n.y0;
-        bool ncap = dot(no, nn) < -0.939692620785908 || rn > 1e2 || ax * ax + ay * ay > 1.0;
+        bool ncap = dot(no, nn) < -0.939692620785908 || rn * dw > 1e3 || ax * ax + ay * ay > 1.0;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
