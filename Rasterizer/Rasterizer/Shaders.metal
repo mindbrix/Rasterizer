@@ -237,10 +237,10 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        float2 vo = float2(x1 - x0, y1 - y0);
         bool pcap = sum_of_squares(o.x0 - p.x1, o.y0 - p.y1) > 1.0;
-        float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         bool ncap = sum_of_squares(o.x1 - n.x0, o.y1 - n.y0) > 1.0;
+        float2 vo = float2(x1 - x0, y1 - y0);
+        float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo * ro, np = vp * rp, nn = vn * rn;
@@ -254,10 +254,8 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float t = (vo.x * vy1 - vo.y * vx1) / (vx0 * vy1 - vy0 * vx1);
         float ix = vx0 * t + x0 - no.y * copysign(err, t), iy = vy0 * t + y0 + no.x * copysign(err, t);
         // -y, x
-        bool isRight = vid & 1, isUp = vid & 2;
-        bool crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
-        float sgn = isRight ? -1.0 : 1.0;
-        float ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
+        bool isRight = vid & 1, isUp = vid & 2, crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
+        float sgn = isRight ? -1.0 : 1.0, ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
         dx = select(x0 + vx0 * sgn - 0.5 * no.x * float(pcap) - ex, x1 + vx1 * sgn + 0.5 * no.x * float(ncap) + ex, isUp);
         dy = select(y0 + vy0 * sgn - 0.5 * no.y * float(pcap) - ey, y1 + vy1 * sgn + 0.5 * no.y * float(ncap) + ey, isUp);
         dx = select(dx, ix, crossed);
