@@ -107,12 +107,12 @@ struct Rasterizer {
                 molecules.emplace_back(Bounds()), mols = & molecules[0];
             else if (type == kQuadratic) {
                 float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
-                sqrsums[type] += sqrtf(sqrtf(ax * ax + ay * ay));
+                sqrsums[type] += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
             } else if (type == kCubic) {
                 float *c = p - 2, cx, bx, ax, cy, by, ay;
                 cx = 3.f * (c[2] - c[0]), bx = 3.f * (c[4] - c[2]) - cx, ax = c[6] - c[0] - cx - bx;
                 cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
-                sqrsums[type] += sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by));
+                sqrsums[type] += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
             isPolygon &= type != kQuadratic && type != kCubic;
             isDrawable |= !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
@@ -620,6 +620,12 @@ struct Rasterizer {
             }
         }
     }
+    static float upperBound(Path& path, Bounds clip) {
+        size_t upper = 2 * path.ref->molecules.size() + 2 * (path.ref->counts[Geometry::kLine] + path.ref->counts[Geometry::kQuadratic] + path.ref->counts[Geometry::kCubic]);
+        float s = clip.area() / path.ref->bounds.area();
+        upper += ceilf(sqrtf(sqrtf(s)) * (path.ref->sqrsums[Geometry::kQuadratic] + path.ref->sqrsums[Geometry::kCubic]));
+        return upper;
+    }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info segments, GPU& gpu) {
         gpu.ctms[iz] = ctm;
         if (path.ref->shapesCount) {
@@ -630,6 +636,8 @@ struct Rasterizer {
                 writePath(path, ctm, clip, false, writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
+                size_t upper = upperBound(path, clip), count = gpu.outlines.end - gpu.outlines.idx;
+                assert(upper >= count);
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
