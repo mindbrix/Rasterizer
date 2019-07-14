@@ -121,7 +121,7 @@ struct Rasterizer {
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
         float upperBound(Bounds clip) {
-            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
+            return 1 + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
                 + ceilf(sqrtf(sqrtf(clip.area() / bounds.area())) * (sqrsumsQuadratic + sqrsumsCubic));
         }
         void allocShapes(size_t count) {
@@ -473,12 +473,12 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, cache.compact();
+            shapesCount = shapePaths = outlinePaths = upper = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, cache.compact();
         }
         void reset() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, cache.reset();
+            shapesCount = shapePaths = outlinePaths = upper = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, cache.reset();
         }
-        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
+        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, upper = 0;
         Allocator allocator;
         Row<Index> indices;
         Row<Instance> blends, opaques;
@@ -633,8 +633,8 @@ struct Rasterizer {
                 writePath(path, ctm, clip, false, writeOutlineSegment, Info(& gpu.outlines));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
-                size_t upper = path.ref->upperBound(clip), count = gpu.outlines.end - gpu.outlines.idx;
-                assert(upper >= count);
+                gpu.upper += path.ref->upperBound(clip);
+                assert(path.ref->upperBound(clip) >= gpu.outlines.end - gpu.outlines.idx);
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
