@@ -289,8 +289,7 @@ struct Rasterizer {
         Info(void *info) : info(info), stride(0) {}
         Info(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
         Info(Row<Segment> *segments, size_t offset) : segments(segments), stride(uint32_t(offset)) {}
-        Info(Row<float> *points) : points(points), stride(0) {}
-        union { void *info;  float *deltas;  Row<Segment> *segments;  Row<float> *points; };
+        union { void *info;  float *deltas;  Row<Segment> *segments; };
         uint32_t stride;
     };
     struct Cache {
@@ -443,7 +442,7 @@ struct Rasterizer {
             int iy, begin, base;
         };
         struct Outline {
-            union { Segment s;  Range r[2];  };
+            union { Segment s;  Range r; };
             float width;
             short prev, next;
         };
@@ -462,25 +461,20 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), points.empty(), outlines.empty(), ctms = nullptr, cache.compact();
+            shapesCount = shapePaths = outlinePaths = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, cache.compact();
         }
         void reset() {
-            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), points.reset(), outlines.reset(), ctms = nullptr, cache.reset();
+            shapesCount = shapePaths = outlinePaths = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, cache.reset();
         }
         size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0;
         Allocator allocator;
         Row<Index> indices;
         Row<Instance> blends, opaques;
-        Row<float> points;
         Row<Segment> outlines;
         Transform *ctms = nullptr;
         Cache cache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
-    static void writeOutlinePoints(float x0, float y0, float x1, float y1, Info *info) {
-        float *dst = info->points->alloc(2);
-        dst[0] = x1, dst[1] = y1;
-    }
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
         new (info->segments->alloc(1)) Segment(x0, y0, x1, y1);
     }
@@ -625,11 +619,8 @@ struct Rasterizer {
         } else {
             if (width) {
                 writePath(path, ctm, clip, false, writeOutlineSegment, Info(& gpu.outlines));
-                writePath(path, ctm, clip, false, writeOutlinePoints, Info(& gpu.points));
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
-                inst->outline.r[0] = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
-                inst->outline.r[1] = Range(gpu.points.idx, gpu.points.end);
-                gpu.points.idx = gpu.points.end;
+                inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
@@ -663,12 +654,10 @@ struct Rasterizer {
                         else
                             (*function)(x0, y0, sx, sy, & info);
                     }
-                    if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeOutlinePoints))
+                    if (sx != FLT_MAX && function == writeOutlineSegment)
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, & info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
-                    if (function == writeOutlinePoints)
-                         (*function)(x0, y0, x0, y0, & info);
                     index++;
                     break;
                 case Geometry::kLine:
@@ -718,7 +707,7 @@ struct Rasterizer {
             else
                 (*function)(x0, y0, sx, sy, & info);
         }
-        if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeOutlinePoints))
+        if (sx != FLT_MAX && function == writeOutlineSegment)
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, & info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
@@ -1223,9 +1212,7 @@ struct Rasterizer {
                         dst->unit = path.ref->shapes[k];
                     }
                 } else if (inst->iz & GPU::Instance::kOutlines) {
-                    Range& s = inst->outline.r[0], & p = inst->outline.r[1];
-                    float *pt = ctx->gpu.points.base + p.begin, *ep = ctx->gpu.points.base + p.end;
-                    Segment *src = ctx->gpu.outlines.base + s.begin, *es = ctx->gpu.outlines.base + s.end;
+                    Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = ctx->gpu.outlines.base + inst->outline.r.end;
                     for (dst0 = dst; src < es; src++, dst++) {
                         new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
                         dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
