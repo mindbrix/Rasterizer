@@ -242,8 +242,8 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
-        float ro = rsqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        float2 no = vo * ro, np = vp * rp, nn = vn * rn;
+        float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        float2 no = vo / lo, np = vp * rp, nn = vn * rn;
         pcap |= dot(np, no) < -0.939692620785908 || rp * dw > 1e3;
         ncap |= dot(no, nn) < -0.939692620785908 || rn * dw > 1e3;
         np = pcap ? no : np, nn = ncap ? no : nn;
@@ -260,8 +260,7 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         dy = select(y0 + vy0 * sgn - 0.5 * no.y * float(pcap) - ey, y1 + vy1 * sgn + 0.5 * no.y * float(ncap) + ey, isUp);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
-        visible = float(o.x0 != FLT_MAX && ro < 1e2);
-        float lo = 1.0 / ro;
+        visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
     } else if (inst.iz & Instance::kCircle || inst.iz & Instance::kRect) {
         const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
