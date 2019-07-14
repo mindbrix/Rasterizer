@@ -90,7 +90,7 @@ struct Rasterizer {
     };
     struct Geometry {
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        Geometry() : atomsCount(0), shapesCount(0), px(0), py(0), sqrsumsQuadratic(0), sqrsumsCubic(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : shapesCount(0), px(0), py(0), sqrsumsQuadratic(0), sqrsumsCubic(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Type type, size_t size) {
@@ -98,7 +98,6 @@ struct Rasterizer {
                 types.emplace_back(type);
             size_t idx = points.size();
             points.resize(idx + size * 2), pts = & points[0];
-            atomsCount += size;
             return & points[idx];
         }
         void update(Type type, size_t size, float *p) {
@@ -115,11 +114,11 @@ struct Rasterizer {
                 sqrsumsCubic += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
             isPolygon &= type != kQuadratic && type != kCubic;
-            isDrawable |= !((atomsCount < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
-            weight = atomsCount ?: (shapes ? shapesCount >> 4: 0);
+            isDrawable |= !((types.size() < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
+            weight = types.size() ?: (shapes ? shapesCount >> 4: 0);
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
-            isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy;
+            isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
         float upperBound(Bounds clip) {
             return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
@@ -181,7 +180,7 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
-        size_t refCount, atomsCount, shapesCount, hash, counts[kCountSize], weight;
+        size_t refCount, shapesCount, hash, counts[kCountSize], weight;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
@@ -213,7 +212,7 @@ struct Rasterizer {
     }
     struct Scene {
         void addPath(Path path, Transform ctm, Colorant colorant) {
-            if (path.ref->isDrawable && path.ref->atomsCount < 32767) {
+            if (path.ref->isDrawable) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
                 hash = ::crc64(::crc64(hash, & path.ref->hash, sizeof(path.ref->hash)), & ctm, sizeof(Transform));
