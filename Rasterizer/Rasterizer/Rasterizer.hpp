@@ -624,10 +624,10 @@ struct Rasterizer {
             Info del(deltas, stride);
             if (stride * h < deltasSize) {
                 writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, writeDeltaSegment, & del);
-                writeDeltas(& del, clip, hit, clipctm, even, src, bm);
+                writeDeltaPixels(& del, clip, hit, clipctm, even, src, bm);
             } else {
                 writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
-                writeSegments(sgmnts, clip, hit, clipctm, even, & del, src, bm);
+                writeSegmentPixels(sgmnts, clip, hit, clipctm, even, & del, src, bm);
             }
         } else {
             for (int i = 0; i < path.ref->shapesCount; i++) {
@@ -1019,7 +1019,7 @@ struct Rasterizer {
                 }
             }
     }
-    static void writeSegments(Info *sgmnts, Bounds clip, bool hit, Transform clipctm, bool even, Info *del, uint8_t *src, Bitmap *bitmap) {
+    static void writeSegmentPixels(Info *sgmnts, Bounds clip, bool hit, Transform clipctm, bool even, Info *del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
         bool single = clip.ux - clip.lx < 256.f;
@@ -1042,7 +1042,7 @@ struct Rasterizer {
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux && cover - floorf(cover) < 1e-6f) {
-                        writeDeltas(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
+                        writeDeltaPixels(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
                         lx = ux, ux = index->x;
                         if (alphaForCover(cover, even) > 0.998f)
                             for (delta = del->deltas, y = ly; y < uy; y++, delta += del->stride) {
@@ -1069,7 +1069,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                     writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, del);
                 }
-                writeDeltas(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
+                writeDeltaPixels(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
@@ -1084,7 +1084,7 @@ struct Rasterizer {
         d[0] = 0.5f - del0, d[1] = 0.5f + del0 + rl0 * det, d[2] = 0.5f + del1, d[3] = 0.5f - (del1 - rl1 * det);
         *r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
     }
-    static void writeDeltas(Info *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
+    static void writeDeltaPixels(Info *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
         float *deltas = del->deltas;
         if (clip.lx == clip.ux)
             for (float y = clip.ly; y < clip.uy; y++, deltas += del->stride)
