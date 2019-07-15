@@ -371,16 +371,12 @@ struct Rasterizer {
                 }
             }
             size_t begin = segments.idx, cbegin = counts.idx;
-            Info info(& segments);
-            size_t upper = path.ref->upperBound(ctm, clip);
+            size_t upper = path.ref->upperBound(ctm, clip), count;
             Info seg(segments.alloc(upper));
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSeg, & seg);
             segments.end = seg.seg - segments.base;
-            if (upper < segments.end - begin) {
-                upper = path.ref->upperBound(ctm, clip);
-            }
-
-//            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, &info);
+            count = segments.end - segments.idx;
+            assert(upper >= count);
             segments.idx = segments.end;
             int *c = counts.alloc(path.ref->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
@@ -652,9 +648,6 @@ struct Rasterizer {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.upper += upper, count = gpu.outlines.end - gpu.outlines.idx;
-                if (upper < count) {
-                    upper = path.ref->upperBound(ctm, bounds);
-                }
                 assert(upper >= count);
                 err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
