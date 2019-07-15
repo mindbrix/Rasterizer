@@ -669,7 +669,7 @@ struct Rasterizer {
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
                     inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
                 } else
-                    writeSegments(sgmnts->segments, clip, even, iz, src[3] == 255 && !hit, gpu);
+                    writeSegments(sgmnts, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
         }
     }
@@ -968,13 +968,13 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
+    static void writeSegments(Info *sgmnts, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
         float ly, uy, scale, cover, winding, lx, ux, x;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Segment *segment;
+        Row<Segment> *segments = sgmnts->segments;  Segment *segment;
         Row<Index>& indices = gpu.indices;    Index *index;
         for (iy = ily; iy < iuy; iy++, indices.idx = indices.end, segments->idx = segments->end, segments++)
             if ((count = segments->end - segments->idx)) {
@@ -1028,9 +1028,8 @@ struct Rasterizer {
         float d[4], dx[2], dy[2], r, d0, d1, d2, d3;
         if (hit)
             writeShapeDistances(clip, clipctm, d, dx, dy, & r);
-        Row<Segment> *segments = sgmnts->segments;
-        Segment *segment;
-        Row<Index> indices;    Index *index;
+        Row<Segment> *segments = sgmnts->segments;  Segment *segment;
+        Row<Index> indices;  Index *index;
         for (iy = ily; iy < iuy; iy++, segments++) {
             ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
             uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
