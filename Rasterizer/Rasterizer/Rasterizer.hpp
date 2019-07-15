@@ -121,9 +121,8 @@ struct Rasterizer {
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
         float upperBound(Transform ctm, Bounds clip) {
-            float det = fabsf(bounds.unit(ctm).det()), area = clip.area();
             return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
-            + ceilf(sqrtf(sqrtf((det < area ? det : area) / bounds.area())))   * (sqrsumsQuadratic + sqrsumsCubic);
+              + ceilf(sqrtf(sqrtf(fminf(fabsf(bounds.unit(ctm).det()), clip.area()) / bounds.area()))) * (sqrsumsQuadratic + sqrsumsCubic);
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
