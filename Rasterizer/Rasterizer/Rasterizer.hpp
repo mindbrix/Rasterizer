@@ -353,7 +353,7 @@ struct Rasterizer {
         }
         void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
-        Entry *getPath(Path& path, Transform ctm, Transform *m) {
+        Entry *getPath(Path& path, Transform ctm, Transform *m, Bounds clip) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
                 float det = path.ref->bounds.area() * fabsf(ctm.det());
@@ -615,10 +615,10 @@ struct Rasterizer {
             Info del(deltas, stride);
             if (stride * h < deltasSize) {
                 writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, writeDeltaSegment, & del);
-                writeDeltas(Info(deltas, stride), clip, hit, clipctm, even, src, bm);
+                writeDeltas(del, clip, hit, clipctm, even, src, bm);
             } else {
                 writePath(path, ctm, clip, true, writeClippedSegment, & sgmnts);
-                writeSegments(sgmnts.segments, clip, hit, clipctm, even, & del, src, bm);
+                writeSegments(sgmnts.segments, clip, hit, clipctm, even, del, src, bm);
             }
         } else {
             for (int i = 0; i < path.ref->shapesCount; i++) {
@@ -650,7 +650,7 @@ struct Rasterizer {
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped)
-                    entry = gpu.cache.getPath(path, ctm, & m);
+                    entry = gpu.cache.getPath(path, ctm, & m, clip);
                 if (entry == nullptr)
                     writePath(path, ctm, clip, true, writeClippedSegment, & segments);
                 else if (slow)
@@ -677,7 +677,7 @@ struct Rasterizer {
                         else
                             (*function)(x0, y0, sx, sy, info);
                     }
-                    if (sx != FLT_MAX && function == writeOutlineSegment)
+                    if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeOutlineSeg))
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -730,7 +730,7 @@ struct Rasterizer {
             else
                 (*function)(x0, y0, sx, sy, info);
         }
-        if (sx != FLT_MAX && function == writeOutlineSegment)
+        if (sx != FLT_MAX && (function == writeOutlineSegment || function == writeOutlineSeg))
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
