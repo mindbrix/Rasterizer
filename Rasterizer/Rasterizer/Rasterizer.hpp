@@ -120,9 +120,10 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
-        float upperBound(Bounds clip) {
-            return 1 + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
-                + ceilf(sqrtf(sqrtf(clip.area() / bounds.area())) * (sqrsumsQuadratic + sqrsumsCubic));
+        float upperBound(Transform ctm, Bounds clip) {
+            float det = fabsf(bounds.unit(ctm).det()), area = clip.area();
+            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
+            + ceilf(sqrtf(sqrtf((det < area ? det : area) / bounds.area())))   * (sqrsumsQuadratic + sqrsumsCubic);
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
@@ -372,15 +373,15 @@ struct Rasterizer {
             }
             size_t begin = segments.idx, cbegin = counts.idx;
             Info info(& segments);
-            //            size_t upper = path.ref->upperBound(clip);
-            //            Info seg(segments.alloc(upper));
-            //            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSeg, & seg);
-            //            segments.end = seg.seg - segments.base;
-            //            if (upper < segments.end - begin) {
-            //                upper = path.ref->upperBound(clip);
-            //            }
+            size_t upper = path.ref->upperBound(ctm, clip);
+            Info seg(segments.alloc(upper));
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSeg, & seg);
+            segments.end = seg.seg - segments.base;
+            if (upper < segments.end - begin) {
+                upper = path.ref->upperBound(ctm, clip);
+            }
 
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, &info);
+//            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, &info);
             segments.idx = segments.end;
             int *c = counts.alloc(path.ref->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
@@ -483,12 +484,12 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() {
-            shapesCount = shapePaths = outlinePaths = upper = 0, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, cache.compact();
+            shapesCount = shapePaths = outlinePaths = upper = 0, minerr = INT_MAX, indices.empty(), blends.empty(), opaques.empty(), outlines.empty(), ctms = nullptr, cache.compact();
         }
         void reset() {
-            shapesCount = shapePaths = outlinePaths = upper = 0, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, cache.reset();
+            shapesCount = shapePaths = outlinePaths = upper = 0, minerr = INT_MAX, indices.reset(), blends.reset(), opaques.reset(), outlines.reset(), ctms = nullptr, cache.reset();
         }
-        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, upper = 0;
+        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
         Row<Index> indices;
         Row<Instance> blends, opaques;
@@ -603,7 +604,7 @@ struct Rasterizer {
                             Info sgmnts(& segments[0], clip.ly * krfh);
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), clip, hit, width, & sgmnts, gpu);
+                                writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), bounds, clip, hit, width, & sgmnts, gpu);
                             else if (width == 0.f)
                                 writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
                         }
@@ -638,28 +639,32 @@ struct Rasterizer {
             }
         }
     }
-    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds clip, bool hit, float width, Info *sgmnts, GPU& gpu) {
+    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds bounds, Bounds clip, bool hit, float width, Info *sgmnts, GPU& gpu) {
         gpu.ctms[iz] = ctm;
         if (path.ref->shapesCount) {
             new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kShapes);
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
         } else {
             if (width) {
-                size_t upper = path.ref->upperBound(clip);
+                size_t upper = path.ref->upperBound(ctm, bounds), count, err;
                 Info seg(gpu.outlines.alloc(upper));
                 writePath(path, ctm, clip, false, writeOutlineSeg, & seg);
                 gpu.outlines.end = seg.seg - gpu.outlines.base;
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
-                gpu.upper += upper;
-                assert(upper >= gpu.outlines.end - gpu.outlines.idx);
+                gpu.upper += upper, count = gpu.outlines.end - gpu.outlines.idx;
+                if (upper < count) {
+                    upper = path.ref->upperBound(ctm, bounds);
+                }
+                assert(upper >= count);
+                err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped)
-                    entry = gpu.cache.getPath(path, ctm, & m, clip);
+                    entry = gpu.cache.getPath(path, ctm, & m, bounds);
                 if (entry == nullptr)
                     writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
                 else if (slow)
