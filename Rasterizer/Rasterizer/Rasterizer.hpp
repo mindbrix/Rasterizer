@@ -634,7 +634,7 @@ struct Rasterizer {
                 Transform shape = ctm.concat(path.ref->shapes[i]);
                 Bounds shapeClip = Bounds(shape).integral().intersect(clip);
                 if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy)
-                    writeShape(shapeClip, shape, path.ref->circles[i], src, bm);
+                    writeShapePixels(shapeClip, shape, path.ref->circles[i], src, bm);
             }
         }
     }
@@ -669,7 +669,7 @@ struct Rasterizer {
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
                     inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
                 } else
-                    writeSegments(sgmnts, clip, even, iz, src[3] == 255 && !hit, gpu);
+                    writeSegmentInstances(sgmnts, clip, even, iz, src[3] == 255 && !hit, gpu);
             }
         }
     }
@@ -968,7 +968,7 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegments(Info *sgmnts, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
+    static void writeSegmentInstances(Info *sgmnts, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
         float ly, uy, scale, cover, winding, lx, ux, x;
@@ -1108,7 +1108,7 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeShape(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
+    static void writeShapePixels(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
         float d[4], dx[2], dy[2], r, y, x, dd, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, ctm, d, dx, dy, & r);
