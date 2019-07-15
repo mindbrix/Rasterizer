@@ -1019,7 +1019,7 @@ struct Rasterizer {
                 }
             }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, Transform clipctm, bool even, Info *info, uint8_t *src, Bitmap *bitmap) {
+    static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, Transform clipctm, bool even, Info *del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
         bool single = clip.ux - clip.lx < 256.f;
@@ -1042,10 +1042,10 @@ struct Rasterizer {
                     std::sort(indices.base, indices.base + indices.end);
                 for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
                     if (index->x > ux && cover - floorf(cover) < 1e-6f) {
-                        writeDeltas(info, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
+                        writeDeltas(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
                         lx = ux, ux = index->x;
                         if (alphaForCover(cover, even) > 0.998f)
-                            for (delta = info->deltas, y = ly; y < uy; y++, delta += info->stride) {
+                            for (delta = del->deltas, y = ly; y < uy; y++, delta += del->stride) {
                                 *delta = cover;
                                 uint8_t *dst = bitmap->pixelAddress(lx, y);
                                 if (src[3] == 255 && !hit)
@@ -1067,9 +1067,9 @@ struct Rasterizer {
                     segment = segments->base + index->i;
                     cover += (segment->y1 - segment->y0) * scale;
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
-                    writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, info);
+                    writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, del);
                 }
-                writeDeltas(info, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
+                writeDeltas(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
                 indices.empty();
                 segments->empty();
             }
@@ -1084,10 +1084,10 @@ struct Rasterizer {
         d[0] = 0.5f - del0, d[1] = 0.5f + del0 + rl0 * det, d[2] = 0.5f + del1, d[3] = 0.5f - (del1 - rl1 * det);
         *r = fmaxf(1.f, fminf(1.f + rl0 * det, 1.f + rl1 * det) * 0.5f);
     }
-    static void writeDeltas(Info *info, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
-        float *deltas = info->deltas;
+    static void writeDeltas(Info *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
+        float *deltas = del->deltas;
         if (clip.lx == clip.ux)
-            for (float y = clip.ly; y < clip.uy; y++, deltas += info->stride)
+            for (float y = clip.ly; y < clip.uy; y++, deltas += del->stride)
                 *deltas = 0.f;
         else {
             float d[4], dx[2], dy[2], r, dd, d0, d1, d2, d3;
@@ -1095,7 +1095,7 @@ struct Rasterizer {
                 writeShapeDistances(clip, clipctm, d, dx, dy, & r);
             uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
             float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta, soft = 1.f;
-            for (y = 0.f; y < clip.uy - clip.ly; y++, deltas += info->stride, rowaddr -= bitmap->stride, *delta = 0.f)
+            for (y = 0.f; y < clip.uy - clip.ly; y++, deltas += del->stride, rowaddr -= bitmap->stride, *delta = 0.f)
                 for (cover = alpha = 0.f, delta = deltas, pixel = rowaddr, x = 0.f; x < clip.ux - clip.lx; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
