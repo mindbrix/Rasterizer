@@ -627,7 +627,7 @@ struct Rasterizer {
                 writeDeltas(& del, clip, hit, clipctm, even, src, bm);
             } else {
                 writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
-                writeSegments(sgmnts->segments, clip, hit, clipctm, even, & del, src, bm);
+                writeSegments(sgmnts, clip, hit, clipctm, even, & del, src, bm);
             }
         } else {
             for (int i = 0; i < path.ref->shapesCount; i++) {
@@ -1019,7 +1019,7 @@ struct Rasterizer {
                 }
             }
     }
-    static void writeSegments(Row<Segment> *segments, Bounds clip, bool hit, Transform clipctm, bool even, Info *del, uint8_t *src, Bitmap *bitmap) {
+    static void writeSegments(Info *sgmnts, Bounds clip, bool hit, Transform clipctm, bool even, Info *del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
         bool single = clip.ux - clip.lx < 256.f;
@@ -1028,6 +1028,7 @@ struct Rasterizer {
         float d[4], dx[2], dy[2], r, d0, d1, d2, d3;
         if (hit)
             writeShapeDistances(clip, clipctm, d, dx, dy, & r);
+        Row<Segment> *segments = sgmnts->segments;
         Segment *segment;
         Row<Index> indices;    Index *index;
         for (iy = ily; iy < iuy; iy++, segments++) {
