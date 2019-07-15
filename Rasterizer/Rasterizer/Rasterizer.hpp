@@ -90,7 +90,7 @@ struct Rasterizer {
     };
     struct Geometry {
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        Geometry() : shapesCount(0), px(0), py(0), sqrsumsQuadratic(0), sqrsumsCubic(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : shapesCount(0), quadraticSums(0), cubicSums(0), px(0), py(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         ~Geometry() { if (shapes) free(shapes), free(circles); }
         
         float *alloc(Type type, size_t size) {
@@ -106,12 +106,12 @@ struct Rasterizer {
                 molecules.emplace_back(Bounds()), mols = & molecules[0];
             else if (type == kQuadratic) {
                 float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
-                sqrsumsQuadratic += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
+                quadraticSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
             } else if (type == kCubic) {
                 float *c = p - 2, cx, bx, ax, cy, by, ay;
                 cx = 3.f * (c[2] - c[0]), bx = 3.f * (c[4] - c[2]) - cx, ax = c[6] - c[0] - cx - bx;
                 cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
-                sqrsumsCubic += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
+                cubicSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
             isPolygon &= type != kQuadratic && type != kCubic;
             isDrawable |= !((types.size() < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
@@ -122,7 +122,7 @@ struct Rasterizer {
         }
         float upperBound(Transform ctm, Bounds clip) {
             return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
-              + ceilf(sqrtf(sqrtf(fminf(fabsf(bounds.unit(ctm).det()), clip.area()) / bounds.area()))) * (sqrsumsQuadratic + sqrsumsCubic);
+              + ceilf(sqrtf(sqrtf(fminf(fabsf(bounds.unit(ctm).det()), clip.area()) / bounds.area()))) * (quadraticSums + cubicSums);
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
@@ -180,11 +180,11 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
-        size_t refCount, shapesCount, hash, counts[kCountSize], weight;
+        size_t refCount, shapesCount, quadraticSums, cubicSums, hash, counts[kCountSize], weight;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
-        float px, py, *pts, sqrsumsQuadratic, sqrsumsCubic;
+        float px, py, *pts;
         Transform *shapes;
         bool *circles, isGlyph, isDrawable, isPolygon;
         Bounds bounds, *mols;
