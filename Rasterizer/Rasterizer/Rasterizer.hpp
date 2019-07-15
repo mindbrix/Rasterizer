@@ -122,7 +122,7 @@ struct Rasterizer {
         }
         float upperBound(Transform ctm, Bounds clip) {
             return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
-              + ceilf(sqrtf(sqrtf(fminf(fabsf(bounds.unit(ctm).det()), clip.area()) / bounds.area()))) * (quadraticSums + cubicSums);
+              + ceilf(sqrtf(sqrtf(fabsf(ctm.det())))) * (quadraticSums + cubicSums);
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
@@ -376,7 +376,9 @@ struct Rasterizer {
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             count = segments.end - segments.idx;
-            assert(upper >= count);
+            if (upper < count) {
+                upper = path.ref->upperBound(ctm, clip);
+            }
             segments.idx = segments.end;
             int *c = counts.alloc(path.ref->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
