@@ -1165,6 +1165,22 @@ struct Rasterizer {
         size_t colors, transforms, clips;
         uint32_t pathsCount;
     };
+    struct OutlineInfo {
+        GPU::Instance *dst0, *dst;
+        float width;
+        size_t iz;
+    };
+    static void writeOutlineInstance(float x0, float y0, float x1, float y1, void *inf) {
+        OutlineInfo *info = (OutlineInfo *)inf;
+        new (info->dst) GPU::Instance(info->iz, GPU::Instance::kOutlines);
+        new (& info->dst->outline.s) Segment(x0, y0, x1, y1), info->dst->outline.width = info->width, info->dst->outline.prev = -1, info->dst->outline.next = 1;
+        if (x0 == FLT_MAX) {
+            if (info->dst - info->dst0 > 1)
+                info->dst0->outline.prev = (int)(info->dst - info->dst0 - 1), (info->dst - 1)->outline.next = -info->dst0->outline.prev;
+            info->dst0 = info->dst + 1;
+        }
+        info->dst0++;
+    }
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Colorant *colorants,
                                         Transform *clips,
