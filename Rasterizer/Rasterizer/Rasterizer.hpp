@@ -646,20 +646,20 @@ struct Rasterizer {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.width = width;
                 size_t upper = path.ref->upperBound(ctm);
-//                gpu.outlineUpper += upper;
-//                inst->outline.clip = clip;
+                gpu.outlineUpper += upper;
+                inst->outline.clip = clip;
             
-                size_t count, err;
-                Info seg(gpu.outlines.alloc(upper));
-                writePath(path, ctm, clip, false, writeOutlineSegment, & seg);
-                gpu.outlines.end = seg.seg - gpu.outlines.base;
-                inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end),
-                gpu.upper += upper, count = gpu.outlines.end - gpu.outlines.idx;
-                if (upper < count) {
-                    upper = path.ref->upperBound(ctm);
-                }
-                if (!path.ref->isPolygon)
-                    err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
+//                size_t count, err;
+//                Info seg(gpu.outlines.alloc(upper));
+//                writePath(path, ctm, clip, false, writeOutlineSegment, & seg);
+//                gpu.outlines.end = seg.seg - gpu.outlines.base;
+//                inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end),
+//                gpu.upper += upper, count = gpu.outlines.end - gpu.outlines.idx;
+//                if (upper < count) {
+//                    upper = path.ref->upperBound(ctm);
+//                }
+//                if (!path.ref->isPolygon)
+//                    err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 size_t err;
@@ -1273,19 +1273,22 @@ struct Rasterizer {
                 } else if (inst->iz & GPU::Instance::kOutlines) {
                     OutlineInfo info;
                     info.dst = info.dst0 = dst, info.width = inst->outline.width, info.iz = iz;
-//                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, writeOutlineInstance, & info);
+                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, writeOutlineInstance, & info);
+                    if (dst == info.dst)
+                        writeOutlineInstance(0.f, 0.f, 0.f, 0.f, & info);
+                    assert(info.dst != dst);
                     dst = info.dst;
             
-                    Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = ctx->gpu.outlines.base + inst->outline.r.end;
-                    for (dst0 = dst; src < es; src++, dst++) {
-                        new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
-                        dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
-                        if (src->x0 == FLT_MAX) {
-                            if (dst - dst0 > 1)
-                                dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev;
-                            dst0 = dst + 1;
-                        }
-                    }
+//                    Segment *src = ctx->gpu.outlines.base + inst->outline.r.begin, *es = ctx->gpu.outlines.base + inst->outline.r.end;
+//                    for (dst0 = dst; src < es; src++, dst++) {
+//                        new (dst) GPU::Instance(iz, GPU::Instance::kOutlines);
+//                        dst->outline.s = *src, dst->outline.width = inst->outline.width, dst->outline.prev = -1, dst->outline.next = 1;
+//                        if (src->x0 == FLT_MAX) {
+//                            if (dst - dst0 > 1)
+//                                dst0->outline.prev = (int)(dst - dst0 - 1), (dst - 1)->outline.next = -dst0->outline.prev;
+//                            dst0 = dst + 1;
+//                        }
+//                    }
                 } else {
                     *dst++ = *inst;
                     if (inst->iz & GPU::Instance::kMolecule) {
