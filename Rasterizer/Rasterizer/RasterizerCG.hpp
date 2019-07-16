@@ -236,18 +236,17 @@ struct RasterizerCG {
             contexts[0].drawScenes(list, view, clips, 0, eiz);
         }
         if (buffer) {
-            std::vector<Ra::Buffer::Entry> entries[count], *e = & entries[0];
-            size_t begins[count], *b = begins;
-            size_t size = Ra::writeContextsToBuffer(contexts, count, colors, clips, eiz, begins, *buffer);
+            std::vector<Ra::Buffer::Entry> entries[count];
+            size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, clips, eiz, begins, *buffer);
             if (count == 1)
-                Ra::writeContextToBuffer(contexts, list, b[0], 0, e[0], *buffer);
+                Ra::writeContextToBuffer(contexts, list, begins[0], 0, entries[0], *buffer);
             else {
                 for (i = 0; i < count; i++)
-                    threadInfo[i].iz = izs[i], threadInfo[i].begin = b[i], threadInfo[i].entries = & e[i], threadInfo[i].buffer = buffer;
+                    threadInfo[i].iz = izs[i], threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i], threadInfo[i].buffer = buffer;
                 RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, writeContexts, threadInfo, sizeof(ThreadInfo), count);
             }
             for (int i = 0; i < count; i++)
-                for (auto entry : e[i])
+                for (auto entry : entries[i])
                     *(buffer->entries.alloc(1)) = entry;
             size_t end = buffer->entries.base[buffer->entries.end - 1].end;
             assert(size >= end);
