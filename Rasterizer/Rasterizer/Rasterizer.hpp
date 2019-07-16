@@ -121,8 +121,15 @@ struct Rasterizer {
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
         float upperBound(Transform ctm, Bounds clip) {
-            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic])
-              + ceilf(sqrtf(sqrtf(fabsf(ctm.det())))) * (quadraticSums + cubicSums);
+            float limit = 1e-2f, det, s, qs, cs, quadratics, cubics;
+            det = fabsf(ctm.det());
+            det = limit > det ? limit : det;
+            s = sqrtf(sqrtf(det));
+            qs = quadraticSums ? 1.f + 2.f / quadraticSums : 1.f;
+            cs = cubicSums ? 1.f + 2.f / cubicSums : 1.f;
+            quadratics = det < 1.f ? ceilf(s * qs * quadraticSums) : ceilf(s) * quadraticSums;
+            cubics = det < 1.f ? ceilf(s * cs * cubicSums) : ceilf(s) * cubicSums;
+            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]) + quadratics + cubics;
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
@@ -353,7 +360,7 @@ struct Rasterizer {
         }
         void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
-        Entry *getPath(Path& path, Transform ctm, Transform *m, Bounds clip) {
+        Entry *getPath(Path& path, Transform ctm, Transform *m, Bounds clip, size_t *err) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
                 float det = path.ref->bounds.area() * fabsf(ctm.det());
@@ -376,6 +383,7 @@ struct Rasterizer {
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             count = segments.end - segments.idx;
+            *err = upper - count;
             if (upper < count) {
                 upper = path.ref->upperBound(ctm, clip);
             }
@@ -647,15 +655,22 @@ struct Rasterizer {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.upper += upper, count = gpu.outlines.end - gpu.outlines.idx;
-                assert(upper >= count);
-                err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
+                if (upper < count) {
+                    upper = path.ref->upperBound(ctm, clip);
+                }
+                if (!path.ref->isPolygon)
+                    err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
                 gpu.outlines.idx = gpu.outlines.end, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
+                size_t err;
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
-                if (!slow || unclipped)
-                    entry = gpu.cache.getPath(path, ctm, & m, bounds);
+                if (!slow || unclipped) {
+                    entry = gpu.cache.getPath(path, ctm, & m, bounds, & err);
+                    if (!path.ref->isPolygon)
+                        gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
+                }
                 if (entry == nullptr)
                     writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
                 else if (slow)
