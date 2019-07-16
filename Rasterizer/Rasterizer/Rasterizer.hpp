@@ -121,15 +121,10 @@ struct Rasterizer {
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
         float upperBound(Transform ctm, Bounds clip) {
-            float limit = 1e-2f, det, s, qs, cs, quadratics, cubics;
-            det = fabsf(ctm.det());
-            det = limit > det ? limit : det;
-            s = sqrtf(sqrtf(det));
-            qs = quadraticSums ? 1.f + 2.f / quadraticSums : 1.f;
-            cs = cubicSums ? 1.f + 2.f / cubicSums : 1.f;
-            quadratics = det < 1.f ? ceilf(s * qs * quadraticSums) : ceilf(s) * quadraticSums;
-            cubics = det < 1.f ? ceilf(s * cs * cubicSums) : ceilf(s) * cubicSums;
-            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]) + quadratics + cubics;
+            float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
+            size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
+            size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
+            return 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]) + quads + cubics;
         }
         void allocShapes(size_t count) {
             shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
