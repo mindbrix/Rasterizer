@@ -36,10 +36,12 @@ struct RasterizerWinding {
         float dx, dy, width;
         int winding;
     };
-    static void countWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
+    static void countWinding(float x0, float y0, float x1, float y1, void *inf) {
+        Ra::Info *info = (Ra::Info *)inf;
         ((WindingInfo *)info->info)->count(x0, y0, x1, y1);
     }
-    static void countOutlineWinding(float x0, float y0, float x1, float y1, Ra::Info *info) {
+    static void countOutlineWinding(float x0, float y0, float x1, float y1, void *inf) {
+        Ra::Info *info = (Ra::Info *)inf;
         if (x0 != x1 || y0 != y1) {
             WindingInfo *wi = (WindingInfo *)info->info;
             float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);

@@ -497,11 +497,13 @@ struct Rasterizer {
         Transform *ctms = nullptr;
         Cache cache;
     };
-    typedef void (*Function)(float x0, float y0, float x1, float y1, Info *info);
-    static void writeOutlineSegment(float x0, float y0, float x1, float y1, Info *info) {
+    typedef void (*Function)(float x0, float y0, float x1, float y1, void *info);
+    static void writeOutlineSegment(float x0, float y0, float x1, float y1, void *inf) {
+        Info *info = (Info *)inf;
         new (info->seg) Segment(x0, y0, x1, y1), info->seg++;
     }
-    static void writeClippedSegment(float x0, float y0, float x1, float y1, Info *info) {
+    static void writeClippedSegment(float x0, float y0, float x1, float y1, void *inf) {
+        Info *info = (Info *)inf;
         if (y0 == y1)
             return;
         float iy0 = y0 * krfh, iy1 = y1 * krfh;
@@ -524,7 +526,8 @@ struct Rasterizer {
             new (info->segments[s - info->stride].alloc(1)) Segment(x0, y0, x1, y1);
         }
     }
-    static void writeDeltaSegment(float x0, float y0, float x1, float y1, Info *info) {
+    static void writeDeltaSegment(float x0, float y0, float x1, float y1, void *inf) {
+        Info *info = (Info *)inf;
         if (y0 == y1)
             return;
         float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
@@ -679,7 +682,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writePath(Path& path, Transform ctm, Bounds clip, bool close, Function function, Info *info) {
+    static void writePath(Path& path, Transform ctm, Bounds clip, bool close, Function function, void *info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
         for (size_t index = 0; index < path.ref->types.size(); ) {
@@ -748,7 +751,7 @@ struct Rasterizer {
         if (sx != FLT_MAX && function == writeOutlineSegment)
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
-    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, Info *info) {
+    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, void *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         if (ly < clip.uy && uy > clip.ly && (ly != uy || function == writeOutlineSegment)) {
             float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
@@ -792,7 +795,7 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, Function function, Info *info) {
+    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, Function function, void *info) {
         float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
@@ -838,7 +841,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, Info *info) {
+    static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
         count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
@@ -875,7 +878,7 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, Function function, Info *info) {
+    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, Function function, void *info) {
         float ly, uy, lx, ux;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -928,7 +931,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, Info *info) {
+    static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
         float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
