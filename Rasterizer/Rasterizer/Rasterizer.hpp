@@ -120,7 +120,7 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
         }
-        float upperBound(Transform ctm, Bounds clip) {
+        float upperBound(Transform ctm) {
             float limit = 1e-2f, det, s, qs, cs, quadratics, cubics;
             det = fabsf(ctm.det());
             det = limit > det ? limit : det;
@@ -378,14 +378,14 @@ struct Rasterizer {
                 }
             }
             size_t begin = segments.idx, cbegin = counts.idx;
-            size_t upper = path.ref->upperBound(ctm, clip), count;
+            size_t upper = path.ref->upperBound(ctm), count;
             Info seg(segments.alloc(upper));
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             count = segments.end - segments.idx;
             *err = upper - count;
             if (upper < count) {
-                upper = path.ref->upperBound(ctm, clip);
+                upper = path.ref->upperBound(ctm);
             }
             segments.idx = segments.end;
             int *c = counts.alloc(path.ref->molecules.size()), bc = 0, instances = 0;
@@ -648,7 +648,7 @@ struct Rasterizer {
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
         } else {
             if (width) {
-                size_t upper = path.ref->upperBound(ctm, bounds), count, err;
+                size_t upper = path.ref->upperBound(ctm), count, err;
                 Info seg(gpu.outlines.alloc(upper));
                 writePath(path, ctm, clip, false, writeOutlineSegment, & seg);
                 gpu.outlines.end = seg.seg - gpu.outlines.base;
@@ -656,7 +656,7 @@ struct Rasterizer {
                 inst->outline.r = Range(gpu.outlines.idx, gpu.outlines.end), inst->outline.width = width, inst->outline.prev = -1, inst->outline.next = 1;
                 gpu.upper += upper, count = gpu.outlines.end - gpu.outlines.idx;
                 if (upper < count) {
-                    upper = path.ref->upperBound(ctm, clip);
+                    upper = path.ref->upperBound(ctm);
                 }
                 if (!path.ref->isPolygon)
                     err = upper - count, gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
