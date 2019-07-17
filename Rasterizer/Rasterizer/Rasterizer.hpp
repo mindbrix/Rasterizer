@@ -732,7 +732,7 @@ struct Rasterizer {
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, void *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        if (ly < clip.uy && uy > clip.ly && (ly != uy || function == writeOutlineSegment)) {
+        if (ly < clip.uy && uy > clip.ly) {
             float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
             sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
             sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
@@ -757,7 +757,7 @@ struct Rasterizer {
                         sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                         (*function)(sx0, sy0, sx1, sy1, info);
-                    } else if (function != writeOutlineSegment) {
+                    } else {
                         vx = mx < clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, sy0, vx, sy1, info);
                     }
@@ -811,7 +811,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
                             writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
-                       } else if (function != writeOutlineSegment) {
+                       } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty2, info);
                         }
@@ -901,7 +901,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                             writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
-                        } else {//} if (function != writeOutlineInstance) {
+                        } else {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty3, info);
                         }
