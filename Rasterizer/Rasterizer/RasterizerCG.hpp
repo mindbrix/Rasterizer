@@ -253,7 +253,7 @@ struct RasterizerCG {
             assert(size >= end);
         }
     }
-    static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, CGContextRef ctx, CGColorSpaceRef dstSpace, Ra::Bitmap bitmap, Ra::Buffer *buffer) {
+    static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, CGContextRef ctx, Ra::Bitmap bitmap, Ra::Buffer *buffer) {
         Ra::SceneList visibles;
         size_t pathsCount = list.writeVisibles(state.view, state.device, visibles);
         if (state.outlineWidth)
@@ -268,12 +268,9 @@ struct RasterizerCG {
             Ra::Transform *gpuctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
-            CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-            testScene.converter.set(srcSpace, dstSpace);
             Ra::Ref<Ra::Scene>* scene = & visibles.scenes[0];
             for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->ref->paths.size(), scene++)
                 testScene.converter.convert(& scene->ref->colors[0].src0, scene->ref->paths.size(), colors + iz);
-            CGColorSpaceRelease(srcSpace);
             
             if (state.outlineWidth) {
                 Ra::Colorant black(0, 0, 0, 255);
