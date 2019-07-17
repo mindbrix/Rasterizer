@@ -355,7 +355,7 @@ struct Rasterizer {
         }
         void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
-        Entry *getPath(Path& path, Transform ctm, Transform *m, Bounds clip, size_t *err) {
+        Entry *getPath(Path& path, Transform ctm, Transform *m) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
                 float det = path.ref->bounds.area() * fabsf(ctm.det());
@@ -372,14 +372,11 @@ struct Rasterizer {
                     return srch;
                 }
             }
-            size_t begin = segments.idx, cbegin = counts.idx;
-            size_t upper = path.ref->upperBound(ctm), count;
+            size_t begin = segments.idx, cbegin = counts.idx, upper = path.ref->upperBound(ctm);
             Info seg(segments.alloc(upper));
             writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
-            count = segments.end - segments.idx;
-            *err = upper - count;
-            if (upper < count) {
+            if (upper < segments.end - segments.idx) {
                 upper = path.ref->upperBound(ctm);
             }
             segments.idx = segments.end;
@@ -646,15 +643,11 @@ struct Rasterizer {
                 inst->outline.width = width, inst->outline.clip = clip;
                 gpu.outlineUpper += path.ref->upperBound(ctm), gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
-                size_t err;
                 Cache::Entry *entry = nullptr;
                 Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
-                if (!slow || unclipped) {
-                    entry = gpu.cache.getPath(path, ctm, & m, bounds, & err);
-                    if (!path.ref->isPolygon)
-                        gpu.minerr = gpu.minerr < err ? gpu.minerr : err;
-                }
+                if (!slow || unclipped)
+                    entry = gpu.cache.getPath(path, ctm, & m);
                 if (entry == nullptr)
                     writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
                 else if (slow)
