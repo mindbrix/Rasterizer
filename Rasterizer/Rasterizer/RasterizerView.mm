@@ -231,8 +231,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (_testScene.rasterizerType == RasterizerCG::CGTestContext::kCoreGraphics)
         return;
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
-    buffer->clearColor = _svgData && !_state.useOutline ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    RasterizerCG::drawTestScene(_testScene, _list, _state.view, _state.useOutline, nullptr, self.window.colorSpace.CGColorSpace, Ra::Bitmap(nullptr, _state.device.ux, _state.device.uy, 0, 0), buffer, _state.index);
+    buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
+    RasterizerCG::drawTestScene(_testScene, _list, _state, nullptr, self.window.colorSpace.CGColorSpace, Ra::Bitmap(nullptr, _state.device.ux, _state.device.uy, 0, 0), buffer);
 }
 
 #pragma mark - CALayerDelegate
@@ -241,8 +241,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     Ra::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    bitmap.clear(_svgData && !_state.useOutline ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
-    RasterizerCG::drawTestScene(_testScene, _list, _state.view, _state.useOutline, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr, _state.index);
+    bitmap.clear(_svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
+    RasterizerCG::drawTestScene(_testScene, _list, _state, ctx, CGBitmapContextGetColorSpace(ctx), bitmap, nullptr);
 }
 
 - (void)setDbURL:(NSURL *)dbURL {

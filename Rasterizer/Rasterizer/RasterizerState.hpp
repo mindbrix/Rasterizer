@@ -59,7 +59,7 @@ struct RasterizerState {
                     if (e.keyCode == 8)
                         useClip = !useClip;
                     else if (e.keyCode == 31)
-                        useOutline = !useOutline;
+                        outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == 35)
                         mouseMove = !mouseMove;
                     else if (e.keyCode == 36) {
@@ -113,8 +113,8 @@ struct RasterizerState {
         events.resize(0);
         return redraw;
     }
-    bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false, useOutline = false;
-    float x, y, scale;
+    bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false;
+    float x, y, scale, outlineWidth = 0.f;
     int keyCode = 0;
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
