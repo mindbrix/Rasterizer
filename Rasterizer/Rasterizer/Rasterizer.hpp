@@ -462,7 +462,7 @@ struct Rasterizer {
             int iy, begin, base;
         };
         struct Outline {
-            union { Segment s;  Bounds clip;  Range r; };
+            union { Segment s;  Bounds clip; };
             float width;
             short prev, next;
         };
