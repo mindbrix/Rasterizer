@@ -374,7 +374,7 @@ struct Rasterizer {
             }
             size_t begin = segments.idx, cbegin = counts.idx, upper = path.ref->upperBound(ctm);
             Info seg(segments.alloc(upper));
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, writeOutlineSegment, & seg);
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             if (upper < segments.end - segments.idx) {
                 upper = path.ref->upperBound(ctm);
@@ -617,10 +617,10 @@ struct Rasterizer {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             Info del(deltas, stride);
             if (stride * h < deltasSize) {
-                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, writeDeltaSegment, & del);
+                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, false, writeDeltaSegment, & del);
                 writeDeltaPixels(& del, clip, hit, clipctm, even, src, bm);
             } else {
-                writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
+                writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
                 writeSegmentPixels(sgmnts, clip, hit, clipctm, even, & del, src, bm);
             }
         } else {
@@ -649,7 +649,7 @@ struct Rasterizer {
                 if (!slow || unclipped)
                     entry = gpu.cache.getPath(path, ctm, & m);
                 if (entry == nullptr)
-                    writePath(path, ctm, clip, true, writeClippedSegment, sgmnts);
+                    writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
                 else if (slow)
                     gpu.cache.writeCachedOutline(entry, m, clip, sgmnts);
                 if (entry && !slow) {
@@ -661,7 +661,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writePath(Path& path, Transform ctm, Bounds clip, bool close, Function function, void *info) {
+    static void writePath(Path& path, Transform ctm, Bounds clip, bool close, bool mark, Function function, void *info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
         for (size_t index = 0; index < path.ref->types.size(); ) {
@@ -674,7 +674,7 @@ struct Rasterizer {
                         else
                             (*function)(x0, y0, sx, sy, info);
                     }
-                    if (sx != FLT_MAX && function == writeOutlineSegment)
+                    if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
@@ -727,7 +727,7 @@ struct Rasterizer {
             else
                 (*function)(x0, y0, sx, sy, info);
         }
-        if (sx != FLT_MAX && function == writeOutlineSegment)
+        if (mark && sx != FLT_MAX)
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, void *info) {
@@ -901,7 +901,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                             writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
-                        } else if (function != writeOutlineSegment) {
+                        } else {//} if (function != writeOutlineInstance) {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty3, info);
                         }
@@ -1249,7 +1249,7 @@ struct Rasterizer {
                     }
                 } else if (inst->iz & GPU::Instance::kOutlines) {
                     OutlineInfo info;  info.dst = info.dst0 = dst, info.width = inst->outline.width, info.iz = iz;
-                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, writeOutlineInstance, & info);
+                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, writeOutlineInstance, & info);
                     size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
                     if (upper < count) {
                         upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);

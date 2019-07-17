@@ -62,9 +62,9 @@ struct RasterizerWinding {
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->types.size()) {
                             if (width)
-                                Ra::writePath(path, ctm, clip, false, countOutlineWinding, & info);
+                                Ra::writePath(path, ctm, clip, false, false, countOutlineWinding, & info);
                             else
-                                Ra::writePath(path, ctm, clip, true, countWinding, & info);
+                                Ra::writePath(path, ctm, clip, true, false, countWinding, & info);
                         } else {
                             for (int i = 0; i < path.ref->shapesCount; i++) {
                                 inv = ctm.concat(path.ref->shapes[i]).invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
