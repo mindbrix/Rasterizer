@@ -1149,16 +1149,16 @@ struct Rasterizer {
         float width;
         size_t iz;
     };
-    static void writeOutlineInstance(float x0, float y0, float x1, float y1, void *inf) {
-        OutlineInfo *info = (OutlineInfo *)inf;
-        new (info->dst) GPU::Instance(info->iz, GPU::Instance::kOutlines);
-        new (& info->dst->outline.s) Segment(x0, y0, x1, y1), info->dst->outline.width = info->width, info->dst->outline.prev = -1, info->dst->outline.next = 1;
+    static void writeOutlineInstance(float x0, float y0, float x1, float y1, void *info) {
+        OutlineInfo *in = (OutlineInfo *)info;
+        new (in->dst) GPU::Instance(in->iz, GPU::Instance::kOutlines);
+        new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.width = in->width, in->dst->outline.prev = -1, in->dst->outline.next = 1;
         if (x0 == FLT_MAX) {
-            if (info->dst - info->dst0 > 1)
-                info->dst0->outline.prev = (int)(info->dst - info->dst0 - 1), (info->dst - 1)->outline.next = -info->dst0->outline.prev;
-            info->dst0 = info->dst + 1;
+            if (in->dst - in->dst0 > 1)
+                in->dst0->outline.prev = (int)(in->dst - in->dst0 - 1), (in->dst - 1)->outline.next = -in->dst0->outline.prev;
+            in->dst0 = in->dst + 1;
         }
-        info->dst++;
+        in->dst++;
     }
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Colorant *colorants,
