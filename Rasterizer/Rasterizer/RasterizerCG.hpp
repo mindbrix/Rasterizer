@@ -254,16 +254,15 @@ struct RasterizerCG {
         }
     }
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, CGContextRef ctx, CGColorSpaceRef dstSpace, Ra::Bitmap bitmap, Ra::Buffer *buffer) {
-        Ra::Bounds device(0, 0, bitmap.width, bitmap.height);
         Ra::SceneList visibles;
-        size_t pathsCount = list.writeVisibles(state.view, device, visibles);
+        size_t pathsCount = list.writeVisibles(state.view, state.device, visibles);
         if (state.outlineWidth)
             for (int i = 0; i < visibles.scenes.size(); i++)
                 visibles.widths[i] = state.outlineWidth;
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
-            drawScenes(visibles, state.view, device, ctx);
+            drawScenes(visibles, state.view, state.device, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
             Ra::Transform *gpuctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
