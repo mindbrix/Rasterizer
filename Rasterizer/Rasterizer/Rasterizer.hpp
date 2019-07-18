@@ -597,7 +597,7 @@ struct Rasterizer {
                             Info sgmnts(& segments[0], clip.ly * krfh);
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), bounds, clip, hit, width, & sgmnts, gpu);
+                                gpu.ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), bounds, clip, hit, width, & sgmnts, gpu);
                             else if (width == 0.f)
                                 writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
                         }
@@ -633,7 +633,6 @@ struct Rasterizer {
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds bounds, Bounds clip, bool hit, float width, Info *sgmnts, GPU& gpu) {
-        gpu.ctms[iz] = ctm;
         if (path.ref->shapesCount) {
             new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kShapes);
             gpu.shapePaths++, gpu.shapesCount += path.ref->shapesCount, gpu.allocator.countInstance();
