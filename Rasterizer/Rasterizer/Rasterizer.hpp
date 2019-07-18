@@ -644,7 +644,7 @@ struct Rasterizer {
                 gpu.outlineUpper += path.ref->upperBound(ctm), gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
-                Transform m = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                Transform m = Transform();
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped)
                     entry = gpu.cache.getPath(path, ctm, & m);
@@ -1256,7 +1256,7 @@ struct Rasterizer {
                     }
                     if (dst == info.dst)
                         writeOutlineInstance(0.f, 0.f, 0.f, 0.f, & info);
-                    dst = info.dst;
+                    dst = info.dst, ctms[iz] = Transform();
                 } else {
                     *dst++ = *inst;
                     if (inst->iz & GPU::Instance::kMolecule) {

@@ -226,9 +226,9 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
     vert.isShape = true;
     constexpr float err = 1.0 / 32.0;
     const device Instance& inst = instances[iid];
+    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     float area = 1.0, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        Transform m = { 1, 0, 0, 1, 0, 0 };
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
@@ -263,7 +263,6 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
     } else if (inst.iz & Instance::kCircle || inst.iz & Instance::kRect) {
-        const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
         Transform ctm = {
             inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
             inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
