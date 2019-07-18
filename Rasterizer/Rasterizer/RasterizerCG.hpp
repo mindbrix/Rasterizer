@@ -182,14 +182,14 @@ struct RasterizerCG {
     struct ThreadInfo {
         Ra::Context *context;
         Ra::SceneList *list;
-        Ra::Transform view, *clips;
+        Ra::Transform view, *ctms, *clips;
         Ra::Buffer *buffer;
         std::vector<Ra::Buffer::Entry> *entries;
         size_t iz, begin, end;
     };
     static void drawScenes(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        ti->context->drawScenes(*ti->list, ti->view, ti->clips, ti->iz, ti->end);
+        ti->context->drawScenes(*ti->list, ti->view, ti->ctms, ti->clips, ti->iz, ti->end);
     }
     static void writeContexts(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
@@ -200,7 +200,7 @@ struct RasterizerCG {
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
-        ti->context = contexts, ti->list = & list, ti->view = view, ti->clips = clips, ti->iz = 0, ti->end = eiz;
+        ti->context = contexts, ti->list = & list, ti->view = view, ti->ctms = ctms, ti->clips = clips, ti->iz = 0, ti->end = eiz;
         for (i = 1; i < CGTestContext::kQueueCount; i++)
             threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
@@ -217,7 +217,7 @@ struct RasterizerCG {
                 }
                 count = CGTestContext::kQueueCount;
                 for (i = 0; i < count; i++)
-                    contexts[i].setGPU(bitmap.width, bitmap.height, ctms);
+                    contexts[i].setGPU(bitmap.width, bitmap.height);
                 for (i = 0; i < count; i++)
                     threadInfo[i].iz = izs[i], threadInfo[i].end = izs[i + 1];
             } else {
@@ -231,14 +231,14 @@ struct RasterizerCG {
         } else {
             count = 1;
             if (buffer)
-                contexts[0].setGPU(bitmap.width, bitmap.height, ctms);
+                contexts[0].setGPU(bitmap.width, bitmap.height);
             else
                 contexts[0].setBitmap(bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(list, view, clips, 0, eiz);
+            contexts[0].drawScenes(list, view, ctms, clips, 0, eiz);
         }
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count];
-            size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, clips, eiz, begins, *buffer);
+            size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, ctms, clips, eiz, begins, *buffer);
             if (count == 1)
                 Ra::writeContextToBuffer(contexts, list, begins[0], 0, entries[0], *buffer);
             else {

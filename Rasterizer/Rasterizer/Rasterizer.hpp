@@ -482,12 +482,11 @@ struct Rasterizer {
         };
         void empty() { zero(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
         void reset() { zero(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
-        void zero() { shapesCount = shapePaths = outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX, ctms = nullptr; }
+        void zero() { shapesCount = shapePaths = outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
         Row<Index> indices;
         Row<Instance> blends, opaques;
-        Transform *ctms = nullptr;
         Cache cache;
     };
     typedef void (*Function)(float x0, float y0, float x1, float y1, void *info);
@@ -567,15 +566,15 @@ struct Rasterizer {
             deltas.empty(), deltas.alloc((bm.width + 1) * kfh);
             memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
         }
-        void setGPU(size_t width, size_t height, Transform *ctms) {
+        void setGPU(size_t width, size_t height) {
             bitmap = Bitmap();
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
-            gpu.allocator.init(width, height), gpu.ctms = ctms;
+            gpu.allocator.init(width, height);
         }
-        void drawScenes(SceneList& list, Transform view, Transform *clips, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform view, Transform *ctms, Transform *clips, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
@@ -597,7 +596,7 @@ struct Rasterizer {
                             Info sgmnts(& segments[0], clip.ly * krfh);
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                gpu.ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), bounds, clip, hit, width, & sgmnts, gpu);
+                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), bounds, clip, hit, width, & sgmnts, gpu);
                             else if (width == 0.f)
                                 writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
                         }
@@ -1161,6 +1160,7 @@ struct Rasterizer {
     }
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Colorant *colorants,
+                                        Transform *ctms,
                                         Transform *clips,
                                         size_t pathsCount,
                                         size_t *begins,
@@ -1182,7 +1182,7 @@ struct Rasterizer {
         buffer.colors = 0, buffer.transforms = buffer.colors + ncolors, buffer.clips = buffer.transforms + ntransforms;
         buffer.pathsCount = uint32_t(pathsCount);
         memcpy(buffer.data.base + buffer.colors, colorants, ncolors);
-        memcpy(buffer.data.base + buffer.transforms, contexts[0].gpu.ctms, ntransforms);
+        memcpy(buffer.data.base + buffer.transforms, ctms, ntransforms);
         memcpy(buffer.data.base + buffer.clips, clips, ntransforms);
         begin = end = buffer.clips + ntransforms;
             
