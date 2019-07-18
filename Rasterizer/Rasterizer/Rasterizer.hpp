@@ -574,7 +574,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawScenes(SceneList& list, Transform view, Transform *ctms, Transform *clips, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform view, Transform *ctms, Transform *clips, float *widths, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
@@ -587,7 +587,7 @@ struct Rasterizer {
                     Path *paths = & scene.paths[clz - lz];
                     Colorant *colors = & scene.colors[clz - lz];
                     for (iz = clz; iz < cuz; iz++)
-                        clips[iz] = clipctm;
+                        clips[iz] = clipctm, widths[iz] = width;
                     for (iz = clz; iz < cuz; iz++, paths++, colors++) {
                         Transform m = ctm.concat(scene.ctms[iz - lz]);
                         Transform unit = paths->ref->bounds.unit(m);
@@ -1162,11 +1162,12 @@ struct Rasterizer {
                                         Colorant *colorants,
                                         Transform *ctms,
                                         Transform *clips,
+                                        float *widths,
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
-        size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform);
-        size_t size = szcolors + 2 * sztransforms, sz, i, j, begin, end, cells, instances;
+        size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float);
+        size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
@@ -1179,12 +1180,13 @@ struct Rasterizer {
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
         buffer.data.resize(size);
-        buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms;
+        buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
         buffer.pathsCount = uint32_t(pathsCount);
         memcpy(buffer.data.base + buffer.colors, colorants, szcolors);
         memcpy(buffer.data.base + buffer.transforms, ctms, sztransforms);
         memcpy(buffer.data.base + buffer.clips, clips, sztransforms);
-        begin = end = buffer.clips + sztransforms;
+        memcpy(buffer.data.base + buffer.widths, widths, szwidths);
+        begin = end = buffer.widths + szwidths;
             
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))

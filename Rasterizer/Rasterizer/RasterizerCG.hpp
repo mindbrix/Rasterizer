@@ -190,7 +190,7 @@ struct RasterizerCG {
     };
     static void drawScenes(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        ti->context->drawScenes(*ti->list, ti->view, ti->ctms, ti->clips, ti->iz, ti->end);
+        ti->context->drawScenes(*ti->list, ti->view, ti->ctms, ti->clips, ti->widths, ti->iz, ti->end);
     }
     static void writeContexts(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
@@ -235,11 +235,11 @@ struct RasterizerCG {
                 contexts[0].setGPU(bitmap.width, bitmap.height);
             else
                 contexts[0].setBitmap(bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawScenes(list, view, ctms, clips, 0, eiz);
+            contexts[0].drawScenes(list, view, ctms, clips, widths, 0, eiz);
         }
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count];
-            size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, ctms, clips, eiz, begins, *buffer);
+            size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
             if (count == 1)
                 Ra::writeContextToBuffer(contexts, list, begins[0], 0, entries[0], *buffer);
             else {
@@ -282,7 +282,7 @@ struct RasterizerCG {
                 colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
             
             renderScenes(visibles, state.view, ctms, colors, clips, widths, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
-            free(ctms), free(colors), free(clips);
+            free(ctms), free(colors), free(clips), free(widths);
         }
     }
 };
