@@ -183,6 +183,7 @@ struct RasterizerCG {
         Ra::Context *context;
         Ra::SceneList *list;
         Ra::Transform view, *ctms, *clips;
+        float *widths;
         Ra::Buffer *buffer;
         std::vector<Ra::Buffer::Entry> *entries;
         size_t iz, begin, end;
@@ -195,12 +196,12 @@ struct RasterizerCG {
         ThreadInfo *ti = (ThreadInfo *)info;
         Ra::writeContextToBuffer(ti->context, *ti->list, ti->begin, ti->iz, *ti->entries, *ti->buffer);
     }
-    static void renderScenes(Ra::SceneList& list, const Ra::Transform view, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, Ra::Context *contexts, Ra::Bitmap bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+    static void renderScenes(Ra::SceneList& list, const Ra::Transform view, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Context *contexts, Ra::Bitmap bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
-        ti->context = contexts, ti->list = & list, ti->view = view, ti->ctms = ctms, ti->clips = clips, ti->iz = 0, ti->end = eiz;
+        ti->context = contexts, ti->list = & list, ti->view = view, ti->ctms = ctms, ti->clips = clips, ti->widths = widths, ti->iz = 0, ti->end = eiz;
         for (i = 1; i < CGTestContext::kQueueCount; i++)
             threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
@@ -268,6 +269,7 @@ struct RasterizerCG {
             Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
+            float *widths = (float *)malloc(pathsCount * sizeof(float));
             Ra::Ref<Ra::Scene>* scene = & visibles.scenes[0];
             for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->ref->paths.size(), scene++)
                 testScene.converter.convert(& scene->ref->colors[0].src0, scene->ref->paths.size(), colors + iz);
@@ -279,7 +281,7 @@ struct RasterizerCG {
             if (state.index != INT_MAX)
                 colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
             
-            renderScenes(visibles, state.view, ctms, colors, clips, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+            renderScenes(visibles, state.view, ctms, colors, clips, widths, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
             free(ctms), free(colors), free(clips);
         }
     }
