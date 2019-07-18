@@ -1139,7 +1139,7 @@ struct Rasterizer {
         Pages<uint8_t> data;
         Row<Entry> entries;
         Colorant clearColor;
-        size_t colors, transforms, clips;
+        size_t colors, transforms, clips, widths;
         uint32_t pathsCount;
     };
     struct OutlineInfo {
@@ -1165,8 +1165,8 @@ struct Rasterizer {
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
-        size_t ncolors = pathsCount * sizeof(Colorant), ntransforms = pathsCount * sizeof(Transform);
-        size_t size = ncolors + 2 * ntransforms, sz, i, j, begin, end, cells, instances;
+        size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform);
+        size_t size = szcolors + 2 * sztransforms, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
@@ -1179,12 +1179,12 @@ struct Rasterizer {
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
         buffer.data.resize(size);
-        buffer.colors = 0, buffer.transforms = buffer.colors + ncolors, buffer.clips = buffer.transforms + ntransforms;
+        buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms;
         buffer.pathsCount = uint32_t(pathsCount);
-        memcpy(buffer.data.base + buffer.colors, colorants, ncolors);
-        memcpy(buffer.data.base + buffer.transforms, ctms, ntransforms);
-        memcpy(buffer.data.base + buffer.clips, clips, ntransforms);
-        begin = end = buffer.clips + ntransforms;
+        memcpy(buffer.data.base + buffer.colors, colorants, szcolors);
+        memcpy(buffer.data.base + buffer.transforms, ctms, sztransforms);
+        memcpy(buffer.data.base + buffer.clips, clips, sztransforms);
+        begin = end = buffer.clips + sztransforms;
             
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
