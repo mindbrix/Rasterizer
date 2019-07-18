@@ -216,11 +216,13 @@ struct InstancesVertex
     bool isShape, even, solid, circle;
 };
 
-vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-                                       const device Transform *affineTransforms [[buffer(4)]], const device Transform *clips [[buffer(5)]],
-                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                     constant uint *pathCount [[buffer(13)]],
-                                     uint vid [[vertex_id]], uint iid [[instance_id]])
+vertex InstancesVertex instances_vertex_main(
+            const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
+            const device Transform *affineTransforms [[buffer(4)]], const device Transform *clips [[buffer(5)]],
+            const device float *widths [[buffer(6)]],
+            constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+            constant uint *pathCount [[buffer(13)]],
+            uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
     vert.isShape = true;
@@ -232,7 +234,7 @@ vertex InstancesVertex instances_vertex_main(const device Colorant *paints [[buf
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
-        const float dw = 1.0 + inst.outline.width;
+        const float dw = 1.0 + widths[inst.iz & kPathIndexMask];
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
