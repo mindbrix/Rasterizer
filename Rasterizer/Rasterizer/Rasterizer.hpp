@@ -463,7 +463,6 @@ struct Rasterizer {
         };
         struct Outline {
             union { Segment s;  Bounds clip; };
-            float width;
             short prev, next;
         };
         struct Instance {
@@ -638,7 +637,7 @@ struct Rasterizer {
         } else {
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
-                inst->outline.width = width, inst->outline.clip = clip;
+                inst->outline.clip = clip;
                 gpu.outlineUpper += path.ref->upperBound(ctm), gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
@@ -1144,13 +1143,12 @@ struct Rasterizer {
     };
     struct OutlineInfo {
         GPU::Instance *dst0, *dst;
-        float width;
         size_t iz;
     };
     static void writeOutlineInstance(float x0, float y0, float x1, float y1, void *info) {
         OutlineInfo *in = (OutlineInfo *)info;
         new (in->dst) GPU::Instance(in->iz, GPU::Instance::kOutlines);
-        new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.width = in->width, in->dst->outline.prev = -1, in->dst->outline.next = 1;
+        new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
         if (x0 == FLT_MAX) {
             if (in->dst - in->dst0 > 1)
                 in->dst0->outline.prev = (int)(in->dst - in->dst0 - 1), (in->dst - 1)->outline.next = -in->dst0->outline.prev;
@@ -1249,7 +1247,7 @@ struct Rasterizer {
                         dst->unit = path.ref->shapes[k];
                     }
                 } else if (inst->iz & GPU::Instance::kOutlines) {
-                    OutlineInfo info;  info.dst = info.dst0 = dst, info.width = inst->outline.width, info.iz = iz;
+                    OutlineInfo info;  info.dst = info.dst0 = dst, info.iz = iz;
                     writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, writeOutlineInstance, & info);
                     size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
                     if (upper < count) {

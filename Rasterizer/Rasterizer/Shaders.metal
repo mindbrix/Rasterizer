@@ -35,7 +35,6 @@ struct Quad {
 };
 struct Outline {
     Segment s;
-    float width;
     short prev, next;
 };
 struct Instance {
