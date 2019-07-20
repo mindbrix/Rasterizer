@@ -651,14 +651,14 @@ struct Rasterizer {
             }
         }
     }
-    static void writePath(Path& path, Transform ctm, Bounds clip, bool close, bool mark, Function function, void *info) {
+    static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
         for (size_t index = 0; index < path.ref->types.size(); ) {
             p = path.ref->pts + index * 2;
             switch (path.ref->types[index]) {
                 case Geometry::kMove:
-                    if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
+                    if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                         if (f0 || fs)
                             writeClippedLine(x0, y0, sx, sy, clip, function, info);
                         else
@@ -711,7 +711,7 @@ struct Rasterizer {
                     break;
             }
         }
-        if (close && sx != FLT_MAX && (sx != x0 || sy != y0)) {
+        if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
             if (f0 || fs)
                 writeClippedLine(x0, y0, sx, sy, clip, function, info);
             else
