@@ -355,7 +355,7 @@ struct Rasterizer {
         }
         void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
-        Entry *getPath(Path& path, Transform ctm, Transform *m) {
+        Entry *getPath(Path& path, Transform ctm) {
             uint64_t hash = path.ref->hash;
             if (!path.ref->isPolygon) {
                 float det = path.ref->bounds.area() * fabsf(ctm.det());
@@ -363,14 +363,8 @@ struct Rasterizer {
             }
             Grid::Element *el = grid.find(hash);
             if (el) {
-                Entry *srch = entries.base + el->index;
-                *m = ctm.concat(srch->ctm);
-                if (m->a != m->d || m->b != -m->c)
-                    return nullptr;
-                else {
-                    srch->hit |= true;
-                    return srch;
-                }
+                entries.base[el->index].hit = true;
+                return entries.base + el->index;
             }
             size_t begin = segments.idx, cbegin = counts.idx, upper = path.ref->upperBound(ctm);
             Info seg(segments.alloc(upper));
@@ -641,14 +635,13 @@ struct Rasterizer {
                 gpu.outlineUpper += path.ref->upperBound(ctm), gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Cache::Entry *entry = nullptr;
-                Transform m = Transform();
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
                 if (!slow || unclipped)
-                    entry = gpu.cache.getPath(path, ctm, & m);
+                    entry = gpu.cache.getPath(path, ctm);
                 if (entry == nullptr)
                     writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
                 else if (slow)
-                    gpu.cache.writeCachedOutline(entry, m, clip, sgmnts);
+                    gpu.cache.writeCachedOutline(entry, ctm.concat(entry->ctm), clip, sgmnts);
                 if (entry && !slow) {
                     GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
