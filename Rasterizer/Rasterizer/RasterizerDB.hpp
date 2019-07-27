@@ -75,7 +75,10 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt);
     }
     void writeTables(RasterizerFont& font, Ra::Bounds frame, Ra::SceneList& list) {
-        Ra::Colorant bg[4] = { Ra::Colorant(240, 255), Ra::Colorant(244, 255), Ra::Colorant(248, 255), Ra::Colorant(253, 255) };
+        Ra::Colorant bg[4] = {
+            Ra::Colorant(240, 240, 240, 255), Ra::Colorant(244, 244, 244, 255),
+            Ra::Colorant(248, 248, 248, 255), Ra::Colorant(253, 253, 253, 255)
+        };
         Ra::Row<char> str;
         int count, N;
         Ra::SceneList tables;
@@ -109,7 +112,7 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt1);
     }
     void writeTable(RasterizerFont& font, float t, Ra::Bounds frame, const char *table, Ra::SceneList& list) {
-        Ra::Colorant red(0, 0, 255, 255), black(0, 255), gray(144, 255);
+        Ra::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255), gray(144, 144, 144, 255);
         Ra::Row<char> str;
         str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
