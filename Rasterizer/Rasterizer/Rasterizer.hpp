@@ -83,7 +83,6 @@ struct Rasterizer {
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
     struct Colorant {
-        Colorant() {}
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
     };
@@ -1129,7 +1128,7 @@ struct Rasterizer {
         };
         Pages<uint8_t> data;
         Row<Entry> entries;
-        Colorant clearColor;
+        Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, transforms, clips, widths;
         uint32_t pathsCount;
     };
