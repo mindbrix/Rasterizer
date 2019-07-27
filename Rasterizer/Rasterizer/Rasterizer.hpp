@@ -379,7 +379,7 @@ struct Rasterizer {
             new (grid.alloc(hash)) Grid::Element(hash, entries.end);
             return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert(), instances);
         }
-        void writeCachedOutline(Entry *e, Transform m, Bounds clip, Output *out) {
+        void writeClippedSegments(Entry *e, Transform m, Bounds clip, Output *out) {
             float x0, y0, x1, y1, iy0, iy1;
             Segment *s = segments.base + e->seg.begin, *end = segments.base + e->seg.end;
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
@@ -633,18 +633,20 @@ struct Rasterizer {
             } else {
                 Cache::Entry *entry = nullptr;
                 bool slow = clip.uy - clip.ly > kMoleculesHeight || clip.ux - clip.lx > kMoleculesHeight;
-                if (!slow || unclipped)
+                if (!slow || unclipped) {
                     entry = gpu.cache.getPath(path, ctm);
-                if (entry == nullptr)
+                    if (slow) {
+                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, sgmnts);
+                        writeSegmentInstances(sgmnts, clip, even, iz, src[3] == 255 && !hit, gpu);
+                    } else {
+                        GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
+                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
+                        inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
+                    }
+                } else {
                     writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
-                else if (slow)
-                    gpu.cache.writeCachedOutline(entry, ctm.concat(entry->ctm), clip, sgmnts);
-                if (entry && !slow) {
-                    GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
-                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
-                    inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
-                } else
                     writeSegmentInstances(sgmnts, clip, even, iz, src[3] == 255 && !hit, gpu);
+                }
             }
         }
     }
