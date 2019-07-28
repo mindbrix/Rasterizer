@@ -224,7 +224,6 @@ vertex InstancesVertex instances_vertex_main(
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
-    vert.isShape = true;
     constexpr float err = 1.0 / 32.0;
     const device Instance& inst = instances[iid];
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
@@ -263,15 +262,16 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
+        vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
+        vert.isShape = false;
         vert.even = inst.iz & Instance::kEvenOdd;
         vert.solid = inst.iz & Instance::kSolidCell;
-        vert.isShape = false;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
