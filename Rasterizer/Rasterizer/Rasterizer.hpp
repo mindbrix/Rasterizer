@@ -584,7 +584,7 @@ struct Rasterizer {
                     for (iz = clz; iz < cuz; iz++, paths++, colors++) {
                         Transform m = ctm.concat(scene.ctms[iz - lz]);
                         Transform unit = paths->ref->bounds.unit(m);
-                        Bounds dev = Bounds(unit), clip = dev.integral().inset(-width, -width).intersect(device), clu = Bounds(inv.concat(unit));
+                        Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device), clu = Bounds(inv.concat(unit));
                         if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             Output sgmnts(& segments[0], clip.ly * krfh);
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
@@ -607,7 +607,7 @@ struct Rasterizer {
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, Output *sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         if (width) {
             OutlineOutput out; out.clip = clip, out.src = src, out.width = width, out.bm = bm;
-            writePath(path, ctm, clip, false, true, writeOutlinePixels, & out);
+            writePath(path, ctm, clip.inset(-width, -width), false, true, writeOutlinePixels, & out);
         } else {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             Output del(deltas, stride);
@@ -623,7 +623,7 @@ struct Rasterizer {
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, size_t iz, bool unclipped, Output *sgmnts, GPU& gpu) {
         if (width) {
             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
-            inst->outline.clip = clip;
+            inst->outline.clip = clip.inset(-width, -width);
             gpu.outlineUpper += path.ref->upperBound(ctm), gpu.outlinePaths++, gpu.allocator.countInstance();
         } else {
             Cache::Entry *entry = nullptr;
