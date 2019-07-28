@@ -591,7 +591,7 @@ struct Rasterizer {
                             if (bitmap.width == 0)
                                 ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, iz, uc.contains(dev) && clip.contains(dev), & sgmnts, gpu);
                             else
-                                writeBitmapPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
+                                writeBitmapPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, clipctm, deltas.base, deltas.end, & sgmnts, & bitmap);
                         }
                     }
                 }
@@ -604,7 +604,7 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, Output *sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
+    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, float *deltas, size_t deltasSize, Output *sgmnts, Bitmap *bm) {
         if (width) {
             OutlineOutput out; out.clip = clip, out.src = src, out.width = width, out.bm = bm;
             writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
