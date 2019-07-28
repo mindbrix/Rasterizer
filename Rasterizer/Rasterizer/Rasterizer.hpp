@@ -88,8 +88,7 @@ struct Rasterizer {
     };
     struct Geometry {
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        Geometry() : shapesCount(0), quadraticSums(0), cubicSums(0), px(0), py(0), shapes(nullptr), circles(nullptr), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
-        ~Geometry() { if (shapes) free(shapes), free(circles); }
+        Geometry() : shapesCount(0), quadraticSums(0), cubicSums(0), px(0), py(0), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         
         float *alloc(Type type, size_t size) {
             for (int i = 0; i < size; i++)
@@ -113,7 +112,7 @@ struct Rasterizer {
             }
             isPolygon &= type != kQuadratic && type != kCubic;
             isDrawable |= !((types.size() < 3 && shapesCount == 0) || bounds.lx == FLT_MAX);
-            weight = types.size() ?: (shapes ? shapesCount >> 4: 0);
+            weight = types.size();
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
@@ -123,15 +122,6 @@ struct Rasterizer {
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
             return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
-        }
-        void allocShapes(size_t count) {
-            shapesCount = count, shapes = (Transform *)calloc(count, sizeof(Transform)), circles = (bool *)calloc(count, sizeof(bool));
-            isDrawable |= count != 0, weight = count >> 4;
-        }
-        void updateShapes(size_t count) {
-            bounds = Bounds();
-            for (int i = 0; i < shapesCount; i++)
-                bounds.extend(Bounds(shapes[i]));
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
         void addEllipse(Bounds b) {
@@ -185,8 +175,7 @@ struct Rasterizer {
         std::vector<float> points;
         std::vector<Bounds> molecules;
         float px, py, *pts;
-        Transform *shapes;
-        bool *circles, isGlyph, isDrawable, isPolygon;
+        bool isGlyph, isDrawable, isPolygon;
         Bounds bounds, *mols;
     };
     template<typename T>
@@ -612,14 +601,7 @@ struct Rasterizer {
                 writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
                 writeSegmentPixels(sgmnts, clip, hit, clipctm, even, & del, src, bm);
             }
-        } else {
-            for (int i = 0; i < path.ref->shapesCount; i++) {
-                Transform shape = ctm.concat(path.ref->shapes[i]);
-                Bounds shapeClip = Bounds(shape).integral().intersect(clip);
-                if (shapeClip.lx != shapeClip.ux && shapeClip.ly != shapeClip.uy)
-                    writeShapePixels(shapeClip, shape, path.ref->circles[i], src, bm);
-            }
-        }
+        } 
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds bounds, Bounds clip, bool hit, float width, Output *sgmnts, GPU& gpu) {
         if (path.ref->shapesCount) {
@@ -1232,13 +1214,7 @@ struct Rasterizer {
                 for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                     base += scene->ref->paths.size();
         
-                if (inst->iz & GPU::Instance::kShapes) {
-                    Path& path = scene->ref->paths[iz - base];
-                    for (int k = 0; k < path.ref->shapesCount; k++, dst++) {
-                        new (dst) GPU::Instance(iz, GPU::Instance::kCircle);
-                        dst->unit = path.ref->shapes[k];
-                    }
-                } else if (inst->iz & GPU::Instance::kOutlines) {
+                if (inst->iz & GPU::Instance::kOutlines) {
                     OutlineInfo info;  info.dst = info.dst0 = dst, info.iz = iz;
                     writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, writeOutlineInstance, & info);
                     size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;

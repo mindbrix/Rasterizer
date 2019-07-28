@@ -38,18 +38,7 @@ struct RasterizerCG {
                             CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                             CGContextFillPath(ctx);
                         }
-                    } else {
-                        for (int i = 0; i < path.ref->shapesCount; i++) {
-                            CGContextSaveGState(ctx);
-                            CGContextConcatCTM(ctx, CGFromTransform(t.concat(path.ref->shapes[i])));
-                            if (path.ref->circles[i])
-                                CGContextAddPath(ctx, ellipse);
-                            else
-                                CGContextAddPath(ctx, rect);
-                            CGContextFillPath(ctx);
-                            CGContextRestoreGState(ctx);
-                        }
-                    }
+                    } 
                     CGContextRestoreGState(ctx);
                 }
             }
