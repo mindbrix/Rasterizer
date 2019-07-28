@@ -8,16 +8,18 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerTest {
-    static void addTestPaths(Ra::Scene& scene) {
+    static void addTestScenes(Ra::SceneList& list) {
+        Ra::Ref<Ra::Scene> scene;
         Ra::Colorant color(0, 0, 0, 255);
         if (0)
-            scene.addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color);
+            scene.ref->addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color);
         if (0)
-            scene.addPath(createPhyllotaxisPath(100000), Ra::Transform(), color); // 687, 688
+            scene.ref->addPath(createPhyllotaxisPath(100000), Ra::Transform(), color); // 687, 688
         if (0)
-            writePhyllotaxisToScene(100000, scene);
+            writePhyllotaxisToScene(100000, *scene.ref);
         if (0)
-            scene.addPath(createBoundsShape(Ra::Bounds(100, 100, 200, 800)), Ra::Transform(), color);
+            scene.ref->addPath(createBoundsShape(Ra::Bounds(100, 100, 200, 800)), Ra::Transform(), color);
+        list.addScene(scene);
     }
     static void writePhyllotaxisToScene(size_t count, Ra::Scene& scene) {
         Ra::Colorant color(0, 0, 0, 255);

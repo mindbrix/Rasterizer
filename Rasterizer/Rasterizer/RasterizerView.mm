@@ -263,10 +263,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)setSvgData:(NSData *)svgData {
     if ((_svgData = svgData)) {
-        Ra::Ref<Ra::Scene> test;
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _list.empty());
-        RasterizerTest::addTestPaths(*test.ref);
-        _state.user = _list.addScene(test).bounds;
+        RasterizerTest::addTestScenes(_list);
+        _state.user = _list.bounds;
     }
     [self.layer setNeedsDisplay];
 }
