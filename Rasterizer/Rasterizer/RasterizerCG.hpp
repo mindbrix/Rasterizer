@@ -14,7 +14,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, CGContextRef ctx) {
+    static void drawScenes(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
         CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = *list.scenes[j].ref;
@@ -29,7 +29,7 @@ struct RasterizerCG {
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
                     if (list.widths[j]) {
-                        if (list.widths[j] > 0.f)
+                        if (outlineWidth == 0.f)
                             CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
                         CGContextSetLineWidth(ctx, list.widths[j] < 0.f ? (CGFloat)-109.05473e+14 : (list.widths[j]) / sqrtf(fabsf(scene.ctms[i].det())));
                         CGContextStrokePath(ctx);
@@ -251,7 +251,7 @@ struct RasterizerCG {
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
-            drawScenes(visibles, state.view, state.device, ctx);
+            drawScenes(visibles, state.view, state.device, state.outlineWidth, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
             Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
