@@ -567,7 +567,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawScenes(SceneList& list, Transform view, Transform *ctms, Transform *clips, float *widths, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *_colors, Transform *clips, float *widths, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
@@ -578,9 +578,9 @@ struct Rasterizer {
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
                     Path *paths = & scene.paths[clz - lz];
-                    Colorant *colors = & scene.colors[clz - lz];
                     for (iz = clz; iz < cuz; iz++)
                         clips[iz] = clipctm, widths[iz] = width;
+                    Colorant *colors = & _colors[clz];
                     for (iz = clz; iz < cuz; iz++, paths++, colors++) {
                         Transform m = ctm.concat(scene.ctms[iz - lz]);
                         Transform unit = paths->ref->bounds.unit(m);
