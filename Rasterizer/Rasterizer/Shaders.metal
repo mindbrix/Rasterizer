@@ -38,7 +38,7 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kRect = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
     union { Quad quad;  Transform unit;  Outline outline; };
     uint32_t iz;
 };
@@ -263,7 +263,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
-    } else if (inst.iz & Instance::kCircle || inst.iz & Instance::kRect) {
+    } else if (inst.iz & Instance::kCircle) {
         Transform ctm = {
             inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
             inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
@@ -282,7 +282,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
-        vert.even = false;
+        vert.even = inst.iz & Instance::kEvenOdd;
         vert.solid = inst.iz & Instance::kSolidCell;
         vert.isShape = false;
     }
