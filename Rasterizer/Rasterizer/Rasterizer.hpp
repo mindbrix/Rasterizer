@@ -290,7 +290,7 @@ struct Rasterizer {
         Output(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
         Output(Row<Segment> *segments, size_t offset) : segments(segments), stride(uint32_t(offset)) {}
         Output(Segment *segment) : seg(segment), stride(0) {}
-        union { void *info;  float *deltas;  Row<Segment> *segments; Segment *seg; };
+        union { float *deltas;  Row<Segment> *segments; Segment *seg; };
         uint32_t stride;
     };
     struct Cache {
