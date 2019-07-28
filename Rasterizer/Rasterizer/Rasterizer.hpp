@@ -543,10 +543,10 @@ struct Rasterizer {
         if (x0 != x1 || y0 != y1) {
             float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
             float vx = -dy * rl * out->width, vy = dx * rl * out->width;
-            Transform ctm = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-            Bounds clip = Bounds(ctm).integral().intersect(out->clip);
+            Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
+            Bounds clip = Bounds(unit).integral().intersect(out->clip);
             bool circle = false;
-            writeShapePixels(clip, ctm, circle, out->src, out->bm);
+            writeShapePixels(clip, unit, circle, out->src, out->bm);
         }
     }
     struct Context {
