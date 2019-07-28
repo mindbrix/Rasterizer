@@ -52,7 +52,7 @@ struct RasterizerWinding {
     }
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy, float width) {
         WindingInfo info(dx, dy, width);
-        if (path.ref->types.size() > 2 || path.ref->shapesCount != 0) {
+        if (path.ref->types.size() > 2) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                 Ra::Transform unit = path.ref->bounds.unit(ctm);
