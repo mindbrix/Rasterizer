@@ -637,7 +637,7 @@ struct Rasterizer {
                     entry = gpu.cache.getPath(path, ctm);
                     if (fast) {
                         GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
-                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule);
+                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (even ? GPU::Instance::kEvenOdd : 0));
                         inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
                     } else {
                         gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, sgmnts);
