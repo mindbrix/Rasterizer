@@ -101,7 +101,7 @@ struct RasterizerState {
             Ra::SceneList visibles;
             size_t pathsCount = list.writeVisibles(view, device, visibles);
             if (pathsCount) {
-                Ra::Range indices = RasterizerWinding::indicesForPoint(visibles, false, view, device, scale * x, scale * y);
+                Ra::Range indices = RasterizerWinding::indicesForPoint(visibles, view, device, scale * x, scale * y);
                 if (indices.begin != INT_MAX) {
                     int idx = 0;
                     for (int j = 0; j < indices.begin; j++)
