@@ -1084,9 +1084,9 @@ struct Rasterizer {
         float d[4], dx[2], dy[2], r, y, x, dd, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, ctm, d, dx, dy, & r);
         uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel = rowaddr;
-        for (y = 0.f; y < clip.uy - clip.ly; y++, rowaddr -= bitmap->stride, pixel = rowaddr)
-            for (x = 0.f; x < clip.ux - clip.lx; x++, pixel += bitmap->bytespp) {
-                dd = x * dx[0] + y * dy[0], d0 = d[0] - dd, d1 = d[1] + dd, dd = x * dx[1] + y * dy[1], d2 = d[2] + dd, d3 = d[3] - dd;
+        for (y = 0.f; y < clip.uy - clip.ly; y++, rowaddr -= bitmap->stride, pixel = rowaddr) {
+            dd = y * dy[0], d0 = d[0] - dd, d1 = d[1] + dd, dd = y * dy[1], d2 = d[2] + dd, d3 = d[3] - dd;
+            for (x = 0.f; x < clip.ux - clip.lx; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha;
@@ -1095,6 +1095,7 @@ struct Rasterizer {
                 if (alpha > 0.003921568627f)
                     writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
             }
+        }
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
 #ifdef RASTERIZER_SIMD
