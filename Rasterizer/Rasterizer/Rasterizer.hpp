@@ -537,18 +537,20 @@ struct Rasterizer {
     };
     struct OutlineOutput {
         Bounds clip;  uint8_t *src;  float width;  Bitmap *bm;
-    };
-    static void writeOutlinePixels(float x0, float y0, float x1, float y1, void *info) {
-        OutlineOutput *out = (OutlineOutput *)info;
-        if (x0 != x1 || y0 != y1) {
-            float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
-            float vx = -dy * rl * out->width, vy = dx * rl * out->width;
-            Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-            Bounds clip = Bounds(unit).integral().intersect(out->clip);
-            bool circle = false;
-            writeShapePixels(clip, unit, circle, out->src, out->bm);
+        
+        static void writePixels(float x0, float y0, float x1, float y1, void *info) {
+            OutlineOutput *out = (OutlineOutput *)info;
+            if (x0 != x1 || y0 != y1) {
+                float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
+                float vx = -dy * rl * out->width, vy = dx * rl * out->width;
+                Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
+                Bounds clip = Bounds(unit).integral().intersect(out->clip);
+                bool circle = false;
+                writeShapePixels(clip, unit, circle, out->src, out->bm);
+            }
         }
-    }
+    };
+    
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
@@ -606,7 +608,7 @@ struct Rasterizer {
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, Output *sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         if (width) {
             OutlineOutput out; out.clip = clip, out.src = src, out.width = width, out.bm = bm;
-            writePath(path, ctm, clip.inset(-width, -width), false, true, writeOutlinePixels, & out);
+            writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
         } else {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
             Output del(deltas, stride);
