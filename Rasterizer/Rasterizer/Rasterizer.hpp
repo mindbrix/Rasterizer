@@ -582,8 +582,7 @@ struct Rasterizer {
                         clips[iz] = clipctm, widths[iz] = width;
                     Colorant *color = & colors[clz];
                     for (iz = clz; iz < cuz; iz++, paths++, color++) {
-                        Transform m = ctm.concat(scene.ctms[iz - lz]);
-                        Transform unit = paths->ref->bounds.unit(m);
+                        Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device), clu = Bounds(inv.concat(unit));
                         if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             Output sgmnts(& segments[0], clip.ly * krfh);
