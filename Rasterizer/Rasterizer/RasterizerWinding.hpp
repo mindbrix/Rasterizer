@@ -36,7 +36,7 @@ struct RasterizerWinding {
         }
         float dx, dy, width;  int winding;
         
-        static void countFill(float x0, float y0, float x1, float y1, void *info) {
+        static void count(float x0, float y0, float x1, float y1, void *info) {
             ((WindingInfo *)info)->count(x0, y0, x1, y1);
         }
         static void countOutline(float x0, float y0, float x1, float y1, void *inf) {
@@ -65,7 +65,7 @@ struct RasterizerWinding {
                             if (width)
                                 Ra::writePath(path, ctm, clip, false, false, WindingInfo::countOutline, & info);
                             else
-                                Ra::writePath(path, ctm, clip, true, false, WindingInfo::countFill, & info);
+                                Ra::writePath(path, ctm, clip, true, false, WindingInfo::count, & info);
                         } 
                     }
                 }
