@@ -550,7 +550,6 @@ struct Rasterizer {
             }
         }
     };
-    
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
