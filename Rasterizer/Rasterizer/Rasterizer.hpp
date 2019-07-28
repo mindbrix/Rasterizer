@@ -446,9 +446,9 @@ struct Rasterizer {
             short prev, next;
         };
         struct Instance {
-            enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
+            enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kTBA = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
             Instance(size_t iz, int type) : iz((uint32_t)iz | type) {}
-            union { Quad quad;  Transform unit;  Outline outline; };
+            union { Quad quad;  Outline outline; };
             uint32_t iz;
         };
         struct EdgeCell {
@@ -461,8 +461,8 @@ struct Rasterizer {
         };
         void empty() { zero(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
         void reset() { zero(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
-        void zero() { shapesCount = shapePaths = outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
-        size_t shapesCount = 0, shapePaths = 0, outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
+        void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
+        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
         Row<Index> indices;
         Row<Instance> blends, opaques;
@@ -1140,7 +1140,7 @@ struct Rasterizer {
             GPU& gpu = contexts[i].gpu;
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
-            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.shapesCount - gpu.shapePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
+            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
             for (j = 0; j < contexts[i].segments.size(); j++)
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }

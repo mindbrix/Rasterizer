@@ -38,8 +38,8 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kShapes = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
-    union { Quad quad;  Transform unit;  Outline outline; };
+    enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kTBA = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
+    union { Quad quad;  Outline outline; };
     uint32_t iz;
 };
 struct EdgeCell {
@@ -263,19 +263,6 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
-    } else if (inst.iz & Instance::kCircle) {
-        Transform ctm = {
-            inst.unit.a * m.a + inst.unit.b * m.c, inst.unit.a * m.b + inst.unit.b * m.d,
-            inst.unit.c * m.a + inst.unit.d * m.c, inst.unit.c * m.b + inst.unit.d * m.d,
-            inst.unit.tx * m.a + inst.unit.ty * m.c + m.tx, inst.unit.tx * m.b + inst.unit.ty * m.d + m.ty };
-        area = min(1.0, 0.5 * abs(ctm.d * ctm.a - ctm.b * ctm.c));
-        float rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d);
-        float cosine = min(1.0, (ctm.a * ctm.c + ctm.b * ctm.d) * rlab * rlcd);
-        float dilation = (1.0 + 0.5 * (rsqrt(area) - 1.0)) * 0.7071067812 * rsqrt(1.0 - cosine * cosine);
-        float tx = dilation * rlab, ty = dilation * rlcd;
-        float ix = vid & 1 ? 1.0 + tx : -tx, iy = vid >> 1 ? 1.0 + ty : -ty;
-        dx = ix * ctm.a + iy * ctm.c + ctm.tx, dy = ix * ctm.b + iy * ctm.d + ctm.ty;
-        vert.shape = distances(ctm, dx, dy);
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
