@@ -567,7 +567,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *_colors, Transform *clips, float *widths, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clips, float *widths, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
@@ -580,8 +580,8 @@ struct Rasterizer {
                     Path *paths = & scene.paths[clz - lz];
                     for (iz = clz; iz < cuz; iz++)
                         clips[iz] = clipctm, widths[iz] = width;
-                    Colorant *colors = & _colors[clz];
-                    for (iz = clz; iz < cuz; iz++, paths++, colors++) {
+                    Colorant *color = & colors[clz];
+                    for (iz = clz; iz < cuz; iz++, paths++, color++) {
                         Transform m = ctm.concat(scene.ctms[iz - lz]);
                         Transform unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device), clu = Bounds(inv.concat(unit));
@@ -589,9 +589,9 @@ struct Rasterizer {
                             Output sgmnts(& segments[0], clip.ly * krfh);
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & colors->src0, clip, width, hit, iz, uc.contains(dev) && clip.contains(dev), & sgmnts, gpu);
+                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, iz, uc.contains(dev) && clip.contains(dev), & sgmnts, gpu);
                             else
-                                writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, width, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
+                                writeBitmapPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
                         }
                     }
                 }
