@@ -379,7 +379,7 @@ struct Rasterizer {
                     else
                         writeClippedSegment(x0, y0, x1, y1, out);
                 } else if (s < end - 1)
-                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
+                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh);
             }
         }
         Grid grid;
