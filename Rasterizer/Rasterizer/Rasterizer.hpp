@@ -536,10 +536,7 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct OutlineOutput {
-        Bounds clip;
-        uint8_t *src;
-        float width;
-        Bitmap *bm;
+        Bounds clip;  uint8_t *src;  float width;  Bitmap *bm;
     };
     static void writeOutlineOutput(float x0, float y0, float x1, float y1, void *info) {
         OutlineOutput *out = (OutlineOutput *)info;
