@@ -535,6 +535,12 @@ struct Rasterizer {
         uint8_t *data;
         size_t width, height, stride, bpp, bytespp;
     };
+    struct OutlineOutput {
+        Bounds clip;
+        uint8_t *src;
+        float width;
+        Bitmap *bm;
+    };
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
@@ -575,9 +581,9 @@ struct Rasterizer {
                             Output sgmnts(& segments[0], clip.ly * krfh);
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & colors->src0, iz, uc.contains(dev) && clip.contains(dev), bounds, clip, hit, width, & sgmnts, gpu);
+                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & colors->src0, clip, width, hit, iz, uc.contains(dev) && clip.contains(dev), bounds, & sgmnts, gpu);
                             else if (width == 0.f)
-                                writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
+                                writeBitmapPath(*paths, m, list.evens[i], & colors->src0, clip, width, hit, clipctm, & sgmnts, deltas.base, deltas.end, & bitmap);
                         }
                     }
                 }
@@ -590,7 +596,7 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, bool hit, Transform clipctm, Output *sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
+    static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, Output *sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
         float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
         Output del(deltas, stride);
         if (stride * h < deltasSize) {
@@ -601,7 +607,7 @@ struct Rasterizer {
             writeSegmentPixels(sgmnts, clip, hit, clipctm, even, & del, src, bm);
         }
     }
-    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, size_t iz, bool unclipped, Bounds bounds, Bounds clip, bool hit, float width, Output *sgmnts, GPU& gpu) {
+    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, size_t iz, bool unclipped, Bounds bounds, Output *sgmnts, GPU& gpu) {
         if (width) {
             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
             inst->outline.clip = clip;
