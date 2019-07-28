@@ -34,23 +34,23 @@ struct RasterizerWinding {
                     winding--;
             }
         }
-        float dx, dy, width;
-        int winding;
-    };
-    static void countWinding(float x0, float y0, float x1, float y1, void *info) {
-        ((WindingInfo *)info)->count(x0, y0, x1, y1);
-    }
-    static void countOutlineWinding(float x0, float y0, float x1, float y1, void *inf) {
-        WindingInfo *info = (WindingInfo *)inf;
-        if (x0 != x1 || y0 != y1) {
-            float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
-            float vx = -dy * rl * 0.5f * info->width, vy = dx * rl * 0.5f * info->width;
-            info->count(x0 + vx, y0 + vy, x0 - vx, y0 - vy);
-            info->count(x0 - vx, y0 - vy, x1 - vx, y1 - vy);
-            info->count(x1 - vx, y1 - vy, x1 + vx, y1 + vy);
-            info->count(x1 + vx, y1 + vy, x0 + vx, y0 + vy);
+        float dx, dy, width;  int winding;
+        
+        static void countFill(float x0, float y0, float x1, float y1, void *info) {
+            ((WindingInfo *)info)->count(x0, y0, x1, y1);
         }
-    }
+        static void countOutline(float x0, float y0, float x1, float y1, void *inf) {
+            WindingInfo *info = (WindingInfo *)inf;
+            if (x0 != x1 || y0 != y1) {
+                float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
+                float vx = -dy * rl * 0.5f * info->width, vy = dx * rl * 0.5f * info->width;
+                info->count(x0 + vx, y0 + vy, x0 - vx, y0 - vy);
+                info->count(x0 - vx, y0 - vy, x1 - vx, y1 - vy);
+                info->count(x1 - vx, y1 - vy, x1 + vx, y1 + vy);
+                info->count(x1 + vx, y1 + vy, x0 + vx, y0 + vy);
+            }
+        }
+    };
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy, float width) {
         WindingInfo info(dx, dy, width);
         if (path.ref->types.size() > 2) {
@@ -63,9 +63,9 @@ struct RasterizerWinding {
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->types.size()) {
                             if (width)
-                                Ra::writePath(path, ctm, clip, false, false, countOutlineWinding, & info);
+                                Ra::writePath(path, ctm, clip, false, false, WindingInfo::countOutline, & info);
                             else
-                                Ra::writePath(path, ctm, clip, true, false, countWinding, & info);
+                                Ra::writePath(path, ctm, clip, true, false, WindingInfo::countFill, & info);
                         } 
                     }
                 }
