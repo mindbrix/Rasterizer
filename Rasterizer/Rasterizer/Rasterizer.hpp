@@ -1129,20 +1129,20 @@ struct Rasterizer {
         uint32_t pathsCount;
     };
     struct OutlineInfo {
-        GPU::Instance *dst0, *dst;
-        size_t iz;
-    };
-    static void writeOutlineInstance(float x0, float y0, float x1, float y1, void *info) {
-        OutlineInfo *in = (OutlineInfo *)info;
-        new (in->dst) GPU::Instance(in->iz, GPU::Instance::kOutlines);
-        new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
-        if (x0 == FLT_MAX) {
-            if (in->dst - in->dst0 > 1)
-                in->dst0->outline.prev = (int)(in->dst - in->dst0 - 1), (in->dst - 1)->outline.next = -in->dst0->outline.prev;
-            in->dst0 = in->dst + 1;
+        GPU::Instance *dst0, *dst;  size_t iz;
+        
+        static void writeInstance(float x0, float y0, float x1, float y1, void *info) {
+            OutlineInfo *in = (OutlineInfo *)info;
+            new (in->dst) GPU::Instance(in->iz, GPU::Instance::kOutlines);
+            new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
+            if (x0 == FLT_MAX) {
+                if (in->dst - in->dst0 > 1)
+                    in->dst0->outline.prev = (int)(in->dst - in->dst0 - 1), (in->dst - 1)->outline.next = -in->dst0->outline.prev;
+                in->dst0 = in->dst + 1;
+            }
+            in->dst++;
         }
-        in->dst++;
-    }
+    };
     static size_t writeContextsToBuffer(Context *contexts, size_t count,
                                         Colorant *colorants,
                                         Transform *ctms,
@@ -1229,13 +1229,13 @@ struct Rasterizer {
         
                 if (inst->iz & GPU::Instance::kOutlines) {
                     OutlineInfo info;  info.dst = info.dst0 = dst, info.iz = iz;
-                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, writeOutlineInstance, & info);
+                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, OutlineInfo::writeInstance, & info);
                     size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
                     if (upper < count) {
                         upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);
                     }
                     if (dst == info.dst)
-                        writeOutlineInstance(0.f, 0.f, 0.f, 0.f, & info);
+                        OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, & info);
                     dst = info.dst, ctms[iz] = Transform();
                 } else {
                     *dst++ = *inst;
