@@ -541,6 +541,21 @@ struct Rasterizer {
         float width;
         Bitmap *bm;
     };
+    static void writeOutlineOutput(float x0, float y0, float x1, float y1, void *info) {
+        OutlineOutput *out = (OutlineOutput *)info;
+        if (x0 != x1 || y0 != y1) {
+            float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
+            float vx = -dy * rl * 0.5f * out->width, vy = dx * rl * 0.5f * out->width;
+            Bounds clip;
+            Transform ctm;
+            bool circle = false;
+//            info->count(x0 + vx, y0 + vy, x0 - vx, y0 - vy);
+//            info->count(x0 - vx, y0 - vy, x1 - vx, y1 - vy);
+//            info->count(x1 - vx, y1 - vy, x1 + vx, y1 + vy);
+//            info->count(x1 + vx, y1 + vy, x0 + vx, y0 + vy);
+            writeShapePixels(clip, ctm, circle, out->src, out->bm);
+        }
+    }
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
@@ -597,14 +612,19 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, Output *sgmnts, float *deltas, size_t deltasSize, Bitmap *bm) {
-        float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-        Output del(deltas, stride);
-        if (stride * h < deltasSize) {
-            writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, false, writeDeltaSegment, & del);
-            writeDeltaPixels(& del, clip, hit, clipctm, even, src, bm);
+        if (width) {
+            OutlineOutput out; out.clip = clip, out.src = src, out.width = width, out.bm = bm;
+            writePath(path, ctm, clip, false, true, writeOutlineOutput, & out);
         } else {
-            writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
-            writeSegmentPixels(sgmnts, clip, hit, clipctm, even, & del, src, bm);
+            float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
+            Output del(deltas, stride);
+            if (stride * h < deltasSize) {
+                writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, false, writeDeltaSegment, & del);
+                writeDeltaPixels(& del, clip, hit, clipctm, even, src, bm);
+            } else {
+                writePath(path, ctm, clip, true, false, writeClippedSegment, sgmnts);
+                writeSegmentPixels(sgmnts, clip, hit, clipctm, even, & del, src, bm);
+            }
         }
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, size_t iz, bool unclipped, Bounds bounds, Output *sgmnts, GPU& gpu) {
