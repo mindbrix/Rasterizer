@@ -1099,7 +1099,7 @@ struct Rasterizer {
             for (x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
-                    alpha = f * (r - sqrtf(cx * cx + cy * cy), alpha = alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
+                    alpha = r - sqrtf(cx * cx + cy * cy), alpha = f * (alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
                 } else
                     alpha = f * (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
                 if (alpha > 0.003921568627f)
