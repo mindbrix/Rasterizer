@@ -293,6 +293,12 @@ struct Rasterizer {
         union { float *deltas;  Row<Segment> *segments; Segment *seg; };
         uint32_t stride;
     };
+    struct Counter {
+        size_t count = 0;
+        static void countSegment(float x0, float y0, float x1, float y1, void *info) {
+            ((Counter *)info)->count++;
+        }
+    };
     struct Cache {
         struct Entry {
             Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm, int instances) : hash(hash), seg(begin, end), cnt(cbegin, cend), ctm(ctm), instances(instances), hit(true) {}
@@ -624,7 +630,12 @@ struct Rasterizer {
         if (width) {
             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
             inst->outline.clip = clip.inset(-width, -width);
-            gpu.outlineUpper += path.ref->upperBound(ctm), gpu.outlinePaths++, gpu.allocator.countInstance();
+            size_t upper = path.ref->upperBound(ctm);
+            if (fabsf(ctm.det()) > 1e2f) {
+                Counter counter;  writePath(path, ctm, inst->outline.clip, false, true, Counter::countSegment, & counter);
+                upper = counter.count;
+            }
+            gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
         } else {
             Cache::Entry *entry = nullptr;
             bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
