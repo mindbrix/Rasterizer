@@ -548,11 +548,12 @@ struct Rasterizer {
             OutlineOutput *out = (OutlineOutput *)info;
             if (x0 != x1 || y0 != y1) {
                 float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
-                float vx = -dy * rl * out->width, vy = dx * rl * out->width;
+                float cw = out->width < 1.f ? 1.f : out->width;
+                float vx = -dy * rl * cw, vy = dx * rl * cw;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
                 Bounds clip = Bounds(unit).integral().intersect(out->clip);
                 bool circle = false;
-                writeShapePixels(clip, unit, circle, out->src, out->bm);
+                writeShapePixels(clip, unit, circle, out->src, out->width / cw, out->bm);
             }
         }
     };
@@ -1091,7 +1092,7 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeShapePixels(Bounds clip, Transform ctm, bool circle, uint8_t *src, Bitmap *bitmap) {
+    static void writeShapePixels(Bounds clip, Transform ctm, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
         float d[4], dx[2], dy[2], r, y, x, dd, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, ctm, d, dx, dy, & r);
@@ -1101,9 +1102,9 @@ struct Rasterizer {
             for (x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
-                    alpha = r - sqrtf(cx * cx + cy * cy), alpha = alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha;
+                    alpha = f * (r - sqrtf(cx * cx + cy * cy), alpha = alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
                 } else
-                    alpha = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
+                    alpha = f * (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
                 if (alpha > 0.003921568627f)
                     writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
             }
