@@ -227,12 +227,13 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1.0 / 32.0;
     const device Instance& inst = instances[iid];
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
-    float area = 1.0, visible = 1.0, dx, dy;
+    float f = 1.0, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
-        const float dw = 1.0 + widths[inst.iz & kPathIndexMask];
+        const float width = widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
+        f = width / cw;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
@@ -276,7 +277,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
     const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * sqrt(area);
+    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * f;
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
