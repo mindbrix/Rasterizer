@@ -545,8 +545,8 @@ struct Rasterizer {
         Bounds clip;  uint8_t *src;  float width;  bool circle;  Bitmap *bm;
         
         static void writePixels(float x0, float y0, float x1, float y1, void *info) {
-            OutlineOutput *out = (OutlineOutput *)info;
             if (x0 != x1 || y0 != y1) {
+                OutlineOutput *out = (OutlineOutput *)info;
                 float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
                 float cw = out->width < 1.f ? 1.f : out->width, vx = -dy * rl * cw, vy = dx * rl * cw;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
