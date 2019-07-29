@@ -550,8 +550,7 @@ struct Rasterizer {
                 float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
                 float cw = out->width < 1.f ? 1.f : out->width, vx = -dy * rl * cw, vy = dx * rl * cw;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-                Bounds clip = Bounds(unit).integral().intersect(out->clip);
-                writeShapePixels(clip, unit, out->circle, out->src, out->width / cw, out->bm);
+                writeShapePixels(Bounds(unit).integral().intersect(out->clip), unit, out->circle, out->src, out->width / cw, out->bm);
             }
         }
     };
