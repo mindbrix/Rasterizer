@@ -288,7 +288,7 @@ vertex InstancesVertex instances_vertex_main(
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float cx = saturate(vert.clip.x) - (1.0 - saturate(vert.clip.z)), cy = saturate(vert.clip.y) - (1.0 - saturate(vert.clip.w)), clip = cx * cy, alpha = 1.0;
+    float alpha = 1.0, clip = (saturate(vert.clip.x) - (1.0 - saturate(vert.clip.z))) * (saturate(vert.clip.y) - (1.0 - saturate(vert.clip.w)));
     if (vert.isShape) {
         float r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle));
         float x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
