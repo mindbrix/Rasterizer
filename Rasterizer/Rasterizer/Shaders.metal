@@ -295,7 +295,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         alpha = saturate(r - sqrt(x * x + y * y));
     } else if (!vert.solid) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
-        alpha = vert.even ? (1.0 - abs(fmod(alpha, 2.0) - 1.0)) : (min(1.0, alpha));
+        alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     return vert.color * alpha * (saturate(vert.clip.x) - (1.0 - saturate(vert.clip.z))) * (saturate(vert.clip.y) - (1.0 - saturate(vert.clip.w)));
 }
