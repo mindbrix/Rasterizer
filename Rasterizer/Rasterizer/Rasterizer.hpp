@@ -1033,8 +1033,8 @@ struct Rasterizer {
                                 else
                                     for (float ix = lx - clip.lx, iy = y - clip.ly; ix < ux - clip.lx; ix++, dst += bitmap->bytespp) {
                                         if (hit) {
-                                            d0 = d[0] - ix * dx[0] - iy * dy[0], d1 = d[1] + ix * dx[0] + iy * dy[0],
-                                            d2 = d[2] + ix * dx[1] + iy * dy[1], d3 = d[3] - ix * dx[1] - iy * dy[1];
+                                            d0 = d[0] - ix * dx[0] - iy * dy[0], d1 = w[0] - d0,
+                                            d2 = d[2] + ix * dx[1] + iy * dy[1], d3 = w[1] - d2;
                                             soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
                                             if (soft > 0.003921568627f)
                                                 writePixel(src0, src1, src2, soft * srcAlpha, dst);
