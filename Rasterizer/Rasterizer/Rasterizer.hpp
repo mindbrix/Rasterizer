@@ -293,10 +293,10 @@ struct Rasterizer {
         union { float *deltas;  Row<Segment> *segments; Segment *seg; };
         uint32_t stride;
     };
-    struct Counter {
+    struct SegmentCounter {
         size_t count = 0;
-        static void countSegment(float x0, float y0, float x1, float y1, void *info) {
-            ((Counter *)info)->count++;
+        static void increment(float x0, float y0, float x1, float y1, void *info) {
+            ((SegmentCounter *)info)->count++;
         }
     };
     struct Cache {
@@ -630,7 +630,7 @@ struct Rasterizer {
             inst->outline.clip = clip.inset(-width, -width);
             size_t upper = path.ref->upperBound(ctm);
             if (fabsf(ctm.det()) > 1e2f) {
-                Counter counter;  writePath(path, ctm, inst->outline.clip, false, true, Counter::countSegment, & counter);
+                SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);
                 upper = counter.count;
             }
             gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
