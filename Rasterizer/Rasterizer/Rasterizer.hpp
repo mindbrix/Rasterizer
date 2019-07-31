@@ -1034,7 +1034,7 @@ struct Rasterizer {
                                     for (float ix = lx - clip.lx, iy = y - clip.ly; ix < ux - clip.lx; ix++, dst += bitmap->bytespp) {
                                         if (hit) {
                                             d0 = d[0] - ix * dx[0] - iy * dy[0], d1 = w[0] - d0,
-                                            d2 = d[2] + ix * dx[1] + iy * dy[1], d3 = w[1] - d2;
+                                            d2 = d[1] + ix * dx[1] + iy * dy[1], d3 = w[1] - d2;
                                             soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
                                             if (soft > 0.003921568627f)
                                                 writePixel(src0, src1, src2, soft * srcAlpha, dst);
@@ -1055,14 +1055,14 @@ struct Rasterizer {
             }
         }
     }
-    static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[4], float w[2], float dx[2], float dy[2], float *r) {
+    static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[2], float w[2], float dx[2], float dy[2], float *r) {
         float det, rl0, rl1, del0, del1;
         det = ctm.det(), rl0 = copysign(1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), det), rl1 = copysign(1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), det);
         dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
         del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
         del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
         w[0] = 1.f + rl0 * det, w[1] = 1.f + rl1 * det;
-        d[0] = 0.5f - del0, d[1] = w[0] - d[0], d[2] = 0.5f + del1, d[3] = w[1] - d[2];
+        d[0] = 0.5f - del0, d[1] = 0.5f + del1;
         *r = fmaxf(1.f, fminf(w[0], w[1]) * 0.5f);
     }
     static void writeDeltaPixels(Output *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
@@ -1081,7 +1081,8 @@ struct Rasterizer {
                     if (*delta)
                         cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
                     if (hit) {
-                        d0 = d[0] - (x * dx[0] + y * dy[0]), d1 = w[0] - d0, d2 = d[2] + (x * dx[1] + y * dy[1]), d3 = w[1] - d2;
+                        d0 = d[0] - (x * dx[0] + y * dy[0]), d1 = w[0] - d0;
+                        d2 = d[1] + (x * dx[1] + y * dy[1]), d3 = w[1] - d2;
                         soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
                     }
                     if (alpha * soft > 0.003921568627f)
@@ -1095,7 +1096,8 @@ struct Rasterizer {
         writeShapeDistances(clip, ctm, d, w, dx, dy, & r);
         uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel = rowaddr;
         for (y = clip.ly; y < clip.uy; y++, rowaddr -= bitmap->stride, pixel = rowaddr) {
-            d0 = d[0] - ((y - clip.ly) * dy[0]), d1 = w[0] - d0, d2 = d[2] + ((y - clip.ly) * dy[1]), d3 = w[1] - d2;
+            d0 = d[0] - ((y - clip.ly) * dy[0]), d1 = w[0] - d0;
+            d2 = d[1] + ((y - clip.ly) * dy[1]), d3 = w[1] - d2;
             for (x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
