@@ -1091,11 +1091,11 @@ struct Rasterizer {
     }
     static void writeShapePixels(Bounds clip, Transform clipctm, Transform ctm, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float d[4], w[2], dx[2], dy[2], r, y, x, dd, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
+        float d[4], w[2], dx[2], dy[2], r, y, x, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, ctm, d, w, dx, dy, & r);
         uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel = rowaddr;
         for (y = clip.ly; y < clip.uy; y++, rowaddr -= bitmap->stride, pixel = rowaddr) {
-            dd = (y - clip.ly) * dy[0], d0 = d[0] - dd, d1 = d[1] + dd, dd = (y - clip.ly) * dy[1], d2 = d[2] + dd, d3 = d[3] - dd;
+            d0 = d[0] - ((y - clip.ly) * dy[0]), d1 = w[0] - d0, d2 = d[2] + ((y - clip.ly) * dy[1]), d3 = w[1] - d2;
             for (x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
