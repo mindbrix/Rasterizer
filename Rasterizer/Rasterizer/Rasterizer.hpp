@@ -550,7 +550,7 @@ struct Rasterizer {
                 float cw = out->width < 1.f ? 1.f : out->width;
                 float dx = x1 - x0, dy = y1 - y0, s = cw / sqrtf(dx * dx + dy * dy), vx = -dy * s, vy = dx * s;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-                writeShapePixels(Bounds(unit).integral().intersect(out->clip), out->clipctm, unit, out->circle, out->src, out->width / cw, out->bm);
+                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->clipctm, unit, out->circle, out->src, out->width / cw, out->bm);
             }
         }
     };
@@ -1090,10 +1090,10 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeShapePixels(Bounds clip, Transform clipctm, Transform ctm, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
+    static void writeOutlinePixels(Bounds clip, Transform clipctm, Transform unit, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
         float d[2], w[2], dx[2], dy[2], r, y, x, d0, d1, d2, d3, cx, cy, m0, m1, alpha;
-        writeShapeDistances(clip, ctm, d, w, dx, dy, & r);
+        writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         float cd[2], cw[2], cdx[2], cdy[2], cd0, cd1, cd2, cd3;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel = rowaddr;
