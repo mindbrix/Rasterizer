@@ -1056,13 +1056,13 @@ struct Rasterizer {
         }
     }
     static inline void writeShapeDistances(Bounds clip, Transform ctm, float d[2], float w[2], float dx[2], float dy[2], float *r) {
-        float det, rl0, rl1, del0, del1;
+        float det, rl0, rl1, vx, vy;
         det = ctm.det(), rl0 = copysign(1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), det), rl1 = copysign(1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), det);
-        dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
-        del0 = rl0 * (ctm.c * (clip.ly - ctm.ty) - ctm.d * (clip.lx - ctm.tx)) + 0.5f * (dx[0] + dy[0]),
-        del1 = rl1 * (ctm.a * (clip.ly - ctm.ty) - ctm.b * (clip.lx - ctm.tx)) + 0.5f * (dx[1] + dy[1]);
+        vx = clip.lx + 0.5f - ctm.tx, vy = clip.ly + 0.5f - ctm.ty;
+        d[0] = 0.5f - rl0 * (ctm.c * vy - ctm.d * vx);
+        d[1] = 0.5f + rl1 * (ctm.a * vy - ctm.b * vx);
         w[0] = 1.f + rl0 * det, w[1] = 1.f + rl1 * det;
-        d[0] = 0.5f - del0, d[1] = 0.5f + del1;
+        dx[0] = rl0 * -ctm.d, dy[0] = rl0 * ctm.c, dx[1] = rl1 * -ctm.b, dy[1] = rl1 * ctm.a;
         *r = fmaxf(1.f, fminf(w[0], w[1]) * 0.5f);
     }
     static void writeDeltaPixels(Output *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
