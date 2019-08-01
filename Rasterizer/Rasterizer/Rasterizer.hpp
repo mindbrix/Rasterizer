@@ -550,7 +550,7 @@ struct Rasterizer {
                 float cw = out->width < 1.f ? 1.f : out->width;
                 float dx = x1 - x0, dy = y1 - y0, s = cw / sqrtf(dx * dx + dy * dy), vx = -dy * s, vy = dx * s;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->clipctm, unit, out->circle, out->src, out->width / cw, out->bm);
+                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->clipctm, unit, out->width, out->circle, out->src, out->width / cw, out->bm);
             }
         }
     };
@@ -1090,17 +1090,16 @@ struct Rasterizer {
                 }
         }
     }
-    // Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-    static void writeOutlinePixels(Bounds clip, Transform clipctm, Transform unit, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
+    static void writeOutlinePixels(Bounds clip, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, y, vy, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
+        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, y, vy, x, vx, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         float m = unit.d == 0.f ? 0.f : unit.c / unit.d;
         float c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
-        float delta = 0.5f * sqrtf(unit.c * unit.c + unit.d * unit.d) / unit.d;
-        uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel = rowaddr;
-        for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++) { //}, rowaddr -= bitmap->stride, pixel = rowaddr) {
+        float delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / unit.d;
+        uint8_t *pixel;
+        for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++) {
             float lx = FLT_MAX, ux = -FLT_MAX, sx, x0, x1;
             sx = m * y + c, x0 = sx - delta, x1 = sx + delta;
             x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
@@ -1113,15 +1112,12 @@ struct Rasterizer {
             lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
             lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
             lx = floorf(lx), ux = ceilf(ux);
-            for (pixel = bitmap->pixelAddress(lx, y), x = lx; x < ux; x++, pixel += bitmap->bytespp) {
-                 writePixel(src0, src1, src2, srcAlpha, pixel);
-            }
-            /*
-            d0 = d[0] - (vy * dy[0]), d1 = w[0] - d0;
-            d2 = d[1] + (vy * dy[1]), d3 = w[1] - d2;
-            cd0 = cd[0] - (vy * cdy[0]), cd1 = cw[0] - cd0;
-            cd2 = cd[1] + (vy * cdy[1]), cd3 = cw[1] - cd2;
-            for (x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1], cd0 -= cdx[0], cd1 += cdx[0], cd2 += cdx[1], cd3 -= cdx[1]) {
+            vx = lx - clip.lx;
+            d0 = d[0] - (vx * dx[0] + vy * dy[0]), d1 = w[0] - d0;
+            d2 = d[1] + (vx * dx[1] + vy * dy[1]), d3 = w[1] - d2;
+            cd0 = cd[0] - (vx * cdx[0] + vy * cdy[0]), cd1 = cw[0] - cd0;
+            cd2 = cd[1] + (vx * cdx[1] + vy * cdy[1]), cd3 = cw[1] - cd2;
+            for (pixel = bitmap->pixelAddress(lx, y), x = lx; x < ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1], cd0 -= cdx[0], cd1 += cdx[0], cd2 += cdx[1], cd3 -= cdx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = f * (alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
@@ -1131,7 +1127,6 @@ struct Rasterizer {
                 if (alpha > 0.003921568627f)
                     writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
             }
-             */
         }
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
