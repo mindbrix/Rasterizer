@@ -1101,17 +1101,21 @@ struct Rasterizer {
         uint8_t *pixel;
         for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++) {
             float lx = FLT_MAX, ux = -FLT_MAX, sx, x0, x1;
-            sx = m * y + c, x0 = sx - delta, x1 = sx + delta;
-            x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
-            x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
-            lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
-            lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
-            sx = m * (y + 1.f) + c, x0 = sx - delta, x1 = sx + delta;
-            x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
-            x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
-            lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
-            lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
-            lx = floorf(lx), ux = ceilf(ux);
+            if (clip.ux - clip.lx < kFatHeight)
+                lx = clip.lx, ux = clip.ux;
+            else {
+                sx = m * y + c, x0 = sx - delta, x1 = sx + delta;
+                x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
+                x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
+                lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
+                lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
+                sx = m * (y + 1.f) + c, x0 = sx - delta, x1 = sx + delta;
+                x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
+                x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
+                lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
+                lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
+                lx = floorf(lx), ux = ceilf(ux);
+            }
             vx = lx - clip.lx;
             d0 = d[0] - (vx * dx[0] + vy * dy[0]), d1 = w[0] - d0;
             d2 = d[1] + (vx * dx[1] + vy * dy[1]), d3 = w[1] - d2;
