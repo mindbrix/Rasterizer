@@ -1092,15 +1092,15 @@ struct Rasterizer {
     }
     static void writeOutlinePixels(Bounds clip, Transform clipctm, Transform unit, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, y, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
+        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, y, vy, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel = rowaddr;
-        for (y = clip.ly; y < clip.uy; y++, rowaddr -= bitmap->stride, pixel = rowaddr) {
-            d0 = d[0] - ((y - clip.ly) * dy[0]), d1 = w[0] - d0;
-            d2 = d[1] + ((y - clip.ly) * dy[1]), d3 = w[1] - d2;
-            cd0 = cd[0] - ((y - clip.ly) * cdy[0]), cd1 = cw[0] - cd0;
-            cd2 = cd[1] + ((y - clip.ly) * cdy[1]), cd3 = cw[1] - cd2;
+        for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++, rowaddr -= bitmap->stride, pixel = rowaddr) {
+            d0 = d[0] - (vy * dy[0]), d1 = w[0] - d0;
+            d2 = d[1] + (vy * dy[1]), d3 = w[1] - d2;
+            cd0 = cd[0] - (vy * cdy[0]), cd1 = cw[0] - cd0;
+            cd2 = cd[1] + (vy * cdy[1]), cd3 = cw[1] - cd2;
             for (x = clip.lx; x < clip.ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1], cd0 -= cdx[0], cd1 += cdx[0], cd2 += cdx[1], cd3 -= cdx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
