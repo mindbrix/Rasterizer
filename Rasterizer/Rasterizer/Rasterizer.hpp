@@ -1103,14 +1103,12 @@ struct Rasterizer {
                 lx = clip.lx, ux = clip.ux;
             else {
                 sx = m * y + c, x0 = sx - delta, x1 = sx + delta;
-                x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
-                x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                sx = m * (y + 1.f) + c, x0 = sx - delta, x1 = sx + delta;
-                x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
-                x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
+                x0 = sx + m - delta, x1 = sx + m + delta;
                 lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
                 lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
+                lx = lx < clip.lx ? clip.lx : lx > clip.ux ? clip.ux : lx;
+                ux = ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux;
                 lx = floorf(lx), ux = ceilf(ux);
             }
             vx = lx - clip.lx;
