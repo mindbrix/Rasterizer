@@ -542,7 +542,7 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct OutlineOutput {
-        Bounds clip;  Transform clipctm;  uint8_t *src;  float width;  bool circle;  Bitmap *bm;
+        Bounds clip;  bool hit;  Transform clipctm;  uint8_t *src;  float width;  bool circle;  Bitmap *bm;
         
         static void writePixels(float x0, float y0, float x1, float y1, void *info) {
             if (x0 != x1 || y0 != y1) {
@@ -550,7 +550,7 @@ struct Rasterizer {
                 float cw = out->width < 1.f ? 1.f : out->width;
                 float dx = x1 - x0, dy = y1 - y0, s = cw / sqrtf(dx * dx + dy * dy), vx = -dy * s, vy = dx * s;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->clipctm, unit, out->width, out->circle, out->src, out->width / cw, out->bm);
+                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->hit, out->clipctm, unit, out->width, out->circle, out->src, out->width / cw, out->bm);
             }
         }
     };
@@ -610,7 +610,7 @@ struct Rasterizer {
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, float *deltas, size_t deltasSize, Output *sgmnts, Bitmap *bm) {
         if (width) {
-            OutlineOutput out; out.clip = clip, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = false, out.bm = bm;
+            OutlineOutput out; out.clip = clip, out.hit = hit, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = false, out.bm = bm;
             writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
         } else {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
@@ -1090,7 +1090,7 @@ struct Rasterizer {
                 }
         }
     }
-    static void writeOutlinePixels(Bounds clip, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
+    static void writeOutlinePixels(Bounds clip, bool hit, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
         float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, vx, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
@@ -1113,7 +1113,8 @@ struct Rasterizer {
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = f * (alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
                 } else
                     alpha = f * (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
-                alpha *= (cd0 < 0.f ? 0.f : cd0 > 1.f ? 1.f : cd0) * (cd1 < 0.f ? 0.f : cd1 > 1.f ? 1.f : cd1) * (cd2 < 0.f ? 0.f : cd2 > 1.f ? 1.f : cd2) * (cd3 < 0.f ? 0.f : cd3 > 1.f ? 1.f : cd3);
+                if (hit)
+                    alpha *= (cd0 < 0.f ? 0.f : cd0 > 1.f ? 1.f : cd0) * (cd1 < 0.f ? 0.f : cd1 > 1.f ? 1.f : cd1) * (cd2 < 0.f ? 0.f : cd2 > 1.f ? 1.f : cd2) * (cd3 < 0.f ? 0.f : cd3 > 1.f ? 1.f : cd3);
                 if (alpha > 0.003921568627f)
                     writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
             }
