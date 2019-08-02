@@ -1106,9 +1106,8 @@ struct Rasterizer {
                 x0 = sx + m - delta, x1 = sx + m + delta;
                 lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
                 lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
-                lx = lx < clip.lx ? clip.lx : lx > clip.ux ? clip.ux : lx;
-                ux = ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux;
-                lx = floorf(lx), ux = ceilf(ux);
+                lx = floorf(lx < clip.lx ? clip.lx : lx > clip.ux ? clip.ux : lx);
+                ux = ceilf(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux);
             }
             vx = lx - clip.lx;
             d0 = d[0] - (vx * dx[0] + vy * dy[0]), d1 = w[0] - d0;
