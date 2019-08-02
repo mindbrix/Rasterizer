@@ -1099,16 +1099,12 @@ struct Rasterizer {
         delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / fabsf(unit.d);
         uint8_t *pixel;
         for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++) {
-            if (clip.ux - clip.lx < kFatHeight)
-                lx = clip.lx, ux = clip.ux;
-            else {
-                sx = m * y + c, lx = sx - delta, ux = sx + delta;
-                x0 = sx + m - delta, x1 = sx + m + delta;
-                lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
-                lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
-                lx = floorf(lx < clip.lx ? clip.lx : lx > clip.ux ? clip.ux : lx);
-                ux = ceilf(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux);
-            }
+            sx = m * y + c, lx = sx - delta, ux = sx + delta;
+            x0 = sx + m - delta, x1 = sx + m + delta;
+            lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
+            lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
+            lx = floorf(lx < clip.lx ? clip.lx : lx > clip.ux ? clip.ux : lx);
+            ux = ceilf(ux < clip.lx ? clip.lx : ux > clip.ux ? clip.ux : ux);
             vx = lx - clip.lx;
             d0 = d[0] - (vx * dx[0] + vy * dy[0]), d1 = w[0] - d0;
             d2 = d[1] + (vx * dx[1] + vy * dy[1]), d3 = w[1] - d2;
