@@ -1092,7 +1092,7 @@ struct Rasterizer {
     }
     static void writeOutlinePixels(Bounds clip, bool hit, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, vx, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
+        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         m = unit.d == 0.f ? 0.f : unit.c / unit.d, c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
@@ -1101,20 +1101,20 @@ struct Rasterizer {
         for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++, x0 += m, x1 += m) {
             lx = floorf(x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0);
             ux = ceilf(x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1);
-            vx = lx - clip.lx;
-            d0 = d[0] - (vx * dx[0] + vy * dy[0]), d1 = w[0] - d0;
-            d2 = d[1] + (vx * dx[1] + vy * dy[1]), d3 = w[1] - d2;
-            cd0 = cd[0] - (vx * cdx[0] + vy * cdy[0]), cd1 = cw[0] - cd0;
-            cd2 = cd[1] + (vx * cdx[1] + vy * cdy[1]), cd3 = cw[1] - cd2;
+            d0 = d[0] - ((lx - clip.lx) * dx[0] + vy * dy[0]), d1 = w[0] - d0;
+            d2 = d[1] + ((lx - clip.lx) * dx[1] + vy * dy[1]), d3 = w[1] - d2;
             uint8_t *pixel = bitmap->pixelAddress(lx, y);
-            for (x = lx; x < ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1], cd0 -= cdx[0], cd1 += cdx[0], cd2 += cdx[1], cd3 -= cdx[1]) {
+            for (x = lx; x < ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = f * (alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
                 } else
                     alpha = f * (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
-                if (hit)
+                if (hit) {
+                    cd0 = cd[0] - ((x - clip.lx) * cdx[0] + vy * cdy[0]), cd1 = cw[0] - cd0;
+                    cd2 = cd[1] + ((x - clip.lx) * cdx[1] + vy * cdy[1]), cd3 = cw[1] - cd2;
                     alpha *= (cd0 < 0.f ? 0.f : cd0 > 1.f ? 1.f : cd0) * (cd1 < 0.f ? 0.f : cd1 > 1.f ? 1.f : cd1) * (cd2 < 0.f ? 0.f : cd2 > 1.f ? 1.f : cd2) * (cd3 < 0.f ? 0.f : cd3 > 1.f ? 1.f : cd3);
+                }
                 if (alpha > 0.003921568627f)
                     writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
             }
