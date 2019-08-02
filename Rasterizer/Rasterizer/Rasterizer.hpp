@@ -1096,14 +1096,13 @@ struct Rasterizer {
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         m = unit.d == 0.f ? 0.f : unit.c / unit.d, c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
-        delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / unit.d;
+        delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / fabsf(unit.d);
         uint8_t *pixel;
         for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++) {
             if (clip.ux - clip.lx < kFatHeight)
                 lx = clip.lx, ux = clip.ux;
             else {
-                sx = m * y + c, x0 = sx - delta, x1 = sx + delta;
-                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                sx = m * y + c, lx = sx - delta, ux = sx + delta;
                 x0 = sx + m - delta, x1 = sx + m + delta;
                 lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
                 lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
