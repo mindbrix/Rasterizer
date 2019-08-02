@@ -1005,7 +1005,7 @@ struct Rasterizer {
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta, soft = 1.f;
-        float d[4], w[2], dx[2], dy[2], r, d0, d1, d2, d3;
+        float d[2], w[2], dx[2], dy[2], r, d0, d1, d2, d3;
         if (hit)
             writeShapeDistances(clip, clipctm, d, w, dx, dy, & r);
         Row<Segment> *segments = sgmnts->segments;  Segment *segment;
@@ -1071,7 +1071,7 @@ struct Rasterizer {
             for (float y = clip.ly; y < clip.uy; y++, deltas += del->stride)
                 *deltas = 0.f;
         else {
-            float d[4], w[2], dx[2], dy[2], r, d0, d1, d2, d3;
+            float d[2], w[2], dx[2], dy[2], r, d0, d1, d2, d3;
             if (hit)
                 writeShapeDistances(clip, clipctm, d, w, dx, dy, & r);
             uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
