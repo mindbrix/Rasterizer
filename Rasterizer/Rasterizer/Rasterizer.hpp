@@ -1097,12 +1097,7 @@ struct Rasterizer {
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         m = unit.d == 0.f ? 0.f : unit.c / unit.d, c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
         delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / fabsf(unit.d);
-        uint8_t *pixel;
-        sx = m * clip.ly + c;
-        if (m < 0.f)
-            x0 = sx + m - delta, x1 = sx + delta;
-        else
-            x0 = sx - delta, x1 = sx + m + delta;
+        sx = m * clip.ly + c, x0 = sx + (m < 0.f ? m : 0.f) - delta, x1 = sx + (m > 0.f ? m : 0.f) + delta;
         for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++, x0 += m, x1 += m) {
             lx = floorf(x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0);
             ux = ceilf(x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1);
@@ -1111,7 +1106,8 @@ struct Rasterizer {
             d2 = d[1] + (vx * dx[1] + vy * dy[1]), d3 = w[1] - d2;
             cd0 = cd[0] - (vx * cdx[0] + vy * cdy[0]), cd1 = cw[0] - cd0;
             cd2 = cd[1] + (vx * cdx[1] + vy * cdy[1]), cd3 = cw[1] - cd2;
-            for (pixel = bitmap->pixelAddress(lx, y), x = lx; x < ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1], cd0 -= cdx[0], cd1 += cdx[0], cd2 += cdx[1], cd3 -= cdx[1]) {
+            uint8_t *pixel = bitmap->pixelAddress(lx, y);
+            for (x = lx; x < ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1], cd0 -= cdx[0], cd1 += cdx[0], cd2 += cdx[1], cd3 -= cdx[1]) {
                 if (circle) {
                     m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
                     alpha = r - sqrtf(cx * cx + cy * cy), alpha = f * (alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
