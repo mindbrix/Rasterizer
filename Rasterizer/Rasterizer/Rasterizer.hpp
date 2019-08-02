@@ -1092,23 +1092,20 @@ struct Rasterizer {
     }
     static void writeOutlinePixels(Bounds clip, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
         float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, y, vy, x, vx, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
+        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, vx, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
-        float m = unit.d == 0.f ? 0.f : unit.c / unit.d;
-        float c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
-        float delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / unit.d;
+        m = unit.d == 0.f ? 0.f : unit.c / unit.d, c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
+        delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / unit.d;
         uint8_t *pixel;
         for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++) {
-            float lx = FLT_MAX, ux = -FLT_MAX, sx, x0, x1;
             if (clip.ux - clip.lx < kFatHeight)
                 lx = clip.lx, ux = clip.ux;
             else {
                 sx = m * y + c, x0 = sx - delta, x1 = sx + delta;
                 x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
                 x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
-                lx = lx < x0 ? lx : x0, ux = ux > x0 ? ux : x0;
-                lx = lx < x1 ? lx : x1, ux = ux > x1 ? ux : x1;
+                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 sx = m * (y + 1.f) + c, x0 = sx - delta, x1 = sx + delta;
                 x0 = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
                 x1 = x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1;
