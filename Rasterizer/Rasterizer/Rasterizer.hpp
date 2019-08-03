@@ -1057,11 +1057,9 @@ struct Rasterizer {
         float det = ctm.det(), vx = clip.lx + 0.5f - ctm.tx, vy = clip.ly + 0.5f - ctm.ty, rlcd, rlab;
         rlcd = copysign(1.f / sqrtf(ctm.c * ctm.c + ctm.d * ctm.d), det);
         rlab = copysign(1.f / sqrtf(ctm.a * ctm.a + ctm.b * ctm.b), det);
-        d[0] = 0.5f - rlcd * (ctm.c * vy - ctm.d * vx);
-        d[1] = 0.5f + rlab * (ctm.a * vy - ctm.b * vx);
-        w[0] = 1.f + rlcd * det, w[1] = 1.f + rlab * det;
+        d[0] = 0.5f - rlcd * (ctm.c * vy - ctm.d * vx), d[1] = 0.5f + rlab * (ctm.a * vy - ctm.b * vx);
+        w[0] = 1.f + rlcd * det, w[1] = 1.f + rlab * det, *r = fmaxf(1.f, fminf(w[0], w[1]) * 0.5f);
         dx[0] = rlcd * -ctm.d, dy[0] = rlcd * ctm.c, dx[1] = rlab * -ctm.b, dy[1] = rlab * ctm.a;
-        *r = fmaxf(1.f, fminf(w[0], w[1]) * 0.5f);
     }
     static void writeDeltaPixels(Output *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
         float *deltas = del->deltas;
