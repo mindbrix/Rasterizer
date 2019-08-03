@@ -507,32 +507,6 @@ struct Rasterizer {
         Output *out = (Output *)info;
         if (y0 == y1)
             return;
-//        {
-//            float lx, ux, ly, uy, dx, dy, m, c, sx, slx, sux, y, clx, cux, x, nx, px0, px1, py0, py1, cover, area, last, *delta;
-//            lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-//            ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-//            dx = x1 - x0, dy = y1 - y0, m = dx / dy, c = x0 - m * y0;
-//            sx = m * floorf(ly) + c, slx = sx + (m < 0.f ? m : 0.f), sux = sx + (m > 0.f ? m : 0.f);
-//            delta = out->deltas + size_t(ly) * out->stride;
-//            for (y = floorf(ly); y < uy; y++, slx += m, sux += m, delta += out->stride) {
-//                last = 0.f, clx = slx < lx ? lx : slx, cux = sux > ux ? ux : sux;
-//                for (x = floorf(clx); x < cux; x++) {
-//                    px0 = x > clx ? x : clx, nx = x + 1.f, px1 = nx < cux ? nx : cux;
-//                    if (m)
-//                        py0 = (px0 - c) / m, py1 = (px1 - c) / m;
-//                    else
-//                        py0 = y, py1 = y + 1.f;
-//                    py0 = py0 < ly ? ly : py0 > uy ? uy : py0;
-//                    py1 = py1 < ly ? ly : py1 > uy ? uy : py1;
-//                    cover = copysign(py1 - py0, dy), area = (nx - (px0 + px1) * 0.5f);
-//                    delta[int(x)] += last + cover * area;
-//                    last = cover * (1.f - area);
-//                }
-//                if (x < out->stride)
-//                    delta[int(x)] += last;
-//            }
-//        }
-        
         float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
         if (scale < 0.f)
             tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
