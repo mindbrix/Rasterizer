@@ -13,13 +13,13 @@ struct RasterizerTest {
         Ra::Colorant color(0, 0, 0, 255);
         if (0)
             scene.ref->addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color);
-        if (0)
+        if (1)
             scene.ref->addPath(createPhyllotaxisPath(100), Ra::Transform(), color);
         if (0)
             writePhyllotaxisToScene(100000, *scene.ref);
         list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), 0.f, true);
         
-        if (1) {
+        if (0) {
             float phi = 0.5f * (sqrtf(5.f) - 1.f);
             float size = 20.f, width = size * phi;
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, color), Ra::Transform(), Ra::Transform::nullclip(), width, false);
