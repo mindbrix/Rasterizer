@@ -12,7 +12,7 @@
 #import "RasterizerSVG.hpp"
 #import "RasterizerFont.hpp"
 #import "RasterizerTest.hpp"
-#import "MetalLayer.h"
+#import "RasterizerLayer.h"
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
@@ -117,8 +117,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         self.layer.delegate = self;
         self.layer.magnificationFilter = kCAFilterNearest;
     } else {
-        [self setLayer:[MetalLayer layer]];
-        ((MetalLayer *)self.layer).layerDelegate = self;
+        [self setLayer:[RasterizerLayer layer]];
+        ((RasterizerLayer *)self.layer).layerDelegate = self;
     }
     self.layer.contentsScale = scale;
     self.layer.bounds = self.bounds;

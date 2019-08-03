@@ -14,6 +14,6 @@
 @end
 
 
-@interface MetalLayer : CAMetalLayer
+@interface RasterizerLayer : CAMetalLayer
 @property(weak) id <LayerDelegate> layerDelegate;
 @end

@@ -18,7 +18,7 @@
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* RasterizerView.mm */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
-		E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* MetalLayer.mm */; };
+		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
 		E9C2E72922280F000023B714 /* crc64.c in Sources */ = {isa = PBXBuildFile; fileRef = E9C2E72822280F000023B714 /* crc64.c */; };
 		E9FA61EB22776F72006BA8A6 /* libsqlite3.0.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */; };
@@ -50,9 +50,9 @@
 		E963FF6E21DF5A29007C1327 /* stb_truetype.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../../stb/stb_truetype.h; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 		E97782A822BF7D78003C2D3E /* RasterizerQueue.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerQueue.hpp; sourceTree = "<group>"; };
-		E990649021C2E11500D2DBF2 /* MetalLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MetalLayer.h; sourceTree = "<group>"; };
-		E990649121C2E11500D2DBF2 /* MetalLayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MetalLayer.mm; sourceTree = "<group>"; };
-		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
+		E990649021C2E11500D2DBF2 /* RasterizerLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerLayer.h; sourceTree = "<group>"; };
+		E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerLayer.mm; sourceTree = "<group>"; };
+		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.metal; };
 		E9A7FA84218FAB380031FD4E /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = nanosvg.h; path = ../../../nanosvg/src/nanosvg.h; sourceTree = "<group>"; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 		E9C2E72722280F000023B714 /* crc64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = crc64.h; sourceTree = "<group>"; };
@@ -133,8 +133,8 @@
 				E971DB2C218495AA005AE5E5 /* Rasterizer.icns */,
 				E920A5B3217631E600F52C25 /* RasterizerView.h */,
 				E920A5B4217631E600F52C25 /* RasterizerView.mm */,
-				E990649021C2E11500D2DBF2 /* MetalLayer.h */,
-				E990649121C2E11500D2DBF2 /* MetalLayer.mm */,
+				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
+				E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */,
 				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 			);
 			path = Rasterizer;
@@ -217,7 +217,7 @@
 				E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
 				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
-				E990649221C2E11500D2DBF2 /* MetalLayer.mm in Sources */,
+				E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);

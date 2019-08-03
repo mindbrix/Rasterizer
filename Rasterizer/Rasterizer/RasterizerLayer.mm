@@ -6,10 +6,10 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#import "MetalLayer.h"
+#import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 
-@interface MetalLayer ()
+@interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
 }
@@ -31,7 +31,7 @@
 @end
 
 
-@implementation MetalLayer
+@implementation RasterizerLayer
 
 - (id)init {
     self = [super init];
