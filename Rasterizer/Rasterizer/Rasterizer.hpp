@@ -608,7 +608,7 @@ struct Rasterizer {
     };
     static void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm, float *deltas, size_t deltasSize, Output *sgmnts, Bitmap *bm) {
         if (width) {
-            OutlineOutput out; out.clip = clip, out.hit = hit, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = false, out.bm = bm;
+            OutlineOutput out; out.clip = clip, out.hit = hit, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = even, out.bm = bm;
             writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
         } else {
             float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
@@ -624,7 +624,7 @@ struct Rasterizer {
     }
     static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, size_t iz, bool unclipped, Output *sgmnts, GPU& gpu) {
         if (width) {
-            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines);
+            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (even ? GPU::Instance::kCircle : 0));
             inst->outline.clip = clip.inset(-width, -width);
             size_t upper = path.ref->upperBound(ctm);
             if (fabsf(ctm.det()) > 1e2f) {
@@ -1150,11 +1150,11 @@ struct Rasterizer {
         uint32_t pathsCount;
     };
     struct OutlineInfo {
-        GPU::Instance *dst0, *dst;  size_t iz;
+        uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
         
         static void writeInstance(float x0, float y0, float x1, float y1, void *info) {
             OutlineInfo *in = (OutlineInfo *)info;
-            new (in->dst) GPU::Instance(in->iz, GPU::Instance::kOutlines);
+            new (in->dst) GPU::Instance(in->iz, GPU::Instance::Type(in->type));
             new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
             if (x0 == FLT_MAX) {
                 if (in->dst - in->dst0 > 1)
@@ -1249,7 +1249,7 @@ struct Rasterizer {
                     base += scene->ref->paths.size();
         
                 if (inst->iz & GPU::Instance::kOutlines) {
-                    OutlineInfo info;  info.dst = info.dst0 = dst, info.iz = iz;
+                    OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
                     writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, OutlineInfo::writeInstance, & info);
                     size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
                     if (upper < count) {
