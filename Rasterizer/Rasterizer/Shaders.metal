@@ -211,8 +211,8 @@ struct InstancesVertex
     float4 color;
     float4 clip, shape;
     float u, v;
-    float cover;
-    bool isShape, even, solid, circle;
+    float cover, r;
+    bool isShape, even, solid;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -263,6 +263,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
+        vert.r = (inst.iz & Instance::kCircle) == 0 ? 1.0 : max(1.0, 0.5 * min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w));
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -282,17 +283,16 @@ vertex InstancesVertex instances_vertex_main(
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
-    vert.circle = inst.iz & Instance::kCircle;
     return vert;
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float alpha = 1.0, r, x, y;
+    float alpha = 1.0, x, y;
     if (vert.isShape) {
-        r = max(1.0, (min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w)) * 0.5 * float(vert.circle));
-        x = r - min(r, min(vert.shape.x, vert.shape.z)), y = r - min(r, min(vert.shape.y, vert.shape.w));
-        alpha = saturate(r - sqrt(x * x + y * y));
+        //alpha = saturate(vert.shape.x) * saturate(vert.shape.z) * saturate(vert.shape.y) * saturate(vert.shape.w);
+        x = vert.r - min(vert.r, min(vert.shape.x, vert.shape.z)), y = vert.r - min(vert.r, min(vert.shape.y, vert.shape.w));
+        alpha = saturate(vert.r - sqrt(x * x + y * y));
     } else if (!vert.solid) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
