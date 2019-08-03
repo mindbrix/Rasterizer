@@ -111,11 +111,10 @@ struct Rasterizer {
                 cubicSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
             isPolygon &= type != kQuadratic && type != kCubic;
-            isDrawable |= !((types.size() < 3) || bounds.lx == FLT_MAX);
             weight = types.size();
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
-            isDrawable &= bounds.lx != bounds.ux && bounds.ly != bounds.uy && types.size() < 32767;
+            isDrawable = types.size() > 1 && bounds.lx != FLT_MAX && (bounds.lx != bounds.ux || bounds.ly != bounds.uy) && types.size() < 32767;
         }
         float upperBound(Transform ctm) {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
