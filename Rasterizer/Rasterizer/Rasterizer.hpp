@@ -110,7 +110,7 @@ struct Rasterizer {
                 cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
                 cubicSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
-            isPolygon &= type != kQuadratic && type != kCubic;
+            isPolygon = counts[kQuadratic] == 0 && counts[kCubic] == 0;
             weight = types.size();
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
