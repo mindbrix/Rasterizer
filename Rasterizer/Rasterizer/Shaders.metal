@@ -262,7 +262,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
+        vert.shape = float4(pcap ? (isUp ? lo + 1.0 : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + 1.0) : 1e6, isRight ? 0.0 : dw);
         vert.r = (inst.iz & Instance::kCircle) == 0 ? 1.0 : max(1.0, 0.5 * min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w));
         vert.isShape = true;
     } else {
@@ -290,7 +290,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 {
     float alpha = 1.0, x, y;
     if (vert.isShape) {
-        //alpha = saturate(vert.shape.x) * saturate(vert.shape.z) * saturate(vert.shape.y) * saturate(vert.shape.w);
         x = vert.r - min(vert.r, min(vert.shape.x, vert.shape.z)), y = vert.r - min(vert.r, min(vert.shape.y, vert.shape.w));
         alpha = saturate(vert.r - sqrt(x * x + y * y));
     } else if (!vert.solid) {
