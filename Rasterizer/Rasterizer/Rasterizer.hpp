@@ -579,7 +579,7 @@ struct Rasterizer {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     float width = list.widths[i] * (list.widths[i] < 0.f ? -1.f : sqrtf(fabsf(ctm.det())));
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
-                    float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.a * clipctm.d - clipctm.b * clipctm.c))), e0 = -err, e1 = 1.f + err;
+                    float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     Path *paths = & scene.paths[clz - lz];
                     for (iz = clz; iz < cuz; iz++)
                         clips[iz] = clipctm, widths[iz] = width;
