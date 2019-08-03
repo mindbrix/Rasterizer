@@ -18,6 +18,22 @@ struct RasterizerTest {
         if (0)
             writePhyllotaxisToScene(100000, *scene.ref);
         list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), 0.f, true);
+        
+        if (1)
+            list.addScene(createGridScene(10000, 20.f, color), Ra::Transform(), Ra::Transform::nullclip(), 0.f, true);
+    }
+    
+    static Ra::Ref<Ra::Scene> createGridScene(size_t count, float size, Ra::Colorant color) {
+        Ra::Ref<Ra::Scene> scene;
+        float phi = 0.5f * (sqrtf(5.f) - 1.f), lx, ly;
+        size_t dim = ceilf(sqrtf(count)), i;
+        for (i = 0; i < count; i++) {
+            lx = size * (i % dim), ly = size * (i / dim);
+            Ra::Path path;
+            path.ref->addBounds(Ra::Bounds(lx, ly, lx + size * phi, ly + size * phi));
+            scene.ref->addPath(path, Ra::Transform(), color);
+        }
+        return scene;
     }
     
     static Ra::Path createPhyllotaxisPath(size_t count) {

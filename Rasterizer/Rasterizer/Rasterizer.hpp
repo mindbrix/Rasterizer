@@ -123,7 +123,7 @@ struct Rasterizer {
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
             return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
-        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), close(); }
+        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy); }
         void addEllipse(Bounds b) {
             const float t0 = 0.5f - 2.f / 3.f * (sqrtf(2.f) - 1.f), t1 = 1.f - t0, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
             moveTo(b.ux, my);
@@ -131,7 +131,6 @@ struct Rasterizer {
             cubicTo(t1 * b.lx + t0 * b.ux, b.uy, b.lx, t0 * b.ly + t1 * b.uy, b.lx, my);
             cubicTo(b.lx, t1 * b.ly + t0 * b.uy, t1 * b.lx + t0 * b.ux, b.ly, mx, b.ly);
             cubicTo(t0 * b.lx + t1 * b.ux, b.ly, b.ux, t1 * b.ly + t0 * b.uy, b.ux, my);
-            close();
         }
         void moveTo(float x, float y) {
             float *points = alloc(kMove, 1);
