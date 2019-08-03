@@ -19,18 +19,24 @@ struct RasterizerTest {
             writePhyllotaxisToScene(100000, *scene.ref);
         list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), 0.f, true);
         
-        if (1)
-            list.addScene(createGridScene(10000, 20.f, color), Ra::Transform(), Ra::Transform::nullclip(), 0.f, true);
+        if (1) {
+            float phi = 0.5f * (sqrtf(5.f) - 1.f);
+            float size = 20.f, width = 0;
+            list.addScene(createGridScene(10000, size, width, color), Ra::Transform(), Ra::Transform::nullclip(), width * phi, true);
+        }
     }
     
-    static Ra::Ref<Ra::Scene> createGridScene(size_t count, float size, Ra::Colorant color) {
+    static Ra::Ref<Ra::Scene> createGridScene(size_t count, float size, float width, Ra::Colorant color) {
         Ra::Ref<Ra::Scene> scene;
         float phi = 0.5f * (sqrtf(5.f) - 1.f), lx, ly;
         size_t dim = ceilf(sqrtf(count)), i;
         for (i = 0; i < count; i++) {
             lx = size * (i % dim), ly = size * (i / dim);
             Ra::Path path;
-            path.ref->addBounds(Ra::Bounds(lx, ly, lx + size * phi, ly + size * phi));
+            if (width)
+                path.ref->moveTo(lx, ly + 0.5f * width * phi), path.ref->lineTo(lx + size * phi, ly + 0.5f * width * phi);
+            else
+                path.ref->addBounds(Ra::Bounds(lx, ly, lx + size * phi, ly + size * phi));
             scene.ref->addPath(path, Ra::Transform(), color);
         }
         return scene;
