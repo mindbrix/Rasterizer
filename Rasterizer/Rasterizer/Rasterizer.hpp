@@ -1086,8 +1086,7 @@ struct Rasterizer {
         }
     }
     static void writeOutlinePixels(Bounds clip, bool hit, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f;
-        float cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
+        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
         writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
         writeShapeDistances(clip, unit, d, w, dx, dy, & r);
         m = unit.d == 0.f ? 0.f : unit.c / unit.d, c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
