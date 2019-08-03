@@ -1067,11 +1067,10 @@ struct Rasterizer {
             for (float y = clip.ly; y < clip.uy; y++, deltas += del->stride)
                 *deltas = 0.f;
         else {
-            float d[2], w[2], dx[2], dy[2], r, d0, d1, d2, d3;
+            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, d[2], w[2], dx[2], dy[2], r, y, x, cover, alpha, *delta, d0, d1, d2, d3, soft = 1.f;
             if (hit)
                 writeShapeDistances(clip, clipctm, d, w, dx, dy, & r);
             uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, y, x, cover, alpha, *delta, soft = 1.f;
             for (y = 0.f; y < clip.uy - clip.ly; y++, deltas += del->stride, rowaddr -= bitmap->stride, *delta = 0.f)
                 for (cover = alpha = 0.f, delta = deltas, pixel = rowaddr, x = 0.f; x < clip.ux - clip.lx; x++, delta++, pixel += bitmap->bytespp) {
                     if (*delta)
