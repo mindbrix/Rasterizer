@@ -15,7 +15,6 @@
 
 struct RasterizerCG {
     static void drawScenes(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
-        CGPathRef rect = CGPathCreateWithRect(CGRectMake(0, 0, 1, 1), NULL), ellipse = CGPathCreateWithEllipseInRect(CGRectMake(0, 0, 1, 1), NULL);
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = *list.scenes[j].ref;
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
@@ -42,7 +41,6 @@ struct RasterizerCG {
             }
             CGContextRestoreGState(ctx);
         }
-        CGPathRelease(rect), CGPathRelease(ellipse);
     }
     struct BGRAColorConverter {
         BGRAColorConverter() : converter(nullptr) { reset(); }
