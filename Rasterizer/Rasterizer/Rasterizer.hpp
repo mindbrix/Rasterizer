@@ -593,7 +593,7 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & color->src0, clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
+                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             else
                                 writeBitmapPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, clipctm);
                         }
@@ -620,7 +620,7 @@ struct Rasterizer {
                 }
             }
         }
-        void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
+        void writeGPUPath(Path& path, Transform ctm, bool even, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (even ? GPU::Instance::kCircle : 0));
                 inst->outline.clip = clip.inset(-width, -width);
