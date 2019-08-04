@@ -632,10 +632,9 @@ struct Rasterizer {
                 gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Output sgmnts(& segments[0], clip.ly * krfh);
-                Cache::Entry *entry = nullptr;
                 bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                 if (fast || unclipped) {
-                    entry = gpu.cache.getPath(path, ctm);
+                    Cache::Entry *entry = gpu.cache.getPath(path, ctm);
                     if (fast) {
                         GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
                         GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (even ? GPU::Instance::kEvenOdd : 0));
