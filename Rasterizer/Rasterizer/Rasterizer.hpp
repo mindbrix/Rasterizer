@@ -489,8 +489,8 @@ struct Rasterizer {
     }
     static void _writeClippedSegment(float x0, float y0, float x1, float y1, void *info) {
         Output *out = (Output *)info;
-        float ly, uy, ily, iuy, lx, ux, m, c, y, sy0, sy1, sx0, sx1;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, ily = floorf(ly * krfh), iuy = ceilf(uy * krfh);
+        float ly, uy, ily, lx, ux, m, c, y, sy0, sy1, sx0, sx1;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, ily = floorf(ly * krfh);
         lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
         m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
         Row<Segment> *segments = & out->segments[int(ily) - out->stride];
