@@ -593,7 +593,7 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & color->src0, clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev), *this, gpu);
+                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], & color->src0, clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             else
                                 writeBitmapPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, clipctm);
                         }
@@ -620,6 +620,36 @@ struct Rasterizer {
                 }
             }
         }
+        void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
+            if (width) {
+                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (even ? GPU::Instance::kCircle : 0));
+                inst->outline.clip = clip.inset(-width, -width);
+                size_t upper = path.ref->upperBound(ctm);
+                if (fabsf(ctm.det()) > 1e2f) {
+                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);
+                    upper = counter.count;
+                }
+                gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
+            } else {
+                Output sgmnts(& segments[0], clip.ly * krfh);
+                Cache::Entry *entry = nullptr;
+                bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                if (fast || unclipped) {
+                    entry = gpu.cache.getPath(path, ctm);
+                    if (fast) {
+                        GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
+                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (even ? GPU::Instance::kEvenOdd : 0));
+                        inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
+                    } else {
+                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
+                        writeSegmentInstances(& sgmnts, clip, even, iz, opaque, gpu);
+                    }
+                } else {
+                    writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
+                    writeSegmentInstances(& sgmnts, clip, even, iz, opaque, gpu);
+                }
+            }
+        }
         void reset() { gpu.reset(), deltas.reset(), segments.resize(0); }
         GPU gpu;
         Bitmap bitmap;
@@ -627,37 +657,6 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    
-    static void writeGPUPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool opaque, size_t iz, bool unclipped, Context& ctx, GPU& gpu) {
-        if (width) {
-            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (even ? GPU::Instance::kCircle : 0));
-            inst->outline.clip = clip.inset(-width, -width);
-            size_t upper = path.ref->upperBound(ctm);
-            if (fabsf(ctm.det()) > 1e2f) {
-                SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);
-                upper = counter.count;
-            }
-            gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
-        } else {
-            Output sgmnts(& ctx.segments[0], clip.ly * krfh);
-            Cache::Entry *entry = nullptr;
-            bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-            if (fast || unclipped) {
-                entry = gpu.cache.getPath(path, ctm);
-                if (fast) {
-                    GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
-                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (even ? GPU::Instance::kEvenOdd : 0));
-                    inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
-                } else {
-                    gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
-                    writeSegmentInstances(& sgmnts, clip, even, iz, opaque, gpu);
-                }
-            } else {
-                writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
-                writeSegmentInstances(& sgmnts, clip, even, iz, opaque, gpu);
-            }
-        }
-    }
     static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
         bool fs = false, f0 = false, f1, f2, f3;
