@@ -376,10 +376,12 @@ struct Rasterizer {
             for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh);
                 if (s->x0 != FLT_MAX) {
-                    if (iy0 == iy1 && y0 != y1)
-                        new (out->segments[size_t(iy0) - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
-                    else
-                        writeClippedSegment(x0, y0, x1, y1, out);
+                    if (y0 != y1) {
+                        if (iy0 == iy1)
+                            new (out->segments[size_t(iy0) - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
+                        else
+                            _writeClippedSegment(x0, y0, x1, y1, out);
+                    }
                 } else if (s < end - 1)
                     x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh);
             }
@@ -479,24 +481,27 @@ struct Rasterizer {
         Output *out = (Output *)info;
         if (y0 == y1)
             return;
-        float iy0 = y0 * krfh, iy1 = y1 * krfh;
-        if (floorf(iy0) == floorf(iy1))
-            new (out->segments[size_t(iy0) - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
-        else {
-            float sy1, dy, sx1, dx;
-            int s, ds, count;
+        size_t iy0 = y0 * krfh;
+        if (iy0 == size_t(y1 * krfh))
+            new (out->segments[iy0 - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
+        else
+            _writeClippedSegment(x0, y0, x1, y1, info);
+    }
+    static void _writeClippedSegment(float x0, float y0, float x1, float y1, void *info) {
+        Output *out = (Output *)info;
+        float ly, uy, ily, iuy, lx, ux, m, c, y, sy0, sy1, sx0, sx1;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, ily = floorf(ly * krfh), iuy = ceilf(uy * krfh);
+        lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+        Row<Segment> *segments = & out->segments[int(ily) - out->stride];
+        for (y = ily * kfh; y < uy; y += kfh, segments++) {
             if (y0 < y1)
-                iy0 = floorf(iy0), iy1 = ceilf(iy1), sy1 = iy0 * kfh, dy = kfh, s = iy0, ds = 1;
+                sy0 = y > ly ? y : ly, sy1 = y + kfh < uy ? y + kfh : uy;
             else
-                iy0 = floorf(iy1), iy1 = ceilf(y0 * krfh), sy1 = iy1 * kfh, dy = -kfh, s = iy1 - 1.f, ds = -1;
-            count = iy1 - iy0;
-            dx = dy / (y1 - y0) * (x1 - x0), sx1 = (sy1 - y0) / dy * dx + x0;
-            while (--count) {
-                sx1 += dx, sy1 += dy;
-                new (out->segments[s - out->stride].alloc(1)) Segment(x0, y0, sx1, sy1);
-                x0 = sx1, y0 = sy1, s += ds;
-            }
-            new (out->segments[s - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
+                sy1 = y > ly ? y : ly, sy0 = y + kfh < uy ? y + kfh : uy;
+            sx0 = sy0 * m + c, sx0 = lx > sx0 ? lx : sx0 < ux ? sx0 : ux;
+            sx1 = sy1 * m + c, sx1 = lx > sx1 ? lx : sx1 < ux ? sx1 : ux;
+            new (segments->alloc(1)) Segment(sx0, sy0, sx1, sy1);
         }
     }
     static void writeDeltaSegment(float x0, float y0, float x1, float y1, void *info) {
