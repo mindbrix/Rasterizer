@@ -589,8 +589,9 @@ struct Rasterizer {
                     Colorant *color = & colors[clz];
                     for (iz = clz; iz < cuz; iz++, paths++, color++) {
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
-                        Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device), clu = Bounds(inv.concat(unit));
-                        if (clip.lx != clip.ux && clip.ly != clip.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f) {
+                        Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
+                        if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                            Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
                                 ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
@@ -600,7 +601,7 @@ struct Rasterizer {
                     }
                 }
             }
-            std::sort(& hashes[0], & hashes[suz - slz]);
+          //  std::sort(& hashes[0], & hashes[suz - slz]);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm) {
