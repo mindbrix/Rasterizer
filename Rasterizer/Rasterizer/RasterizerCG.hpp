@@ -202,7 +202,7 @@ struct RasterizerCG {
                     for (target = total * i / divisions; count < target; iz++) {
                         if (iz - base == scene->ref->paths.size())
                             scene++, base = iz;
-                        count += scene->ref->paths[iz - base].ref->weight;
+                        count += scene->ref->paths[iz - base].ref->types.size();
                     }
                     izeds[i] = iz;
                 }

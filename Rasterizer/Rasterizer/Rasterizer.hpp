@@ -111,7 +111,6 @@ struct Rasterizer {
                 cubicSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
             isPolygon = counts[kQuadratic] == 0 && counts[kCubic] == 0;
-            weight = types.size();
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
@@ -168,7 +167,7 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
-        size_t refCount, quadraticSums, cubicSums, hash, counts[kCountSize], weight;
+        size_t refCount, quadraticSums, cubicSums, hash, counts[kCountSize];
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
@@ -203,7 +202,7 @@ struct Rasterizer {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
                 bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
                 hash = ::crc64(::crc64(hash, & path.ref->hash, sizeof(path.ref->hash)), & ctm, sizeof(Transform));
-                weight += path.ref->weight;
+                weight += path.ref->types.size();
             }
         }
         size_t refCount = 0, hash = 0, weight = 0;
