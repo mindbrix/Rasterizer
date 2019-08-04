@@ -492,11 +492,10 @@ struct Rasterizer {
         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
         m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-        y = floorf(ly * krfh) * kfh, sy[0] = y > ly ? y : ly;
-        sx[0] = sy[0] * m + c, sx[0] = lx > sx[0] ? lx : sx[0] < ux ? sx[0] : ux;
+        sy[0] = ly, sx[0] = y0 < y1 ? x0 : x1;
         Row<Segment> *segments = out->segments + size_t(ly * krfh) - out->stride;
         int i0 = y0 < y1 ? 0 : 1, i1 = 1 - i0;
-        for (; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], segments++) {
+        for (y = floorf(ly * krfh) * kfh; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], segments++) {
             sy[1] = y + kfh < uy ? y + kfh : uy;
             sx[1] = sy[1] * m + c, sx[1] = lx > sx[1] ? lx : sx[1] < ux ? sx[1] : ux;
             new (segments->alloc(1)) Segment(sx[i0], sy[i0], sx[i1], sy[i1]);
