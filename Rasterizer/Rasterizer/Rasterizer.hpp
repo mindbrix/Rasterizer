@@ -88,7 +88,7 @@ struct Rasterizer {
     };
     struct Geometry {
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        Geometry() : quadraticSums(0), cubicSums(0), px(0), py(0), isGlyph(false), isDrawable(false), isPolygon(true), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() : quadraticSums(0), cubicSums(0), px(0), py(0), isGlyph(false), isDrawable(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         
         float *alloc(Type type, size_t size) {
             for (int i = 0; i < size; i++)
@@ -110,7 +110,6 @@ struct Rasterizer {
                 cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
                 cubicSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
             }
-            isPolygon = counts[kQuadratic] == 0 && counts[kCubic] == 0;
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
@@ -172,7 +171,7 @@ struct Rasterizer {
         std::vector<float> points;
         std::vector<Bounds> molecules;
         float px, py, *pts;
-        bool isGlyph, isDrawable, isPolygon;
+        bool isGlyph, isDrawable;
         Bounds bounds, *mols;
     };
     template<typename T>
@@ -346,7 +345,7 @@ struct Rasterizer {
         
         Entry *getPath(Path& path, Transform ctm) {
             uint64_t hash = path.ref->hash;
-            if (!path.ref->isPolygon) {
+            if (path.ref->counts[Geometry::kQuadratic] != 0 || path.ref->counts[Geometry::kCubic] != 0) {
                 float det = path.ref->bounds.area() * fabsf(ctm.det());
                 hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
             }
