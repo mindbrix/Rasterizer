@@ -69,19 +69,28 @@ struct RasterizerCG {
                 converter = vImageConverter_CreateWithCGImageFormat(&srcFormat, &dstFormat, NULL, kvImageNoFlags, NULL);
             }
         }
-        void convert(uint64_t hash, void *src, size_t size, void *dst) {
-            if (size && converter) {
+        void convert(uint64_t hash, void *src, size_t count, void *dst) {
+            if (count && converter) {
                 hash += CFHash(dstFormat.colorSpace);
-                
-                vImage_Buffer sourceBuffer, destBuffer;
-                vImageBuffer_Init(& sourceBuffer, 1, size, 32, kvImageNoAllocate);
-                vImageBuffer_Init(& destBuffer, 1, size, 32, kvImageNoAllocate);
-                sourceBuffer.data = src, destBuffer.data = dst;
-                vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
+                size_t size = count * sizeof(uint32_t);
+                auto it = cache.find(hash);
+                if (it != cache.end()) {
+                    memcpy(dst, it->second.get(), size);
+                } else {
+                    std::shared_ptr<void> buf(malloc(size), free);
+                    cache.emplace(hash, buf);
+                    vImage_Buffer sourceBuffer, destBuffer;
+                    vImageBuffer_Init(& sourceBuffer, 1, count, 32, kvImageNoAllocate);
+                    vImageBuffer_Init(& destBuffer, 1, count, 32, kvImageNoAllocate);
+                    sourceBuffer.data = src, destBuffer.data = buf.get();
+                    vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
+                    memcpy(dst, buf.get(), size);
+                }
             }
         }
         vImageConverterRef converter = nullptr;
         vImage_CGImageFormat srcFormat, dstFormat;
+        std::unordered_map<uint64_t, std::shared_ptr<void>> cache;
     };
     
     static Ra::Transform transformFromCG(CGAffineTransform t) {
