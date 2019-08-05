@@ -46,7 +46,7 @@ struct RasterizerCG {
         }
     }
     struct BGRAColorConverter {
-        BGRAColorConverter() : converter(nullptr) { reset(); }
+        BGRAColorConverter() { reset(); }
         ~BGRAColorConverter() { reset(); }
         void reset() {
             if (converter)
@@ -78,7 +78,7 @@ struct RasterizerCG {
                 vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
             }
         }
-        vImageConverterRef converter;
+        vImageConverterRef converter = nullptr;
         vImage_CGImageFormat srcFormat, dstFormat;
     };
     
@@ -260,9 +260,12 @@ struct RasterizerCG {
             Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             float *widths = (float *)malloc(pathsCount * sizeof(float));
-            Ra::Ref<Ra::Scene>* scene = & visibles.scenes[0];
-            for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->ref->paths.size(), scene++)
-                testScene.converter.convert(& scene->ref->colors[0].src0, scene->ref->paths.size(), colors + iz);
+            for (int i = 0, iz = 0; i < visibles.scenes.size(); i++)
+                for (int j = 0; j < visibles.scenes[i].ref->colors.size(); j++, iz++)
+                    colors[iz] = visibles.scenes[i].ref->colors[j];
+//            Ra::Ref<Ra::Scene>* scene = & visibles.scenes[0];
+//            for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->ref->paths.size(), scene++)
+//                testScene.converter.convert(& scene->ref->colors[0].src0, scene->ref->paths.size(), colors + iz);
             
             if (state.outlineWidth) {
                 Ra::Colorant black(0, 0, 0, 255);
