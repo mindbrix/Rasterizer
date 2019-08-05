@@ -200,9 +200,8 @@ struct Rasterizer {
             Geometry& g = *path.ref;
             if (g.isDrawable) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color);
-                bounds.extend(Bounds(g.bounds.unit(ctm)));
+                bounds.extend(Bounds(g.bounds.unit(ctm))), weight += g.types.size();
                 hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color));
-                weight += g.types.size();
             }
         }
         size_t refCount = 0, hash = 0, weight = 0;
