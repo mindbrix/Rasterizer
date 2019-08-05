@@ -196,12 +196,13 @@ struct Rasterizer {
         return path;
     }
     struct Scene {
-        void addPath(Path path, Transform ctm, Colorant colorant) {
-            if (path.ref->isDrawable) {
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(colorant);
-                bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
-                hash = ::crc64(::crc64(hash, & path.ref->hash, sizeof(path.ref->hash)), & ctm, sizeof(Transform));
-                weight += path.ref->types.size();
+        void addPath(Path path, Transform ctm, Colorant color) {
+            Geometry& g = *path.ref;
+            if (g.isDrawable) {
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color);
+                bounds.extend(Bounds(g.bounds.unit(ctm)));
+                hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color));
+                weight += g.types.size();
             }
         }
         size_t refCount = 0, hash = 0, weight = 0;
