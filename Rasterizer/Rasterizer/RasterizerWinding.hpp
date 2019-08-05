@@ -12,11 +12,13 @@ struct RasterizerWinding {
         if (dx >= bounds.lx && dx < bounds.ux && dy >= bounds.ly && dy < bounds.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
-                float width = list.widths[li] * (list.widths[li] < 0.f ? -1.f : sqrtf(fabsf(ctm.det())));
-                bool even = list.evens[li];
+                float ws = sqrtf(fabsf(ctm.det())), w, width;
+                
                 Ra::Scene& scene = *list.scenes[li].ref;
                 for (int si = int(scene.paths.size()) - 1; si >= 0; si--) {
+                    w = scene.widths[si], width = w * (w < 0.f ? -1.f : ws);
                     int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy, width);
+                    bool even = scene.evens[si];
                     if ((even && (winding & 1)) || (!even && winding))
                         return Ra::Range(li, si);
                 }

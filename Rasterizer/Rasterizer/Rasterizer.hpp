@@ -196,30 +196,30 @@ struct Rasterizer {
         return path;
     }
     struct Scene {
-        void addPath(Path path, Transform ctm, Colorant color) {
+        void addPath(Path path, Transform ctm, Colorant color, float width, bool even) {
             Geometry& g = *path.ref;
             if (g.isDrawable) {
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color);
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), evens.emplace_back(even);
                 bounds.extend(Bounds(g.bounds.unit(ctm))), weight += g.types.size();
-                hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color));
+                hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color)), hash = ::crc64(hash, & width, sizeof(width)), hash = ::crc64(hash, & even, sizeof(even));
             }
         }
         size_t refCount = 0, hash = 0, weight = 0;
-        std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors;
+        std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors; std::vector<float> widths;  std::vector<bool> evens;
         Bounds bounds;
     };
     struct SceneList {
         SceneList& empty() {
-            scenes.resize(0), ctms.resize(0), clips.resize(0), widths.resize(0), evens.resize(0);
+            scenes.resize(0), ctms.resize(0), clips.resize(0);
             bounds = Bounds();
             return *this;
         }
         SceneList& addScene(Ref<Scene> sceneRef) {
-            return addScene(sceneRef, Transform(), Transform::nullclip(), 0.f, false);
+            return addScene(sceneRef, Transform(), Transform::nullclip());
         }
-        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip, float width, bool even) {
+        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
             if (sceneRef.ref->paths.size()) {
-                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), widths.emplace_back(width), evens.emplace_back(even);
+                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip);
                 bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
             }
             return *this;
@@ -227,11 +227,11 @@ struct Rasterizer {
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
-                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device, widths[i]))
-                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i], widths[i], evens[i]);
+                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device, 0.f))
+                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i]);
             return pathsCount;
         }
-        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips; std::vector<float> widths; std::vector<bool> evens;
+        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;
         Bounds bounds;
     };
     template<typename T>
@@ -578,25 +578,26 @@ struct Rasterizer {
                 uz = lz + scene.paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
-                    float width = list.widths[i] * (list.widths[i] < 0.f ? -1.f : sqrtf(fabsf(ctm.det())));
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
+                    float ws = sqrtf(fabsf(ctm.det()));
                     Path *paths = & scene.paths[clz - lz];
-                    for (iz = clz; iz < cuz; iz++)
-                        clips[iz] = clipctm, widths[iz] = width;
                     for (iz = clz; iz < cuz; iz++)
                         hashes[iz - slz] = scene.paths[iz - lz].ref->hash;
                     Colorant *color = & colors[clz];
                     for (iz = clz; iz < cuz; iz++, paths++, color++) {
+                        float w = scene.widths[iz - lz];
+                        float width = w * (w < 0.f ? -1.f : ws);
+                        widths[iz] = width, clips[iz] = clipctm;
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                ctms[iz] = m, writeGPUPath(*paths, m, list.evens[i], clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
+                                ctms[iz] = m, writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             else
-                                writeBitmapPath(*paths, m, list.evens[i], & color->src0, clip, width, hit, clipctm);
+                                writeBitmapPath(*paths, m, scene.evens[iz - lz], & color->src0, clip, width, hit, clipctm);
                         }
                     }
                 }

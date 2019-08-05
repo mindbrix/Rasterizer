@@ -41,30 +41,19 @@ struct RasterizerSVG {
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
             Ra::Ref<Ra::Scene> scene;
-            float width = FLT_MAX;
             Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                 if (shape->fill.type != NSVG_PAINT_NONE) {
-                    if (width != 0.f) {
-                        list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
-                        scene = Ra::Ref<Ra::Scene>();
-                        width = 0.f;
-                    }
-                    scene.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill));
+                    scene.ref->addPath(createPathFromShape(shape), flip, colorFromPaint(shape->fill), 0.f, false);
                 }
                 if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth) {
                     Ra::Path s = createPathFromShape(shape);
                     if (s.ref->isDrawable) {
-                        if (width != shape->strokeWidth) {
-                            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
-                            scene = Ra::Ref<Ra::Scene>();
-                            width = shape->strokeWidth;
-                        }
-                        scene.ref->addPath(s, flip, colorFromPaint(shape->stroke));
+                        scene.ref->addPath(s, flip, colorFromPaint(shape->stroke), shape->strokeWidth, false);
                     }
                 }
             }
-            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip(), width, false);
+            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
             nsvgDelete(image);
         }
         free(data);

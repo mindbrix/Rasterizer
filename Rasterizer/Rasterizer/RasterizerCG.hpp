@@ -23,18 +23,18 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.paths.size(); i++) {
                 Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
-                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, list.widths[j])) {
+                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, 0.f)) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
-                    if (list.widths[j]) {
+                    if (scene.widths[i]) {
                         if (outlineWidth == 0.f)
                             CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                        CGContextSetLineWidth(ctx, list.widths[j] < 0.f ? (CGFloat)-109.05473e+14 : (list.widths[j]) / sqrtf(fabsf(scene.ctms[i].det())));
+                        CGContextSetLineWidth(ctx, scene.widths[i] < 0.f ? (CGFloat)-109.05473e+14 : (scene.widths[i]) / sqrtf(fabsf(scene.ctms[i].det())));
                         CGContextStrokePath(ctx);
                     } else {
                         CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                        if (list.evens[j])
+                        if (scene.evens[i])
                             CGContextEOFillPath(ctx);
                         else
                             CGContextFillPath(ctx);
@@ -258,9 +258,9 @@ struct RasterizerCG {
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, CGContextRef ctx, Ra::Bitmap bitmap, Ra::Buffer *buffer) {
         Ra::SceneList visibles;
         size_t pathsCount = list.writeVisibles(state.view, state.device, visibles);
-        if (state.outlineWidth)
-            for (int i = 0; i < visibles.scenes.size(); i++)
-                visibles.widths[i] = state.outlineWidth;
+//        if (state.outlineWidth)
+//            for (int i = 0; i < visibles.scenes.size(); i++)
+//                visibles.widths[i] = state.outlineWidth;
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
