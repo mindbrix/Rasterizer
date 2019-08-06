@@ -586,8 +586,7 @@ struct Rasterizer {
                         hashes[iz - slz] = scene.paths[iz - lz].ref->hash;
                     Colorant *color = & colors[clz];
                     for (iz = clz; iz < cuz; iz++, paths++, color++) {
-                        float w = scene.widths[iz - lz];
-                        float width = w * (w < 0.f ? -1.f : ws);
+                        float w = scene.widths[iz - lz], width = w * (w < 0.f ? -1.f : ws);
                         widths[iz] = width, clips[iz] = clipctm;
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
