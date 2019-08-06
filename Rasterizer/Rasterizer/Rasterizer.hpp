@@ -572,7 +572,7 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clips, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
-            uint64_t hashes[suz - slz];
+            uint64_t hashes[suz - slz], *hash = hashes;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
                 uz = lz + scene.paths.size();
@@ -586,7 +586,7 @@ struct Rasterizer {
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                            ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hashes[iz - slz] = scene.paths[iz - lz].ref->hash;
+                            ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, *hash++ = scene.paths[iz - lz].ref->hash;
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
