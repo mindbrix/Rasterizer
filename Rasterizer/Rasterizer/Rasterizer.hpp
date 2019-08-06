@@ -579,24 +579,20 @@ struct Rasterizer {
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
-                    float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
-                    float ws = sqrtf(fabsf(ctm.det()));
+                    float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     Path *paths = & scene.paths[clz - lz];
-                    for (iz = clz; iz < cuz; iz++)
-                        hashes[iz - slz] = scene.paths[iz - lz].ref->hash;
-                    Colorant *color = & colors[clz];
-                    for (iz = clz; iz < cuz; iz++, paths++, color++) {
+                    for (iz = clz; iz < cuz; iz++, paths++) {
                         float w = outlineWidth ?: scene.widths[iz - lz], width = w * (w < 0.f ? -1.f : ws);
-                        widths[iz] = width, clips[iz] = clipctm;
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                            ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hashes[iz - slz] = scene.paths[iz - lz].ref->hash;
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
-                                ctms[iz] = m, writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, color->src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
+                                writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             else
-                                writeBitmapPath(*paths, m, scene.evens[iz - lz], & color->src0, clip, width, hit, clipctm);
+                                writeBitmapPath(*paths, m, scene.evens[iz - lz], & colors[iz].src0, clip, width, hit, clipctm);
                         }
                     }
                 }
