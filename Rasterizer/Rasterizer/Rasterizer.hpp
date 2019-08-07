@@ -439,6 +439,10 @@ struct Rasterizer {
             Row<Pass> passes;
             Bounds sheet, strip, fast, molecules;
         };
+        struct CacheHash {
+            inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
+            uint64_t hash;  uint32_t i;
+        };
         struct Quad {
             Cell cell;
             short cover;
@@ -463,11 +467,12 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
+        void empty() { zero(), hashes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
+        void reset() { zero(), hashes.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
+        Row<CacheHash> hashes;
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -552,10 +557,6 @@ struct Rasterizer {
             }
         }
     };
-    struct CacheHash {
-        inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
-        uint64_t hash;  uint32_t i;
-    };
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
@@ -576,7 +577,7 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clips, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
-            CacheHash *hashes = (CacheHash *)alloca((suz - slz) * sizeof(CacheHash)), *hash = hashes;
+            GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz);
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
                 uz = lz + scene.paths.size();
@@ -590,18 +591,18 @@ struct Rasterizer {
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                            ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->hash, hash->i = uint32_t(iz - lz), hash++;
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            if (bitmap.width == 0)
+                            if (bitmap.width == 0) {
+                                ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->hash, hash->i = uint32_t(iz - lz), hash++;
                                 writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
-                            else
+                            } else
                                 writeBitmapPath(*paths, m, scene.evens[iz - lz], & colors[iz].src0, clip, width, hit, clipctm);
                         }
                     }
                 }
             }
-            //std::sort(& hashes[0], hash);
+            // std::sort(gpu.hashes.base, hash);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm) {
