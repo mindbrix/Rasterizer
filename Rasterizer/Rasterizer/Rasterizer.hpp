@@ -114,6 +114,12 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
+        inline uint64_t cacheHash(Transform ctm) {
+            if (counts[kQuadratic] == 0 && counts[kCubic] == 0)
+                return hash;
+            float det = bounds.area() * fabsf(ctm.det());
+            return hash + ((*((uint32_t *)& det) & 0x7FFFFFFF) >> 23);
+        }
         float upperBound(Transform ctm) {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
@@ -344,11 +350,7 @@ struct Rasterizer {
         void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
         Entry *getPath(Path& path, Transform ctm) {
-            uint64_t hash = path.ref->hash;
-            if (path.ref->counts[Geometry::kQuadratic] != 0 || path.ref->counts[Geometry::kCubic] != 0) {
-                float det = path.ref->bounds.area() * fabsf(ctm.det());
-                hash += (*((uint32_t *)& det) & 0x7FFFFFFF) >> 23;
-            }
+            uint64_t hash = path.ref->cacheHash(ctm);
             Grid::Element *el = grid.find(hash);
             if (el) {
                 entries.base[el->index].hit = true;
@@ -594,7 +596,7 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
-                                ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->hash, hash->i = uint32_t(iz - lz), hash++;
+                                ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->cacheHash(m), hash->i = uint32_t(iz - lz), hash++;
                                 writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             } else
                                 writeBitmapPath(*paths, m, scene.evens[iz - lz], & colors[iz].src0, clip, width, hit, clipctm);
