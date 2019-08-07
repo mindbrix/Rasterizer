@@ -552,6 +552,10 @@ struct Rasterizer {
             }
         }
     };
+    struct CacheHash {
+        inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
+        uint64_t hash;  uint32_t i;
+    };
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
             bitmap = bm;
@@ -572,7 +576,7 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clips, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
-            uint64_t hashes[suz - slz], *hash = hashes;
+            CacheHash *hashes = (CacheHash *)alloca((suz - slz) * sizeof(CacheHash)), *hash = hashes;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 Scene& scene = *list.scenes[i].ref;
                 uz = lz + scene.paths.size();
@@ -586,7 +590,7 @@ struct Rasterizer {
                         Transform m = ctm.concat(scene.ctms[iz - lz]), unit = paths->ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                            ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, *hash++ = scene.paths[iz - lz].ref->hash;
+                            ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->hash, hash->i = uint32_t(iz - lz), hash++;
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0)
@@ -597,7 +601,7 @@ struct Rasterizer {
                     }
                 }
             }
-          //  std::sort(& hashes[0], & hashes[suz - slz]);
+            //std::sort(& hashes[0], hash);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm) {
