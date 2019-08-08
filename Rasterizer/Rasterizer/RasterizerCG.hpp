@@ -27,10 +27,10 @@ struct RasterizerCG {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
-                    if (scene.widths[i]) {
+                    if (outlineWidth || scene.widths[i]) {
                         if (outlineWidth == 0.f)
                             CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                        CGContextSetLineWidth(ctx, scene.widths[i] < 0.f ? (CGFloat)-109.05473e+14 : (scene.widths[i]) / sqrtf(fabsf(scene.ctms[i].det())));
+                        CGContextSetLineWidth(ctx, outlineWidth ? (CGFloat)-109.05473e+14 : (scene.widths[i]) / sqrtf(fabsf(scene.ctms[i].det())));
                         CGContextStrokePath(ctx);
                     } else {
                         CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
