@@ -577,7 +577,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clips, float *widths, float outlineWidth, size_t slz, size_t suz) {
+        void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz;
             GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz);
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
@@ -596,7 +596,7 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
-                                ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->cacheHash(m), hash->i = uint32_t(iz - lz), hash++;
+                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->cacheHash(m), hash->i = uint32_t(iz - lz), hash++;
                                 writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             } else
                                 writeBitmapPath(*paths, m, scene.evens[iz - lz], & colors[iz].src0, clip, width, hit, clipctm);
