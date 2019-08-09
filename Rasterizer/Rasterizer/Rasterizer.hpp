@@ -599,7 +599,7 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene.paths[iz - lz].ref->cacheHash(m), hash->i = uint32_t(iz - lz), hash++;
                                 writeGPUPath(*paths, m, scene.evens[iz - lz], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             } else
-                                writeBitmapPath(*paths, m, scene.evens[iz - lz], & colors[iz].src0, clip, width, hit, clipctm);
+                                writeBitmapPath(*paths, m, scene.evens[iz - lz], clip, width, & colors[iz].src0, hit, clipctm);
                         }
                     }
                 }
@@ -607,7 +607,7 @@ struct Rasterizer {
             // std::sort(gpu.hashes.base, hash);
             slz = slz;
         }
-        void writeBitmapPath(Path& path, Transform ctm, bool even, uint8_t *src, Bounds clip, float width, bool hit, Transform clipctm) {
+        void writeBitmapPath(Path& path, Transform ctm, bool even, Bounds clip, float width, uint8_t *src, bool hit, Transform clipctm) {
             if (width) {
                 OutlineOutput out; out.clip = clip, out.hit = hit, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = even, out.bm = & bitmap;
                 writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
