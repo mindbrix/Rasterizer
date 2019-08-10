@@ -580,25 +580,25 @@ struct Rasterizer {
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz, is;
             GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz);
-            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
-                Scene& scene = *list.scenes[i].ref;
-                uz = lz + scene.paths.size();
+            Scene *scene = list.scenes[0].ref;
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, scene = list.scenes[i].ref, lz = uz) {
+                uz = lz + scene->paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                        float w = outlineWidth ?: scene.widths[is], width = w * (w < 0.f ? -1.f : ws);
-                        Transform m = ctm.concat(scene.ctms[is]), unit = scene.paths[is].ref->bounds.unit(m);
+                        float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
+                        Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
-                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene.paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
-                                writeGPUPath(scene.paths[is], m, scene.evens[is], clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
+                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
+                                writeGPUPath(scene->paths[is], m, scene->evens[is], clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
                             } else
-                                writeBitmapPath(scene.paths[is], m, scene.evens[is], clip, width, & colors[iz].src0, soft, clipctm);
+                                writeBitmapPath(scene->paths[is], m, scene->evens[is], clip, width, & colors[iz].src0, soft, clipctm);
                         }
                     }
                 }
