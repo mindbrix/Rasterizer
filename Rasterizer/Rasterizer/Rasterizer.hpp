@@ -547,7 +547,7 @@ struct Rasterizer {
         size_t width, height, stride, bpp, bytespp;
     };
     struct OutlineOutput {
-        Bounds clip;  bool hit;  Transform clipctm;  uint8_t *src;  float width;  bool circle;  Bitmap *bm;
+        Bounds clip;  bool soft;  Transform clipctm;  uint8_t *src;  float width;  bool circle;  Bitmap *bm;
         
         static void writePixels(float x0, float y0, float x1, float y1, void *info) {
             if (x0 != x1 || y0 != y1) {
@@ -555,7 +555,7 @@ struct Rasterizer {
                 float cw = out->width < 1.f ? 1.f : out->width;
                 float dx = x1 - x0, dy = y1 - y0, s = cw / sqrtf(dx * dx + dy * dy), vx = -dy * s, vy = dx * s;
                 Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->hit, out->clipctm, unit, out->width, out->circle, out->src, out->width / cw, out->bm);
+                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->soft, out->clipctm, unit, out->width, out->circle, out->src, out->width / cw, out->bm);
             }
         }
     };
@@ -593,12 +593,12 @@ struct Rasterizer {
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
-                            bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
+                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene.paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
-                                writeGPUPath(scene.paths[is], m, scene.evens[is], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
+                                writeGPUPath(scene.paths[is], m, scene.evens[is], clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
                             } else
-                                writeBitmapPath(scene.paths[is], m, scene.evens[is], clip, width, & colors[iz].src0, hit, clipctm);
+                                writeBitmapPath(scene.paths[is], m, scene.evens[is], clip, width, & colors[iz].src0, soft, clipctm);
                         }
                     }
                 }
@@ -606,20 +606,20 @@ struct Rasterizer {
             // std::sort(gpu.hashes.base, hash);
             slz = slz;
         }
-        void writeBitmapPath(Path& path, Transform ctm, bool even, Bounds clip, float width, uint8_t *src, bool hit, Transform clipctm) {
+        void writeBitmapPath(Path& path, Transform ctm, bool even, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
             if (width) {
-                OutlineOutput out; out.clip = clip, out.hit = hit, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = even, out.bm = & bitmap;
+                OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = even, out.bm = & bitmap;
                 writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
             } else {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 Output del(deltas.base, stride);
                 if (stride * h < deltas.end) {
                     writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, false, writeDeltaSegment, & del);
-                    writeDeltaPixels(& del, clip, hit, clipctm, even, src, & bitmap);
+                    writeDeltaPixels(& del, clip, soft, clipctm, even, src, & bitmap);
                 } else {
                     Output sgmnts(& segments[0], clip.ly * krfh);
                     writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
-                    writeSegmentPixels(& sgmnts, clip, hit, clipctm, even, & del, src, & bitmap);
+                    writeSegmentPixels(& sgmnts, clip, soft, clipctm, even, & del, src, & bitmap);
                 }
             }
         }
