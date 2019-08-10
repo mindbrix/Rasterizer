@@ -587,19 +587,18 @@ struct Rasterizer {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
-                    Path *paths = & scene.paths[clz - lz];
-                    for (is = clz - lz, iz = clz; iz < cuz; iz++, is++, paths++) {
+                    for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                         float w = outlineWidth ?: scene.widths[is], width = w * (w < 0.f ? -1.f : ws);
-                        Transform m = ctm.concat(scene.ctms[is]), unit = paths->ref->bounds.unit(m);
+                        Transform m = ctm.concat(scene.ctms[is]), unit = scene.paths[is].ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool hit = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene.paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
-                                writeGPUPath(*paths, m, scene.evens[is], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
+                                writeGPUPath(scene.paths[is], m, scene.evens[is], clip, width, colors[iz].src3 == 255 && !hit, iz, uc.contains(dev) && clip.contains(dev));
                             } else
-                                writeBitmapPath(*paths, m, scene.evens[is], clip, width, & colors[iz].src0, hit, clipctm);
+                                writeBitmapPath(scene.paths[is], m, scene.evens[is], clip, width, & colors[iz].src0, hit, clipctm);
                         }
                     }
                 }
