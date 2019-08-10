@@ -581,8 +581,8 @@ struct Rasterizer {
             size_t lz, uz, i, clz, cuz, iz, is;
             GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz);
             Scene *scene = list.scenes[0].ref;
-            for (lz = uz = i = 0; i < list.scenes.size(); i++, scene = list.scenes[i].ref, lz = uz) {
-                uz = lz + scene->paths.size();
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
+                scene = list.scenes[i].ref, uz = lz + scene->paths.size();
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f);
