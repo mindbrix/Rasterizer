@@ -263,7 +263,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + 1.0 : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + 1.0) : 1e6, isRight ? 0.0 : dw);
-        vert.r = (inst.iz & Instance::kCircle) == 0 ? 1.0 : max(1.0, 0.5 * min(vert.shape.x + vert.shape.z, vert.shape.y + vert.shape.w));
+        vert.r = (inst.iz & Instance::kCircle) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
