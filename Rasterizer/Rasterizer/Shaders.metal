@@ -234,6 +234,7 @@ vertex InstancesVertex instances_vertex_main(
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
         const float width = widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
         f = width / cw;
+        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 + 0.5 * dw;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
@@ -257,12 +258,12 @@ vertex InstancesVertex instances_vertex_main(
         // -y, x
         bool isRight = vid & 1, isUp = vid & 2, crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
         float sgn = isRight ? -1.0 : 1.0, ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
-        dx = select(x0 + vx0 * sgn - 0.5 * no.x * float(pcap) - ex, x1 + vx1 * sgn + 0.5 * no.x * float(ncap) + ex, isUp);
-        dy = select(y0 + vy0 * sgn - 0.5 * no.y * float(pcap) - ey, y1 + vy1 * sgn + 0.5 * no.y * float(ncap) + ey, isUp);
+        dx = select(x0 + vx0 * sgn - endCap * no.x * float(pcap) - ex, x1 + vx1 * sgn + endCap * no.x * float(ncap) + ex, isUp);
+        dy = select(y0 + vy0 * sgn - endCap * no.y * float(pcap) - ey, y1 + vy1 * sgn + endCap * no.y * float(ncap) + ey, isUp);
         dx = select(dx, ix, crossed);
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        vert.shape = float4(pcap ? (isUp ? lo + 1.0 : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + 1.0) : 1e6, isRight ? 0.0 : dw);
+        vert.shape = float4(pcap ? (isUp ? lo + 2.0 * endCap : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + 2.0 * endCap) : 1e6, isRight ? 0.0 : dw);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
     } else {
