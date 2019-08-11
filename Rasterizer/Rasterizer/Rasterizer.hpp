@@ -545,7 +545,6 @@ struct Rasterizer {
     };
     struct OutlineOutput {
         Bounds clip;  bool soft;  Transform clipctm;  uint8_t *src;  float width;  bool circle;  Bitmap *bm;
-        
         static void writePixels(float x0, float y0, float x1, float y1, void *info) {
             if (x0 != x1 || y0 != y1) {
                 OutlineOutput *out = (OutlineOutput *)info;
