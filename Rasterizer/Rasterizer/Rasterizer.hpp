@@ -615,7 +615,7 @@ struct Rasterizer {
         }
         void writeGPUPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
             if (width) {
-                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0));
+                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0) | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
                 inst->outline.clip = clip.inset(-width, -width);
                 size_t upper = path.ref->upperBound(ctm);
                 if (fabsf(ctm.det()) > 1e2f) {
