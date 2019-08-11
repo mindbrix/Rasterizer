@@ -202,16 +202,17 @@ struct Rasterizer {
         return path;
     }
     struct Scene {
+        enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineButtCap = 1 << 2 };
         void addPath(Path path, Transform ctm, Colorant color, float width, bool even) {
             Geometry& g = *path.ref;
             if (g.isDrawable) {
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), evens.emplace_back(even);
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(even ? kFillEvenOdd : 0);
                 bounds.extend(Bounds(g.bounds.unit(ctm))), weight += g.types.size();
                 hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color)), hash = ::crc64(hash, & width, sizeof(width)), hash = ::crc64(hash, & even, sizeof(even));
             }
         }
         size_t refCount = 0, hash = 0, weight = 0;
-        std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors; std::vector<float> widths;  std::vector<bool> evens;
+        std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors; std::vector<float> widths;  std::vector<uint8_t> flags;
         Bounds bounds;
     };
     struct SceneList {
@@ -596,9 +597,9 @@ struct Rasterizer {
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
-                                writeGPUPath(scene->paths[is], m, scene->evens[is], clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
+                                writeGPUPath(scene->paths[is], m, scene->flags[is] & Scene::kFillEvenOdd, clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
                             } else
-                                writeBitmapPath(scene->paths[is], m, scene->evens[is], clip, width, & colors[iz].src0, soft, clipctm);
+                                writeBitmapPath(scene->paths[is], m, scene->flags[is] & Scene::kFillEvenOdd, clip, width, & colors[iz].src0, soft, clipctm);
                         }
                     }
                 }

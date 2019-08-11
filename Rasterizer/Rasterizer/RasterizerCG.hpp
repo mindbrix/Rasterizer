@@ -34,7 +34,7 @@ struct RasterizerCG {
                         CGContextStrokePath(ctx);
                     } else {
                         CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                        if (scene.evens[i])
+                        if (scene.flags[i] & Ra::Scene::kFillEvenOdd)
                             CGContextEOFillPath(ctx);
                         else
                             CGContextFillPath(ctx);
