@@ -597,7 +597,7 @@ struct Rasterizer {
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
-                                writeGPUPath(scene->paths[is], m, scene->flags[is] & Scene::kFillEvenOdd, clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
+                                writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
                         }
@@ -624,9 +624,9 @@ struct Rasterizer {
                 }
             }
         }
-        void writeGPUPath(Path& path, Transform ctm, bool even, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
+        void writeGPUPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
             if (width) {
-                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (even ? GPU::Instance::kCircle : 0));
+                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kCircle : 0));
                 inst->outline.clip = clip.inset(-width, -width);
                 size_t upper = path.ref->upperBound(ctm);
                 if (fabsf(ctm.det()) > 1e2f) {
@@ -641,15 +641,15 @@ struct Rasterizer {
                     Cache::Entry *entry = gpu.cache.getPath(path, ctm);
                     if (fast) {
                         GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
-                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (even ? GPU::Instance::kEvenOdd : 0));
+                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                         inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
                     } else {
                         gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
-                        writeSegmentInstances(& sgmnts, clip, even, iz, opaque, gpu);
+                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
                 } else {
                     writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
-                    writeSegmentInstances(& sgmnts, clip, even, iz, opaque, gpu);
+                    writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 }
             }
         }
