@@ -212,7 +212,7 @@ struct InstancesVertex
     float4 clip, shape;
     float u, v;
     float cover, r;
-    bool isShape, even, solid;
+    bool isShape, even, sampled;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -273,7 +273,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.cover = inst.quad.cover;
         vert.isShape = false;
         vert.even = inst.iz & Instance::kEvenOdd;
-        vert.solid = inst.iz & Instance::kSolidCell;
+        vert.sampled = (inst.iz & Instance::kSolidCell) == 0;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
@@ -292,7 +292,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     if (vert.isShape) {
         x = vert.r - min(vert.r, min(vert.shape.x, vert.shape.z)), y = vert.r - min(vert.r, min(vert.shape.y, vert.shape.w));
         alpha = vert.r == 1.0 ? saturate(vert.shape.x) * saturate(vert.shape.z) * saturate(vert.shape.y) * saturate(vert.shape.w) : saturate(vert.r - sqrt(x * x + y * y));
-    } else if (!vert.solid) {
+    } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
