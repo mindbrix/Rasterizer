@@ -599,7 +599,7 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is] & Scene::kFillEvenOdd, clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
                             } else
-                                writeBitmapPath(scene->paths[is], m, scene->flags[is] & Scene::kFillEvenOdd, clip, width, & colors[iz].src0, soft, clipctm);
+                                writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
                         }
                     }
                 }
@@ -607,20 +607,20 @@ struct Rasterizer {
             // std::sort(gpu.hashes.base, hash);
             slz = slz;
         }
-        void writeBitmapPath(Path& path, Transform ctm, bool even, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
+        void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
             if (width) {
-                OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = even, out.bm = & bitmap;
+                OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.circle = flags & Scene::kFillEvenOdd, out.bm = & bitmap;
                 writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
             } else {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 Output del(deltas.base, stride);
                 if (stride * h < deltas.end) {
                     writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, false, writeDeltaSegment, & del);
-                    writeDeltaPixels(& del, clip, soft, clipctm, even, src, & bitmap);
+                    writeDeltaPixels(& del, clip, soft, clipctm, flags & Scene::kFillEvenOdd, src, & bitmap);
                 } else {
                     Output sgmnts(& segments[0], clip.ly * krfh);
                     writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
-                    writeSegmentPixels(& sgmnts, clip, soft, clipctm, even, & del, src, & bitmap);
+                    writeSegmentPixels(& sgmnts, clip, soft, clipctm, flags & Scene::kFillEvenOdd, & del, src, & bitmap);
                 }
             }
         }
