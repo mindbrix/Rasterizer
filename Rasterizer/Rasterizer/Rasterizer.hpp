@@ -202,10 +202,10 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path.ref->isDrawable) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
-                weight += path.ref->types.size(), hash = ::crc64(hash, & color, sizeof(color));
+                weight += path.ref->types.size(), colorHash = ::crc64(colorHash, & color, sizeof(color));
             }
         }
-        size_t refCount = 0, hash = 0, weight = 0;
+        size_t refCount = 0, colorHash = 0, weight = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors; std::vector<float> widths;  std::vector<uint8_t> flags;
         Bounds bounds;
     };

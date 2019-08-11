@@ -271,7 +271,7 @@ struct RasterizerCG {
             float *widths = (float *)malloc(pathsCount * sizeof(float));
             Ra::Ref<Ra::Scene>* scene = & visibles.scenes[0];
             for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->ref->paths.size(), scene++)
-                testScene.converter.convert(scene->ref->hash, & scene->ref->colors[0].src0, scene->ref->paths.size(), colors + iz);
+                testScene.converter.convert(scene->ref->colorHash, & scene->ref->colors[0].src0, scene->ref->paths.size(), colors + iz);
             if (state.outlineWidth) {
                 Ra::Colorant black(0, 0, 0, 255);
                 memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
