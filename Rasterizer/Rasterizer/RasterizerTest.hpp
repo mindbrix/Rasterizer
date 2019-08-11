@@ -12,9 +12,9 @@ struct RasterizerTest {
         Ra::Ref<Ra::Scene> scene;
         Ra::Colorant color(0, 0, 0, 255);
         if (0)
-            scene.ref->addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color, 0.f, false);
+            scene.ref->addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color, 0.f, 0);
         if (0)
-            scene.ref->addPath(createPhyllotaxisPath(100), Ra::Transform(), color, 0.f, true);
+            scene.ref->addPath(createPhyllotaxisPath(100), Ra::Transform(), color, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)
             writePhyllotaxisToScene(100000, *scene.ref);
         list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
@@ -35,7 +35,7 @@ struct RasterizerTest {
                 path.ref->moveTo(lx, ly + 0.5f * width), path.ref->lineTo(lx + width, ly + 0.5f * width);
             else
                 path.ref->addBounds(Ra::Bounds(lx, ly, lx + width, ly + width));
-            scene.ref->addPath(path, Ra::Transform(), color, width, false);
+            scene.ref->addPath(path, Ra::Transform(), color, width, 0);
         }
         return scene;
     }
@@ -60,7 +60,7 @@ struct RasterizerTest {
         float vx = 1.f, vy = 0.f, x, y, s, t;
         for (int i = 0; i < count; i++) {
             s = sqrtf(i), t = float(i) / float(count);
-            scene.addPath(rect, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 0.f, false);
+            scene.addPath(rect, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 0.f, 0);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }

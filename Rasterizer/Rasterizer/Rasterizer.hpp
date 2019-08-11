@@ -203,12 +203,12 @@ struct Rasterizer {
     }
     struct Scene {
         enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineButtCap = 1 << 2 };
-        void addPath(Path path, Transform ctm, Colorant color, float width, bool even) {
+        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             Geometry& g = *path.ref;
             if (g.isDrawable) {
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(even ? kFillEvenOdd : 0);
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag);
                 bounds.extend(Bounds(g.bounds.unit(ctm))), weight += g.types.size();
-                hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color)), hash = ::crc64(hash, & width, sizeof(width)), hash = ::crc64(hash, & even, sizeof(even));
+                hash = ::crc64(hash, & g.hash, sizeof(g.hash)), hash = ::crc64(hash, & ctm, sizeof(ctm)), hash = ::crc64(hash, & color, sizeof(color)), hash = ::crc64(hash, & width, sizeof(width)), hash = ::crc64(hash, & flag, sizeof(flag));
             }
         }
         size_t refCount = 0, hash = 0, weight = 0;

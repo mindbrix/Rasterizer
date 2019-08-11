@@ -152,7 +152,7 @@ struct RasterizerFont {
                     if ((x = xs[j]) != FLT_MAX) {
                         Ra::Path path = font.glyphPath(glyphs[j], true);
                         Ra::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
-                        scene.addPath(path, ctm, color, 0.f, false);
+                        scene.addPath(path, ctm, color, 0.f, 0);
                         glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                     }
             }
@@ -164,6 +164,6 @@ struct RasterizerFont {
         float s = size / float(font.unitsPerEm);
         for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
-                scene.addPath(font.glyphPath(glyph, false), Ra::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color, 0.f, false);
+                scene.addPath(font.glyphPath(glyph, false), Ra::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color, 0.f, 0);
     }
 };
