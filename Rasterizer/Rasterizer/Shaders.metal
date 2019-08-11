@@ -234,7 +234,7 @@ vertex InstancesVertex instances_vertex_main(
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
         const float width = widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
         f = width / cw;
-        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 + 0.5 * dw;
+        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
