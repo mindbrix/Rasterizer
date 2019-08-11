@@ -11,8 +11,10 @@ struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list) {
         Ra::Ref<Ra::Scene> scene;
         Ra::Colorant color(0, 0, 0, 255);
-        if (0)
-            scene.ref->addPath(Ra::boundsPath(Ra::Bounds(100.5, 100.5, 199.5, 199.5)), Ra::Transform(), color, 0.f, 0);
+        if (0) {
+            Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
+            scene.ref->addPath(bbPath, Ra::Transform(), color, 0.f, 0);
+        }
         if (0)
             scene.ref->addPath(createPhyllotaxisPath(100), Ra::Transform(), color, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)

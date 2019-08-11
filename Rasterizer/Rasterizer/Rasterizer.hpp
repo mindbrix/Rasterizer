@@ -196,11 +196,7 @@ struct Rasterizer {
         T *ref = nullptr;
     };
     typedef Ref<Geometry> Path;
-    static Path boundsPath(Bounds b) {
-        Path path;
-        path.ref->addBounds(b);
-        return path;
-    }
+    
     struct Scene {
         enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
