@@ -447,7 +447,7 @@ struct Rasterizer {
             short prev, next;
         };
         struct Instance {
-            enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kTBA = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
+            enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
             Instance(size_t iz, int type) : iz((uint32_t)iz | type) {}
             union { Quad quad;  Outline outline; };
             uint32_t iz;
@@ -615,7 +615,7 @@ struct Rasterizer {
         }
         void writeGPUPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
             if (width) {
-                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kCircle : 0));
+                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0));
                 inst->outline.clip = clip.inset(-width, -width);
                 size_t upper = path.ref->upperBound(ctm);
                 if (fabsf(ctm.det()) > 1e2f) {

@@ -38,7 +38,7 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kCircle = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kTBA = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
     union { Quad quad;  Outline outline; };
     uint32_t iz;
 };
@@ -263,7 +263,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + 1.0 : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + 1.0) : 1e6, isRight ? 0.0 : dw);
-        vert.r = (inst.iz & Instance::kCircle) == 0 ? 1.0 : 0.5 * dw;
+        vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
