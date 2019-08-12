@@ -262,7 +262,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(y0 + vy0 * sgn - endCap * no.y * float(pcap) - ey, y1 + vy1 * sgn + endCap * no.y * float(ncap) + ey, isUp);
         dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        lo += pcap ? endCap : 0.0, lo += ncap ? endCap : 0.0;
+        lo += endCap * float(pcap), lo += endCap * float(ncap);
         vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
