@@ -70,10 +70,6 @@ float winding(float x0, float y0, float x1, float y1) {
     return saturate(-a0 / (abs(dx) * cover + dy)) * cover;
 }
 
-float sqrsum(float a, float b) {
-    return a * a + b * b;
-}
-
 #pragma mark - Opaques
 
 struct OpaquesVertex
@@ -239,8 +235,7 @@ vertex InstancesVertex instances_vertex_main(
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        bool pcap = sqrsum(o.x0 - p.x1, o.y0 - p.y1) > 1.0;
-        bool ncap = sqrsum(o.x1 - n.x0, o.y1 - n.y0) > 1.0;
+        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
