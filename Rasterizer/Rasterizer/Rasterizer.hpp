@@ -1145,7 +1145,6 @@ struct Rasterizer {
     };
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
-        
         static void writeInstance(float x0, float y0, float x1, float y1, void *info) {
             OutlineInfo *in = (OutlineInfo *)info;
             new (in->dst) GPU::Instance(in->iz, GPU::Instance::Type(in->type));
