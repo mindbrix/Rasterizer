@@ -248,12 +248,13 @@ vertex InstancesVertex instances_vertex_main(
         float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
         float son = 0.5 * dw / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
-        float t = (vo.x * vy1 - vo.y * vx1) / (vx0 * vy1 - vy0 * vx1);
-        float ix = vx0 * t + x0 - no.y * copysign(err, t), iy = vy0 * t + y0 + no.x * copysign(err, t);
+        float lp = endCap * float(pcap), ln = endCap * float(ncap);
+        float epx = lp * no.x, epy = lp * no.y;
+        float t = ((vo.x + epx) * vy1 - (vo.y + epy) * vx1) / (vx0 * vy1 - vy0 * vx1);
+        float ix = vx0 * t + x0 - epx - no.y * copysign(err, t), iy = vy0 * t + y0 - epy + no.x * copysign(err, t);
         // -y, x
         bool isRight = vid & 1, isUp = vid & 2, crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
         float sgn = isRight ? -1.0 : 1.0, ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
-        float lp = endCap * float(pcap), ln = endCap * float(ncap);
         dx = select(x0 + vx0 * sgn - lp * no.x - ex, x1 + vx1 * sgn + ln * no.x + ex, isUp);
         dy = select(y0 + vy0 * sgn - lp * no.y - ey, y1 + vy1 * sgn + ln * no.y + ey, isUp);
         dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
