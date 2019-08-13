@@ -253,12 +253,12 @@ vertex InstancesVertex instances_vertex_main(
         // -y, x
         bool isRight = vid & 1, isUp = vid & 2, crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
         float sgn = isRight ? -1.0 : 1.0, ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
-        dx = select(x0 + vx0 * sgn - endCap * no.x * float(pcap) - ex, x1 + vx1 * sgn + endCap * no.x * float(ncap) + ex, isUp);
-        dy = select(y0 + vy0 * sgn - endCap * no.y * float(pcap) - ey, y1 + vy1 * sgn + endCap * no.y * float(ncap) + ey, isUp);
+        float lp = endCap * float(pcap), ln = endCap * float(ncap);
+        dx = select(x0 + vx0 * sgn - lp * no.x - ex, x1 + vx1 * sgn + ln * no.x + ex, isUp);
+        dy = select(y0 + vy0 * sgn - lp * no.y - ey, y1 + vy1 * sgn + ln * no.y + ey, isUp);
         dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        lo += endCap * float(pcap), lo += endCap * float(ncap);
-        vert.shape = float4(pcap ? (isUp ? lo : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo) : 1e6, isRight ? 0.0 : dw);
+        vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, isRight ? 0.0 : dw);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
     } else {
