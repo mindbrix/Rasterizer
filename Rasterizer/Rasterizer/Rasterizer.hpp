@@ -658,7 +658,7 @@ struct Rasterizer {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                         if (f0 || fs)
-                            writeClippedLine(x0, y0, sx, sy, clip, function, info);
+                            writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
                         else
                             (*function)(x0, y0, sx, sy, info);
                     }
@@ -672,7 +672,7 @@ struct Rasterizer {
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     if (f0 || f1)
-                        writeClippedLine(x0, y0, x1, y1, clip, function, info);
+                        writeClippedLine(x0, y0, x1, y1, clip, polygon, function, info);
                     else
                         (*function)(x0, y0, x1, y1, info);
                     x0 = x1, y0 = y1, f0 = f1;
@@ -684,7 +684,7 @@ struct Rasterizer {
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                     if (f0 || f1 || f2)
-                        writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, function, info);
+                        writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, polygon, function, info);
                     else
                         writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
                     x0 = x2, y0 = y2, f0 = f2;
@@ -698,7 +698,7 @@ struct Rasterizer {
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                     f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
                     if (f0 || f1 || f2 || f3)
-                        writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, function, info);
+                        writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, polygon, function, info);
                     else
                         writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                     x0 = x3, y0 = y3, f0 = f3;
@@ -711,14 +711,14 @@ struct Rasterizer {
         }
         if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
             if (f0 || fs)
-                writeClippedLine(x0, y0, sx, sy, clip, function, info);
+                writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
             else
                 (*function)(x0, y0, sx, sy, info);
         }
         if (mark && sx != FLT_MAX)
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
-    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, Function function, void *info) {
+    static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         if (ly < clip.uy && uy > clip.ly) {
             float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
@@ -745,7 +745,7 @@ struct Rasterizer {
                         sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                         (*function)(sx0, sy0, sx1, sy1, info);
-                    } else {
+                    } else if (polygon) {
                         vx = mx < clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, sy0, vx, sy1, info);
                     }
@@ -762,7 +762,7 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, Function function, void *info) {
+    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, bool polygon, Function function, void *info) {
         float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
@@ -799,7 +799,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
                             writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
-                       } else {
+                       } else if (polygon) {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty2, info);
                         }
@@ -845,7 +845,7 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, Function function, void *info) {
+    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, bool polygon, Function function, void *info) {
         float ly, uy, lx, ux;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -889,7 +889,7 @@ struct Rasterizer {
                             tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                             tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                             writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
-                        } else {
+                        } else if (polygon) {
                             vx = x <= clip.lx ? clip.lx : clip.ux;
                             (*function)(vx, ty0, vx, ty3, info);
                         }
