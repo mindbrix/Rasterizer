@@ -725,6 +725,11 @@ struct Rasterizer {
             if (y0 == y1) {
                 if (lx < clip.ux && ux > clip.lx)
                     (*function)(x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0, y0, x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1, y1, info);
+            } else if (x0 == x1) {
+                if (polygon || (x0 < clip.ux && x0 > clip.lx)) {
+                    float x = x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0;
+                    (*function)(x, y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, x, y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, info);
+                }
             } else {
                 float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
                 sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
