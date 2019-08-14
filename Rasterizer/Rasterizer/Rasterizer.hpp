@@ -721,35 +721,38 @@ struct Rasterizer {
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         if (ly < clip.uy && uy > clip.ly) {
-            float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
-            sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
-            sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-            dx = x1 - x0, dy = y1 - y0;
-            if (dy == 0.f)
-                ty0 = 0.f, ty1 = 1.f;
-            else
+            float lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+            if (y0 == y1) {
+                if (lx < clip.ux && ux > clip.lx)
+                    (*function)(x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0, y0, x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1, y1, info);
+            } else {
+                float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
+                sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
+                sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+                dx = x1 - x0, dy = y1 - y0;
                 ty0 = (sy0 - y0) / dy, ty1 = (sy1 - y0) / dy;
-            if (dx == 0.f)
-                tx0 = 0.f, tx1 = 1.f;
-            else {
-                tx0 = (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
-                tx1 = (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
-            }
-            float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
-            for (int i = 0; i < 3; i++)
-                if (ts[i] != ts[i + 1]) {
-                    sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                    sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                    mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
-                    if (mx >= clip.lx && mx < clip.ux) {
-                        sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                        sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                        (*function)(sx0, sy0, sx1, sy1, info);
-                    } else if (polygon) {
-                        vx = mx < clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, sy0, vx, sy1, info);
-                    }
+                if (dx == 0.f)
+                    tx0 = 0.f, tx1 = 1.f;
+                else {
+                    tx0 = (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
+                    tx1 = (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
                 }
+                float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
+                for (int i = 0; i < 3; i++)
+                    if (ts[i] != ts[i + 1]) {
+                        sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                        sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                        mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
+                        if (mx >= clip.lx && mx < clip.ux) {
+                            sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                            sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                            (*function)(sx0, sy0, sx1, sy1, info);
+                        } else if (polygon) {
+                            vx = mx < clip.lx ? clip.lx : clip.ux;
+                            (*function)(vx, sy0, vx, sy1, info);
+                        }
+                    }
+            }
         }
     }
     static int solveQuadratic(double A, double B, double C, float *ts, int end) {
