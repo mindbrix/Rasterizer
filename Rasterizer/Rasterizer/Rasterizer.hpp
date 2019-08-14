@@ -745,8 +745,7 @@ struct Rasterizer {
                         sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                         (*function)(sx0, sy0, sx1, sy1, info);
                     } else if (polygon) {
-                        mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
-                        vx = mx < clip.lx ? clip.lx : clip.ux;
+                        mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx, vx = mx < clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, sy0, vx, sy1, info);
                     }
                 }
