@@ -721,20 +721,19 @@ struct Rasterizer {
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
         float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         if (ly < clip.uy && uy > clip.ly) {
-            float sy0, sy1, dx, dy, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
-            sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
-            sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-            dx = x1 - x0, dy = y1 - y0;
+            float dx = x1 - x0, dy = y1 - y0, sy0, sy1, ty0, ty1, tx0, tx1, sx0, sx1, mx, vx;
             if (dy == 0.f)
                 ty0 = 0.f, ty1 = 1.f;
-            else
-                ty0 = (sy0 - y0) / dy, ty1 = (sy1 - y0) / dy;
+            else {
+                sy0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, ty0 = (sy0 - y0) / dy,
+                sy1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, ty1 = (sy1 - y0) / dy;
+            }
             if (dx == 0.f)
-                tx0 = 0.f, tx1 = 1.f;
-            else
-                tx0 = (clip.lx - x0) / dx, tx1 = (clip.ux - x0) / dx;
-            tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
-            tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
+                tx0 = ty0, tx1 = ty1;
+            else {
+                tx0 = (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
+                tx1 = (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
+            }
             float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
             for (int i = 0; i < 3; i++)
                 if (ts[i] != ts[i + 1]) {
