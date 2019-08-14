@@ -739,14 +739,13 @@ struct Rasterizer {
                 if (ts[i] != ts[i + 1]) {
                     sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
                     sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                    if (i == 1) {
+                    mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
+                    if (mx > clip.lx && mx < clip.ux) {
                         sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                         sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                         (*function)(sx0, sy0, sx1, sy1, info);
-                    } else if (polygon) {
-                        mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx, vx = mx < clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, sy0, vx, sy1, info);
-                    }
+                    } else if (polygon)
+                        vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, info);
                 }
         }
     }
