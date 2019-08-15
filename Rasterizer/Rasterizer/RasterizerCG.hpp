@@ -254,7 +254,7 @@ struct RasterizerCG {
             for (int i = 0; i < count; i++)
                 for (auto entry : entries[i])
                     *(buffer->entries.alloc(1)) = entry;
-            size_t end = buffer->entries.base[buffer->entries.end - 1].end;
+            size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
             assert(size >= end);
         }
     }
