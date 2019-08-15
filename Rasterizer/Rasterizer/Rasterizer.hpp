@@ -1146,7 +1146,7 @@ struct Rasterizer {
         Pages<uint8_t> data;
         Row<Entry> entries;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths;
+        size_t colors, transforms, clips, widths, tick;
         uint32_t pathsCount;
     };
     struct OutlineInfo {

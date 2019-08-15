@@ -102,7 +102,7 @@
 - (void)draw {
     BOOL odd = ++_tick & 1;
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
-    buffer->entries.empty();
+    buffer->tick = _tick, buffer->entries.empty();
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
