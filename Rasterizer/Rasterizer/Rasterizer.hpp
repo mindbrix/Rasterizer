@@ -434,7 +434,7 @@ struct Rasterizer {
         };
         struct CacheHash {
             inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
-            uint64_t hash;  uint32_t i;
+            uint64_t hash;  uint16_t i, is;
         };
         struct Quad {
             Cell cell;
@@ -569,7 +569,7 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz, is;
-            GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz);
+            GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz), *h;
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 scene = list.scenes[i].ref, uz = lz + scene->paths.size();
@@ -589,7 +589,7 @@ struct Rasterizer {
                                 bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 bool unclipped = uc.contains(dev) && clip.contains(dev);
                                 if (width == 0.f && (fast || unclipped))
-                                    hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
+                                    hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint16_t(i), hash->is = uint16_t(is), hash++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
@@ -597,7 +597,12 @@ struct Rasterizer {
                     }
                 }
             }
-            // std::sort(gpu.hashes.base, hash);
+            size_t count = list.scenes.size(), lzes[count], cacheUpper = 0;
+            for (lz = i = 0; i < count; i++)
+                lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
+            std::sort(gpu.hashes.base, hash);
+            for (h = gpu.hashes.base; h < hash; h++)
+                cacheUpper += list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[lzes[h->i] + h->is]);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
