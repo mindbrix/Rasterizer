@@ -16,7 +16,7 @@
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
 @property (nonatomic) id <MTLLibrary> defaultLibrary;
-@property (nonatomic) BOOL odd;
+@property (nonatomic) size_t tick;
 @property (nonatomic) id <MTLBuffer> mtlBuffer0;
 @property (nonatomic) id <MTLBuffer> mtlBuffer1;
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
@@ -100,19 +100,19 @@
 }
 
 - (void)draw {
-    _odd = !_odd;
-    Ra::Buffer *buffer = _odd ? & _buffer1 : & _buffer0;
+    BOOL odd = ++_tick & 1;
+    Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
     buffer->entries.empty();
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
-    id <MTLBuffer> mtlBuffer = _odd ? _mtlBuffer1 : _mtlBuffer0;
+    id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->data.base || mtlBuffer.length != buffer->data.size) {
         mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->data.base
                                                    length:buffer->data.size
                                                   options:MTLResourceStorageModeShared
                                               deallocator:nil];
-        if (_odd)
+        if (odd)
             _mtlBuffer1 = mtlBuffer;
         else
             _mtlBuffer0 = mtlBuffer;
