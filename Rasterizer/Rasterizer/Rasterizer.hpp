@@ -585,8 +585,12 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
-                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
-                                writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, uc.contains(dev) && clip.contains(dev));
+                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                                bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                                bool unclipped = uc.contains(dev) && clip.contains(dev);
+                                if (fast || unclipped)
+                                    hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint32_t(is), hash++;
+                                writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
                         }
@@ -613,7 +617,7 @@ struct Rasterizer {
                 }
             }
         }
-        void writeGPUPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool unclipped) {
+        void writeGPUPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped) {
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0) | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
                 inst->outline.clip = clip.inset(-width, -width);
@@ -625,7 +629,6 @@ struct Rasterizer {
                 gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Output sgmnts(& segments[0], clip.ly * krfh);
-                bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                 if (fast || unclipped) {
                     Cache::Entry *entry = gpu.cache.getPath(path, ctm);
                     if (fast) {
