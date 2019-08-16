@@ -692,9 +692,12 @@ struct Rasterizer {
                     f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
-                    if (f0 || f1 || f2)
-                        writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, polygon, function, info);
-                    else
+                    if (f0 || f1 || f2) {
+                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
+                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
+                        if (ly < clip.uy && uy > clip.ly)
+                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, ly, uy, polygon, function, info);
+                    } else
                         writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
                     x0 = x2, y0 = y2, f0 = f2;
                     index += 2;
@@ -770,47 +773,43 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, bool polygon, Function function, void *info) {
-        float ly, uy, lx, ux, ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
-        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
-        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
-        if (ly < clip.uy && uy > clip.ly) {
-            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
-            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-            ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
-            ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
-            int end = 0;
-            if (clip.ly >= ly && clip.ly < uy)
-                end = solveQuadratic(ay, by, y0 - clip.ly, ts, end);
-            if (clip.uy >= ly && clip.uy < uy)
-                end = solveQuadratic(ay, by, y0 - clip.uy, ts, end);
-            if (clip.lx >= lx && clip.lx < ux)
-                end = solveQuadratic(ax, bx, x0 - clip.lx, ts, end);
-            if (clip.ux >= lx && clip.ux < ux)
-                end = solveQuadratic(ax, bx, x0 - clip.ux, ts, end);
-            if (end < 8)
-                ts[end++] = 0.f, ts[end++] = 1.f;
-            std::sort(& ts[0], & ts[end]);
-            for (int i = 0; i < end - 1; i++) {
-                t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
-                t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
-                if (t0 != t1) {
-                    t = (t0 + t1) * 0.5f, y = (ay * t + by) * t + y0;
-                    if (y >= clip.ly && y < clip.uy) {
-                        x = (ax * t + bx) * t + x0;
-                        tx0 = (ax * t0 + bx) * t0 + x0, ty0 = (ay * t0 + by) * t0 + y0;
-                        tx2 = (ax * t1 + bx) * t1 + x0, ty2 = (ay * t1 + by) * t1 + y0;
-                        tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
-                        ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
-                        ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
-                        if (x >= clip.lx && x < clip.ux) {
-                            tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
-                            tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
-                            writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
-                       } else if (polygon) {
-                            vx = x <= clip.lx ? clip.lx : clip.ux;
-                            (*function)(vx, ty0, vx, ty2, info);
-                        }
+    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float ly, float uy, bool polygon, Function function, void *info) {
+        float lx, ux, ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
+        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
+        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
+        ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
+        ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
+        int end = 0;
+        if (clip.ly >= ly && clip.ly < uy)
+            end = solveQuadratic(ay, by, y0 - clip.ly, ts, end);
+        if (clip.uy >= ly && clip.uy < uy)
+            end = solveQuadratic(ay, by, y0 - clip.uy, ts, end);
+        if (clip.lx >= lx && clip.lx < ux)
+            end = solveQuadratic(ax, bx, x0 - clip.lx, ts, end);
+        if (clip.ux >= lx && clip.ux < ux)
+            end = solveQuadratic(ax, bx, x0 - clip.ux, ts, end);
+        if (end < 8)
+            ts[end++] = 0.f, ts[end++] = 1.f;
+        std::sort(& ts[0], & ts[end]);
+        for (int i = 0; i < end - 1; i++) {
+            t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
+            t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
+            if (t0 != t1) {
+                t = (t0 + t1) * 0.5f, y = (ay * t + by) * t + y0;
+                if (y >= clip.ly && y < clip.uy) {
+                    x = (ax * t + bx) * t + x0;
+                    tx0 = (ax * t0 + bx) * t0 + x0, ty0 = (ay * t0 + by) * t0 + y0;
+                    tx2 = (ax * t1 + bx) * t1 + x0, ty2 = (ay * t1 + by) * t1 + y0;
+                    tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
+                    ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
+                    ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
+                    if (x >= clip.lx && x < clip.ux) {
+                        tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
+                        tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
+                        writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
+                    } else if (polygon) {
+                        vx = x <= clip.lx ? clip.lx : clip.ux;
+                        (*function)(vx, ty0, vx, ty2, info);
                     }
                 }
             }
