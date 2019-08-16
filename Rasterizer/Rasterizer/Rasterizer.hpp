@@ -587,8 +587,7 @@ struct Rasterizer {
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap.width == 0) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
-                                bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                bool unclipped = uc.contains(dev);
+                                bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 if (0 && width == 0.f && (fast || unclipped))
                                     hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint16_t(i), hash->is = uint16_t(is), hash++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
