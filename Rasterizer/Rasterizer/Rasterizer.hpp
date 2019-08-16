@@ -674,8 +674,7 @@ struct Rasterizer {
                     }
                     if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
-                    sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    p += 2, index++;
+                    sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty, p += 2, index++;
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
