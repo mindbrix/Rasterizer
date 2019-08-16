@@ -659,9 +659,8 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
-        float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p, ly, uy, lx, ux;
-        for (size_t index = 0; index < path.ref->types.size(); ) {
-            p = path.ref->pts + index * 2;
+        float *p = path.ref->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        for (size_t index = 0; index < path.ref->types.size(); )
             switch (path.ref->types[index]) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
@@ -676,7 +675,7 @@ struct Rasterizer {
                     if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    index++;
+                    p += 2, index++;
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -687,7 +686,7 @@ struct Rasterizer {
                         else
                             (*function)(x0, y0, x1, y1, info);
                     }
-                    x0 = x1, y0 = y1, index++;
+                    x0 = x1, y0 = y1, p += 2, index++;
                     break;
                 case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -702,7 +701,7 @@ struct Rasterizer {
                         else
                             writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
                     }
-                    x0 = x2, y0 = y2, index += 2;
+                    x0 = x2, y0 = y2, p += 4, index += 2;
                     break;
                 case Geometry::kCubic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -718,13 +717,12 @@ struct Rasterizer {
                         else
                             writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                     }
-                    x0 = x3, y0 = y3, index += 3;
+                    x0 = x3, y0 = y3, p += 6, index += 3;
                     break;
                 case Geometry::kClose:
-                    index++;
+                    p += 2, index++;
                     break;
             }
-        }
         if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
             ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
             if (ly < clip.uy && uy > clip.ly) {
