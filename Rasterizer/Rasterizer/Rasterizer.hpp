@@ -589,7 +589,7 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 bool unclipped = uc.contains(dev) && clip.contains(dev);
-                                if (width == 0.f && (fast || unclipped))
+                                if (0 && width == 0.f && (fast || unclipped))
                                     hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint16_t(i), hash->is = uint16_t(is), hash++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
@@ -659,7 +659,7 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
-        float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p;
+        float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p, ly, uy;
         bool fs = false, f0 = false, f1, f2, f3;
         for (size_t index = 0; index < path.ref->types.size(); ) {
             p = path.ref->pts + index * 2;
@@ -706,9 +706,12 @@ struct Rasterizer {
                     f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                     f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
-                    if (f0 || f1 || f2 || f3)
-                        writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, polygon, function, info);
-                    else
+                    if (f0 || f1 || f2 || f3) {
+                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
+                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
+                        if (ly < clip.uy && uy > clip.ly)
+                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, ly, uy, polygon, function, info);
+                    } else
                         writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                     x0 = x3, y0 = y3, f0 = f3;
                     index += 3;
@@ -850,54 +853,49 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, bool polygon, Function function, void *info) {
-        float ly, uy, lx, ux;
-        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
-        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
-        if (ly < clip.uy && uy > clip.ly) {
-            float cy, by, ay, cx, bx, ax, ts[12], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
-            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
-            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-            int end = 0;
-            if (clip.ly >= ly && clip.ly < uy)
-                end = solveCubic(by, cy, y0 - clip.ly, ay, ts, end);
-            if (clip.uy >= ly && clip.uy < uy)
-                end = solveCubic(by, cy, y0 - clip.uy, ay, ts, end);
-            if (clip.lx >= lx && clip.lx < ux)
-                end = solveCubic(bx, cx, x0 - clip.lx, ax, ts, end);
-            if (clip.ux >= lx && clip.ux < ux)
-                end = solveCubic(bx, cx, x0 - clip.ux, ax, ts, end);
-            if (end < 12)
-                ts[end++] = 0.f, ts[end++] = 1.f;
-            std::sort(& ts[0], & ts[end]);
-            for (int i = 0; i < end - 1; i++) {
-                t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
-                t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
-                if (t0 != t1) {
-                    t = (t0 + t1) * 0.5f, y = ((ay * t + by) * t + cy) * t + y0;
-                    if (y >= clip.ly && y < clip.uy) {
-                        tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0, ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
-                        tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0, ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
-                        ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
-                        ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
-                        x = ((ax * t + bx) * t + cx) * t + x0;
-                        if (x >= clip.lx && x < clip.ux) {
-                            const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
-                            t = v * t0 + u * t1, tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
-                            t = u * t0 + v * t1, tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
-                            fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
-                            gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
-                            tx1 = fx * m0 + gx * -m1, ty1 = fy * m0 + gy * -m1;
-                            tx2 = fx * -m1 + gx * m0, ty2 = fy * -m1 + gy * m0;
-                            tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
-                            tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
-                            writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
-                        } else if (polygon) {
-                            vx = x <= clip.lx ? clip.lx : clip.ux;
-                            (*function)(vx, ty0, vx, ty3, info);
-                        }
+    static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float ly, float uy, bool polygon, Function function, void *info) {
+        float lx, ux, cy, by, ay, cx, bx, ax, ts[12], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
+        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
+        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
+        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+        int end = 0;
+        if (clip.ly >= ly && clip.ly < uy)
+            end = solveCubic(by, cy, y0 - clip.ly, ay, ts, end);
+        if (clip.uy >= ly && clip.uy < uy)
+            end = solveCubic(by, cy, y0 - clip.uy, ay, ts, end);
+        if (clip.lx >= lx && clip.lx < ux)
+            end = solveCubic(bx, cx, x0 - clip.lx, ax, ts, end);
+        if (clip.ux >= lx && clip.ux < ux)
+            end = solveCubic(bx, cx, x0 - clip.ux, ax, ts, end);
+        if (end < 12)
+            ts[end++] = 0.f, ts[end++] = 1.f;
+        std::sort(& ts[0], & ts[end]);
+        for (int i = 0; i < end - 1; i++) {
+            t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
+            t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
+            if (t0 != t1) {
+                t = (t0 + t1) * 0.5f, y = ((ay * t + by) * t + cy) * t + y0;
+                if (y >= clip.ly && y < clip.uy) {
+                    tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0, ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
+                    tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0, ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
+                    ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
+                    ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
+                    x = ((ax * t + bx) * t + cx) * t + x0;
+                    if (x >= clip.lx && x < clip.ux) {
+                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
+                        t = v * t0 + u * t1, tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
+                        t = u * t0 + v * t1, tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
+                        fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
+                        gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
+                        tx1 = fx * m0 + gx * -m1, ty1 = fy * m0 + gy * -m1;
+                        tx2 = fx * -m1 + gx * m0, ty2 = fy * -m1 + gy * m0;
+                        tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
+                        tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
+                        writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
+                    } else if (polygon) {
+                        vx = x <= clip.lx ? clip.lx : clip.ux;
+                        (*function)(vx, ty0, vx, ty3, info);
                     }
                 }
             }
