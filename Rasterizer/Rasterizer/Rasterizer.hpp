@@ -660,7 +660,7 @@ struct Rasterizer {
     };
     static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p, ly, uy, lx, ux;
-        bool fs = false, f0 = false, f1, f2;
+        bool fs = false, f0 = false, f1;
         for (size_t index = 0; index < path.ref->types.size(); ) {
             p = path.ref->pts + index * 2;
             switch (path.ref->types[index]) {
@@ -692,15 +692,15 @@ struct Rasterizer {
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
                     uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
-                    f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                     if (ly < clip.uy && uy > clip.ly) {
-                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                        if (f0 || f1 || f2)
-                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, ly, uy, polygon, function, info);
+                        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
+                        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
+                        if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
                         else
                             writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
                     }
-                    x0 = x2, y0 = y2, f0 = f2;
+                    x0 = x2, y0 = y2, f0 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                     index += 2;
                     break;
                 case Geometry::kCubic:
@@ -774,10 +774,8 @@ struct Rasterizer {
         }
         return end;
     }
-    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float ly, float uy, bool polygon, Function function, void *info) {
-        float lx, ux, ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
-        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
-        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
+    static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
+        float ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
         ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
         int end = 0;
