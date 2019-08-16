@@ -198,7 +198,7 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Scene {
-        enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2 };
+        enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2, kOutlinePoints = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path.ref->isDrawable) {
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
@@ -625,7 +625,10 @@ struct Rasterizer {
         }
         void writeGPUPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped) {
             if (width) {
-                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0) | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
+                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
+                    | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
+                    | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0)
+                    | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
                 inst->outline.clip = clip.inset(-width, -width);
                 size_t upper = path.ref->upperBound(ctm);
                 if (fabsf(ctm.det()) > 1e2f) {
