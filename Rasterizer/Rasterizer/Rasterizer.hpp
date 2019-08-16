@@ -660,31 +660,34 @@ struct Rasterizer {
     };
     static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
         float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, *p, ly, uy, lx, ux;
-        bool fs = false, f0 = false, f1;
         for (size_t index = 0; index < path.ref->types.size(); ) {
             p = path.ref->pts + index * 2;
             switch (path.ref->types[index]) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
-                        if (f0 || fs)
-                            writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
-                        else
-                            (*function)(x0, y0, sx, sy, info);
+                        ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
+                        if (ly < clip.uy && uy > clip.ly) {
+                            if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
+                                writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
+                            else
+                                (*function)(x0, y0, sx, sy, info);
+                        }
                     }
                     if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    fs = f0 = x0 < clip.lx || x0 >= clip.ux || y0 < clip.ly || y0 >= clip.uy;
                     index++;
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
-                    if (f0 || f1)
-                        writeClippedLine(x0, y0, x1, y1, clip, polygon, function, info);
-                    else
-                        (*function)(x0, y0, x1, y1, info);
-                    x0 = x1, y0 = y1, f0 = f1;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+                    if (ly < clip.uy && uy > clip.ly) {
+                        if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
+                            writeClippedLine(x0, y0, x1, y1, clip, polygon, function, info);
+                        else
+                            (*function)(x0, y0, x1, y1, info);
+                    }
+                    x0 = x1, y0 = y1;
                     index++;
                     break;
                 case Geometry::kQuadratic:
@@ -700,7 +703,7 @@ struct Rasterizer {
                         else
                             writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
                     }
-                    x0 = x2, y0 = y2, f0 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
+                    x0 = x2, y0 = y2;
                     index += 2;
                     break;
                 case Geometry::kCubic:
@@ -717,7 +720,7 @@ struct Rasterizer {
                         else
                             writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                     }
-                    x0 = x3, y0 = y3, f0 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
+                    x0 = x3, y0 = y3;
                     index += 3;
                     break;
                 case Geometry::kClose:
@@ -726,43 +729,44 @@ struct Rasterizer {
             }
         }
         if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
-            if (f0 || fs)
-                writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
-            else
-                (*function)(x0, y0, sx, sy, info);
+            ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
+            if (ly < clip.uy && uy > clip.ly) {
+                if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
+                    writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
+                else
+                    (*function)(x0, y0, sx, sy, info);
+            }
         }
         if (mark && sx != FLT_MAX)
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
-        if ((y0 < y1 ? y0 : y1) < clip.uy && (y0 > y1 ? y0 : y1) > clip.ly) {
-            float dx = x1 - x0, dy = y1 - y0, ty0, ty1, tx0, tx1, sy0, sy1, sx0, sx1, mx, vx;
-            if (dy == 0.f)
-                ty0 = 0.f, ty1 = 1.f;
-            else {
-                ty0 = ((y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0) - y0) / dy,
-                ty1 = ((y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1) - y0) / dy;
-            }
-            if (dx == 0.f)
-                tx0 = ty0, tx1 = ty1;
-            else {
-                tx0 = (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
-                tx1 = (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
-            }
-            float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
-            for (int i = 0; i < 3; i++)
-                if (ts[i] != ts[i + 1]) {
-                    sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                    sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                    mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
-                    if (mx >= clip.lx && mx < clip.ux) {
-                        sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                        sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                        (*function)(sx0, sy0, sx1, sy1, info);
-                    } else if (polygon)
-                        vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, info);
-                }
+        float dx = x1 - x0, dy = y1 - y0, ty0, ty1, tx0, tx1, sy0, sy1, sx0, sx1, mx, vx;
+        if (dy == 0.f)
+            ty0 = 0.f, ty1 = 1.f;
+        else {
+            ty0 = ((y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0) - y0) / dy,
+            ty1 = ((y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1) - y0) / dy;
         }
+        if (dx == 0.f)
+            tx0 = ty0, tx1 = ty1;
+        else {
+            tx0 = (clip.lx - x0) / dx, tx0 = tx0 < ty0 ? ty0 : tx0 > ty1 ? ty1 : tx0;
+            tx1 = (clip.ux - x0) / dx, tx1 = tx1 < ty0 ? ty0 : tx1 > ty1 ? ty1 : tx1;
+        }
+        float ts[4] = { ty0, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, ty1 };
+        for (int i = 0; i < 3; i++)
+            if (ts[i] != ts[i + 1]) {
+                sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
+                if (mx >= clip.lx && mx < clip.ux) {
+                    sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                    sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    (*function)(sx0, sy0, sx1, sy1, info);
+                } else if (polygon)
+                    vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, info);
+            }
     }
     static int solveQuadratic(double A, double B, double C, float *ts, int end) {
         if (fabs(A) < 1e-3)
