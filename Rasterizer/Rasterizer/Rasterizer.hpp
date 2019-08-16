@@ -689,33 +689,35 @@ struct Rasterizer {
                     break;
                 case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                    ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
+                    uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
                     f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
-                    if (f0 || f1 || f2) {
-                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
-                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
-                        if (ly < clip.uy && uy > clip.ly)
+                    if (ly < clip.uy && uy > clip.ly) {
+                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
+                        if (f0 || f1 || f2)
                             writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, ly, uy, polygon, function, info);
-                    } else
-                        writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                        else
+                            writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                    }
                     x0 = x2, y0 = y2, f0 = f2;
                     index += 2;
                     break;
                 case Geometry::kCubic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                    f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
+                    ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
+                    uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
                     f3 = x3 < clip.lx || x3 >= clip.ux || y3 < clip.ly || y3 >= clip.uy;
-                    if (f0 || f1 || f2 || f3) {
-                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
-                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
-                        if (ly < clip.uy && uy > clip.ly)
+                    if (ly < clip.uy && uy > clip.ly) {
+                        f1 = x1 < clip.lx || x1 >= clip.ux || y1 < clip.ly || y1 >= clip.uy;
+                        f2 = x2 < clip.lx || x2 >= clip.ux || y2 < clip.ly || y2 >= clip.uy;
+                        if (f0 || f1 || f2 || f3)
                             writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, ly, uy, polygon, function, info);
-                    } else
-                        writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                        else
+                            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                    }
                     x0 = x3, y0 = y3, f0 = f3;
                     index += 3;
                     break;
