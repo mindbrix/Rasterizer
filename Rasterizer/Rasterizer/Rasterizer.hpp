@@ -687,8 +687,7 @@ struct Rasterizer {
                         else
                             (*function)(x0, y0, x1, y1, info);
                     }
-                    x0 = x1, y0 = y1;
-                    index++;
+                    x0 = x1, y0 = y1, index++;
                     break;
                 case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -703,8 +702,7 @@ struct Rasterizer {
                         else
                             writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
                     }
-                    x0 = x2, y0 = y2;
-                    index += 2;
+                    x0 = x2, y0 = y2, index += 2;
                     break;
                 case Geometry::kCubic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -720,8 +718,7 @@ struct Rasterizer {
                         else
                             writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                     }
-                    x0 = x3, y0 = y3;
-                    index += 3;
+                    x0 = x3, y0 = y3, index += 3;
                     break;
                 case Geometry::kClose:
                     index++;
