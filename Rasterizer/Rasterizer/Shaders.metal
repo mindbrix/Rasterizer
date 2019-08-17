@@ -38,7 +38,7 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kOpaque = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kPoints = 1 << 30, kMolecule = 1 << 31 };
     union { Quad quad;  Outline outline; };
     uint32_t iz;
 };
@@ -228,18 +228,19 @@ vertex InstancesVertex instances_vertex_main(
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
-        const float width = widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
-        f = width / cw;
-        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
+        bool points = inst.iz & Instance::kPoints;
+        bool pcap = points || inst.outline.prev == 0, ncap = points || inst.outline.next == 0;
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        const float width = points ? 0.5 * lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
+        f = width / cw;
+        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
         pcap |= dot(np, no) < -0.939692620785908 || rp * dw > 1e3;
         ncap |= dot(no, nn) < -0.939692620785908 || rn * dw > 1e3;
