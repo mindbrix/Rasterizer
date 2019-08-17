@@ -570,7 +570,7 @@ struct Rasterizer {
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz, is;
             gpu.hashes.empty();
-            GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz), *h;
+            GPU::CacheHash *lh = gpu.hashes.alloc(suz - slz + 1) + 1, *uh = lh, *h;
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 scene = list.scenes[i].ref, uz = lz + scene->paths.size();
@@ -589,8 +589,8 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 bool unclipped = uc.contains(dev);
-                                if (0 && width == 0.f && (fast || unclipped))
-                                    hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint16_t(i), hash->is = uint16_t(is), hash++;
+                                if (width == 0.f && (fast || unclipped))
+                                    uh->hash = scene->paths[is].ref->cacheHash(m), uh->i = uint16_t(i), uh->is = uint16_t(is), uh++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
@@ -601,8 +601,8 @@ struct Rasterizer {
             size_t count = list.scenes.size(), lzes[count], cacheUpper = 0;
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
-            std::sort(gpu.hashes.base, hash);
-            for (h = gpu.hashes.base; h < hash; h++)
+            std::sort(lh, uh);
+            for (h = lh; h < uh; h++)
                 cacheUpper += list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[lzes[h->i] + h->is]);
             slz = slz;
         }
