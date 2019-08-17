@@ -569,7 +569,7 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz, is;
-            GPU::CacheHash *lh = gpu.hashes.alloc(suz - slz + 1) + 1, *uh = lh, *h;
+            GPU::CacheHash *lh = gpu.hashes.alloc(suz - slz + 1) + 1, *uh = lh, *h, *dh;
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 scene = list.scenes[i].ref, uz = lz + scene->paths.size();
@@ -597,15 +597,17 @@ struct Rasterizer {
                     }
                 }
             }
-            size_t count = list.scenes.size(), lzes[count], cacheUpper = 0;
+            size_t count = list.scenes.size(), lzes[count];
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
             std::sort(lh, uh);
             uint32_t *idx = gpu.idxes.alloc(suz - slz);
             bzero(idx, (suz - slz) * sizeof(uint32_t));
-            for (h = lh; h < uh; h++) {
-                iz = lzes[h->i] + h->is, idx[iz - slz] = uint32_t(h - gpu.hashes.base);
-                cacheUpper += list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
+            uint64_t last = 0;
+            for (dh = h = lh; h < uh; h++) {
+                if (h->hash != last)
+                    last = h->hash, *dh++ = *h;
+                iz = lzes[h->i] + h->is, idx[iz - slz] = uint32_t(dh - gpu.hashes.base);
             }
             slz = slz;
         }
