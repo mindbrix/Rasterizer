@@ -460,12 +460,12 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), hashes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), hashes.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
+        void empty() { zero(), hashes.empty(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
+        void reset() { zero(), hashes.reset(), idxes.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes;
+        Row<CacheHash> hashes;  Row<uint32_t> idxes;
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -601,8 +601,12 @@ struct Rasterizer {
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
             std::sort(lh, uh);
-            for (h = lh; h < uh; h++)
-                cacheUpper += list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[lzes[h->i] + h->is]);
+            uint32_t *idx = gpu.idxes.alloc(suz - slz);
+            bzero(idx, (suz - slz) * sizeof(uint32_t));
+            for (h = lh; h < uh; h++) {
+                iz = lzes[h->i] + h->is, idx[iz - slz] = uint32_t(h - gpu.hashes.base);
+                cacheUpper += list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
+            }
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
