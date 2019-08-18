@@ -817,10 +817,11 @@ struct Rasterizer {
             q2 = q * 0.5, a3 = A * third, discriminant = q2 * q2 + p * p * p / 27.0;
             if (discriminant < 0) {
                 double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
-                double phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
-                *ts = crtr * cos(phi / 3) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
-                *ts = crtr * cos((phi + 2 * M_PI) / 3) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
-                *ts = crtr * cos((phi + 4 * M_PI) / 3) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++;
+                double phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
+                __sincos(phi / 3, & sine, & cosine);
+                *ts = crtr * cosine - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
+                *ts = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
+                *ts = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
                 *ts = 2 * u1 - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
