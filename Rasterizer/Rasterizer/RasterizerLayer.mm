@@ -157,7 +157,7 @@
     edgesDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     edgesDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
     
-    uint32_t reverse;
+    uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
     
     for (size_t i = 0; i < buffer->entries.end; i++) {
@@ -172,7 +172,7 @@
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
-                [commandEncoder setVertexBytes:& buffer->pathsCount length:sizeof(buffer->pathsCount) atIndex:13];
+                [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4
@@ -215,7 +215,7 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
-                [commandEncoder setVertexBytes:& buffer->pathsCount length:sizeof(buffer->pathsCount) atIndex:13];
+                [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0

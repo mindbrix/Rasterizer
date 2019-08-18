@@ -1134,8 +1134,7 @@ struct Rasterizer {
         uint8_t *base = nullptr;
         Row<Entry> entries;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths, tick, size = 0;
-        uint32_t pathsCount;
+        size_t colors, transforms, clips, widths, tick, pathsCount, size = 0;
     };
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
@@ -1177,7 +1176,7 @@ struct Rasterizer {
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
-        buffer.pathsCount = uint32_t(pathsCount);
+        buffer.pathsCount = pathsCount;
         memcpy(buffer.base + buffer.colors, colorants, szcolors);
         memcpy(buffer.base + buffer.transforms, ctms, sztransforms);
         memcpy(buffer.base + buffer.clips, clips, sztransforms);
