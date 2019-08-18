@@ -758,7 +758,7 @@ struct Rasterizer {
         return t;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float ax, bx, ay, by, ts[8], *et = ts, t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
+        float ax, bx, ay, by, ts[8], *et = ts, t0, t1, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
         ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
         if (clip.ly >= ly && clip.ly < uy)
@@ -776,20 +776,20 @@ struct Rasterizer {
             t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
             t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
             if (t0 != t1) {
-                t = (t0 + t1) * 0.5f, y = (ay * t + by) * t + y0;
-                if (y >= clip.ly && y < clip.uy) {
-                    x = (ax * t + bx) * t + x0;
+                mt = (t0 + t1) * 0.5f, my = (ay * mt + by) * mt + y0;
+                if (my >= clip.ly && my < clip.uy) {
+                    mx = (ax * mt + bx) * mt + x0;
                     tx0 = (ax * t0 + bx) * t0 + x0, ty0 = (ay * t0 + by) * t0 + y0;
                     tx2 = (ax * t1 + bx) * t1 + x0, ty2 = (ay * t1 + by) * t1 + y0;
-                    tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
+                    tx1 = 2.f * mx - 0.5f * (tx0 + tx2), ty1 = 2.f * my - 0.5f * (ty0 + ty2);
                     ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                     ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
-                    if (x >= clip.lx && x < clip.ux) {
+                    if (mx >= clip.lx && mx < clip.ux) {
                         tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
                         tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
                         writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
                     } else if (polygon) {
-                        vx = x <= clip.lx ? clip.lx : clip.ux;
+                        vx = mx <= clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, ty0, vx, ty2, info);
                     }
                 }
