@@ -601,13 +601,13 @@ struct Rasterizer {
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
             std::sort(lh, uh);
-            uint32_t *idx = gpu.idxes.alloc(suz - slz);
-            bzero(idx, (suz - slz) * sizeof(uint32_t));
+            uint32_t *idxes = gpu.idxes.alloc(suz - slz);
+            bzero(idxes, (suz - slz) * sizeof(uint32_t));
             uint64_t last = 0;
             for (dh = h = lh; h < uh; h++) {
                 if (h->hash != last)
                     last = h->hash, *dh++ = *h;
-                iz = lzes[h->i] + h->is, idx[iz - slz] = uint32_t(dh - gpu.hashes.base);
+                iz = lzes[h->i] + h->is, idxes[iz - slz] = uint32_t(dh - gpu.hashes.base - 1);
             }
             slz = slz;
         }
