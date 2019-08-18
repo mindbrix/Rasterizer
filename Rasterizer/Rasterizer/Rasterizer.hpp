@@ -617,12 +617,11 @@ struct Rasterizer {
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0)
                     | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
                 inst->outline.clip = clip.inset(-width, -width);
-                size_t upper = path.ref->upperBound(ctm);
                 if (fabsf(ctm.det()) > 1e2f) {
-                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);
-                    upper = counter.count;
-                }
-                gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
+                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
+                } else
+                    gpu.outlineUpper += path.ref->upperBound(ctm);
+                 gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Output sgmnts(& segments[0], clip.ly * krfh);
                 if (fast || unclipped) {
