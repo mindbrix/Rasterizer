@@ -749,11 +749,12 @@ struct Rasterizer {
     }
     static float *solveQuadratic(double A, double B, double C, float *t) {
         if (fabs(A) < 1e-3)
-            *t++ = -C / B;
+            *t = -C / B, *t = *t < 0.f ? 0.f : *t > 1.f ? 1.f : *t, t++;
         else {
-            double d = B * B - 4.0 * A * C, r;
+            double d = B * B - 4.0 * A * C, r = sqrt(d);
             if (d >= 0)
-                r = sqrt(d), *t++ = (-B + r) * 0.5 / A, *t++ = (-B - r) * 0.5 / A;
+                *t = (-B + r) * 0.5 / A, *t = *t < 0.f ? 0.f : *t > 1.f ? 1.f : *t, t++,
+                *t = (-B - r) * 0.5 / A, *t = *t < 0.f ? 0.f : *t > 1.f ? 1.f : *t, t++;
         }
         return t;
     }
@@ -773,8 +774,7 @@ struct Rasterizer {
             *et++ = 0.f, *et++ = 1.f;
         std::sort(ts, et);
         for (int i = 0; i < et - ts - 1; i++) {
-            t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
-            t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
+            t0 = ts[i], t1 = ts[i + 1];
             if (t0 != t1) {
                 mt = (t0 + t1) * 0.5f, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
