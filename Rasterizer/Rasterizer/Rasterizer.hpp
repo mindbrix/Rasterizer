@@ -723,7 +723,7 @@ struct Rasterizer {
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
-        float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4];
+        float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
         if (dy == 0.f)
             ts[0] = 0.f, ts[3] = 1.f;
         else
@@ -734,14 +734,14 @@ struct Rasterizer {
         else
             ts[1] = t0 < t1 ? t0 : t1, ts[1] = ts[1] < ts[0] ? ts[0] : ts[1] > ts[3] ? ts[3] : ts[1],
             ts[2] = t0 > t1 ? t0 : t1, ts[2] = ts[2] < ts[0] ? ts[0] : ts[2] > ts[3] ? ts[3] : ts[2];
-        for (int i = 0; i < 3; i++)
-            if (ts[i] != ts[i + 1]) {
-                sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
+        for (t = ts; t < ts + 3; t++)
+            if (t[0] != t[1]) {
+                sy0 = y0 + t[0] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                sy1 = y0 + t[1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                mx = x0 + (t[0] + t[1]) * 0.5f * dx;
                 if (mx >= clip.lx && mx < clip.ux) {
-                    sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                    sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    sx0 = x0 + t[0] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                    sx1 = x0 + t[1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                     (*function)(sx0, sy0, sx1, sy1, info);
                 } else if (polygon)
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, info);
