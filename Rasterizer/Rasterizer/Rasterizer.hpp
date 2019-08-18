@@ -807,11 +807,10 @@ struct Rasterizer {
         }
         (*function)(x0, y0, x2, y2, info);
     }
-    static int solveCubic(double A, double B, double C, double D, float *ts, int end) {
-        if (fabs(D) < 1e-3) {
-            float *t = & ts[end];
-            return end + int(solveQuadratic(A, B, C, t) - t);
-        } else {
+    static float *solveCubic(double A, double B, double C, double D, float *ts) {
+        if (fabs(D) < 1e-3)
+            return solveQuadratic(A, B, C, ts);
+        else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
             double  p, q, q2, u1, v1, a3, discriminant, sd;
             A /= D, B /= D, C /= D, p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C;
@@ -820,34 +819,33 @@ struct Rasterizer {
             if (discriminant < 0) {
                 double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
                 double phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
-                ts[end++] = crtr * cos(phi / 3) - a3, ts[end++] = crtr * cos((phi + 2 * M_PI) / 3) - a3, ts[end++] = crtr * cos((phi + 4 * M_PI) / 3) - a3;
+                *ts++ = crtr * cos(phi / 3) - a3, *ts++ = crtr * cos((phi + 2 * M_PI) / 3) - a3, *ts++ = crtr * cos((phi + 4 * M_PI) / 3) - a3;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                ts[end++] = 2 * u1 - a3, ts[end++] = -u1 - a3;
+                *ts++ = 2 * u1 - a3, *ts++ = -u1 - a3;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                ts[end++] = u1 - v1 - a3;
+                *ts++ = u1 - v1 - a3;
             }
         }
-        return end;
+        return ts;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float cy, by, ay, cx, bx, ax, ts[12], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
+        float cy, by, ay, cx, bx, ax, ts[12], t0, *et = ts, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        int end = 0;
         if (clip.ly >= ly && clip.ly < uy)
-            end = solveCubic(by, cy, y0 - clip.ly, ay, ts, end);
+            et = solveCubic(by, cy, y0 - clip.ly, ay, et);
         if (clip.uy >= ly && clip.uy < uy)
-            end = solveCubic(by, cy, y0 - clip.uy, ay, ts, end);
+            et = solveCubic(by, cy, y0 - clip.uy, ay, et);
         if (clip.lx >= lx && clip.lx < ux)
-            end = solveCubic(bx, cx, x0 - clip.lx, ax, ts, end);
+            et = solveCubic(bx, cx, x0 - clip.lx, ax, et);
         if (clip.ux >= lx && clip.ux < ux)
-            end = solveCubic(bx, cx, x0 - clip.ux, ax, ts, end);
-        if (end < 12)
-            ts[end++] = 0.f, ts[end++] = 1.f;
-        std::sort(& ts[0], & ts[end]);
-        for (int i = 0; i < end - 1; i++) {
+            et = solveCubic(bx, cx, x0 - clip.ux, ax, et);
+        if (et - ts < 12)
+            *et++ = 0.f, *et++ = 1.f;
+        std::sort(ts, et);
+        for (int i = 0; i < et - ts - 1; i++) {
             t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
             t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
             if (t0 != t1) {
