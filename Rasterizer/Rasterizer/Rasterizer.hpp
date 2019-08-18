@@ -833,7 +833,7 @@ struct Rasterizer {
         return ts;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float cy, by, ay, cx, bx, ax, ts[12], t0, *et = ts, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
+        float cy, by, ay, cx, bx, ax, ts[12], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         if (clip.ly >= ly && clip.ly < uy)
@@ -847,20 +847,19 @@ struct Rasterizer {
         if (et - ts < 12)
             *et++ = 0.f, *et++ = 1.f;
         std::sort(ts, et);
-        for (int i = 0; i < et - ts - 1; i++) {
-            t0 = ts[i], t1 = ts[i + 1];
-            if (t0 != t1) {
-                t = (t0 + t1) * 0.5f, y = ((ay * t + by) * t + cy) * t + y0;
-                if (y >= clip.ly && y < clip.uy) {
-                    tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0, ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
-                    tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0, ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
+        for (t = ts; t < et - 1; t++)
+            if (t[0] != t[1]) {
+                mt = (t[0] + t[1]) * 0.5f, my = ((ay * mt + by) * mt + cy) * mt + y0;
+                if (my >= clip.ly && my < clip.uy) {
+                    tx0 = ((ax * t[0] + bx) * t[0] + cx) * t[0] + x0, ty0 = ((ay * t[0] + by) * t[0] + cy) * t[0] + y0;
+                    tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
                     ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
                     ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
-                    x = ((ax * t + bx) * t + cx) * t + x0;
-                    if (x >= clip.lx && x < clip.ux) {
+                    mx = ((ax * mt + bx) * mt + cx) * mt + x0;
+                    if (mx >= clip.lx && mx < clip.ux) {
                         const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
-                        t = v * t0 + u * t1, tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
-                        t = u * t0 + v * t1, tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
+                        mt = v * t[0] + u * t[1], tx1 = ((ax * mt + bx) * mt + cx) * mt + x0, ty1 = ((ay * mt + by) * mt + cy) * mt + y0;
+                        mt = u * t[0] + v * t[1], tx2 = ((ax * mt + bx) * mt + cx) * mt + x0, ty2 = ((ay * mt + by) * mt + cy) * mt + y0;
                         fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
                         gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
                         tx1 = fx * m0 + gx * -m1, ty1 = fy * m0 + gy * -m1;
@@ -869,12 +868,11 @@ struct Rasterizer {
                         tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
                         writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
                     } else if (polygon) {
-                        vx = x <= clip.lx ? clip.lx : clip.ux;
+                        vx = mx <= clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, ty0, vx, ty3, info);
                     }
                 }
             }
-        }
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
         float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
