@@ -107,9 +107,9 @@
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
-    if (mtlBuffer.contents != buffer->data.base || mtlBuffer.length != buffer->data.size) {
-        mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->data.base
-                                                   length:buffer->data.size
+    if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
+        mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
+                                                   length:buffer->size
                                                   options:MTLResourceStorageModeShared
                                               deallocator:nil];
         if (odd)

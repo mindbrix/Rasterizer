@@ -255,22 +255,6 @@ struct Rasterizer {
         size_t end = 0, idx = 0;
         T *base = nullptr;
     };
-    template<typename T>
-    struct Pages {
-        static constexpr size_t kPageSize = 4096;
-        ~Pages() { if (base) free(base); }
-        T *resize(size_t n) {
-            size_t allocation = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
-            if (size < allocation) {
-                this->~Pages();
-                posix_memalign((void **)& base, kPageSize, allocation);
-                size = allocation;
-            }
-            return base;
-        }
-        size_t size = 0;
-        T *base = nullptr;
-    };
     struct Range {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
         int begin, end;
@@ -1131,16 +1115,27 @@ struct Rasterizer {
 #endif
     }
     struct Buffer {
+        static constexpr size_t kPageSize = 4096;
         enum Type { kEdges, kFastEdges, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
             Type type;
             size_t begin, end, segments, cells;
         };
-        Pages<uint8_t> data;
+        ~Buffer() { if (base) free(base); }
+        uint8_t *resize(size_t n) {
+            size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
+            if (size < allocation) {
+                if (base) free(base);
+                posix_memalign((void **)& base, kPageSize, allocation);
+                size = allocation;
+            }
+            return base;
+        }
+        uint8_t *base = nullptr;
         Row<Entry> entries;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths, tick;
+        size_t colors, transforms, clips, widths, tick, size = 0;
         uint32_t pathsCount;
     };
     struct OutlineInfo {
@@ -1181,18 +1176,18 @@ struct Rasterizer {
             for (j = 0; j < contexts[i].segments.size(); j++)
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
-        buffer.data.resize(size);
+        buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
         buffer.pathsCount = uint32_t(pathsCount);
-        memcpy(buffer.data.base + buffer.colors, colorants, szcolors);
-        memcpy(buffer.data.base + buffer.transforms, ctms, sztransforms);
-        memcpy(buffer.data.base + buffer.clips, clips, sztransforms);
-        memcpy(buffer.data.base + buffer.widths, widths, szwidths);
+        memcpy(buffer.base + buffer.colors, colorants, szcolors);
+        memcpy(buffer.base + buffer.transforms, ctms, sztransforms);
+        memcpy(buffer.base + buffer.clips, clips, sztransforms);
+        memcpy(buffer.base + buffer.widths, widths, szwidths);
         begin = end = buffer.widths + szwidths;
             
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
-                memcpy(buffer.data.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
+                memcpy(buffer.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
         if (begin != end)
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         return size;
@@ -1203,7 +1198,7 @@ struct Rasterizer {
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
-        Transform *ctms = (Transform *)(buffer.data.base + buffer.transforms);
+        Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count, nsegments = 0, ncells = 0;
         Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
         for (base = 0, count = 0; scene < uscene; base = count, scene++) {
@@ -1216,7 +1211,7 @@ struct Rasterizer {
             for (j = 0; j < ctx->segments.size(); j++)
                 sbegins[j] = size, size += ctx->segments[j].end;
             if (size) {
-                Segment *dst = (Segment *)(buffer.data.base + begin);
+                Segment *dst = (Segment *)(buffer.base + begin);
                 if (ctx->gpu.cache.segments.end)
                     memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
                 for (j = 0; j < ctx->segments.size(); j++)
@@ -1224,21 +1219,21 @@ struct Rasterizer {
                 nsegments = begin, begin = begin + size * sizeof(Segment);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
-                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
+                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
                 ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
                 
-                GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
+                GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
                     entries.back().segments = nsegments, entries.back().cells = ncells;
                 }
-                GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
+                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
                     entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
                     entries.back().segments = nsegments, entries.back().cells = ncells;
                 }
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
-                dst0 = dst = (GPU::Instance *)(buffer.data.base + begin);
+                dst0 = dst = (GPU::Instance *)(buffer.base + begin);
                 for (inst = linst; inst < uinst; inst++) {
                     for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
                         base += scene->ref->paths.size();
