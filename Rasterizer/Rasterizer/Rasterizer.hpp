@@ -812,22 +812,22 @@ struct Rasterizer {
             return solveQuadratic(A, B, C, ts);
         else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
-            double  p, q, q2, u1, v1, a3, discriminant, sd;
+            double  p, q, q2, u1, v1, a3, discriminant, sd, t;
             A /= D, B /= D, C /= D, p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C;
             q2 = q * 0.5, a3 = A * third, discriminant = q2 * q2 + p * p * p / 27.0;
             if (discriminant < 0) {
-                double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
-                __sincos(acos(t < -1 ? -1 : t > 1 ? 1 : t) / 3, & sine, & cosine);
-                *ts = crtr * cosine - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
-                *ts = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
-                *ts = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++;
+                double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
+                __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
+                t = crtr * cosine - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                *ts = 2 * u1 - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++,
-                *ts = -u1 - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++;
+                t = 2 * u1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = -u1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                *ts = u1 - v1 - a3, *ts = *ts < 0.f ? 0.f : *ts > 1.f ? 1.f : *ts, ts++;
+                t = u1 - v1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
             }
         }
         return ts;
