@@ -764,7 +764,7 @@ struct Rasterizer {
         return ts;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float ax, bx, ay, by, ts[10], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2;
+        float ax, bx, ay, by, ts[10], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx2, ty2;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
         *et++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
@@ -776,26 +776,27 @@ struct Rasterizer {
         if (clip.ux >= lx && clip.ux < ux)
             et = solveQuadratic(ax, bx, x0 - clip.ux, et);
         std::sort(ts + 1, et), *et++ = 1.f;
-        for (t = ts; t < et - 1; t++)
+        for (tx0 = tx2 = x0, ty0 = ty2 = y0, t = ts; t < et - 1; t++, tx0 = tx2, ty0 = ty2) {
+            tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     mx = (ax * mt + bx) * mt + x0;
-                    tx0 = (ax * t[0] + bx) * t[0] + x0, ty0 = (ay * t[0] + by) * t[0] + y0;
-                    tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
-                    tx1 = 2.f * mx - 0.5f * (tx0 + tx2), ty1 = 2.f * my - 0.5f * (ty0 + ty2);
-                    ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
-                    ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
                     if (mx >= clip.lx && mx < clip.ux) {
-                        tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
-                        tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
-                        writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
+                        writeQuadratic(
+                                       tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
+                                       ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
+                                       2.f * mx - 0.5f * (tx0 + tx2), 2.f * my - 0.5f * (ty0 + ty2),
+                                       tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2,
+                                       ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2,
+                                       function, info);
                     } else if (polygon) {
                         vx = mx <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0, vx, ty2, info);
+                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, info);
                     }
                 }
             }
+        }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
