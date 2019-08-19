@@ -747,16 +747,17 @@ struct Rasterizer {
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, info);
             }
     }
-    static float *solveQuadratic(double A, double B, double C, float *t) {
-        if (fabs(A) < 1e-3)
-            *t = -C / B, *t = *t < 0.f ? 0.f : *t > 1.f ? 1.f : *t, t++;
-        else {
+    static float *solveQuadratic(double A, double B, double C, float *ts) {
+        if (fabs(A) < 1e-3) {
+            float t = -C / B;  if (t > 0.f && t < 1.f)  *ts++ = t;
+        } else {
             double d = B * B - 4.0 * A * C, r = sqrt(d);
-            if (d >= 0)
-                *t = (-B + r) * 0.5 / A, *t = *t < 0.f ? 0.f : *t > 1.f ? 1.f : *t, t++,
-                *t = (-B - r) * 0.5 / A, *t = *t < 0.f ? 0.f : *t > 1.f ? 1.f : *t, t++;
+            if (d >= 0.0) {
+                float t0 = (-B + r) * 0.5 / A;  if (t0 > 0.f && t0 < 1.f)  *ts++ = t0;
+                float t1 = (-B - r) * 0.5 / A;  if (t1 > 0.f && t1 < 1.f)  *ts++ = t1;
+            }
         }
-        return t;
+        return ts;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
         float ax, bx, ay, by, ts[8], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2;
