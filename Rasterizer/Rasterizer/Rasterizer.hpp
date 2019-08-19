@@ -255,22 +255,6 @@ struct Rasterizer {
         size_t end = 0, idx = 0;
         T *base = nullptr;
     };
-    template<typename T>
-    struct Pages {
-        static constexpr size_t kPageSize = 4096;
-        ~Pages() { if (base) free(base); }
-        T *resize(size_t n) {
-            size_t allocation = (n * sizeof(T) + kPageSize - 1) / kPageSize * kPageSize;
-            if (size < allocation) {
-                this->~Pages();
-                posix_memalign((void **)& base, kPageSize, allocation);
-                size = allocation;
-            }
-            return base;
-        }
-        size_t size = 0;
-        T *base = nullptr;
-    };
     struct Range {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
         int begin, end;
@@ -402,7 +386,7 @@ struct Rasterizer {
             void init(size_t w, size_t h) {
                 width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
-            Cell allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t instances, bool isFast) {
+            Cell allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t edgeInstances, size_t fastInstances) {
                 float w = ux - lx, h = uy - ly;
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 Bounds *b = & strip;
@@ -421,7 +405,7 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 Cell cell(lx, ly, ux, uy, b->lx, b->ly);
-                b->lx += w, pass->cells += cells, pass->ui++, pass->fastInstances += isFast * instances, pass->edgeInstances += !isFast * instances;
+                b->lx += w, pass->cells += cells, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastInstances += fastInstances;
                 return cell;
             }
             inline void countInstance() {
@@ -460,12 +444,12 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), hashes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), hashes.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
+        void empty() { zero(), hashes.empty(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
+        void reset() { zero(), hashes.reset(), idxes.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes;
+        Row<CacheHash> hashes;  Row<uint32_t> idxes;
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -569,8 +553,7 @@ struct Rasterizer {
         }
         void drawScenes(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
             size_t lz, uz, i, clz, cuz, iz, is;
-            gpu.hashes.empty();
-            GPU::CacheHash *hash = gpu.hashes.alloc(suz - slz), *h;
+            GPU::CacheHash *lh = gpu.hashes.alloc(suz - slz), *uh = lh, *h, *dh;
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 scene = list.scenes[i].ref, uz = lz + scene->paths.size();
@@ -589,7 +572,7 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 if (0 && width == 0.f && (fast || unclipped))
-                                    hash->hash = scene->paths[is].ref->cacheHash(m), hash->i = uint16_t(i), hash->is = uint16_t(is), hash++;
+                                    uh->hash = scene->paths[is].ref->cacheHash(m), uh->i = uint16_t(i), uh->is = uint16_t(is), uh++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
@@ -597,12 +580,16 @@ struct Rasterizer {
                     }
                 }
             }
-            size_t count = list.scenes.size(), lzes[count], cacheUpper = 0;
+            uint64_t count = list.scenes.size(), lzes[count], last;
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
-            std::sort(gpu.hashes.base, hash);
-            for (h = gpu.hashes.base; h < hash; h++)
-                cacheUpper += list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[lzes[h->i] + h->is]);
+            std::sort(lh, uh);
+            uint32_t *idxes = gpu.idxes.alloc(suz - slz);  memset(idxes, 0xFF, (suz - slz) * sizeof(uint32_t));
+            for (last = 0, dh = h = lh; h < uh; h++) {
+                if (h->hash != last)
+                    last = h->hash, *dh++ = *h;
+                iz = lzes[h->i] + h->is, idxes[iz - slz] = uint32_t(dh - gpu.hashes.base - 1);
+            }
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
@@ -629,20 +616,18 @@ struct Rasterizer {
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0)
                     | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
                 inst->outline.clip = clip.inset(-width, -width);
-                size_t upper = path.ref->upperBound(ctm);
                 if (fabsf(ctm.det()) > 1e2f) {
-                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);
-                    upper = counter.count;
-                }
-                gpu.outlineUpper += upper, gpu.outlinePaths++, gpu.allocator.countInstance();
+                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
+                } else
+                    gpu.outlineUpper += path.ref->upperBound(ctm);
+                 gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 Output sgmnts(& segments[0], clip.ly * krfh);
                 if (fast || unclipped) {
                     Cache::Entry *entry = gpu.cache.getPath(path, ctm);
                     if (fast) {
-                        GPU::Cell cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end, path.ref->molecules.size(), entry->instances, true);
                         GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                        inst->quad.cell = cell, inst->quad.cover = 0, inst->quad.count = uint16_t(entry->seg.end - entry->seg.begin), inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.begin = 0, inst->quad.base = int(entry->seg.begin);
+                        inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, path.ref->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
                     } else {
                         gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
                         writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
@@ -697,10 +682,12 @@ struct Rasterizer {
                     if (ly < clip.uy && uy > clip.ly) {
                         lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                         ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                        if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
-                        else
-                            writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                        if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                            if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
+                            else
+                                writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                        }   
                     }
                     x0 = x2, y0 = y2, p += 4, index += 2;
                     break;
@@ -713,10 +700,12 @@ struct Rasterizer {
                     if (ly < clip.uy && uy > clip.ly) {
                         lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
                         ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-                        if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, info);
-                        else
-                            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                        if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                            if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, info);
+                            else
+                                writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                        }
                     }
                     x0 = x3, y0 = y3, p += 6, index += 3;
                     break;
@@ -737,78 +726,72 @@ struct Rasterizer {
             (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
-        float dx = x1 - x0, dy = y1 - y0, t0, t1, sy0, sy1, sx0, sx1, mx, vx, ts[4];
+        float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
         if (dy == 0.f)
             ts[0] = 0.f, ts[3] = 1.f;
-        else {
+        else
             ts[0] = ((y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0) - y0) / dy,
             ts[3] = ((y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1) - y0) / dy;
-        }
         if (dx == 0.f)
             ts[1] = ts[0], ts[2] = ts[3];
-        else {
-            t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx;
-            ts[1] = t0 < t1 ? t0 : t1, ts[1] = ts[1] < ts[0] ? ts[0] : ts[1] > ts[3] ? ts[3] : ts[1];
+        else
+            ts[1] = t0 < t1 ? t0 : t1, ts[1] = ts[1] < ts[0] ? ts[0] : ts[1] > ts[3] ? ts[3] : ts[1],
             ts[2] = t0 > t1 ? t0 : t1, ts[2] = ts[2] < ts[0] ? ts[0] : ts[2] > ts[3] ? ts[3] : ts[2];
-        }
-        for (int i = 0; i < 3; i++)
-            if (ts[i] != ts[i + 1]) {
-                sy0 = y0 + ts[i] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                sy1 = y0 + ts[i + 1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                mx = x0 + (ts[i] + ts[i + 1]) * 0.5f * dx;
+        for (t = ts; t < ts + 3; t++)
+            if (t[0] != t[1]) {
+                sy0 = y0 + t[0] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                sy1 = y0 + t[1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                mx = x0 + (t[0] + t[1]) * 0.5f * dx;
                 if (mx >= clip.lx && mx < clip.ux) {
-                    sx0 = x0 + ts[i] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                    sx1 = x0 + ts[i + 1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    sx0 = x0 + t[0] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                    sx1 = x0 + t[1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                     (*function)(sx0, sy0, sx1, sy1, info);
                 } else if (polygon)
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, info);
             }
     }
-    static int solveQuadratic(double A, double B, double C, float *ts, int end) {
-        if (fabs(A) < 1e-3)
-            ts[end++] = -C / B;
-        else {
-            double d = B * B - 4.0 * A * C, r;
-            if (d >= 0)
-                r = sqrt(d), ts[end++] = (-B + r) * 0.5 / A, ts[end++] = (-B - r) * 0.5 / A;
+    static float *solveQuadratic(double A, double B, double C, float *ts) {
+        if (fabs(A) < 1e-3) {
+            float t = -C / B;  if (t > 0.f && t < 1.f)  *ts++ = t;
+        } else {
+            double d = B * B - 4.0 * A * C, r = sqrt(d);
+            if (d >= 0.0) {
+                float t0 = (-B + r) * 0.5 / A;  if (t0 > 0.f && t0 < 1.f)  *ts++ = t0;
+                float t1 = (-B - r) * 0.5 / A;  if (t1 > 0.f && t1 < 1.f)  *ts++ = t1;
+            }
         }
-        return end;
+        return ts;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float ax, bx, ay, by, ts[8], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2;
-        ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
-        ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
-        int end = 0;
+        float ax, bx, ay, by, ts[10], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx2, ty2;
+        ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
+        *et++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
-            end = solveQuadratic(ay, by, y0 - clip.ly, ts, end);
+            et = solveQuadratic(ay, by, y0 - clip.ly, et);
         if (clip.uy >= ly && clip.uy < uy)
-            end = solveQuadratic(ay, by, y0 - clip.uy, ts, end);
+            et = solveQuadratic(ay, by, y0 - clip.uy, et);
         if (clip.lx >= lx && clip.lx < ux)
-            end = solveQuadratic(ax, bx, x0 - clip.lx, ts, end);
+            et = solveQuadratic(ax, bx, x0 - clip.lx, et);
         if (clip.ux >= lx && clip.ux < ux)
-            end = solveQuadratic(ax, bx, x0 - clip.ux, ts, end);
-        if (end < 8)
-            ts[end++] = 0.f, ts[end++] = 1.f;
-        std::sort(& ts[0], & ts[end]);
-        for (int i = 0; i < end - 1; i++) {
-            t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
-            t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
-            if (t0 != t1) {
-                t = (t0 + t1) * 0.5f, y = (ay * t + by) * t + y0;
-                if (y >= clip.ly && y < clip.uy) {
-                    x = (ax * t + bx) * t + x0;
-                    tx0 = (ax * t0 + bx) * t0 + x0, ty0 = (ay * t0 + by) * t0 + y0;
-                    tx2 = (ax * t1 + bx) * t1 + x0, ty2 = (ay * t1 + by) * t1 + y0;
-                    tx1 = 2.f * x - 0.5f * (tx0 + tx2), ty1 = 2.f * y - 0.5f * (ty0 + ty2);
-                    ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
-                    ty2 = ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2;
-                    if (x >= clip.lx && x < clip.ux) {
-                        tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
-                        tx2 = tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2;
-                        writeQuadratic(tx0, ty0, tx1, ty1, tx2, ty2, function, info);
+            et = solveQuadratic(ax, bx, x0 - clip.ux, et);
+        std::sort(ts + 1, et), *et++ = 1.f;
+        for (tx0 = tx2 = x0, ty0 = ty2 = y0, t = ts; t < et - 1; t++, tx0 = tx2, ty0 = ty2) {
+            tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
+            if (t[0] != t[1]) {
+                mt = (t[0] + t[1]) * 0.5f, my = (ay * mt + by) * mt + y0;
+                if (my >= clip.ly && my < clip.uy) {
+                    mx = (ax * mt + bx) * mt + x0;
+                    if (mx >= clip.lx && mx < clip.ux) {
+                        writeQuadratic(
+                                       tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
+                                       ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
+                                       2.f * mx - 0.5f * (tx0 + tx2), 2.f * my - 0.5f * (ty0 + ty2),
+                                       tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2,
+                                       ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2,
+                                       function, info);
                     } else if (polygon) {
-                        vx = x <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0, vx, ty2, info);
+                        vx = mx <= clip.lx ? clip.lx : clip.ux;
+                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, info);
                     }
                 }
             }
@@ -828,70 +811,70 @@ struct Rasterizer {
         }
         (*function)(x0, y0, x2, y2, info);
     }
-    static int solveCubic(double A, double B, double C, double D, float *ts, int end) {
+    static float *solveCubic(double A, double B, double C, double D, float *ts) {
         if (fabs(D) < 1e-3)
-            return solveQuadratic(A, B, C, ts, end);
+            return solveQuadratic(A, B, C, ts);
         else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
-            double  p, q, q2, u1, v1, a3, discriminant, sd;
+            double  p, q, q2, u1, v1, a3, discriminant, sd, t;
             A /= D, B /= D, C /= D, p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C;
-            q2 = q * 0.5, a3 = A * third;
-            discriminant = q2 * q2 + p * p * p / 27.0;
+            q2 = q * 0.5, a3 = A * third, discriminant = q2 * q2 + p * p * p / 27.0;
             if (discriminant < 0) {
-                double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), t = -q / (2 * r), cosphi = t < -1 ? -1 : t > 1 ? 1 : t;
-                double phi = acos(cosphi), crtr = 2 * copysign(cbrt(fabs(r)), r);
-                ts[end++] = crtr * cos(phi / 3) - a3, ts[end++] = crtr * cos((phi + 2 * M_PI) / 3) - a3, ts[end++] = crtr * cos((phi + 4 * M_PI) / 3) - a3;
+                double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
+                __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
+                t = crtr * cosine - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                ts[end++] = 2 * u1 - a3, ts[end++] = -u1 - a3;
+                t = 2 * u1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = -u1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                ts[end++] = u1 - v1 - a3;
+                t = u1 - v1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
             }
         }
-        return end;
+        return ts;
     }
     static void writeClippedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float cy, by, ay, cx, bx, ax, ts[12], t0, t1, t, x, y, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
+        float cy, by, ay, cx, bx, ax, ts[14], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        int end = 0;
+        *et++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
-            end = solveCubic(by, cy, y0 - clip.ly, ay, ts, end);
+            et = solveCubic(by, cy, y0 - clip.ly, ay, et);
         if (clip.uy >= ly && clip.uy < uy)
-            end = solveCubic(by, cy, y0 - clip.uy, ay, ts, end);
+            et = solveCubic(by, cy, y0 - clip.uy, ay, et);
         if (clip.lx >= lx && clip.lx < ux)
-            end = solveCubic(bx, cx, x0 - clip.lx, ax, ts, end);
+            et = solveCubic(bx, cx, x0 - clip.lx, ax, et);
         if (clip.ux >= lx && clip.ux < ux)
-            end = solveCubic(bx, cx, x0 - clip.ux, ax, ts, end);
-        if (end < 12)
-            ts[end++] = 0.f, ts[end++] = 1.f;
-        std::sort(& ts[0], & ts[end]);
-        for (int i = 0; i < end - 1; i++) {
-            t0 = ts[i],     t0 = t0 < 0.f ? 0.f : t0 > 1.f ? 1.f : t0;
-            t1 = ts[i + 1], t1 = t1 < 0.f ? 0.f : t1 > 1.f ? 1.f : t1;
-            if (t0 != t1) {
-                t = (t0 + t1) * 0.5f, y = ((ay * t + by) * t + cy) * t + y0;
-                if (y >= clip.ly && y < clip.uy) {
-                    tx0 = ((ax * t0 + bx) * t0 + cx) * t0 + x0, ty0 = ((ay * t0 + by) * t0 + cy) * t0 + y0;
-                    tx3 = ((ax * t1 + bx) * t1 + cx) * t1 + x0, ty3 = ((ay * t1 + by) * t1 + cy) * t1 + y0;
-                    ty0 = ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0;
-                    ty3 = ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3;
-                    x = ((ax * t + bx) * t + cx) * t + x0;
-                    if (x >= clip.lx && x < clip.ux) {
+            et = solveCubic(bx, cx, x0 - clip.ux, ax, et);
+        std::sort(ts + 1, et), *et++ = 1.f;
+        for (tx0 = tx3 = x0, ty0 = ty3 = y0, t = ts; t < et - 1; t++, tx0 = tx3, ty0 = ty3) {
+            tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0;
+            ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
+            if (t[0] != t[1]) {
+                mt = (t[0] + t[1]) * 0.5f, my = ((ay * mt + by) * mt + cy) * mt + y0;
+                if (my >= clip.ly && my < clip.uy) {
+                    mx = ((ax * mt + bx) * mt + cx) * mt + x0;
+                    if (mx >= clip.lx && mx < clip.ux) {
                         const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
-                        t = v * t0 + u * t1, tx1 = ((ax * t + bx) * t + cx) * t + x0, ty1 = ((ay * t + by) * t + cy) * t + y0;
-                        t = u * t0 + v * t1, tx2 = ((ax * t + bx) * t + cx) * t + x0, ty2 = ((ay * t + by) * t + cy) * t + y0;
+                        mt = v * t[0] + u * t[1], tx1 = ((ax * mt + bx) * mt + cx) * mt + x0, ty1 = ((ay * mt + by) * mt + cy) * mt + y0;
+                        mt = u * t[0] + v * t[1], tx2 = ((ax * mt + bx) * mt + cx) * mt + x0, ty2 = ((ay * mt + by) * mt + cy) * mt + y0;
                         fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
                         gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
-                        tx1 = fx * m0 + gx * -m1, ty1 = fy * m0 + gy * -m1;
-                        tx2 = fx * -m1 + gx * m0, ty2 = fy * -m1 + gy * m0;
-                        tx0 = tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0;
-                        tx3 = tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3;
-                        writeCubic(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, function, info);
+                        writeCubic(
+                            tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
+                            ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
+                            fx * m0 + gx * -m1, fy * m0 + gy * -m1,
+                            fx * -m1 + gx * m0, fy * -m1 + gy * m0,
+                            tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3,
+                            ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3,
+                            function, info
+                        );
                     } else if (polygon) {
-                        vx = x <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0, vx, ty3, info);
+                        vx = mx <= clip.lx ? clip.lx : clip.ux;
+                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3, info);
                     }
                 }
             }
@@ -965,7 +948,7 @@ struct Rasterizer {
                 for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
                     if (index->x > ux && winding - floorf(winding) < 1e-6f) {
                         if (lx != ux) {
-                            GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
+                            GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
                             inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
                         }
@@ -988,7 +971,7 @@ struct Rasterizer {
                     x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
                 }
                 if (lx != ux) {
-                    GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, false);
+                    GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
                 }
@@ -1130,17 +1113,27 @@ struct Rasterizer {
 #endif
     }
     struct Buffer {
+        static constexpr size_t kPageSize = 4096;
         enum Type { kEdges, kFastEdges, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
             Type type;
             size_t begin, end, segments, cells;
         };
-        Pages<uint8_t> data;
+        ~Buffer() { if (base) free(base); }
+        uint8_t *resize(size_t n) {
+            size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
+            if (size < allocation) {
+                if (base) free(base);
+                posix_memalign((void **)& base, kPageSize, allocation);
+                size = allocation;
+            }
+            return base;
+        }
+        uint8_t *base = nullptr;
         Row<Entry> entries;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths, tick;
-        uint32_t pathsCount;
+        size_t colors, transforms, clips, widths, tick, pathsCount, size = 0;
     };
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
@@ -1180,18 +1173,18 @@ struct Rasterizer {
             for (j = 0; j < contexts[i].segments.size(); j++)
                 size += contexts[i].segments[j].end * sizeof(Segment);
         }
-        buffer.data.resize(size);
+        buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
-        buffer.pathsCount = uint32_t(pathsCount);
-        memcpy(buffer.data.base + buffer.colors, colorants, szcolors);
-        memcpy(buffer.data.base + buffer.transforms, ctms, sztransforms);
-        memcpy(buffer.data.base + buffer.clips, clips, sztransforms);
-        memcpy(buffer.data.base + buffer.widths, widths, szwidths);
+        buffer.pathsCount = pathsCount;
+        memcpy(buffer.base + buffer.colors, colorants, szcolors);
+        memcpy(buffer.base + buffer.transforms, ctms, sztransforms);
+        memcpy(buffer.base + buffer.clips, clips, sztransforms);
+        memcpy(buffer.base + buffer.widths, widths, szwidths);
         begin = end = buffer.widths + szwidths;
             
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
-                memcpy(buffer.data.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
+                memcpy(buffer.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
         if (begin != end)
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         return size;
@@ -1202,7 +1195,7 @@ struct Rasterizer {
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
-        Transform *ctms = (Transform *)(buffer.data.base + buffer.transforms);
+        Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, sbegins[ctx->segments.size()], size, base, count, nsegments = 0, ncells = 0;
         Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
         for (base = 0, count = 0; scene < uscene; base = count, scene++) {
@@ -1210,84 +1203,84 @@ struct Rasterizer {
             if (liz < count)
                 break;
         }
-        if (scene == uscene)
-            return;
-        size = ctx->gpu.cache.segments.end;
-        for (j = 0; j < ctx->segments.size(); j++)
-            sbegins[j] = size, size += ctx->segments[j].end;
-        if (size) {
-            Segment *dst = (Segment *)(buffer.data.base + begin);
-            if (ctx->gpu.cache.segments.end)
-                memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
+        if (scene != uscene) {
+            size = ctx->gpu.cache.segments.end;
             for (j = 0; j < ctx->segments.size(); j++)
-                memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
-            nsegments = begin, begin = begin + size * sizeof(Segment);
-        }
-        for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
-            GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.data.base + begin), *c0 = cell;
-            ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
-            
-            GPU::Edge *edge = (GPU::Edge *)(buffer.data.base + begin);
-            if (pass->cells) {
-                entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                entries.back().segments = nsegments, entries.back().cells = ncells;
+                sbegins[j] = size, size += ctx->segments[j].end;
+            if (size) {
+                Segment *dst = (Segment *)(buffer.base + begin);
+                if (ctx->gpu.cache.segments.end)
+                    memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
+                for (j = 0; j < ctx->segments.size(); j++)
+                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
+                nsegments = begin, begin = begin + size * sizeof(Segment);
             }
-            GPU::Edge *fast = (GPU::Edge *)(buffer.data.base + begin);
-            if (pass->cells) {
-                entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                entries.back().segments = nsegments, entries.back().cells = ncells;
-            }
-            GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
-            dst0 = dst = (GPU::Instance *)(buffer.data.base + begin);
-            for (inst = linst; inst < uinst; inst++) {
-                for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
-                    base += scene->ref->paths.size();
-        
-                if (inst->iz & GPU::Instance::kOutlines) {
-                    OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                    writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, OutlineInfo::writeInstance, & info);
-                    size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
-                    if (upper < count) {
-                        upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);
-                    }
-                    if (dst == info.dst)
-                        OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, & info);
-                    dst = info.dst, ctms[iz] = Transform();
-                } else {
-                    *dst++ = *inst;
-                    if (inst->iz & GPU::Instance::kMolecule) {
-                        Path& path = scene->ref->paths[iz - base];
-                        Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
-                        int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                        Bounds *b = path.ref->mols;
-                        float ta, tc, ux;
-                        Transform& ctm = ctms[iz];
-                        for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
-                            cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(inst->quad.base);
-                            ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                            ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                            cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                            for (j = bc; j < *cnt; fast++)
-                                fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                            (fast - 1)->i1 = *cnt;
+            for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
+                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
+                ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
+                
+                GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
+                if (pass->cells) {
+                    entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                    entries.back().segments = nsegments, entries.back().cells = ncells;
+                }
+                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
+                if (pass->cells) {
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                    entries.back().segments = nsegments, entries.back().cells = ncells;
+                }
+                GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
+                dst0 = dst = (GPU::Instance *)(buffer.base + begin);
+                for (inst = linst; inst < uinst; inst++) {
+                    for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
+                        base += scene->ref->paths.size();
+                    
+                    if (inst->iz & GPU::Instance::kOutlines) {
+                        OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
+                        writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, OutlineInfo::writeInstance, & info);
+                        size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
+                        if (upper < count) {
+                            upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);
                         }
-                        ctm = ctm.concat(e->ctm);
-                    } else if (inst->iz & GPU::Instance::kEdge) {
-                        cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
-                        uint32_t ic = uint32_t(cell - c0);
-                        Index *is = ctx->gpu.indices.base + inst->quad.begin;
-                        for (j = 0; j < inst->quad.count; j++, edge++) {
-                            edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                            if (++j < inst->quad.count)
-                                edge->i1 = uint16_t(is++->i);
-                            else
-                                edge->i1 = kNullIndex;
+                        if (dst == info.dst)
+                            OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, & info);
+                        dst = info.dst, ctms[iz] = Transform();
+                    } else {
+                        *dst++ = *inst;
+                        if (inst->iz & GPU::Instance::kMolecule) {
+                            Path& path = scene->ref->paths[iz - base];
+                            Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+                            int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
+                            Bounds *b = path.ref->mols;
+                            float ta, tc, ux;
+                            Transform& ctm = ctms[iz];
+                            for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
+                                cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
+                                ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+                                ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+                                for (j = bc; j < *cnt; fast++)
+                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                (fast - 1)->i1 = *cnt;
+                            }
+                            ctm = ctm.concat(e->ctm);
+                        } else if (inst->iz & GPU::Instance::kEdge) {
+                            cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
+                            uint32_t ic = uint32_t(cell - c0);
+                            Index *is = ctx->gpu.indices.base + inst->quad.begin;
+                            for (j = 0; j < inst->quad.count; j++, edge++) {
+                                edge->ic = ic, edge->i0 = uint16_t(is++->i);
+                                if (++j < inst->quad.count)
+                                    edge->i1 = uint16_t(is++->i);
+                                else
+                                    edge->i1 = kNullIndex;
+                            }
+                            cell++;
                         }
-                        cell++;
                     }
                 }
+                entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
             }
-            entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
         }
         ctx->gpu.empty();
         for (j = 0; j < ctx->segments.size(); j++)

@@ -238,7 +238,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        const float width = points ? 0.5 * lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
+        const float width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
         f = width / cw;
         const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
