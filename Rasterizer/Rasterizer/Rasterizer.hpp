@@ -783,12 +783,12 @@ struct Rasterizer {
                     mx = (ax * mt + bx) * mt + x0;
                     if (mx >= clip.lx && mx < clip.ux) {
                         writeQuadratic(
-                                       tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
-                                       ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
-                                       2.f * mx - 0.5f * (tx0 + tx2), 2.f * my - 0.5f * (ty0 + ty2),
-                                       tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2,
-                                       ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2,
-                                       function, info);
+                            tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
+                            ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
+                            2.f * mx - 0.5f * (tx0 + tx2), 2.f * my - 0.5f * (ty0 + ty2),
+                            tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2,
+                            ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2,
+                            function, info);
                     } else if (polygon) {
                         vx = mx <= clip.lx ? clip.lx : clip.ux;
                         (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, info);
