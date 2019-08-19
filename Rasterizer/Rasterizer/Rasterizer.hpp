@@ -850,8 +850,7 @@ struct Rasterizer {
             et = solveCubic(bx, cx, x0 - clip.ux, ax, et);
         std::sort(ts + 1, et), *et++ = 1.f;
         for (tx0 = tx3 = x0, ty0 = ty3 = y0, t = ts; t < et - 1; t++, tx0 = tx3, ty0 = ty3) {
-            tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0;
-            ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
+            tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
