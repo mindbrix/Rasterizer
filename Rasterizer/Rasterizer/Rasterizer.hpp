@@ -683,10 +683,12 @@ struct Rasterizer {
                     if (ly < clip.uy && uy > clip.ly) {
                         lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                         ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                        if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                            writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
-                        else
-                            writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                        if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                            if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
+                            else
+                                writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                        }   
                     }
                     x0 = x2, y0 = y2, p += 4, index += 2;
                     break;
