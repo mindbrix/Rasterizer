@@ -699,10 +699,12 @@ struct Rasterizer {
                     if (ly < clip.uy && uy > clip.ly) {
                         lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
                         ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-                        if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                            writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, info);
-                        else
-                            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                        if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                            if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, info);
+                            else
+                                writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                        }
                     }
                     x0 = x3, y0 = y3, p += 6, index += 3;
                     break;
