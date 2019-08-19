@@ -764,8 +764,9 @@ struct Rasterizer {
         return ts;
     }
     static void writeClippedQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Function function, void *info) {
-        float ax, bx, ay, by, ts[8], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2;
+        float ax, bx, ay, by, ts[10], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
+        *et++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
             et = solveQuadratic(ay, by, y0 - clip.ly, et);
         if (clip.uy >= ly && clip.uy < uy)
@@ -774,9 +775,7 @@ struct Rasterizer {
             et = solveQuadratic(ax, bx, x0 - clip.lx, et);
         if (clip.ux >= lx && clip.ux < ux)
             et = solveQuadratic(ax, bx, x0 - clip.ux, et);
-        if (et - ts < 8)
-            *et++ = 0.f, *et++ = 1.f;
-        std::sort(ts, et);
+        std::sort(ts + 1, et), *et++ = 1.f;
         for (t = ts; t < et - 1; t++)
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, my = (ay * mt + by) * mt + y0;
