@@ -778,9 +778,8 @@ struct Rasterizer {
         for (tx0 = tx2 = x0, ty0 = ty2 = y0, t = ts; t < et - 1; t++, tx0 = tx2, ty0 = ty2) {
             tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
             if (t[0] != t[1]) {
-                mt = (t[0] + t[1]) * 0.5f, my = (ay * mt + by) * mt + y0;
+                mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
-                    mx = (ax * mt + bx) * mt + x0;
                     if (mx >= clip.lx && mx < clip.ux) {
                         writeQuadratic(
                             tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
@@ -854,9 +853,8 @@ struct Rasterizer {
             tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0;
             ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
             if (t[0] != t[1]) {
-                mt = (t[0] + t[1]) * 0.5f, my = ((ay * mt + by) * mt + cy) * mt + y0;
+                mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
-                    mx = ((ax * mt + bx) * mt + cx) * mt + x0;
                     if (mx >= clip.lx && mx < clip.ux) {
                         const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
                         mt = v * t[0] + u * t[1], tx1 = ((ax * mt + bx) * mt + cx) * mt + x0, ty1 = ((ay * mt + by) * mt + cy) * mt + y0;
