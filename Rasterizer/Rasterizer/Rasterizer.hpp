@@ -333,7 +333,7 @@ struct Rasterizer {
             }
             size_t begin = segments.idx, cbegin = counts.idx, upper = path.ref->upperBound(ctm);
             Output seg(segments.alloc(upper));
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, writeOutlineSegment, & seg);
+            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             if (upper < segments.end - segments.idx) {
                 upper = path.ref->upperBound(ctm);
@@ -595,16 +595,16 @@ struct Rasterizer {
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
             if (width) {
                 OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.rounded = flags & Scene::kOutlineRounded, out.bm = & bitmap;
-                writePath(path, ctm, clip.inset(-width, -width), false, true, OutlineOutput::writePixels, & out);
+                writePath(path, ctm, clip.inset(-width, -width), false, false, true, OutlineOutput::writePixels, & out);
             } else {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 Output del(deltas.base, stride);
                 if (stride * h < deltas.end) {
-                    writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), true, false, writeDeltaSegment, & del);
+                    writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), false, true, false, writeDeltaSegment, & del);
                     writeDeltaPixels(& del, clip, soft, clipctm, flags & Scene::kFillEvenOdd, src, & bitmap);
                 } else {
                     Output sgmnts(& segments[0], clip.ly * krfh);
-                    writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
+                    writePath(path, ctm, clip, false, true, false, writeClippedSegment, & sgmnts);
                     writeSegmentPixels(& sgmnts, clip, soft, clipctm, flags & Scene::kFillEvenOdd, & del, src, & bitmap);
                 }
             }
@@ -617,7 +617,7 @@ struct Rasterizer {
                     | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
                 inst->outline.clip = clip.inset(-width, -width);
                 if (fabsf(ctm.det()) > 1e2f) {
-                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
+                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
                 } else
                     gpu.outlineUpper += path.ref->upperBound(ctm);
                  gpu.outlinePaths++, gpu.allocator.countInstance();
@@ -633,7 +633,7 @@ struct Rasterizer {
                         writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
                 } else {
-                    writePath(path, ctm, clip, true, false, writeClippedSegment, & sgmnts);
+                    writePath(path, ctm, clip, unclipped, true, false, writeClippedSegment, & sgmnts);
                     writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 }
             }
@@ -645,7 +645,7 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    static void writePath(Path& path, Transform ctm, Bounds clip, bool polygon, bool mark, Function function, void *info) {
+    static void writePath(Path& path, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, void *info) {
         float *p = path.ref->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (size_t index = 0; index < path.ref->types.size(); )
             switch (path.ref->types[index]) {
@@ -677,17 +677,21 @@ struct Rasterizer {
                 case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                    ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
-                    uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
-                    if (ly < clip.uy && uy > clip.ly) {
-                        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
-                        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                        if (polygon || !(ux < clip.lx || lx > clip.ux)) {
-                            if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
-                            else
-                                writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
-                        }   
+                    if (unclipped)
+                        writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                    else {
+                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
+                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
+                        if (ly < clip.uy && uy > clip.ly) {
+                            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
+                            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
+                            if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                                if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                    writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, info);
+                                else
+                                    writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                            }
+                        }
                     }
                     x0 = x2, y0 = y2, p += 4, index += 2;
                     break;
@@ -695,16 +699,20 @@ struct Rasterizer {
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                    ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
-                    uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
-                    if (ly < clip.uy && uy > clip.ly) {
-                        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
-                        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-                        if (polygon || !(ux < clip.lx || lx > clip.ux)) {
-                            if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, info);
-                            else
-                                writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                    if (unclipped)
+                        writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                    else {
+                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
+                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
+                        if (ly < clip.uy && uy > clip.ly) {
+                            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
+                            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
+                            if (polygon || !(ux < clip.lx || lx > clip.ux)) {
+                                if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
+                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, info);
+                                else
+                                    writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                            }
                         }
                     }
                     x0 = x3, y0 = y3, p += 6, index += 3;
@@ -1234,7 +1242,8 @@ struct Rasterizer {
                     
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, false, true, OutlineInfo::writeInstance, & info);
+                        Bounds dev = Bounds(scene->ref->paths[iz - base].ref->bounds.unit(ctms[iz]));
+                        writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, inst->outline.clip.contains(dev), false, true, OutlineInfo::writeInstance, & info);
                         size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
                         if (upper < count) {
                             upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);
