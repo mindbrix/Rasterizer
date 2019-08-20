@@ -615,7 +615,7 @@ struct Rasterizer {
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0)
                     | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
-                inst->outline.clip = clip.inset(-width, -width);
+                inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                 if (fabsf(ctm.det()) > 1e2f) {
                     SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
                 } else
@@ -1246,8 +1246,7 @@ struct Rasterizer {
                     
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        Bounds dev = Bounds(scene->ref->paths[iz - base].ref->bounds.unit(ctms[iz]));
-                        writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, inst->outline.clip.contains(dev), false, true, OutlineInfo::writeInstance, & info);
+                        writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, & info);
                         size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
                         if (upper < count) {
                             upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);
