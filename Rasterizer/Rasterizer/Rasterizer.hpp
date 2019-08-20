@@ -460,14 +460,14 @@ struct Rasterizer {
         new (out->seg) Segment(x0, y0, x1, y1), out->seg++;
     }
     static void writeClippedSegment(float x0, float y0, float x1, float y1, void *info) {
-        if (y0 == y1)
-            return;
-        Output *out = (Output *)info;
-        size_t iy0 = y0 * krfh;
-        if (iy0 == size_t(y1 * krfh))
-            new (out->segments[iy0 - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
-        else
-            writeClippedSegmentRows(x0, y0, x1, y1, out);
+        if (y0 != y1) {
+            Output *out = (Output *)info;
+            size_t iy0 = y0 * krfh;
+            if (iy0 == size_t(y1 * krfh))
+                new (out->segments[iy0 - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
+            else
+                writeClippedSegmentRows(x0, y0, x1, y1, out);
+        }
     }
     static void writeClippedSegmentRows(float x0, float y0, float x1, float y1, Output *out) {
         float ly, uy, lx, ux, m, c, y, sy[2], sx[2];
