@@ -201,7 +201,7 @@ struct Rasterizer {
         enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2, kOutlinePoints = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path.ref->isDrawable) {
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)));
+                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
                 weight += path.ref->types.size(), colorHash = ::crc64(colorHash, & color, sizeof(color));
             }
         }
