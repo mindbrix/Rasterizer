@@ -665,12 +665,16 @@ struct Rasterizer {
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-                    if (ly < clip.uy && uy > clip.ly) {
-                        if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
-                            writeClippedLine(x0, y0, x1, y1, clip, polygon, function, info);
-                        else
-                            (*function)(x0, y0, x1, y1, info);
+                    if (unclipped)
+                        (*function)(x0, y0, x1, y1, info);
+                    else {
+                        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+                        if (ly < clip.uy && uy > clip.ly) {
+                            if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
+                                writeClippedLine(x0, y0, x1, y1, clip, polygon, function, info);
+                            else
+                                (*function)(x0, y0, x1, y1, info);
+                        }
                     }
                     x0 = x1, y0 = y1, p += 2, index++;
                     break;
