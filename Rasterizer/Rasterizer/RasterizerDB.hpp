@@ -142,8 +142,8 @@ struct RasterizerDB {
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                         RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], *header.ref);
                 list.addScene(header, Ra::Transform(1.f, 0.f, 0.f, 1.f, frame.lx, frame.uy), Ra::Transform::nullclip());
-                Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(frame.lx, my - h / 256.f, frame.ux, my + h / 256.f));
-                line.ref->addPath(bbPath, Ra::Transform(), red, 0.f, 0);
+                Ra::Path bbPath; bbPath.ref->moveTo(frame.lx, my), bbPath.ref->lineTo(frame.ux, my);
+                line.ref->addPath(bbPath, Ra::Transform(), red, h / 128.f, 0);
                 list.addScene(line);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {
