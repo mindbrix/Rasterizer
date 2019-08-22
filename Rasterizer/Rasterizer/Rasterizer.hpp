@@ -424,8 +424,14 @@ struct Rasterizer {
             static constexpr size_t kPageSize = 4096;
             struct Page {  uint32_t end, next, addr;  };
             CacheMap() { reset(); }
-            void reset() {  pages.reset(), pages.alloc(1), end = 0, free = 0;  }
-            Row<Page> pages;  uint32_t end, free;
+            void free(uint32_t idx) {
+                uint32_t _freeidx = freeidx, freeidx = idx;
+                while (pages.base[idx].end)
+                    idx = pages.base[idx].end;
+                pages.base[idx].end = _freeidx;
+            }
+            void reset() {  pages.reset(), pages.alloc(1), end = 0, freeidx = 0;  }
+            Row<Page> pages;  uint32_t end, freeidx;
         };
         struct Quad {
             Cell cell;
