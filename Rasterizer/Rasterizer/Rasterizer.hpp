@@ -422,28 +422,29 @@ struct Rasterizer {
         };
         struct CacheMap {
             static constexpr size_t kPageSize = 4096;
-            struct Page {  uint32_t end, next, addr;  };
+            struct Page {  int end; uint32_t next;  };
             CacheMap() { reset(); }
             uint32_t alloc(size_t count) {
                 uint32_t idx = page(), last = idx, p;
                 while (--count)
-                    p = page(), pages.base[last].end = p, last = p;
-                pages.base[last].end = 0;
+                    p = page(), pages.base[last].next = p, last = p;
+                pages.base[last].next = 0;
                 return idx;
             }
             void free(uint32_t idx) {
                 uint32_t _freeidx, last;
                 _freeidx = freeidx, freeidx = last = idx;
-                while (pages.base[last].end)
-                    last = pages.base[last].end;
-                pages.base[last].end = _freeidx;
+                while (pages.base[last].next)
+                    last = pages.base[last].next;
+                pages.base[last].next = _freeidx;
             }
             uint32_t page() {
                 size_t idx;
                 if (freeidx) {
-                    idx = freeidx, freeidx = pages.base[idx].end;
+                    idx = freeidx, freeidx = pages.base[idx].next;
                 } else
                     idx = pages.end, pages.alloc(1);
+                pages.base[idx].end = 0;
                 return uint32_t(idx);
             }
             void reset() {  pages.reset(), pages.alloc(1), freeidx = 0;  }
