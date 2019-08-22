@@ -424,9 +424,8 @@ struct Rasterizer {
             static constexpr size_t kPageSize = 4096;
             struct Page {  uint32_t end, next, addr;  };
             CacheMap() { reset(); }
-            void reset() { pages.empty(), pages.alloc(1); }
-            void empty() { pages.reset(), pages.alloc(1); }
-            Row<Page> pages;
+            void reset() {  pages.reset(), pages.alloc(1), end = 0, free = 0;  }
+            Row<Page> pages;  uint32_t end, free;
         };
         struct Quad {
             Cell cell;
@@ -452,7 +451,7 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), hashes.empty(), idxes.empty(), cacheMap.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
+        void empty() { zero(), hashes.empty(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
         void reset() { zero(), hashes.reset(), idxes.reset(), cacheMap.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
