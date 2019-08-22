@@ -424,7 +424,8 @@ struct Rasterizer {
             static constexpr size_t kPageSize = 4096;
             struct Page {  int end; uint32_t next;  };
             CacheMap() { reset(); }
-            uint32_t alloc(size_t count) {
+            uint32_t alloc(size_t size) {
+                size_t count = (size + kPageSize - 1) / kPageSize;
                 uint32_t idx = page(), last = idx, p;
                 while (--count)
                     p = page(), pages.base[last].next = p, last = p;
@@ -601,7 +602,7 @@ struct Rasterizer {
                             if (bitmap.width == 0) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                if (0 && width == 0.f && (fast || unclipped))
+                                if (width == 0.f && (fast || unclipped))
                                     uh->hash = scene->paths[is].ref->cacheHash(m), uh->i = uint16_t(i), uh->is = uint16_t(is), uh++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
@@ -610,7 +611,7 @@ struct Rasterizer {
                     }
                 }
             }
-            uint64_t count = list.scenes.size(), lzes[count], last;
+            uint64_t count = list.scenes.size(), lzes[count], last, upper;
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
             std::sort(lh, uh);
@@ -620,6 +621,13 @@ struct Rasterizer {
                     last = h->hash, *dh++ = *h;
                 iz = lzes[h->i] + h->is, idxes[iz - slz] = uint32_t(dh - gpu.hashes.base - 1);
             }
+            uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
+            for (pg = pages, h = lh; h < dh; h++, pg++) {
+                iz = lzes[h->i] + h->is, upper = list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
+                *pg = gpu.cacheMap.alloc(upper);
+            }
+            for (pg = pages; pg < up; pg++)
+                gpu.cacheMap.free(*pg);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
