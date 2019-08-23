@@ -424,6 +424,7 @@ struct Rasterizer {
             static constexpr size_t kPageSize = 1024;
             struct Page {  int end; uint32_t next;  };
             CacheMap() { reset(); }
+            size_t addr(uint32_t idx) {  return (idx - 1) * kPageSize;  }
             uint32_t alloc(size_t size) {
                 size_t count = (size + kPageSize - 1) / kPageSize;
                 uint32_t idx = page(), last = idx, p;
