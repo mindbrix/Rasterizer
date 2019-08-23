@@ -421,7 +421,7 @@ struct Rasterizer {
             uint64_t hash;  uint16_t i, is;
         };
         struct CacheMap {
-            static constexpr size_t kPageSize = 4096;
+            static constexpr size_t kPageSize = 1024;
             struct Page {  int end; uint32_t next;  };
             CacheMap() { reset(); }
             uint32_t alloc(size_t size) {
@@ -611,7 +611,7 @@ struct Rasterizer {
                     }
                 }
             }
-            uint64_t count = list.scenes.size(), lzes[count], last, upper;
+            uint64_t count = list.scenes.size(), lzes[count], last, upper, size, total = 0;
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
             std::sort(lh, uh);
@@ -624,7 +624,7 @@ struct Rasterizer {
             uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
             for (pg = pages, h = lh; h < dh; h++, pg++) {
                 iz = lzes[h->i] + h->is, upper = list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
-                *pg = gpu.cacheMap.alloc(upper);
+                size = upper * sizeof(Segment), total += size, *pg = gpu.cacheMap.alloc(size);
             }
             for (pg = pages; pg < up; pg++)
                 gpu.cacheMap.free(*pg);
