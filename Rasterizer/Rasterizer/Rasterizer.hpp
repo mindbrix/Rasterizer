@@ -477,12 +477,12 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() { zero(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), idxes.reset(), pages[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), pages[0].reset(), pages[1].reset();
+        void reset() { zero(), idxes.reset(), pages[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), pages[0].reset(), pages[1].reset(), invs[0].reset(), invs[1].reset();
             for (Row<CacheHash>& hash : hashes)  hash.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  PageMap pages[2];
+        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  PageMap pages[2];  Row<Transform> invs[2];
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
