@@ -420,10 +420,10 @@ struct Rasterizer {
             inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
             uint64_t hash;  uint16_t i, is;
         };
-        struct CacheMap {
+        struct PageMap {
             static constexpr size_t kPageSize = 1024;
             struct Page {  int end; uint32_t next;  };
-            CacheMap() { reset(); }
+            PageMap() { reset(); }
             size_t addr(uint32_t idx) {  return (idx - 1) * kPageSize;  }
             uint32_t alloc(size_t size) {
                 size_t count = (size + kPageSize - 1) / kPageSize;
@@ -477,12 +477,12 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() { zero(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), idxes.reset(), cacheMap[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), cacheMap[0].reset(), cacheMap[1].reset();
+        void reset() { zero(), idxes.reset(), pages[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), pages[0].reset(), pages[1].reset();
             for (Row<CacheHash>& hash : hashes)  hash.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  CacheMap cacheMap[2];
+        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  PageMap pages[2];
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -624,7 +624,7 @@ struct Rasterizer {
                 iz = lzes[h->i] + h->is, idxes[iz - slz] = uint32_t(dh - dst.base);
             }
             dst.end = dh - dst.base;
-            GPU::CacheMap& map = gpu.cacheMap[tick & 0x1];
+            GPU::PageMap& map = gpu.pages[tick & 0x1];
             uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
             for (pg = pages, h = lh; h < dh; h++, pg++) {
                 iz = lzes[h->i] + h->is, upper = list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
