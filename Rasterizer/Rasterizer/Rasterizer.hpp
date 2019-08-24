@@ -477,11 +477,11 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() { zero(), hashes.empty(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), hashes.reset(), idxes.reset(), cacheMap.reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
+        void reset() { zero(), hashes.reset(), idxes.reset(), cacheMap[0].reset(), cacheMap[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes;  Row<uint32_t> idxes;  CacheMap cacheMap;
+        Row<CacheHash> hashes;  Row<uint32_t> idxes;  CacheMap cacheMap[2];
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -622,13 +622,14 @@ struct Rasterizer {
                     last = h->hash, *dh++ = *h;
                 iz = lzes[h->i] + h->is, idxes[iz - slz] = uint32_t(dh - gpu.hashes.base - 1);
             }
+            GPU::CacheMap& dst = gpu.cacheMap[0];
             uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
             for (pg = pages, h = lh; h < dh; h++, pg++) {
                 iz = lzes[h->i] + h->is, upper = list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
-                size = upper * sizeof(Segment), total += size, *pg = gpu.cacheMap.alloc(size);
+                size = upper * sizeof(Segment), total += size, *pg = dst.alloc(size);
             }
             for (pg = pages; pg < up; pg++)
-                gpu.cacheMap.free(*pg);
+                dst.free(*pg);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
