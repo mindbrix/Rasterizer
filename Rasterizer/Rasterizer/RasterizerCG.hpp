@@ -188,12 +188,13 @@ struct RasterizerCG {
         Ra::Colorant *colors;
         float *widths, outlineWidth;
         Ra::Buffer *buffer;
+        Ra::Bitmap *bitmap;
         std::vector<Ra::Buffer::Entry> *entries;
         size_t begin, slz, suz;
         
         static void drawScenes(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
-            ti->context->draw(*ti->list, ti->view, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->slz, ti->suz);
+            ti->context->draw(*ti->list, ti->view, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->slz, ti->suz, ti->bitmap);
         }
         static void writeContexts(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
@@ -205,7 +206,7 @@ struct RasterizerCG {
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
-        ti->context = contexts, ti->list = & list, ti->view = state.view, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->slz = 0, ti->suz = eiz;
+        ti->context = contexts, ti->list = & list, ti->view = state.view, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->slz = 0, ti->suz = eiz, ti->bitmap = bitmap;
         for (i = 1; i < CGTestContext::kQueueCount; i++)
             threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
@@ -239,7 +240,7 @@ struct RasterizerCG {
                 contexts[0].setGPU(state.device.ux, state.device.uy);
             else
                 contexts[0].setBitmap(*bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].draw(list, state.view, ctms, colors, clips, widths, outlineWidth, 0, eiz);
+            contexts[0].draw(list, state.view, ctms, colors, clips, widths, outlineWidth, 0, eiz, bitmap);
         }
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count];

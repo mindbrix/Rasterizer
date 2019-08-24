@@ -567,7 +567,6 @@ struct Rasterizer {
     };
     struct Context {
         void setBitmap(Bitmap bm, Bounds cl) {
-            bitmap = bm;
             bounds = Bounds(0.f, 0.f, bm.width, bm.height).intersect(cl.integral());
             size_t size = ceilf(float(bm.height) * krfh);
             if (segments.size() != size)
@@ -576,14 +575,13 @@ struct Rasterizer {
             memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
         }
         void setGPU(size_t width, size_t height) {
-            bitmap = Bitmap();
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void draw(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz) {
+        void draw(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap) {
             size_t lz, uz, i, clz, cuz, iz, is;
             GPU::CacheHash *lh = gpu.hashes.alloc(suz - slz), *uh = lh, *h, *dh;
             Scene *scene = list.scenes[0].ref;
@@ -600,14 +598,14 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            if (bitmap.width == 0) {
+                            if (bitmap == nullptr) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 if (width == 0.f && (fast || unclipped))
                                     uh->hash = scene->paths[is].ref->cacheHash(m), uh->i = uint16_t(i), uh->is = uint16_t(is), uh++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
-                                writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm);
+                                writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
                     }
                 }
@@ -632,20 +630,20 @@ struct Rasterizer {
                 dst.free(*pg);
             slz = slz;
         }
-        void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm) {
+        void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
             if (width) {
-                OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.rounded = flags & Scene::kOutlineRounded, out.bm = & bitmap;
+                OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.rounded = flags & Scene::kOutlineRounded, out.bm = bitmap;
                 writePath(path, ctm, clip.inset(-width, -width), false, false, true, OutlineOutput::writePixels, & out);
             } else {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 Output del(deltas.base, stride);
                 if (stride * h < deltas.end) {
                     writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), false, true, false, writeDeltaSegment, & del);
-                    writeDeltaPixels(& del, clip, soft, clipctm, flags & Scene::kFillEvenOdd, src, & bitmap);
+                    writeDeltaPixels(& del, clip, soft, clipctm, flags & Scene::kFillEvenOdd, src, bitmap);
                 } else {
                     Output sgmnts(& segments[0], clip.ly * krfh);
                     writePath(path, ctm, clip, false, true, false, writeClippedSegment, & sgmnts);
-                    writeSegmentPixels(& sgmnts, clip, soft, clipctm, flags & Scene::kFillEvenOdd, & del, src, & bitmap);
+                    writeSegmentPixels(& sgmnts, clip, soft, clipctm, flags & Scene::kFillEvenOdd, & del, src, bitmap);
                 }
             }
         }
@@ -680,7 +678,6 @@ struct Rasterizer {
         }
         void reset() { gpu.reset(), deltas.reset(), segments.resize(0); }
         GPU gpu;
-        Bitmap bitmap;
         Bounds bounds;
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
