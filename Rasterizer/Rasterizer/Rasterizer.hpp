@@ -581,7 +581,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void draw(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap) {
+        void draw(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, bool odd) {
             size_t lz, uz, i, clz, cuz, iz, is;
             GPU::CacheHash *lh = gpu.hashes.alloc(suz - slz), *uh = lh, *h, *dh;
             Scene *scene = list.scenes[0].ref;
