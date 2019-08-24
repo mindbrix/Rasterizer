@@ -418,7 +418,7 @@ struct Rasterizer {
         };
         struct CacheHash {
             inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
-            uint64_t hash;  uint16_t i, is;
+            uint64_t hash;  uint32_t idx;
         };
         struct PageMap {
             static constexpr size_t kPageSize = 1024;
@@ -605,7 +605,7 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 if (width == 0.f && (fast || unclipped))
-                                    uh->hash = scene->paths[is].ref->cacheHash(m), uh->i = uint16_t(i), uh->is = uint16_t(is), uh++;
+                                    uh->hash = scene->paths[is].ref->cacheHash(m), uh->idx = uint32_t((i << 16) | is), uh++;
                                 writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
@@ -621,13 +621,13 @@ struct Rasterizer {
             for (last = 0, dh = h = lh; h < uh; h++) {
                 if (h->hash != last)
                     last = h->hash, *dh++ = *h;
-                iz = lzes[h->i] + h->is, idxes[iz - slz] = uint32_t(dh - dst.base);
+                iz = lzes[h->idx >> 16] + (h->idx & 0xFFFF), idxes[iz - slz] = uint32_t(dh - dst.base);
             }
             dst.end = dh - dst.base;
             GPU::PageMap& map = gpu.pages[tick & 0x1];
             uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
             for (pg = pages, h = lh; h < dh; h++, pg++) {
-                iz = lzes[h->i] + h->is, upper = list.scenes[h->i].ref->paths[h->is].ref->upperBound(ctms[iz]);
+                iz = lzes[h->idx >> 16] + (h->idx & 0xFFFF), upper = list.scenes[h->idx >> 16].ref->paths[h->idx & 0xFFFF].ref->upperBound(ctms[iz]);
                 size = upper * sizeof(Segment), total += size, *pg = map.alloc(size);
             }
             for (pg = pages; pg < up; pg++)
