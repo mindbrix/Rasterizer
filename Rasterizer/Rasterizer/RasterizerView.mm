@@ -234,7 +234,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     _testScene.converter.set(srcSpace, self.window.colorSpace.CGColorSpace);
-    RasterizerCG::drawTestScene(_testScene, _list, _state, nullptr, Ra::Bitmap(nullptr, _state.device.ux, _state.device.uy, 0, 0), buffer);
+    RasterizerCG::drawTestScene(_testScene, _list, _state, nullptr, nullptr, buffer);
     CGColorSpaceRelease(srcSpace);
 }
 
@@ -247,7 +247,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     bitmap.clear(_svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     _testScene.converter.set(srcSpace, CGBitmapContextGetColorSpace(ctx));
-    RasterizerCG::drawTestScene(_testScene, _list, _state, ctx, bitmap, nullptr);
+    RasterizerCG::drawTestScene(_testScene, _list, _state, ctx, & bitmap, nullptr);
     CGColorSpaceRelease(srcSpace);
 }
 
