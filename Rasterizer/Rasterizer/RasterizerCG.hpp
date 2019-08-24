@@ -190,12 +190,11 @@ struct RasterizerCG {
         Ra::Buffer *buffer;
         Ra::Bitmap *bitmap;
         std::vector<Ra::Buffer::Entry> *entries;
-        size_t begin, slz, suz;
-        bool odd;
+        size_t begin, slz, suz, tick;
         
         static void drawScenes(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
-            ti->context->draw(*ti->list, ti->view, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->slz, ti->suz, ti->bitmap, ti->odd);
+            ti->context->draw(*ti->list, ti->view, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->slz, ti->suz, ti->bitmap, ti->tick);
         }
         static void writeContexts(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
@@ -207,7 +206,7 @@ struct RasterizerCG {
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
-        ti->context = contexts, ti->list = & list, ti->view = state.view, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->slz = 0, ti->suz = eiz, ti->bitmap = bitmap, ti->odd = buffer ? buffer->tick & 1 : false;
+        ti->context = contexts, ti->list = & list, ti->view = state.view, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->slz = 0, ti->suz = eiz, ti->bitmap = bitmap, ti->tick = buffer ? buffer->tick : 0;
         for (i = 1; i < CGTestContext::kQueueCount; i++)
             threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
