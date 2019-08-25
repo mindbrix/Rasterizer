@@ -630,9 +630,18 @@ struct Rasterizer {
                 srcHash = si < src.end ? src.base[si].hash : ~0UL, dstHash = dst.base[di].hash;
                 if (srcHash == dstHash)
                     dst.base[di].idx = src.base[si].idx, si++, di++;
-                else if (srcHash < dstHash) {
+                else if (srcHash < dstHash)
                     map.free(src.base[si].idx), si++;
-                } else {
+                else
+                    di++;
+            }
+            for (si = di = 0; di < dst.end; ) {
+                srcHash = si < src.end ? src.base[si].hash : ~0UL, dstHash = dst.base[di].hash;
+                if (srcHash == dstHash)
+                    si++, di++;
+                else if (srcHash < dstHash)
+                    si++;
+                else {
                     idx = dst.base[di].idx, iz = lzes[idx >> 16] + (idx & 0xFFFF);
                     upper = list.scenes[idx >> 16].ref->paths[idx & 0xFFFF].ref->upperBound(ctms[iz]);
                     size = upper * sizeof(Segment), total += size, dst.base[di].idx = map.alloc(size);
