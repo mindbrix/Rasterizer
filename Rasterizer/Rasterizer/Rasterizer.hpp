@@ -613,11 +613,11 @@ struct Rasterizer {
                     }
                 }
             }
-            uint64_t count = list.scenes.size(), lzes[count], last, upper, size, total = 0;
+            uint64_t count = list.scenes.size(), lzes[count], last, srcHash, dstHash, si, di, upper, size, total = 0;
             for (lz = i = 0; i < count; i++)
                 lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
             std::sort(lh, uh);
-            uint32_t *idxes = gpu.idxes.alloc(suz - slz);  memset(idxes, 0xFF, (suz - slz) * sizeof(uint32_t));
+            uint32_t *idxes = gpu.idxes.alloc(suz - slz), idx;  memset(idxes, 0xFF, (suz - slz) * sizeof(uint32_t));
             for (last = 0, dh = h = lh; h < uh; h++) {
                 if (h->hash != last)
                     last = h->hash, *dh++ = *h;
@@ -626,13 +626,19 @@ struct Rasterizer {
             dst.end = dh - dst.base;
             GPU::PageMap& map = gpu.pages[tick & 0x1];
             Row<Transform>& invs = gpu.invs[tick & 0x1];  invs.empty(), invs.alloc(map.pages.end);
-            uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
-            for (pg = pages, h = lh; h < dh; h++, pg++) {
-                iz = lzes[h->idx >> 16] + (h->idx & 0xFFFF), upper = list.scenes[h->idx >> 16].ref->paths[h->idx & 0xFFFF].ref->upperBound(ctms[iz]);
-                size = upper * sizeof(Segment), total += size, *pg = map.alloc(size);
+            for (si = di = 0; di < dst.end; ) {
+                srcHash = si < src.end ? src.base[si].hash : ~0UL, dstHash = dst.base[di].hash;
+                if (srcHash == dstHash)
+                    dst.base[di].idx = src.base[si].idx, si++, di++;
+                else if (srcHash < dstHash) {
+                    map.free(src.base[si].idx), si++;
+                } else {
+                    idx = dst.base[di].idx, iz = lzes[idx >> 16] + (idx & 0xFFFF);
+                    upper = list.scenes[idx >> 16].ref->paths[idx & 0xFFFF].ref->upperBound(ctms[iz]);
+                    size = upper * sizeof(Segment), total += size, dst.base[di].idx = map.alloc(size);
+                    di++;
+                }
             }
-            for (pg = pages; pg < up; pg++)
-                map.free(*pg);
             slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
