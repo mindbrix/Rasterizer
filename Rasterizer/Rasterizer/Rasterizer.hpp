@@ -582,7 +582,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void draw(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Row<GPU::CacheHash> & dst = gpu.hashes[tick & 0x3], & src = gpu.hashes[(tick + 2) & 0x3];
             dst.empty();
@@ -643,8 +643,8 @@ struct Rasterizer {
                 else {
                     idx = dst.base[di].idx, iz = lzes[idx >> 16] + (idx & 0xFFFF);
                     upper = list.scenes[idx >> 16].ref->paths[idx & 0xFFFF].ref->upperBound(ctms[iz]);
-                    size = upper * sizeof(Segment), total += size, dst.base[di].idx = map.alloc(size);
-                    di++;
+                    size = upper * sizeof(Segment), total += size, idx = map.alloc(size);
+                    dst.base[di].idx = idx, map.invs.base[idx] = ctms[iz].invert(), di++;
                 }
             }
             slz = slz;
