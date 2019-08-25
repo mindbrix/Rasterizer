@@ -445,12 +445,12 @@ struct Rasterizer {
                 if (freeidx) {
                     idx = freeidx, freeidx = pages.base[idx].next;
                 } else
-                    idx = pages.end, pages.alloc(1);
+                    idx = pages.end, pages.alloc(1), invs.alloc(1);
                 pages.base[idx].end = 0;
                 return uint32_t(idx);
             }
-            void reset() {  pages.reset(), pages.alloc(1), freeidx = 0;  }
-            Row<Page> pages;  uint32_t freeidx;
+            void reset() {  pages.reset(), pages.alloc(1), invs.reset(), invs.alloc(1), freeidx = 0;  }
+            Row<Page> pages;  Row<Transform> invs;  uint32_t freeidx;
         };
         struct Quad {
             Cell cell;
@@ -477,12 +477,12 @@ struct Rasterizer {
             uint16_t i0, i1;
         };
         void empty() { zero(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), idxes.reset(), pages[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), pages[0].reset(), pages[1].reset(), invs[0].reset(), invs[1].reset();
+        void reset() { zero(), idxes.reset(), pages[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), pages[0].reset(), pages[1].reset();
             for (Row<CacheHash>& hash : hashes)  hash.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  PageMap pages[2];  Row<Transform> invs[2];
+        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  PageMap pages[2];
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -625,7 +625,6 @@ struct Rasterizer {
             }
             dst.end = dh - dst.base;
             GPU::PageMap& map = gpu.pages[tick & 0x1];
-            Row<Transform>& invs = gpu.invs[tick & 0x1];  invs.empty(), invs.alloc(map.pages.end);
             for (si = di = 0; di < dst.end; ) {
                 srcHash = si < src.end ? src.base[si].hash : ~0UL, dstHash = dst.base[di].hash;
                 if (srcHash == dstHash)
