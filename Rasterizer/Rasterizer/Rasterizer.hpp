@@ -625,6 +625,7 @@ struct Rasterizer {
             }
             dst.end = dh - dst.base;
             GPU::PageMap& map = gpu.pages[tick & 0x1];
+            Row<Transform>& invs = gpu.invs[tick & 0x1];  invs.empty(), invs.alloc(map.pages.end);
             uint32_t pages[dh - lh], *up = & pages[dh - lh], *pg;
             for (pg = pages, h = lh; h < dh; h++, pg++) {
                 iz = lzes[h->idx >> 16] + (h->idx & 0xFFFF), upper = list.scenes[h->idx >> 16].ref->paths[h->idx & 0xFFFF].ref->upperBound(ctms[iz]);
