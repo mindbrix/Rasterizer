@@ -240,7 +240,7 @@ struct RasterizerCG {
                 contexts[0].setGPU(state.device.ux, state.device.uy);
             else
                 contexts[0].setBitmap(*bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawList(list, state.view, ctms, colors, clips, widths, outlineWidth, 0, eiz, bitmap, false);
+            contexts[0].drawList(list, state.view, ctms, colors, clips, widths, outlineWidth, 0, eiz, bitmap, buffer ? buffer->tick : 0);
         }
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count];
