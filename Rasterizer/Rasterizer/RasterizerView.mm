@@ -167,6 +167,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _useCPU = !_useCPU;
         [self toggleTimer];
         [self initLayer:_useCPU];
+        _testScene.reset();
         _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestContext::RasterizerType::kCoreGraphics : RasterizerCG::CGTestContext::RasterizerType::kRasterizerMT;
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
@@ -182,6 +183,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self.layer setNeedsDisplay];
         _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     } else if (keyCode == 49) {
+        _testScene.reset();
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
         [self.layer setNeedsDisplay];
