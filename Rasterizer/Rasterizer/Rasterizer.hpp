@@ -585,8 +585,7 @@ struct Rasterizer {
         void drawList(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Row<GPU::CacheHash> & dst = gpu.hashes[tick & 0x3], & src = gpu.hashes[(tick + 2) & 0x3];
-            dst.empty();
-            GPU::CacheHash *lh = dst.alloc(suz - slz), *uh = lh, *h, *dh;
+            GPU::CacheHash *lh, *uh, *h, *dh;   dst.empty(), lh = uh = dst.alloc(suz - slz);
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 scene = list.scenes[i].ref, uz = lz + scene->paths.size();
