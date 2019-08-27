@@ -416,42 +416,6 @@ struct Rasterizer {
             Row<Pass> passes;
             Bounds sheet, strip, fast, molecules;
         };
-        struct CacheHash {
-            inline bool operator< (const CacheHash& other) const { return hash < other.hash; }
-            uint64_t hash;  uint32_t idx;
-        };
-        struct PageMap {
-            static constexpr size_t kPageSize = 1024;
-            struct Page {  int end; uint32_t next;  };
-            PageMap() { reset(); }
-            size_t addr(uint32_t idx) {  return (idx - 1) * kPageSize;  }
-            uint32_t alloc(size_t size) {
-                size_t count = (size + kPageSize - 1) / kPageSize;
-                uint32_t idx = page(), last = idx, p;
-                while (--count)
-                    p = page(), pages.base[last].next = p, last = p;
-                pages.base[last].next = 0;
-                return idx;
-            }
-            void free(uint32_t idx) {
-                uint32_t _freeidx, last;
-                _freeidx = freeidx, freeidx = last = idx;
-                while (pages.base[last].next)
-                    last = pages.base[last].next;
-                pages.base[last].next = _freeidx;
-            }
-            uint32_t page() {
-                size_t idx;
-                if (freeidx) {
-                    idx = freeidx, freeidx = pages.base[idx].next;
-                } else
-                    idx = pages.end, pages.alloc(1), invs.alloc(1);
-                pages.base[idx].end = 0;
-                return uint32_t(idx);
-            }
-            void reset() {  pages.reset(), pages.alloc(1), invs.reset(), invs.alloc(1), freeidx = 0;  }
-            Row<Page> pages;  Row<Transform> invs;  uint32_t freeidx;
-        };
         struct Quad {
             Cell cell;
             short cover;
@@ -476,13 +440,11 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), idxes.empty(), indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), idxes.reset(), pages[1].reset(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(), pages[0].reset(), pages[1].reset();
-            for (Row<CacheHash>& hash : hashes)  hash.reset(); }
+        void empty() { zero(),indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
+        void reset() { zero(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<CacheHash> hashes[4];  Row<uint32_t> idxes;  PageMap pages[2];
         Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
@@ -584,8 +546,6 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
-            Row<GPU::CacheHash> & dst = gpu.hashes[tick & 0x3], & src = gpu.hashes[(tick + 2) & 0x3];
-            GPU::CacheHash *lh, *uh, *h, *dh;   dst.empty(), lh = uh = dst.alloc(suz - slz);
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
                 scene = list.scenes[i].ref, uz = lz + scene->paths.size();
@@ -603,50 +563,13 @@ struct Rasterizer {
                             if (bitmap == nullptr) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                if (width == 0.f && (fast || unclipped))
-                                    uh->hash = scene->paths[is].ref->cacheHash(m), uh->idx = uint32_t((i << 16) | is), uh++;
-                                writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
+                               writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
                     }
                 }
             }
-            uint64_t count = list.scenes.size(), lzes[count], last, srcHash, dstHash, si, di, upper, size, total = 0;
-            for (lz = i = 0; i < count; i++)
-                lzes[i] = lz, lz += list.scenes[i].ref->paths.size();
-            std::sort(lh, uh);
-            uint32_t *idxes = gpu.idxes.alloc(suz - slz), idx;  memset(idxes, 0xFF, (suz - slz) * sizeof(uint32_t));
-            for (last = 0, dh = h = lh; h < uh; h++) {
-                if (h->hash != last)
-                    last = h->hash, *dh++ = *h;
-                iz = lzes[h->idx >> 16] + (h->idx & 0xFFFF), idxes[iz - slz] = uint32_t(dh - dst.base);
-            }
-            dst.end = dh - dst.base;
-            GPU::PageMap& map = gpu.pages[tick & 0x1];
-            for (si = di = 0; di < dst.end; ) {
-                srcHash = si < src.end ? src.base[si].hash : ~0UL, dstHash = dst.base[di].hash;
-                if (srcHash == dstHash)
-                    dst.base[di].idx = src.base[si].idx, si++, di++;
-                else if (srcHash < dstHash)
-                    map.free(src.base[si].idx), si++;
-                else
-                    di++;
-            }
-            for (si = di = 0; di < dst.end; ) {
-                srcHash = si < src.end ? src.base[si].hash : ~0UL, dstHash = dst.base[di].hash;
-                if (srcHash == dstHash)
-                    si++, di++;
-                else if (srcHash < dstHash)
-                    si++;
-                else {
-                    idx = dst.base[di].idx, iz = lzes[idx >> 16] + (idx & 0xFFFF);
-                    upper = list.scenes[idx >> 16].ref->paths[idx & 0xFFFF].ref->upperBound(ctms[iz]);
-                    size = upper * sizeof(Segment), total += size, idx = map.alloc(size);
-                    dst.base[di].idx = idx, map.invs.base[idx] = ctms[iz].invert(), di++;
-                }
-            }
-            slz = slz;
         }
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
             if (width) {
