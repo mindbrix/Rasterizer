@@ -206,10 +206,10 @@ struct RasterizerCG {
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
-        ti->context = contexts, ti->list = & list, ti->view = state.view, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->slz = 0, ti->suz = eiz, ti->bitmap = bitmap, ti->tick = buffer ? buffer->tick : 0;
-        for (i = 1; i < CGTestContext::kQueueCount; i++)
-            threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
         if (multithread) {
+            ti->context = contexts, ti->list = & list, ti->view = state.view, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->slz = 0, ti->suz = eiz, ti->bitmap = bitmap, ti->tick = buffer ? buffer->tick : 0;
+            for (i = 1; i < CGTestContext::kQueueCount; i++)
+                threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
             if (buffer) {
                 izeds[0] = 0, izeds[divisions] = eiz;
                 auto scene = & list.scenes[0];
