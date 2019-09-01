@@ -1188,7 +1188,6 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     SceneList& list,
                                      Path *paths,
                                      size_t begin,
                                      size_t slz, size_t suz,

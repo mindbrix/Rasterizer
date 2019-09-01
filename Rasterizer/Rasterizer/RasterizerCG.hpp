@@ -199,7 +199,7 @@ struct RasterizerCG {
         }
         static void writeContexts(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
-            Ra::writeContextToBuffer(ti->context, *ti->list, ti->paths, ti->begin, ti->slz, ti->suz, *ti->entries, *ti->buffer);
+            Ra::writeContextToBuffer(ti->context, ti->paths, ti->begin, ti->slz, ti->suz, *ti->entries, *ti->buffer);
         }
     };
     static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, Ra::Path *paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Bitmap *bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
@@ -247,7 +247,7 @@ struct RasterizerCG {
             std::vector<Ra::Buffer::Entry> entries[count];
             size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
             if (count == 1)
-                Ra::writeContextToBuffer(contexts, list, paths, begins[0], 0, pathsCount, entries[0], *buffer);
+                Ra::writeContextToBuffer(contexts, paths, begins[0], 0, pathsCount, entries[0], *buffer);
             else {
                 for (i = 0; i < count; i++)
                     threadInfo[i].slz = izs[i], threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i], threadInfo[i].buffer = buffer;
