@@ -343,7 +343,7 @@ struct Rasterizer {
             }
             size_t begin = segments.idx, cbegin = counts.idx, upper = path.ref->upperBound(ctm);
             Output seg(segments.alloc(upper));
-            writePath(path, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, & seg);
+            writeGeometry(path.ref, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             if (upper < segments.end - segments.idx) {
                 upper = path.ref->upperBound(ctm);
@@ -585,16 +585,16 @@ struct Rasterizer {
         void writeBitmapPath(Path& path, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
             if (width) {
                 OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.rounded = flags & Scene::kOutlineRounded, out.bm = bitmap;
-                writePath(path, ctm, clip.inset(-width, -width), false, false, true, OutlineOutput::writePixels, & out);
+                writeGeometry(path.ref, ctm, clip.inset(-width, -width), false, false, true, OutlineOutput::writePixels, & out);
             } else {
                 float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
                 Output del(deltas.base, stride);
                 if (stride * h < deltas.end) {
-                    writePath(path, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), false, true, false, writeDeltaSegment, & del);
+                    writeGeometry(path.ref, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), false, true, false, writeDeltaSegment, & del);
                     writeDeltaPixels(& del, clip, soft, clipctm, flags & Scene::kFillEvenOdd, src, bitmap);
                 } else {
                     Output sgmnts(& segments[0], clip.ly * krfh);
-                    writePath(path, ctm, clip, false, true, false, writeClippedSegment, & sgmnts);
+                    writeGeometry(path.ref, ctm, clip, false, true, false, writeClippedSegment, & sgmnts);
                     writeSegmentPixels(& sgmnts, clip, soft, clipctm, flags & Scene::kFillEvenOdd, & del, src, bitmap);
                 }
             }
@@ -607,7 +607,7 @@ struct Rasterizer {
                     | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
                 inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                 if (fabsf(ctm.det()) > 1e2f) {
-                    SegmentCounter counter;  writePath(path, ctm, inst->outline.clip, false, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
+                    SegmentCounter counter;  writeGeometry(path.ref, ctm, inst->outline.clip, false, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
                 } else
                     gpu.outlineUpper += path.ref->upperBound(ctm);
                  gpu.outlinePaths++, gpu.allocator.countInstance();
@@ -623,7 +623,7 @@ struct Rasterizer {
                         writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
                 } else {
-                    writePath(path, ctm, clip, unclipped, true, false, writeClippedSegment, & sgmnts);
+                    writeGeometry(path.ref, ctm, clip, unclipped, true, false, writeClippedSegment, & sgmnts);
                     writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 }
             }
@@ -634,10 +634,10 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    static void writePath(Path& path, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, void *info) {
-        float *p = path.ref->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (size_t index = 0; index < path.ref->types.size(); )
-            switch (path.ref->types[index]) {
+    static void writeGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, void *info) {
+        float *p = g->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        for (size_t index = 0; index < g->types.size(); )
+            switch (g->types[index]) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                         ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
@@ -1227,7 +1227,7 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, & info);
+                        writeGeometry(paths[iz].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, & info);
                         if (dst == info.dst)
                             OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, & info);
                         dst = info.dst, ctms[iz] = Transform();

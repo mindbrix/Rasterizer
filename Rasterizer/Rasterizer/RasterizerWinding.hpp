@@ -65,9 +65,9 @@ struct RasterizerWinding {
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->types.size()) {
                             if (width)
-                                Ra::writePath(path, ctm, clip, false, false, false, WindingInfo::countOutline, & info);
+                                Ra::writeGeometry(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, & info);
                             else
-                                Ra::writePath(path, ctm, clip, false, true, false, WindingInfo::count, & info);
+                                Ra::writeGeometry(path.ref, ctm, clip, false, true, false, WindingInfo::count, & info);
                         } 
                     }
                 }
