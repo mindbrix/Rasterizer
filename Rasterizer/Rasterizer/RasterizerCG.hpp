@@ -185,7 +185,7 @@ struct RasterizerCG {
         Ra::Context *context;
         Ra::SceneList *list;
         Ra::Transform view, *ctms, *clips;
-        Ra::Path *paths;
+        Ra::Geometry **paths;
         Ra::Colorant *colors;
         float *widths, outlineWidth;
         Ra::Buffer *buffer;
@@ -202,7 +202,7 @@ struct RasterizerCG {
             Ra::writeContextToBuffer(ti->context, ti->paths, ti->begin, ti->slz, ti->suz, *ti->entries, *ti->buffer);
         }
     };
-    static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, Ra::Path *paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Bitmap *bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+    static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, Ra::Geometry **paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Bitmap *bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;
@@ -269,8 +269,7 @@ struct RasterizerCG {
             drawScenes(visibles, state.view, state.device, state.outlineWidth, ctx);
         else {
             assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
-            Ra::Path *paths = (Ra::Path *)malloc(pathsCount * sizeof(Ra::Path *));
-            bzero(paths, pathsCount * sizeof(Ra::Path *));
+            Ra::Geometry **paths = (Ra::Geometry **)malloc(pathsCount * sizeof(Ra::Geometry **));
             Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
