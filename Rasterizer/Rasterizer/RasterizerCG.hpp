@@ -199,10 +199,10 @@ struct RasterizerCG {
         }
         static void writeContexts(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
-            Ra::writeContextToBuffer(ti->context, *ti->list, ti->paths, ti->begin, ti->slz, *ti->entries, *ti->buffer);
+            Ra::writeContextToBuffer(ti->context, *ti->list, ti->paths, ti->begin, ti->slz, ti->suz, *ti->entries, *ti->buffer);
         }
     };
-    static void renderScenes(Ra::SceneList& list, RasterizerState& state, Ra::Path *paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Bitmap *bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+    static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, Ra::Path *paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Bitmap *bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
         size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].ref->paths.size(), total += list.scenes[j].ref->weight;
@@ -247,7 +247,7 @@ struct RasterizerCG {
             std::vector<Ra::Buffer::Entry> entries[count];
             size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
             if (count == 1)
-                Ra::writeContextToBuffer(contexts, list, paths, begins[0], 0, entries[0], *buffer);
+                Ra::writeContextToBuffer(contexts, list, paths, begins[0], 0, pathsCount, entries[0], *buffer);
             else {
                 for (i = 0; i < count; i++)
                     threadInfo[i].slz = izs[i], threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i], threadInfo[i].buffer = buffer;
@@ -285,7 +285,7 @@ struct RasterizerCG {
             if (state.index != INT_MAX)
                 colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
             
-            renderScenes(visibles, state, paths, ctms, colors, clips, widths, state.outlineWidth, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+            renderScenes(visibles, state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
             free(paths), free(ctms), free(colors), free(clips), free(widths);
         }
     }

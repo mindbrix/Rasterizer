@@ -1191,18 +1191,12 @@ struct Rasterizer {
                                      SceneList& list,
                                      Path *paths,
                                      size_t begin,
-                                     size_t liz,
+                                     size_t slz, size_t suz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, sbegins[ctx->segments.size()], size, base, count, nsegments = 0, ncells = 0;
-        Ref<Scene> *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
-        for (base = 0, count = 0; scene < uscene; base = count, scene++) {
-            count += scene->ref->paths.size();
-            if (liz < count)
-                break;
-        }
-        if (scene != uscene) {
+        size_t j, iz, sbegins[ctx->segments.size()], size, nsegments = 0, ncells = 0;
+        if (slz != suz) {
             size = ctx->gpu.cache.segments.end;
             for (j = 0; j < ctx->segments.size(); j++)
                 sbegins[j] = size, size += ctx->segments[j].end;
