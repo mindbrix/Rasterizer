@@ -40,14 +40,14 @@ struct RasterizerSVG {
         data[size] = 0;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
-            Ra::Ref<Ra::Scene> scene;
+            Ra::Scene scene;
             Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
                 Ra::Path path = createPathFromShape(shape);
                 if (shape->fill.type != NSVG_PAINT_NONE)
-                    scene.ref->addPath(path, flip, colorFromPaint(shape->fill), 0.f, 0);
+                    scene.addPath(path, flip, colorFromPaint(shape->fill), 0.f, 0);
                 if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
-                    scene.ref->addPath(path, flip, colorFromPaint(shape->stroke), shape->strokeWidth, 0);
+                    scene.addPath(path, flip, colorFromPaint(shape->stroke), shape->strokeWidth, 0);
             }
             list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
             nsvgDelete(image);

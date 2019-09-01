@@ -14,7 +14,7 @@ struct RasterizerWinding {
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 float ws = sqrtf(fabsf(ctm.det())), w, width;
                 
-                Ra::Scene& scene = *list.scenes[li].ref;
+                Ra::Scene& scene = list.scenes[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     w = scene.widths[si], width = w * (w < 0.f ? -1.f : ws);
                     int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy, width);

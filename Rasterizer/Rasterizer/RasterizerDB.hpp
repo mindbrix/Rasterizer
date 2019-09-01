@@ -86,7 +86,7 @@ struct RasterizerDB {
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, "SELECT SUBSTR(tbl_name, 1, 1) as initial, COUNT(*) AS count FROM sqlite_master WHERE LOWER(initial) != UPPER(initial) AND name NOT LIKE 'sqlite%' GROUP BY initial ORDER BY initial ASC", -1, & pStmt1, NULL) == SQLITE_OK) {
-            Ra::Ref<Ra::Scene> background;
+            Ra::Scene background;
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), i++, x = i % N, y = i / N) {
                 Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Ra::Bounds gb = { b.lx + pad, b.ly + pad, b.ux - pad, b.uy - pad };
@@ -99,7 +99,7 @@ struct RasterizerDB {
                         Ra::Bounds tb = { lx, uy - gdim, lx + gdim, uy };
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
-                        background.ref->addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
+                        background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
                         if (status == SQLITE_ROW)
                             writeTable(font, sqlite3_column_double(pStmt0, 1), tb, (const char *)sqlite3_column_text(pStmt0, 0), tables);
                     }
@@ -137,21 +137,21 @@ struct RasterizerDB {
                     str = str + (i == 0 ? "" : ", ") + names[i];
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
-                Ra::Ref<Ra::Scene> header, line;
+                Ra::Scene header, line;
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                        RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], *header.ref);
+                        RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], header);
                 list.addScene(header, Ra::Transform(1.f, 0.f, 0.f, 1.f, frame.lx, frame.uy), Ra::Transform::nullclip());
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
-                line.ref->addPath(linePath, Ra::Transform(), red, h / 128.f, 0);
+                line.addPath(linePath, Ra::Transform(), red, h / 128.f, 0);
                 list.addScene(line);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {
-                    Ra::Ref<Ra::Scene> row;
+                    Ra::Scene row;
                     Ra::Transform ctm = { 1.f, 0.f, 0.f, 1.f, frame.lx, my + h * ((1.f - t) * float(count) - j) };
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? black : gray, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), *row.ref);
+                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? black : gray, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), row);
                     list.addScene(row, ctm, clip);
                 }
             }

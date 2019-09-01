@@ -48,8 +48,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         return nil;
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
-    Ra::Ref<Ra::Scene> glyphs;
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, *glyphs.ref);
+    Ra::Scene glyphs;
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, glyphs);
     _state.user = _list.empty().addScene(glyphs).bounds;
     return self;
 }
@@ -98,8 +98,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
         }
     } else {
-        Ra::Ref<Ra::Scene> glyphs;
-        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, *glyphs.ref);
+        Ra::Scene glyphs;
+        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, glyphs);
         _list.empty().addScene(glyphs);
     }
     _state.user = _list.bounds;
@@ -197,8 +197,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    Ra::Ref<Ra::Scene> glyphs;
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, *glyphs.ref);
+    Ra::Scene glyphs;
+    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, glyphs);
     _state.user = _list.empty().addScene(glyphs).bounds;
 	[self.layer setNeedsDisplay];
 }

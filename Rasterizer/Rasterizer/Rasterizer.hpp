@@ -223,22 +223,22 @@ struct Rasterizer {
             scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
             return *this;
         }
-        SceneList& addScene(Ref<Scene> sceneRef) {
+        SceneList& addScene(Scene& sceneRef) {
             return addScene(sceneRef, Transform(), Transform::nullclip());
         }
-        SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
-            if (sceneRef.ref->weight)
-                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
+        SceneList& addScene(Scene& sceneRef, Transform ctm, Transform clip) {
+            if (sceneRef.weight)
+                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(sceneRef.bounds.unit(ctm)));
             return *this;
         }
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
-                if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device, 0.f))
-                    pathsCount += scenes[i].ref->count, visibles.addScene(scenes[i], ctms[i], clips[i]);
+                if (isVisible(scenes[i].bounds, view.concat(ctms[i]), view.concat(clips[i]), device, 0.f))
+                    pathsCount += scenes[i].count, visibles.addScene(scenes[i], ctms[i], clips[i]);
             return pathsCount;
         }
-        std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;  Bounds bounds;
+        std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;  Bounds bounds;
     };
     template<typename T>
     struct Memory {
@@ -552,9 +552,9 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
-            Scene *scene = list.scenes[0].ref;
+            Scene *scene = & list.scenes[0];
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
-                scene = list.scenes[i].ref, uz = lz + scene->count;
+                scene = & list.scenes[i], uz = lz + scene->count;
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);

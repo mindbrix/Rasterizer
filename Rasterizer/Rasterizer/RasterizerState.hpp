@@ -105,7 +105,7 @@ struct RasterizerState {
                 if (indices.begin != INT_MAX) {
                     int idx = 0;
                     for (int j = 0; j < indices.begin; j++)
-                        idx += visibles.scenes[j].ref->count;
+                        idx += visibles.scenes[j].count;
                         index = idx + indices.end;
                 }
             }

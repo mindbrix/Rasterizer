@@ -9,26 +9,27 @@
 
 struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list) {
-        Ra::Ref<Ra::Scene> scene;
+        Ra::Scene scene;
         Ra::Colorant color(0, 0, 0, 255);
         if (0) {
             Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
-            scene.ref->addPath(bbPath, Ra::Transform(), color, 0.f, 0);
+            scene.addPath(bbPath, Ra::Transform(), color, 0.f, 0);
         }
         if (0)
-            scene.ref->addPath(createPhyllotaxisPath(100), Ra::Transform(), color, 0.f, Ra::Scene::kFillEvenOdd);
+            scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), color, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)
-            writePhyllotaxisToScene(100000, *scene.ref);
+            writePhyllotaxisToScene(100000, scene);
         list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
         
         if (0) {
             float phi = 0.5f * (sqrtf(5.f) - 1.f);
             float size = 20.f, width = size * phi;
-            list.addScene(createGridScene(10000, size, size * phi, width != 0.f, color), Ra::Transform(), Ra::Transform::nullclip());
+            Ra::Scene grid = createGridScene(10000, size, size * phi, width != 0.f, color);
+            list.addScene(grid, Ra::Transform(), Ra::Transform::nullclip());
         }
     }
-    static Ra::Ref<Ra::Scene> createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
-        Ra::Ref<Ra::Scene> scene;
+    static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
+        Ra::Scene scene;
         size_t dim = ceilf(sqrtf(count)), i;
         for (i = 0; i < count; i++) {
             float lx = size * (i % dim), ly = size * (i / dim);
@@ -37,7 +38,7 @@ struct RasterizerTest {
                 path.ref->moveTo(lx, ly + 0.5f * width), path.ref->lineTo(lx + width, ly + 0.5f * width);
             else
                 path.ref->addBounds(Ra::Bounds(lx, ly, lx + width, ly + width));
-            scene.ref->addPath(path, Ra::Transform(), color, width, 0);
+            scene.addPath(path, Ra::Transform(), color, width, 0);
         }
         return scene;
     }
