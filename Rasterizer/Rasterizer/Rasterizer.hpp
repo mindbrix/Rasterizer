@@ -551,8 +551,7 @@ struct Rasterizer {
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
-            for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
-                uz = lz + scene->count;
+            for (uz = scene->count, lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz, uz += scene->count)
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
@@ -574,7 +573,6 @@ struct Rasterizer {
                         }
                     }
                 }
-            }
         }
         void writeBitmapPath(Geometry *geometry, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
             if (width) {
