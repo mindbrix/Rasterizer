@@ -223,12 +223,12 @@ struct Rasterizer {
             scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
             return *this;
         }
-        SceneList& addScene(Scene& sceneRef) {
-            return addScene(sceneRef, Transform(), Transform::nullclip());
+        SceneList& addScene(Scene scene) {
+            return addScene(scene, Transform(), Transform::nullclip());
         }
-        SceneList& addScene(Scene& sceneRef, Transform ctm, Transform clip) {
-            if (sceneRef.weight)
-                scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(sceneRef.bounds.unit(ctm)));
+        SceneList& addScene(Scene scene, Transform ctm, Transform clip) {
+            if (scene.weight)
+                scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(scene.bounds.unit(ctm)));
             return *this;
         }
         size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
