@@ -7,7 +7,6 @@
 //
 #import "Rasterizer.h"
 #import "crc64.h"
-#import <unordered_map>
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
