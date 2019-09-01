@@ -197,16 +197,26 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    template<typename T>
+    struct Vector {
+        uint64_t refCount, hash;
+        std::vector<T> v;
+    };
     struct Scene {
         enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2, kOutlinePoints = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path.ref->isDrawable) {
+                weight += path.ref->types.size();
+//                _paths.ref->v.emplace_back(path), _ctms.ref->v.emplace_back(ctm), _colors.ref->v.emplace_back(color), _widths.ref->v.emplace_back(width), _flags.ref->v.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
+//                _colors.ref->hash = ::crc64(_colors.ref->hash, & color, sizeof(color));
+//                colorHash = _colors.ref->hash;
                 paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
-                weight += path.ref->types.size(), colorHash = ::crc64(colorHash, & color, sizeof(color));
+                colorHash = ::crc64(colorHash, & color, sizeof(color));
             }
         }
         size_t refCount = 0, colorHash = 0, weight = 0;
         std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors; std::vector<float> widths;  std::vector<uint8_t> flags;
+//        Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
         Bounds bounds;
     };
     struct SceneList {
@@ -218,7 +228,7 @@ struct Rasterizer {
             return addScene(sceneRef, Transform(), Transform::nullclip());
         }
         SceneList& addScene(Ref<Scene> sceneRef, Transform ctm, Transform clip) {
-            if (sceneRef.ref->paths.size())
+            if (sceneRef.ref->weight)
                 scenes.emplace_back(sceneRef), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(sceneRef.ref->bounds.unit(ctm)));
             return *this;
         }
@@ -544,7 +554,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawList(SceneList& list, Transform view, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, Transform view, Path *paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
@@ -554,8 +564,9 @@ struct Rasterizer {
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
+                        paths[iz] = scene->paths[is];
                         float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
-                        Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
+                        Transform m = ctm.concat(scene->ctms[is]), unit = paths[iz].ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
@@ -563,9 +574,9 @@ struct Rasterizer {
                             if (bitmap == nullptr) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                               writeGPUPath(scene->paths[is], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
+                               writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
-                                writeBitmapPath(scene->paths[is], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
+                                writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
                     }
                 }
@@ -1178,6 +1189,7 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(Context *ctx,
                                      SceneList& list,
+                                     Path *paths,
                                      size_t begin,
                                      size_t liz,
                                      std::vector<Buffer::Entry>& entries,
@@ -1224,21 +1236,16 @@ struct Rasterizer {
                     
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        writePath(scene->ref->paths[iz - base], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, & info);
-                        size_t upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]), count = info.dst - dst;
-                        if (upper < count) {
-                            upper = scene->ref->paths[iz - base].ref->upperBound(ctms[iz]);
-                        }
+                        writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, & info);
                         if (dst == info.dst)
                             OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, & info);
                         dst = info.dst, ctms[iz] = Transform();
                     } else {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
-                            Path& path = scene->ref->paths[iz - base];
                             Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
                             int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                            Bounds *b = path.ref->mols;
+                            Bounds *b = paths[iz].ref->mols;
                             float ta, tc, ux;
                             Transform& ctm = ctms[iz];
                             for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
