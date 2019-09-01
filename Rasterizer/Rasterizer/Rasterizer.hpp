@@ -214,9 +214,9 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, colorHash = 0, count = 0, weight = 0;
-        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
+        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
+    private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
-        Bounds bounds;
     };
     struct SceneList {
         SceneList& empty() {
