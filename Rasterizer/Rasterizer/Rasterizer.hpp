@@ -570,7 +570,7 @@ struct Rasterizer {
                             if (bitmap == nullptr) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                               writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
+                                writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
