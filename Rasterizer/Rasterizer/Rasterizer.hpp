@@ -333,19 +333,19 @@ struct Rasterizer {
         }
         void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
         
-        Entry *getPath(Geometry *g, Transform ctm) {
-            uint64_t hash = g->cacheHash(ctm);
+        Entry *getPath(Geometry *geometry, Transform ctm) {
+            uint64_t hash = geometry->cacheHash(ctm);
             Grid::Element *el = grid.find(hash);
             if (el) {
                 entries.base[el->index].hit = true;
                 return entries.base + el->index;
             }
-            size_t begin = segments.idx, cbegin = counts.idx, upper = g->upperBound(ctm);
+            size_t begin = segments.idx, cbegin = counts.idx, upper = geometry->upperBound(ctm);
             Output seg(segments.alloc(upper));
-            writePath(g, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, & seg);
+            writePath(geometry, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, & seg);
             segments.end = seg.seg - segments.base;
             segments.idx = segments.end;
-            int *c = counts.alloc(g->molecules.size()), bc = 0, instances = 0;
+            int *c = counts.alloc(geometry->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
                 if (s->x0 == FLT_MAX)
                     *c = int(s - ls), instances += (*c - bc + kFastSegments - 1) / kFastSegments, bc = *c + 1, c++;
