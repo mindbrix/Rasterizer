@@ -15,7 +15,7 @@ struct RasterizerWinding {
                 float ws = sqrtf(fabsf(ctm.det())), w, width;
                 
                 Ra::Scene& scene = *list.scenes[li].ref;
-                for (int si = int(scene.paths.size()) - 1; si >= 0; si--) {
+                for (int si = int(scene.count) - 1; si >= 0; si--) {
                     w = scene.widths[si], width = w * (w < 0.f ? -1.f : ws);
                     int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy, width);
                     bool even = scene.flags[si] & Ra::Scene::kFillEvenOdd;

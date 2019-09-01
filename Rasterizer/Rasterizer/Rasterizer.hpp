@@ -206,17 +206,16 @@ struct Rasterizer {
         enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2, kOutlinePoints = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path.ref->isDrawable) {
-                weight += path.ref->types.size();
-//                _paths.ref->v.emplace_back(path), _ctms.ref->v.emplace_back(ctm), _colors.ref->v.emplace_back(color), _widths.ref->v.emplace_back(width), _flags.ref->v.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
-//                _colors.ref->hash = ::crc64(_colors.ref->hash, & color, sizeof(color));
-//                colorHash = _colors.ref->hash;
-                paths.emplace_back(path), ctms.emplace_back(ctm), colors.emplace_back(color), widths.emplace_back(width), flags.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
-                colorHash = ::crc64(colorHash, & color, sizeof(color));
+                count++, weight += path.ref->types.size();
+                _paths.ref->v.emplace_back(path), _ctms.ref->v.emplace_back(ctm), _colors.ref->v.emplace_back(color), _widths.ref->v.emplace_back(width), _flags.ref->v.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
+                _colors.ref->hash = ::crc64(_colors.ref->hash, & color, sizeof(color));
+                colorHash = _colors.ref->hash;
+                paths = & _paths.ref->v[0], ctms = & _ctms.ref->v[0], colors = & _colors.ref->v[0], widths = & _widths.ref->v[0], flags = & _flags.ref->v[0];
             }
         }
-        size_t refCount = 0, colorHash = 0, weight = 0;
-        std::vector<Path> paths;  std::vector<Transform> ctms;  std::vector<Colorant> colors; std::vector<float> widths;  std::vector<uint8_t> flags;
-//        Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
+        size_t refCount = 0, colorHash = 0, count = 0, weight = 0;
+        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
+        Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
         Bounds bounds;
     };
     struct SceneList {
@@ -236,7 +235,7 @@ struct Rasterizer {
             size_t pathsCount = 0;
             for (int i = 0; i < scenes.size(); i++)
                 if (isVisible(scenes[i].ref->bounds, view.concat(ctms[i]), view.concat(clips[i]), device, 0.f))
-                    pathsCount += scenes[i].ref->paths.size(), visibles.addScene(scenes[i], ctms[i], clips[i]);
+                    pathsCount += scenes[i].ref->count, visibles.addScene(scenes[i], ctms[i], clips[i]);
             return pathsCount;
         }
         std::vector<Ref<Scene>> scenes;  std::vector<Transform> ctms, clips;  Bounds bounds;
@@ -555,7 +554,7 @@ struct Rasterizer {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = list.scenes[0].ref;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, lz = uz) {
-                scene = list.scenes[i].ref, uz = lz + scene->paths.size();
+                scene = list.scenes[i].ref, uz = lz + scene->count;
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
@@ -631,10 +630,10 @@ struct Rasterizer {
         Row<float> deltas;
         std::vector<Row<Segment>> segments;
     };
-    static void writeGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, void *info) {
-        float *p = g->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (size_t index = 0; index < g->types.size(); )
-            switch (g->types[index]) {
+    static void writeGeometry(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, void *info) {
+        float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        for (size_t index = 0; index < geometry->types.size(); )
+            switch (geometry->types[index]) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                         ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
