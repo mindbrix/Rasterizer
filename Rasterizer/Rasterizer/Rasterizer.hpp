@@ -1231,9 +1231,7 @@ struct Rasterizer {
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
                 for (inst = linst; inst < uinst; inst++) {
-                    for (iz = inst->iz & kPathIndexMask; iz - base >= scene->ref->paths.size(); scene++)
-                        base += scene->ref->paths.size();
-                    
+                    iz = inst->iz & kPathIndexMask;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
                         writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, & info);
