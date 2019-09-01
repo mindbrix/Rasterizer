@@ -220,7 +220,7 @@ struct Rasterizer {
     };
     struct SceneList {
         SceneList& empty() {
-            scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
+            pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
             return *this;
         }
         SceneList& addScene(Scene scene) {
@@ -228,17 +228,15 @@ struct Rasterizer {
         }
         SceneList& addScene(Scene scene, Transform ctm, Transform clip) {
             if (scene.weight)
-                scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(scene.bounds.unit(ctm)));
+                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip), bounds.extend(Bounds(scene.bounds.unit(ctm)));
             return *this;
         }
-        size_t writeVisibles(Transform view, Bounds device, SceneList& visibles) {
-            size_t pathsCount = 0;
+        void writeVisibles(Transform view, Bounds device, SceneList& visibles) {
             for (int i = 0; i < scenes.size(); i++)
                 if (isVisible(scenes[i].bounds, view.concat(ctms[i]), view.concat(clips[i]), device, 0.f))
-                    pathsCount += scenes[i].count, visibles.addScene(scenes[i], ctms[i], clips[i]);
-            return pathsCount;
+                    visibles.addScene(scenes[i], ctms[i], clips[i]);
         }
-        std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;  Bounds bounds;
+        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;  Bounds bounds;
     };
     template<typename T>
     struct Memory {

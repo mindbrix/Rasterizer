@@ -99,8 +99,8 @@ struct RasterizerState {
         index = INT_MAX;
         if (mouseMove) {
             Ra::SceneList visibles;
-            size_t pathsCount = list.writeVisibles(view, device, visibles);
-            if (pathsCount) {
+            list.writeVisibles(view, device, visibles);
+            if (visibles.pathsCount) {
                 Ra::Range indices = RasterizerWinding::indicesForPoint(visibles, view, device, scale * x, scale * y);
                 if (indices.begin != INT_MAX) {
                     int idx = 0;

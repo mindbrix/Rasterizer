@@ -262,7 +262,8 @@ struct RasterizerCG {
     }
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, CGContextRef ctx, Ra::Bitmap *bitmap, Ra::Buffer *buffer) {
         Ra::SceneList visibles;
-        size_t pathsCount = list.writeVisibles(state.view, state.device, visibles);
+        list.writeVisibles(state.view, state.device, visibles);
+        size_t pathsCount = visibles.pathsCount;
         if (pathsCount == 0)
             return;
         if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
