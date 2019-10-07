@@ -224,6 +224,7 @@ vertex InstancesVertex instances_vertex_main(
     const device Instance& inst = instances[iid];
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     float f = 1.0, visible = 1.0, dx, dy;
+    bool curve = false;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
@@ -234,6 +235,7 @@ vertex InstancesVertex instances_vertex_main(
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
         bool points = inst.iz & Instance::kPoints;
         bool pcap = points || inst.outline.prev == 0, ncap = points || inst.outline.next == 0;
+        curve = as_type<uint>(o.x0) & 1;
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
@@ -279,7 +281,7 @@ vertex InstancesVertex instances_vertex_main(
     float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * f;
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
-    vert.color = float4(r * a, g * a, b * a, a);
+    vert.color = curve ? float4(a, 0.0, 0.0, a) : float4(r * a, g * a, b * a, a);
     vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
     return vert;
 }

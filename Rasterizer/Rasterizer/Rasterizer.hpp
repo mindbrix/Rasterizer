@@ -1129,7 +1129,8 @@ struct Rasterizer {
         static void writeInstance(float x0, float y0, float x1, float y1, bool curve, void *info) {
             OutlineInfo *in = (OutlineInfo *)info;
             new (in->dst) GPU::Instance(in->iz, GPU::Instance::Type(in->type));
-            new (& in->dst->outline.s) Segment(x0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
+            float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~1) | (curve ? 1 : 0);
+            new (& in->dst->outline.s) Segment(cx0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
             if (x0 == FLT_MAX) {
                 if (in->dst - in->dst0 > 0) {
                     GPU::Outline *first = & in->dst0->outline, *last = & (in->dst - 1)->outline;
