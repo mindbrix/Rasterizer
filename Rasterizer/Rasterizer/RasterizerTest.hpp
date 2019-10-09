@@ -12,6 +12,10 @@ struct RasterizerTest {
         Ra::Scene scene;
         Ra::Colorant color(0, 0, 0, 255);
         if (0) {
+            Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
+            scene.addPath(bbPath, Ra::Transform(), color, 0.f, 0);
+        }
+        if (0) {
             Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
             scene.addPath(bbPath, Ra::Transform(), color, 0.f, 0);
         }
