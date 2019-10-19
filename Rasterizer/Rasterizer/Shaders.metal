@@ -239,7 +239,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        const float width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + cw;
+        const float ow = 0.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
@@ -253,15 +253,15 @@ vertex InstancesVertex instances_vertex_main(
         float lp = endCap * float(pcap), ln = endCap * float(ncap);
         float epx = lp * no.x, epy = lp * no.y;
         float t = ((vo.x + epx) * vy1 - (vo.y + epy) * vx1) / (vx0 * vy1 - vy0 * vx1);
-        float ix = vx0 * t + x0 - epx - no.y * copysign(err, t), iy = vy0 * t + y0 - epy + no.x * copysign(err, t);
         // -y, x
         bool isRight = vid & 1, isUp = vid & 2, crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
         float sgn = isRight ? -1.0 : 1.0, ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
         dx = select(x0 + vx0 * sgn - lp * no.x - ex, x1 + vx1 * sgn + ln * no.x + ex, isUp);
         dy = select(y0 + vy0 * sgn - lp * no.y - ey, y1 + vy1 * sgn + ln * no.y + ey, isUp);
+        float ix = vx0 * t + x0 - epx - no.y * copysign(err, t), iy = vy0 * t + y0 - epy + no.x * copysign(err, t);
         dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, isRight ? dw : 0.0, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, isRight ? 0.0 : dw);
+        vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, (isRight ? dw : (crossed ? (1.0 - t) * 0.5 * dw : 0.0)) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, (isRight ? (crossed ? (1.0 + t) * 0.5 * dw : 0.0) : dw) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
     } else {
