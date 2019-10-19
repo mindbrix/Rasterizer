@@ -289,9 +289,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 {
     float alpha = 1.0, x, y;
     if (vert.isShape) {
-        float rx = saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z)), ry = saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w));
-        x = max(0.0, vert.r - min(vert.shape.x, vert.shape.z)), y = max(0.0, vert.r - min(vert.shape.y, vert.shape.w));
-        alpha = vert.r == 1.0 ? rx * ry : saturate(vert.r - sqrt(x * x + y * y));
+        if (vert.r == 1.0)
+            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
+        else {
+            x = max(0.0, vert.r - min(vert.shape.x, vert.shape.z)), y = max(0.0, vert.r - min(vert.shape.y, vert.shape.w));
+            alpha = saturate(vert.r - sqrt(x * x + y * y));
+        }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
