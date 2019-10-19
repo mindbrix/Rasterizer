@@ -247,8 +247,8 @@ vertex InstancesVertex instances_vertex_main(
         ncap |= dot(no, nn) < -0.939692620785908 || rn * dw > 1e3;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float spo = 0.5 * dw / (curve && pcurve ? 1.0 : (tpo.y * np.y + tpo.x * np.x));
-        float son = 0.5 * dw / (curve && ncurve ? 1.0 : (ton.y * no.y + ton.x * no.x));
+        float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
+        float son = 0.5 * dw / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         float lp = endCap * float(pcap), ln = endCap * float(ncap);
         float epx = lp * no.x, epy = lp * no.y;
@@ -289,8 +289,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 {
     float alpha = 1.0, x, y;
     if (vert.isShape) {
+        float rx = saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z)), ry = saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w));
         x = max(0.0, vert.r - min(vert.shape.x, vert.shape.z)), y = max(0.0, vert.r - min(vert.shape.y, vert.shape.w));
-        alpha = vert.r == 1.0 ? saturate(vert.shape.x) * saturate(vert.shape.z) * saturate(vert.shape.y) * saturate(vert.shape.w) : saturate(vert.r - sqrt(x * x + y * y));
+        alpha = vert.r == 1.0 ? rx * ry : saturate(vert.r - sqrt(x * x + y * y));
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
