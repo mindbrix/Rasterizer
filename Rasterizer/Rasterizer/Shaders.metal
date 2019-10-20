@@ -260,8 +260,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(y0 + vy0 * sgn - lp * no.y - ey, y1 + vy1 * sgn + ln * no.y + ey, isUp);
         float ix = vx0 * t + x0 - epx - no.y * copysign(err, t), iy = vy0 * t + y0 - epy + no.x * copysign(err, t);
         dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
-        float tl = t < 0.0 ? 1.0 : min(1.0, t), tr = t > 0.0 ? -1.0 : max(-1.0, t);
-        float dt = vid & 1 ? tr : tl;
+        float tl = t < 0.0 ? 1.0 : min(1.0, t), tr = t > 0.0 ? -1.0 : max(-1.0, t), dt = vid & 1 ? tr : tl;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
