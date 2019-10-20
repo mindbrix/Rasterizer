@@ -239,12 +239,12 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        const float ow = 0.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        const float ow = 4.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
-        pcap |= dot(np, no) < -0.939692620785908 || rp * dw > 1e3;
-        ncap |= dot(no, nn) < -0.939692620785908 || rn * dw > 1e3;
+        pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
+        ncap |= dot(no, nn) < -0.5 || rn * dw > 1e3;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
@@ -260,8 +260,10 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(y0 + vy0 * sgn - lp * no.y - ey, y1 + vy1 * sgn + ln * no.y + ey, isUp);
         float ix = vx0 * t + x0 - epx - no.y * copysign(err, t), iy = vy0 * t + y0 - epy + no.x * copysign(err, t);
         dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
+        float tl = t < 0.0 ? 1.0 : min(1.0, t), tr = t > 0.0 ? -1.0 : max(-1.0, t);
+        float dt = vid & 1 ? tr : tl;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, (isRight ? dw : (crossed ? (1.0 - t) * 0.5 * dw : 0.0)) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, (isRight ? (crossed ? (1.0 + t) * 0.5 * dw : 0.0) : dw) - ow);
+        vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.isShape = true;
     } else {
@@ -289,9 +291,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 {
     float alpha = 1.0, x, y;
     if (vert.isShape) {
-        if (vert.r == 1.0)
+        if (vert.r == 1.0) {
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
-        else {
+            alpha = saturate(alpha + 0.333);
+        } else {
             x = max(0.0, vert.r - min(vert.shape.x, vert.shape.z)), y = max(0.0, vert.r - min(vert.shape.y, vert.shape.w));
             alpha = saturate(vert.r - sqrt(x * x + y * y));
         }
