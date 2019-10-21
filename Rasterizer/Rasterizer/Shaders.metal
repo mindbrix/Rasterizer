@@ -264,6 +264,7 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
+        vert.u = float(vid == 2), vert.v = float(vid == 0);
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -296,6 +297,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             x = max(0.0, vert.r - min(vert.shape.x, vert.shape.z)), y = max(0.0, vert.r - min(vert.shape.y, vert.shape.w));
             alpha = saturate(vert.r - sqrt(x * x + y * y));
         }
+//        float ux = vert.u + 0.5 * vert.v, fx = 2.0 * ux * dfdx(ux) - dfdx(vert.u), fy = 2.0 * ux * dfdy(ux) - dfdy(vert.u);
+//        alpha = saturate(0.5 + (vert.u - ux * ux) * rsqrt(fx * fx + fy * fy));
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
