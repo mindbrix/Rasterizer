@@ -234,12 +234,13 @@ vertex InstancesVertex instances_vertex_main(
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
         bool points = inst.iz & Instance::kPoints;
         bool pcap = points || inst.outline.prev == 0, ncap = points || inst.outline.next == 0;
-        bool curve = as_type<uint>(o.x0) & 1, pcurve = as_type<uint>(p.x0) & 1, ncurve = as_type<uint>(n.x0) & 1;
+        bool pcurve = (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(p.x0) & 3) == (as_type<uint>(o.x0) & 3);
+        bool ncurve = (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(o.x0) & 3) == (as_type<uint>(n.x0) & 3);
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        const float ow = 0.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        const float ow = 4.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
@@ -264,15 +265,14 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
-        vert.u = float(vid == 2), vert.v = float(vid == 0);
-        vert.isCurve = curve && (pcurve || ncurve);
+        vert.isCurve = pcurve || ncurve;
         float cpx, cpy, area;
         if (pcurve) {
             cpx = 2.0 * x0 - 0.5 * (px + x1), cpy = 2.0 * y0 - 0.5 * (py + y1);
             cpx = 0.5 * cpx + 0.5 * x1, cpy = 0.5 * cpy + 0.5 * y1;
         } else {
             cpx = 2.0 * x1 - 0.5 * (x0 + nx), cpy = 2.0 * y1 - 0.5 * (y0 + ny);
-            cpx = 0.5 * x0 + 0.5 * cpx, cpy = 0.5 * y0 + 0.5 * cpx;
+            cpx = 0.5 * x0 + 0.5 * cpx, cpy = 0.5 * y0 + 0.5 * cpy;
         }
         area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
         vert.u = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
@@ -311,7 +311,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         }
         if (vert.isCurve) {
             float ux = vert.u + 0.5 * vert.v, fx = 2.0 * ux * dfdx(ux) - dfdx(vert.u), fy = 2.0 * ux * dfdy(ux) - dfdy(vert.u);
-            alpha = saturate(0.5 + (vert.u - ux * ux) * rsqrt(fx * fx + fy * fy));
+            alpha = saturate(1.0 - abs(vert.u - ux * ux) * rsqrt(fx * fx + fy * fy));
+//            alpha = saturate(0.5 + (vert.u - ux * ux) * rsqrt(fx * fx + fy * fy));
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
