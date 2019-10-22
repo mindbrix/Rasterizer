@@ -265,7 +265,19 @@ vertex InstancesVertex instances_vertex_main(
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         vert.u = float(vid == 2), vert.v = float(vid == 0);
-        vert.isShape = true, vert.isCurve = false;
+        vert.isCurve = curve && (pcurve || ncurve);
+        float cpx, cpy, area;
+        if (pcurve) {
+            cpx = 2.0 * x0 - 0.5 * (px + x1), cpy = 2.0 * y0 - 0.5 * (py + y1);
+            cpx = 0.5 * cpx + 0.5 * x1, cpy = 0.5 * cpy + 0.5 * y1;
+        } else {
+            cpx = 2.0 * x1 - 0.5 * (x0 + nx), cpy = 2.0 * y1 - 0.5 * (y0 + ny);
+            cpx = 0.5 * x0 + 0.5 * cpx, cpy = 0.5 * y0 + 0.5 * cpx;
+        }
+        area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
+        vert.u = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
+        vert.v = ((x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0)) / area;
+        vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
