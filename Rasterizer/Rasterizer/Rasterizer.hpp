@@ -278,7 +278,7 @@ struct Rasterizer {
     };
     struct SegmentCounter {
         size_t count = 0;
-        static void increment(float x0, float y0, float x1, float y1, bool curve, void *info) {
+        static void increment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             ((SegmentCounter *)info)->count++;
         }
     };
@@ -452,12 +452,12 @@ struct Rasterizer {
         Row<Instance> blends, opaques;
         Cache cache;
     };
-    typedef void (*Function)(float x0, float y0, float x1, float y1, bool curve, void *info);
-    static void writeOutlineSegment(float x0, float y0, float x1, float y1, bool curve, void *info) {
+    typedef void (*Function)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
+    static void writeOutlineSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         Output *out = (Output *)info;
         new (out->seg) Segment(x0, y0, x1, y1), out->seg++;
     }
-    static void writeClippedSegment(float x0, float y0, float x1, float y1, bool curve, void *info) {
+    static void writeClippedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (y0 != y1) {
             Output *out = (Output *)info;
             size_t iy0 = y0 * krfh;
@@ -481,7 +481,7 @@ struct Rasterizer {
             new (segments->alloc(1)) Segment(sx[i0], sy[i0], sx[i1], sy[i1]);
         }
     }
-    static void writeDeltaSegment(float x0, float y0, float x1, float y1, bool curve, void *info) {
+    static void writeDeltaSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (y0 != y1) {
             Output *out = (Output *)info;
             float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
@@ -521,7 +521,7 @@ struct Rasterizer {
     };
     struct OutlineOutput {
         Bounds clip;  bool soft;  Transform clipctm;  uint8_t *src;  float width;  bool rounded;  Bitmap *bm;
-        static void writePixels(float x0, float y0, float x1, float y1, bool curve, void *info) {
+        static void writePixels(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (x0 != x1 || y0 != y1) {
                 OutlineOutput *out = (OutlineOutput *)info;
                 float cw = out->width < 1.f ? 1.f : out->width;
@@ -636,24 +636,24 @@ struct Rasterizer {
                             if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
                                 writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
                             else
-                                (*function)(x0, y0, sx, sy, false, info);
+                                (*function)(x0, y0, sx, sy, 0, info);
                         }
                     }
                     if (mark && sx != FLT_MAX)
-                        (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, false, info);
+                        (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, 0, info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty, p += 2, index++;
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     if (unclipped)
-                        (*function)(x0, y0, x1, y1, false, info);
+                        (*function)(x0, y0, x1, y1, 0, info);
                     else {
                         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
                         if (ly < clip.uy && uy > clip.ly) {
                             if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
                                 writeClippedLine(x0, y0, x1, y1, clip, polygon, function, info);
                             else
-                                (*function)(x0, y0, x1, y1, false, info);
+                                (*function)(x0, y0, x1, y1, 0, info);
                         }
                     }
                     x0 = x1, y0 = y1, p += 2, index++;
@@ -711,11 +711,11 @@ struct Rasterizer {
                 if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
                     writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
                 else
-                    (*function)(x0, y0, sx, sy, false, info);
+                    (*function)(x0, y0, sx, sy, 0, info);
             }
         }
         if (mark && sx != FLT_MAX)
-            (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, false, info);
+            (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, 0, info);
     }
     static void writeClippedLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Function function, void *info) {
         float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
@@ -737,9 +737,9 @@ struct Rasterizer {
                 if (mx >= clip.lx && mx < clip.ux) {
                     sx0 = x0 + t[0] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
                     sx1 = x0 + t[1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                    (*function)(sx0, sy0, sx1, sy1, false, info);
+                    (*function)(sx0, sy0, sx1, sy1, 0, info);
                 } else if (polygon)
-                    vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, false, info);
+                    vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
             }
     }
     static float *solveQuadratic(double A, double B, double C, float *ts) {
@@ -782,7 +782,7 @@ struct Rasterizer {
                             function, info);
                     } else if (polygon) {
                         vx = mx <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, false, info);
+                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, 0, info);
                     }
                 }
             }
@@ -791,16 +791,17 @@ struct Rasterizer {
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
+      //  a *= 1e-2f;
         count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
         ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
         ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
         x1 = x0, y1 = y0;
         while (--count) {
             x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-            (*function)(x0, y0, x1, y1, true, info);
+            (*function)(x0, y0, x1, y1, 1, info);
             x0 = x1, y0 = y1;
         }
-        (*function)(x0, y0, x2, y2, true, info);
+        (*function)(x0, y0, x2, y2, 1, info);
     }
     static float *solveCubic(double A, double B, double C, double D, float *ts) {
         if (fabs(D) < 1e-3)
@@ -863,7 +864,7 @@ struct Rasterizer {
                         );
                     } else if (polygon) {
                         vx = mx <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3, false, info);
+                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3, 0, info);
                     }
                 }
             }
@@ -874,6 +875,7 @@ struct Rasterizer {
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         a = ax * ax + ay * ay + bx * bx + by * by;
+       // a *= 1e-2f;
         count = a < 0.1f ? 1.f : a < 16.f ? 3.f : 2.f + floorf(sqrtf(sqrtf(a)));
         dt = 1.f / count, dt2 = dt * dt;
         bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
@@ -881,10 +883,10 @@ struct Rasterizer {
         x1 = x0, y1 = y0;
         while (--count) {
             x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
-            (*function)(x0, y0, x1, y1, true, info);
+            (*function)(x0, y0, x1, y1, 1, info);
             x0 = x1, y0 = y1;
         }
-        (*function)(x0, y0, x3, y3, true, info);
+        (*function)(x0, y0, x3, y3, 1, info);
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
@@ -1126,10 +1128,10 @@ struct Rasterizer {
     };
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
-        static void writeInstance(float x0, float y0, float x1, float y1, bool curve, void *info) {
+        static void writeInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             OutlineInfo *in = (OutlineInfo *)info;
             new (in->dst) GPU::Instance(in->iz, GPU::Instance::Type(in->type));
-            float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~1) | (curve ? 1 : 0);
+            float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~1) | curve;
             new (& in->dst->outline.s) Segment(cx0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
             if (x0 == FLT_MAX) {
                 if (in->dst - in->dst0 > 0) {
