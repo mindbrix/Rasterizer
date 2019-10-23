@@ -265,7 +265,6 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
-        vert.isCurve = pcurve || ncurve;
         float cpx, cpy, area;
         if (pcurve) {
             cpx = 2.0 * x0 - 0.5 * (px + x1), cpy = 2.0 * y0 - 0.5 * (py + y1);
@@ -277,6 +276,7 @@ vertex InstancesVertex instances_vertex_main(
         area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
         vert.u = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
         vert.v = ((x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0)) / area;
+        vert.isCurve = abs(area) > 4.0 && (pcurve || ncurve);
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
