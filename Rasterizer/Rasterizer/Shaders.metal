@@ -273,7 +273,7 @@ vertex InstancesVertex instances_vertex_main(
         area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
         vert.u = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
         vert.v = ((x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0)) / area;
-        vert.isCurve = abs(area) > 4.0 && (pcurve || ncurve);
+        vert.isCurve = abs(area) > 1.0 && (pcurve || ncurve);
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
