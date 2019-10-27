@@ -291,7 +291,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
     const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0, a = paint.src3 / 255.0 * f;
+    float r = paint.src2 * 0.003921568627, g = paint.src1 * 0.003921568627, b = paint.src0 * 0.003921568627, a = paint.src3 * 0.003921568627 * f;
     
     vert.position = float4(x * visible, y * visible, z * visible, 1.0);
     vert.color = float4(r * a, g * a, b * a, a);
