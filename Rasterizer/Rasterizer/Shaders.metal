@@ -249,6 +249,7 @@ vertex InstancesVertex instances_vertex_main(
         else
             cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
         area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
+        vert.isCurve &= abs(area) > 1.0;
         
         const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
