@@ -222,7 +222,8 @@ vertex InstancesVertex instances_vertex_main(
     InstancesVertex vert;
     constexpr float err = 1.0 / 32.0;
     const device Instance& inst = instances[iid];
-    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+    uint iz = inst.iz & kPathIndexMask;
+    const device Transform& m = affineTransforms[iz];
     float f = 1.0, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
@@ -251,7 +252,7 @@ vertex InstancesVertex instances_vertex_main(
         area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
         vert.isCurve &= abs(area) > 1.0;
         
-        const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
@@ -289,13 +290,13 @@ vertex InstancesVertex instances_vertex_main(
         vert.sampled = (inst.iz & Instance::kSolidCell) == 0;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
-    float z = ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2);
-    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
-    float r = paint.src2 * 0.003921568627, g = paint.src1 * 0.003921568627, b = paint.src0 * 0.003921568627, a = paint.src3 * 0.003921568627 * f;
-    
+    float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, visible);
-    vert.color = float4(r * a, g * a, b * a, a);
-    vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
+    
+    const device Colorant& paint = paints[iz];
+    float a = paint.src3 * 0.003921568627 * f, ma = a * 0.003921568627;
+    vert.color = float4(paint.src2 * ma, paint.src1 * ma, paint.src0 * ma, a);
+    vert.clip = distances(clips[iz], dx, dy);
     return vert;
 }
 
