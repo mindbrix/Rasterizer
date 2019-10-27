@@ -312,16 +312,16 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c;
             float x1 = x2 - b, y1 = y2 + a;
-            float ax = x2 - x0, ay = y2 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
             
 //            float yt1 = max(1e-9, saturate((ax * (x1 - x0) + ay * (y1 - y0)) / (ax * ax + ay * ay)));
 //            float discriminant = sqrt(fma(yt1, fma(-2.0, t, yt1), t));
 //            t = saturate(t / (yt1 + discriminant));
             
-            float tx0 = (1.0 - t) * x0 + t * x1, tx1 = (1.0 - t) * x1 + t * x2;
-            float ty0 = (1.0 - t) * y0 + t * y1, ty1 = (1.0 - t) * y1 + t * y2;
+            float ax = x2 - x0, ay = y2 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), s = 1.0 - t;
+            float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
+            float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
-            alpha = saturate(1.0 - abs(tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy));
+            alpha = saturate(0.5 * (vert.shape.y + vert.shape.w) - abs(tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy));
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
