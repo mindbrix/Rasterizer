@@ -233,8 +233,7 @@ vertex InstancesVertex instances_vertex_main(
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        bool pcurve = inst.outline.prev == -1 && (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(p.x0) & 3) == (as_type<uint>(o.x0) & 3);
-        bool ncurve = inst.outline.next == 1 && (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(o.x0) & 3) == (as_type<uint>(n.x0) & 3);
+        bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
         bool points = inst.iz & Instance::kPoints;
         bool pcap = points || inst.outline.prev == 0, ncap = points || inst.outline.next == 0;
         float2 vo = float2(x1 - x0, y1 - y0);
