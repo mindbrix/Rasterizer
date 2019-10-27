@@ -234,16 +234,25 @@ vertex InstancesVertex instances_vertex_main(
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
         bool points = inst.iz & Instance::kPoints;
         bool pcap = points || inst.outline.prev == 0, ncap = points || inst.outline.next == 0;
-        bool pcurve = inst.outline.prev == -1 && (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(p.x0) & 3) == (as_type<uint>(o.x0) & 3);
-        bool ncurve = inst.outline.next == 1 && (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(o.x0) & 3) == (as_type<uint>(n.x0) & 3);
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        const float ow = 4.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        float2 no = vo / lo, np = vp * rp, nn = vn * rn;
+        
+        bool pcurve = inst.outline.prev == -1 && (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(p.x0) & 3) == (as_type<uint>(o.x0) & 3);
+        bool ncurve = inst.outline.next == 1 && (as_type<uint>(o.x0) & 1) == 1 && (as_type<uint>(o.x0) & 3) == (as_type<uint>(n.x0) & 3);
+        vert.isCurve = pcurve || ncurve;
+        float cpx, cpy, area;
+        if (pcurve)
+            cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
+        else
+            cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
+        area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
+        
+        const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[inst.iz & kPathIndexMask], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
-        float2 no = vo / lo, np = vp * rp, nn = vn * rn;
         pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
         ncap |= dot(no, nn) < -0.5 || rn * dw > 1e3;
         np = pcap ? no : np, nn = ncap ? no : nn;
@@ -265,15 +274,8 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
-        float cpx, cpy, area;
-        if (pcurve)
-            cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
-        else
-            cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
-        area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
         vert.u = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
         vert.v = ((x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0)) / area;
-        vert.isCurve = abs(area) > 1.0 && (pcurve || ncurve);
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
