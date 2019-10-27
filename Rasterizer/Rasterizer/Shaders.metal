@@ -293,7 +293,7 @@ vertex InstancesVertex instances_vertex_main(
     const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
     float r = paint.src2 * 0.003921568627, g = paint.src1 * 0.003921568627, b = paint.src0 * 0.003921568627, a = paint.src3 * 0.003921568627 * f;
     
-    vert.position = float4(x * visible, y * visible, z * visible, 1.0);
+    vert.position = float4(x, y, z, visible);
     vert.color = float4(r * a, g * a, b * a, a);
     vert.clip = distances(clips[inst.iz & kPathIndexMask], dx, dy);
     return vert;
