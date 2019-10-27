@@ -319,7 +319,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 //            float discriminant = sqrt(fma(yt1, fma(-2.0, t, yt1), t));
 //            t = saturate(t / (yt1 + discriminant));
             
-            float ax = x2 - x0, ay = y2 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), s = 1.0 - t;
+            float t = saturate(-(-d * x0 + c * y0) / (d * d + c * c)), s = 1.0 - t;
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
