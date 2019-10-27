@@ -310,8 +310,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             alpha = saturate(vert.r - sqrt(x * x + y * y));
         }
         if (vert.isCurve) {
-            float a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v), invdet = 1.0 / (a * d - b * c);
-            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+            float a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             float x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c;
             float x1 = x2 - b, y1 = y2 + a;
@@ -324,7 +323,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
-            alpha = saturate(0.5 * (vert.shape.y + vert.shape.w) - abs(tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy));
+            alpha = saturate(0.5 * (vert.shape.y + vert.shape.w) - abs((tx1 * ty0 - ty1 * tx0) / (a * d - b * c)) * rsqrt(vx * vx + vy * vy));
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
