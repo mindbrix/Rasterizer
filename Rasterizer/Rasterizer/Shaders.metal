@@ -315,10 +315,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float x0 = x2 + d, y0 = y2 - c;
             float x1 = x2 - b, y1 = y2 + a;
 
-            float scale = d * d + c * c, t = saturate(-(-d * x0 + c * y0) / scale);
-            float yt1 = max(1e-9, saturate((-d * (x1 - x0) + c * (y1 - y0)) / scale));
+            float scale = d * d + c * c, t = -(-d * x0 + c * y0) / scale;
+            float yt1 = max(1e-9, (-d * (x1 - x0) + c * (y1 - y0)) / scale);
             float discriminant = sqrt(fma(yt1, fma(-2.0, t, yt1), t));
-            t = saturate(t / (yt1 + discriminant));
+            t = (t / (yt1 + discriminant));
             float s = 1.0 - t;
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
