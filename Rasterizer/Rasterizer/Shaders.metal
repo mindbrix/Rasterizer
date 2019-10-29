@@ -206,7 +206,7 @@ struct InstancesVertex
     float4 position [[position]];
     float4 color;
     float4 clip, shape;
-    float u, v;
+    float u, v, tu, tv;
     float cover, r;
     bool isShape, even, sampled, isCurve;
 };
@@ -243,12 +243,13 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
         
         vert.isCurve = pcurve || ncurve;
-        float cpx, cpy, area;
+        float cpx, cpy, ax, ay, bx, by, cx, cy, area;
         if (pcurve)
             cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
         else
             cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
-        area = (x1 - x0) * (cpy - y0) - (y1 - y0) * (cpx - x0);
+        ax = x1 - x0, ay = y1 - y0, bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
+        area = ax * by - ay * bx;
         vert.isCurve &= abs(area) > 1.0;
         
         const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
@@ -275,8 +276,17 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
-        vert.u = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
-        vert.v = ((x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0)) / area;
+        
+        vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
+        vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
+        vx0 = by, vy0 = -bx, vx1 = cy, vy1 = -cx;
+        t = (ax * vy1 - ay * vx1) / (vx0 * vy1 - vy0 * vx1);
+        cpx = vx0 * t + x0, cpy = vy0 * t + y0;
+        bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
+        area = ax * by - ay * bx;
+        vert.tu = (cx * (dy - y1) - cy * (dx - x1)) / area;
+        vert.tv = (ax * (dy - y0) - ay * (dx - x0)) / area;
+        
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -315,10 +325,11 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float x0 = x2 + d, y0 = y2 - c;
             float x1 = x2 - b, y1 = y2 + a;
 
-            float scale = d * d + c * c, t = -(-d * x0 + c * y0) / scale;
-            float yt1 = max(1e-9, (-d * (x1 - x0) + c * (y1 - y0)) / scale);
-            float discriminant = sqrt(fma(yt1, fma(-2.0, t, yt1), t));
-            t = (t / (yt1 + discriminant));
+            float t = saturate((1.0 - vert.tu - vert.tv) / (1.0 - vert.tv));
+//            float scale = d * d + c * c, t = -(-d * x0 + c * y0) / scale;
+//            float yt1 = max(1e-9, (-d * (x1 - x0) + c * (y1 - y0)) / scale);
+//            float discriminant = sqrt(fma(yt1, fma(-2.0, t, yt1), t));
+//            t = (t / (yt1 + discriminant));
             float s = 1.0 - t;
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
