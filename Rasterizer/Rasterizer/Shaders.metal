@@ -279,12 +279,10 @@ vertex InstancesVertex instances_vertex_main(
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
-        vx0 = by, vy0 = -bx, vx1 = cy, vy1 = -cx;
-        t = (ax * vy1 - ay * vx1) / (vx0 * vy1 - vy0 * vx1);
-        cpx = vx0 * t + x0, cpy = vy0 * t + y0;
-        bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
-        area = ax * by - ay * bx;
-        vert.tu = (cx * (dy - y1) - cy * (dx - x1)) / area;
+        t = (ax * -cx - ay * cy) / (by * -cx - -bx * cy);
+        cpx = by * t + x0, cpy = -bx * t + y0;
+        area = ax * (cpy - y0) - ay * (cpx - x0);
+        vert.tu = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
         vert.tv = (ax * (dy - y0) - ay * (dx - x0)) / area;
         
         vert.isShape = true;
