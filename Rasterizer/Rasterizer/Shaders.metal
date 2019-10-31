@@ -220,7 +220,7 @@ vertex InstancesVertex instances_vertex_main(
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
-    constexpr float err = 1.0 / 32.0;
+    constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Transform& m = affineTransforms[iz];
