@@ -241,6 +241,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
         float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
+        visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
         vert.isCurve = pcurve || ncurve;
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
@@ -262,19 +263,16 @@ vertex InstancesVertex instances_vertex_main(
         float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
         float son = 0.5 * dw / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
-        float lp = endCap * float(pcap), ln = endCap * float(ncap);
-        float epx = lp * no.x, epy = lp * no.y;
-        float t = ((vo.x + epx) * vy1 - (vo.y + epy) * vx1) / (vx0 * vy1 - vy0 * vx1);
-        // -y, x
-        bool isRight = vid & 1, isUp = vid & 2, crossed = (!isRight && t > 0.0 && t < 1.0) || (isRight && t < 0.0 && t > -1.0);
-        float sgn = isRight ? -1.0 : 1.0, ex = err * no.x * float(crossed), ey = err * no.y * float(crossed);
-        dx = select(x0 + vx0 * sgn - lp * no.x - ex, x1 + vx1 * sgn + ln * no.x + ex, isUp);
-        dy = select(y0 + vy0 * sgn - lp * no.y - ey, y1 + vy1 * sgn + ln * no.y + ey, isUp);
-        float ix = vx0 * t + x0 - epx - no.y * copysign(err, t), iy = vy0 * t + y0 - epy + no.x * copysign(err, t);
-        dx = select(dx, ix, crossed), dy = select(dy, iy, crossed);
+        
+        float lp = endCap * float(pcap) + err, ln = endCap * float(ncap) + err;
+        float px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
+        float px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
+        float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         float tl = t < 0.0 ? 1.0 : min(1.0, t), tr = t > 0.0 ? -1.0 : max(-1.0, t), dt = vid & 1 ? tr : tl;
-        visible = float(o.x0 != FLT_MAX && lo > 1e-2);
-        vert.shape = float4(pcap ? (isUp ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (isUp ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
+        dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
+        dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
+        
+        vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
         vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
