@@ -801,7 +801,7 @@ struct Rasterizer {
             (*function)(x0, y0, x1, y1, 1, info);
             x0 = x1, y0 = y1;
         }
-        (*function)(x0, y0, x2, y2, 2, info);
+        (*function)(x0, y0, x2, y2, dt == 1.f ? 0 : 2, info);
     }
     static float *solveCubic(double A, double B, double C, double D, float *ts) {
         if (fabs(D) < 1e-3)
@@ -886,7 +886,7 @@ struct Rasterizer {
             (*function)(x0, y0, x1, y1, 1, info);
             x0 = x1, y0 = y1;
         }
-        (*function)(x0, y0, x3, y3, 2, info);
+        (*function)(x0, y0, x3, y3, dt == 1.f ? 0 : 2, info);
     }
     static inline float alphaForCover(float cover, bool even) {
         float alpha = fabsf(cover);
