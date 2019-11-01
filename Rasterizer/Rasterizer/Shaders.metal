@@ -255,7 +255,6 @@ vertex InstancesVertex instances_vertex_main(
         
         const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
-        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
         ncap |= dot(no, nn) < -0.5 || rn * dw > 1e3;
         np = pcap ? no : np, nn = ncap ? no : nn;
@@ -264,6 +263,7 @@ vertex InstancesVertex instances_vertex_main(
         float son = 0.5 * dw / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         
+        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
         float lp = endCap * float(pcap) + err, ln = endCap * float(ncap) + err;
         float px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
