@@ -223,9 +223,9 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
-    const device Transform& m = affineTransforms[iz];
     float f = 1.0, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
+        const device Transform& m = affineTransforms[iz];
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
