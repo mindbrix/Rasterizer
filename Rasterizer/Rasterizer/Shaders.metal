@@ -245,8 +245,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.isCurve = (pcurve || ncurve) && abs(area) > 1.0;
         
         bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
-        float2 vp = float2(x0 - px, y0 - py);
-        float2 vn = float2(nx - x1, ny - y1);
+        float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
