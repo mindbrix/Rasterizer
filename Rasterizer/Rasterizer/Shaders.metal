@@ -38,7 +38,7 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kPoints = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
     union { Quad quad;  Outline outline; };
     uint32_t iz;
 };
@@ -234,8 +234,7 @@ vertex InstancesVertex instances_vertex_main(
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
         bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
-        bool points = inst.iz & Instance::kPoints;
-        bool pcap = points || inst.outline.prev == 0, ncap = points || inst.outline.next == 0;
+        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         float2 vo = float2(x1 - x0, y1 - y0);
         float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
         float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
@@ -252,7 +251,7 @@ vertex InstancesVertex instances_vertex_main(
         area = ax * by - ay * bx;
         vert.isCurve = (pcurve || ncurve) && abs(area) > 1.0;
         
-        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = points ? lo : widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
         ncap |= dot(no, nn) < -0.5 || rn * dw > 1e3;

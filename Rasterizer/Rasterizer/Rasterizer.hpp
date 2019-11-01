@@ -202,7 +202,7 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct Scene {
-        enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2, kOutlinePoints = 1 << 3 };
+        enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path.ref->isDrawable) {
                 count++, weight += path.ref->types.size();
@@ -430,7 +430,7 @@ struct Rasterizer {
             short prev, next;
         };
         struct Instance {
-            enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kPoints = 1 << 30, kMolecule = 1 << 31 };
+            enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
             Instance(size_t iz, int type) : iz((uint32_t)iz | type) {}
             union { Quad quad;  Outline outline; };
             uint32_t iz;
@@ -594,8 +594,7 @@ struct Rasterizer {
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
-                    | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0)
-                    | (flags & Scene::kOutlinePoints ? GPU::Instance::kPoints : 0));
+                    | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
                 inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                 if (fabsf(ctm.det()) > 1e2f) {
                     SegmentCounter counter;  writePath(geometry, ctm, inst->outline.clip, false, false, true, SegmentCounter::increment, & counter);  gpu.outlineUpper += counter.count;
