@@ -243,7 +243,6 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = vo / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
-        vert.isCurve = pcurve || ncurve;
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
         if (pcurve)
             cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
@@ -251,9 +250,9 @@ vertex InstancesVertex instances_vertex_main(
             cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
         ax = x1 - x0, ay = y1 - y0, bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
-        vert.isCurve &= abs(area) > 1.0;
+        vert.isCurve = (pcurve || ncurve) && abs(area) > 1.0;
         
-        const float ow = vert.isCurve ? 0.5 * abs(-no.y * (cpx - x0) + no.x * (cpy - y0)) : 0.0, width = points ? lo : widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = points ? lo : widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
         f = width / cw;
         pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
         ncap |= dot(no, nn) < -0.5 || rn * dw > 1e3;
