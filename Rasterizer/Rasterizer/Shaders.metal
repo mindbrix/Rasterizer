@@ -233,15 +233,8 @@ vertex InstancesVertex instances_vertex_main(
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
         float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
-        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
-        float2 vo = float2(x1 - x0, y1 - y0);
-        float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
-        float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
-        float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        float2 no = vo / lo, np = vp * rp, nn = vn * rn;
-        visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
+        bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
         if (pcurve)
             cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
@@ -251,17 +244,26 @@ vertex InstancesVertex instances_vertex_main(
         area = ax * by - ay * bx;
         vert.isCurve = (pcurve || ncurve) && abs(area) > 1.0;
         
-        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = widths[iz], cw = max(1.0, width), dw = 1.0 + 2.0 * ow + cw;
+        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
+        float2 vo = float2(x1 - x0, y1 - y0);
+        float2 vp = select(float2(x0 - px, y0 - py), -vo, pcap);
+        float2 vn = select(float2(nx - x1, ny - y1), vo, ncap);
+        float lo = sqrt(dot(vo, vo)), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        float2 no = vo / lo, np = vp * rp, nn = vn * rn;
+        visible = float(o.x0 != FLT_MAX && lo > 1e-2);
+        
+        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = widths[iz], cw = max(1.0, width), dw = 0.5 + ow + 0.5 * cw;
         f = width / cw;
-        pcap |= dot(np, no) < -0.5 || rp * dw > 1e3;
-        ncap |= dot(no, nn) < -0.5 || rn * dw > 1e3;
+        
+        pcap |= dot(np, no) < -0.5 || rp * dw > 5e2;
+        ncap |= dot(no, nn) < -0.5 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float spo = 0.5 * dw / (tpo.y * np.y + tpo.x * np.x);
-        float son = 0.5 * dw / (ton.y * no.y + ton.x * no.x);
+        float spo = dw / (tpo.y * np.y + tpo.x * np.x);
+        float son = dw / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         
-        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : 0.5 * dw;
+        const float endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw;
         float lp = endCap * float(pcap) + err, ln = endCap * float(ncap) + err;
         float px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
@@ -270,8 +272,8 @@ vertex InstancesVertex instances_vertex_main(
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
-        vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : 1e6, 0.5 * dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : 1e6, 0.5 * dw * (1.0 + dt) - ow);
-        vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : 0.5 * dw;
+        vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : 1e6, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : 1e6, dw * (1.0 + dt) - ow);
+        vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : dw;
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
@@ -329,6 +331,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(0.5 * (vert.shape.y + vert.shape.w) - abs((tx1 * ty0 - ty1 * tx0) / (a * d - b * c)) * rsqrt(vx * vx + vy * vy));
+            //return select(vert.color, float4(1, 0, 0, 1), a * d - b * c < 0) * alpha;
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
