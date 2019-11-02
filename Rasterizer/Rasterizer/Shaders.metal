@@ -207,8 +207,8 @@ struct InstancesVertex
     float4 color;
     float4 clip, shape;
     float u, v, tu, tv;
-    float cover, r;
-    bool isShape, even, sampled, isCurve;
+    float cover;
+    bool isShape, isRounded, even, sampled, isCurve;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -270,7 +270,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : 1e6, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : 1e6, dw * (1.0 + dt) - ow);
-        vert.r = (inst.iz & Instance::kRounded) == 0 ? 1.0 : dw;
+        vert.isRounded = inst.iz & Instance::kRounded;
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
@@ -304,14 +304,14 @@ vertex InstancesVertex instances_vertex_main(
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
-    float alpha = 1.0, x, y;
+    float alpha = 1.0;
     if (vert.isShape) {
-        if (vert.r == 1.0)
+        float dw = 0.5 * (vert.shape.y + vert.shape.w);
+        if (vert.isRounded) {
+            float x = max(0.0, dw - min(vert.shape.x, vert.shape.z)), y = max(0.0, dw - min(vert.shape.y, vert.shape.w));
+            alpha = saturate(dw - sqrt(x * x + y * y));
+        } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
-        else {
-            x = max(0.0, vert.r - min(vert.shape.x, vert.shape.z)), y = max(0.0, vert.r - min(vert.shape.y, vert.shape.w));
-            alpha = saturate(vert.r - sqrt(x * x + y * y));
-        }
         if (vert.isCurve) {
             float a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v), det = a * d - b * c;
             float x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
@@ -327,7 +327,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
-            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(0.5 * (vert.shape.y + vert.shape.w) - abs((tx1 * ty0 - ty1 * tx0) / det) * rsqrt(vx * vx + vy * vy));
+            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(dw - abs((tx1 * ty0 - ty1 * tx0) / det) * rsqrt(vx * vx + vy * vy));
            // return select(vert.color, float4(1, 0, 0, 1), det < 0) * alpha;
         }
     } else if (vert.sampled) {
