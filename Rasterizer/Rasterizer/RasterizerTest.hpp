@@ -14,9 +14,12 @@ struct RasterizerTest {
         if (0) {
             Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
             Ra::Path quadPath;  quadPath.ref->moveTo(0, 0), quadPath.ref->quadTo(0, 10, 100, 100), quadPath.ref->quadTo(100, 90, 0, 0);
+            Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100), endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
-            scene.addPath(quadPath, Ra::Transform(), red, 0.f, 0);
-            scene.addPath(quadPath, Ra::Transform(), black, 10.f, 0);
+            scene.addPath(endsPath, Ra::Transform(), black, 100.f, Ra::Scene::kOutlineEndCap);
+            
+            //scene.addPath(quadPath, Ra::Transform(), red, 0.f, 0);
+           // scene.addPath(quadPath, Ra::Transform(), black, 10.f, 0);
         }
         if (0) {
             Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
