@@ -390,7 +390,7 @@ struct Rasterizer {
                 width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
             Cell allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t edgeInstances, size_t fastInstances) {
-                float w = ux - lx, h = uy - ly;
+                float w = ceilf((ux - lx) / kChannels), h = uy - ly;
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 Bounds *b = & strip;
                 float hght = kfh;
@@ -407,7 +407,7 @@ struct Rasterizer {
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
-                Cell cell(lx, ly, ux, uy, b->lx, b->ly);
+                Cell cell(lx, ly, lx + w, uy, b->lx, b->ly);
                 b->lx += w, pass->cells += cells, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastInstances += fastInstances;
                 return cell;
             }

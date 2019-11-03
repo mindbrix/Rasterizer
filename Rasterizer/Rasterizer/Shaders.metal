@@ -61,8 +61,8 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
-float winding0(float x0, float y0, float x1, float y1) {
-    float w0, w1, cover, dx, dy, a0, t, dt = 0.0;
+float winding(float x0, float y0, float x1, float y1) {
+    float w0, w1, cover, dx, dy, a0, dt = 0.0;
     w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
     if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return cover;
@@ -75,17 +75,12 @@ float winding0(float x0, float y0, float x1, float y1) {
      */
 }
 
-float winding(float x0, float y0, float x1, float y1) {
+float winding0(float x0, float y0, float x1, float y1) {
     float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
     float dxdy = (x1 - x0) / (y1 - y0);
     float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
-  //  float minx = min(sx0, sx1), range = 1.0 / abs(sx1 - sx0);
-   // float t0 = -minx * range, t1 = saturate(t0 + range);
-  //  t0 = saturate(t0);
-  //  float t0 = saturate(-minx * range), t1 = saturate((1.0 - minx) * range);
-    
     float minx = min(sx0, sx1), range = abs(sx1 - sx0);
     float t0 = saturate(-minx / range), t1 = saturate((1.0 - minx) / range);
     float area = 0.5 * (saturate(sx0) + saturate(sx1));
@@ -308,6 +303,8 @@ vertex InstancesVertex instances_vertex_main(
         dx = select(cell.lx, cell.ux, vid & 1);
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
+        float ux = cell.lx + (cell.ux - cell.lx) * kChannels;
+        dx = select(dx, ux, vid & 1);
         vert.cover = inst.quad.cover;
         vert.isShape = false;
         vert.even = inst.iz & Instance::kEvenOdd;
