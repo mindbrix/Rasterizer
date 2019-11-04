@@ -6,7 +6,6 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#define kChannels 1
 #define kFatHeight 16
 #define kfh 16.f
 #define krfh 0.0625f
