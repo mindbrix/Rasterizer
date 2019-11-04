@@ -345,7 +345,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
-            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(dw - abs((tx1 * ty0 - ty1 * tx0) / det) * rsqrt(vx * vx + vy * vy));
+            float dist = (tx1 * ty0 - ty1 * tx0) / det * rsqrt(vx * vx + vy * vy);
+            //alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(0.5 - dist);
+            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(dw - abs(dist));
            // return select(vert.color, float4(1, 0, 0, 1), det < 0) * alpha;
         }
     } else if (vert.sampled) {
