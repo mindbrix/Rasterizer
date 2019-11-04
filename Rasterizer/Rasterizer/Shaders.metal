@@ -77,14 +77,14 @@ float winding0(float x0, float y0, float x1, float y1) {
 }
 
 float winding(float x0, float y0, float x1, float y1) {
-    float sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
+    float sy0, sy1, coverage, dxdy, sx0, sx1, minx, range, t0, t1, area;
+    sy0 = saturate(y0), sy1 = saturate(y1), coverage = sy1 - sy0;
     if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return coverage;
-    float dxdy = (x1 - x0) / (y1 - y0);
-    float sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
-    float minx = min(sx0, sx1), range = abs(sx1 - sx0);
-    float t0 = saturate(-minx / range), t1 = saturate((1.0 - minx) / range);
-    float area = 0.5 * (saturate(sx0) + saturate(sx1));
+    dxdy = (x1 - x0) / (y1 - y0), sx0 = fma(sy0 - y0, dxdy, x0), sx1 = fma(sy1 - y0, dxdy, x0);
+    minx = min(sx0, sx1), range = abs(sx1 - sx0);
+    t0 = saturate(-minx / range), t1 = saturate((1.0 - minx) / range);
+    area = 0.5 * (saturate(sx0) + saturate(sx1));
     return coverage * (t1 - ((t1 - t0) * area));
 }
 
