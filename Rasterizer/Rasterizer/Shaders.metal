@@ -224,8 +224,8 @@ struct InstancesVertex
     float4 position [[position]];
     float4 color;
     float4 clip, shape;
-    float u, v, tu, tv;
-    float cover;
+    float u, v;
+    float cover, d0, d1, dm;
     bool isShape, isRounded, even, sampled, isCurve;
 };
 
@@ -292,12 +292,10 @@ vertex InstancesVertex instances_vertex_main(
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
-        t = (ax * -cx - ay * cy) / (by * -cx - -bx * cy);
-        cpx = by * t + x0, cpy = -bx * t + y0;
-        area = ax * (cpy - y0) - ay * (cpx - x0);
-        vert.tu = ((cpx - x1) * (dy - y1) - (cpy - y1) * (dx - x1)) / area;
-        vert.tv = (ax * (dy - y0) - ay * (dx - x0)) / area;
-        
+        float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
+        vert.d0 = dot(normalize(float2(bx, by)), float2(dx - x0, dy - y0));
+        vert.d1 = dot(normalize(float2(cx, cy)), float2(dx - x1, dy - y1));
+        vert.dm = no.x * (dx - mx) + no.y * (dy - my);
         vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -341,12 +339,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float sd0 = vert.shape.x == FLT_MAX ? 1.0 : 0.0 + saturate(-(-d * x0 + c * y0) * rl);
             float sd1 = vert.shape.z == FLT_MAX ? 1.0 : 0.0 + saturate((-d * x2 + c * y2) * rl);
             
-            float t = saturate((1.0 - vert.tu - vert.tv) / (1.0 - vert.tv));
-//            float scale = d * d + c * c, t = -(-d * x0 + c * y0) / scale;
-//            float yt1 = max(1e-9, (-d * (x1 - x0) + c * (y1 - y0)) / scale);
-//            float discriminant = sqrt(fma(yt1, fma(-2.0, t, yt1), t));
-//            t = (t / (yt1 + discriminant));
-            float s = 1.0 - t;
+            float tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
+            float tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
+            float t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;

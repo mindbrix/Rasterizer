@@ -791,7 +791,7 @@ struct Rasterizer {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
         a *= 1e-2f;
-        count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
+        count = 2, dt = 1.f / count;
         ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
         ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
         x1 = x0, y1 = y0;
