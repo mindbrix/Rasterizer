@@ -271,8 +271,8 @@ vertex InstancesVertex instances_vertex_main(
         const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = widths[iz], cw = max(1.0, width), dw = 0.5 + ow + 0.5 * cw, endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw;
         f = width / cw;
         
-        pcap |= dot(np, no) < -0.5 || rp * dw > 5e2;
-        ncap |= dot(no, nn) < -0.5 || rn * dw > 5e2;
+        pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
+        ncap |= dot(no, nn) < -0.86 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float spo = dw / (tpo.y * np.y + tpo.x * np.x);
