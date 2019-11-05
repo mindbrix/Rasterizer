@@ -331,11 +331,16 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         if (vert.isCurve) {
-            float a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v), det = a * d - b * c;
+            float a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v), invdet = 1.0 / (a * d - b * c);
+            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
             float x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c;
             float x1 = x2 - b, y1 = y2 + a;
 
+            float rl = rsqrt(c * c + d * d);
+            float sd0 = vert.shape.x == FLT_MAX ? 1.0 : 0.0 + saturate(-(-d * x0 + c * y0) * rl);
+            float sd1 = vert.shape.z == FLT_MAX ? 1.0 : 0.0 + saturate((-d * x2 + c * y2) * rl);
+            
             float t = saturate((1.0 - vert.tu - vert.tv) / (1.0 - vert.tv));
 //            float scale = d * d + c * c, t = -(-d * x0 + c * y0) / scale;
 //            float yt1 = max(1e-9, (-d * (x1 - x0) + c * (y1 - y0)) / scale);
@@ -345,9 +350,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
             float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
             float vx = tx1 - tx0, vy = ty1 - ty0;
-            float dist = (tx1 * ty0 - ty1 * tx0) / det * rsqrt(vx * vx + vy * vy);
-            //alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(0.5 - dist);
-            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * saturate(dw - abs(dist));
+            float dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy);
+            alpha = alpha * (1.0 - sd0) + alpha * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
+            
            // return select(vert.color, float4(1, 0, 0, 1), det < 0) * alpha;
         }
     } else if (vert.sampled) {
