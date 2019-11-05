@@ -336,8 +336,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float x1 = x2 - b, y1 = y2 + a;
 
             float rl = rsqrt(c * c + d * d);
-            float sd0 = vert.shape.x == FLT_MAX ? 1.0 : 0.0 + saturate(-(-d * x0 + c * y0) * rl);
-            float sd1 = vert.shape.z == FLT_MAX ? 1.0 : 0.0 + saturate((-d * x2 + c * y2) * rl);
+            float sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(-(-d * x0 + c * y0) * rl);
+            float sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate((-d * x2 + c * y2) * rl);
             
             float tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             float tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
@@ -347,8 +347,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             float vx = tx1 - tx0, vy = ty1 - ty0;
             float dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy);
             alpha = alpha * (1.0 - sd0) + alpha * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
-            
-           // return select(vert.color, float4(1, 0, 0, 1), det < 0) * alpha;
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
