@@ -292,9 +292,9 @@ vertex InstancesVertex instances_vertex_main(
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
+        vert.d0 = rsqrt(bx * bx + by * by) * (bx * (dx - x0) + by * (dy - y0));
+        vert.d1 = rsqrt(cx * cx + cy * cy) * (cx * (dx - x1) + cy * (dy - y1));
         float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
-        vert.d0 = dot(normalize(float2(bx, by)), float2(dx - x0, dy - y0));
-        vert.d1 = dot(normalize(float2(cx, cy)), float2(dx - x1, dy - y1));
         vert.dm = no.x * (dx - mx) + no.y * (dy - my);
         vert.isShape = true;
     } else {
