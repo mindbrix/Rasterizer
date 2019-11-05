@@ -287,7 +287,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
-        vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : 1e6, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : 1e6, dw * (1.0 + dt) - ow);
+        vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
         vert.isRounded = inst.iz & Instance::kRounded;
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
