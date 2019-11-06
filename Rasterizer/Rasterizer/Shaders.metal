@@ -329,7 +329,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         if (vert.isCurve) {
-            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1;
+            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, pcap, ncap;
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
             t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
@@ -343,8 +343,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             
             sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
             sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
-            float pcap = saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist));
-            float ncap = saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist));
+            pcap = saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist));
+            ncap = saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist));
             alpha = pcap * (1.0 - sd0) + ncap * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
         }
     } else if (vert.sampled) {
