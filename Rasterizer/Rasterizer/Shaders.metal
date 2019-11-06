@@ -343,7 +343,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             
             sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
             sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
-            alpha = alpha * (1.0 - sd0) + alpha * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
+            float pcap = saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist));
+            float ncap = saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist));
+            alpha = pcap * (1.0 - sd0) + ncap * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
