@@ -329,7 +329,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         if (vert.isCurve) {
-            float a, b, c, d, x2, y2, sd0, sd1, tl, tu, t, s, tx0, tx1, ty0, ty1, vx, vy, dist;
+            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1;
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
             t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
