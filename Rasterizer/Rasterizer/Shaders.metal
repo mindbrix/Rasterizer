@@ -268,7 +268,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
-        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = widths[iz], cw = max(1.0, width), dw = 0.5 + ow + 0.5 * cw, endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw;
+        const float ow = vert.isCurve ? 0.5 * abs(-no.y * bx + no.x * by) : 0.0, width = widths[iz], cw = max(1.0, width), dw = 0.5 + ow + 0.5 * cw, endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw - ow;
         f = width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
