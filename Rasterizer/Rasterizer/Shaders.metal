@@ -335,8 +335,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
 
-            sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(-(-d * x0 + c * y0) * rl);
-            sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate((-d * x2 + c * y2) * rl);
+            sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
+            sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
             
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
