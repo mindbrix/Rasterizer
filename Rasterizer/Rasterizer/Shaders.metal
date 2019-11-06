@@ -329,23 +329,21 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         if (vert.isCurve) {
-            float a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v), invdet = 1.0 / (a * d - b * c);
-            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-            float x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-            float x0 = x2 + d, y0 = y2 - c;
-            float x1 = x2 - b, y1 = y2 + a;
+            float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2, rl, sd0, sd1, tl, tu, t, s, tx0, tx1, ty0, ty1, vx, vy, dist;
+            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v), invdet = 1.0 / (a * d - b * c);
+            a *= invdet, b *= invdet, c *= invdet, d *= invdet, rl = rsqrt(c * c + d * d);
+            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+            x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
 
-            float rl = rsqrt(c * c + d * d);
-            float sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(-(-d * x0 + c * y0) * rl);
-            float sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate((-d * x2 + c * y2) * rl);
+            sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(-(-d * x0 + c * y0) * rl);
+            sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate((-d * x2 + c * y2) * rl);
             
-            float tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
-            float tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
-            float t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
-            float tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
-            float ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
-            float vx = tx1 - tx0, vy = ty1 - ty0;
-            float dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy);
+            tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
+            tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
+            t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
+            tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2;
+            ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2;
+            vx = tx1 - tx0, vy = ty1 - ty0, dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy);
             alpha = alpha * (1.0 - sd0) + alpha * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
         }
     } else if (vert.sampled) {
