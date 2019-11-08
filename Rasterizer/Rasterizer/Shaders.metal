@@ -240,7 +240,7 @@ vertex InstancesVertex instances_vertex_main(
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
-    constexpr float err = 1e-3;
+    constexpr float err = 1e-3, rot = 0.3535533906;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     float f = 1.0, visible = 1.0, dx, dy;
@@ -256,11 +256,14 @@ vertex InstancesVertex instances_vertex_main(
         
         bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
+        ax = x1 - x0, ay = y1 - y0;
         if (pcurve)
             cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
-        else
+        else if (ncurve)
             cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
-        ax = x1 - x0, ay = y1 - y0, bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
+        else
+            cpx = x0 + ax * rot - ay * rot, cpy = y0 + ax * rot + ay * rot;
+        bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
         bool isCurve = (pcurve || ncurve) && abs(area) > 1.0;
         
@@ -292,10 +295,11 @@ vertex InstancesVertex instances_vertex_main(
         vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
         vert.iz = (inst.iz & ~kPathIndexMask) | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0) | (isCurve ? InstancesVertex::kIsCurve : 0);
         
-        vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
-        vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
-        vert.d0 = rsqrt(bx * bx + by * by) * (bx * (dx - x0) + by * (dy - y0));
-        vert.d1 = rsqrt(cx * cx + cy * cy) * (cx * (dx - x1) + cy * (dy - y1));
+        float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
+        vert.u = (cx * dy1 - cy * dx1) / area;
+        vert.v = (ax * dy0 - ay * dx0) / area;
+        vert.d0 = isCurve ? rsqrt(bx * bx + by * by) * (bx * dx0 + by * dy0) : no.x * dx0 + no.y * dy0;
+        vert.d1 = isCurve ? rsqrt(cx * cx + cy * cy) * (cx * dx1 + cy * dy1) : -(no.x * dx1 + no.y * dy1);
         float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
         vert.dm = no.x * (dx - mx) + no.y * (dy - my);
         vert.isShape = true;
@@ -326,22 +330,27 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     if (vert.isShape) {
         float dw = 0.5 * (vert.shape.y + vert.shape.w);
         bool rounded = vert.iz & Instance::kRounded;
-        if (rounded) {
-            float x = max(0.0, dw - min(vert.shape.x, vert.shape.z)), y = max(0.0, dw - min(vert.shape.y, vert.shape.w));
-            alpha = saturate(dw - sqrt(x * x + y * y));
-        } else
-            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
+//        if (rounded) {
+//            float x = max(0.0, dw - min(vert.shape.x, vert.shape.z)), y = max(0.0, dw - min(vert.shape.y, vert.shape.w));
+//            alpha = saturate(dw - sqrt(x * x + y * y));
+//        } else
+//            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
+        float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
+        a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+        x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+        // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+        
+        
         if (vert.iz & InstancesVertex::kIsCurve) {
-            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
             t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
             
-            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-            // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b;
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a;
+        } else
+            tx0 = x2 + d, tx1 = x2, ty0 = y2 - c, ty1 = y2;
+        
             vx = tx1 - tx0, vy = ty1 - ty0, dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
             
             alpha = saturate(dw - abs(dist));
@@ -360,7 +369,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             sd1 = vert.iz & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
-        }
+        
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
