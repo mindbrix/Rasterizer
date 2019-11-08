@@ -221,6 +221,7 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 
 struct InstancesVertex
 {
+    enum Flags { kPCap = 1 << 0, kNCap = 1 << 1 };
     float4 position [[position]];
     float4 color;
     float4 clip, shape;
@@ -289,7 +290,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
-        vert.iz = inst.iz;
+        vert.iz = (inst.iz & ~kPathIndexMask) | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0);
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
@@ -345,8 +346,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             
             alpha = saturate(dw - abs(dist));
             
-            sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
-            sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
             cap = vert.iz & Instance::kEndCap ? dw : 0.5;
             cap0 = select(
                           saturate(cap + vert.d0) * alpha,
@@ -356,6 +355,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
                           saturate(cap + vert.d1) * alpha,
                           saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
                           rounded);
+            
+            sd0 = vert.iz & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
+            sd1 = vert.iz & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
         }
