@@ -11,6 +11,13 @@ struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        if (1) {
+            float w = 10, r = w;
+            for (int i = 0; i < 20; i++, r += w) {
+                Ra::Path circle;  circle.ref->addEllipse(Ra::Bounds(-r, -r, r, r));
+                scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
+            }
+        }
         if (0) {
             Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
             Ra::Path quadPath;  quadPath.ref->moveTo(0, 0), quadPath.ref->quadTo(0, 10, 100, 100);//, quadPath.ref->quadTo(100, 90, 0, 0);
@@ -19,10 +26,11 @@ struct RasterizerTest {
             //scene.addPath(endsPath, Ra::Transform(), black, 100.f, Ra::Scene::kOutlineEndCap);
             
             //scene.addPath(quadPath, Ra::Transform(), red, 0.f, 0);
-            scene.addPath(quadPath, Ra::Transform(), black, 10.f, 0);
-            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, 20), black, 10.f, Ra::Scene::kOutlineEndCap);
-            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, 40), black, 10.f, Ra::Scene::kOutlineEndCap | Ra::Scene::kOutlineRounded);
-            scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 0, 60), black, 10.f, Ra::Scene::kOutlineEndCap);// | Ra::Scene::kOutlineRounded);
+            float w = 10;
+            scene.addPath(quadPath, Ra::Transform(), black, w, 0);
+            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 2), black, w, Ra::Scene::kOutlineEndCap);
+            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 4), black, w, Ra::Scene::kOutlineEndCap | Ra::Scene::kOutlineRounded);
+            scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 0, w * 6), black, w, Ra::Scene::kOutlineEndCap);// | Ra::Scene::kOutlineRounded);
         }
         if (0) {
             Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
