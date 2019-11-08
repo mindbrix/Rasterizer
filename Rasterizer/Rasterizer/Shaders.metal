@@ -221,14 +221,14 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 
 struct InstancesVertex
 {
-    enum Flags { kPCap = 1 << 0, kNCap = 1 << 1 };
+    enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2 };
     float4 position [[position]];
     float4 color;
     float4 clip, shape;
     float u, v;
     float cover, d0, d1, dm;
     uint32_t iz;
-    bool isShape, even, sampled, isCurve;
+    bool isShape, even, sampled;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -262,7 +262,7 @@ vertex InstancesVertex instances_vertex_main(
             cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
         ax = x1 - x0, ay = y1 - y0, bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
-        vert.isCurve = (pcurve || ncurve) && abs(area) > 1.0;
+        bool isCurve = (pcurve || ncurve) && abs(area) > 1.0;
         
         bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
@@ -270,7 +270,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = vert.isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = vert.isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ew + ((inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw);
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ew + ((inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw);
         dw += ow, f = width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
@@ -290,7 +290,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
-        vert.iz = (inst.iz & ~kPathIndexMask) | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0);
+        vert.iz = (inst.iz & ~kPathIndexMask) | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0) | (isCurve ? InstancesVertex::kIsCurve : 0);
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
@@ -331,7 +331,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             alpha = saturate(dw - sqrt(x * x + y * y));
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
-        if (vert.isCurve) {
+        if (vert.iz & InstancesVertex::kIsCurve) {
             float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
