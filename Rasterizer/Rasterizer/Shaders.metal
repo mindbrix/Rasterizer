@@ -238,7 +238,7 @@ vertex InstancesVertex instances_vertex_main(
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
-    constexpr float err = 1e-3, rot = 0.3535533906;
+    constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     float f = 1.0, visible = 1.0, dx, dy;
@@ -257,10 +257,8 @@ vertex InstancesVertex instances_vertex_main(
         ax = x1 - x0, ay = y1 - y0;
         if (pcurve)
             cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
-        else if (ncurve)
-            cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
         else
-            cpx = x0 + ax * rot - ay * rot, cpy = y0 + ax * rot + ay * rot;
+            cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
         bool isCurve = (pcurve || ncurve) && abs(area) > 1.0;
@@ -299,7 +297,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.d0 = isCurve ? rsqrt(bx * bx + by * by) * (bx * dx0 + by * dy0) : no.x * dx0 + no.y * dy0;
         vert.d1 = isCurve ? rsqrt(cx * cx + cy * cy) * (cx * dx1 + cy * dy1) : -(no.x * dx1 + no.y * dy1);
         float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
-        vert.dm = no.x * (dx - mx) + no.y * (dy - my);
+        vert.dm = isCurve ? no.x * (dx - mx) + no.y * (dy - my) : -no.y * dx0 + no.x * dy0;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
@@ -328,22 +326,22 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         float dw = vert.dw;
         bool rounded = vert.iz & Instance::kRounded;
         float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
-        a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-        x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-        // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-    
         if (vert.iz & InstancesVertex::kIsCurve) {
+            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+            // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
             t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
             
             tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b;
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a;
+            vx = tx1 - tx0, vy = ty1 - ty0;
+            dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
         } else
-            tx0 = x2 + d, tx1 = x2, ty0 = y2 - c, ty1 = y2;
+            dist = vert.dm;
     
-        vx = tx1 - tx0, vy = ty1 - ty0;
-        dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
         alpha = saturate(dw - abs(dist));
         
         cap = vert.iz & Instance::kEndCap ? dw : 0.5;
