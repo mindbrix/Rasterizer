@@ -225,7 +225,7 @@ struct InstancesVertex
     float4 position [[position]];
     float4 color, clip;
     float u, v, cover, dw, d0, d1, dm;
-    uint32_t iz;
+    uint32_t flags;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -288,7 +288,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.dw = dw - ow;
-        vert.iz = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
+        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
         
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
         if (isCurve) {
@@ -306,7 +306,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
-        vert.iz = inst.iz & ~kPathIndexMask;
+        vert.flags = inst.iz & ~kPathIndexMask;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
@@ -322,11 +322,11 @@ vertex InstancesVertex instances_vertex_main(
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
     float alpha = 1.0;
-    if (vert.iz & InstancesVertex::kIsShape) {
+    if (vert.flags & InstancesVertex::kIsShape) {
         float dw = vert.dw;
-        bool rounded = vert.iz & Instance::kRounded;
+        bool rounded = vert.flags & Instance::kRounded;
         float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
-        if (vert.iz & InstancesVertex::kIsCurve) {
+        if (vert.flags & InstancesVertex::kIsCurve) {
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
@@ -344,7 +344,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     
         alpha = saturate(dw - abs(dist));
         
-        cap = vert.iz & Instance::kEndCap ? dw : 0.5;
+        cap = vert.flags & Instance::kEndCap ? dw : 0.5;
         cap0 = select(
                       saturate(cap + vert.d0) * alpha,
                       saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
@@ -354,13 +354,13 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
                       saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
                       rounded);
         
-        sd0 = vert.iz & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
-        sd1 = vert.iz & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
+        sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
+        sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
         
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
-    } else if ((vert.iz & Instance::kSolidCell) == 0) {
+    } else if ((vert.flags & Instance::kSolidCell) == 0) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
-        alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
+        alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
 }
