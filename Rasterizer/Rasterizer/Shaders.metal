@@ -268,7 +268,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = vert.isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = vert.isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw + ew;
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = vert.isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = vert.isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ew + (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw;
         dw += ow, f = width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
@@ -343,7 +343,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             
             sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
             sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
-            pcap = saturate(dw + vert.d0) * saturate(dw - abs(dist));
+            pcap = saturate(0.5 + vert.d0) * saturate(dw - abs(dist));
             //pcap = saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist));
             ncap = saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist));
             //pcap = ncap = 0;
