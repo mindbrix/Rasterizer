@@ -221,12 +221,12 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 
 struct InstancesVertex
 {
-    enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2 };
+    enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]];
     float4 color, clip;
     float u, v, cover, dw, d0, d1, dm;
     uint32_t iz;
-    bool isShape, even, sampled;
+    bool even, sampled;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -291,7 +291,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.dw = dw - ow;
-        vert.iz = (inst.iz & ~kPathIndexMask) | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0) | (isCurve ? InstancesVertex::kIsCurve : 0);
+        vert.iz = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0) | (isCurve ? InstancesVertex::kIsCurve : 0);
         
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
         vert.u = (cx * dy1 - cy * dx1) / area;
@@ -300,14 +300,13 @@ vertex InstancesVertex instances_vertex_main(
         vert.d1 = isCurve ? rsqrt(cx * cx + cy * cy) * (cx * dx1 + cy * dy1) : -(no.x * dx1 + no.y * dy1);
         float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
         vert.dm = no.x * (dx - mx) + no.y * (dy - my);
-        vert.isShape = true;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
-        vert.isShape = false;
+        vert.iz = 0;
         vert.even = inst.iz & Instance::kEvenOdd;
         vert.sampled = (inst.iz & Instance::kSolidCell) == 0;
     }
@@ -325,7 +324,7 @@ vertex InstancesVertex instances_vertex_main(
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
 {
     float alpha = 1.0;
-    if (vert.isShape) {
+    if (vert.iz & InstancesVertex::kIsShape) {
         float dw = vert.dw;
         bool rounded = vert.iz & Instance::kRounded;
         float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
