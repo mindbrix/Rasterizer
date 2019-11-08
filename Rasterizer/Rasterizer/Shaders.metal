@@ -268,7 +268,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
         f = width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
@@ -354,7 +354,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
         
-        alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
+        alpha = 0.33 + cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
     } else if ((vert.flags & Instance::kSolidCell) == 0) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
