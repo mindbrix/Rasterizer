@@ -292,12 +292,16 @@ vertex InstancesVertex instances_vertex_main(
         vert.iz = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0) | (isCurve ? InstancesVertex::kIsCurve : 0);
         
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
-        vert.u = (cx * dy1 - cy * dx1) / area;
-        vert.v = (ax * dy0 - ay * dx0) / area;
-        vert.d0 = isCurve ? rsqrt(bx * bx + by * by) * (bx * dx0 + by * dy0) : no.x * dx0 + no.y * dy0;
-        vert.d1 = isCurve ? rsqrt(cx * cx + cy * cy) * (cx * dx1 + cy * dy1) : -(no.x * dx1 + no.y * dy1);
-        float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
-        vert.dm = isCurve ? no.x * (dx - mx) + no.y * (dy - my) : -no.y * dx0 + no.x * dy0;
+        if (isCurve) {
+            vert.u = (cx * dy1 - cy * dx1) / area;
+            vert.v = (ax * dy0 - ay * dx0) / area;
+            vert.d0 = rsqrt(bx * bx + by * by) * (bx * dx0 + by * dy0);
+            vert.d1 = rsqrt(cx * cx + cy * cy) * (cx * dx1 + cy * dy1);
+            float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
+            vert.dm = no.x * (dx - mx) + no.y * (dy - my);
+        } else
+            vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
+        
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
