@@ -226,7 +226,8 @@ struct InstancesVertex
     float4 clip, shape;
     float u, v;
     float cover, d0, d1, dm;
-    bool isShape, isRounded, isCap, even, sampled, isCurve;
+    uint32_t iz;
+    bool isShape, even, sampled, isCurve;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -288,8 +289,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
-        vert.isRounded = inst.iz & Instance::kRounded;
-        vert.isCap = inst.iz & Instance::kEndCap;
+        vert.iz = inst.iz;
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
@@ -324,13 +324,14 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     float alpha = 1.0;
     if (vert.isShape) {
         float dw = 0.5 * (vert.shape.y + vert.shape.w);
-        if (vert.isRounded) {
+        bool rounded = vert.iz & Instance::kRounded;
+        if (rounded) {
             float x = max(0.0, dw - min(vert.shape.x, vert.shape.z)), y = max(0.0, dw - min(vert.shape.y, vert.shape.w));
             alpha = saturate(dw - sqrt(x * x + y * y));
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         if (vert.isCurve) {
-            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap0, cap1;
+            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
             t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
@@ -346,15 +347,15 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             
             sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
             sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
-            
+            cap = vert.iz & Instance::kEndCap ? dw : 0.5;
             cap0 = select(
-                          saturate(dw + vert.d0) * alpha,
+                          saturate(cap + vert.d0) * alpha,
                           saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
-                          vert.isRounded);
+                          rounded);
             cap1 = select(
-                          saturate(dw + vert.d1) * alpha,
+                          saturate(cap + vert.d1) * alpha,
                           saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
-                          vert.isRounded);
+                          rounded);
             
             alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
         }
