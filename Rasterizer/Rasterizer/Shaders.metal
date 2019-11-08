@@ -288,8 +288,6 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.dw = dw;
-        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
-        
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
         if (isCurve) {
             vert.u = (cx * dy1 - cy * dx1) / area;
@@ -300,6 +298,7 @@ vertex InstancesVertex instances_vertex_main(
             vert.dm = no.x * (dx - mx) + no.y * (dy - my);
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
+        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
