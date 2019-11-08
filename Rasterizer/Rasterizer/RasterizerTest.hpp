@@ -11,7 +11,7 @@ struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
-        if (1) {
+        if (0) {
             Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
             Ra::Path quadPath;  quadPath.ref->moveTo(0, 0), quadPath.ref->quadTo(0, 10, 100, 100);//, quadPath.ref->quadTo(100, 90, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
@@ -69,13 +69,13 @@ struct RasterizerTest {
     }
     static void writePhyllotaxisToScene(size_t count, Ra::Scene& scene) {
         Ra::Colorant color(0, 0, 0, 255);
-        Ra::Path rect;
-        rect.ref->addBounds(Ra::Bounds(0.f, 0.f, 1.f, 1.f));
+        Ra::Path line;
+        line.ref->moveTo(0, 0), line.ref->lineTo(0, 1);
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s, t;
         for (int i = 0; i < count; i++) {
             s = sqrtf(i), t = float(i) / float(count);
-            scene.addPath(rect, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 0.f, 0);
+            scene.addPath(line, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 1.f, 0);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
