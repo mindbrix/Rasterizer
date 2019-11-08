@@ -269,14 +269,14 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
         float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
-        dw += ow, f = width / cw;
+        f = width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.86 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float spo = dw / (tpo.y * np.y + tpo.x * np.x);
-        float son = dw / (ton.y * no.y + ton.x * no.x);
+        float spo = (dw + ow) / (tpo.y * np.y + tpo.x * np.x);
+        float son = (dw + ow) / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp = endCap * float(pcap) + err, ln = endCap * float(ncap) + err;
@@ -287,7 +287,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
-        vert.dw = dw - ow;
+        vert.dw = dw;
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
         
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
