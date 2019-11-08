@@ -226,7 +226,7 @@ struct InstancesVertex
     float4 clip, shape;
     float u, v;
     float cover, d0, d1, dm;
-    bool isShape, isRounded, even, sampled, isCurve;
+    bool isShape, isRounded, isCap, even, sampled, isCurve;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -268,7 +268,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = vert.isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = vert.isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ew + (inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw;
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = vert.isCurve && (pcap || ncap) ? 0.41 * dw: 0.0, ow = vert.isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ew + ((inst.iz & Instance::kEndCap) == 0 ? 0.5 : dw);
         dw += ow, f = width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
@@ -289,6 +289,7 @@ vertex InstancesVertex instances_vertex_main(
         
         vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
         vert.isRounded = inst.iz & Instance::kRounded;
+        vert.isCap = inst.iz & Instance::kEndCap;
         
         vert.u = (cx * (dy - y1) - cy * (dx - x1)) / area;
         vert.v = (ax * (dy - y0) - ay * (dx - x0)) / area;
@@ -329,7 +330,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         } else
             alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         if (vert.isCurve) {
-            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, pcap, ncap;
+            float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap0, cap1;
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
             t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
@@ -341,13 +342,21 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a;
             vx = tx1 - tx0, vy = ty1 - ty0, dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
             
+            alpha = saturate(dw - abs(dist));
+            
             sd0 = vert.shape.x == FLT_MAX ? 1.0 : saturate(vert.d0);
             sd1 = vert.shape.z == FLT_MAX ? 1.0 : saturate(vert.d1);
-            pcap = saturate(0.5 + vert.d0) * saturate(dw - abs(dist));
-            //pcap = saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist));
-            ncap = saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist));
-            //pcap = ncap = 0;
-            alpha = pcap * (1.0 - sd0) + ncap * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * saturate(dw - abs(dist));
+            
+            cap0 = select(
+                          saturate(dw + vert.d0) * alpha,
+                          saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
+                          vert.isRounded);
+            cap1 = select(
+                          saturate(dw + vert.d1) * alpha,
+                          saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
+                          vert.isRounded);
+            
+            alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
         }
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
