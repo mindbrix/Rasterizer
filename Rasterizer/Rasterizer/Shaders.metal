@@ -226,7 +226,6 @@ struct InstancesVertex
     float4 color, clip;
     float u, v, cover, dw, d0, d1, dm;
     uint32_t iz;
-    bool even, sampled;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -308,9 +307,7 @@ vertex InstancesVertex instances_vertex_main(
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
-        vert.iz = 0;
-        vert.even = inst.iz & Instance::kEvenOdd;
-        vert.sampled = (inst.iz & Instance::kSolidCell) == 0;
+        vert.iz = inst.iz & ~kPathIndexMask;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
@@ -362,9 +359,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         sd1 = vert.iz & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
         
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
-    } else if (vert.sampled) {
+    } else if ((vert.iz & Instance::kSolidCell) == 0) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
-        alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
+        alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
 }
