@@ -223,10 +223,8 @@ struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2 };
     float4 position [[position]];
-    float4 color;
-    float4 clip, shape;
-    float u, v;
-    float cover, d0, d1, dm;
+    float4 color, clip;
+    float u, v, cover, dw, d0, d1, dm;
     uint32_t iz;
     bool isShape, even, sampled;
 };
@@ -292,7 +290,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
-        vert.shape = float4(pcap ? (vid & 2 ? lo + lp + ln : 0.0) : FLT_MAX, dw * (1.0 - dt) - ow, ncap ? (vid & 2 ? 0.0 : lo + lp + ln) : FLT_MAX, dw * (1.0 + dt) - ow);
+        vert.dw = dw - ow;
         vert.iz = (inst.iz & ~kPathIndexMask) | (pcap ? InstancesVertex::kPCap : 0) | (ncap ? InstancesVertex::kNCap : 0) | (isCurve ? InstancesVertex::kIsCurve : 0);
         
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
@@ -328,19 +326,13 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 {
     float alpha = 1.0;
     if (vert.isShape) {
-        float dw = 0.5 * (vert.shape.y + vert.shape.w);
+        float dw = vert.dw;
         bool rounded = vert.iz & Instance::kRounded;
-//        if (rounded) {
-//            float x = max(0.0, dw - min(vert.shape.x, vert.shape.z)), y = max(0.0, dw - min(vert.shape.y, vert.shape.w));
-//            alpha = saturate(dw - sqrt(x * x + y * y));
-//        } else
-//            alpha = (saturate(vert.shape.x) - (1.0 - saturate(vert.shape.z))) * (saturate(vert.shape.y) - (1.0 - saturate(vert.shape.w)));
         float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, ty0, ty1, vx, vy, dist, sd0, sd1, cap, cap0, cap1;
         a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
         x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
         // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-        
-        
+    
         if (vert.iz & InstancesVertex::kIsCurve) {
             tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
             tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
@@ -350,26 +342,25 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a;
         } else
             tx0 = x2 + d, tx1 = x2, ty0 = y2 - c, ty1 = y2;
+    
+        vx = tx1 - tx0, vy = ty1 - ty0;
+        dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
+        alpha = saturate(dw - abs(dist));
         
-            vx = tx1 - tx0, vy = ty1 - ty0, dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
-            
-            alpha = saturate(dw - abs(dist));
-            
-            cap = vert.iz & Instance::kEndCap ? dw : 0.5;
-            cap0 = select(
-                          saturate(cap + vert.d0) * alpha,
-                          saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
-                          rounded);
-            cap1 = select(
-                          saturate(cap + vert.d1) * alpha,
-                          saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
-                          rounded);
-            
-            sd0 = vert.iz & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
-            sd1 = vert.iz & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
-            
-            alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
+        cap = vert.iz & Instance::kEndCap ? dw : 0.5;
+        cap0 = select(
+                      saturate(cap + vert.d0) * alpha,
+                      saturate(dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
+                      rounded);
+        cap1 = select(
+                      saturate(cap + vert.d1) * alpha,
+                      saturate(dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
+                      rounded);
         
+        sd0 = vert.iz & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
+        sd1 = vert.iz & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
+        
+        alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 - (1.0 - sd1)) * alpha;
     } else if (vert.sampled) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.even ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
