@@ -241,7 +241,8 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
-    float f = 1.0, visible = 1.0, dx, dy;
+    const device Colorant& paint = paints[iz];
+    float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Transform& m = affineTransforms[iz];
         const device Segment& o = inst.outline.s;
@@ -270,7 +271,7 @@ vertex InstancesVertex instances_vertex_main(
         visible = float(o.x0 != FLT_MAX && lo > 1e-2);
         
         float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
-        f = width / cw;
+        alpha *= width / cw;
         
         pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.86 || rn * dw > 5e2;
@@ -312,9 +313,8 @@ vertex InstancesVertex instances_vertex_main(
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, visible);
     
-    const device Colorant& paint = paints[iz];
-    float a = paint.src3 * 0.003921568627 * f, ma = a * 0.003921568627;
-    vert.color = float4(paint.src2 * ma, paint.src1 * ma, paint.src0 * ma, a);
+    float ma = alpha * 0.003921568627;
+    vert.color = float4(paint.src2 * ma, paint.src1 * ma, paint.src0 * ma, alpha);
     vert.clip = distances(clips[iz], dx, dy);
     return vert;
 }
