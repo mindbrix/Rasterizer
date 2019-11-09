@@ -123,7 +123,7 @@ struct Rasterizer {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
-            return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
+            return quads + cubics + 2 * (molecules.size() + counts[kLine] + 2 * counts[kQuadratic] + counts[kCubic]);
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy); }
         void addEllipse(Bounds b) {
@@ -875,7 +875,7 @@ struct Rasterizer {
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         a = ax * ax + ay * ay + bx * bx + by * by;
-        a *= 1e-1f;
+        a *= 1e-3f;
         count = a < 0.1f ? 1.f : a < 16.f ? 3.f : 2.f + floorf(sqrtf(sqrtf(a)));
         dt = 1.f / count, dt2 = dt * dt;
         bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
@@ -1123,6 +1123,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;
         Row<Entry> entries;
+        bool useCurves = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, transforms, clips, widths, tick, pathsCount, size = 0;
     };

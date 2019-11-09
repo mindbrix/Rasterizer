@@ -57,7 +57,7 @@ struct RasterizerState {
                     keyDown = true, keyCode = e.keyCode;
                     redraw = true;
                     if (e.keyCode == 8)
-                        useClip = !useClip;
+                        useCurves = !useCurves;
                     else if (e.keyCode == 31)
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == 35)
@@ -113,7 +113,7 @@ struct RasterizerState {
         events.resize(0);
         return redraw;
     }
-    bool keyDown = false, mouseDown = false, mouseMove = false, useClip = false;
+    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = false;
     float x, y, scale, outlineWidth = 0.f;
     int keyCode = 0;
     size_t index = INT_MAX, flags = 0;

@@ -234,6 +234,7 @@ vertex InstancesVertex instances_vertex_main(
             const device float *widths [[buffer(6)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
+            constant bool *useCurves [[buffer(14)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
@@ -260,7 +261,7 @@ vertex InstancesVertex instances_vertex_main(
             cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
-        bool isCurve = (pcurve || ncurve) && abs(area) > 1.0;
+        bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0;
         
         bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);

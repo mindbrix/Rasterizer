@@ -244,6 +244,7 @@ struct RasterizerCG {
             contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, 0, eiz, bitmap, buffer ? buffer->tick : 0);
         }
         if (buffer) {
+            buffer->useCurves = state.useCurves;
             std::vector<Ra::Buffer::Entry> entries[count];
             size_t begins[count], size = Ra::writeContextsToBuffer(contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
             if (count == 1)
