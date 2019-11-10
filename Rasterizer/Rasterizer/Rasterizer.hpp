@@ -788,14 +788,13 @@ struct Rasterizer {
         }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
-        float ax, ay, bx, by, a, count, dt, f2x, f1x, f2y, f1y;
-        float c = y1 - y0, s = x0 - x1;
-        ax = x1 - x0, ay = y1 - y0, bx = x2 - x0, by = y2 - y0;
-        // a = c, b = s, c = -s, d = c
-        float px1, py1, px2, py2, tan = 1.f;
-        px1 = ax * c + ay * -s, py1 = ax * s + ay * c;
-        px2 = bx * c + by * -s, py2 = bx * s + by * c;
-        dt = tan * py1 / (px2 - tan * (py2 - 2.f * py2));
+        float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
+        float py1, px2, py2, tan = 1.f;
+        ax = x1 - x0, ay = y1 - y0;
+        py1 = ax * ax + ay * ay;
+        px2 = (x2 - x0) * ay + (y2 - y0) * -ax;
+        py2 = (x2 - x0) * ax + (y2 - y0) * ay;
+        dt = tan * py1 / (fabsf(px2) - tan * (py2 - 2.f * py1));
         
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
         a *= 1e-2f;
