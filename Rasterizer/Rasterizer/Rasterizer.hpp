@@ -787,10 +787,39 @@ struct Rasterizer {
             }
         }
     }
+    static void divideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
+        float ax, ay, bx, by, a, cos, t, s;
+        float py1, px2, py2, tan = 0.577f;
+        ax = x1 - x0, ay = y1 - y0, bx = x2 - x1, by = y2 - y1;
+        a = ax * by - ay * bx;
+        cos = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
+//        tan = sqrtf((1.f - cos) / (1.f + cos));
+        py1 = ax * ax + ay * ay;
+        px2 = (x2 - x0) * ay + (y2 - y0) * -ax;
+        py2 = (x2 - x0) * ax + (y2 - y0) * ay;
+        t = tan * py1 / (fabsf(px2) - tan * (py2 - 2.f * py1)), s = 1.f - t;
+        if (fabsf(a) < 0.1f || cos < 0.f || t < 0.f || t > 0.999f || (t > 0.2f && t < 0.8f)) {
+            float mx = 0.25f * (x0 + x2) + 0.5f * x1, my = 0.25f * (y0 + y2) + 0.5f * y1;
+            (*function)(x0, y0, mx, my, 1, info);
+            (*function)(mx, my, x2, y2, 2, info);
+        } else {
+            float tx0, ty0, tx1, ty1, x, y;
+            tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1;
+            tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
+            x = s * s * x0 + 2.f * s * t * x1 + t * t * x2;
+            y = s * s * y0 + 2.f * s * t * y1 + t * t * y2;
+            divideQuadratic(x0, y0, tx0, ty0, x, y, function, info);
+            divideQuadratic(x, y, tx1, ty1, x2, y2, function, info);
+        }
+    }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
-        float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
+        divideQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+        return;
+        float ax, ay, bx, by, cos, a, count, dt, f2x, f1x, f2y, f1y;
         float py1, px2, py2, tan = 1.f;
-        ax = x1 - x0, ay = y1 - y0;
+        ax = x1 - x0, ay = y1 - y0, bx = x2 - x1, by = y2 - y1;
+        cos = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
+        tan = sqrtf((1.f - cos) / (1.f + cos));
         py1 = ax * ax + ay * ay;
         px2 = (x2 - x0) * ay + (y2 - y0) * -ax;
         py2 = (x2 - x0) * ax + (y2 - y0) * ay;
