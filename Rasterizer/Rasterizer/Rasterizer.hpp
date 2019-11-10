@@ -788,17 +788,15 @@ struct Rasterizer {
         }
     }
     static void divideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
-        float ax, ay, bx, by, a, cos, t, s;
+        float ax, ay, bx, by, det, dot, t, s;
         float py1, px2, py2, tan = 0.577f;
         ax = x1 - x0, ay = y1 - y0, bx = x2 - x1, by = y2 - y1;
-        a = ax * by - ay * bx;
-        cos = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
-//        tan = sqrtf((1.f - cos) / (1.f + cos));
+        det = ax * by - ay * bx, dot = ax * bx + ay * by;
         py1 = ax * ax + ay * ay;
         px2 = (x2 - x0) * ay + (y2 - y0) * -ax;
         py2 = (x2 - x0) * ax + (y2 - y0) * ay;
         t = tan * py1 / (fabsf(px2) - tan * (py2 - 2.f * py1)), s = 1.f - t;
-        if (fabsf(a) < 0.1f || cos < 0.f || t < 0.f || t > 0.999f || (t > 0.2f && t < 0.8f)) {
+        if (fabsf(det) < 0.1f || dot < 0.f || t < 0.f || t > 0.999f || (t > 0.2f && t < 0.8f)) {
             float mx = 0.25f * (x0 + x2) + 0.5f * x1, my = 0.25f * (y0 + y2) + 0.5f * y1;
             (*function)(x0, y0, mx, my, 1, info);
             (*function)(mx, my, x2, y2, 2, info);
