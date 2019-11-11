@@ -20,8 +20,8 @@ struct RasterizerTest {
         }
         if (1) {
             Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
-            //Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(0, 10, 00, 00);
-            Ra::Path quadPath;  quadPath.ref->moveTo(0, 0), quadPath.ref->quadTo(0, 10, 100, 100);//, quadPath.ref->quadTo(100, 0, 0, 0);
+            Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(0, 1000, 00, 00);
+           // Ra::Path quadPath;  quadPath.ref->moveTo(0, 0), quadPath.ref->quadTo(0, 10, 100, 100);//, quadPath.ref->quadTo(100, 0, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
             //scene.addPath(endsPath, Ra::Transform(), black, 100.f, Ra::Scene::kOutlineEndCap);
@@ -29,9 +29,9 @@ struct RasterizerTest {
             //scene.addPath(quadPath, Ra::Transform(), red, 0.f, 0);
             float w = 10;
             scene.addPath(quadPath, Ra::Transform(), black, w, 0);
-            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 2), black, w, Ra::Scene::kOutlineEndCap);
-            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 4), black, w, Ra::Scene::kOutlineEndCap | Ra::Scene::kOutlineRounded);
-            scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 0, w * 6), black, w, Ra::Scene::kOutlineEndCap);// | Ra::Scene::kOutlineRounded);
+            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 20), black, w, Ra::Scene::kOutlineEndCap);
+            scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 40), black, w, Ra::Scene::kOutlineEndCap | Ra::Scene::kOutlineRounded);
+            scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 0, w * 60), black, w, Ra::Scene::kOutlineEndCap);// | Ra::Scene::kOutlineRounded);
         }
         if (0) {
             Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
