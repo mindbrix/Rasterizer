@@ -799,10 +799,8 @@ struct Rasterizer {
         } else {
             float tx0, ty0, tx1, ty1, x, y;
             t = t < 0.5f ? t * 2.f : 1.0f - 2.f * (1.f - t), s = 1.f - t;
-            tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1;
-            tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
-            x = s * s * x0 + 2.f * s * t * x1 + t * t * x2;
-            y = s * s * y0 + 2.f * s * t * y1 + t * t * y2;
+            tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = tx0 * s + tx1 * t;
+            ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = ty0 * s + ty1 * t;
             divideQuadratic(x0, y0, tx0, ty0, x, y, function, info);
             divideQuadratic(x, y, tx1, ty1, x2, y2, function, info);
         }
