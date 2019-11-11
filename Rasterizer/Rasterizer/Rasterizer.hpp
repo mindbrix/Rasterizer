@@ -792,7 +792,7 @@ struct Rasterizer {
         ax = x2 - x0, ay = y2 - y0, bx = x1 - x0, by = y1 - y0;
         det = ax * by - ay * bx, dot = bx * (x2 - x1) + by * (y2 - y1);
         t = (ax * bx + ay * by) / (ax * ax + ay * ay);
-        t = fabsf(det) < 0.1f || (t > 0.1f && t < 0.9f && dot >= 0.f) ? 0.f : t < 0.f || t > 0.999f || dot < 0.f ? 0.5f : t;
+        t = fabsf(det) < 0.1f || (t > 0.2f && t < 0.8f && dot >= 0.f) ? 0.f : t < 0.f || t > 0.999f || dot < 0.f ? 0.5f : t;
         
         if (t) {
             float tx0, ty0, tx1, ty1, x, y;
