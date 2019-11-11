@@ -795,8 +795,8 @@ struct Rasterizer {
         py1 = ax * ax + ay * ay;
         px2 = (x2 - x0) * ay + (y2 - y0) * -ax;
         py2 = (x2 - x0) * ax + (y2 - y0) * ay;
-        t = tan * py1 / (fabsf(px2) - tan * (py2 - 2.f * py1)), s = 1.f - t;
-        if (fabsf(det) < 0.1f || dot < 0.f || t < 0.f || t > 0.999f || (t > 0.2f && t < 0.8f)) {
+        t = dot < 0.f ? 0.5f : tan * py1 / (fabsf(px2) - tan * (py2 - 2.f * py1)), s = 1.f - t;
+        if (fabsf(det) < 0.1f || t < 0.f || t > 0.999f || (t > 0.2f && t < 0.8f)) {
             float mx = 0.25f * (x0 + x2) + 0.5f * x1, my = 0.25f * (y0 + y2) + 0.5f * y1;
             (*function)(x0, y0, mx, my, 1, info);
             (*function)(mx, my, x2, y2, 2, info);
@@ -813,20 +813,9 @@ struct Rasterizer {
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
         divideQuadratic(x0, y0, x1, y1, x2, y2, function, info);
         return;
-        float ax, ay, bx, by, cos, a, count, dt, f2x, f1x, f2y, f1y;
-        float py1, px2, py2, tan = 1.f;
-        ax = x1 - x0, ay = y1 - y0, bx = x2 - x1, by = y2 - y1;
-        cos = (ax * bx + ay * by) / sqrtf((ax * ax + ay * ay) * (bx * bx + by * by));
-        tan = sqrtf((1.f - cos) / (1.f + cos));
-        py1 = ax * ax + ay * ay;
-        px2 = (x2 - x0) * ay + (y2 - y0) * -ax;
-        py2 = (x2 - x0) * ax + (y2 - y0) * ay;
-        dt = tan * py1 / (fabsf(px2) - tan * (py2 - 2.f * py1));
-        
+        float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
-        a *= 1e-2f;
         count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
-        count = 2, dt = 0.5f;
         ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
         ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
         x1 = x0, y1 = y0;
