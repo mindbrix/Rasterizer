@@ -792,19 +792,19 @@ struct Rasterizer {
         ax = x2 - x0, ay = y2 - y0, bx = x1 - x0, by = y1 - y0;
         det = ax * by - ay * bx, dot = bx * (x2 - x1) + by * (y2 - y1);
         t = (ax * bx + ay * by) / (ax * ax + ay * ay);
-        t = t < 0.f || t > 0.999f || dot < 0.f ? 0.5f : t;
+        t = fabsf(det) < 0.1f || (t > 0.1f && t < 0.9f && dot >= 0.f) ? 0.f : t < 0.f || t > 0.999f || dot < 0.f ? 0.5f : t;
         
-        if (fabsf(det) < 0.1f || (t > 0.1f && t < 0.9f && t != 0.5f)) {
-            float mx = 0.25f * (x0 + x2) + 0.5f * x1, my = 0.25f * (y0 + y2) + 0.5f * y1;
-            (*function)(x0, y0, mx, my, 1, info);
-            (*function)(mx, my, x2, y2, 2, info);
-        } else {
+        if (t) {
             float tx0, ty0, tx1, ty1, x, y;
             t = t < 0.5f ? t * 2.f : t > 0.5f ? 1.0f - 2.f * (1.f - t) : t, s = 1.f - t;
             tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = tx0 * s + tx1 * t;
             ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = ty0 * s + ty1 * t;
             divideQuadratic(x0, y0, tx0, ty0, x, y, function, info);
             divideQuadratic(x, y, tx1, ty1, x2, y2, function, info);
+        } else {
+            float mx = 0.25f * (x0 + x2) + 0.5f * x1, my = 0.25f * (y0 + y2) + 0.5f * y1;
+            (*function)(x0, y0, mx, my, 1, info);
+            (*function)(mx, my, x2, y2, 2, info);
         }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
