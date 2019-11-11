@@ -792,12 +792,13 @@ struct Rasterizer {
         ax = x2 - x0, ay = y2 - y0, bx = x1 - x0, by = y1 - y0, det = ax * by - ay * bx;
         t = (ax * bx + ay * by) / (ax * ax + ay * ay), s = 1.f - t;
         
-        if (fabsf(det) < 0.1f || t < 0.f || t > 0.999f || (t > 0.2f && t < 0.8f)) {
+        if (fabsf(det) < 0.1f || t < 0.f || t > 0.999f || (t > 0.1f && t < 0.9f)) {
             float mx = 0.25f * (x0 + x2) + 0.5f * x1, my = 0.25f * (y0 + y2) + 0.5f * y1;
             (*function)(x0, y0, mx, my, 1, info);
             (*function)(mx, my, x2, y2, 2, info);
         } else {
             float tx0, ty0, tx1, ty1, x, y;
+            t = t < 0.5f ? t * 2.f : 1.0f - 2.f * (1.f - t), s = 1.f - t;
             tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1;
             tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
             x = s * s * x0 + 2.f * s * t * x1 + t * t * x2;
