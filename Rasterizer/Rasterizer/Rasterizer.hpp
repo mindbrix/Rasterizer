@@ -910,7 +910,13 @@ struct Rasterizer {
         }
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
-        divideCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, 1.f);
+        float lx, ly, ux, uy, p;
+        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
+        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
+        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
+        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
+        p = sqrtf((ux - lx + uy - ly) / 100.f);
+        divideCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, p);
         return;
         
         float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
