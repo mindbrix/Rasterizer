@@ -788,11 +788,11 @@ struct Rasterizer {
         }
     }
     static void divideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
-        float ax, ay, bx, by, det, dot, t, s;
+        float ax, ay, bx, by, det, dot, t, mt, s;
         ax = x2 - x0, ay = y2 - y0, bx = x1 - x0, by = y1 - y0;
-        det = ax * by - ay * bx, dot = bx * (x2 - x1) + by * (y2 - y1);
-        t = (ax * bx + ay * by) / (ax * ax + ay * ay);
-        t = fabsf(det) < 0.1f || (t > 0.2f && t < 0.8f && dot >= 0.f) ? 0.f : t < 0.f || t > 0.999f || dot < 0.f ? 0.5f : t;
+        det = ax * by - ay * bx, dot = ax * bx + ay * by;
+        t = dot / (ax * ax + ay * ay), mt = dot / (bx * bx + by * by);
+        t = fabsf(det) < 0.1f || (t > 0.2f && t < 0.8f && mt > 1.f) ? 0.f : t < 0.f || t > 0.999f || mt <= 1.f ? 0.5f : t;
         
         if (t) {
             float tx0, ty0, tx1, ty1, x, y;
@@ -891,7 +891,7 @@ struct Rasterizer {
         }
     }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
-        float ax, ay, d, t3, cpx, cpy, t, s, precision = 1;
+        float ax, ay, d, t3, cpx, cpy, t, s, precision = 1.f;
         ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0;
         d = sqrtf(ax * ax + ay * ay), t3 = d == 0.f ? 1.f : precision / d;
         if (t3 > 0.999999f) {
