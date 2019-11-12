@@ -123,7 +123,7 @@ struct Rasterizer {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
-            return quads + cubics + 2 * (molecules.size() + counts[kLine] + 2 * counts[kQuadratic] + counts[kCubic]);
+            return quads + cubics + 2 * (molecules.size() + counts[kLine] + 2 * counts[kQuadratic] + 3 * counts[kCubic]);
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy); }
         void addEllipse(Bounds b) {
@@ -890,8 +890,8 @@ struct Rasterizer {
             }
         }
     }
-    static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
-        float ax, ay, d, t3, cpx, cpy, t, s, precision = 1.f;
+    static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float precision) {
+        float ax, ay, d, t3, cpx, cpy, t, s;
         ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0;
         d = sqrtf(ax * ax + ay * ay), t3 = d == 0.f ? 1.f : precision / d;
         if (t3 > 0.999999f) {
@@ -906,11 +906,11 @@ struct Rasterizer {
             ty0 = s * y01 + t * y12, ty1 = s * y12 + t * y23, y = s * ty0 + t * ty1;
             cpx = (3.f * (tx0 + x01) - x0 - x) * 0.25f, cpy = (3.f * (ty0 + y01) - y0 - y) * 0.25f;
             divideQuadratic(x0, y0, cpx, cpy, x, y, function, info);
-            divideCubic(x, y, tx1, ty1, x23, y23, x3, y3, function, info);
+            divideCubic(x, y, tx1, ty1, x23, y23, x3, y3, function, info, precision);
         }
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
-        divideCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+        divideCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, 1.f);
         return;
         
         float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
