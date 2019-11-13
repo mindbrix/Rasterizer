@@ -890,9 +890,9 @@ struct Rasterizer {
         }
     }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float precision) {
-        float ax, ay, d, t3, cpx, cpy, t, s, x01, x12, x23, y01, y12, y23, tx0, tx1, x, ty0, ty1, y;
-        ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0;
-        d = sqrtf(ax * ax + ay * ay), t3 = d == 0.f ? 1.f : precision / d;
+        float ax, ay, dot, t3, cpx, cpy, t, s, x01, x12, x23, y01, y12, y23, tx0, tx1, x, ty0, ty1, y;
+        ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0, dot = ax * ax + ay * ay;
+        t3 = dot == 0.f ? 1.f : precision / sqrtf(dot);
         if (t3 > 0.999999f) {
             cpx = (3.f * (x2 + x1) - x0 - x3) * 0.25f, cpy = (3.f * (y2 + y1) - y0 - y3) * 0.25f;
             divideQuadratic(x0, y0, cpx, cpy, x3, y3, function, info);
