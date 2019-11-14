@@ -196,6 +196,12 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    typedef void (*Function)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
+    
+    struct Segment {
+        Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
+        float x0, y0, x1, y1;
+    };
     template<typename T>
     struct Vector {
         uint64_t refCount, hash;
@@ -211,10 +217,50 @@ struct Rasterizer {
                 paths = & _paths.ref->v[0], ctms = & _ctms.ref->v[0], colors = & _colors.ref->v[0], widths = & _widths.ref->v[0], flags = & _flags.ref->v[0];
             }
         }
+        
+        void writePath(Path path, bool polygon, bool mark, Function function, void *info) {
+            float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, *p;
+            for (size_t index = 0; index < path.ref->types.size(); ) {
+                p = path.ref->pts + index * 2;
+                switch (path.ref->types[index]) {
+                    case Geometry::kMove:
+                        if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
+                             (*function)(x0, y0, sx, sy, 0, info);
+                        if (mark && sx != FLT_MAX)
+                            ;
+                        sx = x0 = p[0], sy = y0 = p[0], index++;
+                        break;
+                    case Geometry::kLine:
+                        (*function)(x0, y0, p[0], p[1], 0, info);
+                        x0 = p[0], y0 = p[1], index++;
+                        break;
+                    case Geometry::kQuadratic:
+                        divideQuadratic(x0, y0, p[0], p[1], p[2], p[3], function, info);
+                        x0 = p[2], y0 = p[3], index += 2;
+                        break;
+                    case Geometry::kCubic:
+                        writeCubic(x0, y0, p[0], p[1], p[2], p[3], p[4], p[5], function, info);
+                        x0 = p[4], y0 = p[5], index += 3;
+                        break;
+                    case Geometry::kClose:
+                        index++;
+                        break;
+                }
+            }
+            if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
+               (*function)(x0, y0, sx, sy, 0, info);
+            if (mark && sx != FLT_MAX)
+                ;
+        }
         size_t colorHash() { return _colors.ref->hash; }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
     private:
+        Ref<Vector<Segment>> segments; Ref<Vector<int16_t>> offsets;
+        Ref<Vector<uint32_t>> ms;
+        Ref<Vector<Bounds>> AABBs, molecules;
+        Ref<Vector<uint32_t>> ends;
+        
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     struct SceneList {
@@ -264,10 +310,6 @@ struct Rasterizer {
     struct Range {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
         int begin, end;
-    };
-    struct Segment {
-        Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
-        float x0, y0, x1, y1;
     };
     struct Output {
         Output(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
@@ -452,7 +494,6 @@ struct Rasterizer {
         Row<Instance> blends, opaques;
         Cache cache;
     };
-    typedef void (*Function)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         Output *out = (Output *)info;
         new (out->seg) Segment(x0, y0, x1, y1), out->seg++;
