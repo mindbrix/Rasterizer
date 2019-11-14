@@ -217,45 +217,35 @@ struct Rasterizer {
                 paths = & _paths.ref->v[0], ctms = & _ctms.ref->v[0], colors = & _colors.ref->v[0], widths = & _widths.ref->v[0], flags = & _flags.ref->v[0];
             }
         }
-        
-        void writePath(Path path, bool polygon, bool mark, Function function, void *info) {
-            float sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, *p;
-            for (size_t index = 0; index < path.ref->types.size(); ) {
-                p = path.ref->pts + index * 2;
-                switch (path.ref->types[index]) {
-                    case Geometry::kMove:
-                        if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
-                             (*function)(x0, y0, sx, sy, 0, info);
-                        if (mark && sx != FLT_MAX)
-                            ;
-                        sx = x0 = p[0], sy = y0 = p[0], index++;
-                        break;
-                    case Geometry::kLine:
-                        (*function)(x0, y0, p[0], p[1], 0, info);
-                        x0 = p[0], y0 = p[1], index++;
-                        break;
-                    case Geometry::kQuadratic:
-                        divideQuadratic(x0, y0, p[0], p[1], p[2], p[3], function, info);
-                        x0 = p[2], y0 = p[3], index += 2;
-                        break;
-                    case Geometry::kCubic:
-                        writeCubic(x0, y0, p[0], p[1], p[2], p[3], p[4], p[5], function, info);
-                        x0 = p[4], y0 = p[5], index += 3;
-                        break;
-                    case Geometry::kClose:
-                        index++;
-                        break;
+        static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            Scene *scene = (Scene *)info;
+            std::vector<Segment>& segments = scene->segments.ref->v;
+            std::vector<int16_t>& offsets = scene->offsets.ref->v;
+            size_t i = segments.size() - scene->dst0;
+            if (x0 != FLT_MAX) {
+                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+                segments.emplace_back(cx0, y0, x1, y1);
+                offsets.emplace_back(0);
+                if (i % 4 == 0)
+                    scene->ms.ref->v.emplace_back(scene->molecule);
+            } else {
+                scene->molecule++;
+                if (i > 0) {
+                    Segment& first = segments[scene->dst0], & last = segments[scene->dst0 + i - 1];
+                    float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
+                    size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
+                    offsets[scene->dst0] = offset, offsets[scene->dst0 + i - 1] = -offset;
+                    while (i++ % 4)
+                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), offsets.emplace_back(0);
                 }
+                scene->dst0 = segments.size();
             }
-            if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
-               (*function)(x0, y0, sx, sy, 0, info);
-            if (mark && sx != FLT_MAX)
-                ;
         }
         size_t colorHash() { return _colors.ref->hash; }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
     private:
+        size_t dst0 = 0, molecule = 0;
         Ref<Vector<Segment>> segments; Ref<Vector<int16_t>> offsets;
         Ref<Vector<uint32_t>> ms;
         Ref<Vector<Bounds>> AABBs, molecules;
