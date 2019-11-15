@@ -598,7 +598,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, bool *visibles, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
             for (uz = scene->count, lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz, uz += scene->count)
@@ -616,6 +616,8 @@ struct Rasterizer {
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap == nullptr) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                                if (width)
+                                    visibles[iz] = true;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
