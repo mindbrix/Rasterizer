@@ -259,6 +259,9 @@ struct Rasterizer {
                 scene->dst0 = segments.size();
             }
         }
+        size_t idx0(size_t pidx) { size_t idx = pidxs->v[pidx];  return idx == 0 ? 0 : ends->v[idx - 1]; }
+        size_t idx1(size_t pidx) { return ends->v[pidxs->v[pidx]]; }
+        
         size_t colorHash() { return _colors->hash; }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
@@ -1253,6 +1256,14 @@ struct Rasterizer {
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
+        size_t lz, uz, iz, is, icount = 0;
+        Scene *scene = & list.scenes[0];
+        for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count)
+            for (iz = lz; iz < uz; iz++)
+                if (flags[iz])
+                    icount += (scene->idx1(iz - lz) - scene->idx0(iz - lz)) >> 2;
+    
+        
         size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float);
         size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
