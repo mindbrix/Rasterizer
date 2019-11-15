@@ -210,7 +210,7 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct Scene {
-        enum Flags { kFillEvenOdd = 1 << 0, kOutlineRounded = 1 << 1, kOutlineEndCap = 1 << 2 };
+        enum Flags { kVisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->types.size();
@@ -598,7 +598,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, bool *visibles, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
             for (uz = scene->count, lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz, uz += scene->count)
@@ -617,7 +617,7 @@ struct Rasterizer {
                             if (bitmap == nullptr) {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 if (width)
-                                    visibles[iz] = true;
+                                    flags[iz] = scene->flags[is] | Scene::kVisible;
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
