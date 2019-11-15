@@ -214,7 +214,7 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->types.size();
-                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags.ref->v.emplace_back(flag), bounds.extend(Bounds(path->bounds.unit(ctm)).inset(-width, -width));
+                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag), bounds.extend(Bounds(path->bounds.unit(ctm)).inset(-width, -width));
                 _colors->hash = ::crc64(_colors->hash, & color, sizeof(color));
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
                 
@@ -237,15 +237,15 @@ struct Rasterizer {
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Scene *scene = (Scene *)info;
-            std::vector<Segment>& segments = scene->segments.ref->v;
-            std::vector<int16_t>& offsets = scene->offsets.ref->v;
+            std::vector<Segment>& segments = scene->segments->v;
+            std::vector<int16_t>& offsets = scene->offsets->v;
             size_t i = segments.size() - scene->dst0;
             if (x0 != FLT_MAX) {
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
                 segments.emplace_back(cx0, y0, x1, y1);
                 offsets.emplace_back(0);
                 if (i % 4 == 0)
-                    scene->midxs.ref->v.emplace_back(scene->midx);
+                    scene->midxs->v.emplace_back(scene->midx);
             } else {
                 scene->midx++;
                 if (i > 0) {
@@ -259,7 +259,7 @@ struct Rasterizer {
                 scene->dst0 = segments.size();
             }
         }
-        size_t colorHash() { return _colors.ref->hash; }
+        size_t colorHash() { return _colors->hash; }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
     private:
