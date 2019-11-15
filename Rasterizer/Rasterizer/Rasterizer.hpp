@@ -1243,11 +1243,13 @@ struct Rasterizer {
             in->dst++;
         }
     };
-    static size_t writeContextsToBuffer(Context *contexts, size_t count,
+    static size_t writeContextsToBuffer(SceneList& list,
+                                        Context *contexts, size_t count,
                                         Colorant *colorants,
                                         Transform *ctms,
                                         Transform *clips,
                                         float *widths,
+                                        uint8_t *flags,
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
