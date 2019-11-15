@@ -193,6 +193,7 @@ struct Rasterizer {
             }
             return *this;
         }
+        T* operator->() { return ref; }
         T *ref = nullptr;
     };
     typedef Ref<Geometry> Path;
@@ -217,19 +218,19 @@ struct Rasterizer {
                 _colors.ref->hash = ::crc64(_colors.ref->hash, & color, sizeof(color));
                 paths = & _paths.ref->v[0], ctms = & _ctms.ref->v[0], colors = & _colors.ref->v[0], widths = & _widths.ref->v[0], flags = & _flags.ref->v[0];
                 
-                auto it = cache.find(path.ref->hash);
+                auto it = cache.find(path->hash);
                 if (it != cache.end())
-                    ps.ref->v.emplace_back(it->second);
+                    pidxs->v.emplace_back(it->second);
                 else {
-                    cache.emplace(path.ref->hash, AABBs.ref->v.size());
+                    cache.emplace(path->hash, AABBs->v.size());
+                    pidxs->v.emplace_back(AABBs->v.size());
                     
-                    ps.ref->v.emplace_back(AABBs.ref->v.size());
-                    molecule = molecules.ref->v.size();
+                    midx = molecules->v.size();
                     writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, this);
-                    ends.ref->v.emplace_back(segments.ref->v.size());
-                    AABBs.ref->v.emplace_back(path.ref->bounds);
-                    for (Bounds& m : path.ref->molecules)
-                        molecules.ref->v.emplace_back(m);
+                    ends->v.emplace_back(segments->v.size());
+                    AABBs->v.emplace_back(path->bounds);
+                    for (Bounds& m : path->molecules)
+                        molecules->v.emplace_back(m);
                 }
                 int i = 0;
             }
@@ -244,9 +245,9 @@ struct Rasterizer {
                 segments.emplace_back(cx0, y0, x1, y1);
                 offsets.emplace_back(0);
                 if (i % 4 == 0)
-                    scene->ms.ref->v.emplace_back(scene->molecule);
+                    scene->midxs.ref->v.emplace_back(scene->midx);
             } else {
-                scene->molecule++;
+                scene->midx++;
                 if (i > 0) {
                     Segment& first = segments[scene->dst0], & last = segments[scene->dst0 + i - 1];
                     float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
@@ -262,12 +263,12 @@ struct Rasterizer {
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
     private:
-        size_t dst0 = 0, molecule = 0;
+        size_t dst0 = 0, midx = 0;
         Ref<Vector<Segment>> segments; Ref<Vector<int16_t>> offsets;
-        Ref<Vector<uint32_t>> ms;
+        Ref<Vector<uint32_t>> midxs;
         Ref<Vector<uint32_t>> ends;
         Ref<Vector<Bounds>> AABBs, molecules;
-        Ref<Vector<uint32_t>> ps;
+        Ref<Vector<uint32_t>> pidxs;
         std::unordered_map<size_t, size_t> cache;
         
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
