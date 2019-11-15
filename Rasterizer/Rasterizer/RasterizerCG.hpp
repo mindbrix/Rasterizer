@@ -194,7 +194,7 @@ struct RasterizerCG {
         std::vector<Ra::Buffer::Entry> *entries;
         size_t begin, slz, suz, tick;
         
-        static void drawScenes(void *info) {
+        static void drawList(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
             ti->context->drawList(*ti->list, ti->view, ti->paths, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->flags, ti->slz, ti->suz, ti->bitmap, ti->tick);
         }
@@ -235,7 +235,7 @@ struct RasterizerCG {
                     contexts[count].setBitmap(*bitmap, Ra::Bounds(0, ly, bitmap->width, uy));
                 }
             }
-            RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, ThreadInfo::drawScenes, threadInfo, sizeof(ThreadInfo), count);
+            RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
             if (buffer) {
