@@ -1257,23 +1257,25 @@ struct Rasterizer {
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
-        size_t slz, suz, lz, uz, clz, cuz, iz, is, ic, icount = 0;
-        for (ic = 0; ic < count; ic++) {
-            slz = izeds[ic], suz = izeds[ic + 1];
-            Scene *scene = & list.scenes[0];
-            for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count) {
-                clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
-                for (iz = clz; iz < cuz; iz++)
-                    if (flags[iz])
-                        icount += (scene->idx1(iz - lz) - scene->idx0(iz - lz)) >> 2;
-            }
-        }
-        
-        
         size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float);
         size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
+        size_t slz, suz, lz, uz, clz, cuz, iz, is, ic, icount, itotal = 0;
+        if (0)
+            for (ic = 0; ic < count; ic++) {
+                begins[ic] = size;
+                slz = izeds[ic], suz = izeds[ic + 1];
+                Scene *scene = & list.scenes[0];
+                for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count) {
+                    clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
+                    for (icount = 0, iz = clz; iz < cuz; iz++)
+                        if (flags[iz])
+                            icount += (scene->idx1(iz - lz) - scene->idx0(iz - lz)) >> 2;
+                    size += icount * sizeof(uint32_t) * 2;
+                    itotal += icount;
+                }
+            }
         for (i = 0; i < count; i++) {
             begins[i] = size;
             GPU& gpu = contexts[i].gpu;
