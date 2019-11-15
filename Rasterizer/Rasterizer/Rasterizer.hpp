@@ -1261,11 +1261,11 @@ struct Rasterizer {
         size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
-        size_t slz, suz, lz, uz, clz, cuz, iz, is, ic, icount, itotal = 0;
-        if (0)
-            for (ic = 0; ic < count; ic++) {
-                begins[ic] = size;
-                slz = izeds[ic], suz = izeds[ic + 1];
+        size_t slz, suz, lz, uz, clz, cuz, iz, is, icount, itotal = 0;
+        if (1)
+            for (i = 0; i < count; i++) {
+                begins[i] = size;
+                slz = izeds[i], suz = izeds[i + 1];
                 Scene *scene = & list.scenes[0];
                 for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count) {
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
