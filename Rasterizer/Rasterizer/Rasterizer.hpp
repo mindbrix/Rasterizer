@@ -215,6 +215,14 @@ struct Rasterizer {
                 _paths.ref->v.emplace_back(path), _ctms.ref->v.emplace_back(ctm), _colors.ref->v.emplace_back(color), _widths.ref->v.emplace_back(width), _flags.ref->v.emplace_back(flag), bounds.extend(Bounds(path.ref->bounds.unit(ctm)).inset(-width, -width));
                 _colors.ref->hash = ::crc64(_colors.ref->hash, & color, sizeof(color));
                 paths = & _paths.ref->v[0], ctms = & _ctms.ref->v[0], colors = & _colors.ref->v[0], widths = & _widths.ref->v[0], flags = & _flags.ref->v[0];
+                
+                molecule = molecules.ref->v.size();
+                writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, this);
+                ends.ref->v.emplace_back(segments.ref->v.size());
+                AABBs.ref->v.emplace_back(path.ref->bounds);
+                for (Bounds& m : path.ref->molecules)
+                    molecules.ref->v.emplace_back(m);
+                int i = 0;
             }
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -248,8 +256,8 @@ struct Rasterizer {
         size_t dst0 = 0, molecule = 0;
         Ref<Vector<Segment>> segments; Ref<Vector<int16_t>> offsets;
         Ref<Vector<uint32_t>> ms;
-        Ref<Vector<Bounds>> AABBs, molecules;
         Ref<Vector<uint32_t>> ends;
+        Ref<Vector<Bounds>> AABBs, molecules;
         
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
