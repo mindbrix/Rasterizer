@@ -1257,9 +1257,9 @@ struct Rasterizer {
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
-        size_t slz = 0, suz = pathsCount, lz, uz, clz, cuz, iz, is, icount = 0;
-        for (int i = 0; i < count; i++) {
-            slz = izeds[i], suz = izeds[i + 1];
+        size_t slz, suz, lz, uz, clz, cuz, iz, is, ic, icount = 0;
+        for (ic = 0; ic < count; ic++) {
+            slz = izeds[ic], suz = izeds[ic + 1];
             Scene *scene = & list.scenes[0];
             for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count) {
                 clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
