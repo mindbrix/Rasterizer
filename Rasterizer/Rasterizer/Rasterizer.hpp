@@ -1256,13 +1256,14 @@ struct Rasterizer {
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
-        size_t lz, uz, iz, is, icount = 0;
+        size_t slz = 0, suz = pathsCount, lz, uz, clz, cuz, iz, is, icount = 0;
         Scene *scene = & list.scenes[0];
-        for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count)
-            for (iz = lz; iz < uz; iz++)
+        for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count) {
+            clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
+            for (iz = clz; iz < cuz; iz++)
                 if (flags[iz])
                     icount += (scene->idx1(iz - lz) - scene->idx0(iz - lz)) >> 2;
-    
+        }
         
         size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float);
         size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
