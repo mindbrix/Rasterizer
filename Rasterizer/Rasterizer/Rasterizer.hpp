@@ -309,8 +309,8 @@ struct Rasterizer {
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         inline T *alloc(size_t n) {
             end += n;
-            if (memory.ref->size < end)
-                memory.ref->resize(end * 1.5), base = memory.ref->addr;
+            if (memory->size < end)
+                memory->resize(end * 1.5), base = memory->addr;
             return base + end - n;
         }
         Ref<Memory<T>> memory;
