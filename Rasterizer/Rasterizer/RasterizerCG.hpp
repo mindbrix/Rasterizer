@@ -238,16 +238,17 @@ struct RasterizerCG {
             RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, ThreadInfo::drawScenes, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
-            if (buffer)
+            if (buffer) {
                 contexts[0].setGPU(state.device.ux, state.device.uy);
-            else
+                izeds[0] = 0, izeds[1] = eiz;
+            } else
                 contexts[0].setBitmap(*bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
             contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, flags, 0, eiz, bitmap, buffer ? buffer->tick : 0);
         }
         if (buffer) {
             buffer->useCurves = state.useCurves;
             std::vector<Ra::Buffer::Entry> entries[count];
-            size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, colors, ctms, clips, widths, flags, eiz, begins, *buffer);
+            size_t begins[count], size = Ra::writeContextsToBuffer(list, izeds, contexts, count, colors, ctms, clips, widths, flags, eiz, begins, *buffer);
             if (count == 1)
                 Ra::writeContextToBuffer(contexts, paths, begins[0], 0, pathsCount, entries[0], *buffer);
             else {
