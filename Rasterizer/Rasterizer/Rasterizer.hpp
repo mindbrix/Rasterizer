@@ -7,6 +7,7 @@
 //
 #import "Rasterizer.h"
 #import "crc64.h"
+#import <unordered_map>
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
@@ -216,12 +217,20 @@ struct Rasterizer {
                 _colors.ref->hash = ::crc64(_colors.ref->hash, & color, sizeof(color));
                 paths = & _paths.ref->v[0], ctms = & _ctms.ref->v[0], colors = & _colors.ref->v[0], widths = & _widths.ref->v[0], flags = & _flags.ref->v[0];
                 
-                molecule = molecules.ref->v.size();
-                writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, this);
-                ends.ref->v.emplace_back(segments.ref->v.size());
-                AABBs.ref->v.emplace_back(path.ref->bounds);
-                for (Bounds& m : path.ref->molecules)
-                    molecules.ref->v.emplace_back(m);
+                auto it = cache.find(path.ref->hash);
+                if (it != cache.end())
+                    ps.ref->v.emplace_back(it->second);
+                else {
+                    cache.emplace(path.ref->hash, AABBs.ref->v.size());
+                    
+                    ps.ref->v.emplace_back(AABBs.ref->v.size());
+                    molecule = molecules.ref->v.size();
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, this);
+                    ends.ref->v.emplace_back(segments.ref->v.size());
+                    AABBs.ref->v.emplace_back(path.ref->bounds);
+                    for (Bounds& m : path.ref->molecules)
+                        molecules.ref->v.emplace_back(m);
+                }
                 int i = 0;
             }
         }
@@ -258,6 +267,8 @@ struct Rasterizer {
         Ref<Vector<uint32_t>> ms;
         Ref<Vector<uint32_t>> ends;
         Ref<Vector<Bounds>> AABBs, molecules;
+        Ref<Vector<uint32_t>> ps;
+        std::unordered_map<size_t, size_t> cache;
         
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
