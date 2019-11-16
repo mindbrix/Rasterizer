@@ -144,6 +144,7 @@ struct RasterizerCG {
         Ra::Context contexts[kQueueCount];
         RasterizerQueue queues[kQueueCount];
         std::unordered_map<size_t, Ra::SceneBuffer> cache;
+        std::vector<Ra::SceneBuffer> sceneBuffers;
     };
     
     static void writeFontsTable(RasterizerDB& db) {
@@ -281,7 +282,8 @@ struct RasterizerCG {
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             float *widths = (float *)malloc(pathsCount * sizeof(float));
             uint8_t *flags = (uint8_t *)calloc(1, pathsCount * sizeof(uint8_t));
-            std::vector<Ra::SceneBuffer> sceneBuffers;
+            
+            testScene.sceneBuffers.resize(0);
             for (size_t i = 0; i < visibles.scenes.size(); i++) {
                 Ra::Scene& scene = visibles.scenes[i];
                 auto it = testScene.cache.find(scene.hash);
@@ -289,9 +291,9 @@ struct RasterizerCG {
                     Ra::SceneWriter writer;
                     Ra::SceneBuffer buffer = writer.createBuffer(scene);  buffer.hitCount = 2;
                     testScene.cache.emplace(scene.hash, buffer);
-                    sceneBuffers.emplace_back(buffer);
+                    testScene.sceneBuffers.emplace_back(buffer);
                 } else
-                    it->second.hitCount = 2, sceneBuffers.emplace_back(it->second);
+                    it->second.hitCount = 2, testScene.sceneBuffers.emplace_back(it->second);
             }
             for (auto it = testScene.cache.begin(); it != testScene.cache.end(); ) {
                 if (it->second.hitCount == 0)
@@ -310,7 +312,7 @@ struct RasterizerCG {
             if (state.index != INT_MAX)
                 colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
             
-            renderScenes(visibles, & sceneBuffers[0], state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, flags, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+            renderScenes(visibles, & testScene.sceneBuffers[0], state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, flags, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
             free(paths), free(ctms), free(colors), free(clips), free(widths), free(flags);
         }
     }

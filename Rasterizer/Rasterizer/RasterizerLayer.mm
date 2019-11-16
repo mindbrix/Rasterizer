@@ -9,9 +9,14 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 
+struct CacheEntry {
+    size_t hitCount = 0;
+    id <MTLBuffer> mtlScene;
+};
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
+    std::unordered_map<size_t, CacheEntry> cache;
 }
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
@@ -106,6 +111,31 @@
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
+    
+    Ra::SceneBuffer *buf = buffer->sceneBuffers;
+    for (int i = 0; i < buffer->sceneCount; i++, buf++) {
+        auto it = cache.find(buf->hash);
+        if (it == cache.end()) {
+            CacheEntry entry;
+            entry.hitCount = 2;
+            entry.mtlScene = [self.device newBufferWithBytesNoCopy:buf->base
+                 length:buf->size
+                options:MTLResourceStorageModeShared
+            deallocator:^(void *pointer, NSUInteger length)
+            {
+                pointer = pointer;
+            }];
+            cache.emplace(buf->hash, entry);
+        } else
+            it->second.hitCount = 2;
+    }
+    for (auto it = cache.begin(); it != cache.end(); ) {
+        if (it->second.hitCount == 0)
+            it->second.mtlScene = nil, it = cache.erase(it);
+        else
+            it->second.hitCount--, ++it;
+    }
+
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
         mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
