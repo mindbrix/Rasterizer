@@ -1269,7 +1269,8 @@ struct Rasterizer {
         Row<Entry> entries;
         bool useCurves = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths, tick, pathsCount, size = 0;
+        SceneBuffer *sceneBuffers = nullptr;
+        size_t colors, transforms, clips, widths, sceneCount, tick, pathsCount, size = 0;
     };
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
@@ -1306,7 +1307,7 @@ struct Rasterizer {
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         size_t slz, suz, lz, uz, clz, cuz, iz, ip, is, icount, itotal = 0;
-        if (1)
+        if (0)
             for (i = 0; i < count; i++) {
                 begins[i] = size;
                 slz = izeds[i], suz = izeds[i + 1];
@@ -1314,14 +1315,8 @@ struct Rasterizer {
                 for (uz = buf->count, lz = is = 0; is < list.scenes.size(); is++, buf++, lz = uz, uz += buf->count) {
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
                     for (icount = 0, iz = clz; iz < cuz; iz++)
-                        if (flags[iz]) {
+                        if (flags[iz])
                             ip = iz - lz, icount += (buf->idx1(ip) - buf->idx0(ip)) >> 2;
-                            
-                            Path& p = list.scenes[is].paths[ip];
-                            size_t idx0 = buf->idx0(ip);
-                            Bounds b = buf->bounds[ip], mol0 = buf->molecules[buf->midxs[idx0 >> 2]];
-                            ip = ip;
-                        }
                     size += icount * sizeof(uint32_t) * 2;
                     itotal += icount;
                 }
@@ -1337,6 +1332,7 @@ struct Rasterizer {
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
+        buffer.sceneBuffers = sceneBuffers, buffer.sceneCount = list.scenes.size();
         buffer.pathsCount = pathsCount;
         memcpy(buffer.base + buffer.colors, colorants, szcolors);
         memcpy(buffer.base + buffer.transforms, ctms, sztransforms);
