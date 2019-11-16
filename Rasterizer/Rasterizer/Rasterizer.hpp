@@ -236,6 +236,7 @@ struct Rasterizer {
 
         uint8_t *base = nullptr;
         size_t size = 0, count = 0;
+        bool hit = false;
         Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
     };
     
