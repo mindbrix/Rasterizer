@@ -285,8 +285,7 @@ struct RasterizerCG {
                 auto it = testScene.cache.find(scene.hash);
                 if (it == testScene.cache.end()) {
                     Ra::SceneWriter writer;
-                    Ra::SceneBuffer buffer = writer.createBuffer(scene);
-                    testScene.cache.emplace(scene.hash, buffer);
+                    testScene.cache.emplace(scene.hash, writer.createBuffer(scene));
                 } else
                     it->second.hit = true;
             }
