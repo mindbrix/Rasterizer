@@ -1290,6 +1290,7 @@ struct Rasterizer {
         }
     };
     static size_t writeContextsToBuffer(SceneList& list,
+                                        SceneBuffer *sceneBuffers,
                                         size_t *izeds,
                                         Context *contexts, size_t count,
                                         Colorant *colorants,
@@ -1305,16 +1306,19 @@ struct Rasterizer {
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         size_t slz, suz, lz, uz, clz, cuz, iz, is, icount, itotal = 0;
-        if (0)
+        if (1)
             for (i = 0; i < count; i++) {
                 begins[i] = size;
                 slz = izeds[i], suz = izeds[i + 1];
-                Scene *scene = & list.scenes[0];
-                for (uz = scene->count, lz = is = 0; is < list.scenes.size(); is++, scene++, lz = uz, uz += scene->count) {
+                SceneBuffer *buf = sceneBuffers;
+                for (uz = buf->count, lz = is = 0; is < list.scenes.size(); is++, buf++, lz = uz, uz += buf->count) {
+//                    Geometry& g = *paths[iz];
+//                    size_t idx0 = buf.idx0(is);
+//                    Bounds b = buf.bounds[is], mol0 = buf.molecules[buf.midxs[idx0 >> 2]];
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
                     for (icount = 0, iz = clz; iz < cuz; iz++)
                         if (flags[iz])
-                            ;//icount += (scene->idx1(iz - lz) - scene->idx0(iz - lz)) >> 2;
+                            icount += (buf->idx1(iz - lz) - buf->idx0(iz - lz)) >> 2;
                     size += icount * sizeof(uint32_t) * 2;
                     itotal += icount;
                 }
