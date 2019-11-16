@@ -9,7 +9,7 @@
 
 struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list) {
-        if (0) {
+        if (1) {
             for (int i = 0; i < list.scenes.size(); i++) {
                 Ra::Scene& scene = list.scenes[i];
                 Ra::SceneWriter writer;

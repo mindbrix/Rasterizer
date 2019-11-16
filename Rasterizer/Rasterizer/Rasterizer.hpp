@@ -250,7 +250,7 @@ struct Rasterizer {
                     pidxs.emplace_back(bounds.size());
                     
                     midx = molecules.size();
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, divideQuadratic, writeDividedCubic, this);
                     ends.emplace_back(segments.size());
                     bounds.emplace_back(path->bounds);
                     for (Bounds& m : path->molecules)
@@ -760,7 +760,7 @@ struct Rasterizer {
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     if (unclipped)
-                        writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                        (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info);
                     else {
                         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
                         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
@@ -771,7 +771,7 @@ struct Rasterizer {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
                                     writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, quadFunction, info);
                                 else
-                                    writeQuadratic(x0, y0, x1, y1, x2, y2, function, info);
+                                    (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info);
                             }
                         }
                     }
@@ -782,7 +782,7 @@ struct Rasterizer {
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                     if (unclipped)
-                        writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                        (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                     else {
                         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
                         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -793,7 +793,7 @@ struct Rasterizer {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
                                     writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, cubicFunction, info);
                                 else
-                                    writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
+                                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info);
                             }
                         }
                     }
@@ -906,8 +906,6 @@ struct Rasterizer {
         }
     }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info) {
-        divideQuadratic(x0, y0, x1, y1, x2, y2, function, info);
-        return;
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = ax * ax + ay * ay;
         count = a < 0.1f ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
@@ -1006,7 +1004,7 @@ struct Rasterizer {
             divideCubic(x, y, tx1, ty1, x23, y23, x3, y3, function, info, precision);
         }
     }
-    static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
+    static void writeDividedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
         float lx, ly, ux, uy, p;
         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -1014,8 +1012,8 @@ struct Rasterizer {
         ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
         p = sqrtf((ux - lx + uy - ly) / 10.f);
         divideCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, p);
-        return;
-        
+    }
+    static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info) {
         float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
