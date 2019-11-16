@@ -646,7 +646,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, SceneBuffer *sceneBuffers, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
             for (uz = scene->count, lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz, uz += scene->count)
