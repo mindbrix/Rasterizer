@@ -287,17 +287,17 @@ struct RasterizerCG {
                 auto it = testScene.cache.find(scene.hash);
                 if (it == testScene.cache.end()) {
                     Ra::SceneWriter writer;
-                    Ra::SceneBuffer buffer = writer.createBuffer(scene);
+                    Ra::SceneBuffer buffer = writer.createBuffer(scene);  buffer.hitCount = 2;
                     testScene.cache.emplace(scene.hash, buffer);
                     sceneBuffers.emplace_back(buffer);
                 } else
-                    it->second.hit = true, sceneBuffers.emplace_back(it->second);
+                    it->second.hitCount = 2, sceneBuffers.emplace_back(it->second);
             }
             for (auto it = testScene.cache.begin(); it != testScene.cache.end(); ) {
-                if (! it->second.hit)
+                if (it->second.hitCount == 0)
                     free(it->second.base), it = testScene.cache.erase(it);
                 else
-                    it->second.hit = false, ++it;
+                    it->second.hitCount--, ++it;
             }
             
             Ra::Scene *scene = & visibles.scenes[0];

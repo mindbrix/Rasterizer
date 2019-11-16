@@ -235,8 +235,7 @@ struct Rasterizer {
         size_t idx1(size_t is) { return ends[pidxs[is]]; }
 
         uint8_t *base = nullptr;
-        size_t size = 0, count = 0, hash = 0;
-        bool hit = true;
+        size_t size = 0, count = 0, hash = 0, hitCount = 0;
         Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
     };
     
