@@ -1305,20 +1305,23 @@ struct Rasterizer {
         size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
-        size_t slz, suz, lz, uz, clz, cuz, iz, is, icount, itotal = 0;
+        size_t slz, suz, lz, uz, clz, cuz, iz, ip, is, icount, itotal = 0;
         if (1)
             for (i = 0; i < count; i++) {
                 begins[i] = size;
                 slz = izeds[i], suz = izeds[i + 1];
                 SceneBuffer *buf = sceneBuffers;
                 for (uz = buf->count, lz = is = 0; is < list.scenes.size(); is++, buf++, lz = uz, uz += buf->count) {
-//                    Geometry& g = *paths[iz];
-//                    size_t idx0 = buf.idx0(is);
-//                    Bounds b = buf.bounds[is], mol0 = buf.molecules[buf.midxs[idx0 >> 2]];
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
                     for (icount = 0, iz = clz; iz < cuz; iz++)
-                        if (flags[iz])
-                            icount += (buf->idx1(iz - lz) - buf->idx0(iz - lz)) >> 2;
+                        if (flags[iz]) {
+                            ip = iz - lz, icount += (buf->idx1(ip) - buf->idx0(ip)) >> 2;
+                            
+                            Path& p = list.scenes[is].paths[ip];
+                            size_t idx0 = buf->idx0(ip);
+                            Bounds b = buf->bounds[ip], mol0 = buf->molecules[buf->midxs[idx0 >> 2]];
+                            ip = ip;
+                        }
                     size += icount * sizeof(uint32_t) * 2;
                     itotal += icount;
                 }
