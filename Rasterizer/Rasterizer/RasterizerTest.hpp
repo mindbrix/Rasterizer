@@ -9,14 +9,6 @@
 
 struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list) {
-        if (1) {
-            for (int i = 0; i < list.scenes.size(); i++) {
-                Ra::Scene& scene = list.scenes[i];
-                Ra::SceneWriter writer;
-                Ra::SceneBuffer buffer = writer.createBuffer(scene);
-                free(buffer.base);
-            }
-        }
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (0) {

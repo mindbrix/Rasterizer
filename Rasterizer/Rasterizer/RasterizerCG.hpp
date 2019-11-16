@@ -143,6 +143,7 @@ struct RasterizerCG {
         BGRAColorConverter converter;
         Ra::Context contexts[kQueueCount];
         RasterizerQueue queues[kQueueCount];
+        std::unordered_map<size_t, Ra::SceneBuffer> cache;
     };
     
     static void writeFontsTable(RasterizerDB& db) {
@@ -279,6 +280,16 @@ struct RasterizerCG {
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             float *widths = (float *)malloc(pathsCount * sizeof(float));
             uint8_t *flags = (uint8_t *)calloc(1, pathsCount * sizeof(uint8_t));
+            for (size_t i = 0; i < visibles.scenes.size(); i++) {
+                Ra::Scene& scene = visibles.scenes[i];
+                auto it = testScene.cache.find(scene.hash);
+                if (it == testScene.cache.end()) {
+                    Ra::SceneWriter writer;
+                    Ra::SceneBuffer buffer = writer.createBuffer(scene);
+                    testScene.cache.emplace(scene.hash, buffer);
+                }
+            }
+            
             Ra::Scene *scene = & visibles.scenes[0];
             for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->count, scene++)
                 testScene.converter.convert(scene->colorHash(), & scene->colors[0].src0, scene->count, colors + iz);
