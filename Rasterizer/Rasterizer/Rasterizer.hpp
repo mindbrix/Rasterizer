@@ -234,8 +234,8 @@ struct Rasterizer {
         Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *AABBs, *molecules;
     };
     
-    struct SceneBufferWriter {
-        SceneBuffer writeScene(Scene& scene) {
+    struct SceneWriter {
+        SceneBuffer createBuffer(Scene& scene) {
             SceneBuffer buffer;
             for (int i = 0; i < scene.count; i++) {
                 Path path = scene.paths[i];
@@ -257,7 +257,7 @@ struct Rasterizer {
             return buffer;
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            SceneBufferWriter *writer = (SceneBufferWriter *)info;
+            SceneWriter *writer = (SceneWriter *)info;
             std::vector<Segment>& segments = writer->segments;
             std::vector<int16_t>& offsets = writer->offsets;
             size_t i = segments.size() - writer->dst0;
