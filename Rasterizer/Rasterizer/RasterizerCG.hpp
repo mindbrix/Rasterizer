@@ -280,14 +280,17 @@ struct RasterizerCG {
             Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
             float *widths = (float *)malloc(pathsCount * sizeof(float));
             uint8_t *flags = (uint8_t *)calloc(1, pathsCount * sizeof(uint8_t));
+            std::vector<Ra::SceneBuffer> sceneBuffers;
             for (size_t i = 0; i < visibles.scenes.size(); i++) {
                 Ra::Scene& scene = visibles.scenes[i];
                 auto it = testScene.cache.find(scene.hash);
                 if (it == testScene.cache.end()) {
                     Ra::SceneWriter writer;
-                    testScene.cache.emplace(scene.hash, writer.createBuffer(scene));
+                    Ra::SceneBuffer buffer = writer.createBuffer(scene);
+                    testScene.cache.emplace(scene.hash, buffer);
+                    sceneBuffers.emplace_back(buffer);
                 } else
-                    it->second.hit = true;
+                    it->second.hit = true, sceneBuffers.emplace_back(it->second);
             }
             for (auto it = testScene.cache.begin(); it != testScene.cache.end(); ) {
                 if (! it->second.hit)
