@@ -287,7 +287,14 @@ struct RasterizerCG {
                     Ra::SceneWriter writer;
                     Ra::SceneBuffer buffer = writer.createBuffer(scene);
                     testScene.cache.emplace(scene.hash, buffer);
-                }
+                } else
+                    it->second.hit = true;
+            }
+            for (auto it = testScene.cache.begin(); it != testScene.cache.end(); ) {
+                if (! it->second.hit)
+                    free(it->second.base), it = testScene.cache.erase(it);
+                else
+                    it->second.hit = false, ++it;
             }
             
             Ra::Scene *scene = & visibles.scenes[0];
