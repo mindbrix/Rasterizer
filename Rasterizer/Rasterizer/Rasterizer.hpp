@@ -218,11 +218,12 @@ struct Rasterizer {
                 count++, weight += path->types.size();
                 _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag), bounds.extend(Bounds(path->bounds.unit(ctm)).inset(-width, -width));
                 _colors->hash = ::crc64(_colors->hash, & color, sizeof(color));
+                hash = ::crc64(hash, & path->hash, sizeof(path->hash));
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
             }
         }
         size_t colorHash() { return _colors->hash; }
-        size_t count = 0, weight = 0;
+        size_t count = 0, weight = 0, hash = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
     private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
