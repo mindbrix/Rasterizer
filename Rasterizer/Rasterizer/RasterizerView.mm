@@ -48,9 +48,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         return nil;
     [self initLayer:_useCPU];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
-    Ra::Scene glyphs;
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, nil, self.bounds, glyphs);
-    _state.user = _list.empty().addScene(glyphs).bounds;
+    [self changeFont:nil];
     return self;
 }
 
@@ -102,6 +100,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, glyphs);
         _list.empty().addScene(glyphs);
     }
+    RasterizerTest::addTestScenes(_list);
     _state.user = _list.bounds;
     [self.layer setNeedsDisplay];
 }
