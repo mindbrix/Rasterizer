@@ -199,6 +199,8 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     typedef void (*Function)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
+    typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, Function *function, void *info);
+    typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function *function, void *info);
     
     struct Segment {
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
