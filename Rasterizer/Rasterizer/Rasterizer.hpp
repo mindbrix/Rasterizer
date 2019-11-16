@@ -226,8 +226,17 @@ struct Rasterizer {
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     
+    struct SceneBuffer {
+        size_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
+        size_t idx1(size_t is) { return ends[pidxs[is]]; }
+
+        uint8_t *base = nullptr;
+        Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *AABBs, *molecules;
+    };
+    
     struct SceneBufferWriter {
-        void writeScene(Scene& scene) {
+        SceneBuffer writeScene(Scene& scene) {
+            SceneBuffer buffer;
             for (int i = 0; i < scene.count; i++) {
                 Path path = scene.paths[i];
                 auto it = cache.find(path->hash);
@@ -245,6 +254,7 @@ struct Rasterizer {
                         molecules.emplace_back(m);
                 }
             }
+            return buffer;
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBufferWriter *writer = (SceneBufferWriter *)info;
@@ -279,18 +289,7 @@ struct Rasterizer {
         std::vector<uint32_t> pidxs;
         std::unordered_map<size_t, size_t> cache;
     };
-    struct SceneBuffer {
-        SceneBuffer(Scene& scene) {
-            SceneBufferWriter writer;
-            writer.writeScene(scene);
-            
-        }
-        size_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
-        size_t idx1(size_t is) { return ends[pidxs[is]]; }
-
-        uint8_t *base = nullptr;
-        Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *AABBs, *molecules;
-    };
+    
     struct SceneList {
         SceneList& empty() {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
