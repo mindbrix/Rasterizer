@@ -225,71 +225,71 @@ struct Rasterizer {
     private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
+    
+    struct SceneBufferWriter {
+        void writeScene(Scene& scene) {
+            for (int i = 0; i < scene.count; i++) {
+                Path path = scene.paths[i];
+                auto it = cache.find(path->hash);
+                if (it != cache.end())
+                    pidxs.emplace_back(it->second);
+                else {
+                    cache.emplace(path->hash, AABBs.size());
+                    pidxs.emplace_back(AABBs.size());
+                    
+                    midx = molecules.size();
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, this);
+                    ends.emplace_back(segments.size());
+                    AABBs.emplace_back(path->bounds);
+                    for (Bounds& m : path->molecules)
+                        molecules.emplace_back(m);
+                }
+            }
+        }
+        static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            SceneBufferWriter *writer = (SceneBufferWriter *)info;
+            std::vector<Segment>& segments = writer->segments;
+            std::vector<int16_t>& offsets = writer->offsets;
+            size_t i = segments.size() - writer->dst0;
+            if (x0 != FLT_MAX) {
+                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+                segments.emplace_back(cx0, y0, x1, y1);
+                offsets.emplace_back(0);
+                if (i % 4 == 0)
+                    writer->midxs.emplace_back(writer->midx);
+            } else {
+                writer->midx++;
+                if (i > 0) {
+                    Segment& first = segments[writer->dst0], & last = segments[writer->dst0 + i - 1];
+                    float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
+                    size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
+                    offsets[writer->dst0] = offset, offsets[writer->dst0 + i - 1] = -offset;
+                    while (i++ % 4)
+                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), offsets.emplace_back(0);
+                }
+                writer->dst0 = segments.size();
+            }
+        }
+        size_t dst0 = 0, midx = 0;
+        std::vector<Segment> segments;
+        std::vector<int16_t> offsets;
+        std::vector<uint32_t> midxs;
+        std::vector<uint32_t> ends;
+        std::vector<Bounds> AABBs, molecules;
+        std::vector<uint32_t> pidxs;
+        std::unordered_map<size_t, size_t> cache;
+    };
     struct SceneBuffer {
-        struct Bases { Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *AABBs, *molecules; };
-        struct Writer {
-            void writeScene(Scene& scene) {
-                for (int i = 0; i < scene.count; i++) {
-                    Path path = scene.paths[i];
-                    auto it = cache.find(path->hash);
-                    if (it != cache.end())
-                        pidxs->v.emplace_back(it->second);
-                    else {
-                        cache.emplace(path->hash, AABBs->v.size());
-                        pidxs->v.emplace_back(AABBs->v.size());
-                        
-                        midx = molecules->v.size();
-                        writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, this);
-                        ends->v.emplace_back(segments->v.size());
-                        AABBs->v.emplace_back(path->bounds);
-                        for (Bounds& m : path->molecules)
-                            molecules->v.emplace_back(m);
-                    }
-                }
-            }
-            static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-                Writer *writer = (Writer *)info;
-                std::vector<Segment>& segments = writer->segments->v;
-                std::vector<int16_t>& offsets = writer->offsets->v;
-                size_t i = segments.size() - writer->dst0;
-                if (x0 != FLT_MAX) {
-                    float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-                    segments.emplace_back(cx0, y0, x1, y1);
-                    offsets.emplace_back(0);
-                    if (i % 4 == 0)
-                        writer->midxs->v.emplace_back(writer->midx);
-                } else {
-                    writer->midx++;
-                    if (i > 0) {
-                        Segment& first = segments[writer->dst0], & last = segments[writer->dst0 + i - 1];
-                        float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
-                        size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
-                        offsets[writer->dst0] = offset, offsets[writer->dst0 + i - 1] = -offset;
-                        while (i++ % 4)
-                            segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), offsets.emplace_back(0);
-                    }
-                    writer->dst0 = segments.size();
-                }
-            }
-            size_t dst0 = 0, midx = 0;
-            Ref<Vector<Segment>> segments; Ref<Vector<int16_t>> offsets;
-            Ref<Vector<uint32_t>> midxs;
-            Ref<Vector<uint32_t>> ends;
-            Ref<Vector<Bounds>> AABBs, molecules;
-            Ref<Vector<uint32_t>> pidxs;
-            std::unordered_map<size_t, size_t> cache;
-        };
-        
         SceneBuffer(Scene& scene) {
-            Writer writer;
+            SceneBufferWriter writer;
             writer.writeScene(scene);
             
         }
-        size_t idx0(size_t is) { return bases.pidxs[is] == 0 ? 0 : bases.ends[bases.pidxs[is] - 1]; }
-        size_t idx1(size_t is) { return bases.ends[bases.pidxs[is]]; }
+        size_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
+        size_t idx1(size_t is) { return ends[pidxs[is]]; }
 
         uint8_t *base = nullptr;
-        Bases bases;
+        Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *AABBs, *molecules;
     };
     struct SceneList {
         SceneList& empty() {
