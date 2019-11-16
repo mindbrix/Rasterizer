@@ -235,7 +235,7 @@ struct Rasterizer {
         size_t idx1(size_t is) { return ends[pidxs[is]]; }
 
         uint8_t *base = nullptr;
-        size_t size = 0, count = 0;
+        size_t size = 0, count = 0, hash = 0;
         bool hit = true;
         Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
     };
@@ -261,7 +261,7 @@ struct Rasterizer {
             }
             size_t ssegments, soffsets, sbounds, smolecules, smidxs, sends, spidxs, size, begin;
             SceneBuffer buffer;
-            buffer.count = scene.count;
+            buffer.count = scene.count, buffer.hash = scene.hash;
             ssegments = segments.size() * sizeof(segments[0]), soffsets = offsets.size() * sizeof(offsets[0]);
             smidxs = midxs.size() * sizeof(midxs[0]), sends = ends.size() * sizeof(ends[0]);
             sbounds = bounds.size() * sizeof(bounds[0]), smolecules = molecules.size() * sizeof(molecules[0]);
