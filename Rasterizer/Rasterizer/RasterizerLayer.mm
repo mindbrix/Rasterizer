@@ -112,20 +112,17 @@ struct CacheEntry {
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     
-    Ra::SceneBuffer *buf = buffer->sceneBuffers;
-    for (int i = 0; i < buffer->sceneCount; i++, buf++) {
-        auto it = cache.find(buf->hash);
+    Ra::SceneBuffer *scene = buffer->sceneBuffers;
+    for (int i = 0; i < buffer->sceneCount; i++, scene++) {
+        auto it = cache.find(scene->hash);
         if (it == cache.end()) {
             CacheEntry entry;
             entry.hitCount = 2;
-            entry.mtlScene = [self.device newBufferWithBytesNoCopy:buf->base
-                 length:buf->size
+            entry.mtlScene = [self.device newBufferWithBytesNoCopy:scene->base
+                 length:scene->size
                 options:MTLResourceStorageModeShared
-            deallocator:^(void *pointer, NSUInteger length)
-            {
-                pointer = pointer;
-            }];
-            cache.emplace(buf->hash, entry);
+            deallocator:nil];
+            cache.emplace(scene->hash, entry);
         } else
             it->second.hitCount = 2;
     }
