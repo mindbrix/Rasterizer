@@ -1306,11 +1306,13 @@ struct Rasterizer {
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         size_t slz, suz, lz, uz, clz, cuz, iz, ip, is, icount, itotal = 0;
-        if (1)
-            for (i = 0; i < count; i++) {
-                begins[i] = size;
-                slz = izeds[i], suz = izeds[i + 1];
+        
+        for (i = 0; i < count; i++) {
+            begins[i] = size;
+            
+            if (buffer.useBuffers) {
                 SceneBuffer *buf = sceneBuffers;
+                slz = izeds[i], suz = izeds[i + 1];
                 for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
                     if (clz != cuz)
@@ -1322,8 +1324,6 @@ struct Rasterizer {
                     itotal += icount;
                 }
             }
-        for (i = 0; i < count; i++) {
-            begins[i] = size;
             GPU& gpu = contexts[i].gpu;
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
