@@ -1349,6 +1349,8 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
+                                     SceneBuffer *sceneBuffers,
+                                     size_t sceneCount,
                                      Geometry **paths,
                                      size_t begin,
                                      size_t slz, size_t suz,
