@@ -15,6 +15,10 @@ struct Transform {
     float a, b, c, d, tx, ty;
 };
 
+struct Bounds {
+    float lx, ly, ux, uy;
+};
+
 struct Colorant {
     uint8_t src0, src1, src2, src3;
 };
@@ -235,6 +239,10 @@ vertex InstancesVertex instances_vertex_main(
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant bool *useCurves [[buffer(14)]],
+            const device Segment *segments [[buffer(20)]],
+            const device int16_t *offsets [[buffer(21)]],
+            const device uint32_t *midxs [[buffer(22)]],
+            const device Bounds *molecules [[buffer(23)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
