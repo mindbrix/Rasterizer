@@ -231,8 +231,8 @@ struct Rasterizer {
     
     struct SceneBuffer {
         static constexpr size_t kPageSize = 4096;
-        size_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
-        size_t idx1(size_t is) { return ends[pidxs[is]]; }
+        uint32_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
+        uint32_t idx1(size_t is) { return ends[pidxs[is]]; }
 
         uint8_t *base = nullptr;
         size_t size = 0, count = 0, hash = 0, hitCount = 0;
@@ -1361,7 +1361,7 @@ struct Rasterizer {
         size_t j, iz, sbegins[ctx->segments.size()], size, nsegments = 0, ncells = 0;
         if (slz != suz) {
             if (buffer.useBuffers) {
-                size_t lz, uz, clz, cuz, iz, ip, is, icount;
+                size_t lz, uz, clz, cuz, iz, ip, is;
                 SceneBuffer *buf = sceneBuffers;
                 for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
@@ -1369,9 +1369,13 @@ struct Rasterizer {
                         *((size_t *)(buffer.base + begin)) = buf->hash;
                         entries.emplace_back(Buffer::kSceneBuffer, begin, begin + sizeof(size_t)), begin = entries.back().end;
                     }
-                    for (icount = 0, iz = clz; iz < cuz; iz++)
-                        if (flags[iz])
-                            ip = iz - lz, icount += (buf->idx1(ip) - buf->idx0(ip)) >> 2;
+                    uint32_t *dst = (uint32_t *)(buffer.base + begin), idx0, idx1, idx;
+                    for (iz = clz; iz < cuz; iz++)
+                        if (flags[iz]) {
+                            ip = iz - lz, idx0 = buf->idx0(ip), idx1 = buf->idx1(ip);
+                            for (idx = idx0; idx < idx1; idx += 4)
+                                *dst++ = idx, *dst++ = uint32_t(iz);
+                        }
                 }
             }
             
