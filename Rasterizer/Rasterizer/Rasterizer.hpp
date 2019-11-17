@@ -1306,13 +1306,15 @@ struct Rasterizer {
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         size_t slz, suz, lz, uz, clz, cuz, iz, ip, is, icount, itotal = 0;
-        if (0)
+        if (1)
             for (i = 0; i < count; i++) {
                 begins[i] = size;
                 slz = izeds[i], suz = izeds[i + 1];
                 SceneBuffer *buf = sceneBuffers;
                 for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
+                    if (clz != cuz)
+                        size += sizeof(size_t);
                     for (icount = 0, iz = clz; iz < cuz; iz++)
                         if (flags[iz])
                             ip = iz - lz, icount += (buf->idx1(ip) - buf->idx0(ip)) >> 2;
