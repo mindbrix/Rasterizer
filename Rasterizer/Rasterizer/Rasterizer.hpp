@@ -1351,6 +1351,7 @@ struct Rasterizer {
     static void writeContextToBuffer(Context *ctx,
                                      SceneBuffer *sceneBuffers,
                                      size_t sceneCount,
+                                     uint8_t *flags,
                                      Geometry **paths,
                                      size_t begin,
                                      size_t slz, size_t suz,
@@ -1359,6 +1360,21 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, sbegins[ctx->segments.size()], size, nsegments = 0, ncells = 0;
         if (slz != suz) {
+            if (buffer.useBuffers) {
+                size_t lz, uz, clz, cuz, iz, ip, is, icount;
+                SceneBuffer *buf = sceneBuffers;
+                for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
+                    clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
+                    if (clz != cuz) {
+                        *((size_t *)(buffer.base + begin)) = buf->hash;
+                        entries.emplace_back(Buffer::kSceneBuffer, begin, begin + sizeof(size_t)), begin = entries.back().end;
+                    }
+                    for (icount = 0, iz = clz; iz < cuz; iz++)
+                        if (flags[iz])
+                            ip = iz - lz, icount += (buf->idx1(ip) - buf->idx0(ip)) >> 2;
+                }
+            }
+            
             size = ctx->gpu.cache.segments.end;
             for (j = 0; j < ctx->segments.size(); j++)
                 sbegins[j] = size, size += ctx->segments[j].end;
