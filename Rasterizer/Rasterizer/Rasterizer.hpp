@@ -1289,8 +1289,8 @@ struct Rasterizer {
             in->dst++;
         }
     };
-    static size_t writeContextsToBuffer(SceneList& list,
-                                        SceneBuffer *sceneBuffers,
+    static size_t writeContextsToBuffer(SceneBuffer *sceneBuffers,
+                                        size_t sceneCount,
                                         size_t *izeds,
                                         Context *contexts, size_t count,
                                         Colorant *colorants,
@@ -1311,7 +1311,7 @@ struct Rasterizer {
                 begins[i] = size;
                 slz = izeds[i], suz = izeds[i + 1];
                 SceneBuffer *buf = sceneBuffers;
-                for (uz = buf->count, lz = is = 0; is < list.scenes.size(); is++, buf++, lz = uz, uz += buf->count) {
+                for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
                     clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
                     for (icount = 0, iz = clz; iz < cuz; iz++)
                         if (flags[iz])
@@ -1331,7 +1331,7 @@ struct Rasterizer {
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
-        buffer.sceneBuffers = sceneBuffers, buffer.sceneCount = list.scenes.size();
+        buffer.sceneBuffers = sceneBuffers, buffer.sceneCount = sceneCount;
         buffer.pathsCount = pathsCount;
         memcpy(buffer.base + buffer.colors, colorants, szcolors);
         memcpy(buffer.base + buffer.transforms, ctms, sztransforms);
