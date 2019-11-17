@@ -1380,6 +1380,7 @@ struct Rasterizer {
                             for (idx = idx0; idx < idx1; idx += 4)
                                 *dst++ = idx, *dst++ = izf;
                         }
+                   // entries.emplace_back(Buffer::kInstances, begin, (uint8_t *)dst - buffer.base), begin = entries.back().end;
                 }
             }
             
