@@ -29,7 +29,7 @@ struct RasterizerState {
         bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
     }
     bool writeEvent(Event e) {
-        bool written = e.type != Event::kKeyDown || (e.type == Event::kKeyDown && (e.keyCode == 8 || e.keyCode == 31 || e.keyCode == 35 || e.keyCode == 36));
+        bool written = e.type != Event::kKeyDown || (e.type == Event::kKeyDown && (e.keyCode == 8 || e.keyCode == 11 || e.keyCode == 31 || e.keyCode == 35 || e.keyCode == 36));
         if (written)
             events.emplace_back(e);
         return written;
@@ -58,6 +58,8 @@ struct RasterizerState {
                     redraw = true;
                     if (e.keyCode == 8)
                         useCurves = !useCurves;
+                    else if (e.keyCode == 11)
+                        useBuffers = !useBuffers;
                     else if (e.keyCode == 31)
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == 35)
@@ -113,7 +115,7 @@ struct RasterizerState {
         events.resize(0);
         return redraw;
     }
-    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true;
+    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, useBuffers = false;
     float x, y, scale, outlineWidth = 0.f;
     int keyCode = 0;
     size_t index = INT_MAX, flags = 0;
