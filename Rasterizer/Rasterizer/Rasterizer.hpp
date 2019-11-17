@@ -1248,7 +1248,7 @@ struct Rasterizer {
     }
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
-        enum Type { kEdges, kFastEdges, kOpaques, kInstances };
+        enum Type { kSceneBuffer, kEdges, kFastEdges, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
             Type type;

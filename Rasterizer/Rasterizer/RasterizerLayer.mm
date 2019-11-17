@@ -186,10 +186,18 @@ struct CacheEntry {
     
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
+    id <MTLBuffer> mtlScene = nil;
     
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
+            case Ra::Buffer::kSceneBuffer: {
+                size_t hash = *((size_t *)(buffer->base + entry.begin));
+                auto it = cache.find(hash);
+                assert(it != cache.end());
+                mtlScene = it->second.mtlScene;
+                break;
+            }
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
