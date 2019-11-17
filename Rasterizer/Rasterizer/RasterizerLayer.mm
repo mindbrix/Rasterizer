@@ -10,7 +10,7 @@
 #import <Metal/Metal.h>
 
 struct CacheEntry {
-    size_t hitCount = 0;
+    Ra::SceneBuffer buffer;
     id <MTLBuffer> mtlScene;
 };
 @interface RasterizerLayer ()
@@ -112,25 +112,25 @@ struct CacheEntry {
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     
-    Ra::SceneBuffer *scene = buffer->sceneBuffers;
-    for (int i = 0; i < buffer->sceneCount; i++, scene++) {
-        auto it = cache.find(scene->hash);
+    Ra::SceneBuffer *buf = buffer->sceneBuffers;
+    for (int i = 0; i < buffer->sceneCount; i++, buf++) {
+        auto it = cache.find(buf->hash);
         if (it == cache.end()) {
             CacheEntry entry;
-            entry.hitCount = 2;
-            entry.mtlScene = [self.device newBufferWithBytesNoCopy:scene->base
-                 length:scene->size
+            entry.buffer = *buf, entry.buffer.hitCount = 2;
+            entry.mtlScene = [self.device newBufferWithBytesNoCopy:buf->base
+                 length:buf->size
                 options:MTLResourceStorageModeShared
             deallocator:nil];
-            cache.emplace(scene->hash, entry);
+            cache.emplace(buf->hash, entry);
         } else
-            it->second.hitCount = 2;
+            it->second.buffer.hitCount = 2;
     }
     for (auto it = cache.begin(); it != cache.end(); ) {
-        if (it->second.hitCount == 0)
+        if (it->second.buffer.hitCount == 0)
             it = cache.erase(it);
         else
-            it->second.hitCount--, ++it;
+            it->second.buffer.hitCount--, ++it;
     }
 
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
@@ -195,6 +195,7 @@ struct CacheEntry {
                 size_t hash = *((size_t *)(buffer->base + entry.begin));
                 auto it = cache.find(hash);
                 assert(it != cache.end());
+                buf = & it->second.buffer;
                 mtlScene = it->second.mtlScene;
                 break;
             }
