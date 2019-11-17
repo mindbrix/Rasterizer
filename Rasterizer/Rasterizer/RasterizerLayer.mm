@@ -128,7 +128,7 @@ struct CacheEntry {
     }
     for (auto it = cache.begin(); it != cache.end(); ) {
         if (it->second.hitCount == 0)
-            it->second.mtlScene = nil, it = cache.erase(it);
+            it = cache.erase(it);
         else
             it->second.hitCount--, ++it;
     }
