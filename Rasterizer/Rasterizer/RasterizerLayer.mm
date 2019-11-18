@@ -259,6 +259,7 @@ struct CacheEntry {
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->nexts - buf->base) atIndex:22];
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->midxs - buf->base) atIndex:23];
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->molecules - buf->base) atIndex:24];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:25];
                 }
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip

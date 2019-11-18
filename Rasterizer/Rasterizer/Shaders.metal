@@ -41,9 +41,12 @@ struct Outline {
     Segment s;
     short prev, next;
 };
+struct SceneInstance {
+    uint32_t idx, iz;
+};
 struct Instance {
     enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
-    union { uint32_t idx;  Quad quad;  Outline outline; };
+    union { Quad quad;  Outline outline; };
     uint32_t iz;
 };
 struct EdgeCell {
@@ -233,8 +236,10 @@ struct InstancesVertex
 };
 
 vertex InstancesVertex instances_vertex_main(
-            const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
-            const device Transform *affineTransforms [[buffer(4)]], const device Transform *clips [[buffer(5)]],
+            const device Colorant *paints [[buffer(0)]],
+            const device Instance *instances [[buffer(1)]],
+            const device Transform *affineTransforms [[buffer(4)]],
+            const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
@@ -244,21 +249,29 @@ vertex InstancesVertex instances_vertex_main(
             const device int16_t *nexts [[buffer(22)]],
             const device uint32_t *midxs [[buffer(23)]],
             const device Bounds *molecules [[buffer(24)]],
+            const device SceneInstance *sceneInstances [[buffer(25)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
     constexpr float err = 1e-3;
     
-//    uint idx = iid >> 2;
-//    const device Instance& inst = instances[idx];
+    const device SceneInstance& sinst = sceneInstances[iid >> 2];
     
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& paint = paints[iz];
     float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
-//        int16_t offset = offsets[idx], prev = ;
         const device Transform& m = affineTransforms[iz];
+        
+//        uint32_t si = sinst.idx + iid & 3;
+//        int16_t prev = prevs[si], next = nexts[si];
+//        bool pcap = prev== 0, ncap = next == 0;
+//        const device Segment& o = segments[si];
+//        const device Segment& p = segments[si + prev];
+//        const device Segment& n = segments[si + next];
+        
+        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
@@ -278,7 +291,6 @@ vertex InstancesVertex instances_vertex_main(
         area = ax * by - ay * bx;
         bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0;
         
-        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
