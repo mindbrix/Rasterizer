@@ -667,8 +667,9 @@ struct Rasterizer {
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 if (width)
                                     flags[iz] = scene->flags[is] | Scene::kVisible;
+                                
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
+//                                writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
@@ -1325,13 +1326,14 @@ struct Rasterizer {
                     size += icount * sizeof(uint32_t) * 2;
                     itotal += icount;
                 }
+            } else {
+                GPU& gpu = contexts[i].gpu;
+                for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
+                    cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
+                size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
+                for (j = 0; j < contexts[i].segments.size(); j++)
+                    size += contexts[i].segments[j].end * sizeof(Segment);
             }
-            GPU& gpu = contexts[i].gpu;
-            for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
-            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
-            for (j = 0; j < contexts[i].segments.size(); j++)
-                size += contexts[i].segments[j].end * sizeof(Segment);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
@@ -1379,79 +1381,79 @@ struct Rasterizer {
                             for (idx = idx0; idx < idx1; idx += 4)
                                 *dst++ = idx, *dst++ = izf;
                         }
-                   // entries.emplace_back(Buffer::kInstances, begin, (uint8_t *)dst - buffer.base), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kInstances, begin, (uint8_t *)dst - buffer.base), begin = entries.back().end;
                 }
-            }
-            
-            size = ctx->gpu.cache.segments.end;
-            for (j = 0; j < ctx->segments.size(); j++)
-                sbegins[j] = size, size += ctx->segments[j].end;
-            if (size) {
-                Segment *dst = (Segment *)(buffer.base + begin);
-                if (ctx->gpu.cache.segments.end)
-                    memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
+            } else {
+                size = ctx->gpu.cache.segments.end;
                 for (j = 0; j < ctx->segments.size(); j++)
-                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
-                nsegments = begin, begin = begin + size * sizeof(Segment);
-            }
-            for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
-                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
-                ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
-                
-                GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
-                if (pass->cells) {
-                    entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                    entries.back().segments = nsegments, entries.back().cells = ncells;
+                    sbegins[j] = size, size += ctx->segments[j].end;
+                if (size) {
+                    Segment *dst = (Segment *)(buffer.base + begin);
+                    if (ctx->gpu.cache.segments.end)
+                        memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
+                    for (j = 0; j < ctx->segments.size(); j++)
+                        memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
+                    nsegments = begin, begin = begin + size * sizeof(Segment);
                 }
-                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
-                if (pass->cells) {
-                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                    entries.back().segments = nsegments, entries.back().cells = ncells;
-                }
-                GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
-                dst0 = dst = (GPU::Instance *)(buffer.base + begin);
-                for (inst = linst; inst < uinst; inst++) {
-                    iz = inst->iz & kPathIndexMask;
-                    if (inst->iz & GPU::Instance::kOutlines) {
-                        OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
-                        if (dst == info.dst)
-                            OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
-                        dst = info.dst, ctms[iz] = Transform();
-                    } else {
-                        *dst++ = *inst;
-                        if (inst->iz & GPU::Instance::kMolecule) {
-                            Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
-                            int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                            Bounds *b = paths[iz]->mols;
-                            float ta, tc, ux;
-                            Transform& ctm = ctms[iz];
-                            for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
-                                cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
-                                ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                                ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                                for (j = bc; j < *cnt; fast++)
-                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                (fast - 1)->i1 = *cnt;
+                for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
+                    GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
+                    ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
+                    
+                    GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
+                    if (pass->cells) {
+                        entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                        entries.back().segments = nsegments, entries.back().cells = ncells;
+                    }
+                    GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
+                    if (pass->cells) {
+                        entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                        entries.back().segments = nsegments, entries.back().cells = ncells;
+                    }
+                    GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
+                    dst0 = dst = (GPU::Instance *)(buffer.base + begin);
+                    for (inst = linst; inst < uinst; inst++) {
+                        iz = inst->iz & kPathIndexMask;
+                        if (inst->iz & GPU::Instance::kOutlines) {
+                            OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
+                            writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
+                            if (dst == info.dst)
+                                OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
+                            dst = info.dst, ctms[iz] = Transform();
+                        } else {
+                            *dst++ = *inst;
+                            if (inst->iz & GPU::Instance::kMolecule) {
+                                Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+                                int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
+                                Bounds *b = paths[iz]->mols;
+                                float ta, tc, ux;
+                                Transform& ctm = ctms[iz];
+                                for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
+                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
+                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+                                    for (j = bc; j < *cnt; fast++)
+                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                    (fast - 1)->i1 = *cnt;
+                                }
+                                ctm = ctm.concat(e->ctm);
+                            } else if (inst->iz & GPU::Instance::kEdge) {
+                                cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
+                                uint32_t ic = uint32_t(cell - c0);
+                                Index *is = ctx->gpu.indices.base + inst->quad.begin;
+                                for (j = 0; j < inst->quad.count; j++, edge++) {
+                                    edge->ic = ic, edge->i0 = uint16_t(is++->i);
+                                    if (++j < inst->quad.count)
+                                        edge->i1 = uint16_t(is++->i);
+                                    else
+                                        edge->i1 = kNullIndex;
+                                }
+                                cell++;
                             }
-                            ctm = ctm.concat(e->ctm);
-                        } else if (inst->iz & GPU::Instance::kEdge) {
-                            cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
-                            uint32_t ic = uint32_t(cell - c0);
-                            Index *is = ctx->gpu.indices.base + inst->quad.begin;
-                            for (j = 0; j < inst->quad.count; j++, edge++) {
-                                edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                if (++j < inst->quad.count)
-                                    edge->i1 = uint16_t(is++->i);
-                                else
-                                    edge->i1 = kNullIndex;
-                            }
-                            cell++;
                         }
                     }
+                    entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
                 }
-                entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
             }
         }
         ctx->gpu.empty();

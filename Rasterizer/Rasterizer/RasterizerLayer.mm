@@ -242,6 +242,8 @@ struct CacheEntry {
                 }
                 break;
             case Ra::Buffer::kInstances:
+                if (entry.end == entry.begin)
+                    break;
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
@@ -253,6 +255,7 @@ struct CacheEntry {
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+                [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 if (mtlScene) {
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->segments - buf->base) atIndex:20];
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->prevs - buf->base) atIndex:21];
@@ -260,13 +263,18 @@ struct CacheEntry {
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->midxs - buf->base) atIndex:23];
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->molecules - buf->base) atIndex:24];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:25];
-                }
-                [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                   vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
-                                  baseInstance:0];
+                    
+                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                      vertexStart:0
+                      vertexCount:4
+                    instanceCount:(entry.end - entry.begin) / sizeof(uint32_t) / 2 * 4
+                     baseInstance:0];
+                } else
+                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                                       vertexStart:0
+                                       vertexCount:4
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
+                                      baseInstance:0];
                 break;
         }
     }

@@ -255,26 +255,26 @@ vertex InstancesVertex instances_vertex_main(
     InstancesVertex vert;
     constexpr float err = 1e-3;
     
-    const device SceneInstance& sinst = sceneInstances[iid >> 2];
+    const device SceneInstance& inst = sceneInstances[iid >> 2];
     
-    const device Instance& inst = instances[iid];
+//    const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& paint = paints[iz];
     float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Transform& m = affineTransforms[iz];
         
-//        uint32_t si = sinst.idx + iid & 3;
-//        int16_t prev = prevs[si], next = nexts[si];
-//        bool pcap = prev== 0, ncap = next == 0;
-//        const device Segment& o = segments[si];
-//        const device Segment& p = segments[si + prev];
-//        const device Segment& n = segments[si + next];
+        uint32_t si = inst.idx + (iid & 3);
+        int16_t prev = prevs[si], next = nexts[si];
+        bool pcap = prev == 0, ncap = next == 0;
+        const device Segment& o = segments[si];
+        const device Segment& p = segments[si + prev];
+        const device Segment& n = segments[si + next];
         
-        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
-        const device Segment& o = inst.outline.s;
-        const device Segment& p = instances[iid + inst.outline.prev].outline.s;
-        const device Segment& n = instances[iid + inst.outline.next].outline.s;
+//        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
+//        const device Segment& o = inst.outline.s;
+//        const device Segment& p = instances[iid + inst.outline.prev].outline.s;
+//        const device Segment& n = instances[iid + inst.outline.next].outline.s;
         float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
         float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
         float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
@@ -328,12 +328,13 @@ vertex InstancesVertex instances_vertex_main(
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
-        const device Cell& cell = inst.quad.cell;
-        dx = select(cell.lx, cell.ux, vid & 1);
-        dy = select(cell.ly, cell.uy, vid >> 1);
-        vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
-        vert.cover = inst.quad.cover;
-        vert.flags = inst.iz & ~kPathIndexMask;
+        visible = 0;
+//        const device Cell& cell = inst.quad.cell;
+//        dx = select(cell.lx, cell.ux, vid & 1);
+//        dy = select(cell.ly, cell.uy, vid >> 1);
+//        vert.u = (dx - (cell.lx - cell.ox)) / *width, vert.v = (dy - (cell.ly - cell.oy)) / *height;
+//        vert.cover = inst.quad.cover;
+//        vert.flags = inst.iz & ~kPathIndexMask;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
