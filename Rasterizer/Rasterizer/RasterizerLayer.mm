@@ -255,9 +255,10 @@ struct CacheEntry {
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 if (mtlScene) {
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->segments - buf->base) atIndex:20];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->offsets - buf->base) atIndex:21];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->midxs - buf->base) atIndex:22];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->molecules - buf->base) atIndex:23];
+                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->prevs - buf->base) atIndex:21];
+                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->nexts - buf->base) atIndex:22];
+                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->midxs - buf->base) atIndex:23];
+                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->molecules - buf->base) atIndex:24];
                 }
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip

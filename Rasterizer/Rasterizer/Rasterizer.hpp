@@ -236,7 +236,7 @@ struct Rasterizer {
 
         uint8_t *base = nullptr;
         size_t size = 0, count = 0, hash = 0, hitCount = 0;
-        Segment *segments; int16_t *offsets; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
+        Segment *segments; int16_t *prevs, *nexts; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
     };
     
     struct SceneWriter {
@@ -258,19 +258,21 @@ struct Rasterizer {
                         molecules.emplace_back(m);
                 }
             }
-            size_t ssegments, soffsets, sbounds, smolecules, smidxs, sends, spidxs, size, begin;
+            size_t ssegments, sprevs, snexts, sbounds, smolecules, smidxs, sends, spidxs, size, begin;
             SceneBuffer buffer;
             buffer.count = scene.count, buffer.hash = scene.hash;
-            ssegments = segments.size() * sizeof(segments[0]), soffsets = prevs.size() * sizeof(prevs[0]);
+            ssegments = segments.size() * sizeof(segments[0]);
+            sprevs = prevs.size() * sizeof(prevs[0]), snexts = nexts.size() * sizeof(nexts[0]);
             smidxs = midxs.size() * sizeof(midxs[0]), sends = ends.size() * sizeof(ends[0]);
             sbounds = bounds.size() * sizeof(bounds[0]), smolecules = molecules.size() * sizeof(molecules[0]);
             spidxs = pidxs.size() * sizeof(pidxs[0]);
-            size = ssegments + soffsets + smidxs + sends + sbounds + smolecules + spidxs;
+            size = ssegments + sprevs + snexts + smidxs + sends + sbounds + smolecules + spidxs;
             buffer.size = (size + SceneBuffer::kPageSize - 1) / SceneBuffer::kPageSize * SceneBuffer::kPageSize;
             posix_memalign((void **)& buffer.base, SceneBuffer::kPageSize, buffer.size);
             begin = 0;
             buffer.segments = (Segment *)(buffer.base + begin), begin += ssegments;
-            buffer.offsets = (int16_t *)(buffer.base + begin), begin += soffsets;
+            buffer.prevs = (int16_t *)(buffer.base + begin), begin += sprevs;
+            buffer.nexts = (int16_t *)(buffer.base + begin), begin += snexts;
             buffer.midxs = (uint32_t *)(buffer.base + begin), begin += smidxs;
             buffer.ends = (uint32_t *)(buffer.base + begin), begin += sends;
             buffer.bounds = (Bounds *)(buffer.base + begin), begin += sbounds;
@@ -278,7 +280,8 @@ struct Rasterizer {
             buffer.pidxs = (uint32_t *)(buffer.base + begin), begin += spidxs;
             assert(size == begin);
             memcpy(buffer.segments, & segments[0], ssegments);
-            memcpy(buffer.offsets, & prevs[0], soffsets);
+            memcpy(buffer.prevs, & prevs[0], sprevs);
+            memcpy(buffer.nexts, & nexts[0], snexts);
             memcpy(buffer.midxs, & midxs[0], smidxs);
             memcpy(buffer.ends, & ends[0], sends);
             memcpy(buffer.bounds, & bounds[0], sbounds);

@@ -240,18 +240,24 @@ vertex InstancesVertex instances_vertex_main(
             constant uint *pathCount [[buffer(13)]],
             constant bool *useCurves [[buffer(14)]],
             const device Segment *segments [[buffer(20)]],
-            const device int16_t *offsets [[buffer(21)]],
-            const device uint32_t *midxs [[buffer(22)]],
-            const device Bounds *molecules [[buffer(23)]],
+            const device int16_t *prevs [[buffer(21)]],
+            const device int16_t *nexts [[buffer(22)]],
+            const device uint32_t *midxs [[buffer(23)]],
+            const device Bounds *molecules [[buffer(24)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
     constexpr float err = 1e-3;
+    
+//    uint idx = iid >> 2;
+//    const device Instance& inst = instances[idx];
+    
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& paint = paints[iz];
     float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
+//        int16_t offset = offsets[idx], prev = ;
         const device Transform& m = affineTransforms[iz];
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
