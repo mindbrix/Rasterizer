@@ -1372,10 +1372,7 @@ struct Rasterizer {
                     uint32_t *dst = (uint32_t *)(buffer.base + begin), idx0, idx1, idx, izf;
                     for (iz = clz; iz < cuz; iz++)
                         if (flags[iz]) {
-                            izf = uint32_t(iz) | GPU::Instance::kOutlines
-                            | (flags[iz] & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
-                            | (flags[iz] & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0);
-                            
+                            izf = uint32_t(iz) | GPU::Instance::kOutlines | (flags[iz] & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0) | (flags[iz] & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0);
                             ip = iz - lz, idx0 = buf->idx0(ip), idx1 = buf->idx1(ip);
                             for (idx = idx0; idx < idx1; idx += 4)
                                 *dst++ = idx, *dst++ = izf;
