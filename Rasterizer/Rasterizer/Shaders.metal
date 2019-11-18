@@ -43,7 +43,7 @@ struct Outline {
 };
 struct Instance {
     enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
-    union { Quad quad;  Outline outline; };
+    union { uint32_t idx;  Quad quad;  Outline outline; };
     uint32_t iz;
 };
 struct EdgeCell {
