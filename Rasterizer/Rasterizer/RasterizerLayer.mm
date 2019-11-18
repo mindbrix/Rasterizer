@@ -256,7 +256,7 @@ struct CacheEntry {
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                if (mtlScene) {
+                if (mtlScene && buffer->useBuffers) {
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->segments - buf->base) atIndex:20];
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->prevs - buf->base) atIndex:21];
                     [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->nexts - buf->base) atIndex:22];
