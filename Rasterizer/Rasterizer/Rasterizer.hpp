@@ -728,7 +728,7 @@ struct Rasterizer {
         std::vector<Row<Segment>> segments;
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
-        float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, s = 1e-3f, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (size_t index = 0; index < geometry->types.size(); )
             switch (geometry->types[index]) {
                 case Geometry::kMove:
@@ -764,7 +764,7 @@ struct Rasterizer {
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     if (unclipped)
-                        (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, s);
+                        (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, kQuadraticScale);
                     else {
                         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
                         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
@@ -773,9 +773,9 @@ struct Rasterizer {
                             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
                             if (polygon || !(ux < clip.lx || lx > clip.ux)) {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, quadFunction, info, s);
+                                    writeClippedQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, quadFunction, info, kQuadraticScale);
                                 else
-                                    (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, s);
+                                    (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, kQuadraticScale);
                             }
                         }
                     }
@@ -786,7 +786,7 @@ struct Rasterizer {
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
                     if (unclipped)
-                        (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, s);
+                        (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, kCubicScale);
                     else {
                         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
                         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
@@ -795,9 +795,9 @@ struct Rasterizer {
                             ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
                             if (polygon || !(ux < clip.lx || lx > clip.ux)) {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, cubicFunction, info, s);
+                                    writeClippedCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, cubicFunction, info, kCubicScale);
                                 else
-                                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, s);
+                                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, kCubicScale);
                             }
                         }
                     }
