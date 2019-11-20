@@ -633,6 +633,7 @@ struct Rasterizer {
                 }
             }
         }
+        void empty() { gpu.empty();  for (int j = 0; j < segments.size(); j++) segments[j].empty(), indices[j].empty();  }
         void reset() { gpu.reset(), deltas.reset(), indices.resize(0), segments.resize(0); }
         GPU gpu;
         Bounds bounds;
@@ -1313,9 +1314,7 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
             }
         }
-        ctx->gpu.empty();
-        for (j = 0; j < ctx->segments.size(); j++)
-            ctx->segments[j].empty();
+        ctx->empty();
     }
 };
 typedef Rasterizer Ra;
