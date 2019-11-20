@@ -925,6 +925,21 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
+    static void writeSegmentIndices(Segment *begin, Segment *end, Bounds clip, Row<Index> *indices) {
+        int iy0, iy1, ily = floorf(clip.ly * krfh), iy;
+        Segment *s = begin;
+        for (iy0 = floorf(s->y0 * krfh); s < end; s++, iy0 = iy1) {
+            if (s->x0 != FLT_MAX) {
+                iy1 = floorf(s->y1 * krfh);
+                if (iy0 == iy1) {
+                    new (indices[iy0 - ily].alloc(1)) Index(s - begin, s->x0 < s->x1 ? s->x0 : s->x1);
+                } else {
+                    
+                }
+            } else
+                iy1 = floorf((s + (s < end - 1 ? 1 : 0))->y0 * krfh);
+        }
+    }
     static void writeSegmentInstances(Output *sgmnts, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
