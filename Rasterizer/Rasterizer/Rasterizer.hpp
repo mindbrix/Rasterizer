@@ -945,7 +945,7 @@ struct Rasterizer {
         }
     }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices) {
-        int x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh);
+        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh);
         Segment *s = begin, *n;
         x0 = s->x0 * m.a + s->y0 * m.c + m.tx;
         y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
@@ -955,7 +955,7 @@ struct Rasterizer {
                 y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
                 iy1 = floorf(y1 * krfh);
                 if (iy0 == iy1) {
-                    new (indices[iy0 - ily].alloc(1)) Index(s - begin, x0 < x1 ? x0 : x1);
+                    new (indices[int(iy0 - ily)].alloc(1)) Index(s - begin, x0 < x1 ? x0 : x1);
                 } else
                     writeSegmentIndices(x0, y0, x1, y1, s - begin, ily, indices);
             } else {
