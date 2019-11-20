@@ -229,99 +229,6 @@ struct Rasterizer {
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     
-    struct SceneBuffer {
-        static constexpr size_t kPageSize = 4096;
-        uint32_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
-        uint32_t idx1(size_t is) { return ends[pidxs[is]]; }
-
-        uint8_t *base = nullptr;
-        size_t size = 0, count = 0, hash = 0, hitCount = 0;
-        Segment *segments; int16_t *prevs, *nexts; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
-    };
-    
-    struct SceneWriter {
-        SceneBuffer createBuffer(Scene& scene) {
-            for (int i = 0; i < scene.count; i++) {
-                Path path = scene.paths[i];
-                auto it = cache.find(path->hash);
-                if (it != cache.end())
-                    pidxs.emplace_back(it->second);
-                else {
-                    cache.emplace(path->hash, bounds.size());
-                    pidxs.emplace_back(bounds.size());
-                    
-                    midx = molecules.size();
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, divideQuadratic, writeDividedCubic, this);
-                    ends.emplace_back(segments.size());
-                    bounds.emplace_back(path->bounds);
-                    for (Bounds& m : path->molecules)
-                        molecules.emplace_back(m);
-                }
-            }
-            size_t ssegments, sprevs, snexts, sbounds, smolecules, smidxs, sends, spidxs, size, begin;
-            SceneBuffer buffer;
-            buffer.count = scene.count, buffer.hash = scene.hash;
-            ssegments = segments.size() * sizeof(segments[0]);
-            sprevs = prevs.size() * sizeof(prevs[0]), snexts = nexts.size() * sizeof(nexts[0]);
-            smidxs = midxs.size() * sizeof(midxs[0]), sends = ends.size() * sizeof(ends[0]);
-            sbounds = bounds.size() * sizeof(bounds[0]), smolecules = molecules.size() * sizeof(molecules[0]);
-            spidxs = pidxs.size() * sizeof(pidxs[0]);
-            size = ssegments + sprevs + snexts + smidxs + sends + sbounds + smolecules + spidxs;
-            buffer.size = (size + SceneBuffer::kPageSize - 1) / SceneBuffer::kPageSize * SceneBuffer::kPageSize;
-            posix_memalign((void **)& buffer.base, SceneBuffer::kPageSize, buffer.size);
-            begin = 0;
-            buffer.segments = (Segment *)(buffer.base + begin), begin += ssegments;
-            buffer.prevs = (int16_t *)(buffer.base + begin), begin += sprevs;
-            buffer.nexts = (int16_t *)(buffer.base + begin), begin += snexts;
-            buffer.midxs = (uint32_t *)(buffer.base + begin), begin += smidxs;
-            buffer.ends = (uint32_t *)(buffer.base + begin), begin += sends;
-            buffer.bounds = (Bounds *)(buffer.base + begin), begin += sbounds;
-            buffer.molecules = (Bounds *)(buffer.base + begin), begin += smolecules;
-            buffer.pidxs = (uint32_t *)(buffer.base + begin), begin += spidxs;
-            assert(size == begin);
-            memcpy(buffer.segments, & segments[0], ssegments);
-            memcpy(buffer.prevs, & prevs[0], sprevs);
-            memcpy(buffer.nexts, & nexts[0], snexts);
-            memcpy(buffer.midxs, & midxs[0], smidxs);
-            memcpy(buffer.ends, & ends[0], sends);
-            memcpy(buffer.bounds, & bounds[0], sbounds);
-            memcpy(buffer.molecules, & molecules[0], smolecules);
-            memcpy(buffer.pidxs, & pidxs[0], spidxs);
-            return buffer;
-        }
-        static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            SceneWriter *writer = (SceneWriter *)info;
-            std::vector<Segment>& segments = writer->segments;
-            size_t i = segments.size() - writer->dst0;
-            if (x0 != FLT_MAX) {
-                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-                segments.emplace_back(cx0, y0, x1, y1);
-                writer->prevs.emplace_back(-1), writer->nexts.emplace_back(1);
-                if (i % 4 == 0)
-                    writer->midxs.emplace_back(writer->midx);
-            } else {
-                writer->midx++;
-                if (i > 0) {
-                    Segment& first = segments[writer->dst0], & last = segments[writer->dst0 + i - 1];
-                    float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
-                    size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
-                    writer->prevs[writer->dst0] = offset, writer->nexts[writer->dst0 + i - 1] = -offset;
-                    while (i++ % 4)
-                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), writer->prevs.emplace_back(0), writer->nexts.emplace_back(0);
-                }
-                writer->dst0 = segments.size();
-            }
-        }
-        size_t dst0 = 0, midx = 0;
-        std::vector<Segment> segments;
-        std::vector<int16_t> prevs, nexts;
-        std::vector<uint32_t> midxs;
-        std::vector<uint32_t> ends;
-        std::vector<Bounds> bounds, molecules;
-        std::vector<uint32_t> pidxs;
-        std::unordered_map<size_t, size_t> cache;
-    };
-    
     struct SceneList {
         SceneList& empty() {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
@@ -648,7 +555,7 @@ struct Rasterizer {
                 segments.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawList(SceneList& list, SceneBuffer *sceneBuffers, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
             for (uz = scene->count, lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz, uz += scene->count)
@@ -1276,7 +1183,6 @@ struct Rasterizer {
         Row<Entry> entries;
         bool useCurves = false, useBuffers = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        SceneBuffer *sceneBuffers = nullptr;
         size_t colors, transforms, clips, widths, sceneCount, tick, pathsCount, size = 0;
     };
     struct OutlineInfo {
@@ -1297,9 +1203,7 @@ struct Rasterizer {
             in->dst++;
         }
     };
-    static size_t writeContextsToBuffer(SceneBuffer *sceneBuffers,
-                                        size_t sceneCount,
-                                        size_t *izeds,
+    static size_t writeContextsToBuffer(size_t *izeds,
                                         Context *contexts, size_t count,
                                         Colorant *colorants,
                                         Transform *ctms,
@@ -1317,32 +1221,15 @@ struct Rasterizer {
         
         for (i = 0; i < count; i++) {
             begins[i] = size;
-            
-            if (buffer.useBuffers) {
-                SceneBuffer *buf = sceneBuffers;
-                slz = izeds[i], suz = izeds[i + 1];
-                for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
-                    clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
-                    if (clz != cuz)
-                        size += sizeof(size_t);
-                    for (icount = 0, iz = clz; iz < cuz; iz++)
-                        if (flags[iz])
-                            ip = iz - lz, icount += (buf->idx1(ip) - buf->idx0(ip)) >> 2;
-                    size += icount * sizeof(uint32_t) * 2;
-                    itotal += icount;
-                }
-            } else {
-                GPU& gpu = contexts[i].gpu;
-                for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                    cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
-                size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
-                for (j = 0; j < contexts[i].segments.size(); j++)
-                    size += contexts[i].segments[j].end * sizeof(Segment);
-            }
+            GPU& gpu = contexts[i].gpu;
+            for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
+                cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
+            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
+            for (j = 0; j < contexts[i].segments.size(); j++)
+                size += contexts[i].segments[j].end * sizeof(Segment);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
-        buffer.sceneBuffers = sceneBuffers, buffer.sceneCount = sceneCount;
         buffer.pathsCount = pathsCount;
         memcpy(buffer.base + buffer.colors, colorants, szcolors);
         memcpy(buffer.base + buffer.transforms, ctms, sztransforms);
@@ -1358,8 +1245,6 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     SceneBuffer *sceneBuffers,
-                                     size_t sceneCount,
                                      uint8_t *flags,
                                      Geometry **paths,
                                      size_t begin,
@@ -1369,96 +1254,75 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, sbegins[ctx->segments.size()], size, nsegments = 0, ncells = 0;
         if (slz != suz) {
-            if (buffer.useBuffers) {
-                size_t lz, uz, clz, cuz, iz, ip, is;
-                SceneBuffer *buf = sceneBuffers;
-                for (uz = buf->count, lz = is = 0; is < sceneCount; is++, buf++, lz = uz, uz += buf->count) {
-                    clz = lz > slz ? lz : slz, cuz = uz < suz ? uz : suz;
-                    if (clz != cuz) {
-                        *((size_t *)(buffer.base + begin)) = buf->hash;
-                        entries.emplace_back(Buffer::kSceneBuffer, begin, begin + sizeof(size_t)), begin = entries.back().end;
-                    }
-                    uint32_t *dst = (uint32_t *)(buffer.base + begin), idx0, idx1, idx, izf;
-                    for (iz = clz; iz < cuz; iz++)
-                        if (flags[iz]) {
-                            izf = uint32_t(iz) | GPU::Instance::kOutlines | (flags[iz] & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0) | (flags[iz] & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0);
-                            ip = iz - lz, idx0 = buf->idx0(ip), idx1 = buf->idx1(ip);
-                            for (idx = idx0; idx < idx1; idx += 4)
-                                *dst++ = idx, *dst++ = izf;
-                        }
-                    entries.emplace_back(Buffer::kInstances, begin, (uint8_t *)dst - buffer.base), begin = entries.back().end;
-                }
-            } else {
-                size = ctx->gpu.cache.segments.end;
+            size = ctx->gpu.cache.segments.end;
+            for (j = 0; j < ctx->segments.size(); j++)
+                sbegins[j] = size, size += ctx->segments[j].end;
+            if (size) {
+                Segment *dst = (Segment *)(buffer.base + begin);
+                if (ctx->gpu.cache.segments.end)
+                    memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
                 for (j = 0; j < ctx->segments.size(); j++)
-                    sbegins[j] = size, size += ctx->segments[j].end;
-                if (size) {
-                    Segment *dst = (Segment *)(buffer.base + begin);
-                    if (ctx->gpu.cache.segments.end)
-                        memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
-                    for (j = 0; j < ctx->segments.size(); j++)
-                        memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
-                    nsegments = begin, begin = begin + size * sizeof(Segment);
+                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
+                nsegments = begin, begin = begin + size * sizeof(Segment);
+            }
+            for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
+                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
+                ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
+                
+                GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
+                if (pass->cells) {
+                    entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                    entries.back().segments = nsegments, entries.back().cells = ncells;
                 }
-                for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
-                    GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
-                    ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
-                    
-                    GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
-                    if (pass->cells) {
-                        entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                        entries.back().segments = nsegments, entries.back().cells = ncells;
-                    }
-                    GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
-                    if (pass->cells) {
-                        entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                        entries.back().segments = nsegments, entries.back().cells = ncells;
-                    }
-                    GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
-                    dst0 = dst = (GPU::Instance *)(buffer.base + begin);
-                    for (inst = linst; inst < uinst; inst++) {
-                        iz = inst->iz & kPathIndexMask;
-                        if (inst->iz & GPU::Instance::kOutlines) {
-                            OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                            writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
-                            if (dst == info.dst)
-                                OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
-                            dst = info.dst, ctms[iz] = Transform();
-                        } else {
-                            *dst++ = *inst;
-                            if (inst->iz & GPU::Instance::kMolecule) {
-                                Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
-                                int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                                Bounds *b = paths[iz]->mols;
-                                float ta, tc, ux;
-                                Transform& ctm = ctms[iz];
-                                for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
-                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
-                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                                    for (j = bc; j < *cnt; fast++)
-                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                    (fast - 1)->i1 = *cnt;
-                                }
-                                ctm = ctm.concat(e->ctm);
-                            } else if (inst->iz & GPU::Instance::kEdge) {
-                                cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
-                                uint32_t ic = uint32_t(cell - c0);
-                                Index *is = ctx->gpu.indices.base + inst->quad.begin;
-                                for (j = 0; j < inst->quad.count; j++, edge++) {
-                                    edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                    if (++j < inst->quad.count)
-                                        edge->i1 = uint16_t(is++->i);
-                                    else
-                                        edge->i1 = kNullIndex;
-                                }
-                                cell++;
+                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
+                if (pass->cells) {
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                    entries.back().segments = nsegments, entries.back().cells = ncells;
+                }
+                GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
+                dst0 = dst = (GPU::Instance *)(buffer.base + begin);
+                for (inst = linst; inst < uinst; inst++) {
+                    iz = inst->iz & kPathIndexMask;
+                    if (inst->iz & GPU::Instance::kOutlines) {
+                        OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
+                        writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
+                        if (dst == info.dst)
+                            OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
+                        dst = info.dst, ctms[iz] = Transform();
+                    } else {
+                        *dst++ = *inst;
+                        if (inst->iz & GPU::Instance::kMolecule) {
+                            Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+                            int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
+                            Bounds *b = paths[iz]->mols;
+                            float ta, tc, ux;
+                            Transform& ctm = ctms[iz];
+                            for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
+                                cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
+                                ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+                                ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+                                for (j = bc; j < *cnt; fast++)
+                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                (fast - 1)->i1 = *cnt;
                             }
+                            ctm = ctm.concat(e->ctm);
+                        } else if (inst->iz & GPU::Instance::kEdge) {
+                            cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
+                            uint32_t ic = uint32_t(cell - c0);
+                            Index *is = ctx->gpu.indices.base + inst->quad.begin;
+                            for (j = 0; j < inst->quad.count; j++, edge++) {
+                                edge->ic = ic, edge->i0 = uint16_t(is++->i);
+                                if (++j < inst->quad.count)
+                                    edge->i1 = uint16_t(is++->i);
+                                else
+                                    edge->i1 = kNullIndex;
+                            }
+                            cell++;
                         }
                     }
-                    entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
                 }
+                entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
             }
         }
         ctx->gpu.empty();

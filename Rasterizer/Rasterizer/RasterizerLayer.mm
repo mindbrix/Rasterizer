@@ -9,14 +9,9 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 
-struct CacheEntry {
-    Ra::SceneBuffer buffer;
-    id <MTLBuffer> mtlScene;
-};
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
-    std::unordered_map<size_t, CacheEntry> cache;
 }
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
@@ -111,28 +106,6 @@ struct CacheEntry {
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
     
-    
-    Ra::SceneBuffer *buf = buffer->sceneBuffers;
-    for (int i = 0; i < buffer->sceneCount; i++, buf++) {
-        auto it = cache.find(buf->hash);
-        if (it == cache.end()) {
-            CacheEntry entry;
-            entry.buffer = *buf, entry.buffer.hitCount = 2;
-            entry.mtlScene = [self.device newBufferWithBytesNoCopy:buf->base
-                 length:buf->size
-                options:MTLResourceStorageModeShared
-            deallocator:nil];
-            cache.emplace(buf->hash, entry);
-        } else
-            it->second.buffer.hitCount = 2;
-    }
-    for (auto it = cache.begin(); it != cache.end(); ) {
-        if (it->second.buffer.hitCount == 0)
-            it = cache.erase(it);
-        else
-            it->second.buffer.hitCount--, ++it;
-    }
-
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
         mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
@@ -186,19 +159,10 @@ struct CacheEntry {
     
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
-    id <MTLBuffer> mtlScene = nil;
     
     for (size_t i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
-            case Ra::Buffer::kSceneBuffer: {
-                size_t hash = *((size_t *)(buffer->base + entry.begin));
-                auto it = cache.find(hash);
-                assert(it != cache.end());
-                buf = & it->second.buffer;
-                mtlScene = it->second.mtlScene;
-                break;
-            }
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
@@ -242,8 +206,6 @@ struct CacheEntry {
                 }
                 break;
             case Ra::Buffer::kInstances:
-                if (entry.end == entry.begin)
-                    break;
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
@@ -256,21 +218,7 @@ struct CacheEntry {
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                if (mtlScene && buffer->useBuffers) {
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->segments - buf->base) atIndex:20];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->prevs - buf->base) atIndex:21];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->nexts - buf->base) atIndex:22];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->midxs - buf->base) atIndex:23];
-                    [commandEncoder setVertexBuffer:mtlScene offset:((uint8_t *)buf->molecules - buf->base) atIndex:24];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:25];
-                    
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                      vertexStart:0
-                      vertexCount:4
-                    instanceCount:(entry.end - entry.begin) / sizeof(uint32_t) / 2 * 4
-                     baseInstance:0];
-                } else
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:4
                                      instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
