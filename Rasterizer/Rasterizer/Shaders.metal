@@ -133,7 +133,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct FastEdgesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
 vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
@@ -149,29 +149,29 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Transform& m = affineTransforms[edgeCell.im];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
-    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
-    for (int i = 0; i < kFastSegments; i++, s++, dst += 4) {
+    dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
+    float slx = dst[0], sly = dst[1], suy = dst[1];
+    dst += 2;
+    for (int i = 0; i < kFastSegments; i++, s++, dst += 2) {
         if (i + edge.i0 < edge.i1) {
-            dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
-            dst[2] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[3] = m.b * s->x1 + m.a * s->y1 + m.ty;
-            slx = min(slx, min(dst[0], dst[2])), sly = min(sly, min(dst[1], dst[3])), suy = max(suy, max(dst[1], dst[3]));
+            dst[0] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[1] = m.b * s->x1 + m.a * s->y1 + m.ty;
+            slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
         } else
-            dst[0] = dst[1] = dst[2] = dst[3] = 0.0;
+            dst[0] = dst[-2], dst[1] = dst[-1];
     }
     float ox = clamp(select(floor(slx), float(cell.ux), vid & 1), float(cell.lx), float(cell.ux));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
-    vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty, vert.x6 += tx, vert.y6 += ty, vert.x7 += tx, vert.y7 += ty;
+    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty, vert.x4 += tx, vert.y4 += ty;
     return vert;
 }
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3)
-        + winding(vert.x4, vert.y4, vert.x5, vert.y5) + winding(vert.x6, vert.y6, vert.x7, vert.y7);
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x1, vert.y1, vert.x2, vert.y2)
+    + winding(vert.x2, vert.y2, vert.x3, vert.y3) + winding(vert.x3, vert.y3, vert.x4, vert.y4);
 }
 
 #pragma mark - Edges
