@@ -555,7 +555,8 @@ struct Rasterizer {
     };
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         Output *out = (Output *)info;
-        new (out->seg) Segment(x0, y0, x1, y1), out->seg++;
+        float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+        new (out->seg) Segment(x0 == FLT_MAX ? x0 : cx0, y0, x1, y1), out->seg++;
     }
     static void writeClippedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (y0 != y1) {
