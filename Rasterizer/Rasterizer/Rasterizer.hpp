@@ -552,7 +552,7 @@ struct Rasterizer {
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
-                segments.resize(size);
+                segments.resize(size), indices.resize(size);
             gpu.allocator.init(width, height);
         }
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
@@ -616,6 +616,14 @@ struct Rasterizer {
                 Output sgmnts(& segments[0], clip.ly * krfh);
                 if (fast || unclipped) {
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
+                    
+                    if (unclipped) {
+                        Transform m = ctm.concat(entry->ctm);
+                        if (m.a == 1.f && m.b == 0.f && m.c == 0.f && m.d == 1.f && m.tx == 0.f && m.ty == 0.f) {
+                            Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
+                            writeSegmentIndices(s, end, clip, & indices[0]);
+                        }
+                    }
                     if (fast) {
                         GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                         inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
@@ -629,10 +637,11 @@ struct Rasterizer {
                 }
             }
         }
-        void reset() { gpu.reset(), deltas.reset(), segments.resize(0); }
+        void reset() { gpu.reset(), deltas.reset(), indices.resize(0), segments.resize(0); }
         GPU gpu;
         Bounds bounds;
         Row<float> deltas;
+        std::vector<Row<Index>> indices;
         std::vector<Row<Segment>> segments;
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
@@ -925,17 +934,30 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
+    static void writeSegmentIndices(Segment *s, size_t i, int stride, Row<Index> *indices) {
+        float x0 = s->x0, y0 = s->y0, x1 = s->x1, y1 = s->y1;
+        float ly, uy, lx, ux, m, c, y, sy[2], sx[2];
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+        lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+        sy[0] = ly, sx[0] = y0 < y1 ? x0 : x1;
+        Row<Index> *inds = indices + size_t(ly * krfh) - stride;
+        for (y = floorf(ly * krfh) * kfh; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], inds++) {
+            sy[1] = y + kfh < uy ? y + kfh : uy;
+            sx[1] = sy[1] * m + c, sx[1] = lx > sx[1] ? lx : sx[1] < ux ? sx[1] : ux;
+            new (inds->alloc(1)) Index(i, sx[y0 < y1 != x0 < x1]);
+        }
+    }
     static void writeSegmentIndices(Segment *begin, Segment *end, Bounds clip, Row<Index> *indices) {
-        int iy0, iy1, ily = floorf(clip.ly * krfh), iy;
+        int iy0, iy1, ily = floorf(clip.ly * krfh);
         Segment *s = begin;
         for (iy0 = floorf(s->y0 * krfh); s < end; s++, iy0 = iy1) {
             if (s->x0 != FLT_MAX) {
                 iy1 = floorf(s->y1 * krfh);
                 if (iy0 == iy1) {
                     new (indices[iy0 - ily].alloc(1)) Index(s - begin, s->x0 < s->x1 ? s->x0 : s->x1);
-                } else {
-                    
-                }
+                } else
+                    writeSegmentIndices(s, s - begin, ily, indices);
             } else
                 iy1 = floorf((s + (s < end - 1 ? 1 : 0))->y0 * krfh);
         }
