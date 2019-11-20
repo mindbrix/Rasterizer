@@ -930,13 +930,13 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentIndices(float x0, float y0, float x1, float y1, size_t i, int stride, Row<Index> *indices) {
+    static void writeSegmentIndices(float x0, float y0, float x1, float y1, size_t i, int ily, Row<Index> *indices) {
         float ly, uy, lx, ux, m, c, y, sy[2], sx[2];
         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
         m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
         sy[0] = ly, sx[0] = y0 < y1 ? x0 : x1;
-        Row<Index> *inds = indices + size_t(ly * krfh) - stride;
+        Row<Index> *inds = indices + size_t(ly * krfh) - ily;
         for (y = floorf(ly * krfh) * kfh; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], inds++) {
             sy[1] = y + kfh < uy ? y + kfh : uy;
             sx[1] = sy[1] * m + c, sx[1] = lx > sx[1] ? lx : sx[1] < ux ? sx[1] : ux;
