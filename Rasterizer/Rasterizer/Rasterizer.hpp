@@ -621,10 +621,8 @@ struct Rasterizer {
                         inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
                     } else {
                         Transform m = ctm.concat(entry->ctm);
-                        if (m.a == 1.f && m.b == 0.f && m.c == 0.f && m.d == 1.f && m.tx == 0.f && m.ty == 0.f) {
-                            Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
-                            writeSegmentIndices(s, end, clip, & indices[0]);
-                        }
+                        Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
+                        writeSegmentIndices(s, end, m, clip, & indices[0]);
                         
                         gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
                         writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
@@ -932,8 +930,7 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentIndices(Segment *s, size_t i, int stride, Row<Index> *indices) {
-        float x0 = s->x0, y0 = s->y0, x1 = s->x1, y1 = s->y1;
+    static void writeSegmentIndices(float x0, float y0, float x1, float y1, size_t i, int stride, Row<Index> *indices) {
         float ly, uy, lx, ux, m, c, y, sy[2], sx[2];
         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -946,18 +943,26 @@ struct Rasterizer {
             new (inds->alloc(1)) Index(i, sx[y0 < y1 != x0 < x1]);
         }
     }
-    static void writeSegmentIndices(Segment *begin, Segment *end, Bounds clip, Row<Index> *indices) {
-        int iy0, iy1, ily = floorf(clip.ly * krfh);
-        Segment *s = begin;
-        for (iy0 = floorf(s->y0 * krfh); s < end; s++, iy0 = iy1) {
+    static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices) {
+        int x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh);
+        Segment *s = begin, *n;
+        x0 = s->x0 * m.a + s->y0 * m.c + m.tx;
+        y0 = s->x0 * m.b + s->y0 * m.d + m.ty;
+        for (iy0 = floorf(y0 * krfh); s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
-                iy1 = floorf(s->y1 * krfh);
+                x1 = s->x1 * m.a + s->y1 * m.c + m.tx;
+                y1 = s->x1 * m.b + s->y1 * m.d + m.ty;
+                iy1 = floorf(y1 * krfh);
                 if (iy0 == iy1) {
-                    new (indices[iy0 - ily].alloc(1)) Index(s - begin, s->x0 < s->x1 ? s->x0 : s->x1);
+                    new (indices[iy0 - ily].alloc(1)) Index(s - begin, x0 < x1 ? x0 : x1);
                 } else
-                    writeSegmentIndices(s, s - begin, ily, indices);
-            } else
-                iy1 = floorf((s + (s < end - 1 ? 1 : 0))->y0 * krfh);
+                    writeSegmentIndices(x0, y0, x1, y1, s - begin, ily, indices);
+            } else {
+                n = s + (s < end - 1 ? 1 : 0);
+                x1 = n->x0 * m.a + n->y0 * m.c + m.tx;
+                y1 = n->x0 * m.b + n->y0 * m.d + m.ty;
+                iy1 = floorf(y1 * krfh);
+            }
         }
     }
     static void writeSegmentInstances(Output *sgmnts, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
