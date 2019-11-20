@@ -938,10 +938,10 @@ struct Rasterizer {
         m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
         sy[0] = ly, sx[0] = y0 < y1 ? x0 : x1;
         Row<Index> *inds = indices + size_t(ly * krfh) - ily;
+        int ilx = y0 < y1 != x0 < x1;
         for (y = floorf(ly * krfh) * kfh; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], inds++) {
-            sy[1] = y + kfh < uy ? y + kfh : uy;
-            sx[1] = sy[1] * m + c, sx[1] = lx > sx[1] ? lx : sx[1] < ux ? sx[1] : ux;
-            new (inds->alloc(1)) Index(i, sx[y0 < y1 != x0 < x1]);
+            sy[1] = y + kfh < uy ? y + kfh : uy, sx[1] = sy[1] * m + c;
+            new (inds->alloc(1)) Index(i, sx[ilx] > lx ? sx[ilx] : lx);
         }
     }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices) {
