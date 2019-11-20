@@ -798,29 +798,6 @@ struct Rasterizer {
             }
         }
     }
-    static void divideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float sc) {
-        float ax, ay, bx, by, det, dot, ra2, t, mt, ht, s, x, y, tx0, ty0, tx1, ty1;
-        bool monotone, regular, eccentric;
-        ax = x2 - x0, ay = y2 - y0, bx = x1 - x0, by = y1 - y0;
-        det = ax * by - ay * bx, dot = ax * bx + ay * by, ra2 = 1.f / (ax * ax + ay * ay);
-        t = dot * ra2, mt = dot / (bx * bx + by * by), ht = (bx * -ay + by * ax) * ra2;
-        monotone = mt > 0.999f, regular = t > 0.2f && t < 0.8f, eccentric = t < 0.f || t > 0.999f;
-        if (fabsf(det) < 0.1f || (regular && monotone)) {
-            if (fabsf(ht) < 1e-5f)
-                (*function)(x0, y0, x2, y2, 0, info);
-            else {
-                x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
-                (*function)(x0, y0, x, y, 1, info);
-                (*function)(x, y, x2, y2, 2, info);
-            }
-        } else {
-            t = eccentric || !monotone ? 0.5f : t < 0.5f ? t * 2.f : t * 2.f - 1.f, s = 1.f - t;
-            tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = tx0 * s + tx1 * t;
-            ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = ty0 * s + ty1 * t;
-            divideQuadratic(x0, y0, tx0, ty0, x, y, function, info, sc);
-            divideQuadratic(x, y, tx1, ty1, x2, y2, function, info, sc);
-        }
-    }
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
@@ -901,33 +878,6 @@ struct Rasterizer {
                 }
             }
         }
-    }
-    static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float precision) {
-        float ax, ay, dot, tcubed, cpx, cpy, t, s, x01, x12, x23, y01, y12, y23, tx0, tx1, x, ty0, ty1, y;
-        ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0, dot = ax * ax + ay * ay;
-        tcubed = dot == 0.f ? 1.f : precision / sqrtf(dot);
-        if (tcubed > 0.999999f) {
-            cpx = (3.f * (x2 + x1) - x0 - x3) * 0.25f, cpy = (3.f * (y2 + y1) - y0 - y3) * 0.25f;
-            divideQuadratic(x0, y0, cpx, cpy, x3, y3, function, info, 1.f);
-        } else {
-            t = 1.f / ceilf(1.f / cbrtf(tcubed)), s = 1.f - t;
-            x01 = s * x0 + t * x1, x12 = s * x1 + t * x2, x23 = s * x2 + t * x3;
-            y01 = s * y0 + t * y1, y12 = s * y1 + t * y2, y23 = s * y2 + t * y3;
-            tx0 = s * x01 + t * x12, tx1 = s * x12 + t * x23, x = s * tx0 + t * tx1;
-            ty0 = s * y01 + t * y12, ty1 = s * y12 + t * y23, y = s * ty0 + t * ty1;
-            cpx = (3.f * (tx0 + x01) - x0 - x) * 0.25f, cpy = (3.f * (ty0 + y01) - y0 - y) * 0.25f;
-            divideQuadratic(x0, y0, cpx, cpy, x, y, function, info, 1.f);
-            divideCubic(x, y, tx1, ty1, x23, y23, x3, y3, function, info, precision);
-        }
-    }
-    static void writeDividedCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float s) {
-        float lx, ly, ux, uy, p;
-        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
-        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
-        lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
-        ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
-        p = sqrtf((ux - lx + uy - ly) / 100.f);
-        divideCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, p);
     }
     static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float s) {
         float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
@@ -1217,8 +1167,6 @@ struct Rasterizer {
         size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
-        size_t slz, suz, lz, uz, clz, cuz, iz, ip, is, icount, itotal = 0;
-        
         for (i = 0; i < count; i++) {
             begins[i] = size;
             GPU& gpu = contexts[i].gpu;
