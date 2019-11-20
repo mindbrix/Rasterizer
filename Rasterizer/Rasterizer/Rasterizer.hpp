@@ -616,18 +616,16 @@ struct Rasterizer {
                 Output sgmnts(& segments[0], clip.ly * krfh);
                 if (fast || unclipped) {
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
-                    
-                    if (unclipped) {
+                    if (fast) {
+                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
+                        inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
+                    } else {
                         Transform m = ctm.concat(entry->ctm);
                         if (m.a == 1.f && m.b == 0.f && m.c == 0.f && m.d == 1.f && m.tx == 0.f && m.ty == 0.f) {
                             Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
                             writeSegmentIndices(s, end, clip, & indices[0]);
                         }
-                    }
-                    if (fast) {
-                        GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                        inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
-                    } else {
+                        
                         gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
                         writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
