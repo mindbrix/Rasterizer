@@ -931,27 +931,25 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentIndices(float x0, float y0, float x1, float y1, size_t i, int ily, Row<Index> *indices) {
-        float ly, uy, lx, ux, m, c, y, minx;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-        Row<Index> *inds = indices + size_t(ly * krfh) - ily;
-        y = floorf(ly * krfh) * kfh;
-        minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-        for (; y < uy; y += kfh, minx += m * kfh, inds++)
-            new (inds->alloc(1)) Index(i, minx > lx ? minx : lx);
-    }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices) {
-        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh);
+        float x0, y0, x1, y1, lx, iy0, iy1, ily = floorf(clip.ly * krfh);
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, iy0 = floorf(y0 * krfh);
         for (Segment *s = begin; s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh);
+                lx = x0 < x1 ? x0 : x1;
                 if (iy0 == iy1)
-                    new (indices[int(iy0 - ily)].alloc(1)) Index(s - begin, x0 < x1 ? x0 : x1);
-                else
-                    writeSegmentIndices(x0, y0, x1, y1, s - begin, ily, indices);
+                    new (indices[int(iy0 - ily)].alloc(1)) Index(s - begin, lx);
+                else {
+                    float ly, uy, m, c, y, minx;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                    Row<Index> *inds = indices + size_t(ly * krfh) - int(ily);
+                    y = floorf(ly * krfh) * kfh;
+                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                    for (; y < uy; y += kfh, minx += m * kfh, inds++)
+                        new (inds->alloc(1)) Index(s - begin, minx > lx ? minx : lx);
+                }
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
                 x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh);
