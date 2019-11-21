@@ -136,10 +136,12 @@ struct FastEdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
-vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
-                                     const device EdgeCell *edgeCells [[buffer(3)]], const device Transform *affineTransforms [[buffer(4)]],
-                                     constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                     uint vid [[vertex_id]], uint iid [[instance_id]])
+vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]],
+                                const device Segment *segments [[buffer(2)]],
+                                const device EdgeCell *edgeCells [[buffer(3)]],
+                                const device Transform *affineTransforms [[buffer(4)]],
+                                constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     FastEdgesVertex vert;
     
@@ -182,8 +184,10 @@ struct EdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3;
 };
 
-vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], const device Segment *segments [[buffer(2)]],
+vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
+                                     const device Segment *segments [[buffer(2)]],
                                      const device EdgeCell *edgeCells [[buffer(3)]],
+                                     const device Transform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
