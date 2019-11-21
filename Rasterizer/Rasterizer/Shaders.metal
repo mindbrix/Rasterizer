@@ -12,6 +12,7 @@ using namespace metal;
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
 
 struct Transform {
+    Transform() : a(1), b(0), c(0), d(1), tx(0), ty(0) {}
     float a, b, c, d, tx, ty;
 };
 
@@ -195,8 +196,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Edge& edge = edges[iid];
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
     const device Cell& cell = edgeCell.cell;
-    Transform m = { 1, 0, 0, 1, 0, 0 };
-//    const device Transform& m = affineTransforms[edgeCell.im];
+    Transform m = edgeCell.im == kNullIndex ? Transform() : affineTransforms[edgeCell.im];
     const device Segment& s0 = segments[edgeCell.base + edge.i0];
     const device Segment& s1 = segments[edgeCell.base + edge.i1];
     vert.x0 = s0.x0 * m.a + s0.y0 * m.c + m.tx, vert.y0 = s0.x0 * m.b + s0.y0 * m.d + m.ty;
