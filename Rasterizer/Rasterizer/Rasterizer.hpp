@@ -940,10 +940,10 @@ struct Rasterizer {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh);
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 if (iy0 == iy1) {
-                    int idx = iy0 - ily;
-                    new (indices[idx].alloc(1)) Index(s - begin, lx);
-                    int16_t *dst = uxcovers[idx].alloc(2);
-                    dst[0] = ux, dst[1] = (y1 - y0) * kCoverScale;
+                    int row = iy0 - ily;
+                    new (indices[row].alloc(1)) Index(s - begin, lx);
+                    int16_t *dst = uxcovers[row].alloc(3);
+                    dst[0] = ux, dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
                 } else {
                     float ly, uy, m, c, y, minx, maxx, sign, cover;
                     ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
@@ -951,10 +951,10 @@ struct Rasterizer {
                     y = floorf(ly * krfh) * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (int idx = int(ly * krfh) - int(ily); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, idx++) {
-                        new (indices[idx].alloc(1)) Index(s - begin, minx > lx ? minx : lx);
+                    for (int row = int(ly * krfh) - int(ily); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, row++) {
+                        new (indices[row].alloc(1)) Index(s - begin, minx > lx ? minx : lx);
                         cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                        int16_t *dst = uxcovers[idx].alloc(2);  dst[0] = maxx < ux ? maxx : ux, dst[1] = sign * cover * kCoverScale;
+                        int16_t *dst = uxcovers[row].alloc(3);  dst[0] = maxx < ux ? maxx : ux, dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
                     }
                 }
             } else {
