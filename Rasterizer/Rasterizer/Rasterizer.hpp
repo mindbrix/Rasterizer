@@ -944,11 +944,11 @@ struct Rasterizer {
                     float ly, uy, m, c, y, minx;
                     ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
                     m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    Row<Index> *inds = indices + size_t(ly * krfh) - int(ily);
+                    int idx = int(ly * krfh) - int(ily);
                     y = floorf(ly * krfh) * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                    for (; y < uy; y += kfh, minx += m * kfh, inds++)
-                        new (inds->alloc(1)) Index(s - begin, minx > lx ? minx : lx);
+                    for (; y < uy; y += kfh, minx += m * kfh, idx++)
+                        new (indices[idx].alloc(1)) Index(s - begin, minx > lx ? minx : lx);
                 }
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
