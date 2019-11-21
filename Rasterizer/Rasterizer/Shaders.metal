@@ -195,17 +195,20 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Edge& edge = edges[iid];
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
     const device Cell& cell = edgeCell.cell;
+    Transform m = { 1, 0, 0, 1, 0, 0 };
+//    const device Transform& m = affineTransforms[edgeCell.im];
     const device Segment& s0 = segments[edgeCell.base + edge.i0];
     const device Segment& s1 = segments[edgeCell.base + edge.i1];
-    vert.x0 = s0.x0, vert.y0 = s0.y0, vert.x1 = s0.x1, vert.y1 = s0.y1;
+    vert.x0 = s0.x0 * m.a + s0.y0 * m.c + m.tx, vert.y0 = s0.x0 * m.b + s0.y0 * m.d + m.ty;
+    vert.x1 = s0.x1 * m.a + s0.y1 * m.c + m.tx, vert.y1 = s0.x1 * m.b + s0.y1 * m.d + m.ty;
     float sly = min(vert.y0, vert.y1), suy = max(vert.y0, vert.y1);
     
     if (edge.i1 == kNullIndex)
         vert.x2 = vert.y2 = vert.x3 = vert.y3 = 0.0;
     else {
-        vert.x2 = s1.x0, vert.y2 = s1.y0, vert.x3 = s1.x1, vert.y3 = s1.y1;
-        sly = min(sly, min(vert.y2, vert.y3));
-        suy = max(suy, max(vert.y2, vert.y3));
+        vert.x2 = s1.x0 * m.a + s1.y0 * m.c + m.tx, vert.y2 = s1.x0 * m.b + s1.y0 * m.d + m.ty;
+        vert.x3 = s1.x1 * m.a + s1.y1 * m.c + m.tx, vert.y3 = s1.x1 * m.b + s1.y1 * m.d + m.ty;
+        sly = min(sly, min(vert.y2, vert.y3)), suy = max(suy, max(vert.y2, vert.y3));
     }
     float ox = select(cell.lx, cell.ux, vid & 1);
     float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
