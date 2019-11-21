@@ -1004,6 +1004,8 @@ struct Rasterizer {
                     winding += uxcover[1] * 0.00003051850948f;
                     ux = uxcover[0] > ux ? uxcover[0] : ux;
                 }
+                if (lx != ux) {
+                }
             }
         }
     }
@@ -1338,15 +1340,29 @@ struct Rasterizer {
                             }
                             ctm = ctm.concat(e->ctm);
                         } else if (inst->iz & GPU::Instance::kEdge) {
-                            cell->cell = inst->quad.cell, cell->im = 0, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
                             uint32_t ic = uint32_t(cell - c0);
-                            Index *is = ctx->gpu.indices.base + inst->quad.begin;
-                            for (j = 0; j < inst->quad.count; j++, edge++) {
-                                edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                if (++j < inst->quad.count)
-                                    edge->i1 = uint16_t(is++->i);
-                                else
-                                    edge->i1 = kNullIndex;
+                            if (inst->quad.base < 0) {
+                                cell->cell = inst->quad.cell, cell->im = int(iz);
+                                cell->base = 1 - inst->quad.base;
+                                Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
+                                int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + inst->quad.begin * 3, idx;
+                                for (j = 0; j < inst->quad.count; j++, edge++) {
+                                    edge->ic = ic, idx = uxcovers[is++->i * 3 + 2], edge->i0 = uint16_t(idx);
+                                    if (++j < inst->quad.count)
+                                        idx = uxcovers[is++->i * 3 + 2], edge->i1 = uint16_t(idx);
+                                    else
+                                        edge->i1 = kNullIndex;
+                                }
+                            } else {
+                                cell->cell = inst->quad.cell, cell->im = kNullIndex, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
+                                Index *is = ctx->gpu.indices.base + inst->quad.begin;
+                                for (j = 0; j < inst->quad.count; j++, edge++) {
+                                    edge->ic = ic, edge->i0 = uint16_t(is++->i);
+                                    if (++j < inst->quad.count)
+                                        edge->i1 = uint16_t(is++->i);
+                                    else
+                                        edge->i1 = kNullIndex;
+                                }
                             }
                             cell++;
                         }
