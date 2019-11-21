@@ -944,10 +944,8 @@ struct Rasterizer {
                     float ly, uy, m, c, y, minx;
                     ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
                     m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    int idx = int(ly * krfh) - int(ily);
-                    y = floorf(ly * krfh) * kfh;
-                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                    for (; y < uy; y += kfh, minx += m * kfh, idx++)
+                    y = floorf(ly * krfh) * kfh, minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                    for (int idx = int(ly * krfh) - int(ily); y < uy; y += kfh, minx += m * kfh, idx++)
                         new (indices[idx].alloc(1)) Index(s - begin, minx > lx ? minx : lx);
                 }
             } else {
