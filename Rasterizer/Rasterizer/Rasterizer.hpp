@@ -970,7 +970,7 @@ struct Rasterizer {
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, Transform m, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
-        float ly, uy, cover, winding, lx, ux, x;
+        float ly, uy, cover, winding, lx, ux;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
@@ -1002,7 +1002,7 @@ struct Rasterizer {
                     }
                     int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3;
                     winding += uxcover[1] * 0.00003051850948f;
-                    x = uxcover[0], ux = x > ux ? x : ux;
+                    ux = uxcover[0] > ux ? uxcover[0] : ux;
                 }
             }
         }
