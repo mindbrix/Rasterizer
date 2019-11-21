@@ -204,7 +204,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]], con
         suy = max(suy, max(vert.y2, vert.y3));
     }
     float ox = select(cell.lx, cell.ux, vid & 1);
-    float oy = select(floor(sly), ceil(suy), vid >> 1);
+    float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, 1.0);
