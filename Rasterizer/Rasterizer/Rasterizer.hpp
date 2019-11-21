@@ -558,7 +558,8 @@ struct Rasterizer {
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
-            for (uz = scene->count, lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz, uz += scene->count)
+            for (lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
+                uz = lz + scene->count;
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
@@ -583,6 +584,7 @@ struct Rasterizer {
                         }
                     }
                 }
+            }
         }
         void writeBitmapPath(Geometry *geometry, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
             if (width) {
@@ -625,8 +627,8 @@ struct Rasterizer {
                         writeSegmentIndices(s, end, m, clip, & indices[0], & uxcovers[0]);
                         writeSegmentInstances(& indices[0], & uxcovers[0], m, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         
-                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
-                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
+//                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
+//                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
                 } else {
                     writePath(geometry, ctm, clip, unclipped, true, false, writeClippedSegment, writeQuadratic, writeCubic, & sgmnts);
@@ -942,9 +944,9 @@ struct Rasterizer {
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 if (iy0 == iy1) {
                     Row<Index>& row = indices[int(iy0)];
-                    new (row.alloc(1)) Index(row.end - row.idx, lx);
+                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
                     int16_t *dst = uxcovers[int(iy0)].alloc(3);
-                    dst[0] = ux, dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
+                    dst[0] = ceilf(ux), dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
                 } else {
                     float ly, uy, m, c, y, minx, maxx, sign, cover;
                     ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
@@ -954,9 +956,9 @@ struct Rasterizer {
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (int ir = int(iy0 < iy1 ? iy0 : iy1); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
                         Row<Index>& row = indices[ir];
-                        new (row.alloc(1)) Index(row.end - row.idx, minx > lx ? minx : lx);
+                        size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
                         cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = maxx < ux ? maxx : ux, dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
+                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
                     }
                 }
             } else {
@@ -968,22 +970,40 @@ struct Rasterizer {
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, Transform m, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
-        float ly, uy, scale, cover, winding, lx, ux, x;
+        float ly, uy, cover, winding, lx, ux, x;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, indices++) {
+        for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
             if ((count = indices->end - indices->idx)) {
                 if (indices->end - indices->idx > 32)
                     radixSort((uint32_t *)indices->base + indices->idx, int(indices->end - indices->idx), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices->base + indices->idx, indices->base + indices->end);
-//                Index *index;
-//                ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-//                uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-//                for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
-//                    if (index->x > ux && fabsf(winding - roundf(winding)) < 1e-3f) {
-//                    }
-//                }
+                Index *index;
+                ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
+                    if (index->x > ux && fabsf(winding - roundf(winding)) < 1e-3f) {
+                        if (lx != ux) {
+                        }
+                        begin = i;
+                        if (alphaForCover(winding, even) > 0.998f) {
+                            if (opaque) {
+                                GPU::Instance *inst = new (gpu.opaques.alloc(1)) GPU::Instance(iz, 0);
+                                new (& inst->quad.cell) GPU::Cell(ux, ly, index->x, uy, 0.f, 0.f);
+                            } else {
+                                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kSolidCell);
+                                new (& inst->quad.cell) GPU::Cell(ux, ly, index->x, uy, 0.f, 0.f);
+                                gpu.allocator.countInstance();
+                            }
+                        }
+                        lx = ux = index->x;
+                        cover = winding;
+                    }
+                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3;
+                    winding += uxcover[1] * 0.00003051850948f;
+                    x = uxcover[0], ux = x > ux ? x : ux;
+                }
             }
         }
     }
