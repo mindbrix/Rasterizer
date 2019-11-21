@@ -623,6 +623,7 @@ struct Rasterizer {
                         Transform m = ctm.concat(entry->ctm);
                         Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
                         writeSegmentIndices(s, end, m, clip, & indices[0], & uxcovers[0]);
+                        writeSegmentInstances(& indices[0], & uxcovers[0], m, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         
                         gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
                         writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
@@ -959,6 +960,21 @@ struct Rasterizer {
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
                 x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh) - ily;
+            }
+        }
+    }
+    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, Transform m, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
+        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
+        uint16_t counts[256];
+        float ly, uy, scale, cover, winding, lx, ux, x;
+        bool single = clip.ux - clip.lx < 256.f;
+        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
+        for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, indices++) {
+            if ((count = indices->end - indices->idx)) {
+                if (indices->end - indices->idx > 32)
+                    radixSort((uint32_t *)indices->base + indices->idx, int(indices->end - indices->idx), single ? clip.lx : 0, range, single, counts);
+                else
+                    std::sort(indices->base + indices->idx, indices->base + indices->end);
             }
         }
     }
