@@ -942,17 +942,19 @@ struct Rasterizer {
                 if (iy0 == iy1) {
                     int idx = iy0 - ily;
                     new (indices[idx].alloc(1)) Index(s - begin, lx);
-                    int16_t *dst = uxcovers[idx].alloc(2);  dst[0] = ux, dst[1] = 32767;
+                    int16_t *dst = uxcovers[idx].alloc(2);
+                    dst[0] = ux, dst[1] = (y1 - y0) * kCoverScale;
                 } else {
-                    float ly, uy, m, c, y, minx, maxx;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+                    float ly, uy, m, c, y, minx, maxx, sign, cover;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
                     m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
                     y = floorf(ly * krfh) * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (int idx = int(ly * krfh) - int(ily); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, idx++) {
                         new (indices[idx].alloc(1)) Index(s - begin, minx > lx ? minx : lx);
-                        int16_t *dst = uxcovers[idx].alloc(2);  dst[0] = maxx < ux ? maxx : ux, dst[1] = 32767;
+                        cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
+                        int16_t *dst = uxcovers[idx].alloc(2);  dst[0] = maxx < ux ? maxx : ux, dst[1] = sign * cover * kCoverScale;
                     }
                 }
             } else {
