@@ -941,7 +941,8 @@ struct Rasterizer {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh) - ily;
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 if (iy0 == iy1) {
-                    new (indices[int(iy0)].alloc(1)) Index(s - begin, lx);
+                    Row<Index>& row = indices[int(iy0)];
+                    new (row.alloc(1)) Index(row.end - row.idx, lx);
                     int16_t *dst = uxcovers[int(iy0)].alloc(3);
                     dst[0] = ux, dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
                 } else {
@@ -951,10 +952,11 @@ struct Rasterizer {
                     y = floorf(ly * krfh) * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (int row = int(iy0 < iy1 ? iy0 : iy1); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, row++) {
-                        new (indices[row].alloc(1)) Index(s - begin, minx > lx ? minx : lx);
+                    for (int ir = int(iy0 < iy1 ? iy0 : iy1); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
+                        Row<Index>& row = indices[ir];
+                        new (row.alloc(1)) Index(row.end - row.idx, minx > lx ? minx : lx);
                         cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                        int16_t *dst = uxcovers[row].alloc(3);  dst[0] = maxx < ux ? maxx : ux, dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
+                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = maxx < ux ? maxx : ux, dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
                     }
                 }
             } else {
@@ -975,6 +977,13 @@ struct Rasterizer {
                     radixSort((uint32_t *)indices->base + indices->idx, int(indices->end - indices->idx), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices->base + indices->idx, indices->base + indices->end);
+//                Index *index;
+//                ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+//                uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+//                for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
+//                    if (index->x > ux && fabsf(winding - roundf(winding)) < 1e-3f) {
+//                    }
+//                }
             }
         }
     }
