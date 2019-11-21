@@ -932,17 +932,15 @@ struct Rasterizer {
         }
     }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, size_t i, int ily, Row<Index> *indices) {
-        float ly, uy, lx, ux, m, c, y, sy[2], sx[2];
+        float ly, uy, lx, ux, m, c, y, minx;
         ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
         lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
         m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-        sy[0] = ly, sx[0] = y0 < y1 ? x0 : x1;
         Row<Index> *inds = indices + size_t(ly * krfh) - ily;
-        int ilx = y0 < y1 != x0 < x1;
-        for (y = floorf(ly * krfh) * kfh; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], inds++) {
-            sy[1] = y + kfh < uy ? y + kfh : uy, sx[1] = sy[1] * m + c;
-            new (inds->alloc(1)) Index(i, sx[ilx] > lx ? sx[ilx] : lx);
-        }
+        y = floorf(ly * krfh) * kfh;
+        minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+        for (; y < uy; y += kfh, minx += m * kfh, inds++)
+            new (inds->alloc(1)) Index(i, minx > lx ? minx : lx);
     }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices) {
         float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh);
