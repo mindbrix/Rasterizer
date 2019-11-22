@@ -34,8 +34,15 @@ struct RasterizerTest {
             scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 0, w * 60), black, w, Ra::Scene::kOutlineEndCap);// | Ra::Scene::kOutlineRounded);
         }
         if (0) {
-            Ra::Path bbPath;  bbPath.ref->addBounds(Ra::Bounds(100.5, 100.5, 199.5, 199.5));
-            scene.addPath(bbPath, Ra::Transform(), black, 0.f, 0);
+            Ra::Bounds bounds(-200, -200, -100, -100);
+            Ra::Path rectPath;  rectPath.ref->addBounds(bounds), rectPath.ref->addBounds(bounds.inset(20, 20));
+            Ra::Path ellipsePath;  ellipsePath.ref->addBounds(bounds), ellipsePath.ref->addEllipse(bounds.inset(20, 20));
+            for (int i = 0; i < 20; i++) {
+                scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 0, i * 200), black, 0.f, Ra::Scene::kFillEvenOdd);
+                scene.addPath(ellipsePath, Ra::Transform(1, 0, 0, 1, 200, i * 200), black, 0.f, Ra::Scene::kFillEvenOdd);
+            }
+                 
+            
         }
         if (0)
             scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);

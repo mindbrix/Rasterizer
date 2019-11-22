@@ -36,7 +36,7 @@ struct Quad {
     Cell cell;
     short cover;
     uint16_t count;
-    int iy, begin, base;
+    int iy, begin, base, idx;
 };
 struct Outline {
     Segment s;

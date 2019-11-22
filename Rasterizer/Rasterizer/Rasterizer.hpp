@@ -431,7 +431,7 @@ struct Rasterizer {
             Cell cell;
             short cover;
             uint16_t count;
-            int iy, begin, base;
+            int iy, begin, base, idx;
         };
         struct Outline {
             union { Segment s;  Bounds clip; };
@@ -440,7 +440,7 @@ struct Rasterizer {
         struct Instance {
             enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
             Instance(size_t iz, int type) : iz((uint32_t)iz | type) {}
-            union { uint32_t idx;  Quad quad;  Outline outline; };
+            union { Quad quad;  Outline outline; };
             uint32_t iz;
         };
         struct EdgeCell {
@@ -578,7 +578,7 @@ struct Rasterizer {
                                     flags[iz] = scene->flags[is] | Scene::kVisible;
                                 
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                writeGPUPath(paths[iz], m, scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
+                                writeGPUPath(paths[iz], ctms[iz], scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
@@ -603,7 +603,7 @@ struct Rasterizer {
                 }
             }
         }
-        void writeGPUPath(Geometry *geometry, Transform ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped) {
+        void writeGPUPath(Geometry *geometry, Transform& ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped) {
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
@@ -625,8 +625,8 @@ struct Rasterizer {
                         Transform m = ctm.concat(entry->ctm);
                         Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
                         writeSegmentIndices(s, end, m, clip, & indices[0], & uxcovers[0]);
-                        writeSegmentInstances(& indices[0], & uxcovers[0], m, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
-                        
+                        writeSegmentInstances(& indices[0], & uxcovers[0], int(entry - gpu.cache.entries.base), m, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
+                        ctm = m;
 //                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
 //                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
@@ -942,23 +942,25 @@ struct Rasterizer {
             if (s->x0 != FLT_MAX) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh) - ily;
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                if (iy0 == iy1) {
-                    Row<Index>& row = indices[int(iy0)];
-                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
-                    int16_t *dst = uxcovers[int(iy0)].alloc(3);
-                    dst[0] = ceilf(ux), dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
-                } else {
-                    float ly, uy, m, c, y, minx, maxx, sign, cover;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
-                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    y = floorf(ly * krfh) * kfh;
-                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (int ir = int(iy0 < iy1 ? iy0 : iy1); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
-                        Row<Index>& row = indices[ir];
-                        size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
-                        cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
+                if (y0 != y1) {
+                    if (iy0 == iy1) {
+                        Row<Index>& row = indices[int(iy0)];
+                        size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
+                        int16_t *dst = uxcovers[int(iy0)].alloc(3);
+                        dst[0] = ceilf(ux), dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
+                    } else {
+                        float ly, uy, m, c, y, minx, maxx, sign, cover;
+                        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
+                        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                        y = floorf(ly * krfh) * kfh;
+                        minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                        maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                        for (int ir = int(iy0 < iy1 ? iy0 : iy1); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
+                            Row<Index>& row = indices[ir];
+                            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
+                            cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
+                            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
+                        }
                     }
                 }
             } else {
@@ -967,7 +969,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, Transform m, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
+    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, size_t base, Transform m, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
         float ly, uy, cover, winding, lx, ux;
@@ -985,6 +987,9 @@ struct Rasterizer {
                 for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x > ux && fabsf(winding - roundf(winding)) < 1e-3f) {
                         if (lx != ux) {
+                            GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
+                            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
+                            inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = -int(base + 1), inst->quad.idx = int(indices->idx);
                         }
                         begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
@@ -1005,6 +1010,9 @@ struct Rasterizer {
                     ux = uxcover[0] > ux ? uxcover[0] : ux;
                 }
                 if (lx != ux) {
+                    GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
+                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
+                    inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = -int(base + 1), inst->quad.idx = int(indices->idx);
                 }
             }
         }
@@ -1342,15 +1350,19 @@ struct Rasterizer {
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             uint32_t ic = uint32_t(cell - c0);
                             if (inst->quad.base < 0) {
+                                Cache::Entry *e = ctx->gpu.cache.entries.base - (inst->quad.base + 1);
                                 cell->cell = inst->quad.cell, cell->im = int(iz);
-                                cell->base = 1 - inst->quad.base;
+                                cell->base = e->seg.begin;
                                 Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
-                                int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + inst->quad.begin * 3, idx;
+                                int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, idx;
                                 for (j = 0; j < inst->quad.count; j++, edge++) {
-                                    edge->ic = ic, idx = uxcovers[is++->i * 3 + 2], edge->i0 = uint16_t(idx);
-                                    if (++j < inst->quad.count)
-                                        idx = uxcovers[is++->i * 3 + 2], edge->i1 = uint16_t(idx);
-                                    else
+                                    edge->ic = ic;
+                                    idx = is->i, is++;
+                                    idx = uxcovers[idx * 3 + 2], edge->i0 = uint16_t(idx);
+                                    if (++j < inst->quad.count) {
+                                        idx = is->i, is++;
+                                        idx = uxcovers[idx * 3 + 2], edge->i1 = uint16_t(idx);
+                                    } else
                                         edge->i1 = kNullIndex;
                                 }
                             } else {
