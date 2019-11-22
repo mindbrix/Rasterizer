@@ -937,10 +937,10 @@ struct Rasterizer {
     }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices, Row<int16_t> *uxcovers) {
         float x0, y0, x1, y1, lx, ux, iy0, iy1, ily = floorf(clip.ly * krfh);
-        x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, iy0 = floorf(y0 * krfh) - ily;
+        x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh) - ily;
         for (Segment *s = begin; s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh) - ily;
+                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh) - ily;
                 if (y0 != y1) {
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                     if (iy0 == iy1) {
@@ -965,7 +965,7 @@ struct Rasterizer {
                 }
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
-                x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, iy1 = floorf(y1 * krfh) - ily;
+                x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh) - ily;
             }
         }
     }
