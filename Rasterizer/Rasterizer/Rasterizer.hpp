@@ -941,8 +941,8 @@ struct Rasterizer {
         for (Segment *s = begin; s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, iy1 = floorf(y1 * krfh) - ily;
-                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 if (y0 != y1) {
+                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                     if (iy0 == iy1) {
                         Row<Index>& row = indices[int(iy0)];
                         size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
