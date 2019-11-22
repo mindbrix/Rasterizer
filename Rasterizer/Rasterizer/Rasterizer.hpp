@@ -991,7 +991,6 @@ struct Rasterizer {
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
                             inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = -int(base + 1), inst->quad.idx = int(indices->idx);
                         }
-                        begin = i;
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque) {
                                 GPU::Instance *inst = new (gpu.opaques.alloc(1)) GPU::Instance(iz, 0);
@@ -1002,12 +1001,11 @@ struct Rasterizer {
                                 gpu.allocator.countInstance();
                             }
                         }
-                        lx = ux = index->x;
+                        begin = i, lx = ux = index->x;
                         cover = winding;
                     }
                     int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3;
-                    winding += uxcover[1] * 0.00003051850948f;
-                    ux = uxcover[0] > ux ? uxcover[0] : ux;
+                    ux = uxcover[0] > ux ? uxcover[0] : ux, winding += uxcover[1] * 0.00003051850948f;
                 }
                 if (lx != ux) {
                     GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
