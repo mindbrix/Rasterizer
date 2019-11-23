@@ -926,7 +926,8 @@ struct Rasterizer {
         if (x0 != FLT_MAX && y0 != y1) {
             IndexedOutput *out = (IndexedOutput *)info;
             int iy0 = int(y0 * krfh) - out->ily, iy1 = int(y1 * krfh) - out->ily, is = int(out->segments->end - out->segments->idx);
-            new (out->segments->alloc(1)) Segment(x0, y0, x1, y1);
+            float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+            new (out->segments->alloc(1)) Segment(cx0, y0, x1, y1);
             if (iy0 == iy1) {
                 Row<Index>& row = out->indices[iy0];
                 size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
