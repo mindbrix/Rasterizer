@@ -627,8 +627,6 @@ struct Rasterizer {
                         writeSegmentIndices(s, end, m, clip, & indices[0], & uxcovers[0]);
                         writeSegmentInstances(& indices[0], & uxcovers[0], -int(entry - gpu.cache.entries.base + 1), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         ctm = m;
-//                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
-//                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
                 } else {
                     IndexedOutput output;
@@ -636,9 +634,6 @@ struct Rasterizer {
                     writePath(geometry, ctm, clip, unclipped, true, false, writeIndexedSegment, writeQuadratic, writeCubic, & output);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
-                    
-//                    writePath(geometry, ctm, clip, unclipped, true, false, writeClippedSegment, writeQuadratic, writeCubic, & sgmnts);
-//                    writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 }
             }
         }
@@ -1370,33 +1365,21 @@ struct Rasterizer {
                             }
                             ctm = ctm.concat(e->ctm);
                         } else if (inst->iz & GPU::Instance::kEdge) {
+                            cell->cell = inst->quad.cell;
+                            if (inst->quad.base < 0) {
+                                Cache::Entry *e = ctx->gpu.cache.entries.base - (inst->quad.base + 1);
+                                cell->im = int(iz), cell->base = e->seg.begin;
+                            } else
+                                cell->im = kNullIndex, cell->base = uint32_t(sbegins[0] + inst->quad.base);
+                            Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
+                            int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx;
                             uint32_t ic = uint32_t(cell - c0);
-                            if (1 || inst->quad.base < 0) {
-                                cell->cell = inst->quad.cell;
-                                if (inst->quad.base < 0) {
-                                    Cache::Entry *e = ctx->gpu.cache.entries.base - (inst->quad.base + 1);
-                                    cell->im = int(iz), cell->base = e->seg.begin;
-                                } else
-                                    cell->im = kNullIndex, cell->base = uint32_t(sbegins[0] + inst->quad.base);
-                                Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
-                                int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx;
-                                for (j = 0; j < inst->quad.count; j++, edge++) {
-                                    edge->ic = ic, edge->i0 = uint16_t(uxcovers[is->i * 3 + 2]), is++;
-                                    if (++j < inst->quad.count)
-                                        edge->i1 = uint16_t(uxcovers[is->i * 3 + 2]), is++;
-                                    else
-                                        edge->i1 = kNullIndex;
-                                }
-                            } else {
-                                cell->cell = inst->quad.cell, cell->im = kNullIndex, cell->base = uint32_t(sbegins[inst->quad.iy] + inst->quad.base);
-                                Index *is = ctx->gpu.indices.base + inst->quad.begin;
-                                for (j = 0; j < inst->quad.count; j++, edge++) {
-                                    edge->ic = ic, edge->i0 = uint16_t(is++->i);
-                                    if (++j < inst->quad.count)
-                                        edge->i1 = uint16_t(is++->i);
-                                    else
-                                        edge->i1 = kNullIndex;
-                                }
+                            for (j = 0; j < inst->quad.count; j++, edge++) {
+                                edge->ic = ic, edge->i0 = uint16_t(uxcovers[is->i * 3 + 2]), is++;
+                                if (++j < inst->quad.count)
+                                    edge->i1 = uint16_t(uxcovers[is->i * 3 + 2]), is++;
+                                else
+                                    edge->i1 = kNullIndex;
                             }
                             cell++;
                         }
