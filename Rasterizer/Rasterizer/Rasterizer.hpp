@@ -625,7 +625,7 @@ struct Rasterizer {
                         Transform m = ctm.concat(entry->ctm);
                         Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
                         writeSegmentIndices(s, end, m, clip, & indices[0], & uxcovers[0]);
-                        writeSegmentInstances(& indices[0], & uxcovers[0], int(entry - gpu.cache.entries.base), m, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
+                        writeSegmentInstances(& indices[0], & uxcovers[0], int(entry - gpu.cache.entries.base), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         ctm = m;
 //                        gpu.cache.writeClippedSegments(entry, ctm.concat(entry->ctm), clip, & sgmnts);
 //                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
@@ -992,7 +992,7 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, size_t base, Transform m, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
+    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, size_t base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
         float ly, uy, cover, winding, lx, ux;
