@@ -244,33 +244,16 @@ vertex InstancesVertex instances_vertex_main(
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant bool *useCurves [[buffer(14)]],
-            const device Segment *segments [[buffer(20)]],
-            const device int16_t *prevs [[buffer(21)]],
-            const device int16_t *nexts [[buffer(22)]],
-            const device uint32_t *midxs [[buffer(23)]],
-            const device Bounds *molecules [[buffer(24)]],
-            const device SceneInstance *sceneInstances [[buffer(25)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
     constexpr float err = 1e-3;
-    
-//    const device SceneInstance& inst = sceneInstances[iid >> 2];
-    
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& paint = paints[iz];
     float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Transform& m = affineTransforms[iz];
-        
-//        uint32_t si = inst.idx + (iid & 3);
-//        int16_t prev = prevs[si], next = nexts[si];
-//        bool pcap = prev == 0, ncap = next == 0;
-//        const device Segment& o = segments[si];
-//        const device Segment& p = segments[si + prev];
-//        const device Segment& n = segments[si + next];
-        
         bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
