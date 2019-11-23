@@ -97,6 +97,11 @@ float winding(float x0, float y0, float x1, float y1) {
 }
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
+    float sy0, sy2, coverage;
+    sy0 = saturate(y0), sy2 = saturate(y2), coverage = sy2 - sy0;
+    if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0))
+        return coverage;
+    
     return winding(x0, y0, x1, y1) + winding(x1, y1, x2, y2);
 }
 
