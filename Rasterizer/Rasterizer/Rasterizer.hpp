@@ -631,6 +631,14 @@ struct Rasterizer {
 //                        writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     }
                 } else {
+//                    int base = int(segments[0].idx);
+//                    IndexedOutput output;
+//                    output.s0 = output.segments = segments[0].base + base;
+//                    output.indices = & indices[0], output.uxcovers = & uxcovers[0];
+//                    output.ily = clip.ly * krfh;
+//                    writePath(geometry, ctm, clip, unclipped, true, false, writeIndexedSegment, writeQuadratic, writeCubic, & output);
+//                    writeSegmentInstances(& indices[0], & uxcovers[0], base, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
+                    
                     writePath(geometry, ctm, clip, unclipped, true, false, writeClippedSegment, writeQuadratic, writeCubic, & sgmnts);
                     writeSegmentInstances(& sgmnts, clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 }
@@ -645,6 +653,12 @@ struct Rasterizer {
         std::vector<Row<int16_t>> uxcovers;
         std::vector<Row<Segment>> segments;
     };
+    struct IndexedOutput {
+        Segment *segments, *s0;
+        Row<Index> *indices;  Row<int16_t> *uxcovers;
+        int ily;
+    };
+    
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
         float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (size_t index = 0; index < geometry->types.size(); )
@@ -935,25 +949,18 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    struct IndexedOutput {
-        Segment *segments, *s0;
-        Row<Index> *indices;
-        Row<int16_t> *uxcovers;
-        int ily;
-    };
     static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (x0 != FLT_MAX && y0 != y1) {
             IndexedOutput *out = (IndexedOutput *)info;
-            new (out->segments) Segment(x0, y0, x1, y1);
-            
-            int iy0 = int(y0 * krfh) - out->ily, iy1 = int(y1 * krfh) - out->ily;
+            int iy0 = int(y0 * krfh) - out->ily, iy1 = int(y1 * krfh) - out->ily, is = int(out->segments - out->s0);
+            new (out->segments) Segment(x0, y0, x1, y1), out->segments++;
             if (iy0 == iy1) {
                 Row<Index>& row = out->indices[iy0];
-                size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
+                size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, is);
                 int16_t *dst = out->uxcovers[iy0].alloc(3);
-                dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = int(out->segments - out->s0);
+                dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = i;
             } else
-                writeSegmentIndices(x0, y0, x1, y1, iy0 < iy1 ? iy0 : iy1, int(out->segments - out->s0), out->indices, out->uxcovers);
+                writeSegmentIndices(x0, y0, x1, y1, iy0 < iy1 ? iy0 : iy1, is, out->indices, out->uxcovers);
         }
     }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, int ir, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
