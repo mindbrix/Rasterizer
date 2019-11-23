@@ -183,7 +183,7 @@ fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 struct EdgesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5;
 };
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -202,28 +202,28 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Segment& s0 = segments[edgeCell.base + edge.i0];
     const device Segment& s1 = segments[edgeCell.base + edge.i1];
     vert.x0 = s0.x0 * m.a + s0.y0 * m.c + m.tx, vert.y0 = s0.x0 * m.b + s0.y0 * m.d + m.ty;
-    vert.x1 = s0.x1 * m.a + s0.y1 * m.c + m.tx, vert.y1 = s0.x1 * m.b + s0.y1 * m.d + m.ty;
-    float slx = min(vert.x0, vert.x1), sly = min(vert.y0, vert.y1), suy = max(vert.y0, vert.y1);
+    vert.x2 = s0.x1 * m.a + s0.y1 * m.c + m.tx, vert.y2 = s0.x1 * m.b + s0.y1 * m.d + m.ty;
+    float slx = min(vert.x0, vert.x2), sly = min(vert.y0, vert.y2), suy = max(vert.y0, vert.y2);
     if (edge.i1 == kNullIndex)
-        vert.x2 = vert.y2 = vert.x3 = vert.y3 = 0.0;
+        vert.x3 = vert.y3 = vert.x5 = vert.y5 = 0.0;
     else {
-        vert.x2 = s1.x0 * m.a + s1.y0 * m.c + m.tx, vert.y2 = s1.x0 * m.b + s1.y0 * m.d + m.ty;
-        vert.x3 = s1.x1 * m.a + s1.y1 * m.c + m.tx, vert.y3 = s1.x1 * m.b + s1.y1 * m.d + m.ty;
-        slx = min(slx, min(vert.x2, vert.x3)), sly = min(sly, min(vert.y2, vert.y3)), suy = max(suy, max(vert.y2, vert.y3));
+        vert.x3 = s1.x0 * m.a + s1.y0 * m.c + m.tx, vert.y3 = s1.x0 * m.b + s1.y0 * m.d + m.ty;
+        vert.x5 = s1.x1 * m.a + s1.y1 * m.c + m.tx, vert.y5 = s1.x1 * m.b + s1.y1 * m.d + m.ty;
+        slx = min(slx, min(vert.x3, vert.x5)), sly = min(sly, min(vert.y3, vert.y5)), suy = max(suy, max(vert.y3, vert.y5));
     }
     float ox = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty;
-
+    vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
+    vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
     return vert;
 }
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x2, vert.y2, vert.x3, vert.y3);
+    return winding(vert.x0, vert.y0, vert.x2, vert.y2) + winding(vert.x3, vert.y3, vert.x5, vert.y5);
 }
 
 #pragma mark - Instances
