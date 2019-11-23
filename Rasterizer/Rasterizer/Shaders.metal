@@ -97,12 +97,17 @@ float winding(float x0, float y0, float x1, float y1) {
 }
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float sy0, sy2, coverage;
-    sy0 = saturate(y0), sy2 = saturate(y2), coverage = sy2 - sy0;
-    if (coverage == 0.0 || (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0))
-        return coverage;
+    float sy0, sy1, sy2, cover, dx, dy, a0, w;
+    sy0 = saturate(y0), sy2 = saturate(y2), cover = sy2 - sy0;
+    if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0))
+        return cover;
+    sy1 = saturate(y1), cover = sy1 - sy0;
+    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? sy0 : sy1) - y0) - dy * (1.0 - x0);
+    w = saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
     
-    return winding(x0, y0, x1, y1) + winding(x1, y1, x2, y2);
+    cover = sy2 - sy1;
+    dx = x2 - x1, dy = y2 - y1, a0 = dx * ((dx > 0.0 ? sy1 : sy2) - y1) - dy * (1.0 - x1);
+    return w + saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
 }
 
 #pragma mark - Opaques
