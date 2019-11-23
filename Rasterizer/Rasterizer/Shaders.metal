@@ -225,7 +225,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         vert.x5 = s1.x1 * m.a + s1.y1 * m.c + m.tx, vert.y5 = s1.x1 * m.b + s1.y1 * m.d + m.ty;
         slx = min(slx, min(vert.x3, vert.x5)), sly = min(sly, min(vert.y3, vert.y5)), suy = max(suy, max(vert.y3, vert.y5));
     }
-//    sly = -FLT_MAX, suy = FLT_MAX;
+    if (*useCurves)
+        sly = -FLT_MAX, suy = FLT_MAX;
     float ox = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
@@ -233,8 +234,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
     vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
-    vert.x1 = vert.x4 = FLT_MAX;
     
+    vert.x1 = vert.x4 = FLT_MAX;
     if (*useCurves) {
         float px, py;
         if (as_type<uint>(s0.x0) & 2) {
