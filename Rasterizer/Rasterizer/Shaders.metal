@@ -97,16 +97,16 @@ float winding(float x0, float y0, float x1, float y1) {
 }
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float sy0, sy1, sy2, cover, dx, dy, a0, w;
-    sy0 = saturate(y0), sy2 = saturate(y2), cover = sy2 - sy0;
+    float w0, w1, w2, cover, dx, dy, a0, w;
+    w0 = saturate(y0), w2 = saturate(y2), cover = w2 - w0;
     if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0))
         return cover;
-    sy1 = saturate(y1), cover = sy1 - sy0;
-    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? sy0 : sy1) - y0) - dy * (1.0 - x0);
+    w1 = saturate(y1), cover = w1 - w0;
+    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
     w = saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
     
-    cover = sy2 - sy1;
-    dx = x2 - x1, dy = y2 - y1, a0 = dx * ((dx > 0.0 ? sy1 : sy2) - y1) - dy * (1.0 - x1);
+    cover = w2 - w1;
+    dx = x2 - x1, dy = y2 - y1, a0 = dx * ((dx > 0.0 ? w1 : w2) - y1) - dy * (1.0 - x1);
     return w + saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
 }
 
