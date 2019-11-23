@@ -96,6 +96,10 @@ float winding(float x0, float y0, float x1, float y1) {
     return coverage * (t1 - ((t1 - t0) * area));
 }
 
+float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
+    return winding(x0, y0, x1, y1) + winding(x1, y1, x2, y2);
+}
+
 #pragma mark - Opaques
 
 struct OpaquesVertex
@@ -262,11 +266,11 @@ fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
     if (vert.x1 == FLT_MAX)
         w += winding(vert.x0, vert.y0, vert.x2, vert.y2);
     else
-        w += winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x1, vert.y1, vert.x2, vert.y2);
+        w += quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
     if (vert.x4 == FLT_MAX)
         w += winding(vert.x3, vert.y3, vert.x5, vert.y5);
     else
-        w += winding(vert.x3, vert.y3, vert.x4, vert.y4) + winding(vert.x4, vert.y4, vert.x5, vert.y5);
+        w += quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
     return w;
 }
 
