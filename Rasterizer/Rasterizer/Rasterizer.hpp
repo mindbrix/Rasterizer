@@ -935,33 +935,35 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
+    static void writeSegmentIndices(float x0, float y0, float x1, float y1, int ir, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
+        float lx, ux, ly, uy, m, c, y, minx, maxx, sign, cover;
+        lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
+        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+        y = floorf(ly * krfh) * kfh;
+        minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+        maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+        for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
+            Row<Index>& row = indices[ir];
+            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
+            cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
+            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = sign * cover * kCoverScale, dst[2] = is;
+        }
+    }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices, Row<int16_t> *uxcovers) {
-        float x0, y0, x1, y1, lx, ux, iy0, iy1, ily = floorf(clip.ly * krfh);
+        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh);
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh) - ily;
         for (Segment *s = begin; s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh) - ily;
                 if (y0 != y1) {
-                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                     if (iy0 == iy1) {
                         Row<Index>& row = indices[int(iy0)];
-                        size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
+                        size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
                         int16_t *dst = uxcovers[int(iy0)].alloc(3);
-                        dst[0] = ceilf(ux), dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
-                    } else {
-                        float ly, uy, m, c, y, minx, maxx, sign, cover;
-                        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
-                        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                        y = floorf(ly * krfh) * kfh;
-                        minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                        maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                        for (int ir = int(iy0 < iy1 ? iy0 : iy1); y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
-                            Row<Index>& row = indices[ir];
-                            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
-                            cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = sign * cover * kCoverScale, dst[2] = s - begin;
-                        }
-                    }
+                        dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = s - begin;
+                    } else
+                        writeSegmentIndices(x0, y0, x1, y1, int(iy0 < iy1 ? iy0 : iy1), int(s - begin), indices, uxcovers);
                 }
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
