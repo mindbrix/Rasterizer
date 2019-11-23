@@ -935,6 +935,27 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
+    struct IndexedOutput {
+        Segment *segments, *s0;
+        Row<Index> *indices;
+        Row<int16_t> *uxcovers;
+        int ily;
+    };
+    static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+        if (x0 != FLT_MAX && y0 != y1) {
+            IndexedOutput *out = (IndexedOutput *)info;
+            new (out->segments) Segment(x0, y0, x1, y1);
+            
+            float iy0 = floorf(y0 * krfh), iy1 = floorf(y1 * krfh);
+            if (iy0 == iy1) {
+                Row<Index>& row = out->indices[int(iy0)];
+                size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
+                int16_t *dst = out->uxcovers[int(iy0)].alloc(3);
+                dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = int(out->segments - out->s0);
+            } else
+                writeSegmentIndices(x0, y0, x1, y1, int(iy0 < iy1 ? iy0 : iy1) - out->ily, int(out->segments - out->s0), out->indices, out->uxcovers);
+        }
+    }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, int ir, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
         float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
         lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
