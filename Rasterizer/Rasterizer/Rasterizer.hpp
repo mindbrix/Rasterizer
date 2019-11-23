@@ -946,14 +946,14 @@ struct Rasterizer {
             IndexedOutput *out = (IndexedOutput *)info;
             new (out->segments) Segment(x0, y0, x1, y1);
             
-            float iy0 = floorf(y0 * krfh), iy1 = floorf(y1 * krfh);
+            int iy0 = int(y0 * krfh) - out->ily, iy1 = int(y1 * krfh) - out->ily;
             if (iy0 == iy1) {
-                Row<Index>& row = out->indices[int(iy0)];
+                Row<Index>& row = out->indices[iy0];
                 size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
-                int16_t *dst = out->uxcovers[int(iy0)].alloc(3);
+                int16_t *dst = out->uxcovers[iy0].alloc(3);
                 dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = int(out->segments - out->s0);
             } else
-                writeSegmentIndices(x0, y0, x1, y1, int(iy0 < iy1 ? iy0 : iy1) - out->ily, int(out->segments - out->s0), out->indices, out->uxcovers);
+                writeSegmentIndices(x0, y0, x1, y1, iy0 < iy1 ? iy0 : iy1, int(out->segments - out->s0), out->indices, out->uxcovers);
         }
     }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, int ir, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
