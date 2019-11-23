@@ -1034,57 +1034,6 @@ struct Rasterizer {
             }
         }
     }
-    static void writeSegmentInstances(Output *sgmnts, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
-        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
-        uint16_t counts[256];
-        float ly, uy, scale, cover, winding, lx, ux, x;
-        bool single = clip.ux - clip.lx < 256.f;
-        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Segment> *segments = sgmnts->segments;  Segment *segment;
-        Row<Index>& indices = gpu.indices;    Index *index;
-        for (iy = ily; iy < iuy; iy++, indices.idx = indices.end, segments->idx = segments->end, segments++)
-            if ((count = segments->end - segments->idx)) {
-                for (index = indices.alloc(count), segment = segments->base + segments->idx, i = 0; i < count; i++, segment++, index++)
-                    new (index) Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                if (indices.end - indices.idx > 32)
-                    radixSort((uint32_t *)indices.base + indices.idx, int(indices.end - indices.idx), single ? clip.lx : 0, range, single, counts);
-                else
-                    std::sort(indices.base + indices.idx, indices.base + indices.end);
-                
-                ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (scale = 1.f / (uy - ly), cover = winding = 0.f, index = indices.base + indices.idx, lx = ux = index->x, i = begin = indices.idx; i < indices.end; i++, index++) {
-                    if (index->x > ux && fabsf(winding - roundf(winding)) < 1e-3f) {
-                        if (lx != ux) {
-                            GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
-                            GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
-                            inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
-                        }
-                        begin = i;
-                        if (alphaForCover(winding, even) > 0.998f) {
-                            if (opaque) {
-                                GPU::Instance *inst = new (gpu.opaques.alloc(1)) GPU::Instance(iz, 0);
-                                new (& inst->quad.cell) GPU::Cell(ux, ly, index->x, uy, 0.f, 0.f);
-                            } else {
-                                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kSolidCell);
-                                new (& inst->quad.cell) GPU::Cell(ux, ly, index->x, uy, 0.f, 0.f);
-                                gpu.allocator.countInstance();
-                            }
-                        }
-                        lx = ux = index->x;
-                        cover = winding;
-                    }
-                    segment = segments->base + segments->idx + index->i;
-                    winding += (segment->y1 - segment->y0) * scale;
-                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
-                }
-                if (lx != ux) {
-                    GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
-                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
-                    inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(segments->idx);
-                }
-            }
-    }
     static void writeSegmentPixels(Output *sgmnts, Bounds clip, bool hit, Transform clipctm, bool even, Output *del, uint8_t *src, Bitmap *bitmap) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
         uint16_t counts[256];
