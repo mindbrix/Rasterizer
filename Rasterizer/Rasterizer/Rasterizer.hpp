@@ -358,22 +358,6 @@ struct Rasterizer {
             new (grid.alloc(hash)) Grid::Element(hash, entries.end);
             return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert(), instances);
         }
-        void writeClippedSegments(Entry *e, Transform m, Bounds clip, Output *out) {
-            float x0, y0, x1, y1, iy0, iy1;
-            Segment *s = segments.base + e->seg.begin, *end = segments.base + e->seg.end;
-            for (x0 = s->x0 * m.a + s->y0 * m.c + m.tx, y0 = s->x0 * m.b + s->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh); s < end; s++, x0 = x1, y0 = y1, iy0 = iy1) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh);
-                if (s->x0 != FLT_MAX) {
-                    if (y0 != y1) {
-                        if (iy0 == iy1)
-                            new (out->segments[size_t(iy0) - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
-                        else
-                            writeClippedSegmentRows(x0, y0, x1, y1, out);
-                    }
-                } else if (s < end - 1)
-                    x1 = (s + 1)->x0 * m.a + (s + 1)->y0 * m.c + m.tx, y1 = (s + 1)->x0 * m.b + (s + 1)->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh);
-            }
-        }
         Grid grid;
         Row<Entry> entries;
         Row<Segment> segments;
