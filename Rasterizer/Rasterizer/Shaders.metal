@@ -227,22 +227,29 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
             vert.x1 = 0.5 * vert.x2 + (vert.x0 - 0.25 * (px + vert.x2));
             vert.y1 = 0.5 * vert.y2 + (vert.y0 - 0.25 * (py + vert.y2));
+            vert.x1 = 0.25 * (vert.x0 + vert.x2) + 0.5 * vert.x1;
+            vert.y1 = 0.25 * (vert.y0 + vert.y2) + 0.5 * vert.y1;
         } else if (as_type<uint>(s0.x0) & 1) {
             const device Segment& n = segments[edgeCell.base + edge.i0 + 1];
             px = n.x1 * m.a + n.y1 * m.c + m.tx + tx, py = n.x1 * m.b + n.y1 * m.d + m.ty + ty;
             vert.x1 = 0.5 * vert.x0 + (vert.x2 - 0.25 * (vert.x0 + px));
             vert.y1 = 0.5 * vert.y0 + (vert.y2 - 0.25 * (vert.y0 + py));
+            vert.x1 = 0.25 * (vert.x0 + vert.x2) + 0.5 * vert.x1;
+            vert.y1 = 0.25 * (vert.y0 + vert.y2) + 0.5 * vert.y1;
         }
         if (as_type<uint>(s1.x0) & 2) {
             const device Segment& p = segments[edgeCell.base + edge.i1 - 1];
             px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
             vert.x4 = 0.5 * vert.x5 + (vert.x3 - 0.25 * (px + vert.x5));
             vert.y4 = 0.5 * vert.y5 + (vert.y3 - 0.25 * (py + vert.y5));
+            vert.x4 = 0.25 * (vert.x3 + vert.x5) + 0.5 * vert.x4;
+            vert.y4 = 0.25 * (vert.y3 + vert.y5) + 0.5 * vert.y4;
         } else if (as_type<uint>(s1.x0) & 1) {
             const device Segment& n = segments[edgeCell.base + edge.i1 + 1];
             px = n.x1 * m.a + n.y1 * m.c + m.tx + tx, py = n.x1 * m.b + n.y1 * m.d + m.ty + ty;
             vert.x4 = 0.5 * vert.x3 + (vert.x5 - 0.25 * (vert.x3 + px));
             vert.y4 = 0.5 * vert.y3 + (vert.y5 - 0.25 * (vert.y3 + py));
+            vert.y4 = 0.25 * (vert.y3 + vert.y5) + 0.5 * vert.y4;
         }
     }
     return vert;
@@ -250,6 +257,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
+//    return winding(vert.x0, vert.y0, vert.x2, vert.y2) + winding(vert.x3, vert.y3, vert.x5, vert.y5);
     float w = 0;
     if (vert.x1 == FLT_MAX)
         w += winding(vert.x0, vert.y0, vert.x2, vert.y2);
