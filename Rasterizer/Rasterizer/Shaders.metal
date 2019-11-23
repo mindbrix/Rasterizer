@@ -142,6 +142,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                                 const device EdgeCell *edgeCells [[buffer(3)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     FastEdgesVertex vert;
@@ -190,6 +191,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device EdgeCell *edgeCells [[buffer(3)]],
                                      const device Transform *affineTransforms [[buffer(4)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                     constant bool *useCurves [[buffer(14)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     EdgesVertex vert;
