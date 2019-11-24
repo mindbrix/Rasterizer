@@ -69,13 +69,11 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
-float winding0(float x0, float y0, float x1, float y1) {
-    float w0, w1, cover, dx, dy, a0;//, dt = 0.0;
-    w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
-    if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
-        return cover;
-    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
+float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
+    float cover, dx, dy, a0;
+    cover = w1 - w0, dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
     return saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
+    
   //  return cover * saturate((t - dt) / (1.0 - 2.0 * dt));
     /*
     dx = abs(dx), t = -a0 / (dx * cover + dy), dy = abs(dy);
@@ -97,15 +95,10 @@ float winding(float x0, float y0, float x1, float y1) {
 }
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float w0, w1, w2, cover, dx, dy, a0, w;
-    w0 = saturate(y0), w1 = saturate(y1), w2 = saturate(y2);
+    float w0 = saturate(y0), w1 = saturate(y1), w2 = saturate(y2);
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
-    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
-    cover = w1 - w0, w = saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
-    dx = x2 - x1, dy = y2 - y1, a0 = dx * ((dx > 0.0 ? w1 : w2) - y1) - dy * (1.0 - x1);
-    cover = w2 - w1, w += saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
-    return w;
+    return winding(x0, y0, x1, y1, w0, w1) + winding(x1, y1, x2, y2, w1, w2);
 }
 
 #pragma mark - Opaques
