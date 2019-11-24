@@ -101,12 +101,12 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), div2A = 0.5 / ay;
     t = saturate(-by * div2A), w1 = saturate(fma(fma(ay, t, by), t, y0));
     if (w0 != w1) {
-        r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w0 + w1))), t = (-by + copysign(r, w1 - w0)) * div2A, s = 1.0 - t;
-        w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
+        r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w0 + w1))), t = (-by + copysign(r, w1 - w0)) * div2A;
+        s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     if (w1 != w2) {
-        r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w1 + w2))), t = (-by + copysign(r, w2 - w1)) * div2A, s = 1.0 - t;
-        w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
+        r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w1 + w2))), t = (-by + copysign(r, w2 - w1)) * div2A;
+        s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
     }
     return w;
 }
