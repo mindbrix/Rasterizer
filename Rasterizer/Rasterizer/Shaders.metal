@@ -95,10 +95,24 @@ float winding(float x0, float y0, float x1, float y1) {
 }
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float w0 = saturate(y0), w1 = saturate(y1), w2 = saturate(y2);
+    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, div2A, by, iy, w1, it, t, s, r, tx0, ty0, tx1, ty1;
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
-    return winding(x0, y0, x1, y1, w0, w1) + winding(x1, y1, x2, y2, w1, w2);
+    ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), div2A = 0.5 / ay, it = saturate(-by * div2A);
+    t = it, s = 1.0 - t, iy = y0 * s * s + y1 * 2.0 * s * t + y2 * t * t, w1 = saturate(iy);
+    if (w0 != w1) {
+        r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w0 + w1)));
+        t = (-by + copysign(r, w1 - w0)) * div2A;
+        s = 1.0 - t, tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1, tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
+        w += winding(tx0, ty0, tx1, ty1, w0, w1);
+    }
+    if (w1 != w2) {
+        r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w1 + w2)));
+        t = (-by + copysign(r, w2 - w1)) * div2A;
+        s = 1.0 - t, tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1, tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
+        w += winding(tx0, ty0, tx1, ty1, w1, w2);
+    }
+    return w;
 }
 
 #pragma mark - Opaques
