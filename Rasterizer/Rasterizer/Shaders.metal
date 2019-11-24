@@ -95,18 +95,25 @@ float winding(float x0, float y0, float x1, float y1) {
 }
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, div2A, by, iy, w1, it, t, s, r, tx0, ty0, tx1, ty1;
+    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ax, ay, div2A, by, iy, ix, w1, it, t, s, r, tx0, ty0, tx1, ty1;
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), div2A = 0.5 / ay, it = saturate(-by * div2A);
     t = it, s = 1.0 - t, iy = y0 * s * s + y1 * 2.0 * s * t + y2 * t * t, w1 = saturate(iy);
+    ix = x0 * s * s + x1 * 2.0 * s * t + x2 * t * t;
     if (w0 != w1) {
+//        ax = ix - x0, ay = iy - y0;
+//        t = saturate((ax * (0.5 - x0) + ay * (0.5 - y0)) / (ax * ax + ay * ay));
+//        t = it * t;
         r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w0 + w1)));
         t = (-by + copysign(r, w1 - w0)) * div2A;
         s = 1.0 - t, tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1, tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
         w += winding(tx0, ty0, tx1, ty1, w0, w1);
     }
     if (w1 != w2) {
+//        ax = x2 - ix, ay = y2 - iy;
+//        t = saturate((ax * (0.5 - ix) + ay * (0.5 - iy)) / (ax * ax + ay * ay));
+//        t = it * (1.0 - t) + t;
         r = sqrt(by * by - 4.0 * ay * (y0 - 0.5 * (w1 + w2)));
         t = (-by + copysign(r, w2 - w1)) * div2A;
         s = 1.0 - t, tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1, tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
@@ -248,29 +255,22 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
             vert.x1 = 0.5 * vert.x2 + (vert.x0 - 0.25 * (px + vert.x2));
             vert.y1 = 0.5 * vert.y2 + (vert.y0 - 0.25 * (py + vert.y2));
-            vert.x1 = 0.25 * (vert.x0 + vert.x2) + 0.5 * vert.x1;
-            vert.y1 = 0.25 * (vert.y0 + vert.y2) + 0.5 * vert.y1;
         } else if (as_type<uint>(s0.x0) & 1) {
             const device Segment& n = segments[edgeCell.base + edge.i0 + 1];
             px = n.x1 * m.a + n.y1 * m.c + m.tx + tx, py = n.x1 * m.b + n.y1 * m.d + m.ty + ty;
             vert.x1 = 0.5 * vert.x0 + (vert.x2 - 0.25 * (vert.x0 + px));
             vert.y1 = 0.5 * vert.y0 + (vert.y2 - 0.25 * (vert.y0 + py));
-            vert.x1 = 0.25 * (vert.x0 + vert.x2) + 0.5 * vert.x1;
-            vert.y1 = 0.25 * (vert.y0 + vert.y2) + 0.5 * vert.y1;
         }
         if (as_type<uint>(s1.x0) & 2) {
             const device Segment& p = segments[edgeCell.base + edge.i1 - 1];
             px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
             vert.x4 = 0.5 * vert.x5 + (vert.x3 - 0.25 * (px + vert.x5));
             vert.y4 = 0.5 * vert.y5 + (vert.y3 - 0.25 * (py + vert.y5));
-            vert.x4 = 0.25 * (vert.x3 + vert.x5) + 0.5 * vert.x4;
-            vert.y4 = 0.25 * (vert.y3 + vert.y5) + 0.5 * vert.y4;
         } else if (as_type<uint>(s1.x0) & 1) {
             const device Segment& n = segments[edgeCell.base + edge.i1 + 1];
             px = n.x1 * m.a + n.y1 * m.c + m.tx + tx, py = n.x1 * m.b + n.y1 * m.d + m.ty + ty;
             vert.x4 = 0.5 * vert.x3 + (vert.x5 - 0.25 * (vert.x3 + px));
             vert.y4 = 0.5 * vert.y3 + (vert.y5 - 0.25 * (vert.y3 + py));
-            vert.y4 = 0.25 * (vert.y3 + vert.y5) + 0.5 * vert.y4;
         }
     }
     return vert;
