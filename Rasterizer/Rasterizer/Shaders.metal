@@ -98,16 +98,14 @@ float winding(float x0, float y0, float x1, float y1) {
 
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0, w1, w2, cover, dx, dy, a0, w;
-    w0 = saturate(y0), w2 = saturate(y2);
+    w0 = saturate(y0), w1 = saturate(y1), w2 = saturate(y2);
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
-    w1 = saturate(y1), cover = w1 - w0;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
-    w = saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
-    
-    cover = w2 - w1;
+    cover = w1 - w0, w = saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
     dx = x2 - x1, dy = y2 - y1, a0 = dx * ((dx > 0.0 ? w1 : w2) - y1) - dy * (1.0 - x1);
-    return w + saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
+    cover = w2 - w1, w += saturate(-a0 / fma(abs(dx), cover, dy)) * cover;
+    return w;
 }
 
 #pragma mark - Opaques
@@ -225,8 +223,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         vert.x5 = s1.x1 * m.a + s1.y1 * m.c + m.tx, vert.y5 = s1.x1 * m.b + s1.y1 * m.d + m.ty;
         slx = min(slx, min(vert.x3, vert.x5)), sly = min(sly, min(vert.y3, vert.y5)), suy = max(suy, max(vert.y3, vert.y5));
     }
-    if (*useCurves)
-        sly = -FLT_MAX, suy = FLT_MAX;
+//    if (*useCurves)
+//        sly = -FLT_MAX, suy = FLT_MAX;
     float ox = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
