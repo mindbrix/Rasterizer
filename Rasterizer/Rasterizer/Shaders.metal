@@ -238,7 +238,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     
     vert.x1 = vert.x4 = FLT_MAX;
     if (*useCurves) {
-        float px, py;
+        float px, py, det;
         if (as_type<uint>(s0.x0) & 2) {
             const device Segment& p = segments[edgeCell.base + edge.i0 - 1];
             px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
@@ -250,6 +250,9 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             vert.x1 = 0.5 * vert.x0 + (vert.x2 - 0.25 * (vert.x0 + px));
             vert.y1 = 0.5 * vert.y0 + (vert.y2 - 0.25 * (vert.y0 + py));
         }
+        det = abs((vert.x1 - vert.x0) * (vert.y2 - vert.y1) - (vert.y1 - vert.y0) * (vert.x2 - vert.x1));
+        vert.x1 = vert.x1 == FLT_MAX || det < 1.0 ? FLT_MAX : vert.x1;
+        
         if (edge.i1 != kNullIndex) {
             if (as_type<uint>(s1.x0) & 2) {
                 const device Segment& p = segments[edgeCell.base + edge.i1 - 1];
@@ -262,6 +265,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 vert.x4 = 0.5 * vert.x3 + (vert.x5 - 0.25 * (vert.x3 + px));
                 vert.y4 = 0.5 * vert.y3 + (vert.y5 - 0.25 * (vert.y3 + py));
             }
+            det = abs((vert.x4 - vert.x3) * (vert.y5 - vert.y4) - (vert.y4 - vert.y3) * (vert.x5 - vert.x4));
+            vert.x4 = vert.x4 == FLT_MAX || det < 1.0 ? FLT_MAX : vert.x4;
         }
     }
     return vert;
