@@ -214,20 +214,35 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
     const device Cell& cell = edgeCell.cell;
     Transform m = edgeCell.im == kNullIndex ? Transform() : affineTransforms[edgeCell.im];
-    const device Segment& s0 = segments[edgeCell.base + edge.i0];
-    const device Segment& s1 = segments[edgeCell.base + edge.i1];
-    vert.x0 = s0.x0 * m.a + s0.y0 * m.c + m.tx, vert.y0 = s0.x0 * m.b + s0.y0 * m.d + m.ty;
-    vert.x2 = s0.x1 * m.a + s0.y1 * m.c + m.tx, vert.y2 = s0.x1 * m.b + s0.y1 * m.d + m.ty;
-    float slx = min(vert.x0, vert.x2), sly = min(vert.y0, vert.y2), suy = max(vert.y0, vert.y2);
-    if (edge.i1 == kNullIndex)
-        vert.x3 = vert.y3 = vert.x5 = vert.y5 = 0.0;
-    else {
-        vert.x3 = s1.x0 * m.a + s1.y0 * m.c + m.tx, vert.y3 = s1.x0 * m.b + s1.y0 * m.d + m.ty;
-        vert.x5 = s1.x1 * m.a + s1.y1 * m.c + m.tx, vert.y5 = s1.x1 * m.b + s1.y1 * m.d + m.ty;
-        slx = min(slx, min(vert.x3, vert.x5)), sly = min(sly, min(vert.y3, vert.y5)), suy = max(suy, max(vert.y3, vert.y5));
+    thread float *dst = & vert.x0;
+    const device uint16_t *idxes = & edge.i0;
+    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
+    for (int i = 0; i < 2; i++, dst += 6) {
+        float x0, y0, x1, y1, x2, y2, px, py;
+        bool pcurve, ncurve, flat;
+        if (idxes[i] != kNullIndex) {
+            const device Segment& s = segments[edgeCell.base + idxes[i]];
+            x0 = s.x0 * m.a + s.y0 * m.c + m.tx, y0 = s.x0 * m.b + s.y0 * m.d + m.ty;
+            x2 = s.x1 * m.a + s.y1 * m.c + m.tx, y2 = s.x1 * m.b + s.y1 * m.d + m.ty;
+            dst[0] = x0, dst[1] = y0, dst[4] = x2, dst[5] = y2;
+            slx = min(slx, min(x0, x2)), sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
+            pcurve = as_type<uint>(s.x0) & 2, ncurve = as_type<uint>(s.x0) & 1;
+            if (pcurve) {
+                const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
+                px = p.x0 * m.a + p.y0 * m.c + m.tx, py = p.x0 * m.b + p.y0 * m.d + m.ty;
+                x1 = 0.5 * x2 + (x0 - 0.25 * (px + x2));
+                y1 = 0.5 * y2 + (y0 - 0.25 * (py + y2));
+            } else if (ncurve) {
+                const device Segment& n = segments[edgeCell.base + idxes[i] + 1];
+                px = n.x1 * m.a + n.y1 * m.c + m.tx, py = n.x1 * m.b + n.y1 * m.d + m.ty;
+                x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + px));
+                y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + py));
+            }
+            flat = !*useCurves || (!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0;
+            dst[2] = flat ? FLT_MAX : x1, dst[3] = flat ? FLT_MAX : y1;
+        } else
+            dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
     }
-//    if (*useCurves)
-//        sly = -FLT_MAX, suy = FLT_MAX;
     float ox = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
@@ -235,40 +250,9 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
     vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
-    
-    vert.x1 = vert.x4 = FLT_MAX;
-    if (*useCurves) {
-        float px, py, det;
-        if (as_type<uint>(s0.x0) & 2) {
-            const device Segment& p = segments[edgeCell.base + edge.i0 - 1];
-            px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
-            vert.x1 = 0.5 * vert.x2 + (vert.x0 - 0.25 * (px + vert.x2));
-            vert.y1 = 0.5 * vert.y2 + (vert.y0 - 0.25 * (py + vert.y2));
-        } else if (as_type<uint>(s0.x0) & 1) {
-            const device Segment& n = segments[edgeCell.base + edge.i0 + 1];
-            px = n.x1 * m.a + n.y1 * m.c + m.tx + tx, py = n.x1 * m.b + n.y1 * m.d + m.ty + ty;
-            vert.x1 = 0.5 * vert.x0 + (vert.x2 - 0.25 * (vert.x0 + px));
-            vert.y1 = 0.5 * vert.y0 + (vert.y2 - 0.25 * (vert.y0 + py));
-        }
-        det = abs((vert.x1 - vert.x0) * (vert.y2 - vert.y1) - (vert.y1 - vert.y0) * (vert.x2 - vert.x1));
-        vert.x1 = vert.x1 == FLT_MAX || det < 1.0 ? FLT_MAX : vert.x1;
-        
-        if (edge.i1 != kNullIndex) {
-            if (as_type<uint>(s1.x0) & 2) {
-                const device Segment& p = segments[edgeCell.base + edge.i1 - 1];
-                px = p.x0 * m.a + p.y0 * m.c + m.tx + tx, py = p.x0 * m.b + p.y0 * m.d + m.ty + ty;
-                vert.x4 = 0.5 * vert.x5 + (vert.x3 - 0.25 * (px + vert.x5));
-                vert.y4 = 0.5 * vert.y5 + (vert.y3 - 0.25 * (py + vert.y5));
-            } else if (as_type<uint>(s1.x0) & 1) {
-                const device Segment& n = segments[edgeCell.base + edge.i1 + 1];
-                px = n.x1 * m.a + n.y1 * m.c + m.tx + tx, py = n.x1 * m.b + n.y1 * m.d + m.ty + ty;
-                vert.x4 = 0.5 * vert.x3 + (vert.x5 - 0.25 * (vert.x3 + px));
-                vert.y4 = 0.5 * vert.y3 + (vert.y5 - 0.25 * (vert.y3 + py));
-            }
-            det = abs((vert.x4 - vert.x3) * (vert.y5 - vert.y4) - (vert.y4 - vert.y3) * (vert.x5 - vert.x4));
-            vert.x4 = vert.x4 == FLT_MAX || det < 1.0 ? FLT_MAX : vert.x4;
-        }
-    }
+    float c0 = vert.x1 != FLT_MAX, c1 = vert.x4 != FLT_MAX;
+    vert.x1 += c0 * tx, vert.y1 += c0 * ty;
+    vert.x4 += c1 * tx, vert.y4 += c1 * ty;
     return vert;
 }
 
