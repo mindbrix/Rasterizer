@@ -969,7 +969,7 @@ struct Rasterizer {
     static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
         IndexedOutput out;
         out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
-        float x0, y0, x1, y1, px = FLT_MAX, py = FLT_MAX, cpx, cpy;
+        float x0, y0, x1, y1, px = FLT_MAX, py = FLT_MAX;
         bool ncurve, pcurve;
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
@@ -980,19 +980,14 @@ struct Rasterizer {
                 // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
                 // px, x0, x1
                 if (ncurve) {
-                    if (px != FLT_MAX) {
-                        cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
-                        // px, cpx, x0
-                        out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
-                    }
+                    // px, cpx, x0
+                    if (px != FLT_MAX)
+                        out.indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
                     px = x0, py = y0;
                 } else if (pcurve) {
-                    cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
-                    out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
-                    
-                    cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
+                    out.indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
                     // x0, cpx, x1
-                    out.indexCurve(x0, y0, cpx, cpy, x1, y1, is);
+                    out.indexCurve(x0, y0, 0.5 * x1 + (x0 - 0.25 * (px + x1)), 0.5 * y1 + (y0 - 0.25 * (py + y1)), x1, y1, is);
                     
                     px = py = FLT_MAX;
                 } else
