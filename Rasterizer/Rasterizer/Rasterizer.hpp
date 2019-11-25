@@ -953,20 +953,28 @@ struct Rasterizer {
         }
     }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices, Row<int16_t> *uxcovers) {
-        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh), px = FLT_MAX, py = FLT_MAX;
+        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh), px = FLT_MAX, py = FLT_MAX, cpx, cpy;
         bool ncurve, pcurve;
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh) - ily;
         for (Segment *s = begin; s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
                 ncurve = *((uint32_t *)& s->x0) & 1, pcurve = *((uint32_t *)& s->x0) & 2;
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh) - ily;
+                // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
+                // px, x0, x1
                 if (ncurve) {
                     if (px != FLT_MAX) {
-                        
+                        cpx = 0.5 * px + (x0 - 0.25 * (px + x1));
+                        cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                     }
                     px = x0, py = y0;
                 } else if (pcurve) {
-                    px = FLT_MAX, py = FLT_MAX;
+                    cpx = 0.5 * px + (x0 - 0.25 * (px + x1));
+                    cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
+                    
+                    cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
+                    
+                    px = py = FLT_MAX;
                 }
                 
                 if (y0 != y1) {
