@@ -973,23 +973,23 @@ struct Rasterizer {
                     if (px != FLT_MAX) {
                         cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                         // px, cpx, x0
-                        if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f) {
+                        if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f)
                             writeCurveIndices(px, py, cpx, cpy, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
-                        } else
+                        else
                             writeSegmentIndices(px, py, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
                     }
                     px = x0, py = y0, piy0 = iy0;
                 } else if (pcurve) {
                     cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
-                    if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f) {
+                    if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f)
                         writeCurveIndices(px, py, cpx, cpy, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
-                    } else
+                    else
                         writeSegmentIndices(px, py, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
                     cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
                     // x0, cpx, x1
-                    if (fabsf((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) > 1.f) {
+                    if (fabsf((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) > 1.f)
                         writeCurveIndices(x0, y0, cpx, cpy, x1, y1, iy0, iy1, is, indices, uxcovers);
-                    } else
+                    else
                         writeSegmentIndices(x0, y0, x1, y1, iy0, iy1, is, indices, uxcovers);
                     px = py = FLT_MAX;
                 } else
