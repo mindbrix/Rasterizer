@@ -959,7 +959,7 @@ struct Rasterizer {
         writeSegmentIndices(x0, y0, x2, y2, iy0, iy1, is, indices, uxcovers);
     }
     static void writeSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices, Row<int16_t> *uxcovers) {
-        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh), px = FLT_MAX, py = FLT_MAX, cpx, cpy, det;
+        float x0, y0, x1, y1, iy0, iy1, ily = floorf(clip.ly * krfh), px = FLT_MAX, py = FLT_MAX, piy0 = 0.f, cpx, cpy, det;
         bool ncurve, pcurve;
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0, iy0 = floorf(y0 * krfh) - ily;
         for (Segment *s = begin; s < end; s++, iy0 = iy1, x0 = x1, y0 = y1) {
@@ -976,19 +976,19 @@ struct Rasterizer {
                         // px, cpx, x0
                         det = fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx));
                         if (det > 1.f) {
-                            writeCurveIndices(px, py, cpx, cpy, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
+                            writeCurveIndices(px, py, cpx, cpy, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
                         } else
-                            writeSegmentIndices(px, py, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
+                            writeSegmentIndices(px, py, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
                     }
-                    px = x0, py = y0;
+                    px = x0, py = y0, piy0 = iy0;
                 } else if (pcurve) {
                     cpx = 0.5 * px + (x0 - 0.25 * (px + x1));
                     cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                     det = fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx));
                     if (det > 1.f) {
-                        writeCurveIndices(px, py, cpx, cpy, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
+                        writeCurveIndices(px, py, cpx, cpy, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
                     } else
-                        writeSegmentIndices(px, py, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
+                        writeSegmentIndices(px, py, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
                     cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
                     // x0, cpx, x1
                     det = fabsf((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx));
