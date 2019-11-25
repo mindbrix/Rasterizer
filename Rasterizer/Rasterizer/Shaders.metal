@@ -218,7 +218,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device uint16_t *idxes = & edge.i0;
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < 2; i++, dst += 6) {
-        float x0, y0, x1, y1, x2, y2, px, py;
+        float x0, y0, x1, y1, x2, y2, px, py, ay, by, t;
         bool pcurve, ncurve, flat;
         if (idxes[i] != kNullIndex) {
             const device Segment& s = segments[edgeCell.base + idxes[i]];
@@ -226,7 +226,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             x2 = s.x1 * m.a + s.y1 * m.c + m.tx, y2 = s.x1 * m.b + s.y1 * m.d + m.ty;
             dst[0] = x0, dst[1] = y0, dst[4] = x2, dst[5] = y2;
             slx = min(slx, min(x0, x2)), sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
-            pcurve = as_type<uint>(s.x0) & 2, ncurve = as_type<uint>(s.x0) & 1;
+            pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
                 px = p.x0 * m.a + p.y0 * m.c + m.tx, py = p.x0 * m.b + p.y0 * m.d + m.ty;
@@ -238,7 +238,12 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + px));
                 y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + py));
             }
-            flat = !*useCurves || (!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0;
+            if (pcurve || ncurve) {
+                ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0);
+                t = saturate(-by / ay * 0.5), py = saturate(fma(fma(ay, t, by), t, y0));
+                sly = min(sly, py), suy = max(suy, py);
+            }
+            flat = (!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0;
             dst[2] = flat ? FLT_MAX : x1, dst[3] = flat ? FLT_MAX : y1;
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
