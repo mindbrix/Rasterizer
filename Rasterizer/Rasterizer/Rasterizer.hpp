@@ -615,7 +615,7 @@ struct Rasterizer {
                 } else {
                     CurveIndexer output;
                     output.segments = & segments[0], output.indices = & indices[0] - int(clip.ly * krfh), output.uxcovers = & uxcovers[0] - int(clip.ly * krfh);
-                    writePath(geometry, ctm, clip, unclipped, true, false, writeIndexedSegment, writeQuadratic, writeCubic, & output);
+                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & output);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
                 }
@@ -990,10 +990,11 @@ struct Rasterizer {
             }
         }
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  float px = FLT_MAX, py = FLT_MAX;
+        
+        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
+        }
     };
-    static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
-    }
     static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
         CurveIndexer out;
         out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
