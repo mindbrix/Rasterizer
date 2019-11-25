@@ -922,7 +922,11 @@ struct Rasterizer {
     }
     struct IndexedOutput {
         void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
-            indexSegment(x0, y0, x2, y2, is);
+            if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) > 1.f)
+                indexSegment(x0, y0, x2, y2, is);
+//                indexCurve(x0, y0, x1, y1, x2, y2, is);
+            else
+                indexSegment(x0, y0, x2, y2, is);
         }
         void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
@@ -979,24 +983,17 @@ struct Rasterizer {
                     if (px != FLT_MAX) {
                         cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                         // px, cpx, x0
-                        if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f)
-                            out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
-                        else
-                            out.indexSegment(px, py, x0, y0, is - 1);
+                        out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
                     }
                     px = x0, py = y0;
                 } else if (pcurve) {
                     cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
-                    if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f)
-                        out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
-                    else
-                        out.indexSegment(px, py, x0, y0, is - 1);
+                    out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
+                    
                     cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
                     // x0, cpx, x1
-                    if (fabsf((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) > 1.f)
-                        out.indexCurve(x0, y0, cpx, cpy, x1, y1, is);
-                    else
-                        out.indexSegment(x0, y0, x1, y1, is);
+                    out.indexCurve(x0, y0, cpx, cpy, x1, y1, is);
+                    
                     px = py = FLT_MAX;
                 } else
                     out.indexSegment(x0, y0, x1, y1, is);
