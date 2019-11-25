@@ -935,9 +935,9 @@ struct Rasterizer {
         if (y0 != y1) {
             int iy0 = y0 * krfh, iy1 = y1 * krfh;
             if (iy0 == iy1) {
-                Row<Index>& row = indices[int(iy0)];
+                Row<Index>& row = indices[iy0];
                 size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
-                int16_t *dst = uxcovers[int(iy0)].alloc(3);
+                int16_t *dst = uxcovers[iy0].alloc(3);
                 dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
             } else {
                 float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
