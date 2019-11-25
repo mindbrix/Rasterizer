@@ -608,7 +608,7 @@ struct Rasterizer {
                     } else {
                         Transform m = ctm.concat(entry->ctm);
                         Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
-                        writeCachedSegmentIndices(s, end, m, clip, & indices[0], & uxcovers[0]);
+                        CurveIndexer::WriteCachedSegments(s, end, m, clip, & indices[0], & uxcovers[0]);
                         writeSegmentInstances(& indices[0], & uxcovers[0], -int(entry - gpu.cache.entries.base + 1), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         ctm = m;
                     }
@@ -994,12 +994,12 @@ struct Rasterizer {
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
         }
+        static void WriteCachedSegments(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
+            CurveIndexer out;
+            out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
+            out.indexCachedSegments(begin, end, m, clip);
+        }
     };
-    static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
-        CurveIndexer out;
-        out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
-        out.indexCachedSegments(begin, end, m, clip);
-    }
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
