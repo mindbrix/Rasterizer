@@ -971,8 +971,7 @@ struct Rasterizer {
                 // px, x0, x1
                 if (ncurve) {
                     if (px != FLT_MAX) {
-                        cpx = 0.5 * px + (x0 - 0.25 * (px + x1));
-                        cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
+                        cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                         // px, cpx, x0
                         det = fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx));
                         if (det > 1.f) {
@@ -982,8 +981,7 @@ struct Rasterizer {
                     }
                     px = x0, py = y0, piy0 = iy0;
                 } else if (pcurve) {
-                    cpx = 0.5 * px + (x0 - 0.25 * (px + x1));
-                    cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
+                    cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                     det = fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx));
                     if (det > 1.f) {
                         writeCurveIndices(px, py, cpx, cpy, x0, y0, piy0, iy0, is - 1, indices, uxcovers);
