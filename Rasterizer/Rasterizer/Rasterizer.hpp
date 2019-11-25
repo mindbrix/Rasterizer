@@ -925,10 +925,10 @@ struct Rasterizer {
     static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (x0 != FLT_MAX && y0 != y1) {
             IndexedOutput *out = (IndexedOutput *)info;
-            int iy0 = int(y0 * krfh) - out->ily, iy1 = int(y1 * krfh) - out->ily, is = int(out->segments->end - out->segments->idx);
+            int is = int(out->segments->end - out->segments->idx);
             float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
             new (out->segments->alloc(1)) Segment(cx0, y0, x1, y1);
-            writeSegmentIndices(x0, y0, x1, y1, iy0, iy1, is, out->indices, out->uxcovers);
+            writeSegmentIndices(x0, y0, x1, y1, y0 * krfh, y1 * krfh, is, out->indices - out->ily, out->uxcovers - out->ily);
         }
     }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, float iy0, float iy1, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
