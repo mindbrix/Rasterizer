@@ -954,7 +954,7 @@ struct Rasterizer {
             }
         }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (x0 != FLT_MAX && y0 != y1) {
+            if (x0 != FLT_MAX && (y0 != y1 || curve)) {
                 int is = int(segments->end - segments->idx);
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
                 new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
