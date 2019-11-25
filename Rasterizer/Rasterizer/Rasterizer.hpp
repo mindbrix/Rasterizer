@@ -966,7 +966,6 @@ struct Rasterizer {
             if (s->x0 != FLT_MAX) {
                 int is = int(s - begin);
                 ncurve = *((uint32_t *)& s->x0) & 1, pcurve = *((uint32_t *)& s->x0) & 2;
-                ncurve = pcurve = false;
                 x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh) - ily;
                 // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
                 // px, x0, x1
@@ -977,9 +976,9 @@ struct Rasterizer {
                         // px, cpx, x0
                         det = fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx));
                         if (det > 1.f) {
-                            writeCurveIndices(px, py, cpx, cpy, x0, y0, iy0, iy1, is, indices, uxcovers);
+                            writeCurveIndices(px, py, cpx, cpy, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
                         } else
-                            writeSegmentIndices(px, py, x0, y0, iy0, iy1, is, indices, uxcovers);
+                            writeSegmentIndices(px, py, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
                     }
                     px = x0, py = y0;
                 } else if (pcurve) {
@@ -987,9 +986,9 @@ struct Rasterizer {
                     cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                     det = fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx));
                     if (det > 1.f) {
-                        writeCurveIndices(px, py, cpx, cpy, x0, y0, iy0, iy1, is, indices, uxcovers);
+                        writeCurveIndices(px, py, cpx, cpy, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
                     } else
-                        writeSegmentIndices(px, py, x0, y0, iy0, iy1, is, indices, uxcovers);
+                        writeSegmentIndices(px, py, x0, y0, floorf(py * krfh) - ily, iy0, is - 1, indices, uxcovers);
                     cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
                     // x0, cpx, x1
                     det = fabsf((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx));
@@ -998,8 +997,8 @@ struct Rasterizer {
                     } else
                         writeSegmentIndices(x0, y0, x1, y1, iy0, iy1, is, indices, uxcovers);
                     px = py = FLT_MAX;
-                }
-                writeSegmentIndices(x0, y0, x1, y1, iy0, iy1, is, indices, uxcovers);
+                } else
+                    writeSegmentIndices(x0, y0, x1, y1, iy0, iy1, is, indices, uxcovers);
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
                 x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1, iy1 = floorf(y1 * krfh) - ily;
