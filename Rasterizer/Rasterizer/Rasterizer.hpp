@@ -976,6 +976,19 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x1, y1, is);
         }
+        void indexCachedSegments(Segment *begin, Segment *end, Transform m, Bounds clip) {
+            float x0, y0, x1, y1;
+            x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
+            for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
+                if (s->x0 != FLT_MAX) {
+                    x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+                    index(x0, y0, x1, y1, *((uint32_t *)& s->x0) & 1, *((uint32_t *)& s->x0) & 2, int(s - begin));
+                } else {
+                    Segment *n = s + (s < end - 1 ? 1 : 0);
+                    x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+                }
+            }
+        }
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  float px = FLT_MAX, py = FLT_MAX;
     };
     static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -984,18 +997,7 @@ struct Rasterizer {
     static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
         CurveIndexer out;
         out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
-            
-        float x0, y0, x1, y1;
-        x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
-        for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
-            if (s->x0 != FLT_MAX) {
-                x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-                out.index(x0, y0, x1, y1, *((uint32_t *)& s->x0) & 1, *((uint32_t *)& s->x0) & 2, int(s - begin));
-            } else {
-                Segment *n = s + (s < end - 1 ? 1 : 0);
-                x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-            }
-        }
+        out.indexCachedSegments(begin, end, m, clip);
     }
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
