@@ -931,21 +931,6 @@ struct Rasterizer {
             writeSegmentIndices(x0, y0, x1, y1, iy0, iy1, is, out->indices, out->uxcovers);
         }
     }
-    static void writeSegmentIndices(float x0, float y0, float x1, float y1, int ir, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
-        float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
-        lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
-        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-        y = floorf(ly * krfh) * kfh;
-        minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-        maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-        for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
-            Row<Index>& row = indices[ir];
-            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
-            cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
-        }
-    }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, float iy0, float iy1, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
         if (y0 != y1) {
             if (iy0 == iy1) {
@@ -953,8 +938,21 @@ struct Rasterizer {
                 size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
                 int16_t *dst = uxcovers[int(iy0)].alloc(3);
                 dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
-            } else
-                writeSegmentIndices(x0, y0, x1, y1, int(iy0 < iy1 ? iy0 : iy1), is, indices, uxcovers);
+            } else {
+                float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
+                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                y = floorf(ly * krfh) * kfh;
+                minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                for (int ir = iy0 < iy1 ? iy0 : iy1; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
+                    Row<Index>& row = indices[ir];
+                    size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
+                    cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
+                    int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
+                }
+            }
         }
     }
     static void writeCurveIndices(float x0, float y0, float x1, float y1, float x2, float y2, int ir, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
