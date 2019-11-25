@@ -240,7 +240,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 dst[2] = FLT_MAX;
             else {
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), t = -by / ay * 0.5;
-                y = t > 0.0 && t < 1.0 ? saturate(fma(fma(ay, t, by), t, y0)) : y0;
+                y = t > 0.0 && t < 1.0 ? fma(fma(ay, t, by), t, y0) : y0;
                 sly = min(sly, y), suy = max(suy, y);
                 dst[2] = x1, dst[3] = y1;
             }
