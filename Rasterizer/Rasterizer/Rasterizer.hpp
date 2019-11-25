@@ -949,16 +949,18 @@ struct Rasterizer {
                 }
             }
         }
+        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+            if (x0 != FLT_MAX && y0 != y1) {
+                int is = int(segments->end - segments->idx);
+                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+                new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
+                indexSegment(x0, y0, x1, y1, is);
+            }
+        }
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
     };
     static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        if (x0 != FLT_MAX && y0 != y1) {
-            IndexedOutput *out = (IndexedOutput *)info;
-            int is = int(out->segments->end - out->segments->idx);
-            float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-            new (out->segments->alloc(1)) Segment(cx0, y0, x1, y1);
-            out->indexSegment(x0, y0, x1, y1, is);
-        }
+        ((IndexedOutput *)info)->writeSegment(x0, y0, x1, y1, curve);
     }
     static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
         IndexedOutput out;
