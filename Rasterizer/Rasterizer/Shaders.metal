@@ -218,7 +218,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device uint16_t *idxes = & edge.i0;
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < 2; i++, dst += 6) {
-        float x0, y0, x1, y1, x2, y2, px, py, ay, by, t;
+        float x0, y0, x1, y1, x2, y2, ay, by, t, y;
         bool pcurve, ncurve, flat;
         if (idxes[i] != kNullIndex) {
             const device Segment& s = segments[edgeCell.base + idxes[i]];
@@ -229,19 +229,17 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
-                px = p.x0 * m.a + p.y0 * m.c + m.tx, py = p.x0 * m.b + p.y0 * m.d + m.ty;
-                x1 = 0.5 * x2 + (x0 - 0.25 * (px + x2));
-                y1 = 0.5 * y2 + (y0 - 0.25 * (py + y2));
+                x1 = 0.5 * x2 + (x0 - 0.25 * (p.x0 * m.a + p.y0 * m.c + m.tx + x2)),
+                y1 = 0.5 * y2 + (y0 - 0.25 * (p.x0 * m.b + p.y0 * m.d + m.ty + y2));
             } else if (ncurve) {
                 const device Segment& n = segments[edgeCell.base + idxes[i] + 1];
-                px = n.x1 * m.a + n.y1 * m.c + m.tx, py = n.x1 * m.b + n.y1 * m.d + m.ty;
-                x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + px));
-                y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + py));
+                x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + n.x1 * m.a + n.y1 * m.c + m.tx)),
+                y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + n.x1 * m.b + n.y1 * m.d + m.ty));
             }
             if (pcurve || ncurve) {
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0);
-                t = saturate(-by / ay * 0.5), py = saturate(fma(fma(ay, t, by), t, y0));
-                sly = min(sly, py), suy = max(suy, py);
+                t = saturate(-by / ay * 0.5), y = saturate(fma(fma(ay, t, by), t, y0));
+                sly = min(sly, y), suy = max(suy, y);
             }
             flat = (!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0;
             dst[2] = flat ? FLT_MAX : x1, dst[3] = flat ? FLT_MAX : y1;
