@@ -630,39 +630,6 @@ struct Rasterizer {
         std::vector<Row<int16_t>> uxcovers;
         std::vector<Row<Segment>> segments;
     };
-    struct IndexedOutput {
-        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
-            indexSegment(x0, y0, x2, y2, is);
-        }
-        void indexSegment(float x0, float y0, float x1, float y1, int is) {
-            if (y0 != y1) {
-                int iy0 = y0 * krfh, iy1 = y1 * krfh;
-                if (iy0 == iy1) {
-                    Row<Index>& row = indices[iy0];
-                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
-                    int16_t *dst = uxcovers[iy0].alloc(3);
-                    dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
-                } else {
-                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
-                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
-                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    y = floorf(ly * krfh) * kfh;
-                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (int ir = iy0 < iy1 ? iy0 : iy1; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
-                        Row<Index>& row = indices[ir];
-                        size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
-                        cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
-                    }
-                }
-            }
-        }
-        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
-        
-    };
-    
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
         float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (size_t index = 0; index < geometry->types.size(); )
@@ -953,6 +920,37 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
+    struct IndexedOutput {
+        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
+            indexSegment(x0, y0, x2, y2, is);
+        }
+        void indexSegment(float x0, float y0, float x1, float y1, int is) {
+            if (y0 != y1) {
+                int iy0 = y0 * krfh, iy1 = y1 * krfh;
+                if (iy0 == iy1) {
+                    Row<Index>& row = indices[iy0];
+                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
+                    int16_t *dst = uxcovers[iy0].alloc(3);
+                    dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
+                } else {
+                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
+                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                    y = floorf(ly * krfh) * kfh;
+                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                    for (int ir = iy0 < iy1 ? iy0 : iy1; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
+                        Row<Index>& row = indices[ir];
+                        size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
+                        cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
+                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
+                    }
+                }
+            }
+        }
+        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
+    };
     static void writeIndexedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (x0 != FLT_MAX && y0 != y1) {
             IndexedOutput *out = (IndexedOutput *)info;
