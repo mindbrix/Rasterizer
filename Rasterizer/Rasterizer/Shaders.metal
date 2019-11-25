@@ -218,7 +218,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device uint16_t *idxes = & edge.i0;
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < 2; i++, dst += 6) {
-        float x0, y0, x1, y1, x2, y2, ay, by, t, y;
+        float x0, y0, x1, y1, x2, y2, ay, by, ty, y, ax, bx, tx, x;
         bool pcurve, ncurve;
         if (idxes[i] != kNullIndex) {
             const device Segment& s = segments[edgeCell.base + idxes[i]];
@@ -239,9 +239,12 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             if ((!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0)
                 dst[2] = FLT_MAX;
             else {
-                ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), t = -by / ay * 0.5;
-                y = t > 0.0 && t < 1.0 ? fma(fma(ay, t, by), t, y0) : y0;
+                ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
+                y = ty > 0.0 && ty < 1.0 ? fma(fma(ay, ty, by), ty, y0) : y0;
                 sly = min(sly, y), suy = max(suy, y);
+                ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
+                x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
+                slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
                 dst[2] = x1, dst[3] = y1;
             }
         } else
