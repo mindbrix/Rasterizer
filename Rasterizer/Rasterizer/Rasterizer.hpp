@@ -972,7 +972,6 @@ struct Rasterizer {
                 indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
                 // x0, cpx, x1
                 indexCurve(x0, y0, 0.5 * x1 + (x0 - 0.25 * (px + x1)), 0.5 * y1 + (y0 - 0.25 * (py + y1)), x1, y1, is);
-                
                 px = py = FLT_MAX;
             } else
                 indexSegment(x0, y0, x1, y1, is);
