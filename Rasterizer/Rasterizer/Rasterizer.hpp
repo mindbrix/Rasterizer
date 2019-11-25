@@ -614,7 +614,7 @@ struct Rasterizer {
                     }
                 } else {
                     IndexedOutput output;
-                    output.segments = & segments[0], output.indices = & indices[0], output.uxcovers = & uxcovers[0], output.ily = clip.ly * krfh;
+                    output.segments = & segments[0], output.indices = & indices[0] - int(clip.ly * krfh), output.uxcovers = & uxcovers[0] - int(clip.ly * krfh);
                     writePath(geometry, ctm, clip, unclipped, true, false, writeIndexedSegment, writeQuadratic, writeCubic, & output);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
@@ -630,7 +630,7 @@ struct Rasterizer {
         std::vector<Row<int16_t>> uxcovers;
         std::vector<Row<Segment>> segments;
     };
-    struct IndexedOutput {  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  int ily;  };
+    struct IndexedOutput {  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  };
     
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
         float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
@@ -928,7 +928,7 @@ struct Rasterizer {
             int is = int(out->segments->end - out->segments->idx);
             float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
             new (out->segments->alloc(1)) Segment(cx0, y0, x1, y1);
-            writeSegmentIndices(x0, y0, x1, y1, is, out->indices - out->ily, out->uxcovers - out->ily);
+            writeSegmentIndices(x0, y0, x1, y1, is, out->indices, out->uxcovers);
         }
     }
     static void writeSegmentIndices(float x0, float y0, float x1, float y1, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
