@@ -958,7 +958,7 @@ struct Rasterizer {
                 int is = int(segments->end - segments->idx);
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
                 new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
-                indexSegment(x0, y0, x1, y1, is);
+                index(x0, y0, x1, y1, curve == 1, curve == 2, is);
             }
         }
         void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
