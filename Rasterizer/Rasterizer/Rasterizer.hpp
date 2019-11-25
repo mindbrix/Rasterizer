@@ -921,14 +921,14 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
+        inline void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) > 1.f)
                 indexSegment(x0, y0, x2, y2, is);
 //                indexCurve(x0, y0, x1, y1, x2, y2, is);
             else
                 indexSegment(x0, y0, x2, y2, is);
         }
-        void indexSegment(float x0, float y0, float x1, float y1, int is) {
+        inline void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh;
                 if (iy0 == iy1) {
@@ -961,7 +961,7 @@ struct Rasterizer {
                 index(x0, y0, x1, y1, curve == 1, curve == 2, is);
             }
         }
-        void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
+        inline void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (ncurve) {
                 // px, cpx, x0
@@ -984,7 +984,8 @@ struct Rasterizer {
     static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
         CurveIndexer out;
         out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
-            float x0, y0, x1, y1;
+            
+        float x0, y0, x1, y1;
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
