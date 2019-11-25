@@ -630,7 +630,38 @@ struct Rasterizer {
         std::vector<Row<int16_t>> uxcovers;
         std::vector<Row<Segment>> segments;
     };
-    struct IndexedOutput {  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  };
+    struct IndexedOutput {
+        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
+            indexSegment(x0, y0, x2, y2, is);
+        }
+        void indexSegment(float x0, float y0, float x1, float y1, int is) {
+            if (y0 != y1) {
+                int iy0 = y0 * krfh, iy1 = y1 * krfh;
+                if (iy0 == iy1) {
+                    Row<Index>& row = indices[iy0];
+                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
+                    int16_t *dst = uxcovers[iy0].alloc(3);
+                    dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
+                } else {
+                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
+                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                    y = floorf(ly * krfh) * kfh;
+                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                    for (int ir = iy0 < iy1 ? iy0 : iy1; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
+                        Row<Index>& row = indices[ir];
+                        size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
+                        cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
+                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
+                    }
+                }
+            }
+        }
+        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
+        
+    };
     
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
         float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
@@ -928,41 +959,14 @@ struct Rasterizer {
             int is = int(out->segments->end - out->segments->idx);
             float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
             new (out->segments->alloc(1)) Segment(cx0, y0, x1, y1);
-            writeSegmentIndices(x0, y0, x1, y1, is, out->indices, out->uxcovers);
+            out->indexSegment(x0, y0, x1, y1, is);
         }
     }
-    static void writeSegmentIndices(float x0, float y0, float x1, float y1, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
-        if (y0 != y1) {
-            int iy0 = y0 * krfh, iy1 = y1 * krfh;
-            if (iy0 == iy1) {
-                Row<Index>& row = indices[iy0];
-                size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
-                int16_t *dst = uxcovers[iy0].alloc(3);
-                dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
-            } else {
-                float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
-                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
-                m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                y = floorf(ly * krfh) * kfh;
-                minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                for (int ir = iy0 < iy1 ? iy0 : iy1; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
-                    Row<Index>& row = indices[ir];
-                    size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
-                    cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                    int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
-                }
-            }
-        }
-    }
-    static void writeCurveIndices(float x0, float y0, float x1, float y1, float x2, float y2, int is, Row<Index> *indices, Row<int16_t> *uxcovers) {
-        writeSegmentIndices(x0, y0, x2, y2, is, indices, uxcovers);
-    }
-    static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *indices, Row<int16_t> *uxcovers) {
+    static void writeCachedSegmentIndices(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
+        IndexedOutput out;
+        out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
         float x0, y0, x1, y1, px = FLT_MAX, py = FLT_MAX, cpx, cpy;
         bool ncurve, pcurve;
-        indices -= int(clip.ly * krfh), uxcovers -= int(clip.ly * krfh);
         x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
         for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
             if (s->x0 != FLT_MAX) {
@@ -976,26 +980,26 @@ struct Rasterizer {
                         cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                         // px, cpx, x0
                         if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f)
-                            writeCurveIndices(px, py, cpx, cpy, x0, y0, is - 1, indices, uxcovers);
+                            out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
                         else
-                            writeSegmentIndices(px, py, x0, y0, is - 1, indices, uxcovers);
+                            out.indexSegment(px, py, x0, y0, is - 1);
                     }
                     px = x0, py = y0;
                 } else if (pcurve) {
                     cpx = 0.5 * px + (x0 - 0.25 * (px + x1)), cpy = 0.5 * py + (y0 - 0.25 * (py + y1));
                     if (fabsf((cpx - px) * (y0 - cpy) - (cpy - py) * (x0 - cpx)) > 1.f)
-                        writeCurveIndices(px, py, cpx, cpy, x0, y0, is - 1, indices, uxcovers);
+                        out.indexCurve(px, py, cpx, cpy, x0, y0, is - 1);
                     else
-                        writeSegmentIndices(px, py, x0, y0, is - 1, indices, uxcovers);
+                        out.indexSegment(px, py, x0, y0, is - 1);
                     cpx += 0.5 * (x1 - px), cpy += 0.5 * (y1 - py);
                     // x0, cpx, x1
                     if (fabsf((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) > 1.f)
-                        writeCurveIndices(x0, y0, cpx, cpy, x1, y1, is, indices, uxcovers);
+                        out.indexCurve(x0, y0, cpx, cpy, x1, y1, is);
                     else
-                        writeSegmentIndices(x0, y0, x1, y1, is, indices, uxcovers);
+                        out.indexSegment(x0, y0, x1, y1, is);
                     px = py = FLT_MAX;
                 } else
-                    writeSegmentIndices(x0, y0, x1, y1, is, indices, uxcovers);
+                    out.indexSegment(x0, y0, x1, y1, is);
             } else {
                 Segment *n = s + (s < end - 1 ? 1 : 0);
                 x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
