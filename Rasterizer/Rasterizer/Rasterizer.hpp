@@ -922,7 +922,9 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
-            if (0 && fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) > 1.f) {
+            if (1 || fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
+                indexSegment(x0, y0, x2, y2, is);
+            else {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
                 float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, x, y, r, at0, at1, bt0, bt1;
                 if (iy0 == iy1 && iy1 == iy2) {
@@ -954,8 +956,7 @@ struct Rasterizer {
                         }
                     }
                 }
-            } else
-                indexSegment(x0, y0, x2, y2, is);
+            }
         }
         __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, float cover, int is) {
             Row<Index>& row = indices[iy];
