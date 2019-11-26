@@ -924,7 +924,7 @@ struct Rasterizer {
         inline void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             if (0 && fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) > 1.f) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
-                float lx, ux, ly, uy, ay, by, it, iy, y;
+                float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, x, y, r, at0, at1, bt0, bt1;
                 if (iy0 == iy1 && iy1 == iy2) {
                     Row<Index>& row = indices[iy0];
                     lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
@@ -933,40 +933,52 @@ struct Rasterizer {
                     int16_t *dst = uxcovers[iy0].alloc(3);
                     dst[0] = ceilf(ux), dst[1] = (y2 - y0) * kCoverScale, dst[2] = is;
                 } else {
-                    ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), it = -by / ay * 0.5f;
+                    ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
+                    ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
                     it = it < 0.f ? 0.f : it > 1.f ? 1.f : it, iy = (ay * it + by) * it + y0;
                     ly = y0 < y2 ? y0 : y2, ly = ly < iy ? ly : iy;
                     uy = y0 > y2 ? y0 : y2, uy = uy > iy ? uy : iy;
                     ir = ly * krfh, y = ir * kfh;
-                    for (; y < uy; y += kfh) {
-                        
+                    r = sqrtf(by * by - 4.f * ay * (y0 - (ly > y ? ly : y)));
+                    at0 = (-by + r) * div2A, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
+                    bt0 = (-by - r) * div2A, bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
+                    for (; y < uy; y += kfh, ir++, at0 = at1, bt0 = bt1) {
+                        r = sqrtf(by * by - 4.f * ay * (y0 - (uy < y + kfh ? uy : y + kfh)));
+                        at1 = (-by + r) * div2A, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
+                        bt1 = (-by - r) * div2A, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
+                        if (at0 == bt0) {
+                            lx = ux = (ax * at1 + bx) * at1 + x0, x = (ax * bt1 + bx) * bt1 + x0;
+                            lx = lx < x ? lx : x, ux = ux > x ? ux : x;
+                            
+                        } else if (at0 == bt0) {
+                        } else {
+                            
+                        }
                     }
                 }
             } else
                 indexSegment(x0, y0, x2, y2, is);
         }
+        __attribute__((always_inline)) void writeRow(int iy, float lx, float ux, float cover, int is) {
+            Row<Index>& row = indices[iy];
+            size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
+            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover * kCoverScale, dst[2] = is;
+        }
         inline void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
-                int iy0 = y0 * krfh, iy1 = y1 * krfh;
-                if (iy0 == iy1) {
-                    Row<Index>& row = indices[iy0];
-                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(x0 < x1 ? x0 : x1, i);
-                    int16_t *dst = uxcovers[iy0].alloc(3);
-                    dst[0] = ceilf(x0 > x1 ? x0 : x1), dst[1] = (y1 - y0) * kCoverScale, dst[2] = is;
-                } else {
-                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale, cover;
+                int iy0 = y0 * krfh, iy1 = y1 * krfh, iy;
+                if (iy0 == iy1)
+                    writeRow(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, y1 - y0, is);
+                else {
+                    float lx, ux, ly, uy, m, c, y, minx, maxx, sign;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
                     m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    y = floorf(ly * krfh) * kfh;
+                    iy = ly * krfh, y = iy * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (int ir = iy0 < iy1 ? iy0 : iy1; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++) {
-                        Row<Index>& row = indices[ir];
-                        size_t i = row.end - row.idx;  new (row.alloc(1)) Index(minx > lx ? minx : lx, i);
-                        cover = (y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly);
-                        int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(maxx < ux ? maxx : ux), dst[1] = cover * scale, dst[2] = is;
-                    }
+                    for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, iy++)
+                        writeRow(iy, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * sign, is);
                 }
             }
         }
