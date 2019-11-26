@@ -926,12 +926,9 @@ struct Rasterizer {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
                 float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, x, y, r, at0, at1, bt0, bt1;
                 if (iy0 == iy1 && iy1 == iy2) {
-                    Row<Index>& row = indices[iy0];
                     lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                     ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                    size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
-                    int16_t *dst = uxcovers[iy0].alloc(3);
-                    dst[0] = ceilf(ux), dst[1] = (y2 - y0) * kCoverScale, dst[2] = is;
+                    writeIndex(iy0, lx, ux, y2 - y0, is);
                 } else {
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
@@ -959,7 +956,7 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x2, y2, is);
         }
-        __attribute__((always_inline)) void writeRow(int iy, float lx, float ux, float cover, int is) {
+        __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, float cover, int is) {
             Row<Index>& row = indices[iy];
             size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
             int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover * kCoverScale, dst[2] = is;
@@ -968,7 +965,7 @@ struct Rasterizer {
             if (y0 != y1) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy;
                 if (iy0 == iy1)
-                    writeRow(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, y1 - y0, is);
+                    writeIndex(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, y1 - y0, is);
                 else {
                     float lx, ux, ly, uy, m, c, y, minx, maxx, sign;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -978,7 +975,7 @@ struct Rasterizer {
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, iy++)
-                        writeRow(iy, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * sign, is);
+                        writeIndex(iy, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * sign, is);
                 }
             }
         }
