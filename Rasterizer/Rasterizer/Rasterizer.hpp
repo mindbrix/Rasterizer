@@ -613,9 +613,9 @@ struct Rasterizer {
                         ctm = m;
                     }
                 } else {
-                    CurveIndexer output;
-                    output.segments = & segments[0], output.indices = & indices[0] - int(clip.ly * krfh), output.uxcovers = & uxcovers[0] - int(clip.ly * krfh);
-                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & output);
+                    CurveIndexer out;
+                    out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh);
+                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
                 }
@@ -932,12 +932,13 @@ struct Rasterizer {
                     ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
                     writeIndex(iy0, lx, ux, y2 - y0, is);
                 } else {
-//                    indexSegment(x0, y0, x2, y2, is);
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
                     ly = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2;
-                    if (it > 0.f && it < 1.f)
-                        iy = (ay * it + by) * it + y0, ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
+                    if (it > 0.f && it < 1.f) {
+                        iy = (ay * it + by) * it + y0, iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                        ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
+                    }
                     ir = ly * krfh, y = ir * kfh;
                     d = by * by - 4.f * ay * (y0 - (ly > y ? ly : y)), r = sqrtf(d < 0.f ? 0.f : d) * div2A;
                     at0 = it + r, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
@@ -1007,14 +1008,14 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x1, y1, is);
         }
-        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  float px = FLT_MAX, py = FLT_MAX;
+        Bounds clip;  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;  float px = FLT_MAX, py = FLT_MAX;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
         }
         static void WriteCachedSegments(Segment *begin, Segment *end, Transform m, Bounds clip, Row<Index> *_indices, Row<int16_t> *_uxcovers) {
             CurveIndexer out;
-            out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
+            out.clip = clip, out.indices = & _indices[0] - int(clip.ly * krfh), out.uxcovers = & _uxcovers[0] - int(clip.ly * krfh);
             float x0, y0, x1, y1;
             x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
             for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
