@@ -964,7 +964,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
-                int iy0 = y0 * krfh, iy1 = y1 * krfh, iy;
+                int iy0 = y0 * krfh, iy1 = y1 * krfh, ir;
                 if (iy0 == iy1)
                     writeIndex(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, y1 - y0, is);
                 else {
@@ -972,11 +972,11 @@ struct Rasterizer {
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                     ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
                     m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    iy = ly * krfh, y = iy * kfh;
+                    ir = ly * krfh, y = ir * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, iy++)
-                        writeIndex(iy, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * sign, is);
+                    for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
+                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * sign, is);
                 }
             }
         }
