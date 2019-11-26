@@ -76,8 +76,15 @@ float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
     a = min(dx, dy) * 0.4142135624, b = max(dx, dy);
     return saturate((t - 0.5) * b / (b - a) + 0.5) * cover;
 }
-
+float winding(float x0, float y0, float x1, float y1) {
+    float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
+    if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
+        return cover;
+    return winding(x0, y0, x1, y1, w0, w1);
+}
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
+    if (x1 == FLT_MAX)
+        return winding(x0, y0, x2, y2);
     float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, by, div2A, t, w1, r, s;
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
@@ -92,12 +99,6 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
     }
     return w;
-}
-float winding(float x0, float y0, float x1, float y1) {
-    float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
-    if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
-        return cover;
-    return winding(x0, y0, x1, y1, w0, w1);
 }
 
 #pragma mark - Opaques
@@ -254,16 +255,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    float w = 0;
-    if (vert.x1 == FLT_MAX)
-        w += winding(vert.x0, vert.y0, vert.x2, vert.y2);
-    else
-        w += quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-    if (vert.x4 == FLT_MAX)
-        w += winding(vert.x3, vert.y3, vert.x5, vert.y5);
-    else
-        w += quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
-    return w;
+    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+        + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
 }
 
 #pragma mark - Instances
