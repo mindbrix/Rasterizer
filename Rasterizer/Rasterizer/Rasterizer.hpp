@@ -921,7 +921,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        inline void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
+        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             if (0 && fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) > 1.f) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
                 float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, x, y, r, at0, at1, bt0, bt1;
@@ -946,6 +946,7 @@ struct Rasterizer {
                         if (at0 == bt0) {
                             lx = ux = (ax * at1 + bx) * at1 + x0, x = (ax * bt1 + bx) * bt1 + x0;
                             lx = lx < x ? lx : x, ux = ux > x ? ux : x;
+                            writeIndex(ir, lx, ux, y2 - y0, is);
                             
                         } else if (at0 == bt0) {
                         } else {
@@ -961,7 +962,7 @@ struct Rasterizer {
             size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx, i);
             int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover * kCoverScale, dst[2] = is;
         }
-        inline void indexSegment(float x0, float y0, float x1, float y1, int is) {
+        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy;
                 if (iy0 == iy1)
@@ -987,7 +988,7 @@ struct Rasterizer {
                 index(x0, y0, x1, y1, curve == 1, curve == 2, is);
             }
         }
-        inline void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
+        __attribute__((always_inline)) void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (ncurve) {
                 if (px != FLT_MAX)
