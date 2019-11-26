@@ -922,37 +922,41 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
-            if (1 || fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
+            if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
                 indexSegment(x0, y0, x2, y2, is);
             else {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
-                float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, x, y, r, at0, at1, bt0, bt1;
+                float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, y, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1;
                 if (iy0 == iy1 && iy1 == iy2) {
                     lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                     ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
                     writeIndex(iy0, lx, ux, y2 - y0, is);
                 } else {
+//                    indexSegment(x0, y0, x2, y2, is);
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
-                    it = it < 0.f ? 0.f : it > 1.f ? 1.f : it, iy = (ay * it + by) * it + y0;
-                    ly = y0 < y2 ? y0 : y2, ly = ly < iy ? ly : iy;
-                    uy = y0 > y2 ? y0 : y2, uy = uy > iy ? uy : iy;
+                    ly = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2;
+                    if (it > 0.f && it < 1.f)
+                        iy = (ay * it + by) * it + y0, ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
                     ir = ly * krfh, y = ir * kfh;
-                    r = sqrtf(by * by - 4.f * ay * (y0 - (ly > y ? ly : y)));
-                    at0 = (-by + r) * div2A, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
-                    bt0 = (-by - r) * div2A, bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
-                    for (; y < uy; y += kfh, ir++, at0 = at1, bt0 = bt1) {
-                        r = sqrtf(by * by - 4.f * ay * (y0 - (uy < y + kfh ? uy : y + kfh)));
-                        at1 = (-by + r) * div2A, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
-                        bt1 = (-by - r) * div2A, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
-                        if (at0 == bt0) {
-                            lx = ux = (ax * at1 + bx) * at1 + x0, x = (ax * bt1 + bx) * bt1 + x0;
-                            lx = lx < x ? lx : x, ux = ux > x ? ux : x;
-                            writeIndex(ir, lx, ux, y2 - y0, is);
-                            
-                        } else if (at0 == bt0) {
-                        } else {
-                            
+                    d = by * by - 4.f * ay * (y0 - (ly > y ? ly : y)), r = sqrtf(d < 0.f ? 0.f : d) * div2A;
+                    at0 = it + r, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
+                    bt0 = it - r, bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
+                    ax0 = (ax * at0 + bx) * at0 + x0, bx0 = (ax * bt0 + bx) * bt0 + x0;
+                    for (; y < uy; y += kfh, ir++, at0 = at1, bt0 = bt1, ax0 = ax1, bx0 = bx1) {
+                        d = by * by - 4.f * ay * (y0 - (uy < y + kfh ? uy : y + kfh)), r = sqrtf(d < 0.f ? 0.f : d) * div2A;
+                        at1 = it + r, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
+                        bt1 = it - r, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
+                        ax1 = (ax * at1 + bx) * at1 + x0, bx1 = (ax * bt1 + bx) * bt1 + x0;
+                        if (at0 == bt0)
+                            writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0.f, is);
+                        else if (at1 == bt1)
+                            writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0.f, is);
+                        else {
+                            if (at0 != at1)
+                                writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ax0 > ax1 ? ax0 : ax1, (y1 < y ? y : y1 > y + kfh ? y + kfh : y1) - (y0 < y ? y : y0 > y + kfh ? y + kfh : y0), is);
+                            if (bt0 != bt1)
+                                writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, (y2 < y ? y : y2 > y + kfh ? y + kfh : y2) - (y1 < y ? y : y1 > y + kfh ? y + kfh : y1), is);
                         }
                     }
                 }
