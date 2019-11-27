@@ -511,6 +511,30 @@ struct Rasterizer {
         uint8_t *data;
         size_t width, height, stride, bpp, bytespp;
     };
+    struct Buffer {
+        static constexpr size_t kPageSize = 4096;
+        enum Type { kEdges, kFastEdges, kOpaques, kInstances };
+        struct Entry {
+            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
+            Type type;
+            size_t begin, end, segments, cells;
+        };
+        ~Buffer() { if (base) free(base); }
+        uint8_t *resize(size_t n) {
+            size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
+            if (size < allocation) {
+                if (base) free(base);
+                posix_memalign((void **)& base, kPageSize, allocation);
+                size = allocation;
+            }
+            return base;
+        }
+        uint8_t *base = nullptr;
+        Row<Entry> entries;
+        bool useCurves = false, useBuffers = false;
+        Colorant clearColor = Colorant(255, 255, 255, 255);
+        size_t colors, transforms, clips, widths, sceneCount, tick, pathsCount, size = 0;
+    };
     struct OutlineOutput {
         Bounds clip;  bool soft;  Transform clipctm;  uint8_t *src;  float width;  bool rounded;  Bitmap *bm;
         static void writePixels(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -539,7 +563,7 @@ struct Rasterizer {
                 segments.resize(size), indices.resize(size), uxcovers.resize(size);
             gpu.allocator.init(width, height);
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, size_t tick) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
             for (lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
@@ -1227,30 +1251,6 @@ struct Rasterizer {
         }
 #endif
     }
-    struct Buffer {
-        static constexpr size_t kPageSize = 4096;
-        enum Type { kEdges, kFastEdges, kOpaques, kInstances };
-        struct Entry {
-            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), cells(0) {}
-            Type type;
-            size_t begin, end, segments, cells;
-        };
-        ~Buffer() { if (base) free(base); }
-        uint8_t *resize(size_t n) {
-            size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
-            if (size < allocation) {
-                if (base) free(base);
-                posix_memalign((void **)& base, kPageSize, allocation);
-                size = allocation;
-            }
-            return base;
-        }
-        uint8_t *base = nullptr;
-        Row<Entry> entries;
-        bool useCurves = false, useBuffers = false;
-        Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths, sceneCount, tick, pathsCount, size = 0;
-    };
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
         static void writeInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
