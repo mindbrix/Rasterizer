@@ -586,7 +586,7 @@ struct Rasterizer {
                                     flags[iz] = scene->flags[is] | Scene::kVisible;
                                 
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                writeGPUPath(paths[iz], ctms[iz], scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped);
+                                writeGPUPath(paths[iz], ctms[iz], scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
@@ -611,7 +611,7 @@ struct Rasterizer {
                 }
             }
         }
-        void writeGPUPath(Geometry *geometry, Transform& ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped) {
+        void writeGPUPath(Geometry *geometry, Transform& ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped, bool useCurves) {
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
@@ -633,14 +633,14 @@ struct Rasterizer {
                         Transform m = ctm.concat(entry->ctm);
                         Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
                         CurveIndexer out;
-                        out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh);
+                        out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                         out.writeCachedSegments(s, end, m);
                         writeSegmentInstances(& indices[0], & uxcovers[0], -int(entry - gpu.cache.entries.base + 1), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         ctm = m;
                     }
                 } else {
                     CurveIndexer out;
-                    out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh);
+                    out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                     writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
