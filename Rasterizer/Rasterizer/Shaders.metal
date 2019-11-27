@@ -85,11 +85,10 @@ float winding(float x0, float y0, float x1, float y1) {
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return winding(x0, y0, x2, y2);
-    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, by, cy, ax, bx, div2A, t, w1, r, s;
+    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, by, cy, div2A, t, w1, r, s;
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), div2A = 0.5 / ay;
-    ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0);
     t = saturate(-by * div2A), w1 = saturate(fma(fma(ay, t, by), t, y0));
     if (w0 != w1) {
         cy = y0 - 0.5 * (w0 + w1), r = copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), y1 - y0);
