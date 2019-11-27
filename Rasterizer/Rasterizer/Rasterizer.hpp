@@ -531,7 +531,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;
         Row<Entry> entries;
-        bool useCurves = false, useBuffers = false;
+        bool useCurves = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, transforms, clips, widths, sceneCount, tick, pathsCount, size = 0;
     };
