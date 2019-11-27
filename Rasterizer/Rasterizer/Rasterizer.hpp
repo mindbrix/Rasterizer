@@ -632,15 +632,13 @@ struct Rasterizer {
                     } else {
                         Transform m = ctm.concat(entry->ctm);
                         Segment *s = gpu.cache.segments.base + entry->seg.begin, *end = gpu.cache.segments.base + entry->seg.end;
-                        CurveIndexer out;
-                        out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
+                        CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                         out.writeCachedSegments(s, end, m);
                         writeSegmentInstances(& indices[0], & uxcovers[0], -int(entry - gpu.cache.entries.base + 1), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                         ctm = m;
                     }
                 } else {
-                    CurveIndexer out;
-                    out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
+                    CurveIndexer out;  out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                     writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
