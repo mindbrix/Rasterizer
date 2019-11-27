@@ -957,7 +957,6 @@ struct Rasterizer {
                         else if (a0 && b0 && at1 == bt1)
                             writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0.f, is);
                         else {
-                            assert(a0 || b0);
                             if (a0 && !b0) {
                                 lx = ax0 < ax1 ? ax0 : ax1;
                                 ux = ax0 > ax1 ? ax0 : ax1;
@@ -966,7 +965,7 @@ struct Rasterizer {
                                 lx = bx0 < bx1 ? bx0 : bx1;
                                 ux = bx0 > bx1 ? bx0 : bx1;
                                 writeIndex(ir, lx, ux, copysign(by1 - by0, y2 - y1), is);
-                            } else {
+                            } else if (a0 && b0){
                                 lx = ax0 < ax1 ? ax0 : ax1;
                                 ux = ax0 > ax1 ? ax0 : ax1;
                                 writeIndex(ir, lx, ux, copysign(ay1 - ay0, y1 - y0), is);
@@ -981,7 +980,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, float cover, int is) {
             Row<Index>& row = indices[iy];
-            float offset = 0.f;
+            float offset = 4.f;
             size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx - offset < clip.lx ? clip.lx : lx - offset, i);
             int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux + offset > clip.ux ? clip.ux : ux + offset), dst[1] = cover * kCoverScale, dst[2] = is;
         }
@@ -1025,7 +1024,7 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x1, y1, is);
         }
-        bool useCurves = true;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;
+        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
