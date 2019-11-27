@@ -207,6 +207,8 @@ struct RasterizerCG {
         size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].count, total += list.scenes[j].weight;
+        if (buffer)
+            buffer->useCurves = state.useCurves;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
         if (multithread) {
             ti->context = contexts, ti->list = & list, ti->view = state.view, ti->paths = paths, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->flags = flags, ti->slz = 0, ti->suz = eiz, ti->bitmap = bitmap, ti->buffer = buffer;
@@ -246,7 +248,6 @@ struct RasterizerCG {
             contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, flags, 0, eiz, bitmap, buffer);
         }
         if (buffer) {
-            buffer->useCurves = state.useCurves, buffer->useBuffers = state.useBuffers;
             std::vector<Ra::Buffer::Entry> entries[count];
             size_t begins[count], size = Ra::writeContextsToBuffer(izeds, contexts, count, colors, ctms, clips, widths, flags, eiz, begins, *buffer);
             if (count == 1)
