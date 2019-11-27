@@ -85,19 +85,17 @@ float winding(float x0, float y0, float x1, float y1) {
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return winding(x0, y0, x2, y2);
-    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, by, cy, div2A, t, w1, r, s;
+    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, by, div2A, t, w1, s;
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), div2A = 0.5 / ay;
     t = saturate(-by * div2A), w1 = saturate(fma(fma(ay, t, by), t, y0));
     if (w0 != w1) {
-        cy = y0 - 0.5 * (w0 + w1), r = copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), y1 - y0);
-        t = r > 0.0 ? 2.0 * cy / (-by - r) : (-by + r) * div2A;
+        t = (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * (y0 - 0.5 * (w0 + w1)))), y1 - y0)) * div2A;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     if (w1 != w2) {
-        cy = y0 - 0.5 * (w1 + w2), r = copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), y2 - y1);
-        t = r > 0.0 ? 2.0 * cy / (-by - r) : (-by + r) * div2A;
+        t = (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * (y0 - 0.5 * (w1 + w2)))), y2 - y1)) * div2A;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
     }
     return w;
