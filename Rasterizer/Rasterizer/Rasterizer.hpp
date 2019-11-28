@@ -996,12 +996,15 @@ struct Rasterizer {
                             else if (at1 == bt1)
                                 writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, (w2 - w0) * kCoverScale, is);
                             else {
-                                lx = ax0 < ax1 ? ax0 : ax1;
-                                ux = ax0 > ax1 ? ax0 : ax1;
-                                writeIndex(ir, lx, ux, (w1 - w0) * kCoverScale, is);
-                                lx = bx0 < bx1 ? bx0 : bx1;
-                                if (lx > ceilf(ux))
-                                    ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, (w2 - w1) * kCoverScale, is);
+                                ux = ax0 > ax1 ? ax0 : ax1, lx = bx0 < bx1 ? bx0 : bx1;
+                                if (lx < ceilf(ux)) {
+                                    lx = lx < ax0 ? lx : ax0, lx = lx < ax1 ? lx : ax1;
+                                    ux = ux > bx0 ? ux : bx0, ux = ux > bx1 ? ux : bx1;
+                                    writeIndex(ir, lx, ux, (w2 - w0) * kCoverScale, is);
+                                } else {
+                                    writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ux, (w1 - w0) * kCoverScale, is);
+                                    writeIndex(ir, lx, bx0 > bx1 ? bx0 : bx1, (w2 - w1) * kCoverScale, is);
+                                }
                             }
                         }
                     }
