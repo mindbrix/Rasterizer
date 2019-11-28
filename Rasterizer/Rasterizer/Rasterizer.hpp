@@ -946,16 +946,16 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
-            if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
-                indexSegment(x0, y0, x2, y2, is);
-            else {
-                int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
-                float lx, ux, ly, uy, ay, by, div2A, it, t, iy, ax, bx, y, ny, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
-                if (iy0 == iy1 && iy1 == iy2) {
-                    lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
-                    ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                    writeIndex(iy0, lx, ux, (y2 - y0) * kCoverScale, is);
-                } else {
+            int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
+            float lx, ux, ly, uy, ay, by, div2A, it, t, iy, ax, bx, y, ny, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
+            if (iy0 == iy1 && iy1 == iy2) {
+                lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
+                ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
+                writeIndex(iy0, lx, ux, (y2 - y0) * kCoverScale, is);
+            } else {
+                if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
+                    indexSegment(x0, y0, x2, y2, is);
+                else {
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
                     ly = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2;
