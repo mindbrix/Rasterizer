@@ -950,7 +950,7 @@ struct Rasterizer {
                 indexSegment(x0, y0, x2, y2, is);
             else {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
-                float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, y, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, ay0, ay1, by0, by1;
+                float lx, ux, ly, uy, ay, by, div2A, it, t, iy, ax, bx, y, ny, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
                 if (iy0 == iy1 && iy1 == iy2) {
                     lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                     ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
@@ -959,23 +959,24 @@ struct Rasterizer {
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
                     ly = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2;
-                    if (it > 0.f && it < 1.f) {
-                        iy = (ay * it + by) * it + y0, iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                        ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
-                    }
+                    t = it < 0.f ? 0.f : it > 1.f ? 1.f : it;
+                    iy = (ay * t + by) * t + y0, iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                    ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
+                    
                     ir = ly * krfh, y = ir * kfh;
-                    d = by * by - 4.f * ay * (y0 - (ly > y ? ly : y)), r = sqrtf(d < 0.f ? 0.f : d) * div2A;
+                    d = by * by - 4.f * ay * (y0 - (ly > y ? ly : y)), r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d) * div2A;
                     at0 = it + r, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
                     bt0 = it - r, bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
                     ax0 = (ax * at0 + bx) * at0 + x0, bx0 = (ax * bt0 + bx) * bt0 + x0;
-                    ay0 = (ay * at0 + by) * at0 + y0, by0 = (ay * bt0 + by) * bt0 + y0;
-                    for (; y < uy; y += kfh, ir++, at0 = at1, bt0 = bt1, ax0 = ax1, bx0 = bx1, ay0 = ay1, by0 = by1) {
-                        d = by * by - 4.f * ay * (y0 - (uy < y + kfh ? uy : y + kfh)), r = sqrtf(d < 0.f ? 0.f : d) * div2A;
+            
+                    for (ny = y + kfh; y < uy; y = ny, ny += kfh, ny = ny > clip.uy ? clip.uy : ny, ir++, at0 = at1, bt0 = bt1, ax0 = ax1, bx0 = bx1) {
+                        w0 = y0 < y ? y : y0 > ny ? ny : y0, w1 = iy < y ? y : iy > ny ? ny : iy, w2 = y2 < y ? y : y2 > ny ? ny : y2;
+            
+                        d = by * by - 4.f * ay * (y0 - (uy < y + kfh ? uy : y + kfh)), r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d) * div2A;
                         at1 = it + r, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
                         bt1 = it - r, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
                         ax1 = (ax * at1 + bx) * at1 + x0, bx1 = (ax * bt1 + bx) * bt1 + x0;
-                        ay1 = (ay * at1 + by) * at1 + y0, by1 = (ay * bt1 + by) * bt1 + y0;
-                        bool a0 = at0 != at1, b0 = bt0 != bt1;
+                        bool a0 = w0 != w1, b0 = w1 != w2;
                         if (a0 && b0 && at0 == bt0)
                             writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0.f, is);
                         else if (a0 && b0 && at1 == bt1)
@@ -984,18 +985,18 @@ struct Rasterizer {
                             if (a0 && !b0) {
                                 lx = ax0 < ax1 ? ax0 : ax1;
                                 ux = ax0 > ax1 ? ax0 : ax1;
-                                writeIndex(ir, lx, ux, copysign(ay1 - ay0, y1 - y0), is);
+                                writeIndex(ir, lx, ux, w1 - w0, is);
                             } else if (!a0 && b0) {
                                 lx = bx0 < bx1 ? bx0 : bx1;
                                 ux = bx0 > bx1 ? bx0 : bx1;
-                                writeIndex(ir, lx, ux, copysign(by1 - by0, y2 - y1), is);
+                                writeIndex(ir, lx, ux, w2 - w1, is);
                             } else if (a0 && b0){
                                 lx = ax0 < ax1 ? ax0 : ax1;
                                 ux = ax0 > ax1 ? ax0 : ax1;
-                                writeIndex(ir, lx, ux, copysign(ay1 - ay0, y1 - y0), is);
+                                writeIndex(ir, lx, ux, w1 - w0, is);
                                 lx = bx0 < bx1 ? bx0 : bx1;
                                 if (lx > ceilf(ux))
-                                    ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, copysign(by1 - by0, y2 - y1), is);
+                                    ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, w2 - w1, is);
                             }
                         }
                     }
@@ -1003,9 +1004,12 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, float cover, int is) {
+//            if (cover != 0.f && fabsf(cover) < 1e-3f)
+//                return;
             Row<Index>& row = indices[iy];
             float offset = 0.f;
             size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx - offset < clip.lx ? clip.lx : lx - offset, i);
+//            cover = 0;
             int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux + offset > clip.ux ? clip.ux : ux + offset), dst[1] = cover < -kfh ? -kCoverScale : cover > kfh ? kCoverScale : cover * kCoverScale, dst[2] = is;
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
