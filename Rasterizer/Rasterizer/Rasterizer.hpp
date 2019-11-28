@@ -969,17 +969,17 @@ struct Rasterizer {
                         ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
                     }
                     ir = ly * krfh, y = ir * kfh;
-                    cy = y0 - (ly > y ? ly : y), d = by * by - 4.f * ay * cy, r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d);
+                    cy = y0 - ly, d = by * by - 4.f * ay * cy, r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d);
                     at0 = r > 0.0 ? 2.0 * cy / (-by - r) : (-by + r) * div2A;
                     bt0 = r < 0.0 ? 2.0 * cy / (-by + r) : (-by - r) * div2A;
                     at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
                     bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
                     ax0 = (ax * at0 + bx) * at0 + x0, bx0 = (ax * bt0 + bx) * bt0 + x0;
             
-                    for (ny = y + kfh; y < uy; y = ny, ny += kfh, ny = ny > clip.uy ? clip.uy : ny, ir++, at0 = at1, bt0 = bt1, ax0 = ax1, bx0 = bx1) {
+                    for (ny = y + kfh, y = y < ly ? ly : y; y < uy; y = ny, ny += kfh, ny = ny > uy ? uy : ny, ir++, at0 = at1, bt0 = bt1, ax0 = ax1, bx0 = bx1) {
                         w0 = y0 < y ? y : y0 > ny ? ny : y0, w1 = iy < y ? y : iy > ny ? ny : iy, w2 = y2 < y ? y : y2 > ny ? ny : y2;
             
-                        cy = y0 - (uy < y + kfh ? uy : y + kfh), d = by * by - 4.f * ay * cy, r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d);
+                        cy = y0 - ny, d = by * by - 4.f * ay * cy, r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d);
                         at1 = r > 0.0 ? 2.0 * cy / (-by - r) : (-by + r) * div2A;
                         bt1 = r < 0.0 ? 2.0 * cy / (-by + r) : (-by - r) * div2A;
                         at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
@@ -1014,7 +1014,7 @@ struct Rasterizer {
         __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, int16_t cover, int is) {
             Row<Index>& row = indices[iy];
             size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
-            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is;
+            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = 0, dst[2] = is;
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
