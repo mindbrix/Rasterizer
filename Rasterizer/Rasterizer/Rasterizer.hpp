@@ -977,15 +977,11 @@ struct Rasterizer {
                         bt1 = it - r, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
                         ax1 = (ax * at1 + bx) * at1 + x0, bx1 = (ax * bt1 + bx) * bt1 + x0;
                         bool a0 = w0 != w1, b0 = w1 != w2;
-                        if (a0 && !b0) {
-                            lx = ax0 < ax1 ? ax0 : ax1;
-                            ux = ax0 > ax1 ? ax0 : ax1;
-                            writeIndex(ir, lx, ux, w1 - w0, is);
-                        } else if (!a0 && b0) {
-                            lx = bx0 < bx1 ? bx0 : bx1;
-                            ux = bx0 > bx1 ? bx0 : bx1;
-                            writeIndex(ir, lx, ux, w2 - w1, is);
-                        } else if (a0 && b0){
+                        if (a0 && !b0)
+                            writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ax0 > ax1 ? ax0 : ax1, w1 - w0, is);
+                        else if (!a0 && b0)
+                            writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, w2 - w1, is);
+                        else if (a0 && b0) {
                             lx = ax0 < ax1 ? ax0 : ax1;
                             ux = ax0 > ax1 ? ax0 : ax1;
                             writeIndex(ir, lx, ux, w1 - w0, is);
