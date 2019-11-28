@@ -954,7 +954,7 @@ struct Rasterizer {
                 if (iy0 == iy1 && iy1 == iy2) {
                     lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                     ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                    writeIndex(iy0, lx, ux, y2 - y0, is);
+                    writeIndex(iy0, lx, ux, (y2 - y0) * kCoverScale, is);
                 } else {
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
@@ -978,21 +978,21 @@ struct Rasterizer {
                         ax1 = (ax * at1 + bx) * at1 + x0, bx1 = (ax * bt1 + bx) * bt1 + x0;
                         bool a0 = w0 != w1, b0 = w1 != w2;
                         if (a0 && !b0)
-                            writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ax0 > ax1 ? ax0 : ax1, w1 - w0, is);
+                            writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ax0 > ax1 ? ax0 : ax1, (w1 - w0) * kCoverScale, is);
                         else if (!a0 && b0)
-                            writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, w2 - w1, is);
+                            writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, (w2 - w1) * kCoverScale, is);
                         else if (a0 && b0) {
                             lx = ax0 < ax1 ? ax0 : ax1;
                             ux = ax0 > ax1 ? ax0 : ax1;
-                            writeIndex(ir, lx, ux, w1 - w0, is);
+                            writeIndex(ir, lx, ux, (w1 - w0) * kCoverScale, is);
                             lx = bx0 < bx1 ? bx0 : bx1;
                             if (lx > ceilf(ux))
-                                ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, w2 - w1, is);
+                                ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, (w2 - w1) * kCoverScale, is);
                         }
 //                        if (a0 && b0 && at0 == bt0)
-//                            writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0.f, is);
+//                            writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0, is);
 //                        else if (a0 && b0 && at1 == bt1)
-//                            writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0.f, is);
+//                            writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0, is);
 //                        else {
             
 //                        }
@@ -1000,27 +1000,27 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, float cover, int is) {
+        __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, int16_t cover, int is) {
             Row<Index>& row = indices[iy];
             float offset = 0.f;
             size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx - offset < clip.lx ? clip.lx : lx - offset, i);
-            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux + offset > clip.ux ? clip.ux : ux + offset), dst[1] = cover * kCoverScale, dst[2] = is;
+            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux + offset > clip.ux ? clip.ux : ux + offset), dst[1] = cover, dst[2] = is;
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, ir;
                 if (iy0 == iy1)
-                    writeIndex(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, y1 - y0, is);
+                    writeIndex(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, (y1 - y0) * kCoverScale, is);
                 else {
-                    float lx, ux, ly, uy, m, c, y, minx, maxx, sign;
+                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, sign = y0 < y1 ? 1.f : -1.f;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
                     m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
                     ir = ly * krfh, y = ir * kfh;
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
-                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * sign, is);
+                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is);
                 }
             }
         }
