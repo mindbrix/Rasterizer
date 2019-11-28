@@ -982,20 +982,19 @@ struct Rasterizer {
                         else if (!a0 && b0)
                             writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, (w2 - w1) * kCoverScale, is);
                         else if (a0 && b0) {
-                            lx = ax0 < ax1 ? ax0 : ax1;
-                            ux = ax0 > ax1 ? ax0 : ax1;
-                            writeIndex(ir, lx, ux, (w1 - w0) * kCoverScale, is);
-                            lx = bx0 < bx1 ? bx0 : bx1;
-                            if (lx > ceilf(ux))
-                                ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, (w2 - w1) * kCoverScale, is);
+                            if (at0 == bt0)
+                                writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0, is);
+                            else if (at1 == bt1)
+                                writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0, is);
+                            else {
+                                lx = ax0 < ax1 ? ax0 : ax1;
+                                ux = ax0 > ax1 ? ax0 : ax1;
+                                writeIndex(ir, lx, ux, (w1 - w0) * kCoverScale, is);
+                                lx = bx0 < bx1 ? bx0 : bx1;
+                                if (lx > ceilf(ux))
+                                    ux = bx0 > bx1 ? bx0 : bx1, writeIndex(ir, lx, ux, (w2 - w1) * kCoverScale, is);
+                            }
                         }
-//                        if (a0 && b0 && at0 == bt0)
-//                            writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0, is);
-//                        else if (a0 && b0 && at1 == bt1)
-//                            writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0, is);
-//                        else {
-            
-//                        }
                     }
                 }
             }
