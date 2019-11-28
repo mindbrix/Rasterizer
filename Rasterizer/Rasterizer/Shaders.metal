@@ -55,6 +55,7 @@ struct EdgeCell {
     uint32_t im, base;
 };
 struct Edge {
+    enum Flags { a0 = 1 << 27, b0 = 1 << 28, a1 = 1 << 29, b1 = 1 << 31, kMask = 0xF0000000 };
     uint32_t ic;
     uint16_t i0, i1;
 };
@@ -255,7 +256,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+    return 0.0 + quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
         + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
 }
 
