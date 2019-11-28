@@ -947,7 +947,7 @@ struct Rasterizer {
     struct CurveIndexer {
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
-            float lx, ux, ly, uy, ay, by, div2A, it, t, iy, ax, bx, y, ny, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
+            float lx, ux, ly, uy, ay, by, div2A, it, iy, ax, bx, y, ny, d, r, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
             if (iy0 == iy1 && iy1 == iy2) {
                 lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                 ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
@@ -959,10 +959,15 @@ struct Rasterizer {
                     ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5f / ay, it = -by * div2A;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
                     ly = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2;
-                    t = it < 0.f ? 0.f : it > 1.f ? 1.f : it;
-                    iy = (ay * t + by) * t + y0, iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                    ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
-                    
+                    if (it <= 0.f)
+                        iy = y0;
+                    else if (it >= 1.f)
+                        iy = y2;
+                    else {
+                        iy = y0 - by * by * div2A;
+                        iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                        ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
+                    }
                     ir = ly * krfh, y = ir * kfh;
                     d = by * by - 4.f * ay * (y0 - (ly > y ? ly : y)), r = copysign(1.f, -ay) * sqrtf(d < 0.f ? 0.f : d) * div2A;
                     at0 = it + r, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
@@ -983,9 +988,9 @@ struct Rasterizer {
                             writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, (w2 - w1) * kCoverScale, is);
                         else if (a0 && b0) {
                             if (at0 == bt0)
-                                writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, 0, is);
+                                writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, (w2 - w0) * kCoverScale, is);
                             else if (at1 == bt1)
-                                writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, 0, is);
+                                writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, (w2 - w0) * kCoverScale, is);
                             else {
                                 lx = ax0 < ax1 ? ax0 : ax1;
                                 ux = ax0 > ax1 ? ax0 : ax1;
