@@ -1004,7 +1004,7 @@ struct Rasterizer {
             Row<Index>& row = indices[iy];
             float offset = 0.f;
             size_t i = row.end - row.idx; new (row.alloc(1)) Index(lx - offset < clip.lx ? clip.lx : lx - offset, i);
-            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux + offset > clip.ux ? clip.ux : ux + offset), dst[1] = cover < -kfh ? -kCoverScale : cover > kfh ? kCoverScale : cover * kCoverScale, dst[2] = is;
+            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux + offset > clip.ux ? clip.ux : ux + offset), dst[1] = cover * kCoverScale, dst[2] = is;
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
