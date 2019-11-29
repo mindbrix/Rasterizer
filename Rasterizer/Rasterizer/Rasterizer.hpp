@@ -988,7 +988,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
-            float lx, ux, ly, uy, it, iy, ax, bx, y, ny, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
+            float lx, ux, ly, uy, ity, itx, iy, s, ix, ax, bx, y, ny, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
             double ay, by, div2A, cy, d, r;
             if (iy0 == iy1 && iy1 == iy2) {
                 lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
@@ -998,18 +998,13 @@ struct Rasterizer {
                 if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
                     indexSegment(x0, y0, x2, y2, is);
                 else {
-                    ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5 / ay, it = -by * div2A;
-                    ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0);
+                    ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5 / ay, ity = -by * div2A, ity = ity < 0.f ? 0.f : ity > 1.f ? 1.f : ity;
+                    s = 1.f - ity, iy = y0 * s * s + y1 * 2.f * s * ity + y2 * ity * ity;
+                    iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
                     ly = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2;
-                    if (it <= 0.f)
-                        iy = y0;
-                    else if (it >= 1.f)
-                        iy = y2;
-                    else {
-                        iy = (ay * it + by) * it + y0;
-                        iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                        ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
-                    }
+                    ly = ly < iy ? ly : iy, uy = uy > iy ? uy : iy;
+                    ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), itx = -bx / ax, itx = itx < 0.f ? 0.f : itx > 1.f ? 1.f : itx;
+                    s = 1.f - itx, ix = x0 * s * s + x1 * 2.f * s * itx + x2 * itx * itx;
                     ir = ly * krfh, y = ir * kfh;
                     cy = y0 - ly, d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
                     at0 = (-by + r) * div2A, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
