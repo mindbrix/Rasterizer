@@ -118,7 +118,7 @@ struct Rasterizer {
             if (counts[kQuadratic] == 0 && counts[kCubic] == 0)
                 return hash;
             float det = bounds.area() * fabsf(ctm.det());
-            return hash + ((*((uint32_t *)& det) & 0x7FFFFFFF) >> 24);
+            return hash + (det > 256.f) * ((*((uint32_t *)& det) & 0x7FFFFFFF) >> 24);
         }
         float upperBound(Transform ctm) {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
