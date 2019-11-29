@@ -945,6 +945,47 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
+        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;  int is = 0;
+        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
+        
+        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
+        }
+        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+            if (x0 != FLT_MAX && (y0 != y1 || curve)) {
+                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+                new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
+                index(x0, y0, x1, y1, curve == 1, curve == 2, is++);
+            }
+        }
+        void writeCachedSegments(Segment *begin, Segment *end, Transform m) {
+            float x0, y0, x1, y1;  uint32_t curve;
+            x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
+            for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
+                if (s->x0 != FLT_MAX) {
+                    x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+                    curve = *((uint32_t *)& s->x0) & 3;
+                    index(x0, y0, x1, y1, curve & 1, curve & 2, int(s - begin));
+                } else {
+                    Segment *n = s + (s < end - 1 ? 1 : 0);
+                    x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
+                }
+            }
+        }
+        __attribute__((always_inline)) void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
+            // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
+            if (useCurves && ncurve) {
+                if (px != FLT_MAX)
+                    indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
+                px = x0, py = y0;
+            } else if (useCurves && pcurve) {
+                float ax = x0 - 0.25 * (px + x1), ay = y0 - 0.25 * (py + y1);
+                indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1);
+                indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is);
+                px = py = FLT_MAX;
+            } else
+                indexSegment(x0, y0, x1, y1, is);
+        }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
             float lx, ux, ly, uy, it, iy, ax, bx, y, ny, at0, at1, bt0, bt1, ax0, ax1, bx0, bx1, w0, w1, w2;
@@ -1008,11 +1049,6 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, int16_t cover, int is) {
-            Row<Index>& row = indices[iy];
-            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
-            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is;
-        }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is) {
             if (y0 != y1) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, ir;
@@ -1031,46 +1067,10 @@ struct Rasterizer {
                 }
             }
         }
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (x0 != FLT_MAX && (y0 != y1 || curve)) {
-                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-                new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
-                index(x0, y0, x1, y1, curve == 1, curve == 2, is++);
-            }
-        }
-        void writeCachedSegments(Segment *begin, Segment *end, Transform m) {
-            float x0, y0, x1, y1;  uint32_t curve;
-            x0 = begin->x0 * m.a + begin->y0 * m.c + m.tx, y0 = begin->x0 * m.b + begin->y0 * m.d + m.ty, y0 = y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0;
-            for (Segment *s = begin; s < end; s++, x0 = x1, y0 = y1) {
-                if (s->x0 != FLT_MAX) {
-                    x1 = s->x1 * m.a + s->y1 * m.c + m.tx, y1 = s->x1 * m.b + s->y1 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-                    curve = *((uint32_t *)& s->x0) & 3;
-                    index(x0, y0, x1, y1, curve & 1, curve & 2, int(s - begin));
-                } else {
-                    Segment *n = s + (s < end - 1 ? 1 : 0);
-                    x1 = n->x0 * m.a + n->y0 * m.c + m.tx, y1 = n->x0 * m.b + n->y0 * m.d + m.ty, y1 = y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1;
-                }
-            }
-        }
-        __attribute__((always_inline)) void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is) {
-            // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
-            if (useCurves && ncurve) {
-                if (px != FLT_MAX)
-                    indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
-                px = x0, py = y0;
-            } else if (useCurves && pcurve) {
-                float ax = x0 - 0.25 * (px + x1), ay = y0 - 0.25 * (py + y1);
-                indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1);
-                indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is);
-                px = py = FLT_MAX;
-            } else
-                indexSegment(x0, y0, x1, y1, is);
-        }
-        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;  int is = 0;
-        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
-        
-        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
+        __attribute__((always_inline)) void writeIndex(int iy, float lx, float ux, int16_t cover, int is) {
+            Row<Index>& row = indices[iy];
+            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
+            int16_t *dst = uxcovers[iy].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is;
         }
     };
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
