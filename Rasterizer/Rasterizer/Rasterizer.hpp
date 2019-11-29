@@ -1032,11 +1032,10 @@ struct Rasterizer {
             }
         }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (x0 != FLT_MAX && (curve || y0 != y1)) {
-                int is = int(segments->end - segments->idx);
+            if (x0 != FLT_MAX && (y0 != y1 || curve)) {
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
                 new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
-                index(x0, y0, x1, y1, curve == 1, curve == 2, is);
+                index(x0, y0, x1, y1, curve == 1, curve == 2, is++);
             }
         }
         void writeCachedSegments(Segment *begin, Segment *end, Transform m) {
@@ -1066,7 +1065,7 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x1, y1, is);
         }
-        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;
+        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;  int is = 0;
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
