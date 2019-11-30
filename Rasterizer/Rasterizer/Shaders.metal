@@ -209,14 +209,13 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device uint16_t *idxes = & edge.i0;
     float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < 2; i++, dst += 6) {
-        float x0, y0, x1, y1, x2, y2, ay, by, ty, y, ax, bx, tx, x;
-        bool pcurve, ncurve;
+        float x0, y0, x1, y1, x2, y2;
         if (idxes[i] != kNullIndex) {
             const device Segment& s = segments[edgeCell.base + idxes[i]];
             x0 = s.x0 * m.a + s.y0 * m.c + m.tx, y0 = s.x0 * m.b + s.y0 * m.d + m.ty;
             x2 = s.x1 * m.a + s.y1 * m.c + m.tx, y2 = s.x1 * m.b + s.y1 * m.d + m.ty;
             dst[0] = x0, dst[1] = y0, dst[4] = x2, dst[5] = y2;
-            pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
+            bool pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
                 x1 = 0.5 * x2 + (x0 - 0.25 * (p.x0 * m.a + p.y0 * m.c + m.tx + x2)),
@@ -235,6 +234,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             } else {
+                float ay, by, ty, y, ax, bx, tx, x;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
                 y = ty > 0.0 && ty < 1.0 ? fma(fma(ay, ty, by), ty, y0) : y0;
                 sly = min(sly, y), suy = max(suy, y);
