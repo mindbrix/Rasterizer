@@ -1069,8 +1069,7 @@ struct Rasterizer {
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is) {
             if (ix != FLT_MAX)
                 lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
-            Row<Index>& row = indices[ir];
-            size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
+            Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
             int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is;
         }
     };
