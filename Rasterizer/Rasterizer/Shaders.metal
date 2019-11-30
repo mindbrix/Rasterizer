@@ -216,7 +216,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             x0 = s.x0 * m.a + s.y0 * m.c + m.tx, y0 = s.x0 * m.b + s.y0 * m.d + m.ty;
             x2 = s.x1 * m.a + s.y1 * m.c + m.tx, y2 = s.x1 * m.b + s.y1 * m.d + m.ty;
             dst[0] = x0, dst[1] = y0, dst[4] = x2, dst[5] = y2;
-            sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
             pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
@@ -227,10 +226,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + n.x1 * m.a + n.y1 * m.c + m.tx)),
                 y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + n.x1 * m.b + n.y1 * m.d + m.ty));
             }
-            if ((!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0) {
+            if ((!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0)
+                dst[2] = FLT_MAX;
+            else
+                dst[2] = x1, dst[3] = y1;
+            sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
+            if (dst[2] == FLT_MAX) {
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
-                dst[2] = FLT_MAX;
             } else {
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
                 y = ty > 0.0 && ty < 1.0 ? fma(fma(ay, ty, by), ty, y0) : y0;
@@ -239,7 +242,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
                 slx = -FLT_MAX;
-                dst[2] = x1, dst[3] = y1;
             }
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
