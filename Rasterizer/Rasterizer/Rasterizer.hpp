@@ -998,10 +998,16 @@ struct Rasterizer {
                 if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
                     indexSegment(x0, y0, x2, y2, is);
                 else {
-                    ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), div2A = 0.5 / ay, ity = -by * div2A;
-                    t = ity < 0.f ? 0.f : ity > 1.f ? 1.f : ity, s = 1.f - t;
-                    iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                    iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                    ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
+                    bool flat = fabs(ay) < 1e-12;
+                    if (flat)
+                        div2A = 0.f, iy = y2;
+                    else {
+                        div2A = 0.5 / ay, ity = -by * div2A;
+                        t = ity < 0.f ? 0.f : ity > 1.f ? 1.f : ity, s = 1.f - t;
+                        iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                        iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                    }
                     ly = y0 < y2 ? y0 : y2, ly = ly < iy ? ly : iy;
                     uy = y0 > y2 ? y0 : y2, uy = uy > iy ? uy : iy;
                     ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), itx = -bx / ax * 0.5;
@@ -1009,17 +1015,27 @@ struct Rasterizer {
                     ix = x0 * s * s + x1 * 2.f * s * t + x2 * t * t;
                     ix = ix < clip.lx ? clip.lx : ix > clip.ux ? clip.ux : ix;
                     ir = ly * krfh, y = ir * kfh;
-                    cy = y0 - ly, d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
-                    at0 = (-by + r) * div2A, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
-                    bt0 = (-by - r) * div2A, bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
+                    cy = y0 - ly;
+                    if (flat)
+                        at0 = -cy / by, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0, bt0 = 0.f;
+                    else {
+                        d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
+                        at0 = (-by + r) * div2A, at0 = at0 < 0.f ? 0.f : at0 > 1.f ? 1.f : at0;
+                        bt0 = (-by - r) * div2A, bt0 = bt0 < 0.f ? 0.f : bt0 > 1.f ? 1.f : bt0;
+                    }
                     ax0 = (ax * at0 + bx) * at0 + x0, bx0 = (ax * bt0 + bx) * bt0 + x0;
             
                     for (ny = y + kfh, y = y < ly ? ly : y; y < uy; y = ny, ny += kfh, ny = ny > uy ? uy : ny, ir++, at0 = at1, bt0 = bt1, ax0 = ax1, bx0 = bx1) {
                         w0 = y0 < y ? y : y0 > ny ? ny : y0, w1 = iy < y ? y : iy > ny ? ny : iy, w2 = y2 < y ? y : y2 > ny ? ny : y2;
             
-                        cy = y0 - ny, d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
-                        at1 = (-by + r) * div2A, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
-                        bt1 = (-by - r) * div2A, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
+                        cy = y0 - ny;
+                        if (flat)
+                            at1 = -cy / by, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1, bt1 = 0.f;
+                        else {
+                            d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
+                            at1 = (-by + r) * div2A, at1 = at1 < 0.f ? 0.f : at1 > 1.f ? 1.f : at1;
+                            bt1 = (-by - r) * div2A, bt1 = bt1 < 0.f ? 0.f : bt1 > 1.f ? 1.f : bt1;
+                        }
                         ax1 = (ax * at1 + bx) * at1 + x0, bx1 = (ax * bt1 + bx) * bt1 + x0;
                         bool a0 = w0 != w1, b0 = w1 != w2;
                         bool aix = (itx > at0) != (itx > at1), bix = (itx > bt0) != (itx > bt1);
