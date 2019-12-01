@@ -237,7 +237,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, at0, at1, bt0, bt1, lx;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
-                bool flat = abs(ay) < 1e-9;
+                bool flat = abs(ay) < 1e-3;
                 iy = ty > 0.0 && ty < 1.0 ? fma(fma(ay, ty, by), ty, y0) : y0;
                 sly = min(sly, iy), suy = max(suy, iy);
                 
@@ -265,7 +265,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 }
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
-//                slx = -FLT_MAX;
             }
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
