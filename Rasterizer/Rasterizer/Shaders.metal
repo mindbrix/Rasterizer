@@ -89,8 +89,12 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     float w0 = saturate(y0), w2 = saturate(y2), w = 0.0, ay, by, div2A, t, w1, s;
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
-    ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), div2A = 0.5 / ay;
-    t = saturate(-by * div2A), w1 = saturate(fma(fma(ay, t, by), t, y0));
+    ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0);
+    if (abs(ay) < 1e-3) {
+        t = -(y0 - 0.5 * (w0 + w2)) / by, s = 1.0 - t;
+        return winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w2);
+    }
+    div2A = 0.5 / ay, t = saturate(-by * div2A), w1 = saturate(fma(fma(ay, t, by), t, y0));
     if (w0 != w1) {
         t = (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * (y0 - 0.5 * (w0 + w1)))), y1 - y0)) * div2A;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
@@ -237,14 +241,24 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, at0, at1, bt0, bt1, lx;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
-                
+                bool flat = abs(ay) < 1e-9;
                 iy = ty > 0.0 && ty < 1.0 ? fma(fma(ay, ty, by), ty, y0) : y0;
                 sly = min(sly, iy), suy = max(suy, iy);
                 
-                cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                at0 = saturate((-by + r) / ay * 0.5), bt0 = saturate((-by - r) / ay * 0.5);
-                cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                at1 = saturate((-by + r) / ay * 0.5), bt1 = saturate((-by - r) / ay * 0.5);
+                cy = y0 - float(cell.ly);
+                if (flat)
+                    at0 = saturate(-cy / by), bt0 = 0.f;
+                else {
+                    d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
+                    at0 = saturate((-by + r) / ay * 0.5), bt0 = saturate((-by - r) / ay * 0.5);
+                }
+                cy = y0 - float(cell.uy);
+                if (flat)
+                    at1 = saturate(-cy / by), bt1 = 0.f;
+                else {
+                    d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
+                    at1 = saturate((-by + r) / ay * 0.5), bt1 = saturate((-by - r) / ay * 0.5);
+                }
                 if (at0 != at1) {
                     lx = min(fma(fma(ax, at0, bx), at0, x0), fma(fma(ax, at1, bx), at1, x0));
                     slx = min(slx, lx > cell.lx && lx < cell.ux ? lx : FLT_MAX);
@@ -255,6 +269,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 }
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
+//                slx = -FLT_MAX;
             }
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
