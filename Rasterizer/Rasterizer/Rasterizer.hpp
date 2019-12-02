@@ -1019,8 +1019,7 @@ struct Rasterizer {
                             t0 = solve(ay, by, y0 - ly, w[1] - w[0]), tx0 = (ax * t0 + bx) * t0 + x0;
                             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                                 ny = y + kfh, t1 = solve(ay, by, y0 - ny, w[1] - w[0]), tx1 = (ax * t1 + bx) * t1 + x0;
-                                w0 = w[0] < y ? y : w[0] > ny ? ny : w[0];
-                                w1 = w[1] < y ? y : w[1] > ny ? ny : w[1];
+                                w0 = w[0] < y ? y : w[0] > ny ? ny : w[0], w1 = w[1] < y ? y : w[1] > ny ? ny : w[1];
                                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, (w1 - w0) * kCoverScale, is, w == ws);
                             }
                         }
