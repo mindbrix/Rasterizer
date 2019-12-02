@@ -432,6 +432,7 @@ struct Rasterizer {
             uint32_t im, base;
         };
         struct Edge {
+            enum Flags { a0 = 1 << 31, b0 = 1 << 30, kMask = ~(a0 | b0) };
             uint32_t ic;
             uint16_t i0, i1;
         };
