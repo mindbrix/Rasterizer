@@ -977,15 +977,51 @@ struct Rasterizer {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (useCurves && ncurve) {
                 if (px != FLT_MAX)
-                    indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
+                    _indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1);
                 px = x0, py = y0;
             } else if (useCurves && pcurve) {
                 float ax = x0 - 0.25 * (px + x1), ay = y0 - 0.25 * (py + y1);
-                indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1);
-                indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is);
+                _indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1);
+                _indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is);
                 px = py = FLT_MAX;
             } else
                 indexSegment(x0, y0, x1, y1, is);
+        }
+        inline float solve(float ay, float by, float cy, bool a) {
+            float d, r, t;
+            if (fabsf(ay) < 1e-3f)
+                t = -cy / by;
+            else {
+                d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
+                t = (-by + (a ? r : -r)) / ay * 0.5f;
+            }
+            return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
+        }
+        void _indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
+            float ax, bx, ay, by, t, s, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
+            int ir;
+            ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+            if (fabsf(bx * ay - by * ax) < 1.f)
+                indexSegment(x0, y0, x2, y2, is);
+            else {
+                ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
+                t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f;
+                t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+                ws[0] = y0, ws[1] = y0 * s * s + y1 * 2.f * s * t + y2 * t * t, ws[2] = y2;
+                ws[1] = ws[1] < clip.ly ? clip.ly : ws[1] > clip.uy ? clip.uy : ws[1];
+                for (float *w = ws, *ew = ws + 2; w < ew; w++)
+                    if (w[0] != w[1]) {
+                        ir = (w[0] < w[1] ? w[0] : w[1]) * krfh, ly = ir * kfh;
+                        uy = ceilf((w[0] > w[1] ? w[0] : w[1]) * krfh) * kfh;
+                        t0 = solve(ay, by, y0 - ly, w == ws), tx0 = (ax * t0 + bx) * t0 + x0;
+                        for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
+                            ny = y + kfh, t1 = solve(ay, by, y0 - ny, w == ws), tx1 = (ax * t1 + bx) * t1 + x0;
+                            w0 = w[0] < y ? y : w[0] > ny ? ny : w[0];
+                            w1 = w[1] < y ? y : w[1] > ny ? ny : w[1];
+                            writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, (w1 - w0) * kCoverScale, is, w == ws);
+                        }
+                    }
+            }
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             int iy0 = y0 * krfh, iy1 = y1 * krfh, iy2 = y2 * krfh, ir;
@@ -1087,7 +1123,7 @@ struct Rasterizer {
             if (ix != FLT_MAX)
                 lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
-            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is;
+            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = ceilf(ux), dst[1] = 0, dst[2] = is;
         }
     };
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
