@@ -432,7 +432,7 @@ struct Rasterizer {
             uint32_t im, base;
         };
         struct Edge {
-            enum Flags { a0 = 1 << 31, b0 = 1 << 30, kMask = ~(a0 | b0) };
+            enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
             uint32_t ic;
             uint16_t i0, i1;
         };
@@ -994,7 +994,7 @@ struct Rasterizer {
             if (iy0 == iy1 && iy1 == iy2) {
                 lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
                 ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
-                writeIndex(iy0, lx, ux, FLT_MAX, (y2 - y0) * kCoverScale, is);
+                writeIndex(iy0, lx, ux, FLT_MAX, (y2 - y0) * kCoverScale, is, false);
             } else {
                 if (fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.f)
                     indexSegment(x0, y0, x2, y2, is);
@@ -1041,23 +1041,23 @@ struct Rasterizer {
                         bool a0 = w0 != w1, b0 = w1 != w2;
                         bool aix = (itx > at0) != (itx > at1), bix = (itx > bt0) != (itx > bt1);
                         if (a0 && !b0)
-                            writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ax0 > ax1 ? ax0 : ax1, aix ? ix : FLT_MAX, (w1 - w0) * kCoverScale, is);
+                            writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ax0 > ax1 ? ax0 : ax1, aix ? ix : FLT_MAX, (w1 - w0) * kCoverScale, is, true);
                         else if (!a0 && b0)
-                            writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, bix ? ix : FLT_MAX, (w2 - w1) * kCoverScale, is);
+                            writeIndex(ir, bx0 < bx1 ? bx0 : bx1, bx0 > bx1 ? bx0 : bx1, bix ? ix : FLT_MAX, (w2 - w1) * kCoverScale, is, false);
                         else if (a0 && b0) {
                             if (at0 == bt0)
-                                writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, aix || bix ? ix : FLT_MAX, (w2 - w0) * kCoverScale, is);
+                                writeIndex(ir, ax1 < bx1 ? ax1 : bx1, ax1 > bx1 ? ax1 : bx1, aix || bix ? ix : FLT_MAX, (w2 - w0) * kCoverScale, is, true);
                             else if (at1 == bt1)
-                                writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, aix || bix ? ix : FLT_MAX, (w2 - w0) * kCoverScale, is);
+                                writeIndex(ir, ax0 < bx0 ? ax0 : bx0, ax0 > bx0 ? ax0 : bx0, aix || bix ? ix : FLT_MAX, (w2 - w0) * kCoverScale, is, true);
                             else {
                                 ux = ax0 > ax1 ? ax0 : ax1, lx = bx0 < bx1 ? bx0 : bx1;
                                 if (1) {
                                     lx = lx < ax0 ? lx : ax0, lx = lx < ax1 ? lx : ax1;
                                     ux = ux > bx0 ? ux : bx0, ux = ux > bx1 ? ux : bx1;
-                                    writeIndex(ir, lx, ux, aix || bix ? ix : FLT_MAX, (w2 - w0) * kCoverScale, is);
+                                    writeIndex(ir, lx, ux, aix || bix ? ix : FLT_MAX, (w2 - w0) * kCoverScale, is, true);
                                 } else {
-                                    writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ux, aix ? ix : FLT_MAX, (w1 - w0) * kCoverScale, is);
-                                    writeIndex(ir, lx, bx0 > bx1 ? bx0 : bx1, bix ? ix : FLT_MAX, (w2 - w1) * kCoverScale, is);
+                                    writeIndex(ir, ax0 < ax1 ? ax0 : ax1, ux, aix ? ix : FLT_MAX, (w1 - w0) * kCoverScale, is, true);
+                                    writeIndex(ir, lx, bx0 > bx1 ? bx0 : bx1, bix ? ix : FLT_MAX, (w2 - w1) * kCoverScale, is, false);
                                 }
                             }
                         }
@@ -1069,7 +1069,7 @@ struct Rasterizer {
             if (y0 != y1) {
                 int iy0 = y0 * krfh, iy1 = y1 * krfh, ir;
                 if (iy0 == iy1)
-                    writeIndex(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is);
+                    writeIndex(iy0, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false);
                 else {
                     float lx, ux, ly, uy, m, c, y, minx, maxx, scale;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -1079,11 +1079,11 @@ struct Rasterizer {
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
-                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is);
+                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, false);
                 }
             }
         }
-        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is) {
+        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a) {
             if (ix != FLT_MAX)
                 lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
