@@ -987,14 +987,12 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x1, y1, is);
         }
-        __attribute__((always_inline)) float solve(float ay, float by, float cy, bool a) {
+        __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
             if (fabsf(ay) < 1e-3f)
                 t = -cy / by;
-            else {
-                d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(d < 0.0 ? 0.0 : d);
-                t = (-by + (a ? r : -r)) / ay * 0.5f;
-            }
+            else
+                d = by * by - 4.0 * ay * cy, r = copysign(sqrtf(d < 0.f ? 0.f : d), sign), t = (-by + r) / ay * 0.5f;
             return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
         }
         __attribute__((always_inline)) void _indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
@@ -1018,9 +1016,9 @@ struct Rasterizer {
                         if (w[0] != w[1]) {
                             ir = (w[0] < w[1] ? w[0] : w[1]) * krfh, ly = ir * kfh;
                             uy = ceilf((w[0] > w[1] ? w[0] : w[1]) * krfh) * kfh;
-                            t0 = solve(ay, by, y0 - ly, w == ws), tx0 = (ax * t0 + bx) * t0 + x0;
+                            t0 = solve(ay, by, y0 - ly, w[1] - w[0]), tx0 = (ax * t0 + bx) * t0 + x0;
                             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
-                                ny = y + kfh, t1 = solve(ay, by, y0 - ny, w == ws), tx1 = (ax * t1 + bx) * t1 + x0;
+                                ny = y + kfh, t1 = solve(ay, by, y0 - ny, w[1] - w[0]), tx1 = (ax * t1 + bx) * t1 + x0;
                                 w0 = w[0] < y ? y : w[0] > ny ? ny : w[0];
                                 w1 = w[1] < y ? y : w[1] > ny ? ny : w[1];
                                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, (w1 - w0) * kCoverScale, is, w == ws);
