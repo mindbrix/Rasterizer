@@ -87,7 +87,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     if (x1 == FLT_MAX)
         return winding(x0, y0, x2, y2);
     float r0 = saturate(a ? y0 : iy), r1 = saturate(a ? iy : y2), w = r1 - r0;
-    if (w == 0.0 || (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0))
+    if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w;
     if (w) {
         float ay, by, cy, t, s;
