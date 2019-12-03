@@ -996,17 +996,17 @@ struct Rasterizer {
             return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
-            float ax, bx, ay, by, t, s, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
+            float ax, bx, ay, by, t, s, iy, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
             int ir;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
             if (fabsf(bx * ay - by * ax) < 1.f)
                 indexSegment(x0, y0, x2, y2, is);
             else {
                 ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
-                t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f;
-                t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
-                ws[0] = y0, ws[1] = y0 * s * s + y1 * 2.f * s * t + y2 * t * t, ws[2] = y2;
-                ws[1] = ws[1] < clip.ly ? clip.ly : ws[1] > clip.uy ? clip.uy : ws[1];
+                t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+                iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                ws[0] = y0, ws[1] = iy, ws[2] = y2;
                 for (float *w = ws, *ew = ws + 2; w < ew; w++)
                     if (w[0] != w[1]) {
                         ir = (w[0] < w[1] ? w[0] : w[1]) * krfh, ly = ir * kfh;
