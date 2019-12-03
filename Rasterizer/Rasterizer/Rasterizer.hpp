@@ -946,7 +946,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;  int is = 0;
+        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX; bool pfast;  int is = 0;
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -977,11 +977,11 @@ struct Rasterizer {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (useCurves && ncurve) {
                 if (px != FLT_MAX)
-                    indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1, fast);
-                px = x0, py = y0;
+                    indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1, pfast);
+                px = x0, py = y0, pfast = fast;
             } else if (useCurves && pcurve) {
                 float ax = x0 - 0.25 * (px + x1), ay = y0 - 0.25 * (py + y1);
-                indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1, fast);
+                indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1, pfast);
                 indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is, fast);
                 px = py = FLT_MAX;
             } else
@@ -1000,7 +1000,7 @@ struct Rasterizer {
             int ir;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
             if (fabsf(bx * ay - by * ax) < 1.f)
-                indexSegment(x0, y0, x2, y2, is, false);
+                indexSegment(x0, y0, x2, y2, is, fast);
             else {
                 ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
                 t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
