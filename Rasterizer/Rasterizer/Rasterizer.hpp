@@ -998,26 +998,31 @@ struct Rasterizer {
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
             float ax, bx, ay, by, t, s, iy, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
             int ir;
-            ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
-            if (fabsf(bx * ay - by * ax) < 1.f)
-                indexSegment(x0, y0, x2, y2, is, fast);
+            bool monotone = (y0 <= y1) == (y1 <= y2);
+            if (fast && monotone)
+                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, (y1 - y0) / (y2 - y0) > 0.5f);
             else {
-                ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
-                t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
-                iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                ws[0] = y0, ws[1] = iy, ws[2] = y2;
-                for (float *w = ws, *ew = ws + 2; w < ew; w++)
-                    if (w[0] != w[1]) {
-                        ir = (w[0] < w[1] ? w[0] : w[1]) * krfh, ly = ir * kfh;
-                        uy = ceilf((w[0] > w[1] ? w[0] : w[1]) * krfh) * kfh;
-                        t0 = solve(ay, by, y0 - ly, w[1] - w[0]), tx0 = (ax * t0 + bx) * t0 + x0;
-                        for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
-                            ny = y + kfh, t1 = solve(ay, by, y0 - ny, w[1] - w[0]), tx1 = (ax * t1 + bx) * t1 + x0;
-                            w0 = w[0] < y ? y : w[0] > ny ? ny : w[0], w1 = w[1] < y ? y : w[1] > ny ? ny : w[1];
-                            writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, (w1 - w0) * kCoverScale, is, w == ws);
+                ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+                if (fabsf(bx * ay - by * ax) < 1.f)
+                    indexSegment(x0, y0, x2, y2, is, fast);
+                else {
+                    ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
+                    t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+                    iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                    iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                    ws[0] = y0, ws[1] = iy, ws[2] = y2;
+                    for (float *w = ws, *ew = ws + 2; w < ew; w++)
+                        if (w[0] != w[1]) {
+                            ir = (w[0] < w[1] ? w[0] : w[1]) * krfh, ly = ir * kfh;
+                            uy = ceilf((w[0] > w[1] ? w[0] : w[1]) * krfh) * kfh;
+                            t0 = solve(ay, by, y0 - ly, w[1] - w[0]), tx0 = (ax * t0 + bx) * t0 + x0;
+                            for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
+                                ny = y + kfh, t1 = solve(ay, by, y0 - ny, w[1] - w[0]), tx1 = (ax * t1 + bx) * t1 + x0;
+                                w0 = w[0] < y ? y : w[0] > ny ? ny : w[0], w1 = w[1] < y ? y : w[1] > ny ? ny : w[1];
+                                writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, (w1 - w0) * kCoverScale, is, w == ws);
+                            }
                         }
-                    }
+                }
             }
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
