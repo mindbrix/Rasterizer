@@ -204,8 +204,9 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     Transform m = edgeCell.im == kNullIndex ? Transform() : affineTransforms[edgeCell.im];
     thread float *dst = & vert.x0;
     thread float *iys = & vert.iy0;
+    thread bool *as = & vert.a0;
     const device uint16_t *idxes = & edge.i0;
-    float slx = FLT_MAX, sly = FLT_MAX, suy = -FLT_MAX;
+    float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < 2; i++, dst += 6) {
         float x0, y0, x1, y1, x2, y2;
         if (idxes[i] != kNullIndex) {
@@ -232,7 +233,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             } else {
-                float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, at0, at1, bt0, bt1, lx;
+                float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1, lx;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
                 bool flat = abs(ay) < 1e-3;
@@ -241,30 +242,17 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 iys[i] = iy;
                 sly = min(sly, iy), suy = max(suy, iy);
                 
-                cy = y0 - float(cell.ly);
-                if (flat)
-                    at0 = saturate(-cy / by), bt0 = 0.f;
-                else {
-                    d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                    at0 = saturate((-by + r) / ay * 0.5), bt0 = saturate((-by - r) / ay * 0.5);
-                }
-                cy = y0 - float(cell.uy);
-                if (flat)
-                    at1 = saturate(-cy / by), bt1 = 0.f;
-                else {
-                    d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                    at1 = saturate((-by + r) / ay * 0.5), bt1 = saturate((-by - r) / ay * 0.5);
-                }
-                if (at0 != at1) {
-                    lx = min(fma(fma(ax, at0, bx), at0, x0), fma(fma(ax, at1, bx), at1, x0));
-                    slx = min(slx, lx > cell.lx && lx < cell.ux ? lx : FLT_MAX);
-                }
-                if (bt0 != bt1) {
-                    lx = min(fma(fma(ax, bt0, bx), bt0, x0), fma(fma(ax, bt1, bx), bt1, x0));
+                cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
+                t0 = saturate(flat ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
+                cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
+                t1 = saturate(flat ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
+                if (t0 != t1) {
+                    lx = min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0));
                     slx = min(slx, lx > cell.lx && lx < cell.ux ? lx : FLT_MAX);
                 }
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
+//                slx = -FLT_MAX;
             }
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
