@@ -233,7 +233,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             } else {
-                float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1, lx;
+                float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
                 bool flat = abs(ay) < 1e-3;
@@ -246,10 +246,8 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 t0 = saturate(flat ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
                 cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
                 t1 = saturate(flat ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
-                if (t0 != t1) {
-                    lx = min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0));
-                    slx = min(slx, lx > cell.lx && lx < cell.ux ? lx : FLT_MAX);
-                }
+                if (t0 != t1)
+                    slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
 //                slx = -FLT_MAX;
