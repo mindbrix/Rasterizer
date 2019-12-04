@@ -1085,8 +1085,7 @@ struct Rasterizer {
                                 gpu.allocator.countInstance();
                             }
                         }
-                        begin = i, lx = ux = index->x;
-                        cover = winding;
+                        begin = i, lx = ux = index->x, cover = winding = roundf(winding);
                     }
                     int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, _ux = (uint16_t)uxcover[0] & ~0x8000;
                     ux = _ux > ux ? _ux : ux, winding += uxcover[1] * 0.00003051850948f;
