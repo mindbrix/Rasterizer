@@ -18,13 +18,15 @@ struct RasterizerTest {
                 scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
             }
         }
-        if (1) {
+        if (0) {
             Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
             Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(0, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
-            scene.addPath(quadPath, Ra::Transform(), black, 0.f, 0);
             if (0) {
+                scene.addPath(quadPath, Ra::Transform(), black, 0.f, 0);
+            }
+            else {
                 float w = 10;
                 scene.addPath(quadPath, Ra::Transform(), black, w, 0);
                 scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 0, w * 20), black, w, Ra::Scene::kOutlineEndCap);
@@ -33,14 +35,13 @@ struct RasterizerTest {
             }
         }
         if (0) {
-            Ra::Bounds bounds(-200, -200, -100, -100);
+            float w = 400, inset = 1;
+            Ra::Bounds bounds(0, 0, w, w);
             Ra::Path rectPath;  rectPath.ref->addBounds(bounds), rectPath.ref->addBounds(bounds.inset(20, 20));
-            Ra::Path ellipsePath;  ellipsePath.ref->addBounds(bounds), ellipsePath.ref->addEllipse(bounds.inset(20, 20));
-            for (int i = 0; i < 20; i++) {
-                scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 0, i * 200), black, 0.f, Ra::Scene::kFillEvenOdd);
-                scene.addPath(ellipsePath, Ra::Transform(1, 0, 0, 1, 200, i * 200), black, 0.f, Ra::Scene::kFillEvenOdd);
-            }
-                 
+            Ra::Path ellipsePath;
+            for (int i = 0; i < 100; i++)
+                ellipsePath.ref->addEllipse(bounds.inset(i * inset, i * inset));
+            scene.addPath(ellipsePath, Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
             
         }
         if (0)
