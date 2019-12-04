@@ -988,23 +988,21 @@ struct Rasterizer {
             } else
                 indexSegment(x0, y0, x1, y1, is, fast, false);
         }
-        __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
-            float d, r, t;
-            if (fabsf(ay) < 1e-3f)
-                t = -cy / by;
-            else
-                d = by * by - 4.f * ay * cy, r = copysign(sqrtf(d < 0.f ? 0.f : d), sign), t = (-by + r) / ay * 0.5f;
-            return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-        }
-        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
-            float ly, uy, t0, t1, tx0, tx1, y, ny, cover;  int ir;
-            ir = (w0 < w1 ? w0 : w1) * krfh, ly = ir * kfh;
-            uy = ceilf((w0 > w1 ? w0 : w1) * krfh) * kfh;
-            t0 = solve(ay, by, y0 - ly, w1 - w0), tx0 = (ax * t0 + bx) * t0 + x0;
-            for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
-                ny = y + kfh, t1 = solve(ay, by, y0 - ny, w1 - w0), tx1 = (ax * t1 + bx) * t1 + x0;
-                cover = (w1 < y ? y : w1 > ny ? ny : w1) - (w0 < y ? y : w0 > ny ? ny : w0);
-                writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, cover * kCoverScale, is, a);
+        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast, bool a) {
+            if (y0 != y1) {
+                if (fast)
+                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, a);
+                else {
+                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale;  int ir;
+                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                    ir = ly * krfh, y = ir * kfh;
+                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                    for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
+                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, a);
+                }
             }
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
@@ -1029,22 +1027,24 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast, bool a) {
-            if (y0 != y1) {
-                if (fast)
-                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, a);
-                else {
-                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale;  int ir;
-                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
-                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    ir = ly * krfh, y = ir * kfh;
-                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
-                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, a);
-                }
+        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
+            float ly, uy, t0, t1, tx0, tx1, y, ny, cover;  int ir;
+            ir = (w0 < w1 ? w0 : w1) * krfh, ly = ir * kfh;
+            uy = ceilf((w0 > w1 ? w0 : w1) * krfh) * kfh;
+            t0 = solve(ay, by, y0 - ly, w1 - w0), tx0 = (ax * t0 + bx) * t0 + x0;
+            for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
+                ny = y + kfh, t1 = solve(ay, by, y0 - ny, w1 - w0), tx1 = (ax * t1 + bx) * t1 + x0;
+                cover = (w1 < y ? y : w1 > ny ? ny : w1) - (w0 < y ? y : w0 > ny ? ny : w0);
+                writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, cover * kCoverScale, is, a);
             }
+        }
+        __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
+            float d, r, t;
+            if (fabsf(ay) < 1e-3f)
+                t = -cy / by;
+            else
+                d = by * by - 4.f * ay * cy, r = copysign(sqrtf(d < 0.f ? 0.f : d), sign), t = (-by + r) / ay * 0.5f;
+            return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a) {
             if (ix != FLT_MAX)
