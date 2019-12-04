@@ -999,18 +999,19 @@ struct Rasterizer {
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
             float ax, bx, ay, by, it, t, s, iy, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
             int ir;
-            ay = y2 - y1, by = y1 - y0, it = fabsf(ay - by) < 1e-3f ? 1.f : -by / (ay - by);
+            ay = y2 - y1, by = y1 - y0;
             if (fast && (y0 <= y1) == (y1 <= y2))
-                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, it > 0.f);
+                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, fabsf(ay - by) < 1e-3f ? true : by && (by < 0.f) == (ay > by));
             else {
                 ax = x2 - x1, bx = x1 - x0;
                 if (fabsf(bx * ay - by * ax) < 1.f)
-                    indexSegment(x0, y0, x2, y2, is, fast, it > 0.f);
+                    indexSegment(x0, y0, x2, y2, is, fast, fabsf(ay - by) < 1e-3f ? true : by && (by < 0.f) == (ay > by));
                 else {
-                    ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
+                    it = fabsf(ay - by) < 1e-3f ? 1.f : -by / (ay - by);
                     t = it < 0.f ? 0.f : it > 1.f ? 1.f : it, s = 1.f - t;
                     iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                    ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
                     ws[0] = y0, ws[1] = iy, ws[2] = y2;
                     for (float *w = ws, *ew = ws + 2; w < ew; w++)
                         if (w[0] != w[1]) {
