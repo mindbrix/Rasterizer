@@ -822,6 +822,7 @@ struct Rasterizer {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
         count = a < s ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
+        count = 2, dt = 0.5f;
         ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
         ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
         x1 = x0, y1 = y0;
@@ -985,7 +986,7 @@ struct Rasterizer {
                 indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is, fast);
                 px = py = FLT_MAX;
             } else
-                indexSegment(x0, y0, x1, y1, is, fast);
+                indexSegment(x0, y0, x1, y1, is, fast, false);
         }
         __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
@@ -996,18 +997,18 @@ struct Rasterizer {
             return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
-            float ax, bx, ay, by, t, s, iy, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
+            float ax, bx, ay, by, it, t, s, iy, ws[3], ly, uy, y, ny, t0, t1, tx0, tx1, w0, w1;
             int ir;
-            ay = y2 - y1, by = y1 - y0;
+            ay = y2 - y1, by = y1 - y0, it = fabsf(ay - by) < 1e-3f ? 1.f : -by / (ay - by);
             if (fast && (y0 <= y1) == (y1 <= y2))
-                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, fabsf(by) - fabs(0.5f * (y2 - y0)) > -1e-3f);
+                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, it > 0.f);
             else {
                 ax = x2 - x1, bx = x1 - x0;
                 if (fabsf(bx * ay - by * ax) < 1.f)
-                    indexSegment(x0, y0, x2, y2, is, fast);
+                    indexSegment(x0, y0, x2, y2, is, fast, it > 0.f);
                 else {
                     ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
-                    t = fabsf(ay) < 1e-3f ? 1.f : -by / ay * 0.5f, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+                    t = it < 0.f ? 0.f : it > 1.f ? 1.f : it, s = 1.f - t;
                     iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
                     ws[0] = y0, ws[1] = iy, ws[2] = y2;
@@ -1025,10 +1026,10 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
+        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast, bool a) {
             if (y0 != y1) {
                 if (fast)
-                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false);
+                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, a);
                 else {
                     float lx, ux, ly, uy, m, c, y, minx, maxx, scale;  int ir;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -1038,7 +1039,7 @@ struct Rasterizer {
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
-                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, false);
+                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, a);
                 }
             }
         }
@@ -1046,6 +1047,7 @@ struct Rasterizer {
             if (ix != FLT_MAX)
                 lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
+//            cover = 0;
             int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * 0x8000), dst[1] = cover, dst[2] = is;
         }
     };
