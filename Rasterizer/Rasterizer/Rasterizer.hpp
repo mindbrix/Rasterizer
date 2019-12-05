@@ -1009,13 +1009,13 @@ struct Rasterizer {
             float ax, bx, ay, by, it, t, s, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fast && (y0 <= y1) == (y1 <= y2))
-                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, fabsf(ay - by) < 1e-3f ? true : by && (by < 0.f) == (ay > by));
+                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, fabsf(ay - by) < kFlatness ? true : by && (by < 0.f) == (ay > by));
             else {
                 ax = x2 - x1, bx = x1 - x0;
                 if (fabsf(bx * ay - by * ax) < 1.f)
-                    indexSegment(x0, y0, x2, y2, is, fast, fabsf(ay - by) < 1e-3f ? true : by && (by < 0.f) == (ay > by));
+                    indexSegment(x0, y0, x2, y2, is, fast, fabsf(ay - by) < kFlatness ? true : by && (by < 0.f) == (ay > by));
                 else {
-                    it = fabsf(ay - by) < 1e-3f ? 1.f : -by / (ay - by);
+                    it = fabsf(ay - by) < kFlatness ? 1.f : -by / (ay - by);
                     t = it < 0.f ? 0.f : it > 1.f ? 1.f : it, s = 1.f - t;
                     iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
@@ -1040,7 +1040,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
-            if (fabsf(ay) < 1e-3f)
+            if (fabsf(ay) < kFlatness)
                 t = -cy / by;
             else
                 d = by * by - 4.f * ay * cy, r = copysign(sqrtf(d < 0.f ? 0.f : d), sign), t = (-by + r) / ay * 0.5f;

@@ -90,7 +90,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     if (w && (x0 > 0.0 || x1 > 0.0 || x2 > 0.0)) {
         float ay, by, cy, t, s;
         ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), cy = y0 - 0.5 * (w0 + w1);
-        t = abs(ay) < 1e-3 ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w)) / ay * 0.5;
+        t = abs(ay) < kFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w)) / ay * 0.5;
         s = 1.0 - t, w = winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     return w;
@@ -236,16 +236,15 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
-                bool flat = abs(ay) < 1e-3;
-                t = flat ? 1.0 : saturate(ty), s = 1.0 - t;
+                t = abs(ay) < kFlatness ? 1.0 : saturate(ty), s = 1.0 - t;
                 iy = y0 * s * s + y1 * 2.0 * s * t + y2 * t * t;
                 iys[i] = iy;
                 sly = min(sly, iy), suy = max(suy, iy);
                 
                 cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                t0 = saturate(flat ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
+                t0 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
                 cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                t1 = saturate(flat ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
+                t1 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
                 if (t0 != t1)
                     slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
