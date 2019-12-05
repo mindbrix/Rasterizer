@@ -1044,7 +1044,7 @@ struct Rasterizer {
             if (fabsf(ay) < kFlatness)
                 t = -cy / by;
             else
-                d = by * by - 4.f * ay * cy, r = copysign(sqrtf(d < 0.f ? 0.f : d), sign), t = (-by + r) / ay * 0.5f;
+                d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t = (-by + copysign(r, sign)) / ay * 0.5f;
             return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a, bool c) {
