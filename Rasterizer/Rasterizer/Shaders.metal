@@ -225,7 +225,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + n.x1 * m.a + n.y1 * m.c + m.tx)),
                 y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + n.x1 * m.b + n.y1 * m.d + m.ty));
             }
-            if ((!pcurve && !ncurve) || abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1.0)
+            if (!pcurve && !ncurve)
                 dst[2] = FLT_MAX;
             else
                 dst[2] = x1, dst[3] = y1;
@@ -237,7 +237,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
-                t = abs(ay) < kFlatness ? 1.0 : saturate(ty), s = 1.0 - t;
+                t = abs(ay) < kFlatness && (y0 <= y1) == (y1 <= y2) ? 1.0 : saturate(ty), s = 1.0 - t;
                 iy = y0 * s * s + y1 * 2.0 * s * t + y2 * t * t;
                 iys[i] = iy;
                 sly = min(sly, iy), suy = max(suy, iy);

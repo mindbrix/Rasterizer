@@ -987,12 +987,12 @@ struct Rasterizer {
                 indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is, fast);
                 px = py = FLT_MAX;
             } else
-                indexSegment(x0, y0, x1, y1, is, fast, false);
+                indexSegment(x0, y0, x1, y1, is, fast);
         }
-        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast, bool a) {
+        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
             if (y0 != y1) {
                 if (fast)
-                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, a, false);
+                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
                 else {
                     float lx, ux, ly, uy, m, c, y, minx, maxx, scale;  int ir;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -1002,7 +1002,7 @@ struct Rasterizer {
                     minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                     maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                     for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
-                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, a, false);
+                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, false, false);
                 }
             }
         }
@@ -1014,9 +1014,9 @@ struct Rasterizer {
             else {
                 ax = x2 - x1, bx = x1 - x0;
                 if (fabsf(bx * ay - by * ax) < 1.f)
-                    indexSegment(x0, y0, x2, y2, is, fast, fabsf(ay - by) < kFlatness ? true : by && (by < 0.f) == (ay > by));
+                    indexSegment(x0, y0, x2, y2, is, fast);
                 else {
-                    it = fabsf(ay - by) < kFlatness ? 1.f : -by / (ay - by);
+                    it = fabsf(ay - by) < kFlatness && (y0 <= y1) == (y1 <= y2) ? 1.f : -by / (ay - by);
                     t = it < 0.f ? 0.f : it > 1.f ? 1.f : it, s = 1.f - t;
                     iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
