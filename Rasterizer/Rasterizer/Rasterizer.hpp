@@ -947,6 +947,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
+        enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
         bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX; bool pfast;  int is = 0;
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
@@ -1050,7 +1051,7 @@ struct Rasterizer {
             if (ix != FLT_MAX)
                 lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
-            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * 0x8000), dst[1] = cover, dst[2] = is;
+            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
@@ -1087,7 +1088,7 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x, cover = winding = roundf(winding);
                     }
-                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, _ux = (uint16_t)uxcover[0] & ~0x8000;
+                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, _ux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
                     ux = _ux > ux ? _ux : ux, winding += uxcover[1] * 0.00003051850948f;
                 }
                 if (lx != ux) {
@@ -1364,9 +1365,9 @@ struct Rasterizer {
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);
                             for (j = 0; j < inst->quad.count; j++, edge++) {
-                                uxc = uxcovers + is->i * 3, edge->ic = ic | (uint16_t(uxc[0]) & 0x8000 ? GPU::Edge::a0 : 0), edge->i0 = uint16_t(uxc[2]), is++;
+                                uxc = uxcovers + is->i * 3, edge->ic = ic | (uint16_t(uxc[0]) & CurveIndexer::Flags::a ? GPU::Edge::a0 : 0), edge->i0 = uint16_t(uxc[2]), is++;
                                 if (++j < inst->quad.count)
-                                    uxc = uxcovers + is->i * 3, edge->ic |= (uint16_t(uxc[0]) & 0x8000 ? GPU::Edge::a1 : 0), edge->i1 = uint16_t(uxc[2]), is++;
+                                    uxc = uxcovers + is->i * 3, edge->ic |= (uint16_t(uxc[0]) & CurveIndexer::Flags::a ? GPU::Edge::a1 : 0), edge->i1 = uint16_t(uxc[2]), is++;
                                 else
                                     edge->i1 = kNullIndex;
                             }
