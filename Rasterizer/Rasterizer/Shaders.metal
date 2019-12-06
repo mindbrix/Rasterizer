@@ -95,6 +95,28 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     }
     return w;
 }
+float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
+    if (x1 == FLT_MAX)
+        return winding(x0, y0, x2, y2);
+    float w0 = saturate(y0), w2 = saturate(y2), w = 0.0;
+    if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
+        return w2 - w0;
+    float ay, by, cy, t, s, w1;
+    ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0);
+    t = abs(ay) < kFlatness && (y0 <= y1) == (y1 <= y2) ? 1.0 : saturate(-by / ay * 0.5), s = 1.0 - t;
+    w1 = saturate(y0 * s * s + y1 * 2.0 * s * t + y2 * t * t);
+    if (w0 != w1) {
+        cy = y0 - 0.5 * (w0 + w1);
+        t = abs(ay) < kFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w1 - w0)) / ay * 0.5;
+        s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
+    }
+    if (w1 != w2) {
+        cy = y0 - 0.5 * (w1 + w2);
+        t = abs(ay) < kFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w2 - w1)) / ay * 0.5;
+        s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
+    }
+    return w;
+}
 
 #pragma mark - Opaques
 
@@ -135,6 +157,7 @@ struct FastEdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
+    float c0, c1, c2, c3;
 };
 
 vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -169,13 +192,16 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty, vert.x3 += tx, vert.y3 += ty, vert.x4 += tx, vert.y4 += ty;
+    vert.c0 = vert.c1 = vert.c2 = vert.c3 = FLT_MAX;
     return vert;
 }
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    return winding(vert.x0, vert.y0, vert.x1, vert.y1) + winding(vert.x1, vert.y1, vert.x2, vert.y2)
-    + winding(vert.x2, vert.y2, vert.x3, vert.y3) + winding(vert.x3, vert.y3, vert.x4, vert.y4);
+    return quadraticWinding(vert.x0, vert.y0, vert.c0, vert.c0, vert.x1, vert.y1)
+    + quadraticWinding(vert.x1, vert.y1, vert.c1, vert.c1, vert.x2, vert.y2)
+    + quadraticWinding(vert.x2, vert.y2, vert.c2, vert.c2, vert.x3, vert.y3)
+    + quadraticWinding(vert.x3, vert.y3, vert.c3, vert.c3, vert.x4, vert.y4);
 }
 
 #pragma mark - Edges
