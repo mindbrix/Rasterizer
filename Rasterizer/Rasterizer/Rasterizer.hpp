@@ -1007,25 +1007,27 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
-            float ax, bx, ay, by, it, t, s, iy;
-            ay = y2 - y1, by = y1 - y0;
-            if (fast && (y0 <= y1) == (y1 <= y2))
-                writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, fabsf(ay - by) < kFlatness ? true : by && (by < 0.f) == (ay > by), true);
-            else {
-                ax = x2 - x1, bx = x1 - x0;
-                if (fabsf(bx * ay - by * ax) < 1.f)
-                    indexSegment(x0, y0, x2, y2, is, fast);
+            float ax, bx, ay, by, t, s, iy;
+            if ((y0 <= y1) == (y1 <= y2)) {
+                if (fast)
+                    writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, true, true);
                 else {
-                    ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
-                    it = ay == 0.f || (fabsf(ay) < kFlatness && (y0 <= y1) == (y1 <= y2)) ? 1.f : -by / ay * 0.5f;
-                    t = it < 0.f ? 0.f : it > 1.f ? 1.f : it, s = 1.f - t;
-                    iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                    iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                    if (y0 != iy)
-                        writeCurve(y0, iy, ay, by, y0, ax, bx, x0, is, true);
-                    if (iy != y2)
-                        writeCurve(iy, y2, ay, by, y0, ax, bx, x0, is, false);
+                    ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+                    if (fabsf(bx * ay - by * ax) < 1.f)
+                        indexSegment(x0, y0, x2, y2, is, fast);
+                    else
+                        writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
                 }
+            } else {
+                ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
+                ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
+                t = -by / ay * 0.5f, s = 1.f - t;
+                iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
+                iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                if (y0 != iy)
+                    writeCurve(y0, iy, ay, by, y0, ax, bx, x0, is, true);
+                if (iy != y2)
+                    writeCurve(iy, y2, ay, by, y0, ax, bx, x0, is, false);
             }
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
