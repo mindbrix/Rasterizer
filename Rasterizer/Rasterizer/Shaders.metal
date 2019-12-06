@@ -103,7 +103,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
         return w2 - w0;
     float ay, by, cy, t, s, w1;
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0);
-    t = abs(ay) < kFlatness && (y0 <= y1) == (y1 <= y2) ? 1.0 : saturate(-by / ay * 0.5), s = 1.0 - t;
+    t = ay == 0.0 || (abs(ay) < kFlatness && (y0 <= y1) == (y1 <= y2)) ? 1.0 : saturate(-by / ay * 0.5), s = 1.0 - t;
     w1 = saturate(y0 * s * s + y1 * 2.0 * s * t + y2 * t * t);
     if (w0 != w1) {
         cy = y0 - 0.5 * (w0 + w1);
@@ -263,7 +263,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float ay, by, cy, ty, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), ty = -by / ay * 0.5;
-                t = abs(ay) < kFlatness && (y0 <= y1) == (y1 <= y2) ? 1.0 : saturate(ty), s = 1.0 - t;
+                t = ay == 0.0 || (abs(ay) < kFlatness && (y0 <= y1) == (y1 <= y2)) ? 1.0 : saturate(ty), s = 1.0 - t;
                 iy = y0 * s * s + y1 * 2.0 * s * t + y2 * t * t;
                 iys[i] = iy;
                 sly = min(sly, iy), suy = max(suy, iy);

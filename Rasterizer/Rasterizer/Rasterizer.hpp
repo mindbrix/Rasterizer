@@ -1016,11 +1016,11 @@ struct Rasterizer {
                 if (fabsf(bx * ay - by * ax) < 1.f)
                     indexSegment(x0, y0, x2, y2, is, fast);
                 else {
-                    it = fabsf(ay - by) < kFlatness && (y0 <= y1) == (y1 <= y2) ? 1.f : -by / (ay - by);
+                    ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
+                    it = ay == 0.f || (fabsf(ay) < kFlatness && (y0 <= y1) == (y1 <= y2)) ? 1.f : -by / ay * 0.5f;
                     t = it < 0.f ? 0.f : it > 1.f ? 1.f : it, s = 1.f - t;
                     iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
                     iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                    ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
                     if (y0 != iy)
                         writeCurve(y0, iy, ay, by, y0, ax, bx, x0, is, true);
                     if (iy != y2)
