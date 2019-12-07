@@ -260,24 +260,24 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             } else {
-                float ay, by, cy, iy, ax, bx, tx, x, y, d, r, t0, t1;
+                float ay, by, cy, iy, ax, bx, tx, x, y, d, r, t0, t1, sign;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y2 - y1, by = y1 - y0;
                 bool mono = abs(ay) < kFlatness || abs(by) < kFlatness || (ay > 0.0) == (by > 0.0);
-//                as[i] |= mono;
                 iy = mono ? y2 : y0 - by * by / (ay - by);
                 iys[i] = iy, sly = min(sly, iy), suy = max(suy, iy);
                 
+                sign = as[i] ? iy - y0 : y2 - iy;
                 ay -= by, by *= 2.0;
-                cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                t0 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
-                cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
-                t1 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
+                cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
+                t0 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+                cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
+                t1 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
                 if (t0 != t1)
                     slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
-                slx = -FLT_MAX;
+//                slx = -FLT_MAX;
             }
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
