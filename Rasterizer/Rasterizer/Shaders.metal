@@ -263,7 +263,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float ay, by, cy, iy, ax, bx, tx, x, y, d, r, t0, t1, sign;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y2 - y1, by = y1 - y0;
-                bool mono = abs(ay) < kFlatness || abs(by) < kFlatness || (ay > 0.0) == (by > 0.0);
+                bool mono = abs(ay) < kMonotoneFlatness || abs(by) < kMonotoneFlatness || (ay > 0.0) == (by > 0.0);
                 iy = mono ? y2 : y0 - by * by / (ay - by);
                 iys[i] = iy, sly = min(sly, iy), suy = max(suy, iy);
                 
