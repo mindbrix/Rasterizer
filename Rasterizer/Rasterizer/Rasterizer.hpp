@@ -1029,9 +1029,9 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
-            float ly, uy, t0, t1, tx0, tx1, y, ny, cover;  int ir;
-            ir = (w0 < w1 ? w0 : w1) * krfh, ly = ir * kfh;
-            uy = ceilf((w0 > w1 ? w0 : w1) * krfh) * kfh;
+            float ly, uy, t0, t1, tx0, tx1, y, ny, cover;
+            int ir = (w0 < w1 ? w0 : w1) * krfh;
+            ly = ir * kfh, uy = ceilf((w0 > w1 ? w0 : w1) * krfh) * kfh;
             t0 = solve(ay, by, y0 - ly, w1 - w0), tx0 = (ax * t0 + bx) * t0 + x0;
             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                 ny = y + kfh, t1 = solve(ay, by, y0 - ny, w1 - w0), tx1 = (ax * t1 + bx) * t1 + x0;
