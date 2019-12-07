@@ -1007,7 +1007,7 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
-            float ax, bx, ay, by, t, s, iy;
+            float ax, bx, ay, by, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kFlatness || fabsf(by) < kFlatness || (ay > 0.f) == (by > 0.f)) {
                 if (fast)
@@ -1020,11 +1020,8 @@ struct Rasterizer {
                         writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
                 }
             } else {
-                ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
-                ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
-                t = -by / ay * 0.5f, s = 1.f - t;
-                iy = y0 * s * s + y1 * 2.f * s * t + y2 * t * t;
-                iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
+                ay -= by, by *= 2.f, ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
                 if (y0 != iy)
                     writeCurve(y0, iy, ay, by, y0, ax, bx, x0, is, true);
                 if (iy != y2)
