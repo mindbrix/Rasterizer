@@ -1008,11 +1008,12 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
             float ax, bx, ay, by, t, s, iy;
-            if ((y0 <= y1) == (y1 <= y2)) {
+            ay = y2 - y1, by = y1 - y0;
+            if (fabsf(ay) < kFlatness || fabsf(by) < kFlatness || (ay > 0.f) == (by > 0.f)) {
                 if (fast)
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, true, true);
                 else {
-                    ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+                    ax = x2 - x1, bx = x1 - x0;
                     if (fabsf(bx * ay - by * ax) < 1.f)
                         indexSegment(x0, y0, x2, y2, is, fast);
                     else
