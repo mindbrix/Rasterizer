@@ -1021,11 +1021,11 @@ struct Rasterizer {
                 }
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                ay -= by, by *= 2.f, ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
+                ax = x2 - x1, bx = x1 - x0;
                 if (y0 != iy)
-                    writeCurve(y0, iy, ay, by, y0, ax, bx, x0, is, true);
+                    writeCurve(y0, iy, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
                 if (iy != y2)
-                    writeCurve(iy, y2, ay, by, y0, ax, bx, x0, is, false);
+                    writeCurve(iy, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, false);
             }
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
