@@ -260,13 +260,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             } else {
-                float ay, by, cy, iy, ax, bx, tx, x, y, d, r, s, t, t0, t1;
+                float ay, by, cy, iy, ax, bx, tx, x, y, d, r, t0, t1;
                 ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 ay = y2 - y1, by = y1 - y0;
-                t = abs(ay) < kFlatness || abs(by) < kFlatness || (ay > 0.0) == (by > 0.0) ? 1.0 : saturate(-by / (ay - by)), s = 1.0 - t;
-                iy = y0 * s * s + y1 * 2.0 * s * t + y2 * t * t;
-                iys[i] = iy;
-                sly = min(sly, iy), suy = max(suy, iy);
+                bool mono = abs(ay) < kFlatness || abs(by) < kFlatness || (ay > 0.0) == (by > 0.0);
+//                as[i] |= mono;
+                iy = mono ? y2 : y0 - by * by / (ay - by);
+                iys[i] = iy, sly = min(sly, iy), suy = max(suy, iy);
+                
                 ay -= by, by *= 2.0;
                 cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = copysign(1.0, -ay) * sqrt(max(0.0, d));
                 t0 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + (as[i] ? r : -r)) / ay * 0.5);
