@@ -630,7 +630,7 @@ struct Rasterizer {
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
                 } else {
                     CurveIndexer out;  out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
-                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
+                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, CurveIndexer::WriteQuadratic, writeCubic, & out);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
                 }
@@ -944,6 +944,9 @@ struct Rasterizer {
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
         }
+        static void WriteQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
+            ((CurveIndexer *)info)->writeQuadratic(x0, y0, x1, y1, x2, y2, s);
+        }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
             if (x0 != FLT_MAX && (y0 != y1 || curve)) {
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
@@ -951,6 +954,17 @@ struct Rasterizer {
                 index(x0, y0, x1, y1, curve == 1, curve == 2, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
             }
         }
+        void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float s) {
+           float ax, ay, a, x, y;
+           ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
+           if (a < s)
+               writeSegment(x0, y0, x2, y2, 0);
+           else {
+               x = 0.5f * x1 + 0.25f * (x0 + x2), y = 0.5f * y1 + 0.25f * (y0 + y2);
+               writeSegment(x0, y0, x, y, 1);
+               writeSegment(x, y, x2, y2, 2);
+           }
+       }
         __attribute__((always_inline)) void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is, bool fast) {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (useCurves && ncurve) {
