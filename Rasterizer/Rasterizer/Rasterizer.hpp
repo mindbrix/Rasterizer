@@ -630,7 +630,7 @@ struct Rasterizer {
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
                 } else {
                     CurveIndexer out;  out.clip = clip, out.segments = & segments[0], out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
-                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, CurveIndexer::WriteQuadratic, writeCubic, & out);
+                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, CurveIndexer::WriteQuadratic, CurveIndexer::WriteCubic, & out);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments[0].idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     segments[0].idx = segments[0].end;
                 }
@@ -948,10 +948,14 @@ struct Rasterizer {
         static void WriteQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
             ((CurveIndexer *)info)->writeQuadratic(x0, y0, x1, y1, x2, y2, s);
         }
+        static void WriteCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float s) {
+            ((CurveIndexer *)info)->writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, s);
+        }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
             if (y0 != y1 || curve) {
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
                 new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
+//                indexSegment(x0, y0, x1, y1, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
                 index(x0, y0, x1, y1, curve == 1, curve == 2, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
             }
         }
@@ -965,7 +969,10 @@ struct Rasterizer {
                writeSegment(x0, y0, x, y, 1);
                writeSegment(x, y, x2, y2, 2);
            }
-       }
+        }
+        void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float s) {
+            writeQuadratic(x0, y0, (3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3, s);
+        }
         __attribute__((always_inline)) void index(float x0, float y0, float x1, float y1, bool ncurve, bool pcurve, int is, bool fast) {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (useCurves && ncurve) {
