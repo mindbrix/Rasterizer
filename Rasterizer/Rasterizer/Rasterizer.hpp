@@ -956,12 +956,12 @@ struct Rasterizer {
             // pcp = 0.5 * x0 + (x1 - 0.25 * (x0 + x2)), ncp = 0.5 * x2 + (x1 - 0.25 * (x0 + x2))
             if (useCurves && ncurve) {
                 if (px != FLT_MAX)
-                    indexCurve(px, py, 0.5 * px + (x0 - 0.25 * (px + x1)), 0.5 * py + (y0 - 0.25 * (py + y1)), x0, y0, is - 1, pfast);
+                    indexCurve(px, py, 0.5f * px + (x0 - 0.25f * (px + x1)), 0.5f * py + (y0 - 0.25f * (py + y1)), x0, y0, is - 1, pfast);
                 px = x0, py = y0, pfast = fast;
             } else if (useCurves && pcurve) {
-                float ax = x0 - 0.25 * (px + x1), ay = y0 - 0.25 * (py + y1);
-                indexCurve(px, py, 0.5 * px + ax, 0.5 * py + ay, x0, y0, is - 1, pfast);
-                indexCurve(x0, y0, 0.5 * x1 + ax, 0.5 * y1 + ay, x1, y1, is, fast);
+                float ax = x0 - 0.25f * (px + x1), ay = y0 - 0.25f * (py + y1);
+                indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, x0, y0, is - 1, pfast);
+                indexCurve(x0, y0, 0.5f * x1 + ax, 0.5f * y1 + ay, x1, y1, is, fast);
                 px = py = FLT_MAX;
             } else
                 indexSegment(x0, y0, x1, y1, is, fast);
