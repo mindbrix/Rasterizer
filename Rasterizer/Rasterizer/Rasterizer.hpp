@@ -942,13 +942,14 @@ struct Rasterizer {
         Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
+            if (x0 != FLT_MAX)
+                ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
         }
         static void WriteQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
             ((CurveIndexer *)info)->writeQuadratic(x0, y0, x1, y1, x2, y2, s);
         }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (x0 != FLT_MAX && (y0 != y1 || curve)) {
+            if (y0 != y1 || curve) {
                 float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
                 new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
                 index(x0, y0, x1, y1, curve == 1, curve == 2, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
