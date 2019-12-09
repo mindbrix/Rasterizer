@@ -968,7 +968,7 @@ struct Rasterizer {
                 Segment *dst = segments->alloc(2);
                 cx0 = x0, *px0 = (*px0 & ~3) | 1, new (dst++) Segment(cx0, y0, x, y);
                 cx0 = x, *px0 = (*px0 & ~3) | 2, new (dst++) Segment(cx0, y, x2, y2);
-                if (useCurves) {
+                if (useCurves && a > 16.f * s) {
                     ax = x - 0.25f * (x0 + x2), ay = y - 0.25f * (y0 + y2);
                     indexCurve(x0, y0, 0.5f * x0 + ax, 0.5f * y0 + ay, x, y, is++, floorf(y0 * krfh) == floorf(y * krfh));
                     indexCurve(x, y, 0.5f * x2 + ax, 0.5f * y2 + ay, x2, y2, is++, floorf(y * krfh) == floorf(y2 * krfh));
@@ -1004,13 +1004,8 @@ struct Rasterizer {
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
                 if (fast)
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, true, true);
-                else {
-                    ax = x2 - x1, bx = x1 - x0;
-                    if (fabsf(bx * ay - by * ax) < 1.f)
-                        indexSegment(x0, y0, x2, y2, is, fast);
-                    else
-                        writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
-                }
+                else
+                    ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
                 ax = x2 - x1, bx = x1 - x0;
