@@ -946,11 +946,10 @@ struct Rasterizer {
         Segment *dst;  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1);
-        }
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (y0 != y1 || curve)
-                new (dst++) Segment(x0, y0, x1, y1, curve);
+            CurveIndexer *indexer = (CurveIndexer *)info;
+            indexer->writeSegment(x0, y0, x1, y1);
+//            if (y0 != y1 || curve)
+//                new (indexer->dst++) Segment(x0, y0, x1, y1, curve);
         }
         void indexSegments(Segment *begin, Segment *end) {
             for (Segment *s = begin; s < end; s++) {
