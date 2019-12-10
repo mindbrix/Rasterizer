@@ -958,7 +958,7 @@ struct Rasterizer {
         void indexSegments(Segment *begin, Segment *end) {
             for (Segment *s = begin; s < end; s++) {
                 uint32_t curve = *((uint32_t *)& s->x0) & 3;
-                if (curve == 0)
+                if (curve == 0 || !useCurves)
                     indexSegment(s->x0, s->y0, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
                 else if (curve == 1) {
                     if (px != FLT_MAX) {
