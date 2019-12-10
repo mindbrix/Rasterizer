@@ -633,10 +633,9 @@ struct Rasterizer {
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
                 } else {
+                    CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                     Row<Segment> *row = & segments[0];
-                    CurveIndexer out;  out.clip = clip, out.segments = row, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
-                    size_t upper = geometry->upperBound(ctm);
-                    out.dst = row->alloc(upper);
+                    out.dst = row->alloc(geometry->upperBound(ctm));
                     writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
                     row->end = out.dst - row->base;
                     out.indexSegments(row->base + row->idx, out.dst);
@@ -947,8 +946,8 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
-        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX; bool pfast;  int is = 0;
-        Segment *dst;  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
+        bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX;  int is = 0;
+        Segment *dst;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             CurveIndexer *indexer = (CurveIndexer *)info;
