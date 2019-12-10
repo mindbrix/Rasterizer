@@ -943,7 +943,7 @@ struct Rasterizer {
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (x0 != FLT_MAX)
-                ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1, curve);
+                ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1);
         }
         static void WriteQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
             ((CurveIndexer *)info)->writeQuadratic(x0, y0, x1, y1, x2, y2, s);
@@ -951,9 +951,9 @@ struct Rasterizer {
         static void WriteCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float s) {
             ((CurveIndexer *)info)->writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, s);
         }
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (y0 != y1 || curve) {
-                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            if (y0 != y1) {
+                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3);
                 new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
                 indexSegment(x0, y0, x1, y1, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
             }
@@ -962,7 +962,7 @@ struct Rasterizer {
             float ax, ay, a, x, y, cx0;  uint32_t *px0 = (uint32_t *)& cx0;
             ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
             if (a < s)
-                writeSegment(x0, y0, x2, y2, 0);
+                writeSegment(x0, y0, x2, y2);
             else {
                 x = 0.5f * x1 + 0.25f * (x0 + x2), y = 0.5f * y1 + 0.25f * (y0 + y2);
                 Segment *dst = segments->alloc(2);
