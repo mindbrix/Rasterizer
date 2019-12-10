@@ -204,6 +204,10 @@ struct Rasterizer {
     
     struct Segment {
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
+        Segment(float _x0, float _y0, float _x1, float _y1, uint32_t curve) {
+            *((uint32_t *)& x0) = (*((uint32_t *)& _x0) & ~3) | curve;
+            y0 = _y0, x1 = _x1, y1 = _y1;
+        }
         float x0, y0, x1, y1;
     };
     template<typename T>
@@ -939,11 +943,15 @@ struct Rasterizer {
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
         bool useCurves = false;  Bounds clip; float px = FLT_MAX, py = FLT_MAX; bool pfast;  int is = 0;
-        Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
+        Segment *dst;  Row<Segment> *segments;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (x0 != FLT_MAX)
                 ((CurveIndexer *)info)->writeSegment(x0, y0, x1, y1);
+        }
+        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+            if (y0 != y1 || curve)
+                new (dst++) Segment(x0, y0, x1, y1, curve);
         }
         static void WriteQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
             ((CurveIndexer *)info)->writeQuadratic(x0, y0, x1, y1, x2, y2, s);
@@ -953,21 +961,20 @@ struct Rasterizer {
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1) {
-                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3);
-                new (segments->alloc(1)) Segment(cx0, y0, x1, y1);
+                new (segments->alloc(1)) Segment(x0, y0, x1, y1, 0);
                 indexSegment(x0, y0, x1, y1, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
             }
         }
         void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, float s) {
-            float ax, ay, a, x, y, cx0;  uint32_t *px0 = (uint32_t *)& cx0;
+            float ax, ay, a, x, y;
             ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
             if (a < s)
                 writeSegment(x0, y0, x2, y2);
             else {
                 x = 0.5f * x1 + 0.25f * (x0 + x2), y = 0.5f * y1 + 0.25f * (y0 + y2);
                 Segment *dst = segments->alloc(2);
-                cx0 = x0, *px0 = (*px0 & ~3) | 1, new (dst++) Segment(cx0, y0, x, y);
-                cx0 = x, *px0 = (*px0 & ~3) | 2, new (dst++) Segment(cx0, y, x2, y2);
+                new (dst++) Segment(x0, y0, x, y, 1);
+                new (dst++) Segment(x, y, x2, y2, 2);
                 if (useCurves && a > 16.f * s) {
                     ax = x - 0.25f * (x0 + x2), ay = y - 0.25f * (y0 + y2);
                     indexCurve(x0, y0, 0.5f * x0 + ax, 0.5f * y0 + ay, x, y, is++, floorf(y0 * krfh) == floorf(y * krfh));
@@ -979,7 +986,7 @@ struct Rasterizer {
             }
         }
         void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float s) {
-            float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, px = FLT_MAX, py = FLT_MAX, cx0;  uint32_t *px0 = (uint32_t *)& cx0;
+            float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, px = FLT_MAX, py = FLT_MAX;
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
             a = s * (ax * ax + ay * ay + bx * bx + by * by);
@@ -995,7 +1002,7 @@ struct Rasterizer {
                 while (--count) {
                     x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
                     
-                    cx0 = x0, *px0 = (*px0 & ~3) | 1, new (dst++) Segment(cx0, y0, x1, y1);
+                    new (dst++) Segment(x0, y0, x1, y1, 1);
                     if (useCurves) {
                         if (px != FLT_MAX) {
                             ax = x0 - 0.25f * (px + x1), ay = y0 - 0.25f * (py + y1); // px, x0, x1
@@ -1006,7 +1013,7 @@ struct Rasterizer {
                         indexSegment(x0, y0, x1, y1, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
                     x0 = x1, y0 = y1;
                 }
-                cx0 = x0, *px0 = (*px0 & ~3) | 2, new (dst++) Segment(cx0, y0, x3, y3);
+                new (dst++) Segment(x0, y0, x3, y3, 2);
                 
                 if (useCurves) {
                     ax = x0 - 0.25f * (px + x3), ay = y0 - 0.25f * (py + y3);
