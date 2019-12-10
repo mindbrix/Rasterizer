@@ -1051,13 +1051,13 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
-            float ly, uy, t0, t1, itx, tx0, tx1, y, ny, cover;
+            float ly, uy, t0, t1, itx, tx0, tx1, y, ny, cover, sign = w1 < w0 ? -1.f : 1.f;
             int ir = (w0 < w1 ? w0 : w1) * krfh;
             ly = ir * kfh, uy = ceilf((w0 > w1 ? w0 : w1) * krfh) * kfh;
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
-            t0 = solve(ay, by, y0 - ly, w1 - w0), tx0 = (ax * t0 + bx) * t0 + x0;
+            t0 = solve(ay, by, y0 - ly, sign), tx0 = (ax * t0 + bx) * t0 + x0;
             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
-                ny = y + kfh, t1 = solve(ay, by, y0 - ny, w1 - w0), tx1 = (ax * t1 + bx) * t1 + x0;
+                ny = y + kfh, t1 = solve(ay, by, y0 - ny, sign), tx1 = (ax * t1 + bx) * t1 + x0;
                 cover = (w1 < y ? y : w1 > ny ? ny : w1) - (w0 < y ? y : w0 > ny ? ny : w0);
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, cover * kCoverScale, is, a, true);
             }
@@ -1067,7 +1067,7 @@ struct Rasterizer {
             if (fabsf(ay) < kFlatness)
                 t = -cy / by;
             else
-                d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t = (-by + copysign(r, sign)) / ay * 0.5f;
+                d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t = (-by + r * sign) / ay * 0.5f;
             return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a, bool c) {
