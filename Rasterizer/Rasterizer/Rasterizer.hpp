@@ -975,20 +975,18 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
-            if (y0 != y1) {
-                if (fast)
-                    writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
-                else {
-                    float lx, ux, ly, uy, m, c, y, minx, maxx, scale;  int ir;
-                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                    ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
-                    m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                    ir = ly * krfh, y = ir * kfh;
-                    minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                    maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
-                    for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
-                        writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, false, false);
-                }
+            if (fast)
+                writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
+            else {
+                float lx, ux, ly, uy, m, c, y, minx, maxx, scale;  int ir;
+                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                ir = ly * krfh, y = ir * kfh;
+                minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
+                maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                for (; y < uy; y += kfh, minx += m * kfh, maxx += m * kfh, ir++)
+                    writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, ((y + kfh < uy ? y + kfh : uy) - (y > ly ? y : ly)) * scale, is, false, false);
             }
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
