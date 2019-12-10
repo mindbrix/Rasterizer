@@ -979,7 +979,32 @@ struct Rasterizer {
             }
         }
         void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float s) {
-            writeQuadratic(x0, y0, (3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3, s);
+            float dx = 3.f * (x1 - x2) - x0 + x3, dy = 3.f * (y1 - y2) - y0 + y3;
+            if (dx * dx + dy * dy < 1e-2f)
+                writeQuadratic(x0, y0, (3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3, s);
+            else {
+                float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, cx0;  uint32_t *px0 = (uint32_t *)& cx0;
+                cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+                cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+                a = s * (ax * ax + ay * ay + bx * bx + by * by);
+                count = a < s ? 1.f : a < 16.f ? 3.f : 2.f + floorf(sqrtf(sqrtf(a)));
+                dt = 1.f / count, dt2 = dt * dt;
+                bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+                by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+                x1 = x0, y1 = y0;
+                Segment *dst = segments->alloc(count);
+                
+                while (--count) {
+                    x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
+                    
+                    cx0 = x0, *px0 = (*px0 & ~3) | 1, new (dst++) Segment(cx0, y0, x1, y1);
+                    indexSegment(x0, y0, x1, y1, is++, floorf(y0 * krfh) == floorf(y1 * krfh));
+                    
+                    x0 = x1, y0 = y1;
+                }
+                cx0 = x0, *px0 = (*px0 & ~3) | 2, new (dst++) Segment(cx0, y0, x3, y3);
+                indexSegment(x0, y0, x3, y3, is++, floorf(y0 * krfh) == floorf(y3 * krfh));
+            }
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
             if (y0 != y1) {
