@@ -1025,12 +1025,24 @@ struct Rasterizer {
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
 #ifdef RASTERIZER_SIMD
             int i, count = ceilf(uy * krfh) - floor(ly * krfh) + 1;
-            float xs[(count + 3) / 4 * 4];
-            writeRoots((vec4f *)xs, (count + 3) / 4, ay, by, y0 - ir * kfh, sign, ax, bx, x0);
-            for (i = 0, y = ly; y < uy; y = ny, ir++, i++) {
-                ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
-                tx0 = xs[i], tx1 = xs[i + 1];
-                writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
+            count = (count + 2) / 3;
+            vec4f steps = { 0.f, 1.f, 2.f, 3.f }, cy4 = (y0 - ir * kfh) - steps * kfh, ay4 = set4f(ay), by4 = set4f(by), sign4 = set4f(sign), d2a4 = set4f(0.5f / ay), t4, r, x4;
+            bool flat = fabsf(ay) < kFlatness;
+            y = ly;
+            while (count--) {
+                if (flat)
+                    t4 = -cy4 / by4;
+                else {
+                    r = sqrt4f(gzero4f(by4 * by4 - 4.f * ay4 * cy4)) * sign4;
+                    t4 = (-by4 + r) * d2a4;
+                }
+                t4 = sat4f(t4), x4 = (ax * t4 + bx) * t4 + x0;
+                for (i = 0; i < 3 && y < uy; i++, ir++, y = ny) {
+                    ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
+                    tx0 = x4[i], tx1 = x4[i + 1];
+                    writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
+                }
+                cy4 -= 3.f * kfh;
             }
 #else
             t0 = solve(ay, by, y0 - ly, sign), tx0 = (ax * t0 + bx) * t0 + x0;
@@ -1041,23 +1053,6 @@ struct Rasterizer {
             }
 #endif
         }
-#ifdef RASTERIZER_SIMD
-        void writeRoots(vec4f *xs, int count, float ay, float by, float cy, float sign, float ax, float bx, float x0) {
-            vec4f steps = { 0.f, 1.f, 2.f, 3.f }, cy4 = cy - steps * kfh, ay4 = set4f(ay), by4 = set4f(by), sign4 = set4f(sign), d2a4 = set4f(0.5f / ay), t4, r;
-            bool flat = fabsf(ay) < kFlatness;
-            while (count--) {
-                if (flat)
-                    t4 = -cy4 / by4;
-                else {
-                    r = sqrt4f(gzero4f(by4 * by4 - 4.f * ay4 * cy4)) * sign4;
-                    t4 = (-by4 + r) * d2a4;
-                }
-                t4 = sat4f(t4);
-                *xs++ = (ax * t4 + bx) * t4 + x0;
-                cy4 -= 4.f * kfh;
-            }
-        }
-#endif
         float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
             if (fabsf(ay) < kFlatness)
