@@ -11,6 +11,14 @@
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
+#ifdef RASTERIZER_SIMD
+    typedef float vec4f __attribute__((vector_size(16)));
+    typedef uint8_t vec4b __attribute__((vector_size(4)));
+    vec4f sqrt4f(vec4f x) { return _mm_sqrt_ps(x); }
+    vec4f min4f(vec4f a, vec4f b) { return _mm_min_ps(a, b); }
+    vec4f max4f(vec4f a, vec4f b) { return _mm_max_ps(a, b); }
+#endif
+
 struct Rasterizer {
     struct Transform {
         Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
@@ -1019,7 +1027,21 @@ struct Rasterizer {
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
         }
+#ifdef RASTERIZER_SIMD
+        vec4f solve4(float ay, float by, float cy, float sign) {
+            constexpr vec4f zero = { 0.f, 0.f, 0.f, 0.f }, one = { 1.f, 1.f, 1.f, 1.f }, steps = { 0.f, 1.f, 2.f, 3.f };
+            vec4f cy4 = cy - steps * kfh, d, r, t;
+            if (fabsf(ay) < kFlatness)
+                t = -cy4 / by;
+            else
+                d = by * by - 4.f * ay * cy4, r = sqrt4f(max4f(zero, d)), t = (-by + r * sign) / ay * 0.5f;
+            return max4f(zero, min4f(one, t));
+        }
+#endif
         __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
+            #ifdef RASTERIZER_SIMD
+            vec4f t4 = solve4(ay, by, cy, sign);
+            #endif
             float d, r, t;
             if (fabsf(ay) < kFlatness)
                 t = -cy / by;
@@ -1198,9 +1220,6 @@ struct Rasterizer {
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
 #ifdef RASTERIZER_SIMD
-        typedef float vec4f __attribute__((vector_size(16)));
-        typedef uint8_t vec4b __attribute__((vector_size(4)));
-
         vec4f src4 = { src0, src1, src2, 255.f }, alpha4 = { alpha, alpha, alpha, alpha }, mul4 = alpha4 * src4, one4 = { 1.f, 1.f, 1.f, 1.f };
         vec4b bgra = { dst[0], dst[1], dst[2], dst[3] };
         mul4 += __builtin_convertvector(bgra, vec4f) * (one4 - alpha4);
