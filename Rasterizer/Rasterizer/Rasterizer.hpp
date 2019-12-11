@@ -14,6 +14,7 @@
 #ifdef RASTERIZER_SIMD
     typedef float vec4f __attribute__((vector_size(16)));
     typedef uint8_t vec4b __attribute__((vector_size(4)));
+    vec4f set4f(float x)            { return _mm_set1_ps(x); }
     vec4f sqrt4f(vec4f x)           { return _mm_sqrt_ps(x); }
     vec4f sat4f(vec4f a)            { return _mm_max_ps(_mm_set1_ps(0.f), _mm_min_ps(_mm_set1_ps(1.f), a)); }
     vec4f gzero4f(vec4f a)          { return _mm_max_ps(_mm_set1_ps(0.f), a); }
@@ -1023,13 +1024,12 @@ struct Rasterizer {
             int ir = ly * krfh;
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
 #ifdef RASTERIZER_SIMD
-            vec4f t4, x4; int i;
-            i = 0, t4 = solve4(ay, by, y0 - ir * kfh, sign), x4 = (ax * t4 + bx) * t4 + x0;
-            for (y = ly; y < uy; y = ny, ir++, i++) {
+            int i, count = ceilf(uy * krfh) - floor(ly * krfh) + 1;
+            float xs[(count + 3) / 4 * 4];
+            writeRoots((vec4f *)xs, (count + 3) / 4, ay, by, y0 - ir * kfh, sign, ax, bx, x0);
+            for (i = 0, y = ly; y < uy; y = ny, ir++, i++) {
                 ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
-                if (i == 3)
-                    i = 0, t4 = solve4(ay, by, y0 - floorf(y * krfh) * kfh, sign), x4 = (ax * t4 + bx) * t4 + x0;
-                tx0 = x4[i], tx1 = x4[i + 1];
+                tx0 = xs[i], tx1 = xs[i + 1];
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
 #else
@@ -1042,19 +1042,20 @@ struct Rasterizer {
 #endif
         }
 #ifdef RASTERIZER_SIMD
-        __attribute__((always_inline)) vec4f solve4(float ay, float by, float cy, float sign) {
-            vec4f steps = { 0.f, 1.f, 2.f, 3.f };
-            vec4f cy4 = cy - steps * kfh, d, r, t;
-            if (fabsf(ay) < kFlatness)
-                t = -cy4 / by;
-            else {
-                d = by * by - 4.f * ay * cy4;
-                d = gzero4f(d);
-                r = sqrt4f(d) * sign;
-                t = (-by + r) / ay * 0.5f;
+        void writeRoots(vec4f *xs, int count, float ay, float by, float cy, float sign, float ax, float bx, float x0) {
+            vec4f steps = { 0.f, 1.f, 2.f, 3.f }, cy4 = cy - steps * kfh, ay4 = set4f(ay), by4 = set4f(by), sign4 = set4f(sign), d2a4 = set4f(0.5f / ay), t4, r;
+            bool flat = fabsf(ay) < kFlatness;
+            while (count--) {
+                if (flat)
+                    t4 = -cy4 / by4;
+                else {
+                    r = sqrt4f(gzero4f(by4 * by4 - 4.f * ay4 * cy4)) * sign4;
+                    t4 = (-by4 + r) * d2a4;
+                }
+                t4 = sat4f(t4);
+                *xs++ = (ax * t4 + bx) * t4 + x0;
+                cy4 -= 4.f * kfh;
             }
-            t = sat4f(t);
-            return t;
         }
 #endif
         float solve(float ay, float by, float cy, float sign) {
