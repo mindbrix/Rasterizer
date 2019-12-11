@@ -14,9 +14,9 @@
 #ifdef RASTERIZER_SIMD
     typedef float vec4f __attribute__((vector_size(16)));
     typedef uint8_t vec4b __attribute__((vector_size(4)));
-    vec4f sqrt4f(vec4f x) { return _mm_sqrt_ps(x); }
-    vec4f min4f(vec4f a, vec4f b) { return _mm_min_ps(a, b); }
-    vec4f max4f(vec4f a, vec4f b) { return _mm_max_ps(a, b); }
+    __attribute__((always_inline))vec4f sqrt4f(vec4f x) { return _mm_sqrt_ps(x); }
+    __attribute__((always_inline))vec4f min4f(vec4f a, vec4f b) { return _mm_min_ps(a, b); }
+    __attribute__((always_inline))vec4f max4f(vec4f a, vec4f b) { return _mm_max_ps(a, b); }
 #endif
 
 struct Rasterizer {
@@ -981,7 +981,7 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
+        void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
             if (fast)
                 writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
             else {
@@ -998,7 +998,7 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
+        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
@@ -1015,33 +1015,47 @@ struct Rasterizer {
                     writeCurve(iy, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, false);
             }
         }
-        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
+        void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
             float ly, uy, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1;
             int ir = ly * krfh;
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
+#ifdef RASTERIZER_SIMD
+            vec4f t4, x4; int i;
+            i = 0, t4 = solve4(ay, by, y0 - ir * kfh, sign), x4 = (ax * t4 + bx) * t4 + x0;
+            for (y = ly; y < uy; y = ny, ir++, i++) {
+                ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
+                if (i == 3)
+                    i = 0, t4 = solve4(ay, by, y0 - floorf(y * krfh) * kfh, sign), x4 = (ax * t4 + bx) * t4 + x0;
+                tx0 = x4[i], tx1 = x4[i + 1];
+                writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
+            }
+#else
             t0 = solve(ay, by, y0 - ly, sign), tx0 = (ax * t0 + bx) * t0 + x0;
             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                 ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
                 t1 = solve(ay, by, y0 - ny, sign), tx1 = (ax * t1 + bx) * t1 + x0;
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
+#endif
         }
 #ifdef RASTERIZER_SIMD
-        vec4f solve4(float ay, float by, float cy, float sign) {
-            constexpr vec4f zero = { 0.f, 0.f, 0.f, 0.f }, one = { 1.f, 1.f, 1.f, 1.f }, steps = { 0.f, 1.f, 2.f, 3.f };
+        __attribute__((always_inline)) vec4f solve4(float ay, float by, float cy, float sign) {
+            vec4f zero = { 0.f, 0.f, 0.f, 0.f }, one = { 1.f, 1.f, 1.f, 1.f }, steps = { 0.f, 1.f, 2.f, 3.f };
             vec4f cy4 = cy - steps * kfh, d, r, t;
             if (fabsf(ay) < kFlatness)
                 t = -cy4 / by;
-            else
-                d = by * by - 4.f * ay * cy4, r = sqrt4f(max4f(zero, d)), t = (-by + r * sign) / ay * 0.5f;
-            return max4f(zero, min4f(one, t));
+            else {
+                d = by * by - 4.f * ay * cy4;
+                d = max4f(zero, d);
+                r = sqrt4f(d) * sign;
+                t = (-by + r) / ay * 0.5f;
+            }
+            t = min4f(one, t), t = max4f(zero, t);
+            return t;
         }
 #endif
-        __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
-            #ifdef RASTERIZER_SIMD
-            vec4f t4 = solve4(ay, by, cy, sign);
-            #endif
+        float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
             if (fabsf(ay) < kFlatness)
                 t = -cy / by;
