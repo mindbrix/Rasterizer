@@ -11,17 +11,6 @@
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
 
-#ifdef RASTERIZER_SIMD
-    typedef float vec4f __attribute__((vector_size(16)));
-    typedef uint8_t vec4b __attribute__((vector_size(4)));
-    vec4f set4f(float x)            { return _mm_set1_ps(x); }
-    vec4f sqrt4f(vec4f x)           { return _mm_sqrt_ps(x); }
-    vec4f sat4f(vec4f a)            { return _mm_max_ps(_mm_set1_ps(0.f), _mm_min_ps(_mm_set1_ps(1.f), a)); }
-    vec4f gzero4f(vec4f a)          { return _mm_max_ps(_mm_set1_ps(0.f), a); }
-    vec4f min4f(vec4f a, vec4f b)   { return _mm_min_ps(a, b); }
-    vec4f max4f(vec4f a, vec4f b)   { return _mm_max_ps(a, b); }
-#endif
-
 struct Rasterizer {
     struct Transform {
         Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
@@ -984,7 +973,7 @@ struct Rasterizer {
                 }
             }
         }
-        void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
+        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
             if (fast)
                 writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
             else {
@@ -1001,7 +990,7 @@ struct Rasterizer {
                 }
             }
         }
-        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
+        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
@@ -1018,40 +1007,17 @@ struct Rasterizer {
                     writeCurve(iy, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, false);
             }
         }
-        void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
+        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
             float ly, uy, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1;
             int ir = ly * krfh;
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
-#ifdef RASTERIZER_SIMD
-            int i, count = ceilf(uy * krfh) - floor(ly * krfh) + 1;
-            count = (count + 2) / 3;
-            vec4f steps = { 0.f, 1.f, 2.f, 3.f }, cy4 = (y0 - ir * kfh) - steps * kfh, ay4 = set4f(ay), by4 = set4f(by), sign4 = set4f(sign), d2a4 = set4f(0.5f / ay), t4, r, x4;
-            bool flat = fabsf(ay) < kFlatness;
-            y = ly;
-            while (count--) {
-                if (flat)
-                    t4 = -cy4 / by4;
-                else {
-                    r = sqrt4f(gzero4f(by4 * by4 - 4.f * ay4 * cy4)) * sign4;
-                    t4 = (-by4 + r) * d2a4;
-                }
-                t4 = sat4f(t4), x4 = (ax * t4 + bx) * t4 + x0;
-                for (i = 0; i < 3 && y < uy; i++, ir++, y = ny) {
-                    ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
-                    tx0 = x4[i], tx1 = x4[i + 1];
-                    writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
-                }
-                cy4 -= 3.f * kfh;
-            }
-#else
             t0 = solve(ay, by, y0 - ly, sign), tx0 = (ax * t0 + bx) * t0 + x0;
             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                 ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
                 t1 = solve(ay, by, y0 - ny, sign), tx1 = (ax * t1 + bx) * t1 + x0;
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
-#endif
         }
         float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
@@ -1232,6 +1198,8 @@ struct Rasterizer {
     }
     static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
 #ifdef RASTERIZER_SIMD
+        typedef float vec4f __attribute__((vector_size(16)));
+        typedef uint8_t vec4b __attribute__((vector_size(4)));
         vec4f src4 = { src0, src1, src2, 255.f }, alpha4 = { alpha, alpha, alpha, alpha }, mul4 = alpha4 * src4, one4 = { 1.f, 1.f, 1.f, 1.f };
         vec4b bgra = { dst[0], dst[1], dst[2], dst[3] };
         mul4 += __builtin_convertvector(bgra, vec4f) * (one4 - alpha4);
