@@ -14,9 +14,11 @@
 #ifdef RASTERIZER_SIMD
     typedef float vec4f __attribute__((vector_size(16)));
     typedef uint8_t vec4b __attribute__((vector_size(4)));
-    __attribute__((always_inline))vec4f sqrt4f(vec4f x) { return _mm_sqrt_ps(x); }
-    __attribute__((always_inline))vec4f min4f(vec4f a, vec4f b) { return _mm_min_ps(a, b); }
-    __attribute__((always_inline))vec4f max4f(vec4f a, vec4f b) { return _mm_max_ps(a, b); }
+    vec4f sqrt4f(vec4f x)           { return _mm_sqrt_ps(x); }
+    vec4f sat4f(vec4f a)            { return _mm_max_ps(_mm_set1_ps(0.f), _mm_min_ps(_mm_set1_ps(1.f), a)); }
+    vec4f gzero4f(vec4f a)          { return _mm_max_ps(_mm_set1_ps(0.f), a); }
+    vec4f min4f(vec4f a, vec4f b)   { return _mm_min_ps(a, b); }
+    vec4f max4f(vec4f a, vec4f b)   { return _mm_max_ps(a, b); }
 #endif
 
 struct Rasterizer {
@@ -1041,17 +1043,17 @@ struct Rasterizer {
         }
 #ifdef RASTERIZER_SIMD
         __attribute__((always_inline)) vec4f solve4(float ay, float by, float cy, float sign) {
-            vec4f zero = { 0.f, 0.f, 0.f, 0.f }, one = { 1.f, 1.f, 1.f, 1.f }, steps = { 0.f, 1.f, 2.f, 3.f };
+            vec4f steps = { 0.f, 1.f, 2.f, 3.f };
             vec4f cy4 = cy - steps * kfh, d, r, t;
             if (fabsf(ay) < kFlatness)
                 t = -cy4 / by;
             else {
                 d = by * by - 4.f * ay * cy4;
-                d = max4f(zero, d);
+                d = gzero4f(d);
                 r = sqrt4f(d) * sign;
                 t = (-by + r) / ay * 0.5f;
             }
-            t = min4f(one, t), t = max4f(zero, t);
+            t = sat4f(t);
             return t;
         }
 #endif
