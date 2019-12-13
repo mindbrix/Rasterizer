@@ -1019,7 +1019,7 @@ struct Rasterizer {
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
         }
-        float solve(float ay, float by, float cy, float sign) {
+        __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
             float d, r, t;
             if (fabsf(ay) < kFlatness)
                 t = -cy / by;
