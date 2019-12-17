@@ -633,6 +633,9 @@ struct Rasterizer {
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
                 } else {
+                    float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), tx = clip.lx * (1.f - sx) + kClipMargin;
+                    float sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly), ty = clip.ly * (1.f - sy) + kClipMargin;
+                    ctm = Transform(sx, 0.f, 0.f, sy, tx, ty).concat(ctm);
                     CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                     Row<Segment> *row = & segments[0];
                     out.dst = row->alloc(geometry->upperBound(ctm));
