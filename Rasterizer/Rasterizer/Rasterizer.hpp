@@ -959,22 +959,22 @@ struct Rasterizer {
         __attribute__((always_inline)) void indexSegment(Segment *s) {
             uint32_t curve = *((uint32_t *)& s->x0) & 3;
             if (curve == 0 || !useCurves)
-                indexSegment(s->x0, s->y0, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
+                indexLine(s->x0, s->y0, s->x1, s->y1, is++);
             else if (curve == 1) {
                 if (px != FLT_MAX) {
                     float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
-                    indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++, floorf(py * krfh) == floorf(s->y0 * krfh));
+                    indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++);
                 }
                 px = s->x0, py = s->y0;
             } else {
                 float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
-                indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++, floorf(py * krfh) == floorf(s->y0 * krfh));
-                indexCurve(s->x0, s->y0, 0.5f * s->x1 + ax, 0.5f * s->y1 + ay, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
+                indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++);
+                indexCurve(s->x0, s->y0, 0.5f * s->x1 + ax, 0.5f * s->y1 + ay, s->x1, s->y1, is++);
                 px = FLT_MAX;
             }
         }
-        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
-            if (fast)
+        __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1, int is) {
+            if (floorf(y0 * krfh) == floorf(y1 * krfh))
                 writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
             else {
                 float lx, ux, ly, uy, m, c, y, ny, minx, maxx, scale;  int ir;
@@ -990,11 +990,11 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
+        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
-                if (fast)
+                if (floorf(y0 * krfh) == floorf(y2 * krfh))
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, FLT_MAX, (y2 - y0) * kCoverScale, is, true, true);
                 else
                     ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
