@@ -1025,7 +1025,7 @@ struct Rasterizer {
                 t = -cy / by;
             else
                 d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t = (-by + r * sign) / ay * 0.5f;
-            return t < 0.f ? 0.f : t > 1.f ? 1.f : t;
+            return t;
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a, bool c) {
             if (ix != FLT_MAX)
