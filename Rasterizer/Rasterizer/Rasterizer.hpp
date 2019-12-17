@@ -641,7 +641,6 @@ struct Rasterizer {
                     out.dst = row->alloc(geometry->upperBound(ctm));
                     writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
                     row->end = out.dst - row->base;
-                    out.indexSegments(row->base + row->idx, out.dst);
                     writeSegmentInstances(& indices[0], & uxcovers[0], int(row->idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                     row->idx = row->end;
                 }
@@ -949,32 +948,29 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
-        bool useCurves = false;  Bounds clip;
+        bool useCurves = false;  Bounds clip;  float px = FLT_MAX, py = FLT_MAX;  int is = 0;
         Segment *dst;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             CurveIndexer *indexer = (CurveIndexer *)info;
             if (y0 != y1 || curve)
-                new (indexer->dst++) Segment(x0, y0, x1, y1, curve);
+                indexer->indexSegment(new (indexer->dst++) Segment(x0, y0, x1, y1, curve));
         }
-        void indexSegments(Segment *begin, Segment *end) {
-            float px = FLT_MAX, py = FLT_MAX;  int is = 0;
-            for (Segment *s = begin; s < end; s++) {
-                uint32_t curve = *((uint32_t *)& s->x0) & 3;
-                if (curve == 0 || !useCurves)
-                    indexSegment(s->x0, s->y0, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
-                else if (curve == 1) {
-                    if (px != FLT_MAX) {
-                        float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
-                        indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++, floorf(py * krfh) == floorf(s->y0 * krfh));
-                    }
-                    px = s->x0, py = s->y0;
-                } else {
+        __attribute__((always_inline)) void indexSegment(Segment *s) {
+            uint32_t curve = *((uint32_t *)& s->x0) & 3;
+            if (curve == 0 || !useCurves)
+                indexSegment(s->x0, s->y0, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
+            else if (curve == 1) {
+                if (px != FLT_MAX) {
                     float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
                     indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++, floorf(py * krfh) == floorf(s->y0 * krfh));
-                    indexCurve(s->x0, s->y0, 0.5f * s->x1 + ax, 0.5f * s->y1 + ay, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
-                    px = FLT_MAX;
                 }
+                px = s->x0, py = s->y0;
+            } else {
+                float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
+                indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++, floorf(py * krfh) == floorf(s->y0 * krfh));
+                indexCurve(s->x0, s->y0, 0.5f * s->x1 + ax, 0.5f * s->y1 + ay, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
+                px = FLT_MAX;
             }
         }
         __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
