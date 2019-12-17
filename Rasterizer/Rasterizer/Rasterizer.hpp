@@ -956,7 +956,7 @@ struct Rasterizer {
             if (y0 != y1 || curve)
                 indexer->indexSegment(new (indexer->dst++) Segment(x0, y0, x1, y1, curve));
         }
-        __attribute__((always_inline)) void indexSegment(Segment *s) {
+        void indexSegment(Segment *s) {
             uint32_t curve = *((uint32_t *)& s->x0) & 3;
             if (curve == 0 || !useCurves)
                 indexSegment(s->x0, s->y0, s->x1, s->y1, is++, floorf(s->y0 * krfh) == floorf(s->y1 * krfh));
@@ -973,7 +973,7 @@ struct Rasterizer {
                 px = FLT_MAX;
             }
         }
-        __attribute__((always_inline)) void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
+        void indexSegment(float x0, float y0, float x1, float y1, int is, bool fast) {
             if (fast)
                 writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
             else {
@@ -990,7 +990,7 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
+        void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is, bool fast) {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
@@ -1007,27 +1007,27 @@ struct Rasterizer {
                     writeCurve(iy, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, false);
             }
         }
-        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
-            float ly, uy, d2a, d, r, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
-            ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay;
+        void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
+            float ly, uy, d2a, ity, d, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
+            ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign;
             int ir = ly * krfh;
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
             if (fabsf(ay) < kFlatness)
                 t0 = -(y0 - ly) / by;
             else
-                d = by * by - 4.f * ay * (y0 - ly), r = sqrtf(d < 0.f ? 0.f : d), t0 = (-by + r * sign) * d2a;
+                d = by * by - 4.f * ay * (y0 - ly), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
             tx0 = (ax * t0 + bx) * t0 + x0;
             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                 ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
                 if (fabsf(ay) < kFlatness)
                     t1 = -(y0 - ny) / by;
                 else
-                    d = by * by - 4.f * ay * (y0 - ny), r = sqrtf(d < 0.f ? 0.f : d), t1 = (-by + r * sign) * d2a;
+                    d = by * by - 4.f * ay * (y0 - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
                 tx1 = (ax * t1 + bx) * t1 + x0;
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
         }
-        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a, bool c) {
+        void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a, bool c) {
             if (ix != FLT_MAX)
                 lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
