@@ -1008,24 +1008,26 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
-            float ly, uy, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
+            float ly, uy, cy, d, r, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1;
             int ir = ly * krfh;
             itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
-            t0 = solve(ay, by, y0 - ly, sign), tx0 = (ax * t0 + bx) * t0 + x0;
+            cy = y0 - ly;
+            if (fabsf(ay) < kFlatness)
+                t0 = -cy / by;
+            else
+                d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t0 = (-by + r * sign) / ay * 0.5f;
+            tx0 = (ax * t0 + bx) * t0 + x0;
             for (y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                 ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
-                t1 = solve(ay, by, y0 - ny, sign), tx1 = (ax * t1 + bx) * t1 + x0;
+                cy = y0 - ny;
+                if (fabsf(ay) < kFlatness)
+                    t1 = -cy / by;
+                else
+                    d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t1 = (-by + r * sign) / ay * 0.5f;
+                tx1 = (ax * t1 + bx) * t1 + x0;
                 writeIndex(ir, tx0 < tx1 ? tx0 : tx1, tx0 > tx1 ? tx0 : tx1, (t0 <= itx) == (itx <= t1) ? (ax * itx + bx) * itx + x0 : FLT_MAX, sign * (ny - y) * kCoverScale, is, a, true);
             }
-        }
-        __attribute__((always_inline)) float solve(float ay, float by, float cy, float sign) {
-            float d, r, t;
-            if (fabsf(ay) < kFlatness)
-                t = -cy / by;
-            else
-                d = by * by - 4.f * ay * cy, r = sqrtf(d < 0.f ? 0.f : d), t = (-by + r * sign) / ay * 0.5f;
-            return t;
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float ix, int16_t cover, int is, bool a, bool c) {
             if (ix != FLT_MAX)
