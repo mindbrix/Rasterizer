@@ -959,22 +959,22 @@ struct Rasterizer {
             if (y0 != y1 || curve) {
                 new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
                 if (curve == 0 || !idxr->useCurves)
-                    idxr->indexLine(x0, y0, x1, y1, idxr->is++);
+                    idxr->indexLine(x0, y0, x1, y1);
                 else if (curve == 1) {
                     if (idxr->px != FLT_MAX) {
                         float ax = x0 - 0.25f * (idxr->px + x1), ay = y0 - 0.25f * (idxr->py + y1);
-                        idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0, idxr->is++);
+                        idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0);
                     }
                     idxr->px = x0, idxr->py = y0;
                 } else {
                     float ax = x0 - 0.25f * (idxr->px + x1), ay = y0 - 0.25f * (idxr->py + y1);
-                    idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0, idxr->is++);
-                    idxr->indexCurve(x0, y0, 0.5f * x1 + ax, 0.5f * y1 + ay, x1, y1, idxr->is++);
+                    idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0);
+                    idxr->indexCurve(x0, y0, 0.5f * x1 + ax, 0.5f * y1 + ay, x1, y1);
                     idxr->px = FLT_MAX;
                 }
             }
         }
-        __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1, int is) {
+        __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1) {
             if (floorf(y0 * krfh) == floorf(y1 * krfh))
                 writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, FLT_MAX, (y1 - y0) * kCoverScale, is, false, false);
             else {
@@ -990,8 +990,9 @@ struct Rasterizer {
                     writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, FLT_MAX, (ny - y) * scale, is, false, false);
                 }
             }
+            is++;
         }
-        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2, int is) {
+        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
@@ -1007,6 +1008,7 @@ struct Rasterizer {
                 if (iy != y2)
                     writeCurve(iy, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, false);
             }
+            is++;
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
             float ly, uy, d2a, ity, d, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f;
