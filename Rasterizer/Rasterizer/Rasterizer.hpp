@@ -115,7 +115,7 @@ struct Rasterizer {
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
         inline uint64_t cacheHash(Transform ctm) {
-            if (counts[kQuadratic] == 0 && counts[kCubic] == 0)
+            if (counts[kCubic] == 0)
                 return hash;
             float det = bounds.area() * fabsf(ctm.det());
             return hash + (det > 256.f) * ((*((uint32_t *)& det) & 0x7FFFFFFF) >> 24);
