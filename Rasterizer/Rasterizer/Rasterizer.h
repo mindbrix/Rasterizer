@@ -11,6 +11,7 @@
 #define kCoverScale 2047.9375f
 #define kFlatness 1e-3f
 #define kMonotoneFlatness 1e-2f
+#define kFatMask 0xFFFFFFF0
 #define kFatHeight 16
 #define kfh 16.f
 #define krfh 0.0625f
