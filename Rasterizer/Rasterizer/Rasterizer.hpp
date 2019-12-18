@@ -821,8 +821,7 @@ struct Rasterizer {
     static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Function function, void *info, float s) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
         ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
-        count = a < s ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
-        count = 2, dt = 0.5f;
+        count = s == 0.f ? 2.f : (a < s ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a)))), dt = 1.f / count;
         ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt;
         ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt;
         x1 = x0, y1 = y0;

@@ -6,7 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
-#define kQuadraticScale 1e-4f
+#define kQuadraticScale 0.f
 #define kCubicScale 1e-2f
 #define kCoverScale 2047.9375f
 #define kFlatness 1e-3f
