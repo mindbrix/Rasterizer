@@ -955,25 +955,23 @@ struct Rasterizer {
         Segment *dst;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            CurveIndexer *indexer = (CurveIndexer *)info;
-            if (y0 != y1 || curve)
-                indexer->indexSegment(new (indexer->dst++) Segment(x0, y0, x1, y1, curve));
-        }
-        __attribute__((always_inline)) void indexSegment(Segment *s) {
-            uint32_t curve = *((uint32_t *)& s->x0) & 3;
-            if (curve == 0 || !useCurves)
-                indexLine(s->x0, s->y0, s->x1, s->y1, is++);
-            else if (curve == 1) {
-                if (px != FLT_MAX) {
-                    float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
-                    indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++);
+            CurveIndexer *idxr = (CurveIndexer *)info;
+            if (y0 != y1 || curve) {
+                new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
+                if (curve == 0 || !idxr->useCurves)
+                    idxr->indexLine(x0, y0, x1, y1, idxr->is++);
+                else if (curve == 1) {
+                    if (idxr->px != FLT_MAX) {
+                        float ax = x0 - 0.25f * (idxr->px + x1), ay = y0 - 0.25f * (idxr->py + y1);
+                        idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0, idxr->is++);
+                    }
+                    idxr->px = x0, idxr->py = y0;
+                } else {
+                    float ax = x0 - 0.25f * (idxr->px + x1), ay = y0 - 0.25f * (idxr->py + y1);
+                    idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0, idxr->is++);
+                    idxr->indexCurve(x0, y0, 0.5f * x1 + ax, 0.5f * y1 + ay, x1, y1, idxr->is++);
+                    idxr->px = FLT_MAX;
                 }
-                px = s->x0, py = s->y0;
-            } else {
-                float ax = s->x0 - 0.25f * (px + s->x1), ay = s->y0 - 0.25f * (py + s->y1);
-                indexCurve(px, py, 0.5f * px + ax, 0.5f * py + ay, s->x0, s->y0, is++);
-                indexCurve(s->x0, s->y0, 0.5f * s->x1 + ax, 0.5f * s->y1 + ay, s->x1, s->y1, is++);
-                px = FLT_MAX;
             }
         }
         __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1, int is) {
