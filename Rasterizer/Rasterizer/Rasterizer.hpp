@@ -1217,18 +1217,16 @@ struct Rasterizer {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
         static void writeInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             OutlineInfo *in = (OutlineInfo *)info;
-            new (in->dst) GPU::Instance(in->iz, GPU::Instance::Type(in->type));
-            float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-            new (& in->dst->outline.s) Segment(cx0, y0, x1, y1), in->dst->outline.prev = -1, in->dst->outline.next = 1;
-            if (x0 == FLT_MAX) {
-                if (in->dst - in->dst0 > 0) {
-                    GPU::Outline *first = & in->dst0->outline, *last = & (in->dst - 1)->outline;
-                    float dx = first->s.x0 - last->s.x1, dy = first->s.y0 - last->s.y1;
-                    first->prev = dx * dx + dy * dy > 1e-6f ? 0 : (int)(in->dst - in->dst0 - 1), last->next = -first->prev;
-                }
-                in->dst0 = in->dst + 1;
+            if (x0 != FLT_MAX) {
+                new (in->dst) GPU::Instance(in->iz, GPU::Instance::Type(in->type));
+                new (& in->dst->outline.s) Segment(x0, y0, x1, y1, curve), in->dst->outline.prev = -1, in->dst->outline.next = 1;
+                in->dst++;
+            } else if (in->dst - in->dst0 > 0) {
+                GPU::Outline *first = & in->dst0->outline, *last = & (in->dst - 1)->outline;
+                float dx = first->s.x0 - last->s.x1, dy = first->s.y0 - last->s.y1;
+                first->prev = dx * dx + dy * dy > 1e-6f ? 0 : (int)(in->dst - in->dst0 - 1), last->next = -first->prev;
+                in->dst0 = in->dst;
             }
-            in->dst++;
         }
     };
     static size_t writeContextsToBuffer(size_t *izeds,
