@@ -955,8 +955,8 @@ struct Rasterizer {
         Segment *dst;  Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            CurveIndexer *idxr = (CurveIndexer *)info;
             if (y0 != y1 || curve) {
+                CurveIndexer *idxr = (CurveIndexer *)info;
                 new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
                 if (curve == 0 || !idxr->useCurves)
                     idxr->indexLine(x0, y0, x1, y1);
