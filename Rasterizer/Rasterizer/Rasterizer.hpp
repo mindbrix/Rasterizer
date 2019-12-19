@@ -621,9 +621,8 @@ struct Rasterizer {
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
         }
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, Buffer *buffer) {
-            size_t lz, uz, i, clz, cuz, iz, is;
-            Scene *scene = & list.scenes[0];
-            for (lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
+            size_t lz, uz, i, clz, cuz, iz, is;  Scene *scene;
+            for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
