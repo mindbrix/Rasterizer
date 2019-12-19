@@ -1301,9 +1301,8 @@ struct Rasterizer {
             GPU& gpu = contexts[i].gpu;
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
-            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance) + gpu.cache.segments.end * sizeof(Segment);
-            for (j = 0; j < contexts[i].segments.size(); j++)
-                size += contexts[i].segments[j].end * sizeof(Segment);
+            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
+            size += (gpu.cache.segments.end + contexts[i].segments[0].end) * sizeof(Segment);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
