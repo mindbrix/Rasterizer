@@ -620,7 +620,7 @@ struct Rasterizer {
             gpu.allocator.init(width, height);
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;
             Scene *scene = & list.scenes[0];
             for (lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
@@ -641,7 +641,7 @@ struct Rasterizer {
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 if (fast && width == 0.f)
-                                    flags[lz + scene->buffer->pidxs[is]] = true;
+                                    gpu.fasts.base[iz] = true;
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
@@ -1293,7 +1293,6 @@ struct Rasterizer {
                                         Transform *ctms,
                                         Transform *clips,
                                         float *widths,
-                                        uint8_t *flags,
                                         size_t pathsCount,
                                         size_t *begins,
                                         Buffer& buffer) {
@@ -1326,7 +1325,6 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(Context *ctx,
-                                     uint8_t *flags,
                                      Geometry **paths,
                                      size_t begin,
                                      size_t slz, size_t suz,
