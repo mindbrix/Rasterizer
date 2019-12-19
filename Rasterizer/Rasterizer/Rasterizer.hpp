@@ -256,7 +256,7 @@ struct Rasterizer {
                 buffer->midx++, buffer->dst0 = segments.size();
             }
         }
-        size_t dst0 = 0, midx = 0;
+        size_t refCount = 0, dst0 = 0, midx = 0;
         std::vector<Segment> segments;
         std::vector<int16_t> prevs, nexts;
         std::vector<uint32_t> midxs;
@@ -274,13 +274,13 @@ struct Rasterizer {
                 _colors->hash = ::crc64(_colors->hash, & color, sizeof(color));
                 hash = ::crc64(hash, & path->hash, sizeof(path->hash));
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
-                buffer.addPath(path);
+                buffer->addPath(path);
             }
         }
         size_t colorHash() { return _colors->hash; }
         size_t count = 0, weight = 0, hash = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
-        SceneBuffer buffer;
+        Ref<SceneBuffer> buffer;
     private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
@@ -640,7 +640,7 @@ struct Rasterizer {
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 if (fast && width == 0.f)
-                                    flags[lz + scene->buffer.pidxs[is]] = true;
+                                    flags[lz + scene->buffer->pidxs[is]] = true;
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
@@ -680,9 +680,9 @@ struct Rasterizer {
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 if (fast) {
-                    size_t idx0 = scene->buffer.idx0(is), idx1 = scene->buffer.idx1(is);
-                    size_t size = scene->buffer.midxs[idx1 >> 2] - scene->buffer.midxs[idx0 >> 2];
-                    Bounds *mols = & scene->buffer.molecules[scene->buffer.midxs[idx0 >> 2]];
+                    size_t idx0 = scene->buffer->idx0(is), idx1 = scene->buffer->idx1(is);
+                    size_t size = scene->buffer->midxs[idx1 >> 2] - scene->buffer->midxs[idx0 >> 2];
+                    Bounds *mols = & scene->buffer->molecules[scene->buffer->midxs[idx0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
