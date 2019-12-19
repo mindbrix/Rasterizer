@@ -491,12 +491,11 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(),indices.empty(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), indices.reset(), blends.reset(), opaques.reset(), cache.reset(); }
+        void empty() { zero(), blends.empty(), opaques.empty(), cache.compact(); }
+        void reset() { zero(), blends.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
-        Row<Index> indices;
         Row<Instance> blends, opaques;
         Cache cache;
     };
