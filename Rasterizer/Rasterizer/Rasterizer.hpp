@@ -274,11 +274,13 @@ struct Rasterizer {
                 _colors->hash = ::crc64(_colors->hash, & color, sizeof(color));
                 hash = ::crc64(hash, & path->hash, sizeof(path->hash));
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
+                buffer.addPath(path);
             }
         }
         size_t colorHash() { return _colors->hash; }
         size_t count = 0, weight = 0, hash = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
+        SceneBuffer buffer;
     private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
@@ -1327,17 +1329,14 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, sbegins[ctx->segments.size()], size, nsegments = 0, ncells = 0;
+        size_t j, iz, sbegin, size, nsegments = 0, ncells = 0;
         if (slz != suz) {
-            size = ctx->gpu.cache.segments.end;
-            for (j = 0; j < ctx->segments.size(); j++)
-                sbegins[j] = size, size += ctx->segments[j].end;
+            sbegin = ctx->gpu.cache.segments.end, size = ctx->gpu.cache.segments.end + ctx->segments[0].end;
             if (size) {
                 Segment *dst = (Segment *)(buffer.base + begin);
                 if (ctx->gpu.cache.segments.end)
                     memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
-                for (j = 0; j < ctx->segments.size(); j++)
-                    memcpy(dst + sbegins[j], ctx->segments[j].base, ctx->segments[j].end * sizeof(Segment));
+                memcpy(dst + sbegin, ctx->segments[0].base, ctx->segments[0].end * sizeof(Segment));
                 nsegments = begin, begin = begin + size * sizeof(Segment);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
@@ -1384,7 +1383,7 @@ struct Rasterizer {
                             ctm = ctm.concat(e->ctm);
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell;
-                            cell->im = kNullIndex, cell->base = uint32_t(sbegins[0] + inst->quad.base);
+                            cell->im = kNullIndex, cell->base = uint32_t(sbegin + inst->quad.base);
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);
