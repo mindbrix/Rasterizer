@@ -639,7 +639,7 @@ struct Rasterizer {
                             if (bitmap == nullptr) {
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, flags[iz] = fast;
-                                writeGPUPath(paths[iz], ctms[iz], scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
+                                writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
                         }
@@ -664,7 +664,8 @@ struct Rasterizer {
                 }
             }
         }
-        void writeGPUPath(Geometry *geometry, Transform& ctm, uint8_t flags, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped, bool useCurves) {
+        void writeGPUPath(Transform& ctm, Scene *scene, size_t is, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped, bool useCurves) {
+            uint8_t flags = scene->flags[is];  Geometry *geometry = scene->paths[is].ref;
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
