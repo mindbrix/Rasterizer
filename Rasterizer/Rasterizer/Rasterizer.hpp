@@ -215,23 +215,6 @@ struct Rasterizer {
         uint64_t refCount, hash;
         std::vector<T> v;
     };
-    struct Scene {
-        enum Flags { kVisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
-        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
-            if (path->isDrawable) {
-                count++, weight += path->types.size();
-                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag), bounds.extend(Bounds(path->bounds.unit(ctm)).inset(-width, -width));
-                _colors->hash = ::crc64(_colors->hash, & color, sizeof(color));
-                hash = ::crc64(hash, & path->hash, sizeof(path->hash));
-                paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
-            }
-        }
-        size_t colorHash() { return _colors->hash; }
-        size_t count = 0, weight = 0, hash = 0;
-        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
-    private:
-        Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
-    };
     struct SceneBuffer {
         uint32_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
         uint32_t idx1(size_t is) { return ends[pidxs[is]]; }
@@ -281,6 +264,23 @@ struct Rasterizer {
         std::vector<Bounds> bounds, molecules;
         std::vector<uint32_t> pidxs;
         std::unordered_map<size_t, size_t> cache;
+    };
+    struct Scene {
+        enum Flags { kVisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
+        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
+            if (path->isDrawable) {
+                count++, weight += path->types.size();
+                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag), bounds.extend(Bounds(path->bounds.unit(ctm)).inset(-width, -width));
+                _colors->hash = ::crc64(_colors->hash, & color, sizeof(color));
+                hash = ::crc64(hash, & path->hash, sizeof(path->hash));
+                paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
+            }
+        }
+        size_t colorHash() { return _colors->hash; }
+        size_t count = 0, weight = 0, hash = 0;
+        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
+    private:
+        Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     struct SceneList {
         SceneList& empty() {
