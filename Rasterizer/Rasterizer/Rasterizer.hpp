@@ -243,54 +243,21 @@ struct Rasterizer {
     };
     
     struct SceneWriter {
-        SceneBuffer createBuffer(Scene& scene) {
-            for (int i = 0; i < scene.count; i++) {
-                Path path = scene.paths[i];
-                auto it = cache.find(path->hash);
-                if (it != cache.end())
-                    pidxs.emplace_back(it->second);
-                else {
-                    cache.emplace(path->hash, bounds.size());
-                    pidxs.emplace_back(bounds.size());
-                    
-                    midx = molecules.size();
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
-                    ends.emplace_back(segments.size());
-                    bounds.emplace_back(path->bounds);
-                    for (Bounds& m : path->molecules)
-                        molecules.emplace_back(m);
-                }
+        void addPath(Path path) {
+            auto it = cache.find(path->hash);
+            if (it != cache.end())
+                pidxs.emplace_back(it->second);
+            else {
+                cache.emplace(path->hash, bounds.size());
+                pidxs.emplace_back(bounds.size());
+                
+                midx = molecules.size();
+                writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
+                ends.emplace_back(segments.size());
+                bounds.emplace_back(path->bounds);
+                for (Bounds& m : path->molecules)
+                    molecules.emplace_back(m);
             }
-            size_t ssegments, sprevs, snexts, sbounds, smolecules, smidxs, sends, spidxs, size, begin;
-            SceneBuffer buffer;
-            buffer.count = scene.count, buffer.hash = scene.hash;
-            ssegments = segments.size() * sizeof(segments[0]);
-            sprevs = prevs.size() * sizeof(prevs[0]), snexts = nexts.size() * sizeof(nexts[0]);
-            smidxs = midxs.size() * sizeof(midxs[0]), sends = ends.size() * sizeof(ends[0]);
-            sbounds = bounds.size() * sizeof(bounds[0]), smolecules = molecules.size() * sizeof(molecules[0]);
-            spidxs = pidxs.size() * sizeof(pidxs[0]);
-            size = ssegments + sprevs + snexts + smidxs + sends + sbounds + smolecules + spidxs;
-            buffer.size = (size + SceneBuffer::kPageSize - 1) / SceneBuffer::kPageSize * SceneBuffer::kPageSize;
-            posix_memalign((void **)& buffer.base, SceneBuffer::kPageSize, buffer.size);
-            begin = 0;
-            buffer.segments = (Segment *)(buffer.base + begin), begin += ssegments;
-            buffer.prevs = (int16_t *)(buffer.base + begin), begin += sprevs;
-            buffer.nexts = (int16_t *)(buffer.base + begin), begin += snexts;
-            buffer.midxs = (uint32_t *)(buffer.base + begin), begin += smidxs;
-            buffer.ends = (uint32_t *)(buffer.base + begin), begin += sends;
-            buffer.bounds = (Bounds *)(buffer.base + begin), begin += sbounds;
-            buffer.molecules = (Bounds *)(buffer.base + begin), begin += smolecules;
-            buffer.pidxs = (uint32_t *)(buffer.base + begin), begin += spidxs;
-            assert(size == begin);
-            memcpy(buffer.segments, & segments[0], ssegments);
-            memcpy(buffer.prevs, & prevs[0], sprevs);
-            memcpy(buffer.nexts, & nexts[0], snexts);
-            memcpy(buffer.midxs, & midxs[0], smidxs);
-            memcpy(buffer.ends, & ends[0], sends);
-            memcpy(buffer.bounds, & bounds[0], sbounds);
-            memcpy(buffer.molecules, & molecules[0], smolecules);
-            memcpy(buffer.pidxs, & pidxs[0], spidxs);
-            return buffer;
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneWriter *writer = (SceneWriter *)info;
