@@ -638,7 +638,9 @@ struct Rasterizer {
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap == nullptr) {
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, flags[iz] = fast;
+                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                                if (fast && width == 0.f)
+                                    flags[lz + scene->buffer.pidxs[is]] = true;
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
@@ -678,6 +680,9 @@ struct Rasterizer {
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 if (fast) {
+                    size_t idx0 = scene->buffer.idx0(is), idx1 = scene->buffer.idx1(is);
+                    size_t size = scene->buffer.midxs[idx1 >> 2] - scene->buffer.midxs[idx0 >> 2];
+                    Bounds *mols = & scene->buffer.molecules[scene->buffer.midxs[idx0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
