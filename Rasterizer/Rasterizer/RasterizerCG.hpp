@@ -227,7 +227,7 @@ struct RasterizerCG {
                 }
                 count = CGTestContext::kQueueCount;
                 for (i = 0; i < count; i++)
-                    contexts[i].setGPU(state.device.ux, state.device.uy);
+                    contexts[i].setGPU(state.device.ux, state.device.uy, pathsCount);
                 for (i = 0; i < count; i++)
                     threadInfo[i].slz = izs[i], threadInfo[i].suz = izs[i + 1];
             } else {
@@ -241,7 +241,7 @@ struct RasterizerCG {
         } else {
             count = 1;
             if (buffer) {
-                contexts[0].setGPU(state.device.ux, state.device.uy);
+                contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount);
                 izeds[0] = 0, izeds[1] = eiz;
             } else
                 contexts[0].setBitmap(*bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));

@@ -612,7 +612,7 @@ struct Rasterizer {
             deltas.empty(), deltas.alloc((bm.width + 1) * kfh);
             memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
         }
-        void setGPU(size_t width, size_t height) {
+        void setGPU(size_t width, size_t height, size_t pathsCount) {
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
