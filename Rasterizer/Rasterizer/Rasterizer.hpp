@@ -232,7 +232,98 @@ struct Rasterizer {
     private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
+    struct SceneBuffer {
+        static constexpr size_t kPageSize = 4096;
+        uint32_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
+        uint32_t idx1(size_t is) { return ends[pidxs[is]]; }
+
+        uint8_t *base = nullptr;
+        size_t size = 0, count = 0, hash = 0, hitCount = 0;
+        Segment *segments; int16_t *prevs, *nexts; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
+    };
     
+    struct SceneWriter {
+        SceneBuffer createBuffer(Scene& scene) {
+            for (int i = 0; i < scene.count; i++) {
+                Path path = scene.paths[i];
+                auto it = cache.find(path->hash);
+                if (it != cache.end())
+                    pidxs.emplace_back(it->second);
+                else {
+                    cache.emplace(path->hash, bounds.size());
+                    pidxs.emplace_back(bounds.size());
+                    
+                    midx = molecules.size();
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
+                    ends.emplace_back(segments.size());
+                    bounds.emplace_back(path->bounds);
+                    for (Bounds& m : path->molecules)
+                        molecules.emplace_back(m);
+                }
+            }
+            size_t ssegments, sprevs, snexts, sbounds, smolecules, smidxs, sends, spidxs, size, begin;
+            SceneBuffer buffer;
+            buffer.count = scene.count, buffer.hash = scene.hash;
+            ssegments = segments.size() * sizeof(segments[0]);
+            sprevs = prevs.size() * sizeof(prevs[0]), snexts = nexts.size() * sizeof(nexts[0]);
+            smidxs = midxs.size() * sizeof(midxs[0]), sends = ends.size() * sizeof(ends[0]);
+            sbounds = bounds.size() * sizeof(bounds[0]), smolecules = molecules.size() * sizeof(molecules[0]);
+            spidxs = pidxs.size() * sizeof(pidxs[0]);
+            size = ssegments + sprevs + snexts + smidxs + sends + sbounds + smolecules + spidxs;
+            buffer.size = (size + SceneBuffer::kPageSize - 1) / SceneBuffer::kPageSize * SceneBuffer::kPageSize;
+            posix_memalign((void **)& buffer.base, SceneBuffer::kPageSize, buffer.size);
+            begin = 0;
+            buffer.segments = (Segment *)(buffer.base + begin), begin += ssegments;
+            buffer.prevs = (int16_t *)(buffer.base + begin), begin += sprevs;
+            buffer.nexts = (int16_t *)(buffer.base + begin), begin += snexts;
+            buffer.midxs = (uint32_t *)(buffer.base + begin), begin += smidxs;
+            buffer.ends = (uint32_t *)(buffer.base + begin), begin += sends;
+            buffer.bounds = (Bounds *)(buffer.base + begin), begin += sbounds;
+            buffer.molecules = (Bounds *)(buffer.base + begin), begin += smolecules;
+            buffer.pidxs = (uint32_t *)(buffer.base + begin), begin += spidxs;
+            assert(size == begin);
+            memcpy(buffer.segments, & segments[0], ssegments);
+            memcpy(buffer.prevs, & prevs[0], sprevs);
+            memcpy(buffer.nexts, & nexts[0], snexts);
+            memcpy(buffer.midxs, & midxs[0], smidxs);
+            memcpy(buffer.ends, & ends[0], sends);
+            memcpy(buffer.bounds, & bounds[0], sbounds);
+            memcpy(buffer.molecules, & molecules[0], smolecules);
+            memcpy(buffer.pidxs, & pidxs[0], spidxs);
+            return buffer;
+        }
+        static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            SceneWriter *writer = (SceneWriter *)info;
+            std::vector<Segment>& segments = writer->segments;
+            size_t i = segments.size() - writer->dst0;
+            if (x0 != FLT_MAX) {
+                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
+                segments.emplace_back(cx0, y0, x1, y1);
+                writer->prevs.emplace_back(-1), writer->nexts.emplace_back(1);
+                if (i % 4 == 0)
+                    writer->midxs.emplace_back(writer->midx);
+            } else {
+                writer->midx++;
+                if (i > 0) {
+                    Segment& first = segments[writer->dst0], & last = segments[writer->dst0 + i - 1];
+                    float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
+                    size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
+                    writer->prevs[writer->dst0] = offset, writer->nexts[writer->dst0 + i - 1] = -offset;
+                    while (i++ % 4)
+                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), writer->prevs.emplace_back(0), writer->nexts.emplace_back(0);
+                }
+                writer->dst0 = segments.size();
+            }
+        }
+        size_t dst0 = 0, midx = 0;
+        std::vector<Segment> segments;
+        std::vector<int16_t> prevs, nexts;
+        std::vector<uint32_t> midxs;
+        std::vector<uint32_t> ends;
+        std::vector<Bounds> bounds, molecules;
+        std::vector<uint32_t> pidxs;
+        std::unordered_map<size_t, size_t> cache;
+    };
     struct SceneList {
         SceneList& empty() {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
