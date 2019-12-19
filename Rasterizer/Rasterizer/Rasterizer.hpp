@@ -491,11 +491,12 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), blends.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), blends.reset(), opaques.reset(), cache.reset(); }
+        void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(), cache.compact(); }
+        void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
         Allocator allocator;
+        Row<bool> fasts;
         Row<Instance> blends, opaques;
         Cache cache;
     };
@@ -617,6 +618,7 @@ struct Rasterizer {
             if (segments.size() != size)
                 segments.resize(size), indices.resize(size), uxcovers.resize(size);
             gpu.allocator.init(width, height);
+            bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
         }
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, uint8_t *flags, size_t slz, size_t suz, Bitmap *bitmap, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;
