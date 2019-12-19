@@ -1285,7 +1285,8 @@ struct Rasterizer {
             }
         }
     };
-    static size_t writeContextsToBuffer(size_t *izeds,
+    static size_t writeContextsToBuffer(SceneList& list,
+                                        size_t *izeds,
                                         Context *contexts, size_t count,
                                         Colorant *colorants,
                                         Transform *ctms,

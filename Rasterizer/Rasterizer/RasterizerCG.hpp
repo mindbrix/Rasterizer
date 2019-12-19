@@ -249,7 +249,7 @@ struct RasterizerCG {
         }
         if (buffer) {
             std::vector<Ra::Buffer::Entry> entries[count];
-            size_t begins[count], size = Ra::writeContextsToBuffer(izeds, contexts, count, colors, ctms, clips, widths, flags, eiz, begins, *buffer);
+            size_t begins[count], size = Ra::writeContextsToBuffer(list, izeds, contexts, count, colors, ctms, clips, widths, flags, eiz, begins, *buffer);
             if (count == 1)
                 Ra::writeContextToBuffer(contexts, flags, paths, begins[0], 0, pathsCount, entries[0], *buffer);
             else {
