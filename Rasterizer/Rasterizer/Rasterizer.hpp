@@ -233,16 +233,9 @@ struct Rasterizer {
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     struct SceneBuffer {
-        static constexpr size_t kPageSize = 4096;
         uint32_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
         uint32_t idx1(size_t is) { return ends[pidxs[is]]; }
-
-        uint8_t *base = nullptr;
-        size_t size = 0, count = 0, hash = 0, hitCount = 0;
-        Segment *segments; int16_t *prevs, *nexts; uint32_t *midxs, *ends, *pidxs; Bounds *bounds, *molecules;
-    };
-    
-    struct SceneWriter {
+        
         void addPath(Path path) {
             auto it = cache.find(path->hash);
             if (it != cache.end())
@@ -260,26 +253,24 @@ struct Rasterizer {
             }
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            SceneWriter *writer = (SceneWriter *)info;
-            std::vector<Segment>& segments = writer->segments;
-            size_t i = segments.size() - writer->dst0;
+            SceneBuffer *buffer = (SceneBuffer *)info;
+            std::vector<Segment>& segments = buffer->segments;
+            size_t i = segments.size() - buffer->dst0;
             if (x0 != FLT_MAX) {
-                float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-                segments.emplace_back(cx0, y0, x1, y1);
-                writer->prevs.emplace_back(-1), writer->nexts.emplace_back(1);
+                segments.emplace_back(Segment(x0, y0, x1, y1, curve));
+                buffer->prevs.emplace_back(-1), buffer->nexts.emplace_back(1);
                 if (i % 4 == 0)
-                    writer->midxs.emplace_back(writer->midx);
+                    buffer->midxs.emplace_back(buffer->midx);
             } else {
-                writer->midx++;
                 if (i > 0) {
-                    Segment& first = segments[writer->dst0], & last = segments[writer->dst0 + i - 1];
+                    Segment& first = segments[buffer->dst0], & last = segments[buffer->dst0 + i - 1];
                     float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
                     size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
-                    writer->prevs[writer->dst0] = offset, writer->nexts[writer->dst0 + i - 1] = -offset;
+                    buffer->prevs[buffer->dst0] = offset, buffer->nexts[buffer->dst0 + i - 1] = -offset;
                     while (i++ % 4)
-                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), writer->prevs.emplace_back(0), writer->nexts.emplace_back(0);
+                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), buffer->prevs.emplace_back(0), buffer->nexts.emplace_back(0);
                 }
-                writer->dst0 = segments.size();
+                buffer->midx++, buffer->dst0 = segments.size();
             }
         }
         size_t dst0 = 0, midx = 0;
