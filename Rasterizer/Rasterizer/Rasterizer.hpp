@@ -637,11 +637,8 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             if (bitmap == nullptr) {
-                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
-                                if (width)
-                                    flags[iz] = scene->flags[is] | Scene::kVisible;
-                                
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, flags[iz] = fast;
                                 writeGPUPath(paths[iz], ctms[iz], scene->flags[is], clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
