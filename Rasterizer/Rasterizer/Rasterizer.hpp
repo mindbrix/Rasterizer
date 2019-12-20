@@ -216,8 +216,8 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct SceneBuffer {
-        uint32_t idx0(size_t is) { return pidxs[is] == 0 ? 0 : ends[pidxs[is] - 1]; }
-        uint32_t idx1(size_t is) { return ends[pidxs[is]]; }
+        uint32_t idx0(size_t pidx) { return pidx == 0 ? 0 : ends[pidx - 1]; }
+        uint32_t idx1(size_t pidx) { return ends[pidx]; }
         
         void addPath(Path path) {
             auto it = cache.find(path->hash);
@@ -681,7 +681,7 @@ struct Rasterizer {
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 if (fast) {
-                    size_t idx0 = scene->buffer->idx0(is), idx1 = scene->buffer->idx1(is);
+                    size_t pidx = scene->buffer->pidxs[is], idx0 = scene->buffer->idx0(pidx), idx1 = scene->buffer->idx1(pidx);
                     size_t size = scene->buffer->midxs[idx1 >> 2] - scene->buffer->midxs[idx0 >> 2];
                     Bounds *mols = & scene->buffer->molecules[scene->buffer->midxs[idx0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
@@ -1296,7 +1296,7 @@ struct Rasterizer {
                                         size_t *begins,
                                         Buffer& buffer) {
         size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float);
-        size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances;
+        size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances, lz, puz, iz, total = 0;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
@@ -1306,6 +1306,13 @@ struct Rasterizer {
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             size += (gpu.cache.segments.end + contexts[i].segments[0].end) * sizeof(Segment);
+            Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
+            for (lz = 0; scene < uscene; lz += scene->count, scene++) {
+                puz = lz + scene->buffer->bounds.size();
+                for (iz = lz; iz < puz; iz++)
+                    if (gpu.fasts.base[iz])
+                        total += scene->buffer->idx1(iz - lz) - scene->buffer->idx0(iz - lz);
+            }
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
