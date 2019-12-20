@@ -216,8 +216,8 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct SceneBuffer {
-        uint32_t idx0(size_t ip) { return ip == 0 ? 0 : ends[ip - 1]; }
-        uint32_t idx1(size_t ip) { return ends[ip]; }
+        uint32_t i0(size_t ip) { return ip == 0 ? 0 : ends[ip - 1]; }
+        uint32_t i1(size_t ip) { return ends[ip]; }
         
         void addPath(Path path) {
             auto it = cache.find(path->hash);
@@ -681,9 +681,9 @@ struct Rasterizer {
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 if (fast) {
-                    size_t ip = scene->buffer->ips[is], idx0 = scene->buffer->idx0(ip), idx1 = scene->buffer->idx1(ip);
-                    size_t size = scene->buffer->ims[idx1 >> 2] - scene->buffer->ims[idx0 >> 2];
-                    Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[idx0 >> 2]];
+                    size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
+                    size_t size = scene->buffer->ims[i1 >> 2] - scene->buffer->ims[i0 >> 2];
+                    Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[i0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
@@ -1310,7 +1310,7 @@ struct Rasterizer {
             for (lz = 0; scene < uscene; lz += scene->count, scene++)
                 for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
-                        total += scene->buffer->idx1(ip) - scene->buffer->idx0(ip);
+                        total += scene->buffer->i1(ip) - scene->buffer->i0(ip);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
