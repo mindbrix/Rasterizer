@@ -227,7 +227,7 @@ struct Rasterizer {
                 cache.emplace(path->hash, bounds.size());
                 ips.emplace_back(bounds.size());
                 
-                midx = molecules.size();
+                im = molecules.size();
                 writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
                 ends.emplace_back(segments.size());
                 bounds.emplace_back(path->bounds);
@@ -243,7 +243,7 @@ struct Rasterizer {
                 segments.emplace_back(Segment(x0, y0, x1, y1, curve));
                 buffer->prevs.emplace_back(-1), buffer->nexts.emplace_back(1);
                 if (i % 4 == 0)
-                    buffer->ims.emplace_back(buffer->midx);
+                    buffer->ims.emplace_back(buffer->im);
             } else {
                 if (i > 0) {
                     Segment& first = segments[buffer->dst0], & last = segments[buffer->dst0 + i - 1];
@@ -253,10 +253,10 @@ struct Rasterizer {
                     while (i++ % 4)
                         segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), buffer->prevs.emplace_back(0), buffer->nexts.emplace_back(0);
                 }
-                buffer->midx++, buffer->dst0 = segments.size();
+                buffer->im++, buffer->dst0 = segments.size();
             }
         }
-        size_t refCount = 0, dst0 = 0, midx = 0;
+        size_t refCount = 0, dst0 = 0, im = 0;
         std::vector<Segment> segments;
         std::vector<int16_t> prevs, nexts;
         std::vector<uint32_t> ims;
