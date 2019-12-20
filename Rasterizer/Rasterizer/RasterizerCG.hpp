@@ -260,34 +260,30 @@ struct RasterizerCG {
             assert(size >= end);
         }
     }
-    static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, CGContextRef ctx, Ra::Bitmap *bitmap, Ra::Buffer *buffer) {
+    static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
         Ra::SceneList visibles;
         list.writeVisibles(state.view, state.device, visibles);
         size_t pathsCount = visibles.pathsCount;
         if (pathsCount == 0)
             return;
-        if (testScene.rasterizerType == CGTestContext::kCoreGraphics)
-            drawScenes(visibles, state.view, state.device, state.outlineWidth, ctx);
-        else {
-            assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
-            Ra::Geometry **paths = (Ra::Geometry **)malloc(pathsCount * sizeof(Ra::Geometry **));
-            Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
-            Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
-            Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
-            float *widths = (float *)malloc(pathsCount * sizeof(float));
-            
-            Ra::Scene *scene = & visibles.scenes[0];
-            for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->count, scene++)
-                testScene.converter.convert(scene->colorHash(), & scene->colors[0].src0, scene->count, colors + iz);
-            if (state.outlineWidth) {
-                Ra::Colorant black(0, 0, 0, 255);
-                memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
-            }
-            if (state.index != INT_MAX)
-                colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
-            
-            renderScenes(visibles, state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, & testScene.contexts[0], bitmap, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
-            free(paths), free(ctms), free(colors), free(clips), free(widths);
+        assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
+        Ra::Geometry **paths = (Ra::Geometry **)malloc(pathsCount * sizeof(Ra::Geometry **));
+        Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
+        Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
+        Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
+        float *widths = (float *)malloc(pathsCount * sizeof(float));
+        
+        Ra::Scene *scene = & visibles.scenes[0];
+        for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->count, scene++)
+            testScene.converter.convert(scene->colorHash(), & scene->colors[0].src0, scene->count, colors + iz);
+        if (state.outlineWidth) {
+            Ra::Colorant black(0, 0, 0, 255);
+            memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
         }
+        if (state.index != INT_MAX)
+            colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
+        
+        renderScenes(visibles, state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, & testScene.contexts[0], nullptr, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+        free(paths), free(ctms), free(colors), free(clips), free(widths);
     }
 };
