@@ -494,7 +494,7 @@ struct Rasterizer {
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(), cache.compact(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
-        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX;
+        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz;
         Allocator allocator;
         Row<bool> fasts;
         Row<Instance> blends, opaques;
@@ -612,19 +612,20 @@ struct Rasterizer {
             deltas.empty(), deltas.alloc((bm.width + 1) * kfh);
             memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
         }
-        void setGPU(size_t width, size_t height, size_t pathsCount) {
+        void setGPU(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (segments.size() != size)
                 segments.resize(size), indices.resize(size), uxcovers.resize(size);
             gpu.allocator.init(width, height);
+            gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, size_t slz, size_t suz, Bitmap *bitmap, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Bitmap *bitmap, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
-                if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
+                if ((clz = lz < gpu.slz ? gpu.slz : lz > gpu.suz ? gpu.suz : lz) != (cuz = uz < gpu.slz ? gpu.slz : uz > gpu.suz ? gpu.suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
@@ -1286,7 +1287,6 @@ struct Rasterizer {
         }
     };
     static size_t writeContextsToBuffer(SceneList& list,
-                                        size_t *izeds,
                                         Context *contexts, size_t count,
                                         Colorant *colorants,
                                         Transform *ctms,
@@ -1326,12 +1326,11 @@ struct Rasterizer {
     static void writeContextToBuffer(Context *ctx,
                                      Geometry **paths,
                                      size_t begin,
-                                     size_t slz, size_t suz,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, sbegin, size, nsegments = 0, ncells = 0;
-        if (slz != suz) {
+        if (ctx->gpu.slz != ctx->gpu.suz) {
             sbegin = ctx->gpu.cache.segments.end, size = ctx->gpu.cache.segments.end + ctx->segments[0].end;
             if (size) {
                 Segment *dst = (Segment *)(buffer.base + begin);
