@@ -222,10 +222,10 @@ struct Rasterizer {
         void addPath(Path path) {
             auto it = cache.find(path->hash);
             if (it != cache.end())
-                pidxs.emplace_back(it->second);
+                ips.emplace_back(it->second);
             else {
                 cache.emplace(path->hash, bounds.size());
-                pidxs.emplace_back(bounds.size());
+                ips.emplace_back(bounds.size());
                 
                 midx = molecules.size();
                 writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
@@ -262,7 +262,7 @@ struct Rasterizer {
         std::vector<uint32_t> midxs;
         std::vector<uint32_t> ends;
         std::vector<Bounds> bounds, molecules;
-        std::vector<uint32_t> pidxs;
+        std::vector<uint32_t> ips;
         std::unordered_map<size_t, size_t> cache;
     };
     struct Scene {
@@ -641,7 +641,7 @@ struct Rasterizer {
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 if (fast && width == 0.f)
-                                    gpu.fasts.base[lz + scene->buffer->pidxs[is]] = true;
+                                    gpu.fasts.base[lz + scene->buffer->ips[is]] = true;
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
@@ -681,7 +681,7 @@ struct Rasterizer {
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 if (fast) {
-                    size_t ip = scene->buffer->pidxs[is], idx0 = scene->buffer->idx0(ip), idx1 = scene->buffer->idx1(ip);
+                    size_t ip = scene->buffer->ips[is], idx0 = scene->buffer->idx0(ip), idx1 = scene->buffer->idx1(ip);
                     size_t size = scene->buffer->midxs[idx1 >> 2] - scene->buffer->midxs[idx0 >> 2];
                     Bounds *mols = & scene->buffer->molecules[scene->buffer->midxs[idx0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
