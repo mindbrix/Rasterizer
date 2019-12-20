@@ -549,6 +549,7 @@ struct Rasterizer {
                                 Cache::Entry *entry = gpu.cache.getPath(scene->paths[is].ref, m);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                                 inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, scene->paths[is].ref->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.idx = int((i << 16) | is);
+//                                    inst->quad.iy = lz;
                             } else
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
@@ -1079,7 +1080,7 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, puz, ip, lz, size, segbase = 0, totalbase = 0, cellbase = 0;
+        size_t j, iz, puz, ip, lz, size, count, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             size = (ctx->gpu.cache.segments.end + ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             if (size) {
@@ -1088,11 +1089,15 @@ struct Rasterizer {
                     memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
                 memcpy(dst + ctx->gpu.cache.segments.end, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 totalbase = ctx->gpu.cache.segments.end + ctx->segments.end;
+                dst = (Segment *)(buffer.base + begin + totalbase * sizeof(Segment));
                 Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
                 for (lz = 0; scene < uscene; lz += scene->count, scene++)
                    for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
-                       if (ctx->gpu.fasts.base[lz + ip])
-                           ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += scene->buffer->i1(ip) - scene->buffer->i0(ip);
+                       if (ctx->gpu.fasts.base[lz + ip]) {
+                           count = scene->buffer->i1(ip) - scene->buffer->i0(ip);
+                           memcpy(dst, & scene->buffer->segments[scene->buffer->i0(ip)], count * sizeof(Segment));
+                           ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += count, dst += count;
+                       }
                 assert(ctx->gpu.total == (totalbase - (ctx->gpu.cache.segments.end + ctx->segments.end)));
                 segbase = begin, begin = begin + size;
             }
