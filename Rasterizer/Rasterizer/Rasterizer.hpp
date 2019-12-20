@@ -486,7 +486,7 @@ struct Rasterizer {
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(), cache.compact(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(), cache.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
-        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz;
+        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz, total;
         Allocator allocator;
         Row<bool> fasts;
         Row<Instance> blends, opaques;
@@ -1288,7 +1288,7 @@ struct Rasterizer {
                                         size_t *begins,
                                         Buffer& buffer) {
         size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float);
-        size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances, lz, puz, ip, total = 0;
+        size_t size = szcolors + 2 * sztransforms + szwidths, sz, i, j, begin, end, cells, instances, lz, puz, ip;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
@@ -1297,12 +1297,12 @@ struct Rasterizer {
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
-            size += (gpu.cache.segments.end + contexts[i].segments[0].end) * sizeof(Segment);
             Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
-            for (lz = 0; scene < uscene; lz += scene->count, scene++)
+            for (gpu.total = 0, lz = 0; scene < uscene; lz += scene->count, scene++)
                 for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
-                        total += scene->buffer->i1(ip) - scene->buffer->i0(ip);
+                        gpu.total += scene->buffer->i1(ip) - scene->buffer->i0(ip);
+            size += (gpu.cache.segments.end + contexts[i].segments[0].end + gpu.total) * sizeof(Segment);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
@@ -1326,29 +1326,29 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, sbegin, size, nsegments = 0, ncells = 0;
+        size_t j, iz, size, segbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
-            sbegin = ctx->gpu.cache.segments.end, size = ctx->gpu.cache.segments.end + ctx->segments[0].end;
+            size = (ctx->gpu.cache.segments.end + ctx->segments[0].end + ctx->gpu.total) * sizeof(Segment);
             if (size) {
                 Segment *dst = (Segment *)(buffer.base + begin);
                 if (ctx->gpu.cache.segments.end)
                     memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
-                memcpy(dst + sbegin, ctx->segments[0].base, ctx->segments[0].end * sizeof(Segment));
-                nsegments = begin, begin = begin + size * sizeof(Segment);
+                memcpy(dst + ctx->gpu.cache.segments.end, ctx->segments[0].base, ctx->segments[0].end * sizeof(Segment));
+                segbase = begin, begin = begin + size;
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
-                ncells = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
+                cellbase = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
                 
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                    entries.back().segments = nsegments, entries.back().cells = ncells;
+                    entries.back().segments = segbase, entries.back().cells = cellbase;
                 }
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
                     entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                    entries.back().segments = nsegments, entries.back().cells = ncells;
+                    entries.back().segments = segbase, entries.back().cells = cellbase;
                 }
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
@@ -1380,7 +1380,7 @@ struct Rasterizer {
                             ctm = ctm.concat(e->ctm);
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell;
-                            cell->im = kNullIndex, cell->base = uint32_t(sbegin + inst->quad.base);
+                            cell->im = kNullIndex, cell->base = uint32_t(ctx->gpu.cache.segments.end + inst->quad.base);
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);
