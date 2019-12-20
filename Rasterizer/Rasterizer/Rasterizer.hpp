@@ -544,7 +544,7 @@ struct Rasterizer {
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = true;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
-                                size_t size = scene->buffer->ims[i1 >> 2] - scene->buffer->ims[i0 >> 2];
+                                size_t size = 1 + scene->buffer->ims[(i1 - 1) >> 2] - scene->buffer->ims[i0 >> 2];
                                 Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[i0 >> 2]];
                                 Cache::Entry *entry = gpu.cache.getPath(scene->paths[is].ref, m);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
