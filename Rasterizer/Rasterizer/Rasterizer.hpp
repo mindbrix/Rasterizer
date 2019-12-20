@@ -243,7 +243,7 @@ struct Rasterizer {
                 segments.emplace_back(Segment(x0, y0, x1, y1, curve));
                 buffer->prevs.emplace_back(-1), buffer->nexts.emplace_back(1);
                 if (i % 4 == 0)
-                    buffer->midxs.emplace_back(buffer->midx);
+                    buffer->ims.emplace_back(buffer->midx);
             } else {
                 if (i > 0) {
                     Segment& first = segments[buffer->dst0], & last = segments[buffer->dst0 + i - 1];
@@ -259,7 +259,7 @@ struct Rasterizer {
         size_t refCount = 0, dst0 = 0, midx = 0;
         std::vector<Segment> segments;
         std::vector<int16_t> prevs, nexts;
-        std::vector<uint32_t> midxs;
+        std::vector<uint32_t> ims;
         std::vector<uint32_t> ends;
         std::vector<Bounds> bounds, molecules;
         std::vector<uint32_t> ips;
@@ -682,8 +682,8 @@ struct Rasterizer {
             } else {
                 if (fast) {
                     size_t ip = scene->buffer->ips[is], idx0 = scene->buffer->idx0(ip), idx1 = scene->buffer->idx1(ip);
-                    size_t size = scene->buffer->midxs[idx1 >> 2] - scene->buffer->midxs[idx0 >> 2];
-                    Bounds *mols = & scene->buffer->molecules[scene->buffer->midxs[idx0 >> 2]];
+                    size_t size = scene->buffer->ims[idx1 >> 2] - scene->buffer->ims[idx0 >> 2];
+                    Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[idx0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                     inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
