@@ -216,8 +216,8 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct SceneBuffer {
-        uint32_t idx0(size_t pidx) { return pidx == 0 ? 0 : ends[pidx - 1]; }
-        uint32_t idx1(size_t pidx) { return ends[pidx]; }
+        uint32_t idx0(size_t ip) { return ip == 0 ? 0 : ends[ip - 1]; }
+        uint32_t idx1(size_t ip) { return ends[ip]; }
         
         void addPath(Path path) {
             auto it = cache.find(path->hash);
@@ -681,7 +681,7 @@ struct Rasterizer {
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 if (fast) {
-                    size_t pidx = scene->buffer->pidxs[is], idx0 = scene->buffer->idx0(pidx), idx1 = scene->buffer->idx1(pidx);
+                    size_t ip = scene->buffer->pidxs[is], idx0 = scene->buffer->idx0(ip), idx1 = scene->buffer->idx1(ip);
                     size_t size = scene->buffer->midxs[idx1 >> 2] - scene->buffer->midxs[idx0 >> 2];
                     Bounds *mols = & scene->buffer->molecules[scene->buffer->midxs[idx0 >> 2]];
                     Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
