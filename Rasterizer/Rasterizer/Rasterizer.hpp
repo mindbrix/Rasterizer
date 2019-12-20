@@ -641,7 +641,7 @@ struct Rasterizer {
                                 bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                                 ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                                 if (fast && width == 0.f)
-                                    gpu.fasts.base[iz] = true;
+                                    gpu.fasts.base[lz + scene->buffer->pidxs[is]] = true;
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                             } else
                                 writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
