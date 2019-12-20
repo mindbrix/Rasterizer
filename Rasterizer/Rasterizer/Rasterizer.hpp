@@ -497,60 +497,6 @@ struct Rasterizer {
         float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
         new (out->seg) Segment(x0 == FLT_MAX ? x0 : cx0, y0, x1, y1), out->seg++;
     }
-    static void writeClippedSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        if (y0 != y1) {
-            Output *out = (Output *)info;
-            size_t iy0 = y0 * krfh;
-            if (iy0 == size_t(y1 * krfh))
-                new (out->segments[iy0 - out->stride].alloc(1)) Segment(x0, y0, x1, y1);
-            else
-                writeClippedSegmentRows(x0, y0, x1, y1, out);
-        }
-    }
-    static void writeClippedSegmentRows(float x0, float y0, float x1, float y1, Output *out) {
-        float ly, uy, lx, ux, m, c, y, sy[2], sx[2];
-        ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-        lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-        m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-        sy[0] = ly, sx[0] = y0 < y1 ? x0 : x1;
-        Row<Segment> *segments = out->segments + size_t(ly * krfh) - out->stride;
-        int i0 = y0 < y1 ? 0 : 1, i1 = 1 - i0;
-        for (y = floorf(ly * krfh) * kfh; y < uy; y += kfh, sy[0] = sy[1], sx[0] = sx[1], segments++) {
-            sy[1] = y + kfh < uy ? y + kfh : uy;
-            sx[1] = sy[1] * m + c, sx[1] = lx > sx[1] ? lx : sx[1] < ux ? sx[1] : ux;
-            new (segments->alloc(1)) Segment(sx[i0], sy[i0], sx[i1], sy[i1]);
-        }
-    }
-    static void writeDeltaSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        if (y0 != y1) {
-            Output *out = (Output *)info;
-            float scale = copysign(1.f, y1 - y0), tmp, dx, dy, iy0, iy1, sx0, sy0, dxdy, dydx, sx1, sy1, lx, ux, ix0, ix1, cx0, cy0, cx1, cy1, cover, area, last, *delta;
-            if (scale < 0.f)
-                tmp = x0, x0 = x1, x1 = tmp, tmp = y0, y0 = y1, y1 = tmp;
-            dx = x1 - x0, dy = y1 - y0, dxdy = fabsf(dx) / (fabsf(dx) + 1e-4f) * dx / dy;
-            for (sy0 = y0, sx0 = x0, iy0 = floorf(y0), delta = out->deltas + size_t(iy0 * out->stride); iy0 < y1; iy0 = iy1, sy0 = sy1, sx0 = sx1, delta += out->stride) {
-                iy1 = iy0 + 1.f, sy1 = y1 > iy1 ? iy1 : y1, sx1 = x0 + (sy1 - y0) * dxdy;
-                lx = sx0 < sx1 ? sx0 : sx1, ux = sx0 > sx1 ? sx0 : sx1;
-                ix0 = floorf(lx), ix1 = ix0 + 1.f;
-                if (lx >= ix0 && ux <= ix1) {
-                    cover = (sy1 - sy0) * scale, area = (ix1 - (ux + lx) * 0.5f);
-                    delta[int(ix0)] += cover * area;
-                    if (area < 1.f && ix1 < out->stride)
-                        delta[int(ix1)] += cover * (1.f - area);
-                } else {
-                    dydx = fabsf(dy / dx);
-                    for (last = 0.f, cx0 = lx, cy0 = sy0; ix0 <= ux; ix0 = ix1, cx0 = cx1, cy0 = cy1) {
-                        ix1 = ix0 + 1.f, cx1 = ux < ix1 ? ux : ix1, cy1 = sy0 + (cx1 - lx) * dydx;
-                        cover = (cy1 - cy0) * scale, area = (ix1 - (cx0 + cx1) * 0.5f);
-                        delta[int(ix0)] += cover * area + last;
-                        last = cover * (1.f - area);
-                    }
-                    if (ix0 < out->stride)
-                        delta[int(ix0)] += last;
-                }
-            }
-        }
-    }
     struct Bitmap {
         Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
         Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp) : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
