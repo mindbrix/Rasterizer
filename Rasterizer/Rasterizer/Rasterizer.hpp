@@ -541,9 +541,16 @@ struct Rasterizer {
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
                             bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
-                            if (fast && width == 0.f)
+                            if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = true;
-                            writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
+                                size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
+                                size_t size = scene->buffer->ims[i1 >> 2] - scene->buffer->ims[i0 >> 2];
+                                Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[i0 >> 2]];
+                                Cache::Entry *entry = gpu.cache.getPath(scene->paths[is].ref, m);
+                                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, scene->paths[is].ref->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
+                            } else
+                                writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
                     }
                 }
@@ -562,24 +569,15 @@ struct Rasterizer {
                     gpu.outlineUpper += geometry->upperBound(ctm);
                  gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
-                if (fast) {
-                    size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
-                    size_t size = scene->buffer->ims[i1 >> 2] - scene->buffer->ims[i0 >> 2];
-                    Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[i0 >> 2]];
-                    Cache::Entry *entry = gpu.cache.getPath(geometry, ctm);
-                    GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (flags & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                    inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, geometry->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base);
-                } else {
-                    float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), tx = clip.lx * (1.f - sx) + kClipMargin;
-                    float sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly), ty = clip.ly * (1.f - sy) + kClipMargin;
-                    ctm = Transform(sx, 0.f, 0.f, sy, tx, ty).concat(ctm);
-                    CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
-                    out.dst = segments.alloc(geometry->upperBound(ctm));
-                    writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
-                    segments.end = out.dst - segments.base;
-                    writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
-                    segments.idx = segments.end;
-                }
+                float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), tx = clip.lx * (1.f - sx) + kClipMargin;
+                float sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly), ty = clip.ly * (1.f - sy) + kClipMargin;
+                ctm = Transform(sx, 0.f, 0.f, sy, tx, ty).concat(ctm);
+                CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
+                out.dst = segments.alloc(geometry->upperBound(ctm));
+                writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
+                segments.end = out.dst - segments.base;
+                writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
+                segments.idx = segments.end;
             }
         }
         void empty() { gpu.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
