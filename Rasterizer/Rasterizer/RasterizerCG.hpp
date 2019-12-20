@@ -189,76 +189,62 @@ struct RasterizerCG {
         Ra::Colorant *colors;
         float *widths, outlineWidth;
         Ra::Buffer *buffer;
-        Ra::Bitmap *bitmap;
         std::vector<Ra::Buffer::Entry> *entries;
         size_t begin;
         
         static void drawList(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
-            ti->context->drawList(*ti->list, ti->view, ti->paths, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->bitmap, ti->buffer);
+            ti->context->drawList(*ti->list, ti->view, ti->paths, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, nullptr, ti->buffer);
         }
         static void writeContexts(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
             Ra::writeContextToBuffer(ti->context, ti->paths, ti->begin, *ti->entries, *ti->buffer);
         }
     };
-    static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, Ra::Geometry **paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Bitmap *bitmap, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
-        size_t eiz = 0, total = 0, slice, ly, uy, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+    static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, Ra::Geometry **paths, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, float outlineWidth, Ra::Context *contexts, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+        size_t eiz = 0, total = 0, count, divisions = CGTestContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].count, total += list.scenes[j].weight;
         if (buffer)
             buffer->useCurves = state.useCurves;
         ThreadInfo threadInfo[CGTestContext::kQueueCount], *ti = threadInfo;
         if (multithread) {
-            ti->context = contexts, ti->list = & list, ti->view = state.view, ti->paths = paths, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->bitmap = bitmap, ti->buffer = buffer;
+            ti->context = contexts, ti->list = & list, ti->view = state.view, ti->paths = paths, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->outlineWidth = outlineWidth, ti->buffer = buffer;
             for (i = 1; i < CGTestContext::kQueueCount; i++)
                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
-            if (buffer) {
-                izeds[0] = 0, izeds[divisions] = eiz;
-                auto scene = & list.scenes[0];
-                for (count = base = iz = 0, i = 1; i < divisions; i++) {
-                    for (target = total * i / divisions; count < target; iz++) {
-                        if (iz - base == scene->count)
-                            scene++, base = iz;
-                        count += scene->paths[iz - base].ref->types.size();
-                    }
-                    izeds[i] = iz;
+            izeds[0] = 0, izeds[divisions] = eiz;
+            auto scene = & list.scenes[0];
+            for (count = base = iz = 0, i = 1; i < divisions; i++) {
+                for (target = total * i / divisions; count < target; iz++) {
+                    if (iz - base == scene->count)
+                        scene++, base = iz;
+                    count += scene->paths[iz - base].ref->types.size();
                 }
-                count = CGTestContext::kQueueCount;
-                for (i = 0; i < count; i++)
-                    contexts[i].setGPU(state.device.ux, state.device.uy, pathsCount, izs[i], izs[i + 1]);
-            } else {
-                slice = (bitmap->height + CGTestContext::kQueueCount - 1) / CGTestContext::kQueueCount, slice = slice < 64 ? 64 : slice;
-                for (count = ly = 0; ly < bitmap->height; ly = uy, count++) {
-                    uy = ly + slice, uy = uy < bitmap->height ? uy : bitmap->height;
-                    contexts[count].setBitmap(*bitmap, Ra::Bounds(0, ly, bitmap->width, uy));
-                }
+                izeds[i] = iz;
             }
+            count = CGTestContext::kQueueCount;
+            for (i = 0; i < count; i++)
+                contexts[i].setGPU(state.device.ux, state.device.uy, pathsCount, izs[i], izs[i + 1]);
             RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
-            if (buffer)
-                contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount, 0, eiz);
-            else
-                contexts[0].setBitmap(*bitmap, Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX));
-            contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, bitmap, buffer);
+            contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount, 0, eiz);
+            contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, nullptr, buffer);
         }
-        if (buffer) {
-            std::vector<Ra::Buffer::Entry> entries[count];
-            size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
-            if (count == 1)
-                Ra::writeContextToBuffer(contexts, paths, begins[0], entries[0], *buffer);
-            else {
-                for (i = 0; i < count; i++)
-                    threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
-                RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, ThreadInfo::writeContexts, threadInfo, sizeof(ThreadInfo), count);
-            }
-            for (int i = 0; i < count; i++)
-                for (auto entry : entries[i])
-                    *(buffer->entries.alloc(1)) = entry;
-            size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
-            assert(size >= end);
+        std::vector<Ra::Buffer::Entry> entries[count];
+        size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
+        if (count == 1)
+            Ra::writeContextToBuffer(contexts, paths, begins[0], entries[0], *buffer);
+        else {
+            for (i = 0; i < count; i++)
+                threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
+            RasterizerQueue::scheduleAndWait(queues, CGTestContext::kQueueCount, ThreadInfo::writeContexts, threadInfo, sizeof(ThreadInfo), count);
         }
+        for (int i = 0; i < count; i++)
+            for (auto entry : entries[i])
+                *(buffer->entries.alloc(1)) = entry;
+        size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
+        assert(size >= end);
     }
     static void drawTestScene(CGTestContext& testScene, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
         Ra::SceneList visibles;
@@ -283,7 +269,7 @@ struct RasterizerCG {
         if (state.index != INT_MAX)
             colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
         
-        renderScenes(visibles, state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, & testScene.contexts[0], nullptr, buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
+        renderScenes(visibles, state, pathsCount, paths, ctms, colors, clips, widths, state.outlineWidth, & testScene.contexts[0], buffer, testScene.rasterizerType == CGTestContext::kRasterizerMT, testScene.queues);
         free(paths), free(ctms), free(colors), free(clips), free(widths);
     }
 };
