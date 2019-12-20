@@ -324,13 +324,6 @@ struct Rasterizer {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
         int begin, end;
     };
-    struct Output {
-        Output(float *deltas, uint32_t stride) : deltas(deltas), stride(stride) {}
-        Output(Row<Segment> *segments, size_t offset) : segments(segments), stride(uint32_t(offset)) {}
-        Output(Segment *segment) : seg(segment), stride(0) {}
-        union { float *deltas;  Row<Segment> *segments; Segment *seg; };
-        uint32_t stride;
-    };
     struct SegmentCounter {
         size_t count = 0;
         static void increment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -393,9 +386,9 @@ struct Rasterizer {
                 return entries.base + el->index;
             }
             size_t begin = segments.idx, cbegin = counts.idx, upper = geometry->upperBound(ctm);
-            Output seg(segments.alloc(upper));
+            Segment *seg = segments.alloc(upper);
             writePath(geometry, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, writeQuadratic, writeCubic, & seg);
-            segments.end = seg.seg - segments.base;
+            segments.end = seg - segments.base;
             segments.idx = segments.end;
             int *c = counts.alloc(geometry->molecules.size()), bc = 0, instances = 0;
             for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
@@ -493,9 +486,9 @@ struct Rasterizer {
         Cache cache;
     };
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        Output *out = (Output *)info;
+        Segment **seg = ((Segment **)info);
         float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-        new (out->seg) Segment(x0 == FLT_MAX ? x0 : cx0, y0, x1, y1), out->seg++;
+        new (*seg) Segment(x0 == FLT_MAX ? x0 : cx0, y0, x1, y1), (*seg)++;
     }
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
