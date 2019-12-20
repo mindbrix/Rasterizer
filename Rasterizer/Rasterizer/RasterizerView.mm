@@ -5,7 +5,6 @@
 //  Created by Nigel Barber on 16/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#define RASTERIZER_SIMD 1
 #import "RasterizerView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerDB.hpp"
