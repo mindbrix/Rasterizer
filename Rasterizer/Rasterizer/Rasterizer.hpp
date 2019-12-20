@@ -480,7 +480,7 @@ struct Rasterizer {
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz, total;
         Allocator allocator;
-        Row<bool> fasts;
+        Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
         Cache cache;
     };
@@ -521,7 +521,7 @@ struct Rasterizer {
                 indices.resize(size), uxcovers.resize(size);
             gpu.allocator.init(width, height);
             gpu.slz = slz, gpu.suz = suz;
-            bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
+            bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
         void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;  Scene *scene;
@@ -542,7 +542,7 @@ struct Rasterizer {
                             bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                             if (fast && width == 0.f) {
-                                gpu.fasts.base[lz + scene->buffer->ips[is]] = true;
+                                gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
                                 size_t size = 1 + scene->buffer->ims[(i1 - 1) >> 2] - scene->buffer->ims[i0 >> 2];
                                 Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[i0 >> 2]];
