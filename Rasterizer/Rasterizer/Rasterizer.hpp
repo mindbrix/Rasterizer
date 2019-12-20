@@ -584,10 +584,9 @@ struct Rasterizer {
             }
         }
         void empty() { gpu.empty();  for (int i = 0; i < segments.size(); i++) segments[i].empty(), indices[i].empty(), uxcovers[i].empty();  }
-        void reset() { gpu.reset(), deltas.reset(), indices.resize(0), uxcovers.resize(0), segments.resize(0); }
+        void reset() { gpu.reset(), indices.resize(0), uxcovers.resize(0), segments.resize(0); }
         GPU gpu;
         Bounds bounds;
-        Row<float> deltas;
         std::vector<Row<Index>> indices;
         std::vector<Row<int16_t>> uxcovers;
         std::vector<Row<Segment>> segments;
