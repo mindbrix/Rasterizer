@@ -226,8 +226,6 @@ struct Rasterizer {
             else {
                 cache.emplace(path->hash, bounds.size());
                 ips.emplace_back(bounds.size());
-                
-                im = molecules.size();
                 writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
                 ends.emplace_back(segments.size());
                 bounds.emplace_back(path->bounds);
