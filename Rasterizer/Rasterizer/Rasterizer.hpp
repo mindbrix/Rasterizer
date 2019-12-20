@@ -517,8 +517,8 @@ struct Rasterizer {
         void setGPU(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
-            if (segments.size() != size)
-                segments.resize(size), indices.resize(size), uxcovers.resize(size);
+            if (indices.size() != size)
+                indices.resize(size), uxcovers.resize(size);
             gpu.allocator.init(width, height);
             gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
@@ -574,22 +574,21 @@ struct Rasterizer {
                     float sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly), ty = clip.ly * (1.f - sy) + kClipMargin;
                     ctm = Transform(sx, 0.f, 0.f, sy, tx, ty).concat(ctm);
                     CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
-                    Row<Segment> *row = & segments[0];
-                    out.dst = row->alloc(geometry->upperBound(ctm));
+                    out.dst = row.alloc(geometry->upperBound(ctm));
                     writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
-                    row->end = out.dst - row->base;
-                    writeSegmentInstances(& indices[0], & uxcovers[0], int(row->idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
-                    row->idx = row->end;
+                    row.end = out.dst - row.base;
+                    writeSegmentInstances(& indices[0], & uxcovers[0], int(row.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
+                    row.idx = row.end;
                 }
             }
         }
-        void empty() { gpu.empty();  for (int i = 0; i < segments.size(); i++) segments[i].empty(), indices[i].empty(), uxcovers[i].empty();  }
-        void reset() { gpu.reset(), indices.resize(0), uxcovers.resize(0), segments.resize(0); }
+        void empty() { gpu.empty(), row.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
+        void reset() { gpu.reset(), row.reset(), indices.resize(0), uxcovers.resize(0); }
         GPU gpu;
         Bounds bounds;
         std::vector<Row<Index>> indices;
         std::vector<Row<int16_t>> uxcovers;
-        std::vector<Row<Segment>> segments;
+        Row<Segment> row;
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
         float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
@@ -1057,7 +1056,7 @@ struct Rasterizer {
                 for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
                         gpu.total += scene->buffer->i1(ip) - scene->buffer->i0(ip);
-            size += (gpu.cache.segments.end + contexts[i].segments[0].end + gpu.total) * sizeof(Segment);
+            size += (gpu.cache.segments.end + contexts[i].row.end + gpu.total) * sizeof(Segment);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
@@ -1083,12 +1082,12 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, size, segbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
-            size = (ctx->gpu.cache.segments.end + ctx->segments[0].end + ctx->gpu.total) * sizeof(Segment);
+            size = (ctx->gpu.cache.segments.end + ctx->row.end + ctx->gpu.total) * sizeof(Segment);
             if (size) {
                 Segment *dst = (Segment *)(buffer.base + begin);
                 if (ctx->gpu.cache.segments.end)
                     memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
-                memcpy(dst + ctx->gpu.cache.segments.end, ctx->segments[0].base, ctx->segments[0].end * sizeof(Segment));
+                memcpy(dst + ctx->gpu.cache.segments.end, ctx->row.base, ctx->row.end * sizeof(Segment));
                 segbase = begin, begin = begin + size;
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
