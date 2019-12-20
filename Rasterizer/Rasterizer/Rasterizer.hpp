@@ -258,11 +258,9 @@ struct Rasterizer {
         }
         size_t refCount = 0, dst0 = 0, im = 0;
         std::vector<Segment> segments;
-        std::vector<int16_t> prevs, nexts;
-        std::vector<uint32_t> ims;
-        std::vector<uint32_t> ends;
         std::vector<Bounds> bounds, molecules;
-        std::vector<uint32_t> ips;
+        std::vector<int16_t> prevs, nexts;
+        std::vector<uint32_t> ims, ends, ips;
         std::unordered_map<size_t, size_t> cache;
     };
     struct Scene {
