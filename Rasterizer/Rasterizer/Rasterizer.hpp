@@ -583,27 +583,7 @@ struct Rasterizer {
         Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, transforms, clips, widths, sceneCount, tick, pathsCount, size = 0;
     };
-    struct OutlineOutput {
-        Bounds clip;  bool soft;  Transform clipctm;  uint8_t *src;  float width;  bool rounded;  Bitmap *bm;
-        static void writePixels(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            if (x0 != x1 || y0 != y1) {
-                OutlineOutput *out = (OutlineOutput *)info;
-                float cw = out->width < 1.f ? 1.f : out->width;
-                float dx = x1 - x0, dy = y1 - y0, s = cw / sqrtf(dx * dx + dy * dy), vx = -dy * s, vy = dx * s;
-                Transform unit = { -vx, -vy, dx, dy, x0 + 0.5f * vx, y0 + 0.5f * vy };
-                writeOutlinePixels(Bounds(unit).integral().intersect(out->clip), out->soft, out->clipctm, unit, out->width, out->rounded, out->src, out->width / cw, out->bm);
-            }
-        }
-    };
     struct Context {
-        void setBitmap(Bitmap bm, Bounds cl) {
-            bounds = Bounds(0.f, 0.f, bm.width, bm.height).intersect(cl.integral());
-            size_t size = ceilf(float(bm.height) * krfh);
-            if (segments.size() != size)
-                segments.resize(size);
-            deltas.empty(), deltas.alloc((bm.width + 1) * kfh);
-            memset(deltas.base, 0, deltas.end * sizeof(*deltas.base));
-        }
         void setGPU(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
             bounds = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
@@ -613,7 +593,7 @@ struct Rasterizer {
             gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(bool));
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Bitmap *bitmap, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
@@ -629,33 +609,13 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            if (bitmap == nullptr) {
-                                bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                                ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
-                                if (fast && width == 0.f)
-                                    gpu.fasts.base[lz + scene->buffer->ips[is]] = true;
-                                writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
-                            } else
-                                writeBitmapPath(paths[iz], m, scene->flags[is], clip, width, & colors[iz].src0, soft, clipctm, bitmap);
+                            bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                            ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                            if (fast && width == 0.f)
+                                gpu.fasts.base[lz + scene->buffer->ips[is]] = true;
+                            writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
                     }
-                }
-            }
-        }
-        void writeBitmapPath(Geometry *geometry, Transform ctm, uint8_t flags, Bounds clip, float width, uint8_t *src, bool soft, Transform clipctm, Bitmap *bitmap) {
-            if (width) {
-                OutlineOutput out; out.clip = clip, out.soft = soft, out.clipctm = clipctm, out.src = src, out.width = width, out.rounded = flags & Scene::kOutlineRounded, out.bm = bitmap;
-                writePath(geometry, ctm, clip.inset(-width, -width), false, false, true, OutlineOutput::writePixels, writeQuadratic, writeCubic, & out);
-            } else {
-                float w = clip.ux - clip.lx, h = clip.uy - clip.ly, stride = w + 1.f;
-                Output del(deltas.base, stride);
-                if (stride * h < deltas.end) {
-                    writePath(geometry, Transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.tx - clip.lx, ctm.ty - clip.ly), Bounds(0.f, 0.f, w, h), false, true, false, writeDeltaSegment, writeQuadratic, writeCubic, & del);
-                    writeDeltaPixels(& del, clip, soft, clipctm, flags & Scene::kFillEvenOdd, src, bitmap);
-                } else {
-                    Output sgmnts(& segments[0], clip.ly * krfh);
-                    writePath(geometry, ctm, clip, false, true, false, writeClippedSegment, writeQuadratic, writeCubic, & sgmnts);
-                    writeSegmentPixels(& sgmnts, clip, soft, clipctm, flags & Scene::kFillEvenOdd, & del, src, bitmap);
                 }
             }
         }
@@ -1128,140 +1088,6 @@ struct Rasterizer {
                 }
             }
         }
-    }
-    static void writeSegmentPixels(Output *sgmnts, Bounds clip, bool hit, Transform clipctm, bool even, Output *del, uint8_t *src, Bitmap *bitmap) {
-        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i;
-        uint16_t counts[256];
-        bool single = clip.ux - clip.lx < 256.f;
-        uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, ly, uy, scale, cover, lx, ux, x, y, *delta, soft = 1.f;
-        float d[2], w[2], dx[2], dy[2], r, d0, d1, d2, d3;
-        if (hit)
-            writeShapeDistances(clip, clipctm, d, w, dx, dy, & r);
-        Row<Segment> *segments = sgmnts->segments;  Segment *segment;
-        Row<Index> indices;  Index *index;
-        for (iy = ily; iy < iuy; iy++, segments++) {
-            ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-            uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-            if (segments->end) {
-                for (index = indices.alloc(segments->end), segment = segments->base, i = 0; i < segments->end; i++, segment++, index++)
-                    new (index) Index(segment->x0 < segment->x1 ? segment->x0 : segment->x1, i);
-                if (indices.end > 32)
-                    radixSort((uint32_t *)indices.base, int(indices.end), single ? clip.lx : 0, range, single, counts);
-                else
-                    std::sort(indices.base, indices.base + indices.end);
-                for (scale = 1.f / (uy - ly), cover = 0.f, index = indices.base, lx = ux = index->x, i = 0; i < indices.end; i++, index++) {
-                    if (index->x > ux && fabsf(cover - roundf(cover)) < 1e-3f) {
-                        writeDeltaPixels(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
-                        lx = ux, ux = index->x;
-                        if (alphaForCover(cover, even) > 0.998f)
-                            for (delta = del->deltas, y = ly; y < uy; y++, delta += del->stride) {
-                                *delta = cover;
-                                uint8_t *dst = bitmap->pixelAddress(lx, y);
-                                if (src[3] == 255 && !hit)
-                                    memset_pattern4(dst, src, (ux - lx) * bitmap->bytespp);
-                                else
-                                    for (float ix = lx - clip.lx, iy = y - clip.ly; ix < ux - clip.lx; ix++, dst += bitmap->bytespp) {
-                                        if (hit) {
-                                            d0 = d[0] - ix * dx[0] - iy * dy[0], d1 = w[0] - d0,
-                                            d2 = d[1] + ix * dx[1] + iy * dy[1], d3 = w[1] - d2;
-                                            soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
-                                            if (soft > 0.003921568627f)
-                                                writePixel(src0, src1, src2, soft * srcAlpha, dst);
-                                        } else
-                                            writePixel(src0, src1, src2, srcAlpha, dst);
-                                    }
-                            }
-                        lx = ux = index->x;
-                    }
-                    segment = segments->base + index->i;
-                    cover += (segment->y1 - segment->y0) * scale;
-                    x = ceilf(segment->x0 > segment->x1 ? segment->x0 : segment->x1), ux = x > ux ? x : ux;
-                    writeDeltaSegment(segment->x0 - lx, segment->y0 - ly, segment->x1 - lx, segment->y1 - ly, false, del);
-                }
-                writeDeltaPixels(del, Bounds(lx, ly, ux, uy), hit, clipctm, even, src, bitmap);
-                indices.empty();
-                segments->empty();
-            }
-        }
-    }
-    static inline void writeShapeDistances(Bounds clip, Transform m, float d[2], float w[2], float dx[2], float dy[2], float *r) {
-        float det = m.det(), vx = clip.lx + 0.5f - m.tx, vy = clip.ly + 0.5f - m.ty, rcd, rab;
-        rcd = copysign(1.f / sqrtf(m.c * m.c + m.d * m.d), det),
-        rab = copysign(1.f / sqrtf(m.a * m.a + m.b * m.b), det);
-        d[0] = 0.5f - rcd * (m.c * vy - m.d * vx), d[1] = 0.5f + rab * (m.a * vy - m.b * vx);
-        w[0] = 1.f + rcd * det, w[1] = 1.f + rab * det, *r = fmaxf(1.f, fminf(w[0], w[1]) * 0.5f);
-        dx[0] = rcd * -m.d, dy[0] = rcd * m.c, dx[1] = rab * -m.b, dy[1] = rab * m.a;
-    }
-    static void writeDeltaPixels(Output *del, Bounds clip, bool hit, Transform clipctm, bool even, uint8_t *src, Bitmap *bitmap) {
-        float *deltas = del->deltas;
-        if (clip.lx == clip.ux)
-            for (float y = clip.ly; y < clip.uy; y++, deltas += del->stride)
-                *deltas = 0.f;
-        else {
-            float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, d[2], w[2], dx[2], dy[2], r, y, x, cover, alpha, *delta, d0, d1, d2, d3, soft = 1.f;
-            if (hit)
-                writeShapeDistances(clip, clipctm, d, w, dx, dy, & r);
-            uint8_t *rowaddr = bitmap->pixelAddress(clip.lx, clip.ly), *pixel;
-            for (y = 0.f; y < clip.uy - clip.ly; y++, deltas += del->stride, rowaddr -= bitmap->stride, *delta = 0.f)
-                for (cover = alpha = 0.f, delta = deltas, pixel = rowaddr, x = 0.f; x < clip.ux - clip.lx; x++, delta++, pixel += bitmap->bytespp) {
-                    if (*delta)
-                        cover += *delta, *delta = 0.f, alpha = alphaForCover(cover, even);
-                    if (hit) {
-                        d0 = d[0] - (x * dx[0] + y * dy[0]), d1 = w[0] - d0;
-                        d2 = d[1] + (x * dx[1] + y * dy[1]), d3 = w[1] - d2;
-                        soft = (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
-                    }
-                    if (alpha * soft > 0.003921568627f)
-                        writePixel(src0, src1, src2, alpha * soft * srcAlpha, pixel);
-                }
-        }
-    }
-    static void writeOutlinePixels(Bounds clip, bool hit, Transform clipctm, Transform unit, float width, bool circle, uint8_t *src, float f, Bitmap *bitmap) {
-        float src0 = src[0], src1 = src[1], src2 = src[2], srcAlpha = src[3] * 0.003921568627f, cd[2], cw[2], cdx[2], cdy[2], d[2], w[2], dx[2], dy[2], r, m, c, delta, y, vy, lx, ux, sx, x0, x1, x, d0, d1, d2, d3, cd0, cd1, cd2, cd3, cx, cy, m0, m1, alpha;
-        writeShapeDistances(clip, clipctm, cd, cw, cdx, cdy, & r);
-        writeShapeDistances(clip, unit, d, w, dx, dy, & r);
-        m = unit.d == 0.f ? 0.f : unit.c / unit.d, c = (unit.tx + 0.5f * unit.a) - m * (unit.ty + 0.5f * unit.b);
-        delta = 0.5f * width * sqrtf(unit.c * unit.c + unit.d * unit.d) / fabsf(unit.d);
-        sx = m * clip.ly + c, x0 = sx + (m < 0.f ? m : 0.f) - delta, x1 = sx + (m > 0.f ? m : 0.f) + delta;
-        for (vy = 0.f, y = clip.ly; y < clip.uy; y++, vy++, x0 += m, x1 += m) {
-            lx = floorf(x0 < clip.lx ? clip.lx : x0 > clip.ux ? clip.ux : x0);
-            ux = ceilf(x1 < clip.lx ? clip.lx : x1 > clip.ux ? clip.ux : x1);
-            d0 = d[0] - ((lx - clip.lx) * dx[0] + vy * dy[0]), d1 = w[0] - d0;
-            d2 = d[1] + ((lx - clip.lx) * dx[1] + vy * dy[1]), d3 = w[1] - d2;
-            uint8_t *pixel = bitmap->pixelAddress(lx, y);
-            for (x = lx; x < ux; x++, pixel += bitmap->bytespp, d0 -= dx[0], d1 += dx[0], d2 += dx[1], d3 -= dx[1]) {
-                if (circle) {
-                    m0 = d0 < d1 ? d0 : d1, cx = r - (r < m0 ? r : m0), m1 = d2 < d3 ? d2 : d3, cy = r - (r < m1 ? r : m1);
-                    alpha = r - sqrtf(cx * cx + cy * cy), alpha = f * (alpha < 0.f ? 0.f : alpha > 1.f ? 1.f : alpha);
-                } else
-                    alpha = f * (d0 < 0.f ? 0.f : d0 > 1.f ? 1.f : d0) * (d1 < 0.f ? 0.f : d1 > 1.f ? 1.f : d1) * (d2 < 0.f ? 0.f : d2 > 1.f ? 1.f : d2) * (d3 < 0.f ? 0.f : d3 > 1.f ? 1.f : d3);
-                if (hit) {
-                    cd0 = cd[0] - ((x - clip.lx) * cdx[0] + vy * cdy[0]), cd1 = cw[0] - cd0;
-                    cd2 = cd[1] + ((x - clip.lx) * cdx[1] + vy * cdy[1]), cd3 = cw[1] - cd2;
-                    alpha *= (cd0 < 0.f ? 0.f : cd0 > 1.f ? 1.f : cd0) * (cd1 < 0.f ? 0.f : cd1 > 1.f ? 1.f : cd1) * (cd2 < 0.f ? 0.f : cd2 > 1.f ? 1.f : cd2) * (cd3 < 0.f ? 0.f : cd3 > 1.f ? 1.f : cd3);
-                }
-                if (alpha > 0.003921568627f)
-                    writePixel(src0, src1, src2, alpha * srcAlpha, pixel);
-            }
-        }
-    }
-    static inline void writePixel(float src0, float src1, float src2, float alpha, uint8_t *dst) {
-#ifdef RASTERIZER_SIMD
-        typedef float vec4f __attribute__((vector_size(16)));
-        typedef uint8_t vec4b __attribute__((vector_size(4)));
-        vec4f src4 = { src0, src1, src2, 255.f }, alpha4 = { alpha, alpha, alpha, alpha }, mul4 = alpha4 * src4, one4 = { 1.f, 1.f, 1.f, 1.f };
-        vec4b bgra = { dst[0], dst[1], dst[2], dst[3] };
-        mul4 += __builtin_convertvector(bgra, vec4f) * (one4 - alpha4);
-        *((vec4b *)dst) = __builtin_convertvector(mul4, vec4b);
-#else
-        if (*((uint32_t *)dst) == 0)
-            dst[0] = src0 * alpha, dst[1] = src1 * alpha, dst[2] = src2 * alpha, dst[3] = 255.f * alpha;
-        else {
-            float s = 1.f - alpha;
-            dst[0] = dst[0] * s + src0 * alpha, dst[1] = dst[1] * s + src1 * alpha, dst[2] = dst[2] * s + src2 * alpha, dst[3] = dst[3] * s + 255.f * alpha;
-        }
-#endif
     }
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;

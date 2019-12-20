@@ -194,7 +194,7 @@ struct RasterizerCG {
         
         static void drawList(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
-            ti->context->drawList(*ti->list, ti->view, ti->paths, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, nullptr, ti->buffer);
+            ti->context->drawList(*ti->list, ti->view, ti->paths, ti->ctms, ti->colors, ti->clips, ti->widths, ti->outlineWidth, ti->buffer);
         }
         static void writeContexts(void *info) {
             ThreadInfo *ti = (ThreadInfo *)info;
@@ -229,7 +229,7 @@ struct RasterizerCG {
         } else {
             count = 1;
             contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount, 0, eiz);
-            contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, nullptr, buffer);
+            contexts[0].drawList(list, state.view, paths, ctms, colors, clips, widths, outlineWidth, buffer);
         }
         std::vector<Ra::Buffer::Entry> entries[count];
         size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, colors, ctms, clips, widths, eiz, begins, *buffer);
