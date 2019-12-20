@@ -243,9 +243,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
+    Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
+    memset_pattern4(CGBitmapContextGetData(ctx), & color.src0, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
-    Ra::Bitmap bitmap(CGBitmapContextGetData(ctx), CGBitmapContextGetWidth(ctx), CGBitmapContextGetHeight(ctx), CGBitmapContextGetBytesPerRow(ctx), CGBitmapContextGetBitsPerPixel(ctx));
-    bitmap.clear(_svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF));
     RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
 }
 

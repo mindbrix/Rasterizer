@@ -497,14 +497,6 @@ struct Rasterizer {
         float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
         new (out->seg) Segment(x0 == FLT_MAX ? x0 : cx0, y0, x1, y1), out->seg++;
     }
-    struct Bitmap {
-        Bitmap() : data(nullptr), width(0), height(0), stride(0), bpp(0), bytespp(0) {}
-        Bitmap(void *data, size_t width, size_t height, size_t stride, size_t bpp) : data((uint8_t *)data), width(width), height(height), stride(stride), bpp(bpp), bytespp(bpp / 8) {}
-        void clear(Colorant color) { memset_pattern4(data, & color.src0, stride * height); }
-        inline uint8_t *pixelAddress(short x, short y) { return data + stride * (height - 1 - y) + x * bytespp; }
-        uint8_t *data;
-        size_t width, height, stride, bpp, bytespp;
-    };
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
         enum Type { kEdges, kFastEdges, kOpaques, kInstances };
