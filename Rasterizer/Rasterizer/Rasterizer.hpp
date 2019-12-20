@@ -233,7 +233,7 @@ struct Rasterizer {
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buffer = (SceneBuffer *)info;
             std::vector<Segment>& segments = buffer->segments;
-            size_t i = segments.size() - buffer->dst0;
+            size_t i = segments.size() - buffer->dst0, offset;
             if (x0 != FLT_MAX) {
                 segments.emplace_back(Segment(x0, y0, x1, y1, curve));
                 buffer->prevs.emplace_back(-1), buffer->nexts.emplace_back(1);
@@ -241,9 +241,8 @@ struct Rasterizer {
                     buffer->ims.emplace_back(buffer->im);
             } else {
                 if (i > 0) {
-                    Segment& first = segments[buffer->dst0], & last = segments[buffer->dst0 + i - 1];
-                    float dx = first.x0 - last.x1, dy = first.y0 - last.y1;
-                    size_t offset = dx * dx + dy * dy > 1e-6f ? 0 : i - 1;
+                    Segment& fs = segments[buffer->dst0], & ls = segments[buffer->dst0 + i - 1];
+                    offset = (fs.x0 - ls.x1) * (fs.x0 - ls.x1) + (fs.y0 - ls.y1) * (fs.y0 - ls.y1) > 1e-6f ? 0 : i - 1;
                     buffer->prevs[buffer->dst0] = offset, buffer->nexts[buffer->dst0 + i - 1] = -offset;
                     while (i++ % 4)
                         segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), buffer->prevs.emplace_back(0), buffer->nexts.emplace_back(0);
