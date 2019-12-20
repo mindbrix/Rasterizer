@@ -225,12 +225,9 @@ struct Rasterizer {
                 ips.emplace_back(it->second);
             else {
                 cache.emplace(path->hash, bounds.size());
-                ips.emplace_back(bounds.size());
                 writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
-                ends.emplace_back(segments.size());
-                bounds.emplace_back(path->bounds);
-                for (Bounds& m : path->molecules)
-                    molecules.emplace_back(m);
+                ends.emplace_back(segments.size()), ips.emplace_back(bounds.size()), bounds.emplace_back(path->bounds);
+                for (Bounds& m : path->molecules)  molecules.emplace_back(m);
             }
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
