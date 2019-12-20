@@ -1079,7 +1079,7 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, puz, ip, lz, size, segbase = 0, cellbase = 0;
+        size_t j, iz, puz, ip, lz, size, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             size = (ctx->gpu.cache.segments.end + ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             if (size) {
@@ -1087,12 +1087,13 @@ struct Rasterizer {
                 if (ctx->gpu.cache.segments.end)
                     memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
                 memcpy(dst + ctx->gpu.cache.segments.end, ctx->segments.base, ctx->segments.end * sizeof(Segment));
-            
+                totalbase = ctx->gpu.cache.segments.end + ctx->segments.end;
                 Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
                 for (lz = 0; scene < uscene; lz += scene->count, scene++)
                    for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
                        if (ctx->gpu.fasts.base[lz + ip])
-                            ;//scene->buffer->i1(ip) - scene->buffer->i0(ip);
+                           ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += scene->buffer->i1(ip) - scene->buffer->i0(ip);
+                assert(ctx->gpu.total == (totalbase - (ctx->gpu.cache.segments.end + ctx->segments.end)));
                 segbase = begin, begin = begin + size;
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
