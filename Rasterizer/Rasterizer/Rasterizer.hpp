@@ -449,10 +449,9 @@ struct Rasterizer {
                         Transform m = ctm.concat(scene->ctms[is]), unit = paths[iz]->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                            Bounds clu = Bounds(inv.concat(unit));
-                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                            Bounds clu = Bounds(inv.concat(unit));
+                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1, unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
