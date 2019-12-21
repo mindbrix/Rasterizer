@@ -1042,9 +1042,7 @@ struct Rasterizer {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
                             int is = inst->quad.idx & 0xFFFF, i = inst->quad.idx >> 16;
-                            Bounds *b;  float ta, tc, ux;
-                            Transform& ctm = ctms[iz];
-                            Scene *scene = & list.scenes[i];
+                            Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
                             bool molecules = inst->quad.cell.ux - inst->quad.cell.lx > kFastHeight;
                             if (!molecules)
@@ -1053,8 +1051,8 @@ struct Rasterizer {
                                 if (molecules && im != scene->buffer->ims[j >> 2]) {
                                     im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
                                     cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
-                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                    ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
+                                    ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                     cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
                                     cell++;
                                 }
