@@ -1133,19 +1133,18 @@ struct Rasterizer {
                             float ta, tc, ux;
                             Transform& ctm = ctms[iz];
                             if (0) {
-                                uint32_t ic = uint32_t(cell - c0);
                                 Scene *scene = & list.scenes[i];
                                 ip = scene->buffer->ips[is], count = scene->buffer->i1(ip) - scene->buffer->i0(ip), im = INT_MAX;
-                                for (j = 0; j < count; j += kFastSegments) {
+                                for (j = 0; j < count; j += kFastSegments, fast++) {
                                     if (im != scene->buffer->ims[j >> 2]) {
                                         im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
                                         cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(0);
                                         ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                         cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                                        ic++, cell++;
+                                        cell++;
                                     }
-                                    fast->ic = ic, fast->i0 = j;
+                                    fast->ic = uint32_t(cell - c0 - 1), fast->i0 = j;
                                 }
                             } else {
                                 Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
