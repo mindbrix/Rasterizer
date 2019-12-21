@@ -1045,8 +1045,7 @@ struct Rasterizer {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
                             int is = inst->quad.idx & 0xFFFF, i = inst->quad.idx >> 16;
-                            Bounds *b = list.scenes[i].paths[is]->mols;
-                            float ta, tc, ux;
+                            Bounds *b;  float ta, tc, ux;
                             Transform& ctm = ctms[iz];
                             Scene *scene = & list.scenes[i];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
