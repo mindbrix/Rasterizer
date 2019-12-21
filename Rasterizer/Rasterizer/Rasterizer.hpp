@@ -410,11 +410,6 @@ struct Rasterizer {
         Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
     };
-    static void writeOutlineSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        Segment **seg = ((Segment **)info);
-        float cx0 = x0; uint32_t *px0 = (uint32_t *)& cx0; *px0 = (*px0 & ~3) | curve;
-        new (*seg) Segment(x0 == FLT_MAX ? x0 : cx0, y0, x1, y1), (*seg)++;
-    }
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
         enum Type { kEdges, kFastEdges, kOpaques, kInstances };
@@ -470,10 +465,8 @@ struct Rasterizer {
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
-//                                Cache::Entry *entry = gpu.cache.getPath(scene->paths[is].ref, m);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                                 inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, scene->paths[is].ref->molecules.size(), 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz), inst->quad.idx = int((i << 16) | is);
-//                                inst->quad.iy = int(entry - gpu.cache.entries.base)
                             } else
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
