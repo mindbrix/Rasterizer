@@ -317,12 +317,10 @@ struct Rasterizer {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
         int begin, end;
     };
-    struct SegmentCounter {
-        size_t count = 0;
-        static void increment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((SegmentCounter *)info)->count++;
-        }
-    };
+    static void CountSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+        size_t *count = (size_t *)info;
+        (*count)++;
+    }
     struct Index {
         Index(uint16_t x, uint16_t i) : x(x), i(i) {}
         uint16_t x, i;
@@ -476,7 +474,8 @@ struct Rasterizer {
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
                 inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                 if (fabsf(ctm.det()) > 1e2f) {
-                    SegmentCounter counter;  writePath(geometry, ctm, inst->outline.clip, false, false, true, SegmentCounter::increment, writeQuadratic, writeCubic, & counter);  gpu.outlineUpper += counter.count;
+                    size_t count = 0;
+                    writePath(geometry, ctm, inst->outline.clip, false, false, true, CountSegment, writeQuadratic, writeCubic, & count);  gpu.outlineUpper += count;
                 } else
                     gpu.outlineUpper += geometry->upperBound(ctm);
                  gpu.outlinePaths++, gpu.allocator.countInstance();
