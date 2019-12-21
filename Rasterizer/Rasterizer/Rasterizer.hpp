@@ -451,13 +451,13 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                            bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, scene->paths[is].ref->molecules.size(), 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz), inst->quad.idx = int((i << 16) | is);
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, molecules ? scene->paths[is].ref->molecules.size() : 1, 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz), inst->quad.idx = int((i << 16) | is);
                             } else
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
@@ -1046,8 +1046,11 @@ struct Rasterizer {
                             Transform& ctm = ctms[iz];
                             Scene *scene = & list.scenes[i];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
+                            bool molecules = inst->quad.cell.ux - inst->quad.cell.lx > kFastHeight;
+                            if (!molecules)
+                                cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
                             for (j = i0; j < i1; j += kFastSegments, fast++) {
-                                if (im != scene->buffer->ims[j >> 2]) {
+                                if (molecules && im != scene->buffer->ims[j >> 2]) {
                                     im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
                                     cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
                                     ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
