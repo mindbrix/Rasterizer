@@ -15,7 +15,7 @@ struct RasterizerSVG {
         else
             return Ra::Colorant(0, 0, 0, 64);
     }
-    static Ra::Path createPathFromShape(NSVGshape *shape) {
+    static Ra::Path createPathFromShape(NSVGshape *shape, float height) {
         Ra::Path p;
         float *pts, x, y, dx, dy, dot;
         int i;
@@ -25,9 +25,9 @@ struct RasterizerSVG {
                 if ((dot = dx * dx + dy * dy) < 1e-6f)
                     path->pts[i * 2] = path->pts[0], path->pts[i * 2 + 1] = path->pts[1];
             }
-            for (x = path->pts[0], y = path->pts[1], p.ref->moveTo(x, y), i = 0; i < path->npts - 1; i += 3) {
+            for (x = path->pts[0], y = path->pts[1], p.ref->moveTo(x, height - y), i = 0; i < path->npts - 1; i += 3) {
                 pts = path->pts + i * 2;
-                p.ref->cubicTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]);
+                p.ref->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
             }
             if (path->closed)
                 p.ref->close();
@@ -41,13 +41,12 @@ struct RasterizerSVG {
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
             Ra::Scene scene;
-            Ra::Transform flip(1, 0, 0, -1, 0, image->height);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
-                Ra::Path path = createPathFromShape(shape);
+                Ra::Path path = createPathFromShape(shape, image->height);
                 if (shape->fill.type != NSVG_PAINT_NONE)
-                    scene.addPath(path, flip, colorFromPaint(shape->fill), 0.f, 0);
+                    scene.addPath(path, Ra::Transform(), colorFromPaint(shape->fill), 0.f, 0);
                 if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
-                    scene.addPath(path, flip, colorFromPaint(shape->stroke), shape->strokeWidth, 0);
+                    scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, 0);
             }
             list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
             nsvgDelete(image);
