@@ -329,79 +329,6 @@ struct Rasterizer {
             ((SegmentCounter *)info)->count++;
         }
     };
-    struct Cache {
-        struct Entry {
-            Entry(size_t hash, size_t begin, size_t end, size_t cbegin, size_t cend, Transform ctm, int instances) : hash(hash), seg(begin, end), cnt(cbegin, cend), ctm(ctm), instances(instances), hit(true) {}
-            size_t hash; Range seg, cnt; Transform ctm; int instances; bool hit;
-        };
-        struct Grid {
-            static constexpr size_t kSize = 4096, kMask = kSize - 1;
-            struct Element {
-                Element(size_t hash, size_t index) : hash(hash), index(index) {}
-                size_t hash, index;
-            };
-            void empty()                    { for (Row<Element>& row : grid) row.empty(); }
-            void reset()                    { for (Row<Element>& row : grid) row.reset(); }
-            Element *alloc(size_t hash)     { return grid[hash & kMask].alloc(1); }
-            Element *find(size_t hash) {
-                Row<Element>& row = grid[hash & kMask];
-                for (Element *e = row.base, *ue = e + row.end; e < ue; e++)
-                    if (e->hash == hash)
-                        return e;
-                return nullptr;
-            }
-            Row<Element> grid[kSize];
-        };
-        void compact() {
-            grid.empty();
-            int count = 0, ccount = 0, i = 0;
-            int *csrc = counts.base, *cdst = csrc;
-            Segment *ssrc = segments.base, *sdst = ssrc;
-            Entry *src = entries.base, *dst = src, *end = src + entries.end;
-            for (; src < end; csrc += ccount, ssrc += count, src++) {
-                count = src->seg.end - src->seg.begin, ccount = src->cnt.end - src->cnt.begin;
-                if (src->hit) {
-                    if (src != dst) {
-                        dst->hash = src->hash, dst->seg.begin = int(sdst - segments.base), dst->seg.end = dst->seg.begin + count;
-                        dst->cnt.begin = int(cdst - counts.base), dst->cnt.end = dst->cnt.begin + ccount, dst->ctm = src->ctm;
-                        dst->instances = src->instances;
-                        memmove(sdst, ssrc, count * sizeof(Segment)), memmove(cdst, csrc, ccount * sizeof(int));
-                    }
-                    new (grid.grid[src->hash & Grid::kMask].alloc(1)) Grid::Element(src->hash, i);
-                    dst->hit = false, cdst += ccount, sdst += count, dst++, i++;
-                }
-            }
-            entries.end = dst - entries.base;
-            counts.idx = counts.end = cdst - counts.base;
-            segments.idx = segments.end = sdst - segments.base;
-        }
-        void reset() { segments.reset(), grid.reset(), entries.reset(), counts.reset(); }
-        
-        Entry *getPath(Geometry *geometry, Transform ctm) {
-            uint64_t hash = geometry->cacheHash(ctm);
-            Grid::Element *el = grid.find(hash);
-            if (el) {
-                entries.base[el->index].hit = true;
-                return entries.base + el->index;
-            }
-            size_t begin = segments.idx, cbegin = counts.idx, upper = geometry->upperBound(ctm);
-            Segment *seg = segments.alloc(upper);
-            writePath(geometry, ctm, Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX), true, true, true, writeOutlineSegment, writeQuadratic, writeCubic, & seg);
-            segments.end = seg - segments.base;
-            segments.idx = segments.end;
-            int *c = counts.alloc(geometry->molecules.size()), bc = 0, instances = 0;
-            for (Segment *ls = segments.base + begin, *us = segments.base + segments.end, *s = ls; s < us; s++)
-                if (s->x0 == FLT_MAX)
-                    *c = int(s - ls), instances += (*c - bc + kFastSegments - 1) / kFastSegments, bc = *c + 1, c++;
-            counts.idx = counts.end;
-            new (grid.alloc(hash)) Grid::Element(hash, entries.end);
-            return new (entries.alloc(1)) Entry(hash, begin, segments.end, cbegin, counts.end, ctm.invert(), instances);
-        }
-        Grid grid;
-        Row<Entry> entries;
-        Row<Segment> segments;
-        Row<int> counts;
-    };
     struct Index {
         Index(uint16_t x, uint16_t i) : x(x), i(i) {}
         uint16_t x, i;
@@ -475,14 +402,13 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, i1;
         };
-        void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(), cache.compact(); }
-        void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(), cache.reset(); }
+        void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
+        void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
         void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
         size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz, total;
         Allocator allocator;
         Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
-        Cache cache;
     };
     static void writeOutlineSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         Segment **seg = ((Segment **)info);
@@ -1061,7 +987,7 @@ struct Rasterizer {
                 for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
                         gpu.total += scene->buffer->i1(ip) - scene->buffer->i0(ip);
-            size += (gpu.cache.segments.end + contexts[i].segments.end + gpu.total) * sizeof(Segment);
+            size += (contexts[i].segments.end + gpu.total) * sizeof(Segment);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms;
@@ -1088,13 +1014,11 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t j, iz, puz, ip, im, lz, size, i0, i1, count, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
-            size = (ctx->gpu.cache.segments.end + ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
+            size = (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             if (size) {
                 Segment *dst = (Segment *)(buffer.base + begin);
-                if (ctx->gpu.cache.segments.end)
-                    memcpy(dst, ctx->gpu.cache.segments.base, ctx->gpu.cache.segments.end * sizeof(Segment));
-                memcpy(dst + ctx->gpu.cache.segments.end, ctx->segments.base, ctx->segments.end * sizeof(Segment));
-                totalbase = ctx->gpu.cache.segments.end + ctx->segments.end;
+                memcpy(dst, ctx->segments.base, ctx->segments.end * sizeof(Segment));
+                totalbase = ctx->segments.end;
                 dst = (Segment *)(buffer.base + begin + totalbase * sizeof(Segment));
                 Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
                 for (lz = 0; scene < uscene; lz += scene->count, scene++)
@@ -1104,7 +1028,6 @@ struct Rasterizer {
                            memcpy(dst, & scene->buffer->segments[scene->buffer->i0(ip)], count * sizeof(Segment));
                            ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += count, dst += count;
                        }
-                assert(ctx->gpu.total == (totalbase - (ctx->gpu.cache.segments.end + ctx->segments.end)));
                 segbase = begin, begin = begin + size;
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
@@ -1153,22 +1076,22 @@ struct Rasterizer {
                                     fast->ic = uint32_t(cell - c0 - 1), fast->i0 = j - i0, fast->i1 = 0xFFFF;
                                 }
                             } else {
-                                Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
-                                int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                                for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
-                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
-                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                                    for (j = bc; j < *cnt; fast++)
-                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                    (fast - 1)->i1 = *cnt;
-                                }
-                                ctm = ctm.concat(e->ctm);
+//                                Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+//                                int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
+//                                for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
+//                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
+//                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+//                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+//                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+//                                    for (j = bc; j < *cnt; fast++)
+//                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+//                                    (fast - 1)->i1 = *cnt;
+//                                }
+//                                ctm = ctm.concat(e->ctm);
                             }
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell;
-                            cell->im = kNullIndex, cell->base = uint32_t(ctx->gpu.cache.segments.end + inst->quad.base);
+                            cell->im = kNullIndex, cell->base = uint32_t(inst->quad.base);
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);
