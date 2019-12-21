@@ -1132,32 +1132,35 @@ struct Rasterizer {
                             Bounds *b = list.scenes[i].paths[is]->mols;
                             float ta, tc, ux;
                             Transform& ctm = ctms[iz];
-//                            uint32_t ic = uint32_t(cell - c0);
-//                            Scene *scene = & list.scenes[i];
-//                            ip = scene->buffer->ips[is], count = scene->buffer->i1(ip) - scene->buffer->i0(ip), im = INT_MAX;
-//                            for (j = 0; j < count; j += kFastSegments) {
-//                                if (im != scene->buffer->ims[j >> 2]) {
-//                                    im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
-//                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(0);
-//                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-//                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-//                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-//                                    ic++, cell++;
-//                                }
-//                                fast->ic = ic, fast->i0 = j;
-//                            }
-                            Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
-                            int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
-                            for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
-                                cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
-                                ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
-                                ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                                for (j = bc; j < *cnt; fast++)
-                                    fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
-                                (fast - 1)->i1 = *cnt;
+                            if (0) {
+                                uint32_t ic = uint32_t(cell - c0);
+                                Scene *scene = & list.scenes[i];
+                                ip = scene->buffer->ips[is], count = scene->buffer->i1(ip) - scene->buffer->i0(ip), im = INT_MAX;
+                                for (j = 0; j < count; j += kFastSegments) {
+                                    if (im != scene->buffer->ims[j >> 2]) {
+                                        im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
+                                        cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(0);
+                                        ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+                                        ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                        cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+                                        ic++, cell++;
+                                    }
+                                    fast->ic = ic, fast->i0 = j;
+                                }
+                            } else {
+                                Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
+                                int bc = 0, *lc = ctx->gpu.cache.counts.base + e->cnt.begin, *uc = ctx->gpu.cache.counts.base + e->cnt.end, *cnt = lc;
+                                for (uint32_t ic = uint32_t(cell - c0); cnt < uc; ic++, cell++, bc = *cnt++ + 1, b++) {
+                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(e->seg.begin);
+                                    ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
+                                    ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+                                    for (j = bc; j < *cnt; fast++)
+                                        fast->ic = ic, fast->i0 = j, j += kFastSegments, fast->i1 = j;
+                                    (fast - 1)->i1 = *cnt;
+                                }
+                                ctm = ctm.concat(e->ctm);
                             }
-                            ctm = ctm.concat(e->ctm);
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell;
                             cell->im = kNullIndex, cell->base = uint32_t(ctx->gpu.cache.segments.end + inst->quad.base);
