@@ -544,12 +544,10 @@ struct Rasterizer {
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
-                                size_t size = 1 + scene->buffer->ims[(i1 - 1) >> 2] - scene->buffer->ims[i0 >> 2];
-                                Bounds *mols = & scene->buffer->molecules[scene->buffer->ims[i0 >> 2]];
-                                Cache::Entry *entry = gpu.cache.getPath(scene->paths[is].ref, m);
+//                                Cache::Entry *entry = gpu.cache.getPath(scene->paths[is].ref, m);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, scene->paths[is].ref->molecules.size(), 0, entry->instances), inst->quad.cover = 0, inst->quad.iy = int(entry - gpu.cache.entries.base), inst->quad.idx = int((i << 16) | is);
-//                                    inst->quad.iy = lz;
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, scene->paths[is].ref->molecules.size(), 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz), inst->quad.idx = int((i << 16) | is);
+//                                inst->quad.iy = int(entry - gpu.cache.entries.base)
                             } else
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
@@ -595,12 +593,16 @@ struct Rasterizer {
             switch (geometry->types[index]) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
-                        ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
-                        if (ly < clip.uy && uy > clip.ly) {
-                            if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
-                                writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
-                            else
-                                (*function)(x0, y0, sx, sy, 0, info);
+                        if (unclipped)
+                            (*function)(x0, y0, sx, sy, 0, info);
+                        else {
+                            ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
+                            if (!unclipped && ly < clip.uy && uy > clip.ly) {
+                                if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
+                                    writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
+                                else
+                                    (*function)(x0, y0, sx, sy, 0, info);
+                            }
                         }
                     }
                     if (mark && sx != FLT_MAX)
@@ -670,12 +672,16 @@ struct Rasterizer {
                     break;
             }
         if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
-            ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
-            if (ly < clip.uy && uy > clip.ly) {
-                if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
-                    writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
-                else
-                    (*function)(x0, y0, sx, sy, 0, info);
+            if (unclipped)
+                (*function)(x0, y0, sx, sy, 0, info);
+            else {
+                ly = y0 < sy ? y0 : sy, uy = y0 > sy ? y0 : sy;
+                if (ly < clip.uy && uy > clip.ly) {
+                    if (ly < clip.ly || uy > clip.uy || (x0 < sx ? x0 : sx) < clip.lx || (x0 > sx ? x0 : sx) > clip.ux)
+                        writeClippedLine(x0, y0, sx, sy, clip, polygon, function, info);
+                    else
+                        (*function)(x0, y0, sx, sy, 0, info);
+                }
             }
         }
         if (mark && sx != FLT_MAX)
@@ -1080,7 +1086,7 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, puz, ip, im, lz, size, count, segbase = 0, totalbase = 0, cellbase = 0;
+        size_t j, iz, puz, ip, im, lz, size, i0, i1, count, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             size = (ctx->gpu.cache.segments.end + ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             if (size) {
@@ -1132,19 +1138,19 @@ struct Rasterizer {
                             Bounds *b = list.scenes[i].paths[is]->mols;
                             float ta, tc, ux;
                             Transform& ctm = ctms[iz];
-                            if (0) {
+                            if (1) {
                                 Scene *scene = & list.scenes[i];
-                                ip = scene->buffer->ips[is], count = scene->buffer->i1(ip) - scene->buffer->i0(ip), im = INT_MAX;
-                                for (j = 0; j < count; j += kFastSegments, fast++) {
+                                ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
+                                for (j = i0; j < i1; j += kFastSegments, fast++) {
                                     if (im != scene->buffer->ims[j >> 2]) {
                                         im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
-                                        cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(0);
+                                        cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
                                         ta = ctm.a * (b->ux - b->lx), tc = ctm.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * ctm.a + b->ly * ctm.c + ctm.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                         cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
                                         cell++;
                                     }
-                                    fast->ic = uint32_t(cell - c0 - 1), fast->i0 = j;
+                                    fast->ic = uint32_t(cell - c0 - 1), fast->i0 = j - i0, fast->i1 = 0xFFFF;
                                 }
                             } else {
                                 Cache::Entry *e = ctx->gpu.cache.entries.base + inst->quad.iy;
