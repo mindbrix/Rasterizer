@@ -999,10 +999,9 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, puz, ip, im, lz, size, i0, i1, count, segbase = 0, totalbase = 0, cellbase = 0;
+        size_t j, iz, puz, ip, im, lz, i0, i1, count, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
-            size = (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
-            if (size) {
+            if (ctx->segments.end || ctx->gpu.total) {
                 Segment *dst = (Segment *)(buffer.base + begin);
                 memcpy(dst, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 totalbase = ctx->segments.end;
@@ -1015,7 +1014,7 @@ struct Rasterizer {
                            memcpy(dst, & scene->buffer->segments[scene->buffer->i0(ip)], count * sizeof(Segment));
                            ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += count, dst += count;
                        }
-                segbase = begin, begin = begin + size;
+                segbase = begin, begin = begin + (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
