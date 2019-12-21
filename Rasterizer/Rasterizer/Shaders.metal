@@ -179,7 +179,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float slx = dst[0], sly = dst[1], suy = dst[1];
     dst += 2;
     for (int i = 0; i < kFastSegments; i++, s++, dst += 2) {
-        if (s->x0 != FLT_MAX && i + edge.i0 < edge.i1) {
+        if (s->x0 != FLT_MAX) {
             dst[0] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[1] = m.b * s->x1 + m.a * s->y1 + m.ty;
             slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
         } else
