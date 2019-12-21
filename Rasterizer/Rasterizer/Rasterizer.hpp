@@ -395,8 +395,8 @@ struct Rasterizer {
         };
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
-        void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
-        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz, total;
+        void zero() { outlinePaths = outlineUpper = 0; }
+        size_t outlinePaths = 0, outlineUpper = 0, slz, suz, total;
         Allocator allocator;
         Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
