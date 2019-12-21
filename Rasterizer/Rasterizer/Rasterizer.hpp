@@ -318,8 +318,7 @@ struct Rasterizer {
         int begin, end;
     };
     static void CountSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        size_t *count = (size_t *)info;
-        (*count)++;
+        size_t *count = (size_t *)info;  (*count)++;
     }
     struct Index {
         Index(uint16_t x, uint16_t i) : x(x), i(i) {}
