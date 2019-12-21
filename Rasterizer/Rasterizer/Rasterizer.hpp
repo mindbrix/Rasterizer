@@ -114,12 +114,6 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
-        inline uint64_t cacheHash(Transform ctm) {
-            if (counts[kCubic] == 0)
-                return hash;
-            float det = bounds.area() * fabsf(ctm.det());
-            return hash + (det > 256.f) * ((*((uint32_t *)& det) & 0x7FFFFFFF) >> 24);
-        }
         float upperBound(Transform ctm) {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
