@@ -455,7 +455,7 @@ struct Rasterizer {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, molecules ? scene->paths[is].ref->molecules.size() : 1, 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz), inst->quad.idx = int((i << 16) | is);
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, molecules ? scene->paths[is].ref->molecules.size() : 1, 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
