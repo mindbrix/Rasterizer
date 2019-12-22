@@ -386,7 +386,7 @@ struct Rasterizer {
         };
         struct EdgeCell {
             Cell cell;
-            uint32_t im, base;
+            uint32_t iz, base;
         };
         struct Edge {
             enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
@@ -1037,7 +1037,7 @@ struct Rasterizer {
                             Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
                             bool molecules = inst->quad.cell.ux - inst->quad.cell.lx > kFastHeight;
-                            cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux;
+                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux;
                             for (j = i0; j < i1; j += kFastSegments, fast++) {
                                 if (molecules && im != scene->buffer->ims[j >> 2]) {
                                     im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
@@ -1050,7 +1050,7 @@ struct Rasterizer {
                             cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell;
-                            cell->im = kNullIndex, cell->base = uint32_t(inst->quad.base);
+                            cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base);
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);

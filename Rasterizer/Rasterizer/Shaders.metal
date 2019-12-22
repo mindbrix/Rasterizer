@@ -52,7 +52,7 @@ struct Instance {
 };
 struct EdgeCell {
     Cell cell;
-    uint32_t im, base;
+    uint32_t iz, base;
 };
 struct Edge {
     enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
@@ -171,7 +171,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Edge& edge = edges[iid];
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
     const device Cell& cell = edgeCell.cell;
-    const device Transform& m = affineTransforms[edgeCell.im];
+    const device Transform& m = affineTransforms[edgeCell.iz];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
@@ -225,7 +225,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device EdgeCell& edgeCell = edgeCells[edge.ic & Edge::kMask];
     const device Cell& cell = edgeCell.cell;
     vert.a0 = edge.ic & Edge::a0, vert.a1 = edge.ic & Edge::a1;
-    Transform m = edgeCell.im == kNullIndex ? Transform() : affineTransforms[edgeCell.im];
+    Transform m = edgeCell.iz == kNullIndex ? Transform() : affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
     thread float *iys = & vert.iy0;
     thread bool *as = & vert.a0;
