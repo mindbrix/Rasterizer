@@ -450,12 +450,12 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 16) | is);
                             Bounds clu = Bounds(inv.concat(unit));
-                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1, unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
+                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1, unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, molecules ? scene->paths[is].ref->molecules.size() : 1, 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, (i1 - i0) / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else
                                 writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
                         }
@@ -1037,19 +1037,17 @@ struct Rasterizer {
                             Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
                             bool molecules = inst->quad.cell.ux - inst->quad.cell.lx > kFastHeight;
-                            if (!molecules)
-                                cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
+                            cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux;
                             for (j = i0; j < i1; j += kFastSegments, fast++) {
                                 if (molecules && im != scene->buffer->ims[j >> 2]) {
                                     im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
-                                    cell->cell = inst->quad.cell, cell->im = int(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
                                     ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                     ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    cell->cell.ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
-                                    cell++;
+                                    ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
                                 }
-                                fast->ic = uint32_t(cell - c0 - 1), fast->i0 = j - i0;
+                                fast->ic = uint32_t(cell - c0), fast->i0 = j - i0, fast->i1 = ux;
                             }
+                            cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell;
                             cell->im = kNullIndex, cell->base = uint32_t(inst->quad.base);
