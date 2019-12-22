@@ -483,9 +483,8 @@ struct Rasterizer {
                 CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves;
                 out.dst = segments.alloc(geometry->upperBound(ctm));
                 writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
-                segments.end = out.dst - segments.base;
                 writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
-                segments.idx = segments.end;
+                segments.idx = segments.end = out.dst - segments.base;
             }
         }
         void empty() { gpu.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
