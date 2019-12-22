@@ -444,12 +444,11 @@ struct Rasterizer {
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                        idxs[iz] = uint32_t((i << 16) | is);
                         float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
                         Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                            ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                            ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 16) | is);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1, unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
                             if (fast && width == 0.f) {
