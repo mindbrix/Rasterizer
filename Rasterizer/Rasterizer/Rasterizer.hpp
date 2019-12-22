@@ -998,15 +998,13 @@ struct Rasterizer {
             if (ctx->segments.end || ctx->gpu.total) {
                 Segment *dst = (Segment *)(buffer.base + begin);
                 memcpy(dst, ctx->segments.base, ctx->segments.end * sizeof(Segment));
-                totalbase = ctx->segments.end;
-                dst = (Segment *)(buffer.base + begin + totalbase * sizeof(Segment));
                 Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
-                for (lz = 0; scene < uscene; lz += scene->count, scene++)
+                for (totalbase = ctx->segments.end, lz = 0; scene < uscene; lz += scene->count, scene++)
                    for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
                        if (ctx->gpu.fasts.base[lz + ip]) {
                            count = scene->buffer->i1(ip) - scene->buffer->i0(ip);
-                           memcpy(dst, & scene->buffer->segments[scene->buffer->i0(ip)], count * sizeof(Segment));
-                           ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += count, dst += count;
+                           memcpy(dst + totalbase, & scene->buffer->segments[scene->buffer->i0(ip)], count * sizeof(Segment));
+                           ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += count;
                        }
                 segbase = begin, begin = begin + (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             }
