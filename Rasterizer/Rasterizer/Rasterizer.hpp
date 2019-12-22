@@ -993,18 +993,18 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t j, iz, puz, ip, im, lz, i0, i1, count, segbase = 0, totalbase = 0, cellbase = 0;
+        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.total) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
-                Scene *scene = & list.scenes[0], *uscene = scene + list.scenes.size();
-                for (totalbase = ctx->segments.end, lz = 0; scene < uscene; lz += scene->count, scene++)
-                   for (puz = scene->buffer->bounds.size(), ip = 0; ip < puz; ip++)
-                       if (ctx->gpu.fasts.base[lz + ip]) {
-                           count = scene->buffer->i1(ip) - scene->buffer->i0(ip);
-                           memcpy(buffer.base + begin + totalbase * sizeof(Segment), & scene->buffer->segments[scene->buffer->i0(ip)], count * sizeof(Segment));
-                           ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += count;
-                       }
+                SceneBuffer *buf = list.scenes[0].buffer.ref;
+                for (totalbase = ctx->segments.end, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++, buf = list.scenes[i].buffer.ref)
+                    for (puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
+                        if (ctx->gpu.fasts.base[lz + ip]) {
+                            i0 = buf->i0(ip), i1 = buf->i1(ip);
+                            memcpy(buffer.base + begin + totalbase * sizeof(Segment), & buf->segments[i0], (i1 - i0) * sizeof(Segment));
+                            ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += (i1 - i0);
+                        }
                 segbase = begin, begin = begin + (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
@@ -1024,8 +1024,7 @@ struct Rasterizer {
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
                 for (inst = linst; inst < uinst; inst++) {
-                    iz = inst->iz & kPathIndexMask;
-                    int is = idxs[iz] & 0xFFFF, i = idxs[iz] >> 16;
+                    iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFF, i = idxs[iz] >> 16;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
                         writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
