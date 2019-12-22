@@ -1049,8 +1049,7 @@ struct Rasterizer {
                             }
                             cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
-                            cell->cell = inst->quad.cell;
-                            cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base);
+                            cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base);
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);
