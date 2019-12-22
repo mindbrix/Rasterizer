@@ -110,7 +110,7 @@ struct RasterizerCG {
     }
     static void writePathToCGContext(Ra::Path path, CGContextRef ctx) {
         for (size_t index = 0; index < path.ref->types.size(); ) {
-            float *p = path.ref->pts + index * 2;
+            float *p = & path.ref->points[0] + index * 2;
             switch (path.ref->types[index]) {
                 case Ra::Geometry::kMove:
                     CGContextMoveToPoint(ctx, p[0], p[1]);

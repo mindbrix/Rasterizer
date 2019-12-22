@@ -94,7 +94,7 @@ struct Rasterizer {
             for (int i = 0; i < size; i++)
                 types.emplace_back(type);
             size_t idx = points.size();
-            points.resize(idx + size * 2), pts = & points[0];
+            points.resize(idx + size * 2);
             return & points[idx];
         }
         void update(Type type, size_t size, float *p) {
@@ -170,7 +170,7 @@ struct Rasterizer {
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
-        float px, py, *pts;
+        float px, py;
         bool isGlyph, isDrawable;
         Bounds bounds, *mols;
     };
@@ -496,7 +496,7 @@ struct Rasterizer {
         Row<Segment> segments;
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info) {
-        float *p = geometry->pts, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        float *p = & geometry->points[0], sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (size_t index = 0; index < geometry->types.size(); )
             switch (geometry->types[index]) {
                 case Geometry::kMove:
