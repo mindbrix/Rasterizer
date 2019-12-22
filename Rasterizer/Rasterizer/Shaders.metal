@@ -90,7 +90,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     if (w && (x0 > 0.0 || x1 > 0.0 || x2 > 0.0)) {
         float ay, by, cy, t, s;
         ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), cy = y0 - 0.5 * (w0 + w1);
-        t = abs(ay) < kFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w)) / ay * 0.5;
+        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w)) / ay * 0.5;
         s = 1.0 - t, w = winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     return w;
@@ -106,12 +106,12 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     w1 = saturate(mono ? y2 : y0 - by * by / (ay - by)), ay -= by, by *= 2.0;
     if (w0 != w1) {
         cy = y0 - 0.5 * (w0 + w1);
-        t = abs(ay) < kFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w1 - w0)) / ay * 0.5;
+        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w1 - w0)) / ay * 0.5;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     if (w1 != w2) {
         cy = y0 - 0.5 * (w1 + w2);
-        t = abs(ay) < kFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w2 - w1)) / ay * 0.5;
+        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w2 - w1)) / ay * 0.5;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
     }
     return w;
@@ -267,9 +267,9 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 sign = as[i] ? iy - y0 : y2 - iy;
                 ay -= by, by *= 2.0, ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
                 cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-                t0 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+                t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
                 cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-                t1 = saturate(abs(ay) < kFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+                t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
                 if (t0 != t1)
                     slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
                 x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);

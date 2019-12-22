@@ -395,8 +395,8 @@ struct Rasterizer {
         };
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
-        void zero() { outlinePaths = outlineUpper = upper = 0, minerr = INT_MAX; }
-        size_t outlinePaths = 0, outlineUpper = 0, upper = 0, minerr = INT_MAX, slz, suz, total;
+        void zero() { outlinePaths = outlineUpper = 0; }
+        size_t outlinePaths = 0, outlineUpper = 0, slz, suz, total;
         Allocator allocator;
         Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
@@ -449,10 +449,9 @@ struct Rasterizer {
                         Transform m = ctm.concat(scene->ctms[is]), unit = paths[iz]->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                            Bounds clu = Bounds(inv.concat(unit));
-                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            bool unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
+                            Bounds clu = Bounds(inv.concat(unit));
+                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1, unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight, molecules = clip.ux - clip.lx > kFastHeight;
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->buffer->ips[is]] = 1;
                                 size_t ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip);
@@ -863,15 +862,15 @@ struct Rasterizer {
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, int is, bool a) {
             float ly, uy, d2a, ity, d, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-            itx = fabsf(ax) < kFlatness ? FLT_MAX : -bx / ax * 0.5f;
-            if (fabsf(ay) < kFlatness)
+            itx = fabsf(ax) < kQuadraticFlatness ? FLT_MAX : -bx / ax * 0.5f;
+            if (fabsf(ay) < kQuadraticFlatness)
                 t0 = -(y0 - ly) / by;
             else
                 d = by * by - 4.f * ay * (y0 - ly), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
             tx0 = (ax * t0 + bx) * t0 + x0;
             for (ir = ly * krfh, y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
                 ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
-                if (fabsf(ay) < kFlatness)
+                if (fabsf(ay) < kQuadraticFlatness)
                     t1 = -(y0 - ny) / by;
                 else
                     d = by * by - 4.f * ay * (y0 - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
