@@ -435,7 +435,7 @@ struct Rasterizer {
             gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
-        void drawList(SceneList& list, Transform view, Geometry **paths, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
@@ -444,9 +444,9 @@ struct Rasterizer {
                     Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                        paths[iz] = scene->paths[is].ref;
+                        idxs[iz] = uint32_t((i << 16) | is);
                         float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
-                        Transform m = ctm.concat(scene->ctms[is]), unit = paths[iz]->bounds.unit(m);
+                        Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
                         Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm;
@@ -989,7 +989,7 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list,
                                      Context *ctx,
-                                     Geometry **paths,
+                                     uint32_t *idxs,
                                      size_t begin,
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
@@ -1031,7 +1031,8 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        writePath(paths[iz], ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
+                        int is = idxs[iz] & 0xFFFF, i = idxs[iz] >> 16;
+                        writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
                         if (dst == info.dst)
                             OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
                         dst = info.dst, ctms[iz] = Transform();
