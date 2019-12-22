@@ -1029,9 +1029,9 @@ struct Rasterizer {
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
                 for (inst = linst; inst < uinst; inst++) {
                     iz = inst->iz & kPathIndexMask;
+                    int is = idxs[iz] & 0xFFFF, i = idxs[iz] >> 16;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        int is = idxs[iz] & 0xFFFF, i = idxs[iz] >> 16;
                         writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
                         if (dst == info.dst)
                             OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
@@ -1039,7 +1039,6 @@ struct Rasterizer {
                     } else {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
-                            int is = inst->quad.idx & 0xFFFF, i = inst->quad.idx >> 16;
                             Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
                             bool molecules = inst->quad.cell.ux - inst->quad.cell.lx > kFastHeight;
