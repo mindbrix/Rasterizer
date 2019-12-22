@@ -169,12 +169,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestContext::RasterizerType::kCoreGraphics : RasterizerCG::CGTestContext::RasterizerType::kRasterizerMT;
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
-    } else if (keyCode == 46) {
-        _useCPU = !_useCPU;
-        [self toggleTimer];
-        [self initLayer:_useCPU];
-        _testScene.reset();
-        [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
