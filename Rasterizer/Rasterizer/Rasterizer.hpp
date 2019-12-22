@@ -389,7 +389,7 @@ struct Rasterizer {
             uint32_t im, base;
         };
         struct Edge {
-            enum Flags { a0 = 1 << 31, a1 = 1 << 30, c0 = 1 << 29, c1 = 1 << 28, kMask = ~(a0 | a1 | c0 | c1) };
+            enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
             uint32_t ic;
             uint16_t i0, i1;
         };
@@ -823,7 +823,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1) {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, (y1 - y0) * kCoverScale, false, false);
+                writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, (y1 - y0) * kCoverScale, false);
             else {
                 float lx, ux, ly, uy, m, c, y, ny, minx, maxx, scale;  int ir;
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -834,7 +834,7 @@ struct Rasterizer {
                 maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                 for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
                     ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
-                    writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, (ny - y) * scale, false, false);
+                    writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, (ny - y) * scale, false);
                 }
             }
             is++;
@@ -844,7 +844,7 @@ struct Rasterizer {
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
                 if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                    writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true, true);
+                    writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true);
                 else
                     ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, is, true);
             } else {
@@ -876,12 +876,12 @@ struct Rasterizer {
                 lx = tx0 < tx1 ? tx0 : tx1, ux = tx0 > tx1 ? tx0 : tx1;
                 if ((t0 <= itx) == (itx <= t1))
                     ix = (ax * itx + bx) * itx + x0, lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
-                writeIndex(ir, lx, ux, sign * (ny - y), a, true);
+                writeIndex(ir, lx, ux, sign * (ny - y), a);
             }
         }
-        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover, bool a, bool c) {
+        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover, bool a) {
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
-            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a) | (c * Flags::c), dst[1] = cover, dst[2] = is;
+            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
@@ -1061,9 +1061,9 @@ struct Rasterizer {
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             uint32_t ic = uint32_t(cell - c0);
                             for (j = 0; j < inst->quad.count; j++, edge++) {
-                                uxc = uxcovers + is->i * 3, edge->ic = ic | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::c) * GPU::Edge::c0), edge->i0 = uint16_t(uxc[2]), is++;
+                                uxc = uxcovers + is->i * 3, edge->ic = ic | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]), is++;
                                 if (++j < inst->quad.count)
-                                    uxc = uxcovers + is->i * 3, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::c) * GPU::Edge::c1), edge->i1 = uint16_t(uxc[2]), is++;
+                                    uxc = uxcovers + is->i * 3, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->i1 = uint16_t(uxc[2]), is++;
                                 else
                                     edge->i1 = kNullIndex;
                             }
