@@ -175,9 +175,8 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
-    float slx = dst[0], sly = dst[1], suy = dst[1], x0, y0, x1, y1, x2, y2, cpx, cpy;
-    dst += 4;
-    for (int i = 0; i < kFastSegments; i++, s++, dst += 4) {
+    int i;  float slx = dst[0], sly = dst[1], suy = dst[1], x0, y0, x1, y1, x2, y2, cpx, cpy;
+    for (dst += 4, i = 0; i < kFastSegments; i++, s++, dst += 4) {
         if (s->x0 != FLT_MAX) {
             dst[0] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[1] = m.b * s->x1 + m.a * s->y1 + m.ty;
             slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
@@ -209,11 +208,9 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float dx = cell.ox - cell.lx + ox, ndx = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, ndy = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(ndx, ndy, 1.0, 1.0);
-    dst = & vert.x0;
-    for (int i = 0; i <= kFastSegments; i++, dst += 4)
+    for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
-    dst = & vert.x1;
-    for (int i = 0; i < kFastSegments; i++, dst += 4)
+    for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
         if (dst[0] != FLT_MAX)
             dst[0] += tx, dst[1] += ty;
     return vert;
