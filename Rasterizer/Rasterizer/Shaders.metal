@@ -193,6 +193,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                     x1 = dst[-4], y1 = dst[-3], x2 = dst[0], y2 = dst[1];
                     cpx = 0.25f * (x2 - x0) + x1, cpy = 0.25f * (y2 - y0) + y1;
                 }
+                slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
                 if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
                     dst[-2] = FLT_MAX;
                 else
