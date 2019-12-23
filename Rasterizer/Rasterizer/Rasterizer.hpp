@@ -809,15 +809,12 @@ struct Rasterizer {
                 if (curve == 0 || !idxr->useCurves)
                     idxr->indexLine(x0, y0, x1, y1);
                 else if (curve == 1) {
-                    if (idxr->px != FLT_MAX) {
-                        float ax = x0 - 0.25f * (idxr->px + x1), ay = y0 - 0.25f * (idxr->py + y1);
-                        idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0);
-                    }
+                    if (idxr->px != FLT_MAX)
+                        idxr->indexCurve(idxr->px, idxr->py, 0.25f * idxr->px + x0 - 0.25f * x1, 0.25f * idxr->py + y0 - 0.25f * y1, x0, y0);
                     idxr->px = x0, idxr->py = y0;
                 } else {
-                    float ax = x0 - 0.25f * (idxr->px + x1), ay = y0 - 0.25f * (idxr->py + y1);
-                    idxr->indexCurve(idxr->px, idxr->py, 0.5f * idxr->px + ax, 0.5f * idxr->py + ay, x0, y0);
-                    idxr->indexCurve(x0, y0, 0.5f * x1 + ax, 0.5f * y1 + ay, x1, y1);
+                    idxr->indexCurve(idxr->px, idxr->py, 0.25f * idxr->px + x0 - 0.25f * x1, 0.25f * idxr->py + y0 - 0.25f * y1, x0, y0);
+                    idxr->indexCurve(x0, y0, -0.25f * idxr->px + x0 + 0.25f * x1, -0.25f * idxr->py + y0 + 0.25f * y1, x1, y1);
                     idxr->px = FLT_MAX;
                 }
             }
