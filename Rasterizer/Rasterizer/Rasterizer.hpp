@@ -472,7 +472,8 @@ struct Rasterizer {
                 inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                 if (fabsf(ctm.det()) > 1e2f) {
                     size_t count = 0;
-                    writePath(geometry, ctm, inst->outline.clip, false, false, true, CountSegment, writeQuadratic, writeCubic, & count);  gpu.outlineUpper += count;
+                    writePath(geometry, ctm, inst->outline.clip, false, false, true, CountSegment, writeQuadratic, writeCubic, & count);
+                    gpu.outlineUpper += count;
                 } else
                     gpu.outlineUpper += geometry->upperBound(ctm);
                  gpu.outlinePaths++, gpu.allocator.countInstance();
