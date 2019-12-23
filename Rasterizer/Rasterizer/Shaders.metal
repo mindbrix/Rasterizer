@@ -181,6 +181,11 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         if (s->x0 != FLT_MAX) {
             dst[0] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[1] = m.b * s->x1 + m.a * s->y1 + m.ty;
             slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+            uint curve = as_type<uint>(s->x0) & 3;
+            if (!*useCurves || curve == 0)
+                dst[-2] = FLT_MAX;
+            else
+                dst[-2] = FLT_MAX;
         } else
             dst[0] = dst[-4], dst[1] = dst[-3];
     }
@@ -189,8 +194,10 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, 1.0);
-    vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty, vert.x4 += tx, vert.y4 += ty, vert.x6 += tx, vert.y6 += ty, vert.x8 += tx, vert.y8 += ty;
-    vert.x1 = vert.x3 = vert.x5 = vert.x7 = FLT_MAX;
+    dst = & vert.x0;
+    for (int i = 0; i <= kFastSegments; i++, dst += 4) {
+        dst[0] += tx, dst[1] += ty;
+    }
     return vert;
 }
 
