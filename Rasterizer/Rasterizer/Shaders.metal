@@ -175,7 +175,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
-    float slx = dst[0], sly = dst[1], suy = dst[1];
+    float slx = dst[0], sly = dst[1], suy = dst[1], x0, y0, x1, y1, x2, y2, cpx, cpy;
     dst += 4;
     for (int i = 0; i < kFastSegments; i++, s++, dst += 4) {
         if (s->x0 != FLT_MAX) {
@@ -184,20 +184,38 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
             uint curve = as_type<uint>(s->x0) & 3;
             if (!*useCurves || curve == 0)
                 dst[-2] = FLT_MAX;
-            else
-                dst[-2] = FLT_MAX;
+            else if (curve == 1) {
+                x0 = dst[-4], y0 = dst[-3], x1 = dst[0], y1 = dst[1];
+                x2 = m.a * (s + 1)->x1 - m.b * (s + 1)->y1 + m.tx, y2 = m.b * (s + 1)->x1 + m.a * (s + 1)->y1 + m.ty;
+                cpx = 0.5f * x0 + (x1 - 0.25f * (x0 + x2)), cpy = 0.5f * y0 + (y1 - 0.25f * (y0 + y2));
+                if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+                    dst[-2] = FLT_MAX;
+                else
+                    dst[-2] = cpx, dst[-1] = cpy;
+            } else {
+                x0 = m.a * (s - 1)->x0 - m.b * (s - 1)->y0 + m.tx, y0 = m.b * (s - 1)->x0 + m.a * (s - 1)->y0 + m.ty;
+                x1 = dst[-4], y1 = dst[-3], x2 = dst[0], y2 = dst[1];
+                cpx = 0.5f * x2 + (x1 - 0.25f * (x0 + x2)), cpy = 0.5f * y2 + (y1 - 0.25f * (y0 + y2));
+                if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+                    dst[-2] = FLT_MAX;
+                else
+                    dst[-2] = cpx, dst[-1] = cpy;
+            }
         } else
-            dst[0] = dst[-4], dst[1] = dst[-3];
+            dst[0] = dst[-4], dst[1] = dst[-3], dst[-2] = FLT_MAX;
     }
     float ox = clamp(select(floor(slx), float(edge.i1), vid & 1), float(cell.lx), float(edge.i1));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
-    float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
-    vert.position = float4(x, y, 1.0, 1.0);
+    float dx = cell.ox - cell.lx + ox, ndx = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
+    float dy = cell.oy - cell.ly + oy, ndy = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
+    vert.position = float4(ndx, ndy, 1.0, 1.0);
     dst = & vert.x0;
-    for (int i = 0; i <= kFastSegments; i++, dst += 4) {
+    for (int i = 0; i <= kFastSegments; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
-    }
+    dst = & vert.x1;
+    for (int i = 0; i < kFastSegments; i++, dst += 4)
+        if (dst[0] != FLT_MAX)
+            dst[0] += tx, dst[1] += ty;
     return vert;
 }
 
