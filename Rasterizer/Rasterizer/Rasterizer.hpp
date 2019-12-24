@@ -991,7 +991,7 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, segbase = 0, totalbase = 0, cellbase = 0;
+        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, ic, segbase = 0, totalbase = 0, cellbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.total) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
@@ -1034,30 +1034,27 @@ struct Rasterizer {
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->buffer->ips[is], i0 = scene->buffer->i0(ip), i1 = scene->buffer->i1(ip), im = INT_MAX;
-                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux;
+                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             for (j = i0; j < i1; j += kFastSegments, fast++) {
                                 if (im != scene->buffer->ims[j >> 2]) {
                                     im = scene->buffer->ims[j >> 2], b = & scene->buffer->molecules[im];
                                     ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                     ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    ux = ux < cell->cell.lx ? cell->cell.lx : ux > cell->cell.ux ? cell->cell.ux : ux;
+                                    ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
                                 }
-                                fast->ic = uint32_t(cell - c0), fast->i0 = j - i0, fast->i1 = ux;
+                                fast->ic = uint32_t(ic), fast->i0 = j - i0, fast->i1 = ux;
                             }
-                            cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
-                            cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base);
+                            cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
-                            uint32_t ic = uint32_t(cell - c0);
                             for (j = 0; j < inst->quad.count; j++, edge++) {
-                                uxc = uxcovers + is->i * 3, is++, edge->ic = ic | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]);
+                                uxc = uxcovers + is->i * 3, is++, edge->ic = uint32_t(ic) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]);
                                 if (++j < inst->quad.count)
                                     uxc = uxcovers + is->i * 3, is++, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->i1 = uint16_t(uxc[2]);
                                 else
                                     edge->i1 = kNullIndex;
                             }
-                            cell++;
                         }
                     }
                 }
