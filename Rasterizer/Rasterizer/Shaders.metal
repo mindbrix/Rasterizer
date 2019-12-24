@@ -263,12 +263,12 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             bool pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
-                x1 = 0.5 * x2 + (x0 - 0.25 * (p.x0 * m.a + p.y0 * m.c + m.tx + x2)),
-                y1 = 0.5 * y2 + (y0 - 0.25 * (p.x0 * m.b + p.y0 * m.d + m.ty + y2));
+                x1 = x0 + 0.25 * (x2 - (p.x0 * m.a + p.y0 * m.c + m.tx)),
+                y1 = y0 + 0.25 * (y2 - (p.x0 * m.b + p.y0 * m.d + m.ty));
             } else if (ncurve) {
                 const device Segment& n = segments[edgeCell.base + idxes[i] + 1];
-                x1 = 0.5 * x0 + (x2 - 0.25 * (x0 + n.x1 * m.a + n.y1 * m.c + m.tx)),
-                y1 = 0.5 * y0 + (y2 - 0.25 * (y0 + n.x1 * m.b + n.y1 * m.d + m.ty));
+                x1 = x2 + 0.25 * (x0 - (n.x1 * m.a + n.y1 * m.c + m.tx)),
+                y1 = y2 + 0.25 * (y0 - (n.x1 * m.b + n.y1 * m.d + m.ty));
             }
             if (!pcurve && !ncurve)
                 dst[2] = FLT_MAX;
