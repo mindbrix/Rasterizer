@@ -205,9 +205,9 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     }
     float ox = clamp(select(floor(slx), float(edge.i1), vid & 1), float(cell.lx), float(edge.i1));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float dx = cell.ox - cell.lx + ox, ndx = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
-    float dy = cell.oy - cell.ly + oy, ndy = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
-    vert.position = float4(ndx, ndy, 1.0, 1.0);
+    float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
+    float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
+    vert.position = float4(x, y, 1.0, 1.0);
     for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
     for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
