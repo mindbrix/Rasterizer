@@ -224,19 +224,17 @@ struct Rasterizer {
             }
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            SceneBuffer *buffer = (SceneBuffer *)info;
-            std::vector<Segment>& segments = buffer->segments;
-            size_t i = segments.size() - buffer->dst0;
+            SceneBuffer *buf = (SceneBuffer *)info;
+            size_t i = buf->segments.size() - buf->dst0;
             if (x0 != FLT_MAX) {
-                segments.emplace_back(Segment(x0, y0, x1, y1, curve));
+                buf->segments.emplace_back(Segment(x0, y0, x1, y1, curve));
                 if (i % 4 == 0)
-                    buffer->ims.emplace_back(buffer->im);
+                    buf->ims.emplace_back(buf->im);
             } else {
-                if (i > 0) {
+                if (i > 0)
                     while (i++ % 4)
-                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
-                }
-                buffer->im++, buffer->dst0 = segments.size();
+                        buf->segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
+                buf->im++, buf->dst0 = buf->segments.size();
             }
         }
         size_t refCount = 0, dst0 = 0, im = 0;
