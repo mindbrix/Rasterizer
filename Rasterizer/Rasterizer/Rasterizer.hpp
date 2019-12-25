@@ -226,27 +226,23 @@ struct Rasterizer {
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buffer = (SceneBuffer *)info;
             std::vector<Segment>& segments = buffer->segments;
-            size_t i = segments.size() - buffer->dst0, offset;
+            size_t i = segments.size() - buffer->dst0;
             if (x0 != FLT_MAX) {
                 segments.emplace_back(Segment(x0, y0, x1, y1, curve));
-                buffer->prevs.emplace_back(-1), buffer->nexts.emplace_back(1);
                 if (i % 4 == 0)
                     buffer->ims.emplace_back(buffer->im);
             } else {
                 if (i > 0) {
-                    Segment& fs = segments[buffer->dst0], & ls = segments[buffer->dst0 + i - 1];
-                    offset = (fs.x0 - ls.x1) * (fs.x0 - ls.x1) + (fs.y0 - ls.y1) * (fs.y0 - ls.y1) > 1e-6f ? 0 : i - 1;
-                    buffer->prevs[buffer->dst0] = offset, buffer->nexts[buffer->dst0 + i - 1] = -offset;
                     while (i++ % 4)
-                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX), buffer->prevs.emplace_back(0), buffer->nexts.emplace_back(0);
+                        segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
                 }
                 buffer->im++, buffer->dst0 = segments.size();
             }
         }
         size_t refCount = 0, dst0 = 0, im = 0;
+        std::vector<uint16_t> points;
         std::vector<Segment> segments;
         std::vector<Bounds> bounds, molecules;
-        std::vector<int16_t> prevs, nexts;
         std::vector<uint32_t> ims, ends, ips;
         std::unordered_map<size_t, size_t> cache;
     };
