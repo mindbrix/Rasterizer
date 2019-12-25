@@ -427,7 +427,7 @@ struct Rasterizer {
     };
     struct Context {
         void setGPU(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
-            bounds = Bounds(0.f, 0.f, width, height);
+            device = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (indices.size() != size)
                 indices.resize(size), uxcovers.resize(size);
@@ -435,18 +435,18 @@ struct Rasterizer {
             gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
-        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, float outlineWidth, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, float outlineWidth, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
                 if ((clz = lz < gpu.slz ? gpu.slz : lz > gpu.suz ? gpu.suz : lz) != (cuz = uz < gpu.slz ? gpu.slz : uz > gpu.suz ? gpu.suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
-                    Bounds device = Bounds(clipctm).integral().intersect(bounds), uc = bounds.inset(1.f, 1.f).intersect(device);
+                    Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.inset(1.f, 1.f).intersect(clipbounds);
                     float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                         float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
                         Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
-                        Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(device);
+                        Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(clipbounds);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             Bounds clu = Bounds(inv.concat(unit));
@@ -490,7 +490,7 @@ struct Rasterizer {
         void empty() { gpu.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
         void reset() { gpu.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0); }
         GPU gpu;
-        Bounds bounds;
+        Bounds device;
         std::vector<Row<Index>> indices;
         std::vector<Row<int16_t>> uxcovers;
         Row<Segment> segments;
