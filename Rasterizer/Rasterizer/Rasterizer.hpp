@@ -218,6 +218,7 @@ struct Rasterizer {
                 ips.emplace_back(it->second);
             else {
                 cache.emplace(path->hash, bounds.size());
+                b = path->bounds;
                 writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
                 ends.emplace_back(segments.size()), ips.emplace_back(bounds.size()), bounds.emplace_back(path->bounds);
                 for (Bounds& m : path->molecules)  molecules.emplace_back(m);
@@ -225,19 +226,29 @@ struct Rasterizer {
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buf = (SceneBuffer *)info;
-            size_t i = buf->segments.size() - buf->dst0;
+            size_t i = buf->segments.size() - buf->dst0, pi, n;
             if (x0 != FLT_MAX) {
+                n = (x0 - buf->b.lx) / (buf->b.ux - buf->b.lx) * 32767.f, buf->points.emplace_back(uint16_t(n | (curve & 2 << 14)));
+                n = (y0 - buf->b.ly) / (buf->b.uy - buf->b.ly) * 32767.f, buf->points.emplace_back(uint16_t(n | (curve & 1 << 15)));
+                
                 buf->segments.emplace_back(Segment(x0, y0, x1, y1, curve));
                 if (i % 4 == 0)
                     buf->ims.emplace_back(buf->im);
             } else {
+                pi = (buf->points.size() - buf->p0) / 2;
+                if (pi > 0) {
+                    buf->points.emplace_back(0xFFFF), buf->points.emplace_back(0xFFFF);
+                    for (++pi; pi % 4; pi++)
+                        buf->points.emplace_back(0xFFFF), buf->points.emplace_back(0xFFFF);
+                }
                 if (i > 0)
                     while (i++ % 4)
                         buf->segments.emplace_back(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
-                buf->im++, buf->dst0 = buf->segments.size();
+                
+                buf->im++, buf->dst0 = buf->segments.size(), buf->p0 = buf->points.size();
             }
         }
-        size_t refCount = 0, dst0 = 0, im = 0;
+        size_t refCount = 0, dst0 = 0, im = 0, p0 = 0;  Bounds b;
         std::vector<uint16_t> points;
         std::vector<Segment> segments;
         std::vector<Bounds> bounds, molecules;
