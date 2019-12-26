@@ -1016,15 +1016,23 @@ struct Rasterizer {
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.total) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
-                SceneBuffer *buf = list.scenes[0].buffer.ref;
-                for (totalbase = ctx->segments.end, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++, buf = list.scenes[i].buffer.ref)
-                    for (puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
+                SceneBuffer *buf;
+                for (totalbase = ctx->segments.end, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                    for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
                             i0 = buf->i0(ip), i1 = buf->i1(ip);
                             memcpy(buffer.base + begin + totalbase * sizeof(Segment), & buf->segments[i0], (i1 - i0) * sizeof(Segment));
                             ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += (i1 - i0);
                         }
-                segbase = begin, begin = begin + (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
+                for (totalbase = totalbase * sizeof(Segment) / sizeof(uint16_t), i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                    for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
+                        if (ctx->gpu.fasts.base[lz + ip]) {
+                            i0 = buf->pi0(ip), i1 = buf->pi1(ip);
+                            memcpy(buffer.base + begin + totalbase * sizeof(uint16_t), & buf->points[i0], (i1 - i0) * sizeof(uint16_t));
+                            /*ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), */ totalbase += (i1 - i0);
+                        }
+                segbase = begin, begin += (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
+                pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(uint16_t);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
