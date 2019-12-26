@@ -209,6 +209,9 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct SceneBuffer {
+        uint32_t pi0(size_t ip) { return ip == 0 ? 0 : pends[ip - 1]; }
+        uint32_t pi1(size_t ip) { return pends[ip]; }
+        
         uint32_t i0(size_t ip) { return ip == 0 ? 0 : ends[ip - 1]; }
         uint32_t i1(size_t ip) { return ends[ip]; }
         
@@ -411,7 +414,7 @@ struct Rasterizer {
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
         void zero() { outlinePaths = outlineUpper = 0; }
-        size_t outlinePaths = 0, outlineUpper = 0, slz, suz, total;
+        size_t outlinePaths = 0, outlineUpper = 0, slz, suz, total, ptotal;
         Allocator allocator;
         Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
@@ -978,11 +981,12 @@ struct Rasterizer {
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             SceneBuffer *buf = list.scenes[0].buffer.ref;
-            for (gpu.total = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++, buf = list.scenes[j].buffer.ref)
+            for (gpu.total = gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++, buf = list.scenes[j].buffer.ref)
                 for (puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
-                        gpu.total += buf->i1(ip) - buf->i0(ip);
+                        gpu.total += buf->i1(ip) - buf->i0(ip), gpu.ptotal += buf->pi1(ip) - buf->pi0(ip);
             size += (contexts[i].segments.end + gpu.total) * sizeof(Segment);
+            size += gpu.ptotal * sizeof(uint16_t);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms, buffer.bounds = buffer.widths + szwidths;
