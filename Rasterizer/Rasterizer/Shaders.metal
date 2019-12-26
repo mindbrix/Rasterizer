@@ -176,6 +176,48 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Transform& m = affineTransforms[edgeCell.iz];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
+    if (0) {
+        const device uint16_t *pt = & points[edgeCell.base + edge.i0];
+        int i, curve;
+        if (pt[2] == 0xFFFF && pt[3] == 0xFFFF) {
+            for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
+                dst[0] = dst[1] = 0.0;
+            for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
+                dst[0] = FLT_MAX;
+        } else {
+            const device Bounds& b = bounds[edgeCell.iz];
+            float w, h, tx, ty, x, y, slx, sly, suy, x0, y0, x1, y1, px, py, nx, ny;
+            w = (b.ux - b.lx) / 32767.0, h = (b.uy - b.ly) / 32767.0;
+            tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+            x = pt[0] & 0x7FFF, y = pt[1] & 0x7FFF;
+            slx = dst[0] = x0 = x * w * m.a + y * h * m.c + tx;
+            sly = suy = dst[1] = y0 = x * w * m.b + y * h * m.d + ty;
+            for (pt += 2, dst += 2, i = 0; i < kFastSegments; i++, pt += 2, dst += 4, x0 = x1, y0 = y1) {
+                if (pt[0] == 0xFFFF && pt[1] == 0xFFFF)
+                    dst[0] = FLT_MAX, dst[2] = dst[3] = 0.0;
+                else {
+                    x = pt[0] & 0x7FFF, y = pt[1] & 0x7FFF;
+                    dst[2] = x1 = x * w * m.a + y * h * m.c + tx, dst[3] = y1 = x * w * m.b + y * h * m.d + ty;
+                    curve = ((pt[-2] & 0x8000) >> 14) | ((pt[-1] & 0x8000) >> 15);
+                    if (!*useCurves || curve == 0)
+                        dst[0] = FLT_MAX;
+                    else {
+                        if (curve == 1) {
+                            x = pt[2] & 0x7FFF, y = pt[3] & 0x7FFF;
+                            nx = x * w * m.a + y * h * m.c + tx, ny = x * w * m.b + y * h * m.d + ty;
+                            dst[0] = 0.25f * (x0 - nx) + x1, dst[1] = 0.25f * (y0 - ny) + y1;
+                        } else {
+                            x = pt[-2] & 0x7FFF, y = pt[-1] & 0x7FFF;
+                            px = x * w * m.a + y * h * m.c + tx, py = x * w * m.b + y * h * m.d + ty;
+                            dst[0] = 0.25f * (x1 - px) + x0, dst[1] = 0.25f * (y1 - py) + y0;
+                        }
+                        slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+                    }
+                }
+            }
+        }
+    }
+    
     dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
     int i;  float slx = dst[0], sly = dst[1], suy = dst[1], x0, y0, x1, y1, x2, y2, cpx, cpy;
     for (dst += 4, i = 0; i < kFastSegments; i++, s++, dst += 4) {
