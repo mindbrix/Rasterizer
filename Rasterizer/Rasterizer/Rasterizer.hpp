@@ -225,21 +225,31 @@ struct Rasterizer {
                 ends.emplace_back(segments.size());
             }
         }
+        void writePoint(float x0, float y0, uint32_t curve) {
+            size_t pi = (points.size() - p0) / 2;
+            if (x0 == FLT_MAX)
+                points.emplace_back(0xFFFF), points.emplace_back(0xFFFF);
+            else {
+                Bounds& b = bounds.back();  size_t ix, iy;
+                ix = (x0 - b.lx) / (b.ux - b.lx) * 32767.f, points.emplace_back(uint16_t(ix | ((curve & 2) << 14)));
+                iy = (y0 - b.ly) / (b.uy - b.ly) * 32767.f, points.emplace_back(uint16_t(iy | ((curve & 1) << 15)));
+            }
+            if (pi % 4 == 0)
+                pims.emplace_back(im);
+        }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buf = (SceneBuffer *)info;
-            Bounds& b = buf->bounds.back();
-            size_t i = buf->segments.size() - buf->dst0, pi = (buf->points.size() - buf->p0) / 2, n;
+            size_t i = buf->segments.size() - buf->dst0, pi = (buf->points.size() - buf->p0) / 2;
             if (x0 != FLT_MAX) {
-                n = (x0 - b.lx) / (b.ux - b.lx) * 32767.f, buf->points.emplace_back(uint16_t(n | ((curve & 2) << 14)));
-                n = (y0 - b.ly) / (b.uy - b.ly) * 32767.f, buf->points.emplace_back(uint16_t(n | ((curve & 1) << 15)));
+                buf->writePoint(x0, y0, curve);
                 buf->segments.emplace_back(Segment(x0, y0, x1, y1, curve));
                 if (i % 4 == 0)
                     buf->ims.emplace_back(buf->im);
             } else {
                 if (pi > 0) {
-                    buf->points.emplace_back(0xFFFF), buf->points.emplace_back(0xFFFF);
+                    buf->writePoint(FLT_MAX, FLT_MAX, 0);
                     for (++pi; pi % 4; pi++)
-                        buf->points.emplace_back(0xFFFF), buf->points.emplace_back(0xFFFF);
+                        buf->writePoint(FLT_MAX, FLT_MAX, 0);
                 }
                 if (i > 0)
                     while (i++ % 4)
@@ -252,7 +262,7 @@ struct Rasterizer {
         std::vector<uint16_t> points;
         std::vector<Segment> segments;
         std::vector<Bounds> bounds, molecules;
-        std::vector<uint32_t> ims, ends, ips;
+        std::vector<uint32_t> ims, pims, ends, ips;
         std::unordered_map<size_t, size_t> cache;
     };
     struct Scene {
