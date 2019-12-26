@@ -248,7 +248,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device EdgeCell& edgeCell = edgeCells[edge.ic & Edge::kMask];
     const device Cell& cell = edgeCell.cell;
     vert.a0 = edge.ic & Edge::a0, vert.a1 = edge.ic & Edge::a1;
-    Transform m = edgeCell.iz == kNullIndex ? Transform() : affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
     thread float *iys = & vert.iy0;
     thread bool *as = & vert.a0;
@@ -258,18 +257,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         float x0, y0, x1, y1, x2, y2;
         if (idxes[i] != kNullIndex) {
             const device Segment& s = segments[edgeCell.base + idxes[i]];
-            x0 = s.x0 * m.a + s.y0 * m.c + m.tx, y0 = s.x0 * m.b + s.y0 * m.d + m.ty;
-            x2 = s.x1 * m.a + s.y1 * m.c + m.tx, y2 = s.x1 * m.b + s.y1 * m.d + m.ty;
-            dst[0] = x0, dst[1] = y0, dst[4] = x2, dst[5] = y2;
+            x0 = dst[0] = s.x0, y0 = dst[1] = s.y0, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
             bool pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[edgeCell.base + idxes[i] - 1];
-                x1 = x0 + 0.25 * (x2 - (p.x0 * m.a + p.y0 * m.c + m.tx)),
-                y1 = y0 + 0.25 * (y2 - (p.x0 * m.b + p.y0 * m.d + m.ty));
+                x1 = x0 + 0.25 * (x2 - p.x0), y1 = y0 + 0.25 * (y2 - p.y0);
             } else if (ncurve) {
                 const device Segment& n = segments[edgeCell.base + idxes[i] + 1];
-                x1 = x2 + 0.25 * (x0 - (n.x1 * m.a + n.y1 * m.c + m.tx)),
-                y1 = y2 + 0.25 * (y0 - (n.x1 * m.b + n.y1 * m.d + m.ty));
+                x1 = x2 + 0.25 * (x0 - n.x1), y1 = y2 + 0.25 * (y0 - n.y1);
             }
             if (!pcurve && !ncurve)
                 dst[2] = FLT_MAX;
