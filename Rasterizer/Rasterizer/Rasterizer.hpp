@@ -228,7 +228,7 @@ struct Rasterizer {
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buf = (SceneBuffer *)info;
             Bounds& b = buf->bounds.back();
-            size_t i = buf->segments.size() - buf->dst0, pi, n;
+            size_t i = buf->segments.size() - buf->dst0, pi = (buf->points.size() - buf->p0) / 2, n;
             if (x0 != FLT_MAX) {
                 n = (x0 - b.lx) / (b.ux - b.lx) * 32767.f, buf->points.emplace_back(uint16_t(n | ((curve & 2) << 14)));
                 n = (y0 - b.ly) / (b.uy - b.ly) * 32767.f, buf->points.emplace_back(uint16_t(n | ((curve & 1) << 15)));
@@ -236,7 +236,6 @@ struct Rasterizer {
                 if (i % 4 == 0)
                     buf->ims.emplace_back(buf->im);
             } else {
-                pi = (buf->points.size() - buf->p0) / 2;
                 if (pi > 0) {
                     buf->points.emplace_back(0xFFFF), buf->points.emplace_back(0xFFFF);
                     for (++pi; pi % 4; pi++)
