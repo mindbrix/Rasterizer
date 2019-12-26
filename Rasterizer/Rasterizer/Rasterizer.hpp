@@ -222,7 +222,7 @@ struct Rasterizer {
                 for (Bounds& m : path->molecules)
                     molecules.emplace_back(m);
                 writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
-                ends.emplace_back(segments.size());
+                ends.emplace_back(segments.size()), pends.emplace_back(points.size());
             }
         }
         void writePoint(float x0, float y0, uint32_t curve) {
@@ -262,7 +262,7 @@ struct Rasterizer {
         std::vector<uint16_t> points;
         std::vector<Segment> segments;
         std::vector<Bounds> bounds, molecules;
-        std::vector<uint32_t> ims, pims, ends, ips;
+        std::vector<uint32_t> ims, pims, ends, pends, ips;
         std::unordered_map<size_t, size_t> cache;
     };
     struct Scene {
