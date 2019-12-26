@@ -208,6 +208,17 @@ struct Rasterizer {
         uint64_t refCount, hash;
         std::vector<T> v;
     };
+    struct Point {
+        Point(float x0, float y0, uint32_t curve, Bounds& b) {
+            if (x0 == FLT_MAX)
+                x = y = 0xFFFF;
+            else {
+                x = uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14);
+                y = uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15);
+            }
+        }
+        uint16_t x, y;
+    };
     struct SceneBuffer {
         uint32_t pi0(size_t ip) { return ip == 0 ? 0 : pends[ip - 1]; }
         uint32_t pi1(size_t ip) { return pends[ip]; }
@@ -229,20 +240,13 @@ struct Rasterizer {
             }
         }
         void writePoint(float x0, float y0, uint32_t curve) {
-            size_t pi = (points.size() - p0) / 2;
-            if (x0 == FLT_MAX)
-                points.emplace_back(0xFFFF), points.emplace_back(0xFFFF);
-            else {
-                Bounds& b = bounds.back();  size_t ix, iy;
-                ix = (x0 - b.lx) / (b.ux - b.lx) * 32767.f, points.emplace_back(uint16_t(ix | ((curve & 2) << 14)));
-                iy = (y0 - b.ly) / (b.uy - b.ly) * 32767.f, points.emplace_back(uint16_t(iy | ((curve & 1) << 15)));
-            }
-            if (pi % 4 == 0)
+            points.emplace_back(Point(x0, y0, curve, bounds.back()));
+            if ((points.size() - p0) % 4 == 0)
                 pims.emplace_back(im);
         }
         static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buf = (SceneBuffer *)info;
-            size_t i = buf->segments.size() - buf->dst0, pi = (buf->points.size() - buf->p0) / 2;
+            size_t i = buf->segments.size() - buf->dst0, pi = buf->points.size() - buf->p0;
             if (x0 != FLT_MAX) {
                 buf->writePoint(x0, y0, curve);
                 buf->segments.emplace_back(Segment(x0, y0, x1, y1, curve));
@@ -262,7 +266,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, dst0 = 0, im = 0, p0 = 0;
-        std::vector<uint16_t> points;
+        std::vector<Point> points;
         std::vector<Segment> segments;
         std::vector<Bounds> bounds, molecules;
         std::vector<uint32_t> ims, pims, ends, pends, ips;
@@ -986,7 +990,7 @@ struct Rasterizer {
                     if (gpu.fasts.base[lz + ip])
                         gpu.total += buf->i1(ip) - buf->i0(ip), gpu.ptotal += buf->pi1(ip) - buf->pi0(ip);
             size += (contexts[i].segments.end + gpu.total) * sizeof(Segment);
-            size += gpu.ptotal * sizeof(uint16_t);
+            size += gpu.ptotal * sizeof(Point);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms, buffer.bounds = buffer.widths + szwidths;
@@ -1024,15 +1028,15 @@ struct Rasterizer {
                             memcpy(buffer.base + begin + totalbase * sizeof(Segment), & buf->segments[i0], (i1 - i0) * sizeof(Segment));
                             ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += (i1 - i0);
                         }
-                for (totalbase = totalbase * sizeof(Segment) / sizeof(uint16_t), i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                for (totalbase = totalbase * sizeof(Segment) / sizeof(Point), i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                     for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
                             i0 = buf->pi0(ip), i1 = buf->pi1(ip);
-                            memcpy(buffer.base + begin + totalbase * sizeof(uint16_t), & buf->points[i0], (i1 - i0) * sizeof(uint16_t));
+                            memcpy(buffer.base + begin + totalbase * sizeof(Point), & buf->points[i0], (i1 - i0) * sizeof(Point));
                             /*ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), */ totalbase += (i1 - i0);
                         }
                 segbase = begin, begin += (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
-                pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(uint16_t);
+                pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
