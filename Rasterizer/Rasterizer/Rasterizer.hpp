@@ -1008,7 +1008,7 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, ic, segbase = 0, totalbase = 0, cellbase = 0;
+        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, ic, segbase = 0, totalbase = 0, cellbase = 0, pointsbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.total) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
@@ -1029,12 +1029,12 @@ struct Rasterizer {
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                    entries.back().segments = segbase, entries.back().cells = cellbase;
+                    entries.back().segments = segbase, entries.back().cells = cellbase, entries.back().points = pointsbase;
                 }
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
                     entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
-                    entries.back().segments = segbase, entries.back().cells = cellbase;
+                    entries.back().segments = segbase, entries.back().cells = cellbase, entries.back().points = pointsbase;
                 }
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
