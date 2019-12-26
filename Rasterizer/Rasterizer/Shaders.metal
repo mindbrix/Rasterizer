@@ -357,9 +357,9 @@ vertex InstancesVertex instances_vertex_main(
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
         ax = x1 - x0, ay = y1 - y0;
         if (pcurve)
-            cpx = 0.5 * x1 + (x0 - 0.25 * (px + x1)), cpy = 0.5 * y1 + (y0 - 0.25 * (py + y1));
+            cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
         else
-            cpx = 0.5 * x0 + (x1 - 0.25 * (x0 + nx)), cpy = 0.5 * y0 + (y1 - 0.25 * (y0 + ny));
+            cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
         bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0;
