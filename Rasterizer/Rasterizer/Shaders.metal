@@ -191,7 +191,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
             slx = sly = suy = 0.0;
         } else {
             const device Bounds& b = bounds[edgeCell.iz];
-            float w, h, tx, ty, x, y, x0, y0, x1, y1, px, py, nx, ny;
+            float w, h, tx, ty, x, y, x0, y0, x1, y1, px, py, nx, ny, cpx, cpy;
             w = (b.ux - b.lx) / 32767.0, h = (b.uy - b.ly) / 32767.0;
             tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
             x = pt->x & 0x7FFF, y = pt->y & 0x7FFF;
@@ -210,13 +210,17 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                         if (curve == 1) {
                             x = (pt + 1)->x & 0x7FFF, y = (pt + 1)->y & 0x7FFF;
                             nx = x * w * m.a + y * h * m.c + tx, ny = x * w * m.b + y * h * m.d + ty;
-                            dst[0] = 0.25f * (x0 - nx) + x1, dst[1] = 0.25f * (y0 - ny) + y1;
+                            cpx = 0.25f * (x0 - nx) + x1, cpy = 0.25f * (y0 - ny) + y1;
                         } else {
                             x = (pt - 1)->x & 0x7FFF, y = (pt - 1)->y & 0x7FFF;
                             px = x * w * m.a + y * h * m.c + tx, py = x * w * m.b + y * h * m.d + ty;
-                            dst[0] = 0.25f * (x1 - px) + x0, dst[1] = 0.25f * (y1 - py) + y0;
+                            cpx = 0.25f * (x1 - px) + x0, cpy = 0.25f * (y1 - py) + y0;
                         }
-                        slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+                        slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
+                        if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+                            dst[0] = FLT_MAX;
+                        else
+                            dst[0] = cpx, dst[1] = cpy;
                     }
                 }
             }
