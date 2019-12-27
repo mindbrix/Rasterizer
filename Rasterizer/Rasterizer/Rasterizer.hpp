@@ -407,7 +407,7 @@ struct Rasterizer {
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
         void zero() { outlinePaths = outlineUpper = 0; }
-        size_t outlinePaths = 0, outlineUpper = 0, slz, suz, total, ptotal;
+        size_t outlinePaths = 0, outlineUpper = 0, slz, suz, ptotal;
         Allocator allocator;
         Row<uint32_t> fasts;
         Row<Instance> blends, opaques;
@@ -974,11 +974,11 @@ struct Rasterizer {
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             SceneBuffer *buf;
-            for (gpu.total = gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
+            for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
                 for (buf = list.scenes[j].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
                         gpu.ptotal += buf->pi1(ip) - buf->pi0(ip);
-            size += (contexts[i].segments.end + gpu.total) * sizeof(Segment);
+            size += contexts[i].segments.end * sizeof(Segment);
             size += gpu.ptotal * sizeof(Point);
         }
         buffer.resize(size);
@@ -1007,9 +1007,9 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t i, j, iz, puz, ip, im, is, lz, i0, i1, ic, segbase = 0, totalbase = 0, cellbase = 0, pointsbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
-            if (ctx->segments.end || ctx->gpu.total || ctx->gpu.ptotal) {
+            if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
-                segbase = begin, begin += (ctx->segments.end + ctx->gpu.total) * sizeof(Segment);
+                segbase = begin, begin += ctx->segments.end * sizeof(Segment);
                 SceneBuffer *buf;
                 for (totalbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
