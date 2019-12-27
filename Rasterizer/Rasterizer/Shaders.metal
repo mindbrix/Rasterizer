@@ -179,17 +179,19 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Transform& m = affineTransforms[edgeCell.iz];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
-    if (1) {
+    int i; float slx, sly, suy;
+    if (0) {
         const device Point *pt = & points[edgeCell.base + edge.i0];
-        int i, curve;
+        int curve;
         if ((pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF) {
             for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
                 dst[0] = dst[1] = 0.0;
             for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
                 dst[0] = FLT_MAX;
+            slx = sly = suy = 0.0;
         } else {
             const device Bounds& b = bounds[edgeCell.iz];
-            float w, h, tx, ty, x, y, slx, sly, suy, x0, y0, x1, y1, px, py, nx, ny;
+            float w, h, tx, ty, x, y, x0, y0, x1, y1, px, py, nx, ny;
             w = (b.ux - b.lx) / 32767.0, h = (b.uy - b.ly) / 32767.0;
             tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
             x = pt->x & 0x7FFF, y = pt->y & 0x7FFF;
@@ -219,36 +221,38 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                 }
             }
         }
-    }
-    
-    dst = & vert.x0, dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx, dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
-    int i;  float slx = dst[0], sly = dst[1], suy = dst[1], x0, y0, x1, y1, x2, y2, cpx, cpy;
-    for (dst += 4, i = 0; i < kFastSegments; i++, s++, dst += 4) {
-        if (s->x0 != FLT_MAX) {
-            dst[0] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[1] = m.b * s->x1 + m.a * s->y1 + m.ty;
-            slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
-            uint curve = as_type<uint>(s->x0) & 3;
-            if (!*useCurves || curve == 0)
-                dst[-2] = FLT_MAX;
-            else {
-                if (curve == 1) {
-                    x0 = dst[-4], y0 = dst[-3], x1 = dst[0], y1 = dst[1];
-                    x2 = m.a * (s + 1)->x1 - m.b * (s + 1)->y1 + m.tx, y2 = m.b * (s + 1)->x1 + m.a * (s + 1)->y1 + m.ty;
-                    cpx = 0.25f * (x0 - x2) + x1, cpy = 0.25f * (y0 - y2) + y1;
-                } else {
-                    x0 = m.a * (s - 1)->x0 - m.b * (s - 1)->y0 + m.tx, y0 = m.b * (s - 1)->x0 + m.a * (s - 1)->y0 + m.ty;
-                    x1 = dst[-4], y1 = dst[-3], x2 = dst[0], y2 = dst[1];
-                    cpx = 0.25f * (x2 - x0) + x1, cpy = 0.25f * (y2 - y0) + y1;
-                }
-                slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
-                if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+    } else {
+        dst = & vert.x0;
+        slx = dst[0] = m.a * s->x0 - m.b * s->y0 + m.tx;
+        sly = suy = dst[1] = m.b * s->x0 + m.a * s->y0 + m.ty;
+        float x0, y0, x1, y1, x2, y2, cpx, cpy;
+        for (dst += 4, i = 0; i < kFastSegments; i++, s++, dst += 4) {
+            if (s->x0 != FLT_MAX) {
+                dst[0] = m.a * s->x1 - m.b * s->y1 + m.tx, dst[1] = m.b * s->x1 + m.a * s->y1 + m.ty;
+                slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+                uint curve = as_type<uint>(s->x0) & 3;
+                if (!*useCurves || curve == 0)
                     dst[-2] = FLT_MAX;
-                else
-                    dst[-2] = cpx, dst[-1] = cpy;
-            }
-            
-        } else
-            dst[0] = dst[-4], dst[1] = dst[-3], dst[-2] = FLT_MAX;
+                else {
+                    if (curve == 1) {
+                        x0 = dst[-4], y0 = dst[-3], x1 = dst[0], y1 = dst[1];
+                        x2 = m.a * (s + 1)->x1 - m.b * (s + 1)->y1 + m.tx, y2 = m.b * (s + 1)->x1 + m.a * (s + 1)->y1 + m.ty;
+                        cpx = 0.25f * (x0 - x2) + x1, cpy = 0.25f * (y0 - y2) + y1;
+                    } else {
+                        x0 = m.a * (s - 1)->x0 - m.b * (s - 1)->y0 + m.tx, y0 = m.b * (s - 1)->x0 + m.a * (s - 1)->y0 + m.ty;
+                        x1 = dst[-4], y1 = dst[-3], x2 = dst[0], y2 = dst[1];
+                        cpx = 0.25f * (x2 - x0) + x1, cpy = 0.25f * (y2 - y0) + y1;
+                    }
+                    slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
+                    if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+                        dst[-2] = FLT_MAX;
+                    else
+                        dst[-2] = cpx, dst[-1] = cpy;
+                }
+                
+            } else
+                dst[0] = dst[-4], dst[1] = dst[-3], dst[-2] = FLT_MAX;
+        }
     }
     float ox = clamp(select(floor(slx), float(edge.i1), vid & 1), float(cell.lx), float(edge.i1));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
