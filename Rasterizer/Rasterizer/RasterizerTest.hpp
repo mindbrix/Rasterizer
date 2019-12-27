@@ -18,7 +18,7 @@ struct RasterizerTest {
                 scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
             }
         }
-        if (1) {
+        if (0) {
             Ra::Bounds bounds(0, 0, 100, 100);
             Ra::Path rectPath; rectPath->addEllipse(bounds), rectPath->addEllipse(bounds.inset(20, 20));
             Ra::Path bbPath;  bbPath.ref->addEllipse(bounds);
