@@ -978,8 +978,7 @@ struct Rasterizer {
                 for (buf = list.scenes[j].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
                         gpu.ptotal += buf->pi1(ip) - buf->pi0(ip);
-            size += contexts[i].segments.end * sizeof(Segment);
-            size += gpu.ptotal * sizeof(Point);
+            size += contexts[i].segments.end * sizeof(Segment) + gpu.ptotal * sizeof(Point);
         }
         buffer.resize(size);
         buffer.colors = 0, buffer.transforms = buffer.colors + szcolors, buffer.clips = buffer.transforms + sztransforms, buffer.widths = buffer.clips + sztransforms, buffer.bounds = buffer.widths + szwidths;
