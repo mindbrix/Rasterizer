@@ -1000,19 +1000,19 @@ struct Rasterizer {
                                      std::vector<Buffer::Entry>& entries,
                                      Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, ic, segbase = 0, totalbase = 0, cellbase = 0, pointsbase = 0;
+        size_t i, j, iz, puz, ip, im, is, lz, i0, i1, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
                 SceneBuffer *buf;
-                for (totalbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
-                    if (ctx->gpu.fasts.base[lz + ip]) {
-                        i0 = buf->pi0(ip), i1 = buf->pi1(ip);
-                        memcpy(buffer.base + begin + totalbase * sizeof(Point), & buf->points[i0], (i1 - i0) * sizeof(Point));
-                        ctx->gpu.fasts.base[lz + ip] = uint32_t(totalbase), totalbase += (i1 - i0);
-                    }
+                for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                    for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
+                        if (ctx->gpu.fasts.base[lz + ip]) {
+                            i0 = buf->pi0(ip), i1 = buf->pi1(ip);
+                            memcpy(buffer.base + begin + pbase * sizeof(Point), & buf->points[i0], (i1 - i0) * sizeof(Point));
+                            ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += (i1 - i0);
+                        }
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
