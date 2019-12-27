@@ -179,11 +179,12 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Transform& m = affineTransforms[edgeCell.iz];
     const device Segment *s = & segments[edgeCell.base + edge.i0];
     thread float *dst = & vert.x0;
-    int i; float slx, sly, suy;
-    if (0) {
+    int i; float slx, sly, suy, visible = 1.0;
+    if (1) {
         const device Point *pt = & points[edgeCell.base + edge.i0];
         int curve;
         if ((pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF) {
+            visible = 0.0;
             for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
                 dst[0] = dst[1] = 0.0;
             for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
@@ -199,10 +200,11 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
             sly = suy = dst[1] = y0 = x * w * m.b + y * h * m.d + ty;
             for (pt++, dst += 2, i = 0; i < kFastSegments; i++, pt++, dst += 4, x0 = x1, y0 = y1) {
                 if (pt->x == 0xFFFF && pt->y == 0xFFFF)
-                    dst[0] = FLT_MAX, dst[2] = dst[3] = 0.0;
+                    dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
                 else {
                     x = pt->x & 0x7FFF, y = pt->y & 0x7FFF;
                     dst[2] = x1 = x * w * m.a + y * h * m.c + tx, dst[3] = y1 = x * w * m.b + y * h * m.d + ty;
+                    slx = min(slx, dst[2]), sly = min(sly, dst[3]), suy = max(suy, dst[3]);
                     curve = (((pt - 1)->x & 0x8000) >> 14) | (((pt - 1)->y & 0x8000) >> 15);
                     if (!*useCurves || curve == 0)
                         dst[0] = FLT_MAX;
@@ -212,7 +214,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                             nx = x * w * m.a + y * h * m.c + tx, ny = x * w * m.b + y * h * m.d + ty;
                             cpx = 0.25f * (x0 - nx) + x1, cpy = 0.25f * (y0 - ny) + y1;
                         } else {
-                            x = (pt - 1)->x & 0x7FFF, y = (pt - 1)->y & 0x7FFF;
+                            x = (pt - 2)->x & 0x7FFF, y = (pt - 2)->y & 0x7FFF;
                             px = x * w * m.a + y * h * m.c + tx, py = x * w * m.b + y * h * m.d + ty;
                             cpx = 0.25f * (x1 - px) + x0, cpy = 0.25f * (y1 - py) + y0;
                         }
@@ -262,7 +264,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
-    vert.position = float4(x, y, 1.0, 1.0);
+    vert.position = float4(x, y, 1.0, visible);
     for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
     for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)

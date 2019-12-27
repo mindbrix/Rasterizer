@@ -18,13 +18,16 @@ struct RasterizerTest {
                 scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
             }
         }
-        if (0) {
-            Ra::Path bbPath;  bbPath.ref->addEllipse(Ra::Bounds(0, 0, 100, 100));
+        if (1) {
+            Ra::Bounds bounds(0, 0, 100, 100);
+            Ra::Path rectPath; rectPath->addEllipse(bounds), rectPath->addEllipse(bounds.inset(20, 20));
+            Ra::Path bbPath;  bbPath.ref->addEllipse(bounds);
             Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(0, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
-            if (0) {
-                scene.addPath(quadPath, Ra::Transform(), black, 0.f, 0);
+            if (1) {
+                scene.addPath(rectPath, Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
+//                scene.addPath(quadPath, Ra::Transform(), black, 0.f, 0);
             }
             else {
                 float w = 10;
