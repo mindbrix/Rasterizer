@@ -383,7 +383,8 @@ vertex InstancesVertex instances_vertex_main(
             cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
-        bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0;
+        float _dot = bx * cx + by * cy, cos2 = _dot * _dot / ((bx * bx + by * by) * (cx * cx + cy * cy));
+        bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0 && cos2 < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
