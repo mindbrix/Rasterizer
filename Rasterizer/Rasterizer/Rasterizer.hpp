@@ -232,7 +232,9 @@ struct Rasterizer {
                 ips.emplace_back(bounds.size()), bounds.emplace_back(path->bounds);
                 for (Bounds& m : path->molecules)
                     molecules.emplace_back(m);
-                writePath(path.ref, Transform(), Bounds(), true, true, true, writeSegment, writeQuadratic, writeCubic, this);
+                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly;
+                scubic = kMoleculesHeight / (w > h ? w : h), scubic = scubic < 1.f ? 1.f : scubic, scubic *= kCubicScale;
+                writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, WriteCubic, this);
                 pends.emplace_back(points.size());
             }
         }
@@ -241,7 +243,7 @@ struct Rasterizer {
             if ((points.size() - p0) % 4 == 0)
                 pims.emplace_back(im);
         }
-        static void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             SceneBuffer *buf = (SceneBuffer *)info;
             if (x0 != FLT_MAX)
                 buf->writePoint(x0, y0, curve), buf->x1 = x1, buf->y1 = y1;
@@ -254,7 +256,11 @@ struct Rasterizer {
                 buf->im++, buf->p0 = buf->points.size();
             }
         }
-        float x1, y1;
+        static void WriteCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Function function, void *info, float s) {
+            SceneBuffer *buf = (SceneBuffer *)info;
+            writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, buf->scubic);
+        }
+        float x1, y1, scubic;
         size_t refCount = 0, im = 0, p0 = 0;
         std::vector<Point> points;
         std::vector<Bounds> bounds, molecules;
