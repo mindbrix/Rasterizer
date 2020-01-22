@@ -493,7 +493,7 @@ struct Rasterizer {
                     gpu.outlineUpper += count;
                 } else
                     gpu.outlineUpper += geometry->upperBound(ctm);
-                 gpu.outlinePaths++, gpu.allocator.countInstance();
+                gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                 ctm = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(ctm);
