@@ -66,8 +66,8 @@ struct RasterizerState {
                         if (user.lx == FLT_MAX)
                             ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         else {
-                            float sx = w / (user.ux - user.lx), sy = h / (user.uy - user.ly), s = sx < sy ? sx : sy;
-                            Ra::Transform fit = { s, 0.f, 0.f, s, -s * user.lx, -s * user.ly };
+                            float sx = w / (user.ux - user.lx), sy = h / (user.uy - user.ly), scale = sx < sy ? sx : sy;
+                            Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * user.lx, -scale * user.ly };
                             if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
                                 ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                             else
