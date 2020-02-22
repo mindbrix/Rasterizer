@@ -179,7 +179,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
         [self.layer setNeedsDisplay];
-    } else {
+    } else if (keyCode == 1)
+        [self writeToPDF];
+    else {
         [super keyDown:event];
     }
 }
@@ -241,6 +243,23 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
 }
+
+#pragma mark - Write to PDF
+- (void)writeToPDF {
+    NSArray *urls = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
+    NSURL *downloads = urls.firstObject;
+    NSURL *fileURL = [downloads URLByAppendingPathComponent:@"test.pdf"];
+    CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, NULL, NULL);
+    CGPDFContextBeginPage(ctx, NULL);
+    
+    _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
+    CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
+    RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
+    CGPDFContextEndPage(ctx);
+    CGPDFContextClose(ctx);
+}
+
+#pragma mark - Properies
 
 - (void)setDbURL:(NSURL *)dbURL {
     if (_dbURL == nil && dbURL != nil) {
