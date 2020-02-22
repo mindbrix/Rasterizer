@@ -249,7 +249,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSArray *urls = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
     NSURL *downloads = urls.firstObject;
     NSURL *fileURL = [downloads URLByAppendingPathComponent:@"test.pdf"];
-    CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, NULL, NULL);
+    CGRect mediaBox = self.bounds;
+    CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
     CGPDFContextBeginPage(ctx, NULL);
     
     _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
