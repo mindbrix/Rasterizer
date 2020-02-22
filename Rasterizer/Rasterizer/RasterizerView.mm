@@ -180,7 +180,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self.rasterizerLabel setHidden:YES];
         [self.layer setNeedsDisplay];
     } else if (keyCode == 1)
-        [self writeToPDF];
+        [self screenGrabToPDF];
     else {
         [super keyDown:event];
     }
@@ -244,15 +244,14 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
 }
 
-#pragma mark - Write to PDF
-- (void)writeToPDF {
-    NSArray *urls = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
-    NSURL *downloads = urls.firstObject;
-    NSURL *fileURL = [downloads URLByAppendingPathComponent:@"test.pdf"];
+#pragma mark - Screen grab to PDF
+
+- (void)screenGrabToPDF {
+    NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
+    NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"test.pdf"];
     CGRect mediaBox = self.bounds;
     CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
     CGPDFContextBeginPage(ctx, NULL);
-    
     _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
