@@ -65,10 +65,25 @@ struct RasterizerTest {
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         Ra::Scene scene;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
+        float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
-        for (int i = 0; i < 8; i++) {
-            Ra::Path ellipsePath; ellipsePath->addEllipse(outer.inset(inset * i, inset * i));
+        Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
+        scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
+        int counts[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
+        for (int i = 1; i < 8; i++) {
+            Ra::Bounds inner = outer.inset(inset * i, inset * i);
+            float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + 0.5f * inset;
+            Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
             scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
+            
+            Ra::Path path;
+            int steps = counts[i];
+            for (int j = 0; j < steps; j++) {
+                float theta = j * 2.f * M_PI / steps;
+                path->moveTo(cx + r0 * cosf(theta), cy + r0 * sinf(theta));
+                path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
+            }
+            scene.addPath(path, Ra::Transform(), black, 1.f, 0);
         }
         return scene;
     }
