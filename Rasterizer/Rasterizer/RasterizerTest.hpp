@@ -70,7 +70,7 @@ struct RasterizerTest {
         Ra::Path p8 = glyphs.paths[0];
         Ra::Transform m8 = glyphs.ctms[0];
         Ra::Bounds b8 = Ra::Bounds(p8->bounds.unit(m8));
-        float b8x = 0.5f * (b8.lx + b8.ux), b8y = 0.5f * (b8.ly + b8.uy);
+        float b8x = 0.5f * (b8.lx + b8.ux), b8y = b8.ly;
         
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
