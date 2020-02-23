@@ -168,15 +168,11 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
-    static void writeGlyphs(NSString *fontName, CGFloat pointSize, NSString *string, CGRect bounds, Ra::Scene& scene) {
-        NSData *data = [NSData dataWithContentsOfURL:fontURL(fontName)];
-        RasterizerFont font;
-        if (font.set(data.bytes, fontName.UTF8String)) {
-            if (string)
-                RasterizerFont::writeGlyphs(font, float(pointSize), Ra::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, false, false, string.UTF8String, scene);
-            else
-                RasterizerFont::writeGlyphGrid(font, float(pointSize), Ra::Colorant(0, 0, 0, 255), scene);
-        }
+    static void writeGlyphs(RasterizerFont& font, CGFloat pointSize, NSString *string, CGRect bounds, Ra::Scene& scene) {
+        if (string)
+            RasterizerFont::writeGlyphs(font, float(pointSize), Ra::Colorant(0, 0, 0, 255), boundsFromCGRect(bounds), false, false, false, string.UTF8String, scene);
+        else
+            RasterizerFont::writeGlyphGrid(font, float(pointSize), Ra::Colorant(0, 0, 0, 255), scene);
     }
     
     struct ThreadInfo {

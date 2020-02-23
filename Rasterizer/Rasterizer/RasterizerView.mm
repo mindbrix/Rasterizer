@@ -86,17 +86,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
+    NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
+    RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
     if ([_dbURL isFileURL]) {
-        NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
-        RasterizerFont font;
-        if (font.set(data.bytes, self.font.fontName.UTF8String)) {
-            RasterizerDB db;
-            db.open(_dbURL.path.UTF8String);
-            db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
-        }
+        RasterizerDB db;
+        db.open(_dbURL.path.UTF8String);
+        db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
     } else {
         Ra::Scene glyphs;
-        RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, glyphs);
+        RasterizerCG::writeGlyphs(font, self.font.pointSize, self.pastedString, self.bounds, glyphs);
         _list.empty().addScene(glyphs);
     }
     RasterizerTest::addTestScenes(_list);
@@ -188,7 +186,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     Ra::Scene glyphs;
-    RasterizerCG::writeGlyphs(self.font.fontName, self.font.pointSize, self.pastedString, self.bounds, glyphs);
+    NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
+    RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
+    RasterizerCG::writeGlyphs(font, self.font.pointSize, self.pastedString, self.bounds, glyphs);
     _state.user = _list.empty().addScene(glyphs).bounds;
 	[self.layer setNeedsDisplay];
 }
