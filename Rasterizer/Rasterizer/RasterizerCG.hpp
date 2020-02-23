@@ -136,10 +136,8 @@ struct RasterizerCG {
         }
     }
     struct CGTestContext {
-        enum RasterizerType : int { kRasterizer = 0, kCoreGraphics, kRasterizerCount };
         static const int kQueueCount = 8;
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
-        int rasterizerType = 0;
         BGRAColorConverter converter;
         Ra::Context contexts[kQueueCount];
         RasterizerQueue queues[kQueueCount];
@@ -271,7 +269,7 @@ struct RasterizerCG {
         if (state.index != INT_MAX)
             colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
         
-        renderScenes(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & testScene.contexts[0], buffer, testScene.rasterizerType == CGTestContext::kRasterizer, testScene.queues);
+        renderScenes(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & testScene.contexts[0], buffer, true, testScene.queues);
         free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
     }
 };

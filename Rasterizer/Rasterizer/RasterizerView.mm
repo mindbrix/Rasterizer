@@ -128,7 +128,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizer ? @"Rasterizer (GPU)" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = !_useCPU ? @"Rasterizer (GPU)" : @"Core Graphics";
 }
 
 #pragma mark - AppState
@@ -166,7 +166,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self toggleTimer];
         [self initLayer:_useCPU];
         _testScene.reset();
-        _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestContext::RasterizerType::kCoreGraphics : RasterizerCG::CGTestContext::RasterizerType::kRasterizer;
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
@@ -221,7 +220,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    if (_testScene.rasterizerType == RasterizerCG::CGTestContext::kCoreGraphics)
+    if (_useCPU)
         return;
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
