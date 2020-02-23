@@ -59,13 +59,19 @@ struct RasterizerTest {
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
         if (1)
-            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, 800, 600)), Ra::Transform(), Ra::Transform::nullclip());
+            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, 800, 600), font), Ra::Transform(), Ra::Transform::nullclip());
     }
-    static Ra::Scene createConcentrichronScene(Ra::Bounds b) {
+    static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         Ra::Scene scene;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+        Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset, red, b, false, false, false, "4", glyphs);
+        Ra::Path p8 = glyphs.paths[0];
+        Ra::Transform m8 = glyphs.ctms[0];
+        Ra::Bounds b8 = Ra::Bounds(p8->bounds.unit(m8));
+        float b8x = 0.5f * (b8.lx + b8.ux), b8y = 0.5f * (b8.ly + b8.uy);
+        
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
@@ -84,6 +90,13 @@ struct RasterizerTest {
                 path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
             }
             scene.addPath(path, Ra::Transform(), black, 1.f, 0);
+            
+            for (int j = 0; j < steps; j++) {
+                float theta = j * 2.f * M_PI / steps;
+                float px = cx + 0.5f * (r0 + r1) * cosf(theta), py = cy + 0.5f * (r0 + r1) * sinf(theta);
+                Ra::Transform ctm = m8.concat(Ra::Transform::rotation(theta - 0.5 * M_PI), b8x, b8y);
+                scene.addPath(p8, Ra::Transform(1, 0, 0, 1, px - b8x, py - b8y).concat(ctm), red, 0.f, 0);
+            }
         }
         return scene;
     }
