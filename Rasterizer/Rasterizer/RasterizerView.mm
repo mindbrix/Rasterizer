@@ -94,7 +94,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
     } else {
         Ra::Scene glyphs;
-        RasterizerCG::writeGlyphs(font, self.font.pointSize, self.pastedString, self.bounds, glyphs);
+        if (self.pastedString)
+            RasterizerFont::writeGlyphs(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RasterizerCG::boundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+        else
+            RasterizerFont::writeGlyphGrid(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         _list.empty().addScene(glyphs);
     }
     RasterizerTest::addTestScenes(_list, font);
