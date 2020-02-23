@@ -58,6 +58,17 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
+        if (1)
+            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, 800, 600)), Ra::Transform(), Ra::Transform::nullclip());
+    }
+    static Ra::Scene createConcentrichronScene(Ra::Bounds b) {
+        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        Ra::Scene scene;
+        float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h;
+        Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
+        Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
+        scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
+        return scene;
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
         Ra::Scene scene;
