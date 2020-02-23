@@ -97,7 +97,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RasterizerCG::writeGlyphs(font, self.font.pointSize, self.pastedString, self.bounds, glyphs);
         _list.empty().addScene(glyphs);
     }
-    RasterizerTest::addTestScenes(_list);
+    RasterizerTest::addTestScenes(_list, font);
     _state.user = _list.bounds;
     [self.layer setNeedsDisplay];
 }
@@ -185,12 +185,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    Ra::Scene glyphs;
-    NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
-    RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
-    RasterizerCG::writeGlyphs(font, self.font.pointSize, self.pastedString, self.bounds, glyphs);
-    _state.user = _list.empty().addScene(glyphs).bounds;
-	[self.layer setNeedsDisplay];
+    [self changeFont: nil];
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
@@ -270,7 +265,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setSvgData:(NSData *)svgData {
     if ((_svgData = svgData)) {
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _list.empty());
-        RasterizerTest::addTestScenes(_list);
+        NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
+        RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
+        RasterizerTest::addTestScenes(_list, font);
         _state.user = _list.bounds;
     }
     [self.layer setNeedsDisplay];

@@ -8,7 +8,7 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerTest {
-    static void addTestScenes(Ra::SceneList& list) {
+    static void addTestScenes(Ra::SceneList& list, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (0) {
