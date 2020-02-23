@@ -83,8 +83,7 @@ struct RasterizerState {
                     redraw = true;
                     break;
                 case Event::kRotate:
-                    __sincosf(e.x, & sine, & cosine);
-                    ctm = ctm.concat(Ra::Transform(cosine, sine, -sine, cosine, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    ctm = ctm.concat(Ra::Transform::rotate(e.x), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     redraw = true;
                     break;
                 case Event::kTranslate:
