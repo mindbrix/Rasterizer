@@ -128,7 +128,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizerMT ? @"Rasterizer (GPU)" : _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizer ?  @"Rasterizer" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _testScene.rasterizerType == RasterizerCG::CGTestContext::kRasterizer ? @"Rasterizer (GPU)" : @"Core Graphics";
 }
 
 #pragma mark - AppState
@@ -166,7 +166,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self toggleTimer];
         [self initLayer:_useCPU];
         _testScene.reset();
-        _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestContext::RasterizerType::kCoreGraphics : RasterizerCG::CGTestContext::RasterizerType::kRasterizerMT;
+        _testScene.rasterizerType = _useCPU ? RasterizerCG::CGTestContext::RasterizerType::kCoreGraphics : RasterizerCG::CGTestContext::RasterizerType::kRasterizer;
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
@@ -175,10 +175,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self.layer setNeedsDisplay];
         _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     } else if (keyCode == 49) {
-        _testScene.reset();
-        _testScene.rasterizerType = (++_testScene.rasterizerType) % RasterizerCG::CGTestContext::kRasterizerCount;
         [self.rasterizerLabel setHidden:YES];
-        [self.layer setNeedsDisplay];
     } else if (keyCode == 1)
         [self screenGrabToPDF];
     else {
