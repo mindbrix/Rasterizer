@@ -19,7 +19,7 @@
 @property(nonatomic) RasterizerCG::CGTestContext testScene;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
-@property(nonatomic) BOOL useCPU;
+@property(nonatomic) BOOL useCG;
 @property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 - (void)timerFired:(double)time;
@@ -45,7 +45,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    [self initLayer:_useCPU];
+    [self initLayer:_useCG];
     self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     [self changeFont:nil];
     return self;
@@ -128,7 +128,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = !_useCPU ? @"Rasterizer (GPU)" : @"Core Graphics";
+    self.rasterizerLabel.stringValue = _useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
 }
 
 #pragma mark - AppState
@@ -162,9 +162,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     int keyCode = event.keyCode;
     if ([self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode)]) {}
     else if (keyCode == 51) {
-        _useCPU = !_useCPU;
+        _useCG = !_useCG;
         [self toggleTimer];
-        [self initLayer:_useCPU];
+        [self initLayer:_useCG];
         _testScene.reset();
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
@@ -220,7 +220,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    if (_useCPU)
+    if (_useCG)
         return;
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
