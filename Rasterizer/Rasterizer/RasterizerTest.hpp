@@ -66,7 +66,7 @@ struct RasterizerTest {
         Ra::Scene scene;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-        Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset, red, b, false, false, false, "y", glyphs);
+        Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset, red, b, false, false, false, "Test", glyphs);
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
@@ -93,14 +93,17 @@ struct RasterizerTest {
         return scene;
     }
     static void addGlyphOnArc(Ra::Scene& glyphs, Ra::Colorant color, float cx, float cy, float r, float theta, Ra::Scene& scene) {
-        Ra::Path p8;  Ra::Transform m8;
-        if (glyphs.count)
-            p8 = glyphs.paths[0], m8 = glyphs.ctms[0];
-        Ra::Bounds b8 = Ra::Bounds(p8->bounds.unit(m8));
-        float b8x = 0.5f * (b8.lx + b8.ux), b8y = m8.ty;
-        float px = cx + r * cosf(theta), py = cy + r * sinf(theta);
-        Ra::Transform ctm = m8.concat(Ra::Transform::rotation(theta - 0.5 * M_PI), b8x, b8y);
-        scene.addPath(p8, Ra::Transform(1, 0, 0, 1, px - b8x, py - b8y).concat(ctm), color, 0.f, 0);
+        Ra::Path path;  Ra::Transform m;  float bx = 0.f;
+        for (int i = 0; i < glyphs.count; i++) {
+            path = glyphs.paths[i], m = glyphs.ctms[i];
+            Ra::Bounds b8 = Ra::Bounds(path->bounds.unit(m));
+            bx = i == 0 ? b8.lx : bx;
+            float b8x = 0.5f * (b8.lx + b8.ux), b8y = m.ty;
+            float rot = theta - (b8x - bx) / r;
+            float px = cx + r * cosf(rot), py = cy + r * sinf(rot);
+            Ra::Transform ctm = m.concat(Ra::Transform::rotation(rot - 0.5 * M_PI), b8x, b8y);
+            scene.addPath(path, Ra::Transform(1, 0, 0, 1, px - b8x, py - b8y).concat(ctm), color, 0.f, 0);
+        }
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
         Ra::Scene scene;
