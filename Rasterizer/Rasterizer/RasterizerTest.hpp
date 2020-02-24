@@ -66,7 +66,6 @@ struct RasterizerTest {
         Ra::Scene scene;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-        Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset, red, b, false, false, false, "Test", glyphs);
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
@@ -86,13 +85,16 @@ struct RasterizerTest {
             }
             scene.addPath(path, Ra::Transform(), black, 1.f, 0);
             
+            Ra::Row<char> str;
             for (int j = 0; j < steps; j++) {
-                addGlyphOnArc(glyphs, red, cx, cy, 0.5f * (r0 + r1), j * 2.f * M_PI / steps, scene);
+                str = str.empty() + j;
+                Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset * 0.666f, red, b, false, false, false, str.base, glyphs);
+                addGlyphsOnArc(glyphs, red, cx, cy, 0.5f * (r0 + r1), j * -2.f * M_PI / steps, scene);
             }
         }
         return scene;
     }
-    static void addGlyphOnArc(Ra::Scene& glyphs, Ra::Colorant color, float cx, float cy, float r, float theta, Ra::Scene& scene) {
+    static void addGlyphsOnArc(Ra::Scene& glyphs, Ra::Colorant color, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m;  float bx = 0.f;
         for (int i = 0; i < glyphs.count; i++) {
             path = glyphs.paths[i], m = glyphs.ctms[i];
