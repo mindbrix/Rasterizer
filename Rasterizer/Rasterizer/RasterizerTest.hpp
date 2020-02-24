@@ -67,12 +67,12 @@ struct RasterizerTest {
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Path p8;  Ra::Transform m8;
-        Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset, red, b, false, false, false, "4", glyphs);
+        Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset, red, b, false, false, false, "y", glyphs);
         if (glyphs.count)
             p8 = glyphs.paths[0], m8 = glyphs.ctms[0];
         
         Ra::Bounds b8 = Ra::Bounds(p8->bounds.unit(m8));
-        float b8x = 0.5f * (b8.lx + b8.ux), b8y = b8.ly;
+        float b8x = 0.5f * (b8.lx + b8.ux), b8y = m8.ty;
         
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
