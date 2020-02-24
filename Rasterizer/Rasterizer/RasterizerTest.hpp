@@ -70,6 +70,11 @@ struct RasterizerTest {
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
         int counts[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
+        const char *days[] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        const char *dates[] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
+        const char *months[] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        const char *years[] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
+        const char **labels[] = { NULL, years, months, dates, days, NULL, NULL, NULL };
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + 0.5f * inset;
@@ -87,7 +92,10 @@ struct RasterizerTest {
             
             Ra::Row<char> str;
             for (int j = 0; j < steps; j++) {
-                str = str.empty() + j;
+                if (labels[i])
+                    str = str.empty() + labels[i][j];
+                else
+                    str = str.empty() + j;
                 Ra::Scene glyphs;  RasterizerFont::writeGlyphs(font, inset * 0.666f, red, b, false, false, false, str.base, glyphs);
                 addGlyphsOnArc(glyphs, red, cx, cy, 0.5f * (r0 + r1), j * -2.f * M_PI / steps, scene);
             }
