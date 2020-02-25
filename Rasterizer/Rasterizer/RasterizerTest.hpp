@@ -98,12 +98,12 @@ struct RasterizerTest {
                     str = str.empty() + j;
                 Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                 float r = 0.5f * (r0 + r1), range = (gb.ux - gb.lx) / r, step = 2.f * M_PI / steps, offset = 0.5f * (step - range);
-                addGlyphsOnArc(glyphs, cx, cy, r, j * -step - offset, scene);
+                writeGlyphsOnArc(glyphs, cx, cy, r, j * -step - offset, scene);
             }
         }
         return scene;
     }
-    static void addGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
+    static void writeGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m;  Ra::Bounds b;  float lx = 0.f;
         for (int i = 0; i < glyphs.count; i++) {
             path = glyphs.paths[i], m = glyphs.ctms[i], b = Ra::Bounds(path->bounds.unit(m));
