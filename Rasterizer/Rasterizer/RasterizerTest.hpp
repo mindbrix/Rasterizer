@@ -98,21 +98,10 @@ struct RasterizerTest {
                     str = str.empty() + j;
                 Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                 float r = 0.5f * (r0 + r1), range = (gb.ux - gb.lx) / r, step = 2.f * M_PI / steps, offset = 0.5f * (step - range);
-                writeGlyphsOnArc(glyphs, cx, cy, r, j * -step - offset, scene);
+                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, j * -step - offset, scene);
             }
         }
         return scene;
-    }
-    static void writeGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
-        Ra::Path path;  Ra::Transform m;  Ra::Bounds b;  float lx = 0.f;
-        for (int i = 0; i < glyphs.count; i++) {
-            path = glyphs.paths[i], m = glyphs.ctms[i], b = Ra::Bounds(path->bounds.unit(m));
-            lx = i == 0 ? b.lx : lx;
-            float bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
-            float px = cx + r * cosf(rot), py = cy + r * sinf(rot);
-            Ra::Transform ctm = m.concat(Ra::Transform::rotation(rot - 0.5 * M_PI), bx, by);
-            scene.addPath(path, Ra::Transform(1, 0, 0, 1, px - bx, py - by).concat(ctm), glyphs.colors[i], 0.f, 0);
-        }
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
         Ra::Scene scene;

@@ -166,4 +166,15 @@ struct RasterizerFont {
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 scene.addPath(font.glyphPath(glyph, false), Ra::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color, 0.f, 0);
     }
+    static void writeGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
+        Ra::Path path;  Ra::Transform m;  Ra::Bounds b;  float lx = 0.f;
+        for (int i = 0; i < glyphs.count; i++) {
+            path = glyphs.paths[i], m = glyphs.ctms[i], b = Ra::Bounds(path->bounds.unit(m));
+            lx = i == 0 ? b.lx : lx;
+            float bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
+            float px = cx + r * cosf(rot), py = cy + r * sinf(rot);
+            Ra::Transform ctm = m.concat(Ra::Transform::rotation(rot - 0.5 * M_PI), bx, by);
+            scene.addPath(path, Ra::Transform(1, 0, 0, 1, px - bx, py - by).concat(ctm), glyphs.colors[i], 0.f, 0);
+        }
+    }
 };
