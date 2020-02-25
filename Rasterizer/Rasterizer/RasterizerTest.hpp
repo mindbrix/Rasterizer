@@ -97,8 +97,8 @@ struct RasterizerTest {
                 else
                     str = str.empty() + j;
                 Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
-                float r = 0.5f * (r0 + r1), range = (gb.ux - gb.lx) / r, offset = 0.5f * (2.f * M_PI / steps - range);
-                addGlyphsOnArc(glyphs, cx, cy, r, j * -2.f * M_PI / steps - offset, scene);
+                float r = 0.5f * (r0 + r1), range = (gb.ux - gb.lx) / r, step = 2.f * M_PI / steps, offset = 0.5f * (step - range);
+                addGlyphsOnArc(glyphs, cx, cy, r, j * -step - offset, scene);
             }
         }
         return scene;
