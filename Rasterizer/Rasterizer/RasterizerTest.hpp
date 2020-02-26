@@ -6,6 +6,7 @@
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.hpp"
+#import <time.h>
 
 struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list, RasterizerFont& font) {
@@ -62,6 +63,9 @@ struct RasterizerTest {
             list.addScene(createConcentrichronScene(Ra::Bounds(-800, 0, 0, 600), font), Ra::Transform(), Ra::Transform::nullclip());
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
+        time_t t = time(NULL);
+        struct tm *lt = localtime(& t);
+        
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         Ra::Scene scene;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
@@ -69,6 +73,9 @@ struct RasterizerTest {
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
+        float fsec = lt->tm_sec / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
+        float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f, fmonth = lt->tm_mon / 12.f + fdate / 12.f, fyear = (lt->tm_year - 120) / 20.f + fmonth / 20.f;
+        float ftimes[] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         int counts[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
         const char *days[] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
@@ -84,7 +91,7 @@ struct RasterizerTest {
             Ra::Path path;
             int steps = counts[i];
             for (int j = 0; j < steps; j++) {
-                float theta = j * 2.f * M_PI / steps;
+                float theta = 0.5f * M_PI + ftimes[i] * 2.f * M_PI + j * 2.f * M_PI / steps;
                 path->moveTo(cx + r0 * cosf(theta), cy + r0 * sinf(theta));
                 path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
             }
@@ -98,7 +105,7 @@ struct RasterizerTest {
                     str = str.empty() + j;
                 Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                 float r = 0.5f * (r0 + r1), range = (gb.ux - gb.lx) / r, step = 2.f * M_PI / steps, offset = 0.5f * (step - range);
-                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, j * -step - offset, scene);
+                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, 0.5f * M_PI + ftimes[i] * 2.f * M_PI + j * -step - offset, scene);
             }
         }
         return scene;
