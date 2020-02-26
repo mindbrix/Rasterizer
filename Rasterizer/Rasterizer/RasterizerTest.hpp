@@ -59,7 +59,7 @@ struct RasterizerTest {
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
         if (1)
-            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, 800, 600), font), Ra::Transform(), Ra::Transform::nullclip());
+            list.addScene(createConcentrichronScene(Ra::Bounds(-800, 0, 0, 600), font), Ra::Transform(), Ra::Transform::nullclip());
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
