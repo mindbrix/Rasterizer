@@ -108,6 +108,8 @@ struct RasterizerTest {
                 RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, 0.5f * M_PI + ftimes[i] * 2.f * M_PI + j * -step - offset, scene);
             }
         }
+        Ra::Path linePath;  linePath->moveTo(cx, cy), linePath->lineTo(cx, outer.uy);
+        scene.addPath(linePath, Ra::Transform(), red, 1.f, 0);
         return scene;
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
