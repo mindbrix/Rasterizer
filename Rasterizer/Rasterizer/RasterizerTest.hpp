@@ -65,6 +65,8 @@ struct RasterizerTest {
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
         time_t t = time(NULL);
         struct tm *lt = localtime(& t);
+        struct timeval tv;
+        gettimeofday(& tv, NULL);
         
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         Ra::Scene scene;
@@ -73,7 +75,7 @@ struct RasterizerTest {
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
-        float fsec = lt->tm_sec / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
+        float fsec = lt->tm_sec / 60.f + tv.tv_usec / 1e6f / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
         float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f, fmonth = lt->tm_mon / 12.f + fdate / 12.f, fyear = (lt->tm_year - 120) / 20.f + fmonth / 20.f;
         float ftimes[] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         int counts[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
