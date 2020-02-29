@@ -63,6 +63,13 @@ struct RasterizerTest {
             list.addScene(createConcentrichronScene(Ra::Bounds(-800, 0, 0, 600), font), Ra::Transform(), Ra::Transform::nullclip());
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
+        const char *days[] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        const char *dates[] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
+        const char *months[] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        const char *years[] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
+        const char **labels[] = { NULL, years, months, dates, days, NULL, NULL, NULL };
+        const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+        
         time_t t = time(NULL);
         struct tm *lt = localtime(& t);
         struct timeval tv;
@@ -70,15 +77,12 @@ struct RasterizerTest {
         int year = lt->tm_year + 1900;
         bool isLeapYear = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
         float fsec = lt->tm_sec / 60.f + tv.tv_usec / 1e6f / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
-        float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f, fmonth = lt->tm_mon / 12.f + fdate / 12.f, fyear = (lt->tm_year - 120) / 20.f + (lt->tm_yday / (isLeapYear ? 365.f : 364.f)) / 20.f;
+        float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f;
+        float daysthismonth = monthdays[lt->tm_mon] + (lt->tm_mon == 1 && isLeapYear ? 1.f : 0.f);
+        float fmonth = lt->tm_mon / 12.f + (lt->tm_mday - 1) / daysthismonth / 12.f;
+        float fyear = (lt->tm_year - 120) / 20.f + (lt->tm_yday / (isLeapYear ? 365.f : 364.f)) / 20.f;
         float ftimes[] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         int counts[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
-        const char *days[] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
-        const char *dates[] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
-        const char *months[] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
-        const char *years[] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
-        const char **labels[] = { NULL, years, months, dates, days, NULL, NULL, NULL };
-        
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         Ra::Scene scene;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
