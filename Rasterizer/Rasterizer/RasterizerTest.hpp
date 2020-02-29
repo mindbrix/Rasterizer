@@ -67,8 +67,10 @@ struct RasterizerTest {
         struct tm *lt = localtime(& t);
         struct timeval tv;
         gettimeofday(& tv, NULL);
+        int year = lt->tm_year + 1900;
+        bool isLeapYear = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
         float fsec = lt->tm_sec / 60.f + tv.tv_usec / 1e6f / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
-        float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f, fmonth = lt->tm_mon / 12.f + fdate / 12.f, fyear = (lt->tm_year - 120) / 20.f + fmonth / 20.f;
+        float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f, fmonth = lt->tm_mon / 12.f + fdate / 12.f, fyear = (lt->tm_year - 120) / 20.f + (lt->tm_yday / (isLeapYear ? 365.f : 364.f)) / 20.f;
         float ftimes[] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         int counts[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
         const char *days[] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
