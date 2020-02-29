@@ -91,7 +91,7 @@ struct RasterizerTest {
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float step = 2.f * M_PI / divisions[i], ftheta = 0.5f * M_PI + ftimes[i] * 2.f * M_PI;
-            float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + 0.5f * inset;
+            float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
             scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
             
