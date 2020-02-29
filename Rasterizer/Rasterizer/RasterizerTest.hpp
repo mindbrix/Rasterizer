@@ -63,13 +63,13 @@ struct RasterizerTest {
             list.addScene(createConcentrichronScene(Ra::Bounds(-800, 0, 0, 600), font), Ra::Transform(), Ra::Transform::nullclip());
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
-        const char *days[] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
-        const char *dates[] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
-        const char *months[] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
-        const char *years[] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
-        const char **labels[] = { NULL, years, months, dates, days, NULL, NULL, NULL };
+        const char *days[7] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
+        const char *months[12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        const char *years[10] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
+        const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
         const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-        const int divisions[] = { 0, 10, 12, 31, 7, 24, 60, 60 };
+        const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
 
         time_t t = time(NULL);
@@ -83,7 +83,7 @@ struct RasterizerTest {
         float daysthismonth = monthdays[lt->tm_mon] + (lt->tm_mon == 1 && isLeapYear ? 1.f : 0.f);
         float fmonth = (lt->tm_mon + (lt->tm_mday - 1) / daysthismonth) / 12.f;
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 20.f;
-        float ftimes[] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
+        float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
