@@ -90,14 +90,14 @@ struct RasterizerTest {
         Ra::Scene scene;  scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
-            float step = 2.f * M_PI / divisions[i], ftheta = 0.5f * M_PI + ftimes[i] * 2.f * M_PI;
+            float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI + ftimes[i] * 2.f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
             scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
             
             Ra::Path path;
             for (int j = 0; j < divisions[i]; j++) {
-                float theta = ftheta + j * step;
+                float theta = theta0 + j * step;
                 path->moveTo(cx + r0 * cosf(theta), cy + r0 * sinf(theta));
                 path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
             }
@@ -111,7 +111,7 @@ struct RasterizerTest {
                     str = str.empty() + j;
                 Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                 float r = r0 + 0.25f * inset, range = (gb.ux - gb.lx) / r, offset = 0.5f * (step - range);
-                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, ftheta + j * -step - offset, scene);
+                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, theta0 + j * -step - offset, scene);
             }
         }
         Ra::Path linePath;  linePath->moveTo(cx, cy), linePath->lineTo(cx, outer.uy);
