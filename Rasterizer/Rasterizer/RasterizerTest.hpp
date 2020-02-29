@@ -90,28 +90,28 @@ struct RasterizerTest {
         Ra::Scene scene;  scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
+            float step = 2.f * M_PI / divisions[i], ftheta = 0.5f * M_PI + ftimes[i] * 2.f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + 0.5f * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
             scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
             
             Ra::Path path;
-            int steps = divisions[i];
-            for (int j = 0; j < steps; j++) {
-                float theta = 0.5f * M_PI + ftimes[i] * 2.f * M_PI + j * 2.f * M_PI / steps;
+            for (int j = 0; j < divisions[i]; j++) {
+                float theta = ftheta + j * step;
                 path->moveTo(cx + r0 * cosf(theta), cy + r0 * sinf(theta));
                 path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
             }
             scene.addPath(path, Ra::Transform(), black, 1.f, 0);
             
             Ra::Row<char> str;
-            for (int j = 0; j < steps; j++) {
+            for (int j = 0; j < divisions[i]; j++) {
                 if (labels[i])
                     str = str.empty() + labels[i][j];
                 else
                     str = str.empty() + j;
                 Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
-                float r = 0.5f * (r0 + r1), range = (gb.ux - gb.lx) / r, step = 2.f * M_PI / steps, offset = 0.5f * (step - range);
-                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, 0.5f * M_PI + ftimes[i] * 2.f * M_PI + j * -step - offset, scene);
+                float r = r0 + 0.25f * inset, range = (gb.ux - gb.lx) / r, offset = 0.5f * (step - range);
+                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, ftheta + j * -step - offset, scene);
             }
         }
         Ra::Path linePath;  linePath->moveTo(cx, cy), linePath->lineTo(cx, outer.uy);
