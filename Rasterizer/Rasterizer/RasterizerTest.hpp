@@ -83,7 +83,7 @@ struct RasterizerTest {
         float fmonth = (lt->tm_mon + (lt->tm_mday - 1) / daysthismonth) / 12.f;
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 10.f;
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
-        float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
+        float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
