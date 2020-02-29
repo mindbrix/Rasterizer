@@ -67,14 +67,6 @@ struct RasterizerTest {
         struct tm *lt = localtime(& t);
         struct timeval tv;
         gettimeofday(& tv, NULL);
-        
-        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
-        Ra::Scene scene;
-        float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
-        float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-        Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
-        Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
-        scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
         float fsec = lt->tm_sec / 60.f + tv.tv_usec / 1e6f / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
         float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f, fmonth = lt->tm_mon / 12.f + fdate / 12.f, fyear = (lt->tm_year - 120) / 20.f + fmonth / 20.f;
         float ftimes[] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
@@ -84,6 +76,14 @@ struct RasterizerTest {
         const char *months[] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
         const char *years[] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
         const char **labels[] = { NULL, years, months, dates, days, NULL, NULL, NULL };
+        
+        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        Ra::Scene scene;
+        float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim * 0.0333f;
+        float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+        Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
+        Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
+        scene.addPath(ellipsePath, Ra::Transform(), black, 1.f, 0);
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + 0.5f * inset;
