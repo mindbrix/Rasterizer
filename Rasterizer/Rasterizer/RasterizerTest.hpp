@@ -76,7 +76,7 @@ struct RasterizerTest {
         gettimeofday(& tv, NULL);
         int year = lt->tm_year + 1900;
         bool isLeapYear = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
-        float fsec = lt->tm_sec / 60.f + tv.tv_usec / 1e6f / 60.f, fmin = lt->tm_min / 60.f + fsec / 60.f, fhour = lt->tm_hour / 24.f + fmin / 24.f;
+        float fsec = (lt->tm_sec + tv.tv_usec / 1e6f) / 60.f, fmin = (lt->tm_min + fsec) / 60.f, fhour = (lt->tm_hour + fmin) / 24.f;
         float fday = lt->tm_wday / 7.f + fhour / 7.f, fdate = (lt->tm_mday - 1) / 31.f + fhour / 31.f;
         float daysthismonth = monthdays[lt->tm_mon] + (lt->tm_mon == 1 && isLeapYear ? 1.f : 0.f);
         float fmonth = lt->tm_mon / 12.f + (lt->tm_mday - 1) / daysthismonth / 12.f;
