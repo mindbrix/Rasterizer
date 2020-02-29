@@ -100,7 +100,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             RasterizerFont::writeGlyphGrid(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         _list.empty().addScene(glyphs);
     }
-    RasterizerTest::addTestScenes(_list, font);
+    RasterizerTest::addTestScenes(_list, RasterizerCG::boundsFromCGRect(self.bounds), font);
     _state.user = _list.bounds;
     [self.layer setNeedsDisplay];
 }
@@ -270,7 +270,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _list.empty());
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
         RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
-        RasterizerTest::addTestScenes(_list, font);
+        RasterizerTest::addTestScenes(_list, RasterizerCG::boundsFromCGRect(self.bounds), font);
         _state.user = _list.bounds;
     }
     [self.layer setNeedsDisplay];

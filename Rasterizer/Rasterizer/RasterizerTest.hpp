@@ -9,7 +9,7 @@
 #import <time.h>
 
 struct RasterizerTest {
-    static void addTestScenes(Ra::SceneList& list, RasterizerFont& font) {
+    static void addTestScenes(Ra::SceneList& list, Ra::Bounds bounds, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (0) {
@@ -59,8 +59,10 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (1)
-            list.addScene(createConcentrichronScene(Ra::Bounds(-800, 0, 0, 600), font), Ra::Transform(), Ra::Transform::nullclip());
+        if (1) {
+            float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly;
+            list.addScene(createConcentrichronScene(Ra::Bounds(-w, 0, 0, h), font), Ra::Transform(), Ra::Transform::nullclip());
+        }
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
         const char *days[7] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
