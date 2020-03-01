@@ -72,7 +72,7 @@ struct RasterizerTest {
         const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
         const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
         const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
-        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
         const float strokeWidth = 0.5f;
         time_t t = time(NULL);
         struct tm *lt = localtime(& t);
@@ -88,8 +88,14 @@ struct RasterizerTest {
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
+        Ra::Scene scene;
+        for (int i = 1; i < 8; i++) {
+            Ra::Bounds inner = outer.inset(inset * i, inset * i);
+            Ra::Path bgPath;  bgPath->addEllipse(inner.inset(-inset * 0.5f, -inset * 0.5f));
+            scene.addPath(bgPath, Ra::Transform(), i % 2 ? grey0 : grey1, inset, 0);
+        }
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
-        Ra::Scene scene;  scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
+        scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI + ftimes[i] * 2.f * M_PI;
