@@ -112,7 +112,7 @@ struct RasterizerTest {
             scene.addPath(path, Ra::Transform(), black, strokeWidth, 0);
             
             if (!font.isEmpty()) {
-                float r, range, begin;
+                float r = r0 + 0.25f * inset, range, begin;
                 Ra::Row<char> str;
                 for (int j = 0; j < divisions[i]; j++) {
                     if (labels[i])
@@ -120,7 +120,7 @@ struct RasterizerTest {
                     else
                         str = str.empty() + j;
                     Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
-                    r = r0 + 0.25f * inset, range = (gb.ux - gb.lx) / r, begin = theta0 + j * -step - 0.5f * (step - range);
+                    range = (gb.ux - gb.lx) / r, begin = theta0 + j * -step - 0.5f * (step - range);
                     RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, begin, scene);
                     
                     Ra::Path arcPath;  arcPath->addArc(cx, cy, r, begin - range, begin);
