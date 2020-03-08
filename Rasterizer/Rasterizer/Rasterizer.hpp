@@ -84,8 +84,7 @@ struct Rasterizer {
         Bounds clu = Bounds(clip.invert().concat(unit));
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
-    static float normalizeRadians(float angle) {
-        return fmodf(angle >= 0.f ? angle : (2.f * M_PI - (fmodf(-angle, 2.f * M_PI))), 2.f * M_PI); }
+    static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (2.f * M_PI - (fmodf(-a, 2.f * M_PI))), 2.f * M_PI); }
     struct Colorant {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
