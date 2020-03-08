@@ -130,6 +130,14 @@ struct Rasterizer {
             cubicTo(b.lx, t1 * b.ly + t0 * b.uy, t1 * b.lx + t0 * b.ux, b.ly, mx, b.ly);
             cubicTo(t0 * b.lx + t1 * b.ux, b.ly, b.ux, t1 * b.ly + t0 * b.uy, b.ux, my);
         }
+        void addArc(float cx, float cy, float r, float a0, float a1) {
+            float sine, cosine, da, f, vx0, vy0, vx1, vy1;
+            da = a1 > a0 ? a1 - a0 : a1 - a0 + 2.f * M_PI, f = 4.f * tanf(da * 0.25f) / 3.f;
+            __sincosf(a0, & sine, & cosine), vx0 = r * cosine, vy0 = r * sine;
+            __sincosf(a1, & sine, & cosine), vx1 = r * cosine, vy1 = r * sine;
+            moveTo(cx + vx0, cy + vy0);
+            cubicTo(cx + vx0 - f * vy0, cy + vy0 + f * vx0, cx + vx1 + f * vy1, cy + vy1 - f * vx1, cx + vx1, cy + vy1);
+        }
         void moveTo(float x, float y) {
             float *points = alloc(kMove, 1);
             px = points[0] = x, py = points[1] = y;
