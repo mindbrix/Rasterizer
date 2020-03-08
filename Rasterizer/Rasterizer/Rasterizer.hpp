@@ -84,7 +84,7 @@ struct Rasterizer {
         Bounds clu = Bounds(clip.invert().concat(unit));
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
-    static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (2.f * M_PI - (fmodf(-a, 2.f * M_PI))), 2.f * M_PI); }
+    static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTwoPi - (fmodf(-a, kTwoPi))), kTwoPi); }
     struct Colorant {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
@@ -125,7 +125,7 @@ struct Rasterizer {
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy); }
         void addEllipse(Bounds b) {
-            const float t0 = 0.5f - 2.f / 3.f * (sqrtf(2.f) - 1.f), t1 = 1.f - t0, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
+            const float t0 = 0.5f - 2.f / 3.f * (M_SQRT2 - 1.f), t1 = 1.f - t0, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
             moveTo(b.ux, my);
             cubicTo(b.ux, t0 * b.ly + t1 * b.uy, t0 * b.lx + t1 * b.ux, b.uy, mx, b.uy);
             cubicTo(t1 * b.lx + t0 * b.ux, b.uy, b.lx, t0 * b.ly + t1 * b.uy, b.lx, my);
@@ -135,7 +135,7 @@ struct Rasterizer {
         void addArc(float cx, float cy, float r, float a0, float a1) {
             float da, f, vx0, vy0, vx1, vy1;
             a0 = normalizeRadians(a0), a1 = normalizeRadians(a1);
-            da = a1 > a0 ? a1 - a0 : a1 - a0 + 2.f * M_PI, f = 4.f * tanf(da * 0.25f) / 3.f;
+            da = a1 > a0 ? a1 - a0 : a1 - a0 + kTwoPi, f = 4.f * tanf(da * 0.25f) / 3.f;
             vx0 = r * cosf(a0), vy0 = r * sinf(a0), vx1 = r * cosf(a1), vy1 = r * sinf(a1);
             moveTo(cx + vx0, cy + vy0);
             cubicTo(cx + vx0 - f * vy0, cy + vy0 + f * vx0, cx + vx1 + f * vy1, cy + vy1 - f * vx1, cx + vx1, cy + vy1);

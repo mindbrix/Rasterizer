@@ -6,6 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 
+#define kTwoPi 6.283185307179586f
 #define kQuadraticScale 0.f
 #define kCubicScale 1e-2f
 #define kCoverScale 2047.9375f
