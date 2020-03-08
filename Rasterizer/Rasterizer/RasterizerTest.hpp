@@ -111,19 +111,21 @@ struct RasterizerTest {
             }
             scene.addPath(path, Ra::Transform(), black, strokeWidth, 0);
             
-            Ra::Row<char> str;
-            for (int j = 0; j < divisions[i]; j++) {
-                if (labels[i])
-                    str = str.empty() + labels[i][j];
-                else
-                    str = str.empty() + j;
-                Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
-                float r = r0 + 0.25f * inset, range = (gb.ux - gb.lx) / r, offset = 0.5f * (step - range);
-                RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, theta0 + j * -step - offset, scene);
-                
-                Ra::Path arcPath;
-                arcPath->addArc(cx, cy, r, theta0 + j * -step - offset - range, theta0 + j * -step - offset);
-                scene.addPath(arcPath, Ra::Transform(), red, 2.f, 0);
+            if (!font.isEmpty()) {
+                Ra::Row<char> str;
+                for (int j = 0; j < divisions[i]; j++) {
+                    if (labels[i])
+                        str = str.empty() + labels[i][j];
+                    else
+                        str = str.empty() + j;
+                    Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
+                    float r = r0 + 0.25f * inset, range = (gb.ux - gb.lx) / r, offset = 0.5f * (step - range);
+                    RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, theta0 + j * -step - offset, scene);
+                    
+                    Ra::Path arcPath;
+                    arcPath->addArc(cx, cy, r, theta0 + j * -step - offset - range, theta0 + j * -step - offset);
+                    scene.addPath(arcPath, Ra::Transform(), red, 2.f, 0);
+                }
             }
         }
         Ra::Path linePath;  linePath->moveTo(cx, cy), linePath->lineTo(cx, outer.uy);

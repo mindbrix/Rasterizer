@@ -12,6 +12,7 @@
 struct RasterizerFont {
     RasterizerFont() { empty(); }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
+    bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
     bool set(const void *bytes, const char *name) {
         const unsigned char *ttf_buffer = (const unsigned char *)bytes;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
@@ -81,7 +82,7 @@ struct RasterizerFont {
     
     static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
         Ra::Bounds glyphBounds;
-        if (font.info.numGlyphs == 0 || font.space == 0 || str == nullptr)
+        if (font.isEmpty() || str == nullptr)
             return glyphBounds;
         int i, j, begin, step, len, codepoint, glyph, l0, l1;
         const char nl = '\n', sp = ' ', tab = '\t';
@@ -159,7 +160,7 @@ struct RasterizerFont {
         return glyphBounds;
     }
     static void writeGlyphGrid(RasterizerFont& font, float size, Ra::Colorant color, Ra::Scene& scene) {
-        if (font.info.numGlyphs == 0 || font.space == 0)
+        if (font.isEmpty())
             return;
         float s = size / float(font.unitsPerEm);
         for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
