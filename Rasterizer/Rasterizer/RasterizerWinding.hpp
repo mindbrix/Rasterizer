@@ -64,7 +64,7 @@ struct RasterizerWinding {
         if (path->isDrawable) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                Ra::Transform unit = path.ref->bounds.unit(ctm);
+                Ra::Transform unit = path.ref->bounds.inset(-width, -width).unit(ctm);
                 Ra::Bounds clip = Ra::Bounds(unit).intersect(bounds);
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
