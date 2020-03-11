@@ -61,7 +61,8 @@ struct RasterizerTest {
         }
         if (1) {
             float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly;
-            list.addScene(createConcentrichronScene(Ra::Bounds(-w, 0, 0, h), font), Ra::Transform(), Ra::Transform::nullclip());
+            list.empty();
+            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, w, h), font), Ra::Transform(), Ra::Transform::nullclip());
         }
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
@@ -73,7 +74,7 @@ struct RasterizerTest {
         const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
         const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
-        const float strokeWidth = 0.5f;
+        const float strokeWidth = 0.5f, arcWidth = 2.f;
         time_t t = time(NULL);
         struct tm *lt = localtime(& t);
         struct timeval tv;  gettimeofday(& tv, NULL);
@@ -87,7 +88,7 @@ struct RasterizerTest {
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-        Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
+        Ra::Bounds outer = b.inset(0.5f * (w - dim + strokeWidth), 0.5f * (h - dim + strokeWidth));
         Ra::Scene scene;
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
@@ -121,10 +122,12 @@ struct RasterizerTest {
                         str = str.empty() + j;
                     Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
-                    RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, scene);
                     
-                    Ra::Path arcPath;  arcPath->addArc(cx, cy, r, a0 - da, a0);
-                    scene.addPath(arcPath, Ra::Transform(), red, 2.f, 0);
+                    if (0) {
+                        Ra::Path arcPath;  arcPath->addArc(cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
+                        scene.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
+                    }
+                    RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, scene);
                 }
             }
         }
