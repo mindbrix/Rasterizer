@@ -61,7 +61,8 @@ struct RasterizerTest {
         }
         if (1) {
             float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly;
-            list.addScene(createConcentrichronScene(Ra::Bounds(-w, 0, 0, h), font), Ra::Transform(), Ra::Transform::nullclip());
+            list.empty();
+            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, w, h), font), Ra::Transform(), Ra::Transform::nullclip());
         }
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
@@ -87,7 +88,7 @@ struct RasterizerTest {
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-        Ra::Bounds outer = b.inset(0.5f * (w - dim), 0.5f * (h - dim));
+        Ra::Bounds outer = b.inset(0.5f * (w - dim + strokeWidth), 0.5f * (h - dim + strokeWidth));
         Ra::Scene scene;
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
