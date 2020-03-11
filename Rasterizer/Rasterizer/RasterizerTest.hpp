@@ -123,9 +123,10 @@ struct RasterizerTest {
                     Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                     
-                    Ra::Path arcPath;  arcPath->addArc(cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
-                    scene.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
-                    
+                    if (0) {
+                        Ra::Path arcPath;  arcPath->addArc(cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
+                        scene.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
+                    }
                     RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, scene);
                 }
             }
