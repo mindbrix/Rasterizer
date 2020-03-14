@@ -131,7 +131,7 @@ struct RasterizerTest {
                 }
             }
         }
-        Ra::Path linePath;  linePath->moveTo(cx, cy), linePath->lineTo(cx, outer.uy);
+        Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
         scene.addPath(linePath, Ra::Transform(), red, 1.f, 0);
         return scene;
     }
