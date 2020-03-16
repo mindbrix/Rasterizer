@@ -59,14 +59,14 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (0) {
+        if (1) {
             float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly;
             list.empty();
             list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, w, h), font), Ra::Transform(), Ra::Transform::nullclip());
         }
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
-        const char *days[7] = { "Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
         const char *months[12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
         const char *years[10] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
@@ -99,7 +99,7 @@ struct RasterizerTest {
         scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
-            float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI + ftimes[i] * 2.f * M_PI;
+            float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI + 0 * ftimes[i] * 2.f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
             scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
