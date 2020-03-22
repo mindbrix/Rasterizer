@@ -116,6 +116,6 @@ struct RasterizerState {
     int keyCode = 0;
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
-    Ra::Transform ctm = { 1.f, 0.f, 0.f, 1.0, 0.f, 0.f }, view;
+    Ra::Transform ctm, view;
     Ra::Bounds bounds, device, user;
 };
