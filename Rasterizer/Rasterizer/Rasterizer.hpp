@@ -17,11 +17,6 @@ struct Rasterizer {
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
         static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         static Transform rotation(float theta) { float sine, cosine;  __sincosf(theta, & sine, & cosine);  return { cosine, sine, -sine, cosine, 0.f, 0.f }; }
-        inline Transform concat(Transform t, float ax, float ay) const {
-            Transform inv = invert();  float ix = ax * inv.a + ay * inv.c + inv.tx, iy = ax * inv.b + ay * inv.d + inv.ty;
-            return Transform(a, b, c, d, ax, ay).concat(t).translate(-ix, -iy);
-        }
-        inline Transform translate(float x, float y) const { return { a, b, c, d, x * a + y * c + tx, x * b + y * d + ty }; }
         inline Transform concat(Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
@@ -29,6 +24,11 @@ struct Rasterizer {
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
+        inline Transform concat(Transform t, float ax, float ay) const {
+            Transform inv = invert();  float ix = ax * inv.a + ay * inv.c + inv.tx, iy = ax * inv.b + ay * inv.d + inv.ty;
+            return Transform(a, b, c, d, ax, ay).concat(t).translate(-ix, -iy);
+        }
+        inline Transform translate(float x, float y) const { return { a, b, c, d, x * a + y * c + tx, x * b + y * d + ty }; }
         inline Transform invert() const {
             float det = a * d - b * c, recip = 1.f / det;
             if (det == 0.f)
