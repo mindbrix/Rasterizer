@@ -19,9 +19,9 @@ struct Rasterizer {
         static Transform rotation(float theta) { float sine, cosine;  __sincosf(theta, & sine, & cosine);  return { cosine, sine, -sine, cosine, 0.f, 0.f }; }
         inline Transform concat(Transform t, float ax, float ay) const {
             Transform inv = invert();  float ix = ax * inv.a + ay * inv.c + inv.tx, iy = ax * inv.b + ay * inv.d + inv.ty;
-            return Transform(a, b, c, d, ax, ay).concat(t).translated(-ix, -iy);
+            return Transform(a, b, c, d, ax, ay).concat(t).translate(-ix, -iy);
         }
-        inline Transform translated(float x, float y) const { return { a, b, c, d, x * a + y * c + tx, x * b + y * d + ty }; }
+        inline Transform translate(float x, float y) const { return { a, b, c, d, x * a + y * c + tx, x * b + y * d + ty }; }
         inline Transform concat(Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
