@@ -36,7 +36,6 @@ struct RasterizerState {
     }
     bool readEvents(float s, float w, float h, double time, Ra::SceneList& list) {
         bool redraw = false;
-        float sine, cosine;
         update(s, w, h);
         for (Event& e : events) {
             switch(e.type) {
