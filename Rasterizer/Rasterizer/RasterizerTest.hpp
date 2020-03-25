@@ -73,7 +73,11 @@ struct RasterizerTest {
         }
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
-        return scene;
+        Ra::Scene scene3D;
+        for (int i = 0; i < scene.count; i++) {
+            scene3D.addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
+        }
+        return scene3D;
     }
     static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
