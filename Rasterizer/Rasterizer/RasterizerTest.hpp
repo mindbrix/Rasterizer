@@ -75,7 +75,33 @@ struct RasterizerTest {
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
         for (int i = 0; i < scene.count; i++) {
-            scene3D.addPath(scene.paths[i], scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
+            Ra::Path& path = scene.paths[i], path3D;
+            for (size_t index = 0; index < path->types.size(); ) {
+                float *p = & path->points[0] + index * 2;
+                switch (path->types[index]) {
+                    case Ra::Geometry::kMove:
+                        path3D->moveTo(p[0], p[1]);
+                        index++;
+                        break;
+                    case Ra::Geometry::kLine:
+                        path3D->lineTo(p[0], p[1]);
+                        index++;
+                        break;
+                    case Ra::Geometry::kQuadratic:
+                        path3D->quadTo(p[0], p[1], p[2], p[3]);
+                        index += 2;
+                        break;
+                    case Ra::Geometry::kCubic:
+                        path3D->cubicTo(p[0], p[1], p[2], p[3], p[4], p[5]);
+                        index += 3;
+                        break;
+                    case Ra::Geometry::kClose:
+                        path3D->close();
+                        index++;
+                        break;
+                }
+            }
+            scene3D.addPath(path3D, scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
         }
         return scene3D;
     }
