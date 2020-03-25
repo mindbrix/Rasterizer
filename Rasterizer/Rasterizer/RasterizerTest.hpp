@@ -8,6 +8,28 @@
 #import "Rasterizer.hpp"
 #import <time.h>
 
+struct Transform3D {
+    inline Transform3D concat(const Transform3D& n) const {
+        return { m0 * n.m0 + m4 * n.m1 + m8 * n.m2 + m12 * n.m3,
+                m1 * n.m0 + m5 * n.m1 + m9 * n.m2 + m13 * n.m3,
+                m2 * n.m0 + m6 * n.m1 + m10 * n.m2 + m14 * n.m3,
+                m3 * n.m0 + m7 * n.m1 + m11 * n.m2 + m15 * n.m3,
+                m0 * n.m4 + m4 * n.m5 + m8 * n.m6 + m12 * n.m7,
+                m1 * n.m4 + m5 * n.m5 + m9 * n.m6 + m13 * n.m7,
+                m2 * n.m4 + m6 * n.m5 + m10 * n.m6 + m14 * n.m7,
+                m3 * n.m4 + m7 * n.m5 + m11 * n.m6 + m15 * n.m7,
+                m0 * n.m8 + m4 * n.m9 + m8 * n.m10 + m12 * n.m11,
+                m1 * n.m8 + m5 * n.m9 + m9 * n.m10 + m13 * n.m11,
+                m2 * n.m8 + m6 * n.m9 + m10 * n.m10 + m14 * n.m11,
+                m3 * n.m8 + m7 * n.m9 + m11 * n.m10 + m15 * n.m11,
+                m0 * n.m12 + m4 * n.m13 + m8 * n.m14 + m12 * n.m15,
+                m1 * n.m12 + m5 * n.m13 + m9 * n.m14 + m13 * n.m15,
+                m2 * n.m12 + m6 * n.m13 + m10 * n.m14 + m14 * n.m15,
+                m3 * n.m12 + m7 * n.m13 + m11 * n.m14 + m15 * n.m15 };
+    }
+    float m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15;
+};
+
 struct RasterizerTest {
     static void addTestScenes(Ra::SceneList& list, Ra::Bounds bounds, RasterizerFont& font) {
         Ra::Scene scene;
