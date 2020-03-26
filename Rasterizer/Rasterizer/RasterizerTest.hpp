@@ -121,12 +121,10 @@ struct RasterizerTest {
             list.empty();
             list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, w, h), font), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (1) {
-            if (list.scenes.size()) {
-                Ra::Scene scene = create3DScene(list.scenes[0]);
-                list.empty();
-                list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
-            }
+        if (1 && list.scenes.size()) {
+            Ra::Scene scene = create3DScene(list.scenes[0]);
+            list.empty();
+            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
         }
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
