@@ -25,6 +25,15 @@ struct Transform3D {
             tx, ty, tz, 1.f,
         };
     }
+    static Transform3D RotateAroundY(float theta) {
+        float sine, cosine;  __sincosf(theta, & sine, & cosine);
+        return {
+            cosine, 0.f, -sine, 0.f,
+            0.f, 1.f, 0.f, 0.f,
+            sine, 0.f, cosine, 0.f,
+            0.f, 0.f, 0.f, 1.f,
+        };
+    }
     inline Transform3D concat(const Transform3D& n) const {
         return { m0 * n.m0 + m4 * n.m1 + m8 * n.m2 + m12 * n.m3,
                 m1 * n.m0 + m5 * n.m1 + m9 * n.m2 + m13 * n.m3,
