@@ -143,44 +143,42 @@ struct RasterizerTest {
         Transform3D model = Transform3D::RotateAroundY(M_PI / 8).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
         Transform3D mat = projection.concat(view).concat(model);
         
-        float x0, y0, x1, y1, x2, y2;
+        float x0, y0, x1, y1, x2, y2, sx = w / 2, sy = h / 2;
         for (int i = 0; i < scene.count; i++) {
-            if (scene.widths[i] == 0.f) {
-                Ra::Path& path = scene.paths[i], path3D;
-                for (size_t index = 0; index < path->types.size(); ) {
-                    float *p = & path->points[0] + index * 2;
-                    switch (path->types[index]) {
-                        case Ra::Geometry::kMove:
-                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
-                            path3D->moveTo(x0, y0);
-                            index++;
-                            break;
-                        case Ra::Geometry::kLine:
-                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
-                            path3D->lineTo(x0, y0);
-                            index++;
-                            break;
-                        case Ra::Geometry::kQuadratic:
-                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
-                            mat.map2DTo3D(p[2], p[3], scene.ctms[i], w, h, x1, y1);
-                            path3D->quadTo(x0, y0, x1, y1);
-                            index += 2;
-                            break;
-                        case Ra::Geometry::kCubic:
-                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
-                            mat.map2DTo3D(p[2], p[3], scene.ctms[i], w, h, x1, y1);
-                            mat.map2DTo3D(p[4], p[5], scene.ctms[i], w, h, x2, y2);
-                            path3D->cubicTo(x0, y0, x1, y1, x2, y2);
-                            index += 3;
-                            break;
-                        case Ra::Geometry::kClose:
-                            path3D->close();
-                            index++;
-                            break;
-                    }
+            Ra::Path& path = scene.paths[i], path3D;
+            for (size_t index = 0; index < path->types.size(); ) {
+                float *p = & path->points[0] + index * 2;
+                switch (path->types[index]) {
+                    case Ra::Geometry::kMove:
+                        mat.map2DTo3D(p[0], p[1], scene.ctms[i], sx, sy, x0, y0);
+                        path3D->moveTo(x0, y0);
+                        index++;
+                        break;
+                    case Ra::Geometry::kLine:
+                        mat.map2DTo3D(p[0], p[1], scene.ctms[i], sx, sy, x0, y0);
+                        path3D->lineTo(x0, y0);
+                        index++;
+                        break;
+                    case Ra::Geometry::kQuadratic:
+                        mat.map2DTo3D(p[0], p[1], scene.ctms[i], sx, sy, x0, y0);
+                        mat.map2DTo3D(p[2], p[3], scene.ctms[i], sx, sy, x1, y1);
+                        path3D->quadTo(x0, y0, x1, y1);
+                        index += 2;
+                        break;
+                    case Ra::Geometry::kCubic:
+                        mat.map2DTo3D(p[0], p[1], scene.ctms[i], sx, sy, x0, y0);
+                        mat.map2DTo3D(p[2], p[3], scene.ctms[i], sx, sy, x1, y1);
+                        mat.map2DTo3D(p[4], p[5], scene.ctms[i], sx, sy, x2, y2);
+                        path3D->cubicTo(x0, y0, x1, y1, x2, y2);
+                        index += 3;
+                        break;
+                    case Ra::Geometry::kClose:
+                        path3D->close();
+                        index++;
+                        break;
                 }
-                scene3D.addPath(path3D, Ra::Transform(), scene.colors[i], 0, scene.flags[i]);
             }
+            scene3D.addPath(path3D, Ra::Transform(), scene.colors[i], scene.widths[i], scene.flags[i]);
         }
         return scene3D;
     }
