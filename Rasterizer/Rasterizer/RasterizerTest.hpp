@@ -121,33 +121,61 @@ struct RasterizerTest {
         }
         if (1) {
             if (list.scenes.size()) {
-                Ra::Scene scene = create3DScene(list.scenes[0]);
+                Ra::Scene scene = create3DScene(list.scenes[0], bounds);
                 list.empty();
                 list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
             }
         }
     }
-    static Ra::Scene create3DScene(Ra::Scene scene) {
+    static Ra::Scene create3DScene(Ra::Scene scene, Ra::Bounds bounds) {
         Ra::Scene scene3D;
+        float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, dim = w > h ? w : h;
+        Transform3D projection = Transform3D::Projection(w / 2, h / 2, dim, dim * 2);
+        Transform3D view = Transform3D::Translation(0, 0, -dim / 2);
+        Transform3D model = Transform3D::RotateAroundY(M_PI / 4).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
+        Transform3D mat = projection.concat(view).concat(model);
+        
+        float x0, y0, w0, x1, y1, w1, x2, y2, w2;
         for (int i = 0; i < scene.count; i++) {
             Ra::Path& path = scene.paths[i], path3D;
             for (size_t index = 0; index < path->types.size(); ) {
                 float *p = & path->points[0] + index * 2;
                 switch (path->types[index]) {
                     case Ra::Geometry::kMove:
-                        path3D->moveTo(p[0], p[1]);
+                        x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
+                        y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
+                        w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
+                        path3D->moveTo(x0 / w0 * w, y0 / w0 * h);
                         index++;
                         break;
                     case Ra::Geometry::kLine:
-                        path3D->lineTo(p[0], p[1]);
+                        x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
+                        y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
+                        w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
+                        path3D->lineTo(x0 / w0 * w, y0 / w0 * h);
                         index++;
                         break;
                     case Ra::Geometry::kQuadratic:
-                        path3D->quadTo(p[0], p[1], p[2], p[3]);
+                        x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
+                        y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
+                        w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
+                        x1 = mat.m0 * p[2] + mat.m4 * p[3] + mat.m12;
+                        y1 = mat.m1 * p[2] + mat.m5 * p[3] + mat.m13;
+                        w1 = mat.m3 * p[2] + mat.m7 * p[3] + mat.m15;
+                        path3D->quadTo(x0 / w0 * w, y0 / w0 * h, x1 / w1 * w, y1 / w1 * h);
                         index += 2;
                         break;
                     case Ra::Geometry::kCubic:
-                        path3D->cubicTo(p[0], p[1], p[2], p[3], p[4], p[5]);
+                        x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
+                        y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
+                        w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
+                        x1 = mat.m0 * p[2] + mat.m4 * p[3] + mat.m12;
+                        y1 = mat.m1 * p[2] + mat.m5 * p[3] + mat.m13;
+                        w1 = mat.m3 * p[2] + mat.m7 * p[3] + mat.m15;
+                        x2 = mat.m0 * p[4] + mat.m4 * p[5] + mat.m12;
+                        y2 = mat.m1 * p[4] + mat.m5 * p[5] + mat.m13;
+                        w2 = mat.m3 * p[4] + mat.m7 * p[5] + mat.m15;
+                        path3D->cubicTo(x0 / w0 * w, y0 / w0 * h, x1 / w1 * w, y1 / w1 * h, x2 / w2 * w, y2 / w2 * h);
                         index += 3;
                         break;
                     case Ra::Geometry::kClose:
@@ -156,7 +184,7 @@ struct RasterizerTest {
                         break;
                 }
             }
-            scene3D.addPath(path3D, scene.ctms[i], scene.colors[i], scene.widths[i], scene.flags[i]);
+            scene3D.addPath(path3D, scene.ctms[i], scene.colors[i], 0, scene.flags[i]);
         }
         return scene3D;
     }
