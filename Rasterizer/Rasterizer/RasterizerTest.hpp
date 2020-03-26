@@ -121,15 +121,15 @@ struct RasterizerTest {
         }
         if (1) {
             if (list.scenes.size()) {
-                Ra::Scene scene = create3DScene(list.scenes[0], bounds);
+                Ra::Scene scene = create3DScene(list.scenes[0]);
                 list.empty();
                 list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
             }
         }
     }
-    static Ra::Scene create3DScene(Ra::Scene scene, Ra::Bounds bounds) {
+    static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
-        float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, dim = w > h ? w : h;
+        float w = scene.bounds.ux - scene.bounds.lx, h = scene.bounds.uy - scene.bounds.ly, dim = w > h ? w : h;
         Transform3D projection = Transform3D::Projection(w / 2, h / 2, dim, dim * 2);
         Transform3D view = Transform3D::Translation(0, 0, -dim / 2);
         Transform3D model = Transform3D::RotateAroundY(M_PI / 4).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
