@@ -34,6 +34,14 @@ struct Transform3D {
             0.f, 0.f, 0.f, 1.f,
         };
     }
+    static Transform3D Projection(float r, float t, float n, float f) {
+        return {
+            n / r, 0.f, 0.f, 0.f,
+            0.f, n / t, 0.f, 0.f,
+            0.f, 0.f, -(f + n) / (f - n), -1.f,
+            0.f, 0.f, -2.f * f * n / (f - n), 0.f,
+        };
+    }
     inline Transform3D concat(const Transform3D& n) const {
         return { m0 * n.m0 + m4 * n.m1 + m8 * n.m2 + m12 * n.m3,
                 m1 * n.m0 + m5 * n.m1 + m9 * n.m2 + m13 * n.m3,
