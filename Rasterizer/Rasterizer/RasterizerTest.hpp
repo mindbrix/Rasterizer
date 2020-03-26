@@ -8,6 +8,8 @@
 #import "Rasterizer.hpp"
 #import <time.h>
 
+// http://www.songho.ca/opengl/gl_transform.html
+//
 struct Transform3D {
     static Transform3D Translation(float tx, float ty, float tz) {
         return {
