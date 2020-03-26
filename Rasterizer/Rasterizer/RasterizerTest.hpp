@@ -9,6 +9,22 @@
 #import <time.h>
 
 struct Transform3D {
+    static Transform3D Identity() {
+        return {
+            1.f, 0.f, 0.f, 0.f,
+            0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            0.f, 0.f, 0.f, 1.f,
+        };
+    }
+    static Transform3D Translation(float tx, float ty, float tz) {
+        return {
+            1.f, 0.f, 0.f, 0.f,
+            0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 1.f, 0.f,
+            tx, ty, tz, 1.f,
+        };
+    }
     inline Transform3D concat(const Transform3D& n) const {
         return { m0 * n.m0 + m4 * n.m1 + m8 * n.m2 + m12 * n.m3,
                 m1 * n.m0 + m5 * n.m1 + m9 * n.m2 + m13 * n.m3,
