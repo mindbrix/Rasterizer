@@ -9,14 +9,6 @@
 #import <time.h>
 
 struct Transform3D {
-    static Transform3D Identity() {
-        return {
-            1.f, 0.f, 0.f, 0.f,
-            0.f, 1.f, 0.f, 0.f,
-            0.f, 0.f, 1.f, 0.f,
-            0.f, 0.f, 0.f, 1.f,
-        };
-    }
     static Transform3D Translation(float tx, float ty, float tz) {
         return {
             1.f, 0.f, 0.f, 0.f,
