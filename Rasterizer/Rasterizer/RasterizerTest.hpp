@@ -20,11 +20,10 @@ struct Transform3D {
         };
     }
     static Transform3D RotateAroundY(float theta) {
-        float sine, cosine;  __sincosf(theta, & sine, & cosine);
         return {
-            cosine, 0.f, -sine, 0.f,
+            cosf(theta), 0.f, -sinf(theta), 0.f,
             0.f, 1.f, 0.f, 0.f,
-            sine, 0.f, cosine, 0.f,
+            sinf(theta), 0.f, cosf(theta), 0.f,
             0.f, 0.f, 0.f, 1.f
         };
     }
