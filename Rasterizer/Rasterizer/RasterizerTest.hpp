@@ -140,7 +140,7 @@ struct RasterizerTest {
         float w = scene.bounds.ux - scene.bounds.lx, h = scene.bounds.uy - scene.bounds.ly, dim = w > h ? w : h;
         Transform3D projection = Transform3D::Projection(w / 2, h / 2, dim, dim * 2);
         Transform3D view = Transform3D::Translation(0, 0, -dim / 2);
-        Transform3D model = Transform3D::RotateAroundY(M_PI / 4).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
+        Transform3D model = Transform3D::RotateAroundY(M_PI / 8).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
         Transform3D mat = projection.concat(view).concat(model);
         
         float x0, y0, x1, y1, x2, y2;
