@@ -60,6 +60,14 @@ struct Transform3D {
                 m2 * n.m12 + m6 * n.m13 + m10 * n.m14 + m14 * n.m15,
                 m3 * n.m12 + m7 * n.m13 + m11 * n.m14 + m15 * n.m15 };
     }
+    inline void map2DTo3D(float ix, float iy, Ra::Transform ctm, float sx, float sy, float& ox, float& oy) {
+        float x, y, w;
+        x = ix * ctm.a + iy * ctm.c + ctm.tx;
+        y = ix * ctm.b + iy * ctm.d + ctm.ty;
+        w = m3 * x + m7 * y + m15;
+        ox = (m0 * x + m4 * y + m12) / w * sx;
+        oy = (m1 * x + m5 * y + m13) / w * sy;
+    }
     float m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15;
 };
 
@@ -135,7 +143,7 @@ struct RasterizerTest {
         Transform3D model = Transform3D::RotateAroundY(M_PI / 4).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
         Transform3D mat = projection.concat(view).concat(model);
         
-        float x0, y0, w0, x1, y1, w1, x2, y2, w2;
+        float x0, y0, x1, y1, x2, y2;
         for (int i = 0; i < scene.count; i++) {
             if (scene.widths[i] == 0.f) {
                 Ra::Path& path = scene.paths[i], path3D;
@@ -143,40 +151,26 @@ struct RasterizerTest {
                     float *p = & path->points[0] + index * 2;
                     switch (path->types[index]) {
                         case Ra::Geometry::kMove:
-                            x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
-                            y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
-                            w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
-                            path3D->moveTo(x0 / w0 * w, y0 / w0 * h);
+                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
+                            path3D->moveTo(x0, y0);
                             index++;
                             break;
                         case Ra::Geometry::kLine:
-                            x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
-                            y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
-                            w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
-                            path3D->lineTo(x0 / w0 * w, y0 / w0 * h);
+                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
+                            path3D->lineTo(x0, y0);
                             index++;
                             break;
                         case Ra::Geometry::kQuadratic:
-                            x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
-                            y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
-                            w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
-                            x1 = mat.m0 * p[2] + mat.m4 * p[3] + mat.m12;
-                            y1 = mat.m1 * p[2] + mat.m5 * p[3] + mat.m13;
-                            w1 = mat.m3 * p[2] + mat.m7 * p[3] + mat.m15;
-                            path3D->quadTo(x0 / w0 * w, y0 / w0 * h, x1 / w1 * w, y1 / w1 * h);
+                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
+                            mat.map2DTo3D(p[2], p[3], scene.ctms[i], w, h, x1, y1);
+                            path3D->quadTo(x0, y0, x1, y1);
                             index += 2;
                             break;
                         case Ra::Geometry::kCubic:
-                            x0 = mat.m0 * p[0] + mat.m4 * p[1] + mat.m12;
-                            y0 = mat.m1 * p[0] + mat.m5 * p[1] + mat.m13;
-                            w0 = mat.m3 * p[0] + mat.m7 * p[1] + mat.m15;
-                            x1 = mat.m0 * p[2] + mat.m4 * p[3] + mat.m12;
-                            y1 = mat.m1 * p[2] + mat.m5 * p[3] + mat.m13;
-                            w1 = mat.m3 * p[2] + mat.m7 * p[3] + mat.m15;
-                            x2 = mat.m0 * p[4] + mat.m4 * p[5] + mat.m12;
-                            y2 = mat.m1 * p[4] + mat.m5 * p[5] + mat.m13;
-                            w2 = mat.m3 * p[4] + mat.m7 * p[5] + mat.m15;
-                            path3D->cubicTo(x0 / w0 * w, y0 / w0 * h, x1 / w1 * w, y1 / w1 * h, x2 / w2 * w, y2 / w2 * h);
+                            mat.map2DTo3D(p[0], p[1], scene.ctms[i], w, h, x0, y0);
+                            mat.map2DTo3D(p[2], p[3], scene.ctms[i], w, h, x1, y1);
+                            mat.map2DTo3D(p[4], p[5], scene.ctms[i], w, h, x2, y2);
+                            path3D->cubicTo(x0, y0, x1, y1, x2, y2);
                             index += 3;
                             break;
                         case Ra::Geometry::kClose:
@@ -185,7 +179,7 @@ struct RasterizerTest {
                             break;
                     }
                 }
-                scene3D.addPath(path3D, scene.ctms[i], scene.colors[i], 0, scene.flags[i]);
+                scene3D.addPath(path3D, Ra::Transform(), scene.colors[i], 0, scene.flags[i]);
             }
         }
         return scene3D;
