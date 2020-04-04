@@ -37,11 +37,11 @@ struct RasterizerWinding {
             }
         }
         inline void distance(float x0, float y0, float x1, float y1) {
-            float ax = x1 - x0, ay = y1 - y0;
-            float bx = dx - x0, by = dy - y0, t = (ax * bx + ay * by) / (ax * ax + ay * ay);
-            t = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            float cx = (1.f - t) * x0 + t * x1, cy = (1.f - t) * y0 + t * y1;
-            if (sqrtf((cx - dx) * (cx - dx) + (cy - dy) * (cy - dy)) < 0.5f * width)
+            float ax, ay, bx, by, cx, cy, t;
+            ax = x1 - x0, ay = y1 - y0, bx = dx - x0, by = dy - y0;
+            t = (ax * bx + ay * by) / (ax * ax + ay * ay), t = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
+            cx = (1.f - t) * x0 + t * x1 - dx, cy = (1.f - t) * y0 + t * y1 - dy;
+            if (sqrtf(cx * cx + cy * cy) < 0.5f * width)
                 winding = 1;
         }
         float dx, dy, width;  int winding;
