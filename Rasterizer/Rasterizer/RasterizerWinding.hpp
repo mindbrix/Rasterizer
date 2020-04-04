@@ -42,24 +42,16 @@ struct RasterizerWinding {
             t = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
             float cx = (1.f - t) * x0 + t * x1, cy = (1.f - t) * y0 + t * y1;
             if (sqrtf((cx - dx) * (cx - dx) + (cy - dy) * (cy - dy)) < 0.5f * width)
-                winding++;
+                winding = 1;
         }
         float dx, dy, width;  int winding;
         
         static void count(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             ((WindingInfo *)info)->count(x0, y0, x1, y1);
         }
-        static void countOutline(float x0, float y0, float x1, float y1, uint32_t curve, void *inf) {
-            WindingInfo *info = (WindingInfo *)inf;
-            if (x0 != x1 || y0 != y1) {
+        static void countOutline(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            if (x0 != x1 || y0 != y1)
                 ((WindingInfo *)info)->distance(x0, y0, x1, y1);
-//                float dx = x1 - x0, dy = y1 - y0, rl = 1.f / sqrtf(dx * dx + dy * dy);
-//                float vx = -dy * rl * 0.5f * info->width, vy = dx * rl * 0.5f * info->width;
-//                info->count(x0 + vx, y0 + vy, x0 - vx, y0 - vy);
-//                info->count(x0 - vx, y0 - vy, x1 - vx, y1 - vy);
-//                info->count(x1 - vx, y1 - vy, x1 + vx, y1 + vy);
-//                info->count(x1 + vx, y1 + vy, x0 + vx, y0 + vy);
-            }
         }
         static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Ra::Function function, void *info, float s) {
             Ra::writeQuadratic(x0, y0, x1, y1, x2, y2, function, info, 1.f);
