@@ -83,7 +83,7 @@ struct RasterizerDB {
         int count, N;
         Ra::SceneList tables;
         writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
-        float fw, fh, dim, pad, lx, ly, uy;
+        float fw, fh, dim, pad, lx, ly;
         fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, "SELECT SUBSTR(tbl_name, 1, 1) as initial, COUNT(*) AS count FROM sqlite_master WHERE LOWER(initial) != UPPER(initial) AND name NOT LIKE 'sqlite%' GROUP BY initial ORDER BY initial ASC", -1, & pStmt1, NULL) == SQLITE_OK) {
@@ -96,8 +96,8 @@ struct RasterizerDB {
                 str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, ras_ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = ras_ts.tid AND SUBSTR(tbl_name, 1, 1) = '" + (const char *)sqlite3_column_text(pStmt1, 0) + "' ORDER BY tbl_name ASC";
                 if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK) {
                     for (int gi = 0, gx = 0, gy = 0, status = sqlite3_step(pStmt0); gi < gN * gN; status = status == SQLITE_ROW ? sqlite3_step(pStmt0) : status, gi++, gx = gi % gN, gy = gi / gN) {
-                        lx = gb.lx + gx * (gdim + gpad), uy = gb.uy - gy * (gdim + gpad);
-                        Ra::Bounds tb = { lx, uy - gdim, lx + gdim, uy };
+                        lx = gb.lx + gx * (gdim + gpad), ly = gb.uy - gy * (gdim + gpad) - gdim;
+                        Ra::Bounds tb = { lx, ly, lx + gdim, ly + gdim };
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
