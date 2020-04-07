@@ -11,6 +11,11 @@
 #import "RasterizerFont.hpp"
 
 struct RasterizerDB {
+    struct Table {
+        Ra::Row<char> name;
+        Ra::Bounds bounds;
+        float t;
+    };
     const int kTextChars = 24, kRealChars = 4;
     ~RasterizerDB() { close(); }
     int open(const char *filename) { return sqlite3_open(filename, & db); }
@@ -79,9 +84,9 @@ struct RasterizerDB {
             Ra::Colorant(240, 240, 240, 255), Ra::Colorant(244, 244, 244, 255),
             Ra::Colorant(248, 248, 248, 255), Ra::Colorant(253, 253, 253, 255)
         };
+        std::vector<Table> tables;
         Ra::Row<char> str;
         int count, N;
-        Ra::SceneList tables;
         writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw, fh, dim, pad, lx, ly;
         fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
@@ -101,15 +106,19 @@ struct RasterizerDB {
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
-                        if (status == SQLITE_ROW)
-                            writeTable(font, sqlite3_column_double(pStmt0, 1), tb, (const char *)sqlite3_column_text(pStmt0, 0), tables);
+                        if (status == SQLITE_ROW) {
+                            tables.emplace_back();  Table& tab = tables.back();
+                            tab.name = tab.name + (const char *)sqlite3_column_text(pStmt0, 0);
+                            tab.bounds = tb;
+                            tab.t = sqlite3_column_double(pStmt0, 1);
+                        }
                     }
                 }
                 sqlite3_finalize(pStmt0);
             }
             list.addScene(background);
-            for (int i = 0; i < tables.scenes.size(); i++)
-                list.addScene(tables.scenes[i], tables.ctms[i], tables.clips[i]);
+            for (Table& tab : tables)
+                writeTable(font, tab.t, tab.bounds, tab.name.base, list);
         }
         sqlite3_finalize(pStmt1);
     }
