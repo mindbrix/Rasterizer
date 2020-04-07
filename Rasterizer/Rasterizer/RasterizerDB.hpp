@@ -107,19 +107,18 @@ struct RasterizerDB {
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
-                        if (status == SQLITE_ROW) {
+                        if (status == SQLITE_ROW)
                             tables.emplace_back(
                                 (const char *)sqlite3_column_text(pStmt0, 0),
                                 tb,
                                 sqlite3_column_double(pStmt0, 1));
-                        }
                     }
                 }
                 sqlite3_finalize(pStmt0);
             }
             list.addScene(background);
-            for (Table& tab : tables)
-                writeTable(font, tab.t, tab.bounds, tab.name.base, list);
+            for (Table& table : tables)
+                writeTable(font, table.t, table.bounds, table.name.base, list);
         }
         sqlite3_finalize(pStmt1);
     }
