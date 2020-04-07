@@ -12,6 +12,7 @@
 
 struct RasterizerDB {
     struct Table {
+        Table(const char *nm, Ra::Bounds bounds, float t) : bounds(bounds), t(t) { name = name + nm; }
         Ra::Row<char> name;
         Ra::Bounds bounds;
         float t;
@@ -107,10 +108,10 @@ struct RasterizerDB {
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
                         if (status == SQLITE_ROW) {
-                            tables.emplace_back();  Table& tab = tables.back();
-                            tab.name = tab.name + (const char *)sqlite3_column_text(pStmt0, 0);
-                            tab.bounds = tb;
-                            tab.t = sqlite3_column_double(pStmt0, 1);
+                            tables.emplace_back(
+                                (const char *)sqlite3_column_text(pStmt0, 0),
+                                tb,
+                                sqlite3_column_double(pStmt0, 1));
                         }
                     }
                 }
