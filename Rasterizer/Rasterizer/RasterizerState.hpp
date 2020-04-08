@@ -90,7 +90,7 @@ struct RasterizerState {
                     redraw = true;
                     break;
                 case Event::kNull:
-                    assert(0);
+                    break;
             }
         }
         view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
