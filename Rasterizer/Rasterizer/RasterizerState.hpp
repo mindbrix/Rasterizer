@@ -34,9 +34,8 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    bool readEvents(float s, float w, float h, double time, Ra::SceneList& list) {
+    bool readEvents(double time, Ra::SceneList& list) {
         bool redraw = false;
-        update(s, w, h);
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
@@ -65,7 +64,7 @@ struct RasterizerState {
                         if (user.lx == FLT_MAX)
                             ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
                         else {
-                            float sx = w / (user.ux - user.lx), sy = h / (user.uy - user.ly), scale = sx < sy ? sx : sy;
+                            float sx = (bounds.ux - bounds.lx) / (user.ux - user.lx), sy = (bounds.uy - bounds.ly) / (user.uy - user.ly), scale = sx < sy ? sx : sy;
                             Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * user.lx, -scale * user.ly };
                             if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
                                 ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
@@ -93,7 +92,7 @@ struct RasterizerState {
                     assert(0);
             }
         }
-        view = Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
+        view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
         index = INT_MAX;
         if (mouseMove) {
             Ra::SceneList visibles;

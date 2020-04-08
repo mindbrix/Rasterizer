@@ -71,8 +71,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)timerFired:(double)time {
-    if (_state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list))
-        [self.layer setNeedsDisplay];
+    [self readEvents: time];
 }
 
 - (void)toggleTimer {
@@ -137,9 +136,14 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (BOOL)writeEvent:(RasterizerState::Event)event {
     BOOL written = _state.writeEvent(event);
     if (written && _displayLink == nil)
-        if (_state.readEvents(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, 0, _list))
-            [self.layer setNeedsDisplay];
+        [self readEvents: 0];
     return written;
+}
+
+- (void)readEvents:(double)time {
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
+    if (_state.readEvents(time, _list))
+        [self.layer setNeedsDisplay];
 }
 
 #pragma mark - NSResponder
