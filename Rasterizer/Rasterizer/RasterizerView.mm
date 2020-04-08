@@ -142,7 +142,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)readEvents:(double)time {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
-    if (_state.readEvents(time)) {
+    if (_state.readEvents()) {
         _state.doMouseMove(_list);
         [self.layer setNeedsDisplay];
     }

@@ -34,7 +34,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    bool readEvents(double time) {
+    bool readEvents() {
         bool redraw = false;
         for (Event& e : events) {
             switch(e.type) {
