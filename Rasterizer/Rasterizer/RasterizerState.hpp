@@ -11,7 +11,7 @@
 struct RasterizerState {
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
-        enum Type { kNull = 0, kMouseMove, kMouseUp, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate };
+        enum Type { kNull = 0, kMouseMove, kMouseUp, kDragged, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate };
         
         Event() {}
         Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y), keyCode(0) {}
@@ -84,6 +84,7 @@ struct RasterizerState {
                     ctm = ctm.concat(Ra::Transform::rotation(e.x), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     redraw = true;
                     break;
+                case Event::kDragged:
                 case Event::kTranslate:
                     ctm.tx += e.x, ctm.ty += e.y;
                     redraw = true;

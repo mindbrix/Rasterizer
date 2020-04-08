@@ -212,7 +212,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseDown, float(event.locationInWindow.x), float(event.locationInWindow.y))];
 }
 - (void)mouseDragged:(NSEvent *)event {
-    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kTranslate, float(event.deltaX), float(-event.deltaY))];
+    [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kDragged, float(event.deltaX), float(-event.deltaY))];
 }
 - (void)mouseMoved:(NSEvent *)event {
     [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseMove, float(event.locationInWindow.x), float(event.locationInWindow.y))];
