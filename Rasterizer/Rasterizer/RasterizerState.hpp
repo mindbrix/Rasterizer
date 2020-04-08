@@ -62,7 +62,7 @@ struct RasterizerState {
                         mouseMove = !mouseMove;
                     else if (e.keyCode == 36) {
                         if (user.lx == FLT_MAX)
-                            ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                            ctm = Ra::Transform();
                         else {
                             float sx = (bounds.ux - bounds.lx) / (user.ux - user.lx), sy = (bounds.uy - bounds.ly) / (user.uy - user.ly), scale = sx < sy ? sx : sy;
                             Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * user.lx, -scale * user.ly };
