@@ -34,7 +34,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    bool readEvents(double time, Ra::SceneList& list) {
+    bool readEvents(double time) {
         bool redraw = false;
         for (Event& e : events) {
             switch(e.type) {
@@ -93,6 +93,10 @@ struct RasterizerState {
             }
         }
         view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+        events.resize(0);
+        return redraw;
+    }
+    void doMouseMove(Ra::SceneList& list) {
         index = INT_MAX;
         if (mouseMove) {
             Ra::SceneList visibles;
@@ -107,8 +111,6 @@ struct RasterizerState {
                 }
             }
         }
-        events.resize(0);
-        return redraw;
     }
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true;
     float x, y, scale, outlineWidth = 0.f;
