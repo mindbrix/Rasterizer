@@ -100,7 +100,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _list.empty().addScene(glyphs);
     }
     RasterizerTest::addTestScenes(_list, RasterizerCG::boundsFromCGRect(self.bounds), font);
-    _state.user = _list.bounds;
     [self.layer setNeedsDisplay];
 }
 
@@ -124,7 +123,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self.layer.needsDisplayOnBoundsChange = YES;
     self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
     [self.layer setNeedsDisplay];
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
 }
 
 - (void)updateRasterizerLabel {
@@ -141,7 +139,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)readEvents:(double)time {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     if (_state.readEvents()) {
         _state.doMouseMove(_list);
         [self.layer setNeedsDisplay];
@@ -179,7 +177,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
         [self.layer setNeedsDisplay];
-        _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     } else if (keyCode == 49) {
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 1)
@@ -224,7 +221,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     _testScene.converter.set(srcSpace, self.window.colorSpace.CGColorSpace);
@@ -235,7 +232,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.src0, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
@@ -250,7 +247,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGRect mediaBox = self.bounds;
     CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
     CGPDFContextBeginPage(ctx, NULL);
-    _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
+    _state.update(1.0, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
     RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
     CGPDFContextEndPage(ctx);
@@ -275,7 +272,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
         RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
         RasterizerTest::addTestScenes(_list, RasterizerCG::boundsFromCGRect(self.bounds), font);
-        _state.user = _list.bounds;
     }
     [self.layer setNeedsDisplay];
 }

@@ -24,9 +24,9 @@ struct RasterizerState {
         int keyCode;
         size_t flags;
     };
-    void update(float s, float w, float h) {
+    void update(float s, float w, float h, Ra::Bounds u) {
         scale = s, view = Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
-        bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+        bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s)), user = u;
     }
     bool writeEvent(Event e) {
         bool written = e.type != Event::kKeyDown || (e.type == Event::kKeyDown && (e.keyCode == 8 || e.keyCode == 31 || e.keyCode == 35 || e.keyCode == 36));
