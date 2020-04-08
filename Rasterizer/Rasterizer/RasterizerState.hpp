@@ -67,7 +67,7 @@ struct RasterizerState {
                             float sx = (bounds.ux - bounds.lx) / (user.ux - user.lx), sy = (bounds.uy - bounds.ly) / (user.uy - user.ly), scale = sx < sy ? sx : sy;
                             Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * user.lx, -scale * user.ly };
                             if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
-                                ctm = { 1.f, 0.f, 0.f, 1.f, 0.f, 0.f };
+                                ctm = Ra::Transform();
                             else
                                 ctm = fit;
                         }
