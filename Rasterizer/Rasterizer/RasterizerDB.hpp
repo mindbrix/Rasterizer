@@ -17,7 +17,7 @@ struct RasterizerDB {
         Ra::Bounds bounds;
         float t;
     };
-    const int kTextChars = 24, kRealChars = 4;
+    const static int kTextChars = 24, kRealChars = 4;
     ~RasterizerDB() { close(); }
     int open(const char *filename) { return sqlite3_open(filename, & db); }
     void close() { sqlite3_close(db), db = nullptr; }
