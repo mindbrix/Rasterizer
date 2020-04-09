@@ -85,7 +85,7 @@ struct RasterizerDB {
             Ra::Colorant(240, 240, 240, 255), Ra::Colorant(244, 244, 244, 255),
             Ra::Colorant(248, 248, 248, 255), Ra::Colorant(253, 253, 253, 255)
         };
-        std::vector<Table> tables;
+        tables = std::vector<Table>();
         Ra::Row<char> str;
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
@@ -170,5 +170,6 @@ struct RasterizerDB {
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
+    std::vector<Table> tables;
     size_t refCount;
 };
