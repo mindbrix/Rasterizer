@@ -170,4 +170,5 @@ struct RasterizerDB {
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
+    size_t refCount;
 };

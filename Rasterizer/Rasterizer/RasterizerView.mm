@@ -17,7 +17,7 @@
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) RasterizerCG::CGTestContext testScene;
-@property(nonatomic) RasterizerDB db;
+@property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
 @property(nonatomic) BOOL useCG;
@@ -259,8 +259,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)setDbURL:(NSURL *)dbURL {
     if (_dbURL == nil && dbURL != nil) {
-        _db.open(dbURL.path.UTF8String);
-        RasterizerCG::writeFontsTable(_db);
+        _db->open(dbURL.path.UTF8String);
+        RasterizerCG::writeFontsTable(*(_db.ref));
     }
     if ((_dbURL = dbURL))
         [self changeFont:nil];
