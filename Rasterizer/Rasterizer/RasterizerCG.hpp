@@ -102,7 +102,7 @@ struct RasterizerCG {
     static CGAffineTransform CGFromTransform(Ra::Transform t) {
         return CGAffineTransformMake(t.a, t.b, t.c, t.d, t.tx, t.ty);
     }
-    static Ra::Bounds boundsFromCGRect(CGRect rect) {
+    static Ra::Bounds BoundsFromCGRect(CGRect rect) {
         return Ra::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
     }
     static CGRect CGRectFromBounds(Ra::Bounds bounds) {
