@@ -263,3 +263,5 @@ struct RasterizerCG {
         free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
     }
 };
+
+typedef RasterizerCG RaCG;

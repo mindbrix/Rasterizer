@@ -16,7 +16,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) RasterizerCG::CGTestContext testScene;
+@property(nonatomic) RaCG::CGTestContext testScene;
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
@@ -86,22 +86,22 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
-    NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
+    NSData *data = [NSData dataWithContentsOfURL:RaCG::fontURL(self.font.fontName)];
     RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
     Ra::SceneList list;
     if ([_dbURL isFileURL])
-        _db->writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), list);
+        _db->writeTables(font, RaCG::boundsFromCGRect(self.bounds), list);
     else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
-            RasterizerFont::writeGlyphs(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RasterizerCG::boundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+            RasterizerFont::writeGlyphs(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::boundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         else
             RasterizerFont::writeGlyphGrid(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
-    RasterizerTest::addTestScenes(list, RasterizerCG::boundsFromCGRect(self.bounds), font);
+    RasterizerTest::addTestScenes(list, RaCG::boundsFromCGRect(self.bounds), font);
     _list.empty().addList(list);
     [self.layer setNeedsDisplay];
 }
@@ -230,7 +230,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     _testScene.converter.set(srcSpace, self.window.colorSpace.CGColorSpace);
-    RasterizerCG::drawTestScene(_testScene, _list, _state, buffer);
+    RaCG::drawTestScene(_testScene, _list, _state, buffer);
     CGColorSpaceRelease(srcSpace);
 }
 
@@ -240,8 +240,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.src0, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
-    CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
-    RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
+    CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
+    RaCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
 }
 
 #pragma mark - Screen grab to PDF
@@ -253,8 +253,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
     CGPDFContextBeginPage(ctx, NULL);
     _state.update(1.0, self.bounds.size.width, self.bounds.size.height, _list.bounds);
-    CGContextConcatCTM(ctx, RasterizerCG::CGFromTransform(_state.ctm));
-    RasterizerCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
+    CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
+    RaCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
     CGPDFContextEndPage(ctx);
     CGPDFContextClose(ctx);
 }
@@ -264,7 +264,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setDbURL:(NSURL *)dbURL {
     if ((_dbURL = dbURL)) {
         _db->open(dbURL.path.UTF8String);
-        RasterizerCG::writeFontsTable(*(_db.ref));
+        RaCG::writeFontsTable(*(_db.ref));
         [self changeFont:nil];
     }
 }
