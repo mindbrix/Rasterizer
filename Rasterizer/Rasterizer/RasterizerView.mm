@@ -89,9 +89,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSData *data = [NSData dataWithContentsOfURL:RaCG::fontURL(self.font.fontName)];
     RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
     Ra::SceneList list;
-    if ([_dbURL isFileURL])
-        _db->writeTables(font, RaCG::BoundsFromCGRect(self.bounds), list);
-    else if (_svgData != nil)
+    if ([_dbURL isFileURL]) {
+        _db->writeTables(font, RaCG::BoundsFromCGRect(self.bounds));
+        list.addList(_db->list);
+    } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else {
         Ra::Scene glyphs;
