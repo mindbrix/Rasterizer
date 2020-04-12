@@ -88,11 +88,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
     NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
     RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
-    if ([_dbURL isFileURL]) {
-        RasterizerDB db;
-        db.open(_dbURL.path.UTF8String);
-        db.writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
-    } else {
+    if ([_dbURL isFileURL])
+        _db->writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
+    else {
         Ra::Scene glyphs;
         if (self.pastedString)
             RasterizerFont::writeGlyphs(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RasterizerCG::boundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
