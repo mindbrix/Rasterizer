@@ -302,6 +302,11 @@ struct Rasterizer {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
             return *this;
         }
+        SceneList& addList(SceneList& list) {
+            for (int i = 0; i < list.scenes.size(); i++)
+                addScene(list.scenes[i], list.ctms[i], list.clips[i]);
+            return *this;
+        }
         SceneList& addScene(Scene scene) {
             return addScene(scene, Transform(), Transform::nullclip());
         }
