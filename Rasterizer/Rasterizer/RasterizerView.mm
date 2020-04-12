@@ -258,12 +258,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - Properies
 
 - (void)setDbURL:(NSURL *)dbURL {
-    if (_dbURL == nil && dbURL != nil) {
+    if ((_dbURL = dbURL)) {
         _db->open(dbURL.path.UTF8String);
         RasterizerCG::writeFontsTable(*(_db.ref));
-    }
-    if ((_dbURL = dbURL))
         [self changeFont:nil];
+    }
 }
 
 - (void)setSvgData:(NSData *)svgData {
