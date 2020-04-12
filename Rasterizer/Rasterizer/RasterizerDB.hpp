@@ -9,6 +9,7 @@
 #import <sqlite3.h>
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
+#import "RasterizerState.hpp"
 
 struct RasterizerDB {
     struct Table {
@@ -167,6 +168,15 @@ struct RasterizerDB {
             }
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
+    }
+    bool readEvents(RasterizerState::Event *events, size_t count) {
+        bool redraw = false;
+        for (int i = 0; i < count; i++)
+            switch (events[i].type) {
+                default:
+                    break;
+            }
+        return redraw;
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
