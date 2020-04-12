@@ -90,6 +90,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
     if ([_dbURL isFileURL])
         _db->writeTables(font, RasterizerCG::boundsFromCGRect(self.bounds), _list.empty());
+    else if (_svgData != nil)
+        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _list.empty());
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
@@ -266,12 +268,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)setSvgData:(NSData *)svgData {
-    if ((_svgData = svgData)) {
-        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, _list.empty());
-        NSData *data = [NSData dataWithContentsOfURL:RasterizerCG::fontURL(self.font.fontName)];
-        RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
-        RasterizerTest::addTestScenes(_list, RasterizerCG::boundsFromCGRect(self.bounds), font);
-    }
-    [self.layer setNeedsDisplay];
+    if ((_svgData = svgData))
+        [self changeFont:nil];
 }
 @end
