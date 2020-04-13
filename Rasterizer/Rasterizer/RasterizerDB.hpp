@@ -101,7 +101,7 @@ struct RasterizerDB {
                 int gCount = sqlite3_column_int(pStmt1, 1), gN = ceilf(sqrtf(gCount));
                 float gdim = (gb.ux - gb.lx) / (gN + 2.f * (gN - 1.f) / float(kTextChars)), gpad = gdim * 2.f / float(kTextChars);
                 str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, ras_ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = ras_ts.tid AND SUBSTR(tbl_name, 1, 1) = '" + (const char *)sqlite3_column_text(pStmt1, 0) + "' ORDER BY tbl_name ASC";
-                if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK) {
+                if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK)
                     for (int gi = 0, gx = 0, gy = 0, status = sqlite3_step(pStmt0); gi < gN * gN; status = status == SQLITE_ROW ? sqlite3_step(pStmt0) : status, gi++, gx = gi % gN, gy = gi / gN) {
                         lx = gb.lx + gx * (gdim + gpad), ly = gb.uy - gy * (gdim + gpad) - gdim;
                         Ra::Bounds tb = { lx, ly, lx + gdim, ly + gdim };
@@ -114,7 +114,6 @@ struct RasterizerDB {
                                 tb,
                                 sqlite3_column_double(pStmt0, 1));
                     }
-                }
                 sqlite3_finalize(pStmt0);
             }
             list.empty(), tableLists = std::vector<Ra::SceneList>();
