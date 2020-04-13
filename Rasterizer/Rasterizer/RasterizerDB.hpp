@@ -10,6 +10,7 @@
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
 #import "RasterizerState.hpp"
+#import "RasterizerWinding.hpp"
 
 struct RasterizerDB {
     struct Table {
@@ -172,10 +173,14 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
     }
-    bool readEvents(RasterizerState::Event *events, size_t count) {
+    bool readEvents(RasterizerState& state) {
         bool redraw = false;
-        for (int i = 0; i < count; i++)
-            switch (events[i].type) {
+        for (RasterizerState::Event& e : state.events)
+            switch (e.type) {
+                case RasterizerState::Event::kMouseMove: {
+                    Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, state.scale * e.x, state.scale * e.y);
+                    break;
+                }
                 default:
                     break;
             }

@@ -143,7 +143,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)readEvents:(double)time {
-    bool dbRedraw = _db->readEvents(& _state.events[0], _state.events.size());
+    bool dbRedraw = _db->readEvents(_state);
     if (dbRedraw)
         _list.empty().addList(_db->list);
     bool stateRedraw = _state.readEvents();
