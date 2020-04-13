@@ -117,7 +117,7 @@ struct RasterizerDB {
                 sqlite3_finalize(pStmt0);
             }
             list.empty(), tableLists = std::vector<Ra::SceneList>();
-            list.addScene(background);
+            backgroundList.empty().addScene(background), list.addList(backgroundList);
             for (Table& table : tables) {
                 tableLists.emplace_back();
                 writeTable(font, table.t, table.bounds, table.name.base, tableLists.back());
@@ -185,6 +185,6 @@ struct RasterizerDB {
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
     std::vector<Ra::SceneList> tableLists;
-    Ra::SceneList list;
+    Ra::SceneList backgroundList, list;
     size_t refCount;
 };
