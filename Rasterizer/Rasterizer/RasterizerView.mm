@@ -143,8 +143,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)readEvents:(double)time {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     bool dbRedraw = _db->readEvents(& _state.events[0], _state.events.size());
+    if (dbRedraw)
+        _list.empty().addList(_db->list);
     bool stateRedraw = _state.readEvents();
     if (dbRedraw || stateRedraw) {
         _state.doMouseMove(_list);
