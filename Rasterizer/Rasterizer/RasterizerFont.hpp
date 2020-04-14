@@ -5,16 +5,28 @@
 //  Created by Nigel Barber on 04/01/2019.
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
+#import <fcntl.h>
+#import <sys/stat.h>
 #import <unordered_map>
 #import "Rasterizer.hpp"
 #import "stb_truetype.h"
 
 struct RasterizerFont {
-    RasterizerFont() { empty(); }
+    RasterizerFont(const char *filename) {
+        empty();
+        int fd = open(filename, O_RDONLY);
+        if (fd != -1) {
+            struct stat st;
+            fstat(fd, & st);
+            bytes->resize(st.st_size);
+            read(fd, bytes->addr, st.st_size);
+            close(fd);
+        }
+    }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
-    bool set(const void *bytes, const char *name) {
-        const unsigned char *ttf_buffer = (const unsigned char *)bytes;
+    bool set(const char *name) {
+        const unsigned char *ttf_buffer = (const unsigned char *)bytes->addr;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
         empty();
         for (int i = 0; i < numfonts; i++)
@@ -76,6 +88,7 @@ struct RasterizerFont {
         }
         return path;
     }
+    Ra::Ref<Ra::Memory<uint8_t>> bytes;
     std::unordered_map<int, Ra::Path> cache;
     int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;

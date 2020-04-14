@@ -86,8 +86,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
-    NSData *data = [NSData dataWithContentsOfURL:RaCG::fontURL(self.font.fontName)];
-    RasterizerFont font;  font.set(data.bytes, self.font.fontName.UTF8String);
+    NSURL *url = RaCG::fontURL(self.font.fontName);
+    RasterizerFont font(url.path.UTF8String);
+    font.set(self.font.fontName.UTF8String);
     Ra::SceneList list;
     if ([_dbURL isFileURL]) {
         _db->writeTables(font, RaCG::BoundsFromCGRect(self.bounds));
