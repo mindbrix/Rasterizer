@@ -17,11 +17,9 @@ struct RasterizerFont {
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
     bool set(const char *filename, const char *name) {
         empty();
-        int fd = open(filename, O_RDONLY);
-        if (fd == -1)
+        int fd;  struct stat st;
+        if ((fd = open(filename, O_RDONLY)) == -1 || fstat(fd, & st) == -1)
             return false;
-        struct stat st;
-        fstat(fd, & st);
         bytes->resize(st.st_size);
         read(fd, bytes->addr, st.st_size);
         close(fd);
