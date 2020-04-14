@@ -12,23 +12,22 @@
 #import "stb_truetype.h"
 
 struct RasterizerFont {
-    RasterizerFont(const char *filename) {
-        empty();
-        int fd = open(filename, O_RDONLY);
-        if (fd != -1) {
-            struct stat st;
-            fstat(fd, & st);
-            bytes->resize(st.st_size);
-            read(fd, bytes->addr, st.st_size);
-            close(fd);
-        }
-    }
+    RasterizerFont() { empty(); }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
-    bool set(const char *name) {
+    bool set(const char *filename, const char *name) {
+        empty();
+        int fd = open(filename, O_RDONLY);
+        if (fd == -1)
+            return false;
+        struct stat st;
+        fstat(fd, & st);
+        bytes->resize(st.st_size);
+        read(fd, bytes->addr, st.st_size);
+        close(fd);
+        
         const unsigned char *ttf_buffer = (const unsigned char *)bytes->addr;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
-        empty();
         for (int i = 0; i < numfonts; i++)
             if ((offset = stbtt_GetFontOffsetForIndex(ttf_buffer, i)) != -1) {
                 stbtt_InitFont(& info, ttf_buffer, offset);
