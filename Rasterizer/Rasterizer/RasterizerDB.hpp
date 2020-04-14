@@ -155,7 +155,7 @@ struct RasterizerDB {
                 Ra::Scene header, line, rows;
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                        RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], header);
+                        RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), black, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], header);
                 list.addScene(header, Ra::Transform(1.f, 0.f, 0.f, 1.f, frame.lx, frame.uy), Ra::Transform::nullclip());
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
                 line.addPath(linePath, Ra::Transform(), red, h / 128.f, 0);
@@ -165,7 +165,7 @@ struct RasterizerDB {
                     float uy = my + h * ((1.f - t) * float(count) - j);
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? black : gray, Ra::Bounds(frame.lx + lx, -FLT_MAX, frame.lx + ux, uy), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), rows);
+                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? red : gray, Ra::Bounds(frame.lx + lx, -FLT_MAX, frame.lx + ux, uy), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), rows);
                 }
                 list.addScene(rows, Ra::Transform(), clip);
             }
