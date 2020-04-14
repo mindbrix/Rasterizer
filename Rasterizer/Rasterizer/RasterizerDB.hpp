@@ -152,7 +152,7 @@ struct RasterizerDB {
                     str = str + (i == 0 ? "" : ", ") + names[i];
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
-                Ra::Scene header, line;
+                Ra::Scene header, line, rows;
                 for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                         RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), red, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, names[i], header);
@@ -162,13 +162,12 @@ struct RasterizerDB {
                 list.addScene(line);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++) {
-                    Ra::Scene row;
-                    Ra::Transform ctm = { 1.f, 0.f, 0.f, 1.f, frame.lx, my + h * ((1.f - t) * float(count) - j) };
+                    float uy = my + h * ((1.f - t) * float(count) - j);
                     for (lx = 0.f, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? black : gray, Ra::Bounds(lx, -FLT_MAX, ux, 0.f), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), row);
-                    list.addScene(row, ctm, clip);
+                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? black : gray, Ra::Bounds(frame.lx + lx, -FLT_MAX, frame.lx + ux, uy), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), rows);
                 }
+                list.addScene(rows, Ra::Transform(), clip);
             }
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
