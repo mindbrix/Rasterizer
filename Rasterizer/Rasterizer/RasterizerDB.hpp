@@ -183,7 +183,7 @@ struct RasterizerDB {
                         Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
                         if (indices.begin != INT_MAX) {
                             int li = indices.begin, si = indices.end;
-                            Ra::Transform inv = backgroundList.scenes[li].paths[si]->bounds.unit(state.view).invert();
+                            Ra::Transform inv = backgroundList.scenes[li].paths[si]->bounds.unit(state.view.concat(backgroundList.ctms[li])).invert();
                             ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
                             writeTable(*font.ref, uy, tables[si].bounds, tables[si].name.base, tableLists[si].empty());
                             list.empty().addList(backgroundList);
