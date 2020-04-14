@@ -265,7 +265,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setDbURL:(NSURL *)dbURL {
     if ((_dbURL = dbURL)) {
         _db->open(dbURL.path.UTF8String);
-        RaCG::writeFontsTable(*(_db.ref));
+        RaCG::writeFontsTable(*_db.ref);
         [self changeFont:nil];
     }
 }
