@@ -175,15 +175,27 @@ struct RasterizerDB {
     }
     bool readEvents(RasterizerState& state) {
         bool redraw = false;
-        for (RasterizerState::Event& e : state.events)
-            switch (e.type) {
-                case RasterizerState::Event::kMouseMove: {
-                    Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, state.scale * e.x, state.scale * e.y);
-                    break;
+        if (db)
+            for (RasterizerState::Event& e : state.events)
+                switch (e.type) {
+                    case RasterizerState::Event::kMouseMove: {
+                        float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
+                        Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
+                        if (indices.begin != INT_MAX) {
+                            int li = indices.begin, si = indices.end;
+                            Ra::Transform inv = backgroundList.scenes[li].paths[si]->bounds.unit(state.view).invert();
+                            ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
+                            writeTable(*font.ref, uy, tables[si].bounds, tables[si].name.base, tableLists[si].empty());
+                            list.empty().addList(backgroundList);
+                            for (Ra::SceneList& tableList: tableLists)
+                                list.addList(tableList);
+                            redraw = true;
+                        }
+                        break;
+                    }
+                    default:
+                        break;
                 }
-                default:
-                    break;
-            }
         return redraw;
     }
     sqlite3 *db = nullptr;
