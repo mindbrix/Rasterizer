@@ -87,7 +87,7 @@ struct RasterizerFont {
     }
     Ra::Ref<Ra::Memory<uint8_t>> bytes;
     std::unordered_map<int, Ra::Path> cache;
-    int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm;
+    int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm, refCount;
     stbtt_fontinfo info;
     
     static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {

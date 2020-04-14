@@ -87,23 +87,23 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
     NSURL *url = RaCG::fontURL(self.font.fontName);
-    RasterizerFont font;
-    font.set(url.path.UTF8String, self.font.fontName.UTF8String);
+    Ra::Ref<RasterizerFont> font;  font->set(url.path.UTF8String, self.font.fontName.UTF8String);
     Ra::SceneList list;
     if ([_dbURL isFileURL]) {
-        _db->writeTables(font, RaCG::BoundsFromCGRect(self.bounds));
+        _db->font = font;
+        _db->writeTables(RaCG::BoundsFromCGRect(self.bounds));
         list.addList(_db->list);
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
-            RasterizerFont::writeGlyphs(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+            RasterizerFont::writeGlyphs(*font.ref, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         else
-            RasterizerFont::writeGlyphGrid(font, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
+            RasterizerFont::writeGlyphGrid(*font.ref, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
-    RasterizerTest::addTestScenes(list, RaCG::BoundsFromCGRect(self.bounds), font);
+    RasterizerTest::addTestScenes(list, RaCG::BoundsFromCGRect(self.bounds), *font.ref);
     _list.empty().addList(list);
     [self.layer setNeedsDisplay];
 }

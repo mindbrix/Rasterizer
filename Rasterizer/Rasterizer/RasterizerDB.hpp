@@ -82,7 +82,7 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
-    void writeTables(RasterizerFont& font, Ra::Bounds frame) {
+    void writeTables(Ra::Bounds frame) {
         Ra::Colorant bg[4] = {
             Ra::Colorant(240, 240, 240, 255), Ra::Colorant(244, 244, 244, 255),
             Ra::Colorant(248, 248, 248, 255), Ra::Colorant(253, 253, 253, 255)
@@ -121,7 +121,7 @@ struct RasterizerDB {
             backgroundList.empty().addScene(background), list.addList(backgroundList);
             for (Table& table : tables) {
                 tableLists.emplace_back();
-                writeTable(font, table.t, table.bounds, table.name.base, tableLists.back());
+                writeTable(*font.ref, table.t, table.bounds, table.name.base, tableLists.back());
                 list.addList(tableLists.back());
             }
         }
@@ -191,5 +191,6 @@ struct RasterizerDB {
     std::vector<Table> tables;
     std::vector<Ra::SceneList> tableLists;
     Ra::SceneList backgroundList, list;
+    Ra::Ref<RasterizerFont> font;
     size_t refCount;
 };
