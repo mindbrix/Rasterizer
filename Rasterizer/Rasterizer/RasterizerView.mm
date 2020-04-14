@@ -21,7 +21,6 @@
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
 @property(nonatomic) BOOL useCG;
-@property(nonatomic) NSFont *font;
 @property(nonatomic) NSString *pastedString;
 - (void)timerFired:(double)time;
 
@@ -47,7 +46,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (! self)
         return nil;
     [self initLayer:_useCG];
-    self.font = [NSFont fontWithName:@"AppleSymbols" size:14];
     [self changeFont:nil];
     return self;
 }
@@ -85,9 +83,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    self.font = [[NSFontManager sharedFontManager] convertFont:self.font];
-    NSURL *url = RaCG::fontURL(self.font.fontName);
-    Ra::Ref<RasterizerFont> font;  font->set(url.path.UTF8String, self.font.fontName.UTF8String);
+    NSFont *fnt = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
+    NSURL *url = RaCG::fontURL(fnt.fontName);
+    Ra::Ref<RasterizerFont> font;  font->set(url.path.UTF8String, fnt.fontName.UTF8String);
     Ra::SceneList list;
     if ([_dbURL isFileURL]) {
         _db->font = font;
@@ -98,9 +96,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
-            RasterizerFont::writeGlyphs(*font.ref, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+            RasterizerFont::writeGlyphs(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         else
-            RasterizerFont::writeGlyphGrid(*font.ref, float(self.font.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
+            RasterizerFont::writeGlyphGrid(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
     RasterizerTest::addTestScenes(list, RaCG::BoundsFromCGRect(self.bounds), *font.ref);
