@@ -142,7 +142,8 @@ struct RasterizerDB {
             fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
             fs = fw / (total * font.avg), h = fs * (font.ascent - font.descent + font.lineGap), my = frame.uy - roundf(0.5f * fh / h) * h;
             str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
-            rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count);
+            rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count) + 0.5f * fs * float(font.lineGap) / h;
+            n = n > count - 1 ? count - 1 : n;
             lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             uy = my + h * (t * float(count) - lower);
             str = str.empty() + "SELECT ";
