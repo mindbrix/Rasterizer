@@ -53,12 +53,6 @@ struct RasterizerWinding {
             if (x0 != x1 || y0 != y1)
                 ((WindingInfo *)info)->distance(x0, y0, x1, y1);
         }
-        static void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Ra::Function function, void *info, float s) {
-            Ra::writeQuadratic(x0, y0, x1, y1, x2, y2, function, info, 1.f);
-        }
-        static void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Ra::Function function, void *info, float s) {
-            Ra::writeCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, 1.f);
-        }
     };
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy, float width) {
         WindingInfo info(dx, dy, width);
@@ -72,9 +66,9 @@ struct RasterizerWinding {
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         if (path.ref->types.size()) {
                             if (width)
-                                Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, WindingInfo::writeQuadratic, WindingInfo::writeCubic, & info);
+                                Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
                             else
-                                Ra::writePath(path.ref, ctm, clip, false, true, false, WindingInfo::count, WindingInfo::writeQuadratic, WindingInfo::writeCubic, & info);
+                                Ra::writePath(path.ref, ctm, clip, false, true, false, WindingInfo::count, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
                         } 
                     }
                 }
