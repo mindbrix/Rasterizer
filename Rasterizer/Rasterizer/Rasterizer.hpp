@@ -243,9 +243,8 @@ struct Rasterizer {
                 ips.emplace_back(bounds.size()), bounds.emplace_back(path->bounds);
                 for (Bounds& m : path->molecules)
                     molecules.emplace_back(m);
-                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly;
-                scubic = kMoleculesHeight / (w > h ? w : h), scubic = scubic < 1.f ? 1.f : scubic, scubic *= kCubicScale;
-                writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, scubic);
+                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                 pends.emplace_back(points.size());
             }
         }
@@ -267,7 +266,7 @@ struct Rasterizer {
                 buf->im++, buf->p0 = buf->points.size();
             }
         }
-        float x1, y1, scubic;
+        float x1, y1;
         size_t refCount = 0, im = 0, p0 = 0;
         std::vector<Point> points;
         std::vector<Bounds> bounds, molecules;
