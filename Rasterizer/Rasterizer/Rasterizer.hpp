@@ -259,12 +259,12 @@ struct Rasterizer {
                 ips.emplace_back(paths.size()), paths.emplace_back(path);
                 if (path->p16s.size() == 0) {
                     float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, paths.back().ref, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                 }
             }
         }
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((P16Buffer *)info)->paths.back()->writeSegment(x0, y0, x1, y1, curve);
+            ((Geometry *)info)->writeSegment(x0, y0, x1, y1, curve);
         }
         size_t refCount = 0;
         std::vector<uint32_t> ips;
