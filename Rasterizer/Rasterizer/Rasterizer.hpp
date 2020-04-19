@@ -416,7 +416,7 @@ struct Rasterizer {
         struct Edge {
             enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
             uint32_t ic;
-            uint16_t i0, i1;
+            uint16_t i0, ux;
         };
         void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
         void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
@@ -1067,7 +1067,7 @@ struct Rasterizer {
                                     ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                     ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
                                 }
-                                fast->ic = uint32_t(ic), fast->i0 = j, fast->i1 = ux;
+                                fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                             }
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
@@ -1076,9 +1076,9 @@ struct Rasterizer {
                             for (j = 0; j < inst->quad.count; j++, edge++) {
                                 uxc = uxcovers + is->i * 3, is++, edge->ic = uint32_t(ic) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]);
                                 if (++j < inst->quad.count)
-                                    uxc = uxcovers + is->i * 3, is++, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->i1 = uint16_t(uxc[2]);
+                                    uxc = uxcovers + is->i * 3, is++, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->ux = uint16_t(uxc[2]);
                                 else
-                                    edge->i1 = kNullIndex;
+                                    edge->ux = kNullIndex;
                             }
                         }
                     }

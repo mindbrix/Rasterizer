@@ -60,7 +60,7 @@ struct EdgeCell {
 struct Edge {
     enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
     uint32_t ic;
-    uint16_t i0, i1;
+    uint16_t i0, ux;
 };
 
 float4 distances(Transform ctm, float dx, float dy) {
@@ -225,7 +225,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
             }
         }
     }
-    float ox = clamp(select(floor(slx), float(edge.i1), vid & 1), float(cell.lx), float(edge.i1));
+    float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(edge.ux));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
