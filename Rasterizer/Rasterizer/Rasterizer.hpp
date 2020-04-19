@@ -257,9 +257,10 @@ struct Rasterizer {
             else {
                 cache.emplace(path->hash, paths.size());
                 ips.emplace_back(paths.size()), paths.emplace_back(path);
-                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                if (path->p16s.size() == 0)
+                if (path->p16s.size() == 0) {
+                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                     writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                }
             }
         }
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
