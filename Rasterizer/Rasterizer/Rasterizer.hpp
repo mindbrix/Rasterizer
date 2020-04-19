@@ -89,6 +89,17 @@ struct Rasterizer {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
     };
+    struct Point {
+        Point(float x0, float y0, uint32_t curve, Bounds& b) {
+            if (x0 == FLT_MAX)
+                x = y = 0xFFFF;
+            else {
+                x = uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14);
+                y = uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15);
+            }
+        }
+        uint16_t x, y;
+    };
     struct Geometry {
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         Geometry() : quadraticSums(0), cubicSums(0), px(0), py(0), isGlyph(false), isDrawable(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
@@ -177,11 +188,30 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
-        size_t refCount, quadraticSums, cubicSums, hash, counts[kCountSize];
+        void writePoint(float x0, float y0, uint32_t curve) {
+            p16s.emplace_back(Point(x0, y0, curve, bounds));
+            if ((p16s.size() - p0) % 4 == 0)
+                pims.emplace_back(im);
+        }
+        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+            if (x0 != FLT_MAX)
+                writePoint(x0, y0, curve), _x1 = x1, _y1 = y1;
+            else {
+                if (p16s.size() > p0) {
+                    writePoint(_x1, _y1, 0), writePoint(FLT_MAX, FLT_MAX, 0);
+                    for (size_t pi = p16s.size() - p0; pi % 4; pi++)
+                        writePoint(FLT_MAX, FLT_MAX, 0);
+                }
+                im++, p0 = p16s.size();
+            }
+        }
+        size_t refCount, quadraticSums, cubicSums, hash, counts[kCountSize], im = 0, p0 = 0;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
-        float px, py;
+        std::vector<Point> p16s;
+        std::vector<uint32_t> pims;
+        float px, py, _x1, _y1;
         bool isGlyph, isDrawable;
         Bounds bounds, *mols;
     };
@@ -219,17 +249,6 @@ struct Rasterizer {
         uint64_t refCount, hash;
         std::vector<T> v;
     };
-    struct Point {
-        Point(float x0, float y0, uint32_t curve, Bounds& b) {
-            if (x0 == FLT_MAX)
-                x = y = 0xFFFF;
-            else {
-                x = uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14);
-                y = uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15);
-            }
-        }
-        uint16_t x, y;
-    };
     struct SceneBuffer {
         uint32_t pi0(size_t ip) { return ip == 0 ? 0 : pends[ip - 1]; }
         uint32_t pi1(size_t ip) { return pends[ip]; }
@@ -241,12 +260,18 @@ struct Rasterizer {
             else {
                 cache.emplace(path->hash, bounds.size());
                 ips.emplace_back(bounds.size()), bounds.emplace_back(path->bounds);
+                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                paths.emplace_back(path);
+                if (path->p16s.size() == 0)
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, _WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                 for (Bounds& m : path->molecules)
                     molecules.emplace_back(m);
-                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                 writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                 pends.emplace_back(points.size());
             }
+        }
+        static void _WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            ((SceneBuffer *)info)->paths.back()->writeSegment(x0, y0, x1, y1, curve);
         }
         void writePoint(float x0, float y0, uint32_t curve) {
             points.emplace_back(Point(x0, y0, curve, bounds.back()));
@@ -271,6 +296,7 @@ struct Rasterizer {
         std::vector<Point> points;
         std::vector<Bounds> bounds, molecules;
         std::vector<uint32_t> pims, pends, ips;
+        std::vector<Path> paths;
         std::unordered_map<size_t, size_t> cache;
     };
     struct Scene {
