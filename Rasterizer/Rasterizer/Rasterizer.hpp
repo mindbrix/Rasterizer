@@ -250,48 +250,23 @@ struct Rasterizer {
         std::vector<T> v;
     };
     struct SceneBuffer {
-        uint32_t pi0(size_t ip) { return ip == 0 ? 0 : pends[ip - 1]; }
-        uint32_t pi1(size_t ip) { return pends[ip]; }
-        
         void addPath(Path path) {
             auto it = cache.find(path->hash);
             if (it != cache.end())
                 ips.emplace_back(it->second);
             else {
-                cache.emplace(path->hash, bounds.size());
-                ips.emplace_back(bounds.size()), bounds.emplace_back(path->bounds);
+                cache.emplace(path->hash, paths.size());
+                ips.emplace_back(paths.size()), paths.emplace_back(path);
                 float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                paths.emplace_back(path);
                 if (path->p16s.size() == 0)
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, _WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, this, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
             }
-        }
-        static void _WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((SceneBuffer *)info)->paths.back()->writeSegment(x0, y0, x1, y1, curve);
-        }
-        void writePoint(float x0, float y0, uint32_t curve) {
-            points.emplace_back(Point(x0, y0, curve, bounds.back()));
-            if ((points.size() - p0) % 4 == 0)
-                pims.emplace_back(im);
         }
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            SceneBuffer *buf = (SceneBuffer *)info;
-            if (x0 != FLT_MAX)
-                buf->writePoint(x0, y0, curve), buf->x1 = x1, buf->y1 = y1;
-            else {
-                if (buf->points.size() > buf->p0) {
-                    buf->writePoint(buf->x1, buf->y1, 0), buf->writePoint(FLT_MAX, FLT_MAX, 0);
-                    for (size_t pi = buf->points.size() - buf->p0; pi % 4; pi++)
-                        buf->writePoint(FLT_MAX, FLT_MAX, 0);
-                }
-                buf->im++, buf->p0 = buf->points.size();
-            }
+            ((SceneBuffer *)info)->paths.back()->writeSegment(x0, y0, x1, y1, curve);
         }
-        float x1, y1;
-        size_t refCount = 0, im = 0, p0 = 0, pend = 0;
-        std::vector<Point> points;
-        std::vector<Bounds> bounds, molecules;
-        std::vector<uint32_t> pims, pends, ips;
+        size_t refCount = 0;
+        std::vector<uint32_t> ips;
         std::vector<Path> paths;
         std::unordered_map<size_t, size_t> cache;
     };
@@ -1008,7 +983,7 @@ struct Rasterizer {
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             SceneBuffer *buf;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
-                for (buf = list.scenes[j].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
+                for (buf = list.scenes[j].buffer.ref, puz = buf->paths.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
                         gpu.ptotal += buf->paths[ip]->p16s.size();
             size += contexts[i].segments.end * sizeof(Segment) + gpu.ptotal * sizeof(Point);
@@ -1044,7 +1019,7 @@ struct Rasterizer {
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
                 SceneBuffer *buf;
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (buf = list.scenes[i].buffer.ref, puz = buf->bounds.size(), ip = 0; ip < puz; ip++)
+                    for (buf = list.scenes[i].buffer.ref, puz = buf->paths.size(), ip = 0; ip < puz; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
                             Path& path = buf->paths[ip];
                             memcpy(buffer.base + begin + pbase * sizeof(Point), & path->p16s[0], path->p16s.size() * sizeof(Point));
