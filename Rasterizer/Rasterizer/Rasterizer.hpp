@@ -90,8 +90,8 @@ struct Rasterizer {
         uint8_t src0, src1, src2, src3;
     };
     struct Geometry {
-        struct Point {
-            Point(float x0, float y0, uint32_t curve, Bounds& b) {
+        struct Point16 {
+            Point16(float x0, float y0, uint32_t curve, Bounds& b) {
                 if (x0 == FLT_MAX)
                     x = y = 0xFFFF;
                 else {
@@ -189,7 +189,7 @@ struct Rasterizer {
             update(kClose, 0, alloc(kClose, 1));
         }
         void writePoint(float x0, float y0, uint32_t curve) {
-            p16s.emplace_back(Point(x0, y0, curve, bounds));
+            p16s.emplace_back(Point16(x0, y0, curve, bounds));
             if ((p16s.size() - p0) % 4 == 0)
                 pims.emplace_back(im);
         }
@@ -209,7 +209,7 @@ struct Rasterizer {
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
-        std::vector<Point> p16s;
+        std::vector<Point16> p16s;
         std::vector<uint32_t> pims;
         float px, py, _x1, _y1;
         bool isGlyph, isDrawable;
