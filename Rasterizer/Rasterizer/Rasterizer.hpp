@@ -244,29 +244,29 @@ struct Rasterizer {
         }
         float x0, y0, x1, y1;
     };
-    struct Point16Cache {
-        void addPath(Path path) {
-            auto it = cache.find(path->hash);
-            if (it != cache.end())
-                ips.emplace_back(it->second);
-            else {
-                cache.emplace(path->hash, paths.size());
-                ips.emplace_back(paths.size()), paths.emplace_back(path);
-                if (path->p16s.size() == 0) {
-                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, path.ref, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+    struct Scene {
+        struct Point16Cache {
+            void addPath(Path path) {
+                auto it = cache.find(path->hash);
+                if (it != cache.end())
+                    ips.emplace_back(it->second);
+                else {
+                    cache.emplace(path->hash, paths.size());
+                    ips.emplace_back(paths.size()), paths.emplace_back(path);
+                    if (path->p16s.size() == 0) {
+                        float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                        writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, path.ref, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                    }
                 }
             }
-        }
-        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((Geometry *)info)->writeSegment16(x0, y0, x1, y1, curve);
-        }
-        size_t refCount = 0;
-        std::vector<uint32_t> ips;
-        std::vector<Path> paths;
-        std::unordered_map<size_t, size_t> cache;
-    };
-    struct Scene {
+            static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+                ((Geometry *)info)->writeSegment16(x0, y0, x1, y1, curve);
+            }
+            size_t refCount = 0;
+            std::vector<uint32_t> ips;
+            std::vector<Path> paths;
+            std::unordered_map<size_t, size_t> cache;
+        };
         template<typename T>
         struct Vector {
             uint64_t refCount, hash;
@@ -982,11 +982,11 @@ struct Rasterizer {
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
-            Point16Cache *buf;
+            Scene::Point16Cache *cache;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
-                for (buf = list.scenes[j].p16cache.ref, puz = buf->paths.size(), ip = 0; ip < puz; ip++)
+                for (cache = list.scenes[j].p16cache.ref, puz = cache->paths.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
-                        gpu.ptotal += buf->paths[ip]->p16s.size();
+                        gpu.ptotal += cache->paths[ip]->p16s.size();
             size += contexts[i].segments.end * sizeof(Segment) + gpu.ptotal * sizeof(Point);
         }
         buffer.resize(size);
@@ -1018,11 +1018,11 @@ struct Rasterizer {
             if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
-                Point16Cache *buf;
+                Scene::Point16Cache *cache;
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (buf = list.scenes[i].p16cache.ref, puz = buf->paths.size(), ip = 0; ip < puz; ip++)
+                    for (cache = list.scenes[i].p16cache.ref, puz = cache->paths.size(), ip = 0; ip < puz; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
-                            Path& path = buf->paths[ip];
+                            Path& path = cache->paths[ip];
                             memcpy(buffer.base + begin + pbase * sizeof(Point), & path->p16s[0], path->p16s.size() * sizeof(Point));
                             ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += path->p16s.size();
                         }
