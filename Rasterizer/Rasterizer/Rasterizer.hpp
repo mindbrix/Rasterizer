@@ -244,11 +244,6 @@ struct Rasterizer {
         }
         float x0, y0, x1, y1;
     };
-    template<typename T>
-    struct Vector {
-        uint64_t refCount, hash;
-        std::vector<T> v;
-    };
     struct P16Buffer {
         void addPath(Path path) {
             auto it = cache.find(path->hash);
@@ -272,6 +267,11 @@ struct Rasterizer {
         std::unordered_map<size_t, size_t> cache;
     };
     struct Scene {
+        template<typename T>
+        struct Vector {
+            uint64_t refCount, hash;
+            std::vector<T> v;
+        };
         enum Flags { kVisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
