@@ -89,18 +89,18 @@ struct Rasterizer {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
     };
-    struct Point {
-        Point(float x0, float y0, uint32_t curve, Bounds& b) {
-            if (x0 == FLT_MAX)
-                x = y = 0xFFFF;
-            else {
-                x = uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14);
-                y = uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15);
-            }
-        }
-        uint16_t x, y;
-    };
     struct Geometry {
+        struct Point {
+            Point(float x0, float y0, uint32_t curve, Bounds& b) {
+                if (x0 == FLT_MAX)
+                    x = y = 0xFFFF;
+                else {
+                    x = uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14);
+                    y = uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15);
+                }
+            }
+            uint16_t x, y;
+        };
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         Geometry() : quadraticSums(0), cubicSums(0), px(0), py(0), isGlyph(false), isDrawable(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
         
