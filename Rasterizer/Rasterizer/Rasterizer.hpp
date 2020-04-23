@@ -196,12 +196,10 @@ struct Rasterizer {
         void writeSegment16(float x0, float y0, float x1, float y1, uint32_t curve) {
             if (x0 != FLT_MAX)
                 writePoint16(x0, y0, curve), _x1 = x1, _y1 = y1;
-            else {
-                if (p16s.size() > p0) {
-                    writePoint16(_x1, _y1, 0), writePoint16(FLT_MAX, FLT_MAX, 0);
-                    for (size_t pi = p16s.size() - p0; pi % 4; pi++)
-                        writePoint16(FLT_MAX, FLT_MAX, 0);
-                }
+            else if (p16s.size() > p0) {
+                writePoint16(_x1, _y1, 0), writePoint16(FLT_MAX, FLT_MAX, 0);
+                for (size_t pi = p16s.size() - p0; pi % 4; pi++)
+                    writePoint16(FLT_MAX, FLT_MAX, 0);
                 im++, p0 = p16s.size();
             }
         }
