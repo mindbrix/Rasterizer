@@ -188,19 +188,19 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
-        void writePoint(float x0, float y0, uint32_t curve) {
+        void writePoint16(float x0, float y0, uint32_t curve) {
             p16s.emplace_back(Point16(x0, y0, curve, bounds));
             if ((p16s.size() - p0) % 4 == 0)
                 pims.emplace_back(im);
         }
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void writeSegment16(float x0, float y0, float x1, float y1, uint32_t curve) {
             if (x0 != FLT_MAX)
-                writePoint(x0, y0, curve), _x1 = x1, _y1 = y1;
+                writePoint16(x0, y0, curve), _x1 = x1, _y1 = y1;
             else {
                 if (p16s.size() > p0) {
-                    writePoint(_x1, _y1, 0), writePoint(FLT_MAX, FLT_MAX, 0);
+                    writePoint16(_x1, _y1, 0), writePoint16(FLT_MAX, FLT_MAX, 0);
                     for (size_t pi = p16s.size() - p0; pi % 4; pi++)
-                        writePoint(FLT_MAX, FLT_MAX, 0);
+                        writePoint16(FLT_MAX, FLT_MAX, 0);
                 }
                 im++, p0 = p16s.size();
             }
@@ -259,7 +259,7 @@ struct Rasterizer {
             }
         }
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((Geometry *)info)->writeSegment(x0, y0, x1, y1, curve);
+            ((Geometry *)info)->writeSegment16(x0, y0, x1, y1, curve);
         }
         size_t refCount = 0;
         std::vector<uint32_t> ips;
