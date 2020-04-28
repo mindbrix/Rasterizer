@@ -197,9 +197,9 @@ struct RasterizerTest {
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         
         for (int i = 0; i < src.scenes.size(); i++) {
-            if (i > 0 && i < 8) {
+            if (i > 0 && i < 8)
                 list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rotation(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)), Ra::Transform::nullclip());
-            } else
+            else
                 list.addScene(src.scenes[i]);
         }
     }
@@ -225,12 +225,12 @@ struct RasterizerTest {
         background.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
         list.addScene(background);
         for (int i = 1; i < 8; i++) {
-            Ra::Scene scene;
+            Ra::Scene ring;
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
-            scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
+            ring.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
             
             Ra::Path path;
             for (int j = 0; j < divisions[i]; j++) {
@@ -238,7 +238,7 @@ struct RasterizerTest {
                 path->moveTo(cx + r0 * cosf(theta), cy + r0 * sinf(theta));
                 path->lineTo(cx + r1 * cosf(theta), cy + r1 * sinf(theta));
             }
-            scene.addPath(path, Ra::Transform(), black, strokeWidth, 0);
+            ring.addPath(path, Ra::Transform(), black, strokeWidth, 0);
             
             if (!font.isEmpty()) {
                 float r = r0 + 0.25f * inset, da, a0;
@@ -253,12 +253,12 @@ struct RasterizerTest {
                     
                     if (0) {
                         Ra::Path arcPath;  arcPath->addArc(cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
-                        scene.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
+                        ring.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
                     }
-                    RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, scene);
+                    RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
                 }
             }
-            list.addScene(scene);
+            list.addScene(ring);
         }
         Ra::Scene line;
         Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
