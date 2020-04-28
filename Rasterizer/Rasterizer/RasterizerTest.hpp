@@ -123,7 +123,7 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             _list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (0) {
+        if (1) {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
             bounds = b;
             writeConcentrichronList(concentrichron, b, _list.empty());
@@ -196,12 +196,11 @@ struct RasterizerTest {
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 10.f;
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
         
-        for (int i = 0; i < src.scenes.size(); i++) {
+        for (int i = 0; i < src.scenes.size(); i++)
             if (i > 0 && i < 8)
                 list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rotation(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)), Ra::Transform::nullclip());
             else
                 list.addScene(src.scenes[i]);
-        }
     }
     static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
@@ -307,7 +306,7 @@ struct RasterizerTest {
     }
     
     bool readEvents(RasterizerState& state) {
-        bool redraw = concentrichron.scenes.size() && state.tick & 1;
+        bool redraw = concentrichron.scenes.size();// && state.tick & 1;
         if (redraw)
             writeConcentrichronList(concentrichron, bounds, list.empty());
         return redraw;
