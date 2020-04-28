@@ -179,7 +179,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if ([self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode)]) {}
     else if (keyCode == 51) {
         _useCG = !_useCG;
-        [self toggleTimer];
         [self initLayer:_useCG];
         _testScene.reset();
         [self updateRasterizerLabel];
