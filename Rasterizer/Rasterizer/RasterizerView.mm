@@ -103,7 +103,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             RasterizerFont::writeGlyphGrid(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
-    RasterizerTest::addTestScenes(list, RaCG::BoundsFromCGRect(self.bounds), *font.ref);
+    _test->addTestScenes(RaCG::BoundsFromCGRect(self.bounds), *font.ref, list);
     _list.empty().addList(list);
     [self.layer setNeedsDisplay];
 }
@@ -151,7 +151,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (dbRedraw)
         _list.empty().addList(_db->list);
     bool stateRedraw = _state.readEvents();
-    if (dbRedraw || stateRedraw) {
+    if (testRedraw || dbRedraw || stateRedraw) {
         _state.doMouseMove(_list);
         [self.layer setNeedsDisplay];
     }

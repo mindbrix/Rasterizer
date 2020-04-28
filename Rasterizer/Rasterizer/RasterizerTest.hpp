@@ -73,7 +73,7 @@ struct Transform3D {
 };
 
 struct RasterizerTest {
-    static void addTestScenes(Ra::SceneList& list, Ra::Bounds bounds, RasterizerFont& font) {
+    void addTestScenes(Ra::Bounds bounds, RasterizerFont& font, Ra::SceneList& _list) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (0) {
@@ -116,20 +116,21 @@ struct RasterizerTest {
             scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)
             writePhyllotaxisToScene(100000, scene);
-        list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
+        _list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
         
         if (0) {
             float phi = 0.5f * (sqrtf(5.f) - 1.f);
             float size = 20.f, width = size * phi;
-            list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
+            _list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
         if (1) {
             createConcentrichronScene(Ra::Bounds(0, 0, bounds.ux - bounds.lx, bounds.uy - bounds.ly), font, list.empty());
+            _list.empty().addList(list);
         }
-        if (0 && list.scenes.size()) {
-            Ra::Scene scene = create3DScene(list.scenes[0]);
-            list.empty();
-            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
+        if (0 && _list.scenes.size()) {
+            Ra::Scene scene = create3DScene(_list.scenes[0]);
+            _list.empty();
+            _list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
         }
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
