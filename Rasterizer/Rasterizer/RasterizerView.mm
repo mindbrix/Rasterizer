@@ -20,6 +20,7 @@
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
+@property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) BOOL useCG;
 @property(nonatomic) NSString *pastedString;
 - (void)timerFired:(double)time;
@@ -142,6 +143,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)readEvents:(double)time {
+    bool testRedraw = _test->readEvents(_state);
+    if (testRedraw)
+        _list.empty().addList(_test->list);
     bool dbRedraw = _db->readEvents(_state);
     if (dbRedraw)
         _list.empty().addList(_db->list);

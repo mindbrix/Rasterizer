@@ -6,6 +6,7 @@
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.hpp"
+#import "RasterizerState.hpp"
 #import <time.h>
 
 // http://www.songho.ca/opengl/gl_transform.html
@@ -293,4 +294,12 @@ struct RasterizerTest {
             vx = x, vy = y;
         }
     }
+    
+    bool readEvents(RasterizerState& state) {
+        bool redraw = false;
+        return redraw;
+    }
+    
+    size_t refCount = 0;
+    Ra::SceneList list;
 };
