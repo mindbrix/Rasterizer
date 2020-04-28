@@ -122,10 +122,8 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (0) {
-            float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly;
-            list.empty();
-            list.addScene(createConcentrichronScene(Ra::Bounds(0, 0, w, h), font), Ra::Transform(), Ra::Transform::nullclip());
+        if (1) {
+            createConcentrichronScene(Ra::Bounds(0, 0, bounds.ux - bounds.lx, bounds.uy - bounds.ly), font, list.empty());
         }
         if (0 && list.scenes.size()) {
             Ra::Scene scene = create3DScene(list.scenes[0]);
@@ -181,7 +179,7 @@ struct RasterizerTest {
         }
         return scene3D;
     }
-    static Ra::Scene createConcentrichronScene(Ra::Bounds b, RasterizerFont& font) {
+    static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
         const char *months[12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
@@ -249,7 +247,7 @@ struct RasterizerTest {
         }
         Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
         scene.addPath(linePath, Ra::Transform(), red, 1.f, 0);
-        return scene;
+        list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
         Ra::Scene scene;
