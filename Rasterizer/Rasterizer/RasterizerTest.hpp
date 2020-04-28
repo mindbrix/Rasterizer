@@ -73,7 +73,7 @@ struct Transform3D {
 };
 
 struct RasterizerTest {
-    void addTestScenes(Ra::Bounds bounds, RasterizerFont& font, Ra::SceneList& _list) {
+    void addTestScenes(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& _list) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (0) {
@@ -124,8 +124,9 @@ struct RasterizerTest {
             _list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
         if (1) {
-            createConcentrichronScene(Ra::Bounds(0, 0, bounds.ux - bounds.lx, bounds.uy - bounds.ly), font, list.empty());
-            _list.empty().addList(list);
+            createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
+            bounds = b;
+            writeConcentrichronList(concentrichron, b, _list.empty());
         }
         if (0 && _list.scenes.size()) {
             Ra::Scene scene = create3DScene(_list.scenes[0]);
@@ -181,16 +182,8 @@ struct RasterizerTest {
         }
         return scene3D;
     }
-    static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
-        const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-        const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
-        const char *months[12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
-        const char *years[10] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
-        const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
+    static void writeConcentrichronList(Ra::SceneList& src, Ra::Bounds b, Ra::SceneList& list) {
         const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-        const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
-        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
-        const float strokeWidth = 0.5f, arcWidth = 2.f;
         time_t t = time(NULL);
         struct tm *lt = localtime(& t);
         struct timeval tv;  gettimeofday(& tv, NULL);
@@ -202,6 +195,23 @@ struct RasterizerTest {
         float fmonth = (lt->tm_mon + (lt->tm_mday - 1) / daysthismonth) / 12.f;
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 10.f;
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
+        
+        for (int i = 0; i < src.scenes.size(); i++) {
+            if (i > 0 && i < 8) {
+                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rotation(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)), Ra::Transform::nullclip());
+            } else
+                list.addScene(src.scenes[i]);
+        }
+    }
+    static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
+        const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
+        const char *months[12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        const char *years[10] = { "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029" };
+        const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
+        const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
+        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
+        const float strokeWidth = 0.5f, arcWidth = 2.f;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim + strokeWidth), 0.5f * (h - dim + strokeWidth));
@@ -213,11 +223,11 @@ struct RasterizerTest {
         }
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
         background.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
-        list.addScene(background, Ra::Transform(), Ra::Transform::nullclip());
+        list.addScene(background);
         for (int i = 1; i < 8; i++) {
             Ra::Scene scene;
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
-            float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI + 0 * ftimes[i] * 2.f * M_PI;
+            float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
             Ra::Path ellipsePath; ellipsePath->addEllipse(inner);
             scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
@@ -248,12 +258,12 @@ struct RasterizerTest {
                     RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, scene);
                 }
             }
-            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
+            list.addScene(scene);
         }
         Ra::Scene line;
         Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
         line.addPath(linePath, Ra::Transform(), red, 1.f, 0);
-        list.addScene(line, Ra::Transform(), Ra::Transform::nullclip());
+        list.addScene(line);
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
         Ra::Scene scene;
@@ -297,10 +307,13 @@ struct RasterizerTest {
     }
     
     bool readEvents(RasterizerState& state) {
-        bool redraw = false;
+        bool redraw = state.tick & 1;
+        if (redraw)
+            writeConcentrichronList(concentrichron, bounds, list.empty());
         return redraw;
     }
     
     size_t refCount = 0;
-    Ra::SceneList list;
+    Ra::Bounds bounds;
+    Ra::SceneList concentrichron, list;
 };
