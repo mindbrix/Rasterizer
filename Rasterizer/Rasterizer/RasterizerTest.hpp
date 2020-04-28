@@ -203,15 +203,17 @@ struct RasterizerTest {
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim + strokeWidth), 0.5f * (h - dim + strokeWidth));
-        Ra::Scene scene;
+        Ra::Scene background;
         for (int i = 1; i < 8; i++) {
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             Ra::Path bgPath;  bgPath->addEllipse(inner.inset(-inset * 0.5f, -inset * 0.5f));
-            scene.addPath(bgPath, Ra::Transform(), i % 2 ? grey0 : grey1, inset, 0);
+            background.addPath(bgPath, Ra::Transform(), i % 2 ? grey0 : grey1, inset, 0);
         }
         Ra::Path ellipsePath; ellipsePath->addEllipse(outer);
-        scene.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
+        background.addPath(ellipsePath, Ra::Transform(), black, strokeWidth, 0);
+        list.addScene(background, Ra::Transform(), Ra::Transform::nullclip());
         for (int i = 1; i < 8; i++) {
+            Ra::Scene scene;
             Ra::Bounds inner = outer.inset(inset * i, inset * i);
             float step = 2.f * M_PI / divisions[i], theta0 = 0.5f * M_PI + 0 * ftimes[i] * 2.f * M_PI;
             float r0 = 0.5f * (inner.ux - inner.lx), r1 = r0 + (divisions[i] == 60 ? 0.25f : 0.5f) * inset;
@@ -244,10 +246,12 @@ struct RasterizerTest {
                     RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, scene);
                 }
             }
+            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
         }
+        Ra::Scene line;
         Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
-        scene.addPath(linePath, Ra::Transform(), red, 1.f, 0);
-        list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
+        line.addPath(linePath, Ra::Transform(), red, 1.f, 0);
+        list.addScene(line, Ra::Transform(), Ra::Transform::nullclip());
     }
     static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
         Ra::Scene scene;
