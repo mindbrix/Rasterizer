@@ -88,13 +88,6 @@ struct RasterizerCG {
             }
         }
     }
-    struct RenderContext {
-        static const int kQueueCount = 8;
-        void reset() { for (auto& ctx : contexts) ctx.reset(); }
-        Ra::Context contexts[kQueueCount];
-        RasterizerQueue queues[kQueueCount];
-    };
-    
     static void writeFontsTable(RasterizerDB& db) {
         const char *values[5], *kFontsTable = "fonts";
         NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();
@@ -120,6 +113,13 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
+    
+    struct RenderContext {
+        static const int kQueueCount = 8;
+        void reset() { for (auto& ctx : contexts) ctx.reset(); }
+        Ra::Context contexts[kQueueCount];
+        RasterizerQueue queues[kQueueCount];
+    };
     
     struct ThreadInfo {
         Ra::Context *context;
