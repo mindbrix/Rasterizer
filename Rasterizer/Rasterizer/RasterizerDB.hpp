@@ -91,8 +91,8 @@ struct RasterizerDB {
         Ra::Row<char> str;
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
-        float fw, fh, dim, pad, lx, ly;
-        fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars);
+        float fw, fh, dim, pad, lx, ly, hw;
+        fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars), hw = dim / 1024.f;
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, "SELECT SUBSTR(tbl_name, 1, 1) as initial, COUNT(*) AS count FROM sqlite_master WHERE LOWER(initial) != UPPER(initial) AND name NOT LIKE 'sqlite%' GROUP BY initial ORDER BY initial ASC", -1, & pStmt1, NULL) == SQLITE_OK) {
             Ra::Scene background, foreground;
@@ -109,7 +109,8 @@ struct RasterizerDB {
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
-                        foreground.addPath(bbPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 1.f, 0);
+                        Ra::Path fgPath;  fgPath.ref->addBounds(bb.inset(hw * 0.5f, hw * 0.5f));
+                        foreground.addPath(fgPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), hw, 0);
                         if (status == SQLITE_ROW)
                             tables.emplace_back(
                                 (const char *)sqlite3_column_text(pStmt0, 0),
@@ -184,7 +185,7 @@ struct RasterizerDB {
                                 redraw = true;
                             }
                             if (pi != INT_MAX) { // enter
-                                foregroundList.scenes[0].colors[pi] = Ra::Colorant(0, 0, 0, 64);
+                                foregroundList.scenes[0].colors[pi] = Ra::Colorant(0, 0, 0, 255);
                                 redraw = true;
                             }
                         }
