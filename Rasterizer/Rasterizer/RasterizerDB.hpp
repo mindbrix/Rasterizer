@@ -123,7 +123,6 @@ struct RasterizerDB {
             tableLists = std::vector<Ra::SceneList>(tables.size());
             for (int i = 0; i < tables.size(); i++)
                 writeTable(*font.ref, tables[i].t, tables[i].bounds, tables[i].name.base, tableLists[i]);
-            writeList();
         }
         sqlite3_finalize(pStmt1);
     }
@@ -196,8 +195,6 @@ struct RasterizerDB {
                             writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
                             redraw = true;
                         }
-                        if (redraw)
-                            writeList();
                         break;
                     }
                     default:
@@ -205,8 +202,8 @@ struct RasterizerDB {
                 }
         return redraw;
     }
-    void writeList() {
-        list.empty().addList(backgroundList);
+    void writeList(Ra::SceneList& list) {
+        list.addList(backgroundList);
         for (Ra::SceneList& tableList: tableLists)
             list.addList(tableList);
         list.addList(foregroundList);
@@ -216,7 +213,7 @@ struct RasterizerDB {
     std::vector<Table> tables;
     int lastpi = INT_MAX;
     std::vector<Ra::SceneList> tableLists;
-    Ra::SceneList backgroundList, foregroundList, list;
+    Ra::SceneList backgroundList, foregroundList;
     Ra::Ref<RasterizerFont> font;
     size_t refCount;
 };

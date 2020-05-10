@@ -92,7 +92,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if ([_dbURL isFileURL]) {
         _db->font = font;
         _db->writeTables(RaCG::BoundsFromCGRect(self.bounds));
-        list.addList(_db->list);
+        _db->writeList(list);
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else {
@@ -149,7 +149,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _list.empty().addList(_test->list);
     bool dbRedraw = _db->readEvents(_state);
     if (dbRedraw)
-        _list.empty().addList(_db->list);
+        _db->writeList(_list.empty());
     bool stateRedraw = _state.readEvents();
     if (testRedraw || dbRedraw || stateRedraw) {
         _state.doMouseMove(_list);
