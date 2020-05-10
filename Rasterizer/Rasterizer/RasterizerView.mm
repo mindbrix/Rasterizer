@@ -121,9 +121,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else {
         [self setLayer:[RasterizerLayer layer]];
         ((RasterizerLayer *)self.layer).layerDelegate = self;
-        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-        ((CAMetalLayer *)self.layer).colorspace = srcSpace;
-        CGColorSpaceRelease(srcSpace);
     }
     self.layer.contentsScale = scale;
     self.layer.bounds = self.bounds;
