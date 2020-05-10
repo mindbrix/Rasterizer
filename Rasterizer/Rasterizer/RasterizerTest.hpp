@@ -123,10 +123,10 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             _list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (0) {
+        if (1) {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
             bounds = b;
-            writeConcentrichronList(concentrichron, b, _list.empty());
+            writeList(_list.empty());
         }
         if (0 && _list.scenes.size()) {
             Ra::SceneList list3D;
@@ -307,13 +307,12 @@ struct RasterizerTest {
     }
     
     bool readEvents(RasterizerState& state) {
-        bool redraw = concentrichron.scenes.size();// && state.tick & 1;
-        if (redraw)
-            writeConcentrichronList(concentrichron, bounds, list.empty());
-        return redraw;
+        return concentrichron.scenes.size();// && state.tick & 1;;
     }
-    
+    void writeList(Ra::SceneList& list) {
+        writeConcentrichronList(concentrichron, bounds, list);
+    }
     size_t refCount = 0;
     Ra::Bounds bounds;
-    Ra::SceneList concentrichron, list;
+    Ra::SceneList concentrichron;
 };

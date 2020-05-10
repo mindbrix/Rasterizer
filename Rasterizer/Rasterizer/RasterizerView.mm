@@ -146,7 +146,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)readEvents:(double)time {
     bool testRedraw = _test->readEvents(_state);
     if (testRedraw)
-        _list.empty().addList(_test->list);
+        _test->writeList(_list.empty());
     bool dbRedraw = _db->readEvents(_state);
     if (dbRedraw)
         _db->writeList(_list.empty());
