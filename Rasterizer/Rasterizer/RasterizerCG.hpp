@@ -187,7 +187,7 @@ struct RasterizerCG {
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
         assert(size >= end);
     }
-    static void drawTestScene(RenderContext& testScene, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
+    static void renderList(RenderContext& renderContext, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
         Ra::SceneList visibles;
         list.writeVisibles(state.view, state.device, visibles);
         size_t pathsCount = visibles.pathsCount;
@@ -212,7 +212,7 @@ struct RasterizerCG {
         if (state.index != INT_MAX)
             colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
         
-        renderScenes(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & testScene.contexts[0], buffer, true, testScene.queues);
+        renderScenes(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
         free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
     }
 };

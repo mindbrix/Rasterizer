@@ -233,7 +233,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    RaCG::drawTestScene(_renderContext, _list, _state, buffer);
+    RaCG::renderList(_renderContext, _list, _state, buffer);
 }
 
 #pragma mark - CALayerDelegate
