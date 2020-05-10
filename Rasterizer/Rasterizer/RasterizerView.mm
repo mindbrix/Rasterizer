@@ -16,7 +16,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) RaCG::CGTestContext testScene;
+@property(nonatomic) RaCG::RenderContext renderContext;
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
@@ -180,7 +180,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else if (keyCode == 51) {
         _useCG = !_useCG;
         [self initLayer:_useCG];
-        _testScene.reset();
+        _renderContext.reset();
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
@@ -233,7 +233,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    RaCG::drawTestScene(_testScene, _list, _state, buffer);
+    RaCG::drawTestScene(_renderContext, _list, _state, buffer);
 }
 
 #pragma mark - CALayerDelegate
