@@ -117,7 +117,7 @@ struct RasterizerCG {
 
 typedef RasterizerCG RaCG;
 
-struct RasterizerRender {
+struct RasterizerRenderer {
     struct RenderContext {
         static const int kQueueCount = 8;
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
@@ -221,4 +221,4 @@ struct RasterizerRender {
     }
 };
 
-typedef RasterizerRender RaR;
+typedef RasterizerRenderer RaR;
