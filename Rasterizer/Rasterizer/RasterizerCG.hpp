@@ -113,7 +113,11 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
-    
+};
+
+typedef RasterizerCG RaCG;
+
+struct RasterizerRender {
     struct RenderContext {
         static const int kQueueCount = 8;
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
@@ -217,4 +221,4 @@ struct RasterizerCG {
     }
 };
 
-typedef RasterizerCG RaCG;
+typedef RasterizerRender RaR;

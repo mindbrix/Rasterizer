@@ -16,7 +16,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) RaCG::RenderContext renderContext;
+@property(nonatomic) RaR::RenderContext renderContext;
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
@@ -233,7 +233,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    RaCG::renderList(_renderContext, _list, _state, buffer);
+    RaR::renderList(_renderContext, _list, _state, buffer);
 }
 
 #pragma mark - CALayerDelegate
