@@ -134,7 +134,7 @@ struct Rasterizer {
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
             return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
-        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy); }
+        void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly); }
         void addEllipse(Bounds b) {
             const float t0 = 0.5f - 2.f / 3.f * (M_SQRT2 - 1.f), t1 = 1.f - t0, mx = 0.5f * (b.lx + b.ux), my = 0.5f * (b.ly + b.uy);
             moveTo(b.ux, my);
