@@ -179,10 +179,10 @@ struct RasterizerDB {
                         float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
                         Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
                         if (indices.begin != INT_MAX) {
-                            int li = indices.begin, si = indices.end;
-                            Ra::Transform inv = backgroundList.scenes[li].paths[si]->bounds.unit(state.view.concat(backgroundList.ctms[li])).invert();
+                            int si = indices.begin, pi = indices.end;
+                            Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                             ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
-                            writeTable(*font.ref, uy, tables[si].bounds, tables[si].name.base, tableLists[si].empty());
+                            writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
                             list.empty().addList(backgroundList);
                             for (Ra::SceneList& tableList: tableLists)
                                 list.addList(tableList);
