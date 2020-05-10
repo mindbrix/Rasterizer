@@ -121,6 +121,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else {
         [self setLayer:[RasterizerLayer layer]];
         ((RasterizerLayer *)self.layer).layerDelegate = self;
+        CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+        ((CAMetalLayer *)self.layer).colorspace = srcSpace;
+        CGColorSpaceRelease(srcSpace);
     }
     self.layer.contentsScale = scale;
     self.layer.bounds = self.bounds;
@@ -233,10 +236,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    ((CAMetalLayer *)layer).colorspace = srcSpace;
     RaCG::drawTestScene(_testScene, _list, _state, buffer);
-    CGColorSpaceRelease(srcSpace);
 }
 
 #pragma mark - CALayerDelegate
