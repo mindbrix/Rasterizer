@@ -178,15 +178,28 @@ struct RasterizerDB {
                     case RasterizerState::Event::kMouseMove: {
                         float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
                         Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
-                        if (indices.begin != INT_MAX) {
-                            int si = indices.begin, pi = indices.end;
+                        int si = indices.begin, pi = indices.end;
+                        if (pi != lastpi) {
+                            if (lastpi != INT_MAX) { // exit
+                                backgroundList.scenes[0].colors[lastpi] = Ra::Colorant(255, 255, 255, 255);
+                                redraw = true;
+                            }
+                            if (pi != INT_MAX) { // enter
+                                backgroundList.scenes[0].colors[pi] = Ra::Colorant(0, 0, 255, 255);
+                                redraw = true;
+                            }
+                        }
+                        lastpi = pi;
+                        if (si != INT_MAX) {
                             Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                             ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
                             writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
+                            redraw = true;
+                        }
+                        if (redraw) {
                             list.empty().addList(backgroundList);
                             for (Ra::SceneList& tableList: tableLists)
                                 list.addList(tableList);
-                            redraw = true;
                         }
                         break;
                     }
@@ -198,6 +211,7 @@ struct RasterizerDB {
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
+    int lastpi = INT_MAX;
     std::vector<Ra::SceneList> tableLists;
     Ra::SceneList backgroundList, list;
     Ra::Ref<RasterizerFont> font;
