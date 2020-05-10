@@ -123,7 +123,7 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             _list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
         }
-        if (1) {
+        if (0) {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
             bounds = b;
             writeConcentrichronList(concentrichron, b, _list.empty());
