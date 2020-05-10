@@ -55,6 +55,7 @@
 		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.metal; };
 		E9A7FA84218FAB380031FD4E /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = nanosvg.h; path = ../../../nanosvg/src/nanosvg.h; sourceTree = "<group>"; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
+		E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerRenderer.hpp; sourceTree = "<group>"; };
 		E9C2E72722280F000023B714 /* crc64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = crc64.h; sourceTree = "<group>"; };
 		E9C2E72822280F000023B714 /* crc64.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = crc64.c; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
@@ -116,6 +117,7 @@
 				E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */,
 				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
 				E97782A822BF7D78003C2D3E /* RasterizerQueue.hpp */,
+				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerState.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
 				E9E36F08223A722100F6533A /* RasterizerTest.hpp */,

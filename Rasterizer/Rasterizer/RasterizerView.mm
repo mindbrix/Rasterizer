@@ -7,6 +7,7 @@
 //
 #import "RasterizerView.h"
 #import "RasterizerCG.hpp"
+#import "RasterizerRenderer.hpp"
 #import "RasterizerDB.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerFont.hpp"
