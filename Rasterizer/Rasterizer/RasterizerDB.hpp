@@ -19,6 +19,7 @@ struct RasterizerDB {
         Ra::Bounds bounds;
         float t;
     };
+    const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
     const static int kTextChars = 24, kRealChars = 4;
     ~RasterizerDB() { close(); }
     int open(const char *filename) { close();  return sqlite3_open(filename, & db); }
@@ -110,7 +111,7 @@ struct RasterizerDB {
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
                         Ra::Path fgPath;  fgPath.ref->addBounds(bb.inset(hw * 0.5f, hw * 0.5f));
-                        foreground.addPath(fgPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), hw, 0);
+                        foreground.addPath(fgPath, Ra::Transform(), kClear, hw, 0);
                         if (status == SQLITE_ROW)
                             tables.emplace_back(
                                 (const char *)sqlite3_column_text(pStmt0, 0),
@@ -128,7 +129,6 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt1);
     }
     void writeTable(RasterizerFont& font, float t, Ra::Bounds frame, const char *table, Ra::SceneList& list) {
-        Ra::Colorant red(0, 0, 255, 255), black(0, 0, 0, 255), gray(144, 144, 144, 255);
         Ra::Row<char> str;
         str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
@@ -157,14 +157,14 @@ struct RasterizerDB {
                 Ra::Scene chrome, rows;
                 for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
                     if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                        RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), black, Ra::Bounds(lx, -FLT_MAX, ux, frame.uy), false, true, lengths[i] != kTextChars, names[i], chrome);
+                        RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), kBlack, Ra::Bounds(lx, -FLT_MAX, ux, frame.uy), false, true, lengths[i] != kTextChars, names[i], chrome);
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
-                chrome.addPath(linePath, Ra::Transform(), red, h / 128.f, 0);
+                chrome.addPath(linePath, Ra::Transform(), kRed, h / 128.f, 0);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 for (j = lower, status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1), j++, uy -= h)
                     for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? red : gray, Ra::Bounds(lx, -FLT_MAX, ux, uy), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), rows);
+                            RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? kRed : kGray, Ra::Bounds(lx, -FLT_MAX, ux, uy), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), rows);
                 list.addScene(chrome), list.addScene(rows, Ra::Transform(), clip);
             }
         }
@@ -181,11 +181,11 @@ struct RasterizerDB {
                         int si = indices.begin, pi = indices.end;
                         if (pi != lastpi) {
                             if (lastpi != INT_MAX) { // exit
-                                foregroundList.scenes[0].colors[lastpi] = Ra::Colorant(0, 0, 0, 0);
+                                foregroundList.scenes[0].colors[lastpi] = kClear;
                                 redraw = true;
                             }
                             if (pi != INT_MAX) { // enter
-                                foregroundList.scenes[0].colors[pi] = Ra::Colorant(0, 0, 0, 255);
+                                foregroundList.scenes[0].colors[pi] = kBlack;
                                 redraw = true;
                             }
                         }
