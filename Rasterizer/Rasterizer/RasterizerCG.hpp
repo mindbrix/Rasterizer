@@ -48,53 +48,6 @@ struct RasterizerCG {
             CGContextRestoreGState(ctx);
         }
     }
-    struct BGRAColorConverter {
-        BGRAColorConverter() { reset(); }
-        ~BGRAColorConverter() { reset(); }
-        void reset() {
-            if (converter)
-                vImageConverter_Release(converter);
-            converter = nullptr;
-            bzero(&srcFormat, sizeof(srcFormat));
-            bzero(&dstFormat, sizeof(dstFormat));
-        }
-        void set(CGColorSpaceRef srcSpace, CGColorSpaceRef dstSpace) {
-            if (srcFormat.colorSpace != srcSpace || dstFormat.colorSpace != dstSpace) {
-                reset();
-                srcFormat.bitsPerPixel = 32;
-                srcFormat.bitsPerComponent = 8;
-                srcFormat.bitmapInfo = (CGBitmapInfo)kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
-                srcFormat.colorSpace = srcSpace;
-                dstFormat.bitsPerPixel = srcFormat.bitsPerPixel;
-                dstFormat.bitsPerComponent = srcFormat.bitsPerComponent;
-                dstFormat.bitmapInfo = srcFormat.bitmapInfo;
-                dstFormat.colorSpace = dstSpace;
-                converter = vImageConverter_CreateWithCGImageFormat(&srcFormat, &dstFormat, NULL, kvImageNoFlags, NULL);
-            }
-        }
-        void convert(uint64_t hash, void *src, size_t count, void *dst) {
-            if (count && converter) {
-                hash += CFHash(dstFormat.colorSpace);
-                size_t size = count * sizeof(uint32_t);
-                auto it = cache.find(hash);
-                if (it != cache.end()) {
-                    memcpy(dst, it->second.get(), size);
-                } else {
-                    std::shared_ptr<void> buf(malloc(size), free);
-                    cache.emplace(hash, buf);
-                    vImage_Buffer sourceBuffer, destBuffer;
-                    vImageBuffer_Init(& sourceBuffer, 1, count, 32, kvImageNoAllocate);
-                    vImageBuffer_Init(& destBuffer, 1, count, 32, kvImageNoAllocate);
-                    sourceBuffer.data = src, destBuffer.data = buf.get();
-                    vImageConvert_AnyToAny(converter, &sourceBuffer, &destBuffer, NULL, kvImageNoFlags);
-                    memcpy(dst, buf.get(), size);
-                }
-            }
-        }
-        vImageConverterRef converter = nullptr;
-        vImage_CGImageFormat srcFormat, dstFormat;
-        std::unordered_map<uint64_t, std::shared_ptr<void>> cache;
-    };
     
     static Ra::Transform transformFromCG(CGAffineTransform t) {
         return Ra::Transform(float(t.a), float(t.b), float(t.c), float(t.d), float(t.tx), float(t.ty));
@@ -138,7 +91,6 @@ struct RasterizerCG {
     struct CGTestContext {
         static const int kQueueCount = 8;
         void reset() { for (auto& ctx : contexts) ctx.reset(); }
-        BGRAColorConverter converter;
         Ra::Context contexts[kQueueCount];
         RasterizerQueue queues[kQueueCount];
     };
@@ -251,7 +203,7 @@ struct RasterizerCG {
         
         Ra::Scene *scene = & visibles.scenes[0];
         for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->count, scene++)
-            testScene.converter.convert(scene->colorHash(), & scene->colors[0].src0, scene->count, colors + iz);
+            memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
         if (state.outlineWidth) {
             Ra::Colorant black(0, 0, 0, 255);
             memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));

@@ -234,7 +234,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    _testScene.converter.set(srcSpace, self.window.colorSpace.CGColorSpace);
+    ((CAMetalLayer *)layer).colorspace = srcSpace;
     RaCG::drawTestScene(_testScene, _list, _state, buffer);
     CGColorSpaceRelease(srcSpace);
 }
