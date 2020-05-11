@@ -19,25 +19,29 @@ struct RasterizerCG {
             CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
             for (size_t i = 0; i < scene.count; i++) {
-                CGContextSaveGState(ctx);
-                CGContextConcatCTM(ctx, CGFromTransform(ctm.concat(scene.ctms[i])));
-                writePathToCGContext(scene.paths[i], ctx);
-                if (outlineWidth || scene.widths[i]) {
-                    if (outlineWidth == 0.f)
-                        CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                    CGContextSetLineWidth(ctx, outlineWidth ? (CGFloat)-109.05473e+14 : (scene.widths[i]) / sqrtf(fabsf(scene.ctms[i].det())));
-                    bool end = scene.flags[i] & Ra::Scene::kOutlineEndCap;
-                    bool round = scene.flags[i] & Ra::Scene::kOutlineRounded;
-                    CGContextSetLineCap(ctx, round ? kCGLineCapRound : end ? kCGLineCapSquare : kCGLineCapButt);
-                    CGContextStrokePath(ctx);
-                } else {
-                    CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                    if (scene.flags[i] & Ra::Scene::kFillEvenOdd)
-                        CGContextEOFillPath(ctx);
-                    else
-                        CGContextFillPath(ctx);
+                Ra::Path& path = scene.paths[i];
+                Ra::Transform t = ctm.concat(scene.ctms[i]);
+                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, scene.widths[i])) {
+                    CGContextSaveGState(ctx);
+                    CGContextConcatCTM(ctx, CGFromTransform(t));
+                    writePathToCGContext(path, ctx);
+                    if (outlineWidth || scene.widths[i]) {
+                        if (outlineWidth == 0.f)
+                            CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
+                        CGContextSetLineWidth(ctx, outlineWidth ? (CGFloat)-109.05473e+14 : (scene.widths[i]) / sqrtf(fabsf(scene.ctms[i].det())));
+                        bool end = scene.flags[i] & Ra::Scene::kOutlineEndCap;
+                        bool round = scene.flags[i] & Ra::Scene::kOutlineRounded;
+                        CGContextSetLineCap(ctx, round ? kCGLineCapRound : end ? kCGLineCapSquare : kCGLineCapButt);
+                        CGContextStrokePath(ctx);
+                    } else {
+                        CGContextSetRGBFillColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
+                        if (scene.flags[i] & Ra::Scene::kFillEvenOdd)
+                            CGContextEOFillPath(ctx);
+                        else
+                            CGContextFillPath(ctx);
+                    }
+                    CGContextRestoreGState(ctx);
                 }
-                CGContextRestoreGState(ctx);
             }
             CGContextRestoreGState(ctx);
         }
