@@ -39,9 +39,7 @@ struct RasterizerRenderer {
          }
      };
      static void renderList(RenderContext& renderContext, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
-         Ra::SceneList visibles;
-         list.writeVisibles(state.view, state.device, visibles);
-         size_t pathsCount = visibles.pathsCount;
+         size_t pathsCount = list.pathsCount;
          if (pathsCount == 0)
              return;
          assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
@@ -56,14 +54,14 @@ struct RasterizerRenderer {
              Ra::Colorant black(0, 0, 0, 255);
              memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
          } else {
-             Ra::Scene *scene = & visibles.scenes[0];
-             for (size_t i = 0, iz = 0; i < visibles.scenes.size(); i++, iz += scene->count, scene++)
+             Ra::Scene *scene = & list.scenes[0];
+             for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
                  memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
          }
          if (state.index != INT_MAX)
              colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
          
-         renderListOnQueues(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
+         renderListOnQueues(list, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
          free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
     }
     
