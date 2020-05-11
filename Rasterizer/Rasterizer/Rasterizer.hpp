@@ -467,7 +467,7 @@ struct Rasterizer {
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                         float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
                         Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
-                        Bounds dev = Bounds(unit), clip = dev.inset(-width, -width).integral().intersect(clipbounds);
+                        Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds).inset(-width, -width);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             Bounds clu = Bounds(inv.concat(unit));
@@ -490,7 +490,7 @@ struct Rasterizer {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
-                inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
+                inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip;
                 if (fabsf(ctm.det()) > 1e2f) {
                     size_t count = 0;
                     writePath(geometry, ctm, inst->outline.clip, false, false, true, CountSegment, writeQuadratic, writeCubic, & count);
