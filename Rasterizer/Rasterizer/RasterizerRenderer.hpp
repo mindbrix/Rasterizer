@@ -39,20 +39,19 @@ struct RasterizerRenderer {
          }
      };
      static void renderList(RenderContext& renderContext, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
-         size_t pathsCount = list.pathsCount;
-         if (pathsCount == 0)
+         if (list.pathsCount == 0)
              return;
          assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
-         uint32_t *idxs = (uint32_t *)malloc(pathsCount * sizeof(uint32_t));
-         Ra::Transform *ctms = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
-         Ra::Colorant *colors = (Ra::Colorant *)malloc(pathsCount * sizeof(Ra::Colorant));
-         Ra::Transform *clips = (Ra::Transform *)malloc(pathsCount * sizeof(state.view));
-         float *widths = (float *)malloc(pathsCount * sizeof(float));
-         Ra::Bounds *bounds = (Ra::Bounds *)malloc(pathsCount * sizeof(Ra::Bounds));
+         uint32_t *idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
+         Ra::Transform *ctms = (Ra::Transform *)malloc(list.pathsCount * sizeof(state.view));
+         Ra::Colorant *colors = (Ra::Colorant *)malloc(list.pathsCount * sizeof(Ra::Colorant));
+         Ra::Transform *clips = (Ra::Transform *)malloc(list.pathsCount * sizeof(state.view));
+         float *widths = (float *)malloc(list.pathsCount * sizeof(float));
+         Ra::Bounds *bounds = (Ra::Bounds *)malloc(list.pathsCount * sizeof(Ra::Bounds));
          
          if (state.outlineWidth) {
              Ra::Colorant black(0, 0, 0, 255);
-             memset_pattern4(colors, & black, pathsCount * sizeof(Ra::Colorant));
+             memset_pattern4(colors, & black, list.pathsCount * sizeof(Ra::Colorant));
          } else {
              Ra::Scene *scene = & list.scenes[0];
              for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
@@ -61,7 +60,7 @@ struct RasterizerRenderer {
          if (state.index != INT_MAX)
              colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
          
-         renderListOnQueues(list, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
+         renderListOnQueues(list, state, list.pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
          free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
     }
     
