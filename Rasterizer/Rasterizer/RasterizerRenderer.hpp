@@ -38,51 +38,6 @@ struct RasterizerRenderer {
              Ra::writeContextToBuffer(*ti->list, ti->context, ti->idxs, ti->begin, *ti->entries, *ti->buffer);
          }
      };
-     static void renderScenes(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, float outlineWidth, Ra::Context *contexts, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
-         size_t eiz = 0, total = 0, count, divisions = RenderContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
-         for (int j = 0; j < list.scenes.size(); j++)
-             eiz += list.scenes[j].count, total += list.scenes[j].weight;
-         if (buffer)
-             buffer->useCurves = state.useCurves;
-         ThreadInfo threadInfo[RenderContext::kQueueCount], *ti = threadInfo;
-         if (multithread) {
-             ti->context = contexts, ti->list = & list, ti->view = state.view, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds, ti->outlineWidth = outlineWidth, ti->buffer = buffer;
-             for (i = 1; i < RenderContext::kQueueCount; i++)
-                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
-             izeds[0] = 0, izeds[divisions] = eiz;
-             auto scene = & list.scenes[0];
-             for (count = base = iz = 0, i = 1; i < divisions; i++) {
-                 for (target = total * i / divisions; count < target; iz++) {
-                     if (iz - base == scene->count)
-                         scene++, base = iz;
-                     count += scene->paths[iz - base].ref->types.size();
-                 }
-                 izeds[i] = iz;
-             }
-             count = RenderContext::kQueueCount;
-             for (i = 0; i < count; i++)
-                 contexts[i].setGPU(state.device.ux, state.device.uy, pathsCount, izs[i], izs[i + 1]);
-             RasterizerQueue::scheduleAndWait(queues, RenderContext::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
-         } else {
-             count = 1;
-             contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount, 0, eiz);
-             contexts[0].drawList(list, state.view, idxs, ctms, colors, clips, widths, bounds, outlineWidth, buffer);
-         }
-         std::vector<Ra::Buffer::Entry> entries[count];
-         size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, colors, ctms, clips, widths, bounds, eiz, begins, *buffer);
-         if (count == 1)
-             Ra::writeContextToBuffer(list, contexts, idxs, begins[0], entries[0], *buffer);
-         else {
-             for (i = 0; i < count; i++)
-                 threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
-             RasterizerQueue::scheduleAndWait(queues, RenderContext::kQueueCount, ThreadInfo::writeContexts, threadInfo, sizeof(ThreadInfo), count);
-         }
-         for (int i = 0; i < count; i++)
-             for (auto entry : entries[i])
-                 *(buffer->entries.alloc(1)) = entry;
-         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
-         assert(size >= end);
-     }
      static void renderList(RenderContext& renderContext, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
          Ra::SceneList visibles;
          list.writeVisibles(state.view, state.device, visibles);
@@ -108,9 +63,55 @@ struct RasterizerRenderer {
          if (state.index != INT_MAX)
              colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
          
-         renderScenes(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
+         renderListOnQueues(visibles, state, pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
          free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
-     }
+    }
+    
+    static void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, float outlineWidth, Ra::Context *contexts, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
+        size_t eiz = 0, total = 0, count, divisions = RenderContext::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+        for (int j = 0; j < list.scenes.size(); j++)
+            eiz += list.scenes[j].count, total += list.scenes[j].weight;
+        if (buffer)
+            buffer->useCurves = state.useCurves;
+        ThreadInfo threadInfo[RenderContext::kQueueCount], *ti = threadInfo;
+        if (multithread) {
+            ti->context = contexts, ti->list = & list, ti->view = state.view, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds, ti->outlineWidth = outlineWidth, ti->buffer = buffer;
+            for (i = 1; i < RenderContext::kQueueCount; i++)
+                threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
+            izeds[0] = 0, izeds[divisions] = eiz;
+            auto scene = & list.scenes[0];
+            for (count = base = iz = 0, i = 1; i < divisions; i++) {
+                for (target = total * i / divisions; count < target; iz++) {
+                    if (iz - base == scene->count)
+                        scene++, base = iz;
+                    count += scene->paths[iz - base].ref->types.size();
+                }
+                izeds[i] = iz;
+            }
+            count = RenderContext::kQueueCount;
+            for (i = 0; i < count; i++)
+                contexts[i].setGPU(state.device.ux, state.device.uy, pathsCount, izs[i], izs[i + 1]);
+            RasterizerQueue::scheduleAndWait(queues, RenderContext::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
+        } else {
+            count = 1;
+            contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount, 0, eiz);
+            contexts[0].drawList(list, state.view, idxs, ctms, colors, clips, widths, bounds, outlineWidth, buffer);
+        }
+        std::vector<Ra::Buffer::Entry> entries[count];
+        size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, colors, ctms, clips, widths, bounds, eiz, begins, *buffer);
+        if (count == 1)
+            Ra::writeContextToBuffer(list, contexts, idxs, begins[0], entries[0], *buffer);
+        else {
+            for (i = 0; i < count; i++)
+                threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
+            RasterizerQueue::scheduleAndWait(queues, RenderContext::kQueueCount, ThreadInfo::writeContexts, threadInfo, sizeof(ThreadInfo), count);
+        }
+        for (int i = 0; i < count; i++)
+            for (auto entry : entries[i])
+                *(buffer->entries.alloc(1)) = entry;
+        size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
+        assert(size >= end);
+    }
  };
 
  typedef RasterizerRenderer RaR;
