@@ -99,17 +99,13 @@ struct RasterizerState {
     }
     void doMouseMove(Ra::SceneList& list) {
         index = INT_MAX;
-        if (mouseMove) {
-            Ra::SceneList visibles;
-            list.writeVisibles(view, device, visibles);
-            if (visibles.pathsCount) {
-                Ra::Range indices = RasterizerWinding::indicesForPoint(visibles, view, device, scale * x, scale * y);
-                if (indices.begin != INT_MAX) {
-                    int idx = 0;
-                    for (int j = 0; j < indices.begin; j++)
-                        idx += visibles.scenes[j].count;
-                        index = idx + indices.end;
-                }
+        if (mouseMove && list.pathsCount) {
+            Ra::Range indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
+            if (indices.begin != INT_MAX) {
+                int idx = 0;
+                for (int j = 0; j < indices.begin; j++)
+                    idx += list.scenes[j].count;
+                    index = idx + indices.end;
             }
         }
     }
