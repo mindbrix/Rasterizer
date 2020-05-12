@@ -234,7 +234,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - LayerDelegate
 
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     RaR::renderList(_renderContext, _list, _state, buffer);
 }
@@ -242,7 +242,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height, _list.bounds);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.src0, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
@@ -257,7 +257,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGRect mediaBox = self.bounds;
     CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
     CGPDFContextBeginPage(ctx, NULL);
-    _state.update(1.0, self.bounds.size.width, self.bounds.size.height, _list.bounds);
+    _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
     RaCG::drawScenes(_list, _state.view, _state.device, _state.outlineWidth, ctx);
     CGPDFContextEndPage(ctx);
