@@ -282,7 +282,7 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < count; i++)
-                b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-widths[i], -widths[i]));
+                b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
             return b;
         }
         size_t count = 0, weight = 0;
