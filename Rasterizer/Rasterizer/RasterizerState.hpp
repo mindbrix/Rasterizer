@@ -11,16 +11,18 @@
 struct RasterizerState {
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
-        enum Type { kNull = 0, kMouseMove, kMouseUp, kDragged, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate };
+        enum Type { kNull = 0, kMouseMove, kMouseUp, kDragged, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate, kFit };
         
         Event() {}
         Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y), keyCode(0) {}
+        Event(double time, Type type, Ra::Bounds b) : time(time), type(type), bounds(b) {}
         Event(double time, Type type, int keyCode) : time(time), type(type), x(0.f), y(0.f), keyCode(keyCode) {}
         Event(double time, Type type, size_t flags) : time(time), type(type), x(0.f), y(0.f), keyCode(0), flags(flags) {}
         
         double time;
         Type type;
         float x, y;
+        Ra::Bounds bounds;
         int keyCode;
         size_t flags;
     };
@@ -60,18 +62,6 @@ struct RasterizerState {
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == 35)
                         mouseMove = !mouseMove;
-                    else if (e.keyCode == 36) {
-                        if (user.lx == FLT_MAX)
-                            ctm = Ra::Transform();
-                        else {
-                            float sx = (bounds.ux - bounds.lx) / (user.ux - user.lx), sy = (bounds.uy - bounds.ly) / (user.uy - user.ly), scale = sx < sy ? sx : sy;
-                            Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * user.lx, -scale * user.ly };
-                            if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
-                                ctm = Ra::Transform();
-                            else
-                                ctm = fit;
-                        }
-                    }
                     break;
                 case Event::kKeyUp:
                     keyDown = true, keyCode = e.keyCode;
@@ -89,6 +79,16 @@ struct RasterizerState {
                     ctm.tx += e.x, ctm.ty += e.y;
                     redraw = true;
                     break;
+                case Event::kFit: {
+                    float sx = (bounds.ux - bounds.lx) / (e.bounds.ux - e.bounds.lx), sy = (bounds.uy - bounds.ly) / (e.bounds.uy - e.bounds.ly), scale = sx < sy ? sx : sy;
+                    Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * e.bounds.lx, -scale * e.bounds.ly };
+                    if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
+                        ctm = Ra::Transform();
+                    else
+                        ctm = fit;
+                    redraw = true;
+                    break;
+                }
                 case Event::kNull:
                     break;
             }
