@@ -286,6 +286,13 @@ struct Rasterizer {
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     struct SceneList {
+        Bounds getBounds() {
+            Bounds b;
+            for (int i = 0; i < scenes.size(); i++)
+                for (int j = 0; j < scenes[i].count; j++)
+                    b.extend(Bounds(scenes[i].paths[j]->bounds.unit(ctms[i].concat(scenes[i].ctms[j]))));
+            return b;
+        }
         SceneList& empty() {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), bounds = Bounds();
             return *this;

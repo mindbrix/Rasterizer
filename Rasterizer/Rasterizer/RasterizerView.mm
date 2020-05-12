@@ -178,7 +178,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (keyCode == 36) {
-        [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds)];
+        [self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.getBounds())];
     } else if ([self writeEvent:RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode)]) {}
     else if (keyCode == 51) {
         _useCG = !_useCG;
