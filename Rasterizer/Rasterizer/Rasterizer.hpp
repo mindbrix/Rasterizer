@@ -274,13 +274,19 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->types.size();
-                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag), bounds.extend(Bounds(path->bounds.unit(ctm)).inset(-width, -width));
+                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
                 p16cache->addPath(path);
             }
         }
+        Bounds bounds() {
+            Bounds b;
+            for (int j = 0; j < count; j++)
+                b.extend(Bounds(paths[j]->bounds.unit(ctms[j])).inset(-widths[j], -widths[j]));
+            return b;
+        }
         size_t count = 0, weight = 0;
-        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds bounds;
+        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
         Ref<Point16Cache> p16cache;
     private:
         Ref<Vector<Path>> _paths; Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
@@ -289,8 +295,7 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
-                for (int j = 0; j < scenes[i].count; j++)
-                    b.extend(Bounds(scenes[i].paths[j]->bounds.unit(ctms[i].concat(scenes[i].ctms[j]))));
+                b.extend(Bounds(scenes[i].bounds().unit(ctms[i])));
             return b;
         }
         SceneList& empty() {

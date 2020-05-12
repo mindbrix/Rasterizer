@@ -137,7 +137,8 @@ struct RasterizerTest {
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
-        float w = scene.bounds.ux - scene.bounds.lx, h = scene.bounds.uy - scene.bounds.ly, dim = w > h ? w : h;
+        Ra::Bounds bounds = scene.bounds();
+        float w = bounds.ux - bounds.lx, h = bounds.uy - bounds.ly, dim = w > h ? w : h;
         Transform3D projection = Transform3D::Projection(w / 2, h / 2, dim, dim * 2);
         Transform3D view = Transform3D::Translation(0, 0, -dim / 2);
         Transform3D model = Transform3D::RotateAroundY(M_PI / 8).concat(Transform3D::Translation(-w / 2, -h / 2, 0));
