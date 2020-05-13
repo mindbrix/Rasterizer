@@ -12,7 +12,7 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
-    static void drawScenes(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
+    static void drawList(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = list.scenes[j];
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
