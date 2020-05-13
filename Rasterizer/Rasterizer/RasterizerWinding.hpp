@@ -57,17 +57,14 @@ struct RasterizerWinding {
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w) {
         float ws = sqrtf(fabsf(ctm.det())), width = w < 0.f ? -w / ws : w;
         WindingInfo info(dx, dy, w * (w < 0.f ? -1.f : ws));
-        Ra::Transform unit = path.ref->bounds.inset(-width, -width).unit(ctm);
+        Ra::Transform unit = path.ref->bounds.inset(-width, -width).unit(ctm), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit).intersect(device);
-        if (clip.lx != clip.ux && clip.ly != clip.uy) {
-            Ra::Transform inv = unit.invert();
-            float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-            if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                if (w)
-                    Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
-                else
-                    Ra::writePath(path.ref, ctm, clip, false, true, false, WindingInfo::count, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
-            }
+        float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+        if (clip.lx != clip.ux && clip.ly != clip.uy && ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
+            if (w)
+                Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
+            else
+                Ra::writePath(path.ref, ctm, clip, false, true, false, WindingInfo::count, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
         }
         return info.winding;
     }
