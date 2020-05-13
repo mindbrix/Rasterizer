@@ -62,6 +62,10 @@ struct Rasterizer {
         inline void extend(Bounds b) {
             extend(b.lx, b.ly), extend(b.ux, b.uy);
         }
+        inline Transform fit(Bounds b) const {
+            float sx = (ux - lx) / (b.ux - b.lx), sy = (uy - ly) / (b.uy - b.ly), s = sx < sy ? sx : sy;
+            return { s, 0.f, 0.f, s, -s * b.lx, -s * b.ly };
+        }
         inline Bounds inset(float dx, float dy) const {
             return dx * 2.f < ux - lx && dy * 2.f < uy - ly ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
         }

@@ -80,8 +80,7 @@ struct RasterizerState {
                     redraw = true;
                     break;
                 case Event::kFit: {
-                    float sx = (bounds.ux - bounds.lx) / (e.bounds.ux - e.bounds.lx), sy = (bounds.uy - bounds.ly) / (e.bounds.uy - e.bounds.ly), scale = sx < sy ? sx : sy;
-                    Ra::Transform fit = { scale, 0.f, 0.f, scale, -scale * e.bounds.lx, -scale * e.bounds.ly };
+                    Ra::Transform fit = bounds.fit(e.bounds);
                     if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
                         ctm = Ra::Transform();
                     else
