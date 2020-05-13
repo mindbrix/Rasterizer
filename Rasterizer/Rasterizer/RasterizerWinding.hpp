@@ -8,8 +8,8 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds bounds, float dx, float dy) {
-        if (dx >= bounds.lx && dx < bounds.ux && dy >= bounds.ly && dy < bounds.uy)
+    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float dx, float dy) {
+        if (dx >= device.lx && dx < device.ux && dy >= device.ly && dy < device.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 float ws = sqrtf(fabsf(ctm.det())), w, width;
@@ -17,7 +17,7 @@ struct RasterizerWinding {
                 Ra::Scene& scene = list.scenes[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     w = scene.widths[si], width = w * (w < 0.f ? -1.f : ws);
-                    int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, bounds, dx, dy, width);
+                    int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), inv, device, dx, dy, width);
                     bool even = scene.flags[si] & Ra::Scene::kFillEvenOdd;
                     if ((even && (winding & 1)) || (!even && winding))
                         return Ra::Range(li, si);
@@ -54,13 +54,13 @@ struct RasterizerWinding {
                 ((WindingInfo *)info)->distance(x0, y0, x1, y1);
         }
     };
-    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds bounds, float dx, float dy, float width) {
+    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Transform inv, Ra::Bounds device, float dx, float dy, float width) {
         WindingInfo info(dx, dy, width);
         if (path->isDrawable) {
             float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                 Ra::Transform unit = path.ref->bounds.inset(-width, -width).unit(ctm);
-                Ra::Bounds clip = Ra::Bounds(unit).intersect(bounds.inset(-width, -width));
+                Ra::Bounds clip = Ra::Bounds(unit).intersect(device.inset(-width, -width));
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
