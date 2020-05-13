@@ -246,7 +246,7 @@ struct Rasterizer {
                     ips.emplace_back(paths.size()), paths.emplace_back(path);
                     if (path->p16s.size() == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                        writePath(path.ref, Transform(), Bounds(), true, true, true, WriteSegment, writeQuadratic, writeCubic, path.ref, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                     }
                 }
             }
@@ -493,7 +493,7 @@ struct Rasterizer {
                 inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip;
                 if (fabsf(ctm.det()) > 1e2f) {
                     size_t count = 0;
-                    writePath(geometry, ctm, inst->outline.clip, false, false, true, CountSegment, writeQuadratic, writeCubic, & count);
+                    writePath(geometry, ctm, inst->outline.clip, false, false, true, & count, CountSegment, writeQuadratic, writeCubic);
                     gpu.outlineUpper += count;
                 } else
                     gpu.outlineUpper += geometry->upperBound(ctm);
@@ -502,7 +502,7 @@ struct Rasterizer {
                 float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                 ctm = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(ctm);
                 CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves, out.dst = segments.alloc(geometry->upperBound(ctm));
-                writePath(geometry, ctm, clip, unclipped, true, false, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, & out);
+                writePath(geometry, ctm, clip, unclipped, true, false, & out, CurveIndexer::WriteSegment);
                 writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 segments.idx = segments.end = out.dst - segments.base;
             }
@@ -515,7 +515,7 @@ struct Rasterizer {
         std::vector<Row<int16_t>> uxcovers;
         Row<Segment> segments;
     };
-    static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, Function function, QuadFunction quadFunction, CubicFunction cubicFunction, void *info, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
+    static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, Function function, QuadFunction quadFunction = writeQuadratic, CubicFunction cubicFunction = writeCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
         float *p = & geometry->points[0], sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (size_t index = 0; index < geometry->types.size(); )
             switch (geometry->types[index]) {
@@ -1044,7 +1044,7 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, OutlineInfo::writeInstance, writeQuadratic, writeCubic, & info);
+                        writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::writeInstance);
                         if (dst == info.dst)
                             OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
                         dst = info.dst, ctms[iz] = Transform();
