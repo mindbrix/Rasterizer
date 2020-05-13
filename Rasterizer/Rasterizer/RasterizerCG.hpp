@@ -12,6 +12,14 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 struct RasterizerCG {
+    static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds device, float width) {
+        float uw = width < 0.f ? -width / sqrtf(fabsf(ctm.det())) : width;
+        Ra::Transform unit = user.inset(-uw, -uw).unit(ctm);
+        Ra::Bounds dev = Ra::Bounds(unit).intersect(device.intersect(Ra::Bounds(clip)));
+        Ra::Bounds clu = Ra::Bounds(clip.invert().concat(unit));
+        return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
+    }
+    
     static void drawList(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = list.scenes[j];
@@ -21,7 +29,7 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.count; i++) {
                 Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
-                if (Ra::isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, scene.widths[i])) {
+                if (isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, scene.widths[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);

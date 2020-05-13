@@ -77,13 +77,6 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
-    static bool isVisible(Bounds user, Transform ctm, Transform clip, Bounds device, float width) {
-        float uw = width < 0.f ? -width / sqrtf(fabsf(ctm.det())) : width;
-        Transform unit = user.inset(-uw, -uw).unit(ctm);
-        Bounds dev = Bounds(unit).intersect(device.intersect(Bounds(clip)));
-        Bounds clu = Bounds(clip.invert().concat(unit));
-        return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
-    }
     static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
     struct Colorant {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
