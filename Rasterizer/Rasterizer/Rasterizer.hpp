@@ -267,7 +267,7 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->types.size();
-                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
+                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm.concat(Transform(1, 0, 0, 1, 0, 0))), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
                 p16cache->addPath(path);
             }
@@ -463,10 +463,10 @@ struct Rasterizer {
                 if ((clz = lz < gpu.slz ? gpu.slz : lz > gpu.suz ? gpu.suz : lz) != (cuz = uz < gpu.slz ? gpu.slz : uz > gpu.suz ? gpu.suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.inset(1.f, 1.f).intersect(clipbounds);
-                    float ws = sqrtf(fabsf(ctm.det())), err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
+                    float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                        float w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
                         Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
+                        float ws = sqrtf(fabsf(m.det())), w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds).inset(-width, -width);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);

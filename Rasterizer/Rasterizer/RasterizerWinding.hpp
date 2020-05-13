@@ -14,11 +14,9 @@ struct RasterizerWinding {
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                 if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                    float ws = sqrtf(fabsf(ctm.det())), w, width;
                     Ra::Scene& scene = list.scenes[li];
                     for (int si = int(scene.count) - 1; si >= 0; si--) {
-                        w = scene.widths[si], width = w * (w < 0.f ? -1.f : ws);
-                        int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), device, dx, dy, width);
+                        int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), device, dx, dy, scene.widths[si]);
                         bool even = scene.flags[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
                             return Ra::Range(li, si);
@@ -56,12 +54,14 @@ struct RasterizerWinding {
                 ((WindingInfo *)info)->distance(x0, y0, x1, y1);
         }
     };
-    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float width) {
-        WindingInfo info(dx, dy, width);
-        Ra::Transform unit = path.ref->bounds.inset(-width, -width).unit(ctm);
-        Ra::Bounds clip = Ra::Bounds(unit).intersect(device.inset(-width, -width));
+    static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w) {
+        float ws = sqrtf(fabsf(ctm.det())), width = w < 0.f ? -w / ws : w;
+        WindingInfo info(dx, dy, w * (w < 0.f ? -1.f : ws));
+        Ra::Transform unit = path.ref->bounds.inset(-w, -w).unit(ctm);
+        Ra::Bounds clip = Ra::Bounds(unit).intersect(device);
         if (clip.lx != clip.ux && clip.ly != clip.uy) {
-            Ra::Transform inv = unit.invert(); float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+            Ra::Transform inv = unit.invert();
+            float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
             if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                 if (width)
                     Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
