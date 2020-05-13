@@ -64,12 +64,10 @@ struct RasterizerWinding {
                 if (clip.lx != clip.ux && clip.ly != clip.uy) {
                     inv = unit.invert(), ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        if (path.ref->types.size()) {
-                            if (width)
-                                Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
-                            else
-                                Ra::writePath(path.ref, ctm, clip, false, true, false, WindingInfo::count, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
-                        } 
+                        if (width)
+                            Ra::writePath(path.ref, ctm, clip, false, false, false, WindingInfo::countOutline, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
+                        else
+                            Ra::writePath(path.ref, ctm, clip, false, true, false, WindingInfo::count, Ra::writeQuadratic, Ra::writeCubic, & info, 1.f, 1.f);
                     }
                 }
             }
