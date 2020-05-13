@@ -8,23 +8,6 @@
 #import "Rasterizer.hpp"
 
 struct RasterizerWinding {
-    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float dx, float dy) {
-        if (dx >= device.lx && dx < device.ux && dy >= device.ly && dy < device.uy)
-            for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
-                Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
-                float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-                if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                    Ra::Scene& scene = list.scenes[li];
-                    for (int si = int(scene.count) - 1; si >= 0; si--) {
-                        int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), device, dx, dy, scene.widths[si]);
-                        bool even = scene.flags[si] & Ra::Scene::kFillEvenOdd;
-                        if ((even && (winding & 1)) || (!even && winding))
-                            return Ra::Range(li, si);
-                    }
-                }
-            }
-        return Ra::Range(INT_MAX, INT_MAX);
-    }
     struct WindingInfo {
         WindingInfo(float dx, float dy, float width) : dx(dx), dy(dy), width(width), winding(0) {}
         inline void count(float x0, float y0, float x1, float y1) {
@@ -54,6 +37,23 @@ struct RasterizerWinding {
                 ((WindingInfo *)info)->distance(x0, y0, x1, y1);
         }
     };
+    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float dx, float dy) {
+        if (dx >= device.lx && dx < device.ux && dy >= device.ly && dy < device.uy)
+            for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
+                Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
+                float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+                if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
+                    Ra::Scene& scene = list.scenes[li];
+                    for (int si = int(scene.count) - 1; si >= 0; si--) {
+                        int winding = pointWinding(scene.paths[si], ctm.concat(scene.ctms[si]), device, dx, dy, scene.widths[si]);
+                        bool even = scene.flags[si] & Ra::Scene::kFillEvenOdd;
+                        if ((even && (winding & 1)) || (!even && winding))
+                            return Ra::Range(li, si);
+                    }
+                }
+            }
+        return Ra::Range(INT_MAX, INT_MAX);
+    }
     static int pointWinding(Ra::Path& path, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w) {
         float ws = sqrtf(fabsf(ctm.det())), width = w < 0.f ? -w / ws : w;
         WindingInfo info(dx, dy, w * (w < 0.f ? -1.f : ws));
