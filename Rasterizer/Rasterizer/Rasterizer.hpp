@@ -77,12 +77,12 @@ struct Rasterizer {
         }
         float lx, ly, ux, uy;
     };
-    static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
     struct Colorant {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
     };
     struct Geometry {
+        static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
         struct Point16 {
             Point16(float x0, float y0, uint32_t curve, Bounds& b) {
                 if (x0 == FLT_MAX)
