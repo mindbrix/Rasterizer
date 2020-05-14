@@ -22,3 +22,4 @@
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFFF
+#define kMinUpperDet 16.f

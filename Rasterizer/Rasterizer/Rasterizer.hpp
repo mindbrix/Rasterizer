@@ -276,6 +276,7 @@ struct Rasterizer {
                 _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm.concat(Transform(1, 0, 0, 1, 0, 0))), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
                 p16cache->addPath(path, width);
+                path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
             }
         }
         Bounds bounds() {
@@ -502,12 +503,12 @@ struct Rasterizer {
                     writePath(geometry, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
                     gpu.outlineUpper += count;
                 } else
-                    gpu.outlineUpper += geometry->upperBound(det);
+                    gpu.outlineUpper += det < kMinUpperDet ? geometry->minUpper : geometry->upperBound(det);
                 gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                 ctm = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(ctm);
-                CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves, out.dst = segments.alloc(geometry->upperBound(det));
+                CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves, out.dst = segments.alloc(det < kMinUpperDet ? geometry->minUpper : geometry->upperBound(det));
                 writePath(geometry, ctm, clip, unclipped, true, false, & out, CurveIndexer::WriteSegment);
                 writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 segments.idx = segments.end = out.dst - segments.base;
