@@ -188,14 +188,15 @@ struct Rasterizer {
             if ((p16s.size() - p0) % 4 == 0)
                 pims.emplace_back(im);
         }
-        void writeSegment16(float x0, float y0, float x1, float y1, uint32_t curve) {
+        static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            Geometry *g = (Geometry *)info;
             if (x0 != FLT_MAX)
-                writePoint16(x0, y0, curve), _x1 = x1, _y1 = y1;
-            else if (p16s.size() > p0) {
-                writePoint16(_x1, _y1, 0), writePoint16(FLT_MAX, FLT_MAX, 0);
-                for (size_t pi = p16s.size() - p0; pi % 4; pi++)
-                    writePoint16(FLT_MAX, FLT_MAX, 0);
-                im++, p0 = p16s.size();
+                g->writePoint16(x0, y0, curve), g->x1 = x1, g->y1 = y1;
+            else if (g->p16s.size() > g->p0) {
+                g->writePoint16(g->x1, g->y1, 0), g->writePoint16(FLT_MAX, FLT_MAX, 0);
+                for (size_t pi = g->p16s.size() - g->p0; pi % 4; pi++)
+                    g->writePoint16(FLT_MAX, FLT_MAX, 0);
+                g->im++, g->p0 = g->p16s.size();
             }
         }
         size_t refCount, typesSize = 0, quadraticSums, cubicSums, hash, counts[kCountSize], im = 0, p0 = 0, minUpper = 0;
@@ -204,7 +205,7 @@ struct Rasterizer {
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;
         std::vector<uint32_t> pims;
-        float px, py, _x1, _y1;
+        float px, py, x1, y1;
         bool isGlyph, isDrawable;
         Bounds bounds, *mols;
     };
@@ -251,13 +252,10 @@ struct Rasterizer {
                         ips.emplace_back(paths.size()), paths.emplace_back(path);
                         if (path->p16s.size() == 0) {
                             float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                            writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                            writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                         }
                     }
                 }
-            }
-            static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-                ((Geometry *)info)->writeSegment16(x0, y0, x1, y1, curve);
             }
             size_t refCount = 0;
             std::vector<uint32_t> ips;
