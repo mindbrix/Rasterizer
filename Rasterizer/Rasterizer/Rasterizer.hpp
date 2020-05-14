@@ -239,16 +239,20 @@ struct Rasterizer {
     };
     struct Scene {
         struct Point16Cache {
-            void addPath(Path path) {
-                auto it = cache.find(path->hash);
-                if (it != cache.end())
-                    ips.emplace_back(it->second);
+            void addPath(Path path, float width) {
+                if (width)
+                    ips.emplace_back(0);
                 else {
-                    cache.emplace(path->hash, paths.size());
-                    ips.emplace_back(paths.size()), paths.emplace_back(path);
-                    if (path->p16s.size() == 0) {
-                        float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                    auto it = cache.find(path->hash);
+                    if (it != cache.end())
+                        ips.emplace_back(it->second);
+                    else {
+                        cache.emplace(path->hash, paths.size());
+                        ips.emplace_back(paths.size()), paths.emplace_back(path);
+                        if (path->p16s.size() == 0) {
+                            float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                            writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                        }
                     }
                 }
             }
@@ -271,7 +275,7 @@ struct Rasterizer {
                 count++, weight += path->types.size();
                 _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm.concat(Transform(1, 0, 0, 1, 0, 0))), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
-                p16cache->addPath(path);
+                p16cache->addPath(path, width);
             }
         }
         Bounds bounds() {
