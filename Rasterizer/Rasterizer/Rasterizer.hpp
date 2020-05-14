@@ -477,15 +477,17 @@ struct Rasterizer {
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds).inset(-width, -width);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                            Bounds clu = Bounds(inv.concat(unit));
-                            bool soft = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1, unclipped = uc.contains(dev), fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
+                            bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                             if (fast && width == 0.f) {
                                 gpu.fasts.base[lz + scene->p16cache->ips[is]] = 1, bounds[iz] = scene->paths[is].ref->bounds;
                                 size_t ip = scene->p16cache->ips[is];
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                                 inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->p16cache->paths[ip]->p16s.size() / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
-                            } else
-                                writeGPUPath(ctms[iz], scene, is, clip, width, colors[iz].src3 == 255 && !soft, iz, fast, unclipped, buffer->useCurves);
+                            } else {
+                                Bounds clu = Bounds(inv.concat(unit));
+                                bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
+                                writeGPUPath(ctms[iz], scene, is, clip, width, opaque, iz, fast, uc.contains(dev), buffer->useCurves);
+                            }
                         }
                     }
                 }
