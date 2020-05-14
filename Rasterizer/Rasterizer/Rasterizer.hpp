@@ -123,8 +123,8 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
-        size_t upperBound(Transform ctm) {
-            float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
+        size_t upperBound(float det) {
+            float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
             return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
@@ -198,7 +198,7 @@ struct Rasterizer {
                 im++, p0 = p16s.size();
             }
         }
-        size_t refCount, quadraticSums, cubicSums, hash, counts[kCountSize], im = 0, p0 = 0;
+        size_t refCount, quadraticSums, cubicSums, hash, counts[kCountSize], im = 0, p0 = 0, minUpper = 0;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
@@ -491,23 +491,23 @@ struct Rasterizer {
             }
         }
         void writeGPUPath(Transform& ctm, Scene *scene, size_t is, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped, bool useCurves) {
-            uint8_t flags = scene->flags[is];  Geometry *geometry = scene->paths[is].ref;
+            uint8_t flags = scene->flags[is];  Geometry *geometry = scene->paths[is].ref;  float det = fabsf(ctm.det());
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
                 inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip;
-                if (fabsf(ctm.det()) > 1e2f) {
+                if (det > 1e2f) {
                     size_t count = 0;
                     writePath(geometry, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
                     gpu.outlineUpper += count;
                 } else
-                    gpu.outlineUpper += geometry->upperBound(ctm);
+                    gpu.outlineUpper += geometry->upperBound(det);
                 gpu.outlinePaths++, gpu.allocator.countInstance();
             } else {
                 float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                 ctm = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(ctm);
-                CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves, out.dst = segments.alloc(geometry->upperBound(ctm));
+                CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves, out.dst = segments.alloc(geometry->upperBound(det));
                 writePath(geometry, ctm, clip, unclipped, true, false, & out, CurveIndexer::WriteSegment);
                 writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 segments.idx = segments.end = out.dst - segments.base;
