@@ -524,8 +524,8 @@ struct Rasterizer {
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, Function function, QuadFunction quadFunction = writeQuadratic, CubicFunction cubicFunction = writeCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
         float *p = & geometry->points[0], sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (size_t index = 0; index < geometry->typesSize; )
-            switch (geometry->types[index]) {
+        for (uint8_t *type = & geometry->types[0], *end = type + geometry->typesSize; type < end; )
+            switch (*type) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
                         if (unclipped)
@@ -542,7 +542,7 @@ struct Rasterizer {
                     }
                     if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, 0, info);
-                    sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty, p += 2, index++;
+                    sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty, p += 2, type++;
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -557,7 +557,7 @@ struct Rasterizer {
                                 (*function)(x0, y0, x1, y1, 0, info);
                         }
                     }
-                    x0 = x1, y0 = y1, p += 2, index++;
+                    x0 = x1, y0 = y1, p += 2, type++;
                     break;
                 case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -578,7 +578,7 @@ struct Rasterizer {
                             }
                         }
                     }
-                    x0 = x2, y0 = y2, p += 4, index += 2;
+                    x0 = x2, y0 = y2, p += 4, type += 2;
                     break;
                 case Geometry::kCubic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
@@ -600,10 +600,10 @@ struct Rasterizer {
                             }
                         }
                     }
-                    x0 = x3, y0 = y3, p += 6, index += 3;
+                    x0 = x3, y0 = y3, p += 6, type += 3;
                     break;
                 case Geometry::kClose:
-                    p += 2, index++;
+                    p += 2, type++;
                     break;
             }
         if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
