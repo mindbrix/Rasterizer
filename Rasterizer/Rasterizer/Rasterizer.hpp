@@ -123,7 +123,7 @@ struct Rasterizer {
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
             isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
-        float upperBound(Transform ctm) {
+        size_t upperBound(Transform ctm) {
             float det = fabsf(ctm.det()), s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
