@@ -39,7 +39,7 @@ struct Rasterizer {
                 (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
             };
         }
-        inline float det() { return a * d - b * c; }
+        inline float det() const { return a * d - b * c; }
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
