@@ -125,7 +125,7 @@ struct Rasterizer {
         }
         size_t upperBound(float det) {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
-            size_t quads = quadraticSums == 0 ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
+            size_t quads = quadraticSums == 0 || kQuadraticScale == 0.f ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
             return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
