@@ -318,7 +318,7 @@ struct RasterizerTest {
                 for (int j = 0; j < ss->count; j++) {
                     Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(ss->ctms[j]));
                     float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                    ds->ctms[j] = ss->ctms[j].concat(Ra::Transform::rotation(kTau * (float(state.tick) / 60.f + float(j) / float(ss->count))), cx, cy);
+                    ds->ctms[j] = ss->ctms[j].concat(Ra::Transform::rotation(kTau * (0.01f * float(state.tick) / 60.f + float(j) / float(ss->count))), cx, cy);
                 }
             
         return concentrichron.pathsCount || src.pathsCount;// && state.tick & 1;;
