@@ -134,6 +134,11 @@ struct RasterizerTest {
                 list3D.addScene(create3DScene(list.scenes[i]));
             list.empty().addList(list3D);
         }
+        if (list.scenes.size()) {
+            src.empty().addList(list), dst.empty().addList(list);
+            for (int i = 0; i < src.scenes.size(); i++)
+                dst.scenes[i].cloneCTMs();
+        }
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
@@ -308,12 +313,15 @@ struct RasterizerTest {
     }
     
     bool readEvents(RasterizerState& state) {
-        return concentrichron.scenes.size();// && state.tick & 1;;
+        return concentrichron.scenes.size() || src.scenes.size();// && state.tick & 1;;
     }
     void writeList(Ra::SceneList& list) {
-        writeConcentrichronList(concentrichron, bounds, list);
+        if (concentrichron.scenes.size())
+            writeConcentrichronList(concentrichron, bounds, list);
+        else if(src.scenes.size())
+            list.addList(dst);
     }
     size_t refCount = 0;
     Ra::Bounds bounds;
-    Ra::SceneList concentrichron;
+    Ra::SceneList concentrichron, src, dst;
 };

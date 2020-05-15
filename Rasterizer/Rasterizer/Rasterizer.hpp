@@ -281,6 +281,12 @@ struct Rasterizer {
                 b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
             return b;
         }
+        void cloneCTMs() {
+            Ref<Vector<Transform>> src = _ctms;
+            _ctms = Ref<Vector<Transform>>();
+            _ctms->v = src->v;
+            ctms = & _ctms->v[0];
+        }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
         Ref<Point16Cache> p16cache;
