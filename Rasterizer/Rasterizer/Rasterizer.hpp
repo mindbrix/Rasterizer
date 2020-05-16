@@ -15,7 +15,8 @@ struct Rasterizer {
     struct Transform {
         Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        static Transform rst(float theta, float sx = 1.f, float sy = 1.f, float tx = 0.f, float ty = 0.f) { float sine, cosine;  __sincosf(theta, & sine, & cosine);
+        static Transform rst(float theta, float sx = 1.f, float sy = 1.f, float tx = 0.f, float ty = 0.f) {
+            float sine, cosine;  __sincosf(theta, & sine, & cosine);
             return { sx * cosine, sy * sine, sx * -sine, sy * cosine, tx, ty };
         }
         inline Transform concat(Transform t) const {
