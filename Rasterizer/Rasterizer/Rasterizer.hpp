@@ -15,9 +15,9 @@ struct Rasterizer {
     struct Transform {
         Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        static Transform nullclip() { return { 1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f }; }
         static Transform rst(float theta, float sx = 1.f, float sy = 1.f, float tx = 0.f, float ty = 0.f) { float sine, cosine;  __sincosf(theta, & sine, & cosine);
-            return { sx * cosine, sy * sine, sx * -sine, sy * cosine, tx, ty }; }
+            return { sx * cosine, sy * sine, sx * -sine, sy * cosine, tx, ty };
+        }
         inline Transform concat(Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
@@ -308,10 +308,7 @@ struct Rasterizer {
                 addScene(list.scenes[i], list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene) {
-            return addScene(scene, Transform(), Transform::nullclip());
-        }
-        SceneList& addScene(Scene scene, Transform ctm, Transform clip) {
+        SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
             if (scene.weight)
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;

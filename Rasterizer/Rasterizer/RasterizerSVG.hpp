@@ -48,7 +48,7 @@ struct RasterizerSVG {
                 if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
                     scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, 0);
             }
-            list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
+            list.addScene(scene);
             nsvgDelete(image);
         }
         free(data);

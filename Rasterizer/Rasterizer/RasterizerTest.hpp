@@ -116,12 +116,12 @@ struct RasterizerTest {
             scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)
             writePhyllotaxisToScene(100000, scene);
-        list.addScene(scene, Ra::Transform(), Ra::Transform::nullclip());
+        list.addScene(scene);
         
         if (0) {
             float phi = 0.5f * (sqrtf(5.f) - 1.f);
             float size = 20.f, width = size * phi;
-            list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black), Ra::Transform(), Ra::Transform::nullclip());
+            list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black));
         }
         if (0) {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
@@ -205,7 +205,7 @@ struct RasterizerTest {
         
         for (int i = 0; i < src.scenes.size(); i++)
             if (i > 0 && i < 8)
-                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)), Ra::Transform::nullclip());
+                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
             else
                 list.addScene(src.scenes[i]);
     }
