@@ -470,9 +470,10 @@ struct Rasterizer {
                     Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.inset(1.f, 1.f).intersect(clipbounds);
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                        Transform m = ctm.concat(scene->ctms[is]), unit = scene->paths[is].ref->bounds.unit(m);
-                        float ws = sqrtf(fabsf(m.det())), w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws);
-                        Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds).inset(-width, -width);
+                        Transform m = ctm.concat(scene->ctms[is]);
+                        float ws = sqrtf(fabsf(m.det())), w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
+                        Transform unit = scene->paths[is].ref->bounds.inset(-uw, -uw).unit(m);
+                        Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
@@ -496,7 +497,7 @@ struct Rasterizer {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                     | (flags & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
                     | (flags & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
-                inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip;
+                inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                 if (det > 1e2f) {
                     size_t count = 0;
                     writePath(geometry, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
