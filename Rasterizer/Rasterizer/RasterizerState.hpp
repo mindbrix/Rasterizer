@@ -71,7 +71,7 @@ struct RasterizerState {
                     redraw = true;
                     break;
                 case Event::kRotate:
-                    ctm = ctm.concat(Ra::Transform::rotation(e.x), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    ctm = ctm.concat(Ra::Transform::rst(e.x), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     redraw = true;
                     break;
                 case Event::kDragged:
@@ -109,9 +109,10 @@ struct RasterizerState {
         }
     }
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true;
+    double time;
     float x, y, scale, outlineWidth = 0.f;
     int keyCode = 0;
-    size_t index = INT_MAX, flags = 0, tick = 0;
+    size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
     Ra::Transform ctm, view;
     Ra::Bounds bounds, device;

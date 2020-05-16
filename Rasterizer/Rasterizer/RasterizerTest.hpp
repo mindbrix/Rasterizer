@@ -205,7 +205,7 @@ struct RasterizerTest {
         
         for (int i = 0; i < src.scenes.size(); i++)
             if (i > 0 && i < 8)
-                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rotation(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)), Ra::Transform::nullclip());
+                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)), Ra::Transform::nullclip());
             else
                 list.addScene(src.scenes[i]);
     }
@@ -317,8 +317,10 @@ struct RasterizerTest {
             for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++)
                 for (int j = 0; j < ss->count; j++) {
                     Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(ss->ctms[j]));
-                    float t = float(state.tick) / 60.f, cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                    ds->ctms[j] = ss->ctms[j].concat(Ra::Transform::rotation(kTau * (0.01f * t + float(j) / float(ss->count))), cx, cy);
+                    float t = sin(M_PI * (state.time - floor(state.time))), s = 1.f - t;
+                    float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+                    float sx = s * 0.2f + t * 1.2f, sy = sx;
+                    ds->ctms[j] = ss->ctms[j].concat(Ra::Transform::rst(kTau * (0.01f * t + float(j) / float(ss->count)), sx, sy), cx, cy);
                 }
             
         return concentrichron.pathsCount || src.pathsCount;// && state.tick & 1;;

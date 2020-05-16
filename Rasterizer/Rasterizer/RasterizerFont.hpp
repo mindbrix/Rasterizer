@@ -184,7 +184,7 @@ struct RasterizerFont {
             lx = i == 0 ? b.lx : lx;
             bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
             px = cx + r * cosf(rot), py = cy + r * sinf(rot);
-            ctm = m.concat(Ra::Transform::rotation(rot - 0.5 * M_PI), bx, by), ctm.tx += px - bx, ctm.ty += py - by;
+            ctm = m.concat(Ra::Transform::rst(rot - 0.5 * M_PI), bx, by), ctm.tx += px - bx, ctm.ty += py - by;
             scene.addPath(path, ctm, glyphs.colors[i], 0.f, 0);
         }
     }

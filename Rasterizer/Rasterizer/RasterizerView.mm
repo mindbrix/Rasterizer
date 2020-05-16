@@ -72,7 +72,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)timerFired:(double)time {
-    _state.tick++;
+    _state.time = time;
     [self readEvents: time];
 }
 
