@@ -203,9 +203,9 @@ struct Rasterizer {
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;
         std::vector<uint32_t> pims;
-        float px = FLT_MAX, py = FLT_MAX, x1, y1;
+        float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         bool isGlyph = false, isDrawable = false;
-        Bounds bounds, *mols;
+        Bounds bounds, *mols = nullptr;
     };
     template<typename T>
     struct Ref {
