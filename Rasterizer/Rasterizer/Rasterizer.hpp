@@ -475,8 +475,7 @@ struct Rasterizer {
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds).inset(-width, -width);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                            bool fast = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
-                            if (fast && width == 0.f) {
+                            if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                                 size_t ip = scene->p16cache->ips[is];
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->paths[is].ref->bounds;
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
@@ -484,14 +483,14 @@ struct Rasterizer {
                             } else {
                                 Bounds clu = Bounds(inv.concat(unit));
                                 bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
-                                writeGPUPath(ctms[iz], scene, is, clip, width, opaque, iz, fast, uc.contains(dev), buffer->useCurves);
+                                writeGPUPath(ctms[iz], scene, is, clip, width, opaque, iz, uc.contains(dev), buffer->useCurves);
                             }
                         }
                     }
                 }
             }
         }
-        void writeGPUPath(Transform& ctm, Scene *scene, size_t is, Bounds clip, float width, bool opaque, size_t iz, bool fast, bool unclipped, bool useCurves) {
+        void writeGPUPath(Transform& ctm, Scene *scene, size_t is, Bounds clip, float width, bool opaque, size_t iz, bool unclipped, bool useCurves) {
             uint8_t flags = scene->flags[is];  Geometry *geometry = scene->paths[is].ref;  float det = fabsf(ctm.det());
             if (width) {
                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
