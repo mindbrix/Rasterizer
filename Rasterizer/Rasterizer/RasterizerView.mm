@@ -17,6 +17,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
+@property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RaR::RenderContext renderContext;
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
@@ -32,9 +33,11 @@ static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeSta
 CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
     @autoreleasepool {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
-        });
+        if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [view timerFired:[NSDate date].timeIntervalSinceReferenceDate];
+                dispatch_semaphore_signal(view.inflight_semaphore);
+            });
     }
     return kCVReturnSuccess;
 }
@@ -47,6 +50,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
+    self.inflight_semaphore = dispatch_semaphore_create(1);
     [self initLayer:_useCG];
     [self changeFont:nil];
     return self;
