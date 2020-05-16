@@ -283,9 +283,7 @@ struct Rasterizer {
         }
         void cloneCTMs() {
             Ref<Vector<Transform>> src = _ctms;
-            _ctms = Ref<Vector<Transform>>();
-            _ctms->v = src->v;
-            ctms = & _ctms->v[0];
+            _ctms = Ref<Vector<Transform>>(), _ctms->v = src->v, ctms = & _ctms->v[0];
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
