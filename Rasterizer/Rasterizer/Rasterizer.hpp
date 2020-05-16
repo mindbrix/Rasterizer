@@ -91,7 +91,7 @@ struct Rasterizer {
             uint16_t x, y;
         };
         enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        Geometry() : quadraticSums(0), cubicSums(0), px(0), py(0), isGlyph(false), isDrawable(false), refCount(0), hash(0) { bzero(counts, sizeof(counts)); }
+        Geometry() { bzero(counts, sizeof(counts)); }
         
         float *alloc(Type type, size_t size) {
             for (int i = 0; i < size; i++)
@@ -198,14 +198,14 @@ struct Rasterizer {
                 g->im++, g->p0 = g->p16s.size();
             }
         }
-        size_t refCount, typesSize = 0, quadraticSums, cubicSums, hash, counts[kCountSize], im = 0, p0 = 0, minUpper = 0;
+        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, hash = 0, counts[kCountSize], im = 0, p0 = 0, minUpper = 0;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;
         std::vector<uint32_t> pims;
-        float px, py, x1, y1;
-        bool isGlyph, isDrawable;
+        float px = FLT_MAX, py = FLT_MAX, x1, y1;
+        bool isGlyph = false, isDrawable = false;
         Bounds bounds, *mols;
     };
     template<typename T>
