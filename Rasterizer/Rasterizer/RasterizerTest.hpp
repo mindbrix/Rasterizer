@@ -317,7 +317,7 @@ struct RasterizerTest {
             for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++)
                 for (int j = 0; j < ss->count; j++) {
                     double time = 0.1 * state.time;
-                    float t = sin(M_PI * (time - floor(time))), s = 1.f - t, jt = float(j) / float(ss->count);
+                    float t = sinf(M_PI * float(time - floor(time))), s = 1.f - t, jt = float(j) / float(ss->count);
                     float scale = s * 0.2f + t * 1.2f;
                     float tx = s * 0.f + t * 100.f, ty = tx;
                     Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
