@@ -90,8 +90,7 @@ struct Rasterizer {
             Point16(uint16_t x, uint16_t y) : x(x), y(y) {}
             uint16_t x, y;
         };
-        enum Type { kNull = 0, kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        Geometry() { bzero(counts, sizeof(counts)); }
+        enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
         float *alloc(Type type, size_t size) {
             for (int i = 0; i < size; i++)
@@ -198,7 +197,7 @@ struct Rasterizer {
                 g->im++, g->p0 = g->p16s.size();
             }
         }
-        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, hash = 0, counts[kCountSize], im = 0, p0 = 0, minUpper = 0;
+        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, hash = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, im = 0, p0 = 0, minUpper = 0;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
