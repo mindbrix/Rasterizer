@@ -316,15 +316,17 @@ struct RasterizerTest {
         if (src.pathsCount)
             for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++)
                 for (int j = 0; j < ss->count; j++) {
-                    Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(ss->ctms[j]));
                     double time = 0.1 * state.time;
                     float t = sin(M_PI * (time - floor(time))), s = 1.f - t;
-                    float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
                     float sx = s * 0.2f + t * 1.2f, sy = sx;
-                    ds->ctms[j] = ss->ctms[j].concat(Ra::Transform::rst(kTau * (t + float(j) / float(ss->count)), sx, sy), cx, cy);
+                    float tx = s * 0.f + t * 100.f, ty = tx;
+                    Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + float(j) / float(ss->count)), sx, sy);
+                    Ra::Transform m = Ra::Transform(1, 0, 0, 1, tx, ty).concat(ss->ctms[j]);
+                    Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
+                    float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+                    ds->ctms[j] = m.concat(rst, cx, cy);
                 }
-            
-        return concentrichron.pathsCount || src.pathsCount;// && state.tick & 1;;
+        return concentrichron.pathsCount || src.pathsCount;
     }
     void writeList(Ra::SceneList& list) {
         if (concentrichron.pathsCount)
