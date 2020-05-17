@@ -267,6 +267,7 @@ struct Rasterizer {
             std::vector<T> v;
         };
         enum Flags { kVisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
+        enum CloneFlags { kCloneCTMs = 1 << 0 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->types.size();
@@ -282,8 +283,8 @@ struct Rasterizer {
                 b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
             return b;
         }
-        void clone(bool cloneCTMs) {
-            if (cloneCTMs) {
+        void clone(uint8_t cloneFlags) {
+            if (cloneFlags & kCloneCTMs) {
                 Ref<Vector<Transform>> src = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = src->v, ctms = & _ctms->v[0];
             }
         }
@@ -304,14 +305,14 @@ struct Rasterizer {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
-        SceneList& addList(SceneList& list, bool cloneCTMs = false) {
+        SceneList& addList(SceneList& list, uint8_t cloneFlags = 0) {
             for (int i = 0; i < list.scenes.size(); i++)
-                addScene(list.scenes[i], cloneCTMs, list.ctms[i], list.clips[i]);
+                addScene(list.scenes[i], cloneFlags, list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, bool cloneCTMs = false, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
+        SceneList& addScene(Scene scene, uint8_t cloneFlags = 0, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
             if (scene.weight)
-                pathsCount += scene.count, scenes.emplace_back(scene), scenes.back().clone(cloneCTMs), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                pathsCount += scene.count, scenes.emplace_back(scene), scenes.back().clone(cloneFlags), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;
