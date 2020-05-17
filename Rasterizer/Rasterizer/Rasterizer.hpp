@@ -303,9 +303,12 @@ struct Rasterizer {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
-        SceneList& addList(SceneList& list) {
-            for (int i = 0; i < list.scenes.size(); i++)
+        SceneList& addList(SceneList& list, bool cloneCTMs = false) {
+            for (int i = 0; i < list.scenes.size(); i++) {
                 addScene(list.scenes[i], list.ctms[i], list.clips[i]);
+                if (cloneCTMs)
+                    scenes.back().cloneCTMs();
+            }
             return *this;
         }
         SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
