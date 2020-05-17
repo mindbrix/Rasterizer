@@ -135,7 +135,7 @@ struct RasterizerTest {
             list.empty().addList(list3D);
         }
         if (list.scenes.size())
-            src.empty().addList(list), dst.empty().addList(list, true);
+            src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths);
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
@@ -322,6 +322,7 @@ struct RasterizerTest {
                     Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
                     float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
                     ds->ctms[j] = m.concat(rst, cx, cy);
+                    ds->widths[j] = scale * ss->widths[j];
                 }
         return concentrichron.pathsCount || src.pathsCount;
     }

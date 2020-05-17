@@ -286,11 +286,14 @@ struct Rasterizer {
         void clone(uint8_t cloneFlags) {
             if (cloneFlags & kCloneCTMs) {
                 Ref<Vector<Transform>> src = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = src->v, ctms = & _ctms->v[0];
-            } else if (cloneFlags & kCloneColors) {
+            }
+            if (cloneFlags & kCloneColors) {
                 Ref<Vector<Colorant>> src = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = src->v, colors = & _colors->v[0];
-            } else if (cloneFlags & kCloneWidths) {
+            }
+            if (cloneFlags & kCloneWidths) {
                 Ref<Vector<float>> src = _widths;  _widths = Ref<Vector<float>>(), _widths->v = src->v, widths = & _widths->v[0];
-            } else if (cloneFlags & kCloneFlags) {
+            }
+            if (cloneFlags & kCloneFlags) {
                 Ref<Vector<uint8_t>> src = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = src->v, flags = & _flags->v[0];
             }
         }
