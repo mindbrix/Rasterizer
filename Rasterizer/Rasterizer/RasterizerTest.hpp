@@ -202,7 +202,7 @@ struct RasterizerTest {
         
         for (int i = 0; i < src.scenes.size(); i++)
             if (i > 0 && i < 8)
-                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
+                list.addScene(src.scenes[i], false, Ra::Transform().concat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
             else
                 list.addScene(src.scenes[i]);
     }

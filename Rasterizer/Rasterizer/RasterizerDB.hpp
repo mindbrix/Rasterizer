@@ -165,7 +165,7 @@ struct RasterizerDB {
                     for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
                             RasterizerFont::writeGlyphs(font, fs * float(font.unitsPerEm), j == n ? kRed : kGray, Ra::Bounds(lx, -FLT_MAX, ux, uy), false, true, lengths[i] != kTextChars, (const char *)sqlite3_column_text(pStmt1, i), rows);
-                list.addScene(chrome), list.addScene(rows, Ra::Transform(), clip);
+                list.addScene(chrome), list.addScene(rows, false, Ra::Transform(), clip);
             }
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);

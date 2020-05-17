@@ -282,9 +282,10 @@ struct Rasterizer {
                 b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
             return b;
         }
-        void cloneCTMs() {
-            Ref<Vector<Transform>> src = _ctms;
-            _ctms = Ref<Vector<Transform>>(), _ctms->v = src->v, ctms = & _ctms->v[0];
+        void clone(bool cloneCTMs) {
+            if (cloneCTMs) {
+                Ref<Vector<Transform>> src = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = src->v, ctms = & _ctms->v[0];
+            }
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
@@ -304,16 +305,13 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addList(SceneList& list, bool cloneCTMs = false) {
-            for (int i = 0; i < list.scenes.size(); i++) {
-                addScene(list.scenes[i], list.ctms[i], list.clips[i]);
-                if (cloneCTMs)
-                    scenes.back().cloneCTMs();
-            }
+            for (int i = 0; i < list.scenes.size(); i++)
+                addScene(list.scenes[i], cloneCTMs, list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
+        SceneList& addScene(Scene scene, bool cloneCTMs = false, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
             if (scene.weight)
-                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                pathsCount += scene.count, scenes.emplace_back(scene), scenes.back().clone(cloneCTMs), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;
