@@ -997,11 +997,8 @@ struct Rasterizer {
             }
         }
     };
-    static size_t writeContextsToBuffer(SceneList& list,
-                                        Context *contexts, size_t count,
-                                        size_t *begins,
-                                        Buffer& buffer) {
-        size_t size = buffer.headerSize, sz, i, j, begin, end, cells, instances, lz, puz, ip;
+    static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
+        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, cells, instances, lz, puz, ip;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
@@ -1018,7 +1015,6 @@ struct Rasterizer {
             size += contexts[i].segments.end * sizeof(Segment) + gpu.ptotal * sizeof(Point);
         }
         buffer.resize(size, buffer.headerSize);
-        begin = end = buffer.headerSize;
         for (i = 0; i < count; i++)
             if ((sz = contexts[i].gpu.opaques.end * sizeof(GPU::Instance)))
                 memcpy(buffer.base + end, contexts[i].gpu.opaques.base, sz), end += sz;
@@ -1026,12 +1022,7 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         return size;
     }
-    static void writeContextToBuffer(SceneList& list,
-                                     Context *ctx,
-                                     uint32_t *idxs,
-                                     size_t begin,
-                                     std::vector<Buffer::Entry>& entries,
-                                     Buffer& buffer) {
+    static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
         size_t i, j, iz, puz, ip, im, is, lz, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
