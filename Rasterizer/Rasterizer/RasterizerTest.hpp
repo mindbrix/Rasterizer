@@ -135,7 +135,7 @@ struct RasterizerTest {
             list.empty().addList(list3D);
         }
         if (list.scenes.size())
-            src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths);
+            src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths | Ra::Scene::kCloneColors);
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
@@ -311,14 +311,16 @@ struct RasterizerTest {
     
     bool readEvents(RasterizerState& state) {
         const float kScaleMin = 0.f, kScaleMax = 1.2, kTxMin = 0.f, kTxMax = 100.f;
-        double time = 0.5 * state.time, ftime = time - floor(time);
-        float t = sinf(M_PI * float(ftime)), s = 1.f - t, scale = s * kScaleMin + t * kScaleMax;
+        double time = 0.005 * state.time, ftime = time - floor(time);
+        float t = sinf(M_PI * float(ftime)), s = 1.f - t;
+        float scale = s * kScaleMin + t * kScaleMax;
         float jt, tx, ty, cx, cy;
         if (src.pathsCount)
             for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
+                int offset = ss->count * t;
                 for (int j = 0; j < ss->count; j++) {
                     jt = float(j) / float(ss->count);
-                    if (1) {
+                    if (0) {
                         tx = s * kTxMin + t * kTxMax, ty = tx;
                         Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
                         Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ss->ctms[j]);
@@ -326,12 +328,11 @@ struct RasterizerTest {
                         cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
                         ds->ctms[j] = m.concat(rst, cx, cy);
                     }
-                    if (1) {
+                    if (0) {
                         ds->widths[j] = scale * ss->widths[j];
                     }
                     if (1) {
-                        int offset = ss->count * t;
-                        
+                        ds->colors[j] = ss->colors[(j + offset) % ss->count];
                     }
                 }
             }
