@@ -447,11 +447,18 @@ struct Rasterizer {
             size_t begin, end, segments, points, cells;
         };
         ~Buffer() { if (base) free(base); }
-        uint8_t *resize(size_t n) {
+        uint8_t *resize(size_t n, size_t copySize = 0) {
             size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
             if (size < allocation) {
-                if (base) free(base);
+                void *copy = nullptr;
+                if (base) {
+                    if (copySize)
+                        assert(size >= copySize), copy = malloc(copySize), memcpy(copy, base, copySize);
+                    free(base);
+                }
                 posix_memalign((void **)& base, kPageSize, allocation);
+                if (copy)
+                    memcpy(base, copy, copySize), free(copy);
                 size = allocation;
             }
             return base;
