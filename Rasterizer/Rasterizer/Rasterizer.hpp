@@ -452,7 +452,6 @@ struct Rasterizer {
             size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds);
             headerSize = szcolors + 2 * sztransforms + szwidths + szbounds;
             colors = 0, transforms = colors + szcolors, clips = transforms + sztransforms, widths = clips + sztransforms, bounds = widths + szwidths;
-            assert(headerSize - bounds == szbounds);
             resize(headerSize);
         }
         uint8_t *resize(size_t n, size_t copySize = 0) {
@@ -461,7 +460,7 @@ struct Rasterizer {
                 void *copy = nullptr;
                 if (base) {
                     if (copySize)
-                        assert(size >= copySize), copy = malloc(copySize), memcpy(copy, base, copySize);
+                        copy = malloc(copySize), memcpy(copy, base, copySize);
                     free(base);
                 }
                 posix_memalign((void **)& base, kPageSize, allocation);
