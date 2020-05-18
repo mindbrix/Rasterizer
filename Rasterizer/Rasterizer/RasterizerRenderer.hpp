@@ -41,14 +41,15 @@ struct RasterizerRenderer {
      static void renderList(RenderContext& renderContext, Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
          if (list.pathsCount == 0)
              return;
-         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
          uint32_t *idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
-         Ra::Transform *ctms = (Ra::Transform *)malloc(list.pathsCount * sizeof(state.view));
-         Ra::Colorant *colors = (Ra::Colorant *)malloc(list.pathsCount * sizeof(Ra::Colorant));
-         Ra::Transform *clips = (Ra::Transform *)malloc(list.pathsCount * sizeof(state.view));
-         float *widths = (float *)malloc(list.pathsCount * sizeof(float));
-         Ra::Bounds *bounds = (Ra::Bounds *)malloc(list.pathsCount * sizeof(Ra::Bounds));
-         
+         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
+         buffer->prepare(list.pathsCount);
+         Ra::Colorant *colors = (Ra::Colorant *)(buffer->base + buffer->colors);
+         Ra::Transform *ctms = (Ra::Transform *)(buffer->base + buffer->transforms);
+         Ra::Transform *clips = (Ra::Transform *)(buffer->base + buffer->clips);
+         float *widths = (float *)(buffer->base + buffer->widths);
+         Ra::Bounds *bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
+                  
          if (state.outlineWidth) {
              Ra::Colorant black(0, 0, 0, 255);
              memset_pattern4(colors, & black, list.pathsCount * sizeof(Ra::Colorant));
@@ -61,7 +62,7 @@ struct RasterizerRenderer {
              colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
          
          renderListOnQueues(list, state, list.pathsCount, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, & renderContext.contexts[0], buffer, true, renderContext.queues);
-         free(idxs), free(ctms), free(colors), free(clips), free(widths), free(bounds);
+         free(idxs);
     }
     
     static void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, float outlineWidth, Ra::Context *contexts, Ra::Buffer *buffer, bool multithread, RasterizerQueue *queues) {
