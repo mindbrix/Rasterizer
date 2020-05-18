@@ -115,7 +115,7 @@ struct Rasterizer {
             }
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
-            isDrawable = types.size() > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+            isDrawable = typesSize > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
         size_t upperBound(float det) {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));

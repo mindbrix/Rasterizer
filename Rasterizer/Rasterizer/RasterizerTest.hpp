@@ -150,7 +150,7 @@ struct RasterizerTest {
         for (int i = 0; i < scene.count; i++) {
             Ra::Path& path = scene.paths[i], path3D;
             Transform3D mat = mvp.concat(Transform3D::Transform(scene.ctms[i]));
-            for (size_t index = 0; index < path->types.size(); ) {
+            for (size_t index = 0; index < path->typesSize; ) {
                 float *p = & path->points[0] + index * 2;
                 switch (path->types[index]) {
                     case Ra::Geometry::kMove:
@@ -334,7 +334,7 @@ struct RasterizerTest {
                     if (0) {
                         ds->colors[j] = ss->colors[(j + offset) % ss->count];
                     }
-                    if (1) {
+                    if (0) {
                         ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (j == offset ? 0 : Ra::Scene::kInvisible);
                     }
                 }
