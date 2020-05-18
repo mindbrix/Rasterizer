@@ -134,7 +134,7 @@ struct RasterizerTest {
                 list3D.addScene(create3DScene(list.scenes[i]));
             list.empty().addList(list3D);
         }
-        if (list.scenes.size())
+        if (0 && list.scenes.size())
             src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths | Ra::Scene::kCloneColors | Ra::Scene::kCloneFlags);
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
