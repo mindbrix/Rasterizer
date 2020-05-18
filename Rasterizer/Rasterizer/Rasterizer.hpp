@@ -1044,7 +1044,7 @@ struct Rasterizer {
                         }
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
-            for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++, begin = entries.back().end) {
+            for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
                 cellbase = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
                 
@@ -1065,8 +1065,6 @@ struct Rasterizer {
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
                         writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::writeInstance);
-                        if (dst == info.dst)
-                            OutlineInfo::writeInstance(0.f, 0.f, 0.f, 0.f, 0, & info);
                         dst = info.dst, ctms[iz] = Transform();
                     } else {
                         *dst++ = *inst;
@@ -1099,7 +1097,8 @@ struct Rasterizer {
                         }
                     }
                 }
-                entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance));
+                if (dst > dst0)
+                    entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance)), begin = entries.back().end;
             }
         }
         ctx->empty();
