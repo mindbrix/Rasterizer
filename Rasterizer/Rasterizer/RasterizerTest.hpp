@@ -310,20 +310,31 @@ struct RasterizerTest {
     }
     
     bool readEvents(RasterizerState& state) {
+        const float kScaleMin = 0.f, kScaleMax = 1.2, kTxMin = 0.f, kTxMax = 100.f;
+        double time = 0.5 * state.time, ftime = time - floor(time);
+        float t = sinf(M_PI * float(ftime)), s = 1.f - t, scale = s * kScaleMin + t * kScaleMax;
+        float jt, tx, ty, cx, cy;
         if (src.pathsCount)
-            for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++)
+            for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
                 for (int j = 0; j < ss->count; j++) {
-                    double time = 0.5 * state.time;
-                    float t = sinf(M_PI * float(time - floor(time))), s = 1.f - t, jt = float(j) / float(ss->count);
-                    float scale = s * 0.2f + t * 1.2f;
-                    float tx = s * 0.f + t * 100.f, ty = tx;
-                    Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
-                    Ra::Transform m = Ra::Transform(1, 0, 0, 1, tx, ty).concat(ss->ctms[j]);
-                    Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
-                    float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                    //ds->ctms[j] = m.concat(rst, cx, cy);
-                    ds->widths[j] = scale * ss->widths[j];
+                    jt = float(j) / float(ss->count);
+                    if (1) {
+                        tx = s * kTxMin + t * kTxMax, ty = tx;
+                        Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
+                        Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ss->ctms[j]);
+                        Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
+                        cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+                        ds->ctms[j] = m.concat(rst, cx, cy);
+                    }
+                    if (1) {
+                        ds->widths[j] = scale * ss->widths[j];
+                    }
+                    if (1) {
+                        int offset = ss->count * t;
+                        
+                    }
                 }
+            }
         return concentrichron.pathsCount || src.pathsCount;
     }
     void writeList(Ra::SceneList& list) {
