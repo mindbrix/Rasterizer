@@ -266,7 +266,7 @@ struct Rasterizer {
             uint64_t refCount;
             std::vector<T> v;
         };
-        enum Flags { kVisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
+        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         enum CloneFlags { kCloneCTMs = 1 << 0, kCloneColors = 1 << 1, kCloneWidths = 1 << 2, kCloneFlags = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
@@ -481,6 +481,8 @@ struct Rasterizer {
                     Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.inset(1.f, 1.f).intersect(clipbounds);
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
+                        if (scene->flags[is] & Scene::Flags::kInvisible)
+                            continue;
                         Transform m = ctm.concat(scene->ctms[is]);
                         float ws = sqrtf(fabsf(m.det())), w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
                         Transform unit = scene->paths[is].ref->bounds.inset(-uw, -uw).unit(m);

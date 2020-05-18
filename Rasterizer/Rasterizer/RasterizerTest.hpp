@@ -135,7 +135,7 @@ struct RasterizerTest {
             list.empty().addList(list3D);
         }
         if (list.scenes.size())
-            src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths | Ra::Scene::kCloneColors);
+            src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths | Ra::Scene::kCloneColors | Ra::Scene::kCloneFlags);
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
@@ -311,7 +311,7 @@ struct RasterizerTest {
     
     bool readEvents(RasterizerState& state) {
         const float kScaleMin = 0.f, kScaleMax = 1.2, kTxMin = 0.f, kTxMax = 100.f;
-        double time = 0.005 * state.time, ftime = time - floor(time);
+        double time = 0.5 * state.time, ftime = time - floor(time);
         float t = sinf(M_PI * float(ftime)), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float jt, tx, ty, cx, cy;
@@ -331,8 +331,11 @@ struct RasterizerTest {
                     if (0) {
                         ds->widths[j] = scale * ss->widths[j];
                     }
-                    if (1) {
+                    if (0) {
                         ds->colors[j] = ss->colors[(j + offset) % ss->count];
+                    }
+                    if (1) {
+                        ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (j == offset ? 0 : Ra::Scene::kInvisible);
                     }
                 }
             }
