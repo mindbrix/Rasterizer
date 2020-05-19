@@ -134,7 +134,7 @@ struct RasterizerTest {
                 list3D.addScene(create3DScene(list.scenes[i]));
             list.empty().addList(list3D);
         }
-        if (list.scenes.size())
+        if (0 && list.scenes.size())
             src.empty().addList(list), dst.empty().addList(list, true);
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
@@ -331,7 +331,7 @@ struct RasterizerTest {
                     if (1) {
                         ds->widths[j] = scale * ss->widths[j];
                     }
-                    if (1) {
+                    if (0) {
                         ds->colors[j] = ss->colors[(j + offset) % ss->count];
                     }
                     if (0) {
