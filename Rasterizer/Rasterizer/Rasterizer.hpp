@@ -451,6 +451,7 @@ struct Rasterizer {
         uint8_t *resize(size_t n, size_t copySize = 0) {
             size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
             if (size < allocation) {
+                size = allocation;
                 void *copy = nullptr;
                 if (base) {
                     if (copySize)
@@ -460,7 +461,6 @@ struct Rasterizer {
                 posix_memalign((void **)& base, kPageSize, allocation);
                 if (copy)
                     memcpy(base, copy, copySize), free(copy);
-                size = allocation;
             }
             return base;
         }
