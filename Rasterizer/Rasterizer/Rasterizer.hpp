@@ -270,7 +270,7 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->typesSize;
-                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm.concat(Transform(1, 0, 0, 1, 0, 0))), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
+                _paths->v.emplace_back(path), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
                 p16cache->addPath(path, width);
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
