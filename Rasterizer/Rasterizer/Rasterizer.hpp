@@ -267,7 +267,6 @@ struct Rasterizer {
             std::vector<T> v;
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
-        enum CloneFlags { kCloneCTMs = 1 << 0, kCloneColors = 1 << 1, kCloneWidths = 1 << 2, kCloneFlags = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->typesSize;
@@ -283,19 +282,11 @@ struct Rasterizer {
                 b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
             return b;
         }
-        void clone(uint8_t cloneFlags) {
-            if (cloneFlags & kCloneCTMs) {
-                Ref<Vector<Transform>> src = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = src->v, ctms = & _ctms->v[0];
-            }
-            if (cloneFlags & kCloneColors) {
-                Ref<Vector<Colorant>> src = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = src->v, colors = & _colors->v[0];
-            }
-            if (cloneFlags & kCloneWidths) {
-                Ref<Vector<float>> src = _widths;  _widths = Ref<Vector<float>>(), _widths->v = src->v, widths = & _widths->v[0];
-            }
-            if (cloneFlags & kCloneFlags) {
-                Ref<Vector<uint8_t>> src = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = src->v, flags = & _flags->v[0];
-            }
+        void clone() {
+            Ref<Vector<Transform>> srcCTMs = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = srcCTMs->v, ctms = & _ctms->v[0];
+            Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = srcColors->v, colors = & _colors->v[0];
+            Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->v = srcWidths->v, widths = & _widths->v[0];
+            Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = srcFlags->v, flags = & _flags->v[0];
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;
@@ -314,14 +305,17 @@ struct Rasterizer {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
-        SceneList& addList(SceneList& list, uint8_t cloneFlags = 0) {
+        SceneList& addList(SceneList& list, bool clone = false) {
             for (int i = 0; i < list.scenes.size(); i++)
-                addScene(list.scenes[i], cloneFlags, list.ctms[i], list.clips[i]);
+                addScene(list.scenes[i], clone, list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, uint8_t cloneFlags = 0, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
-            if (scene.weight)
-                pathsCount += scene.count, scenes.emplace_back(scene), scenes.back().clone(cloneFlags), ctms.emplace_back(ctm), clips.emplace_back(clip);
+        SceneList& addScene(Scene scene, bool clone = false, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
+            if (scene.weight) {
+                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                if (clone)
+                    scenes.back().clone();
+            }
             return *this;
         }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;

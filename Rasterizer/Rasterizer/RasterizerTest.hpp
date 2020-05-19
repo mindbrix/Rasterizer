@@ -134,8 +134,8 @@ struct RasterizerTest {
                 list3D.addScene(create3DScene(list.scenes[i]));
             list.empty().addList(list3D);
         }
-        if (0 && list.scenes.size())
-            src.empty().addList(list), dst.empty().addList(list, Ra::Scene::kCloneCTMs | Ra::Scene::kCloneWidths | Ra::Scene::kCloneColors | Ra::Scene::kCloneFlags);
+        if (list.scenes.size())
+            src.empty().addList(list), dst.empty().addList(list, true);
     }
     static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Scene scene3D;
@@ -320,7 +320,7 @@ struct RasterizerTest {
                 int offset = ss->count * t;
                 for (int j = 0; j < ss->count; j++) {
                     jt = float(j) / float(ss->count);
-                    if (0) {
+                    if (1) {
                         tx = s * kTxMin + t * kTxMax, ty = tx;
                         Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
                         Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ss->ctms[j]);
@@ -328,10 +328,10 @@ struct RasterizerTest {
                         cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
                         ds->ctms[j] = m.concat(rst, cx, cy);
                     }
-                    if (0) {
+                    if (1) {
                         ds->widths[j] = scale * ss->widths[j];
                     }
-                    if (0) {
+                    if (1) {
                         ds->colors[j] = ss->colors[(j + offset) % ss->count];
                     }
                     if (0) {
