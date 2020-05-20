@@ -111,7 +111,7 @@ struct RasterizerState {
                 int idx = 0;
                 for (int j = 0; j < indices.begin; j++)
                     idx += list.scenes[j].count;
-                    index = idx + indices.end;
+                index = idx + indices.end;
             }
         }
     }
