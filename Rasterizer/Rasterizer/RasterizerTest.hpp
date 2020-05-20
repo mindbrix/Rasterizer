@@ -311,7 +311,8 @@ struct RasterizerTest {
     
     void animate(RasterizerState& state) {
         const float kScaleMin = 0.2f, kScaleMax = 1.f, kTxMin = 0.f, kTxMax = 0.f;
-        double time = 0.5 * state.time, ftime = time - floor(time);
+        clock += timeScale / 60.0;
+        double time = clock, ftime = time - floor(time);
         float t = sinf(M_PI * float(ftime)), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float jt, tx, ty, cx, cy;
@@ -357,6 +358,10 @@ struct RasterizerTest {
                                 }
                         }
                     }
+                    case RasterizerState::Event::kMouseMove: {
+                        timeScale = e.y / (state.bounds.uy - state.bounds.ly);
+                        break;
+                    }
                     default:
                         break;
                 }
@@ -374,6 +379,7 @@ struct RasterizerTest {
     }
     size_t refCount = 0;
     bool animating = false;
+    double clock = 0.0, timeScale = 1.0;
     Ra::Bounds bounds;
     Ra::SceneList concentrichron, src, dst;
 };
