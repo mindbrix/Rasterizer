@@ -310,7 +310,7 @@ struct RasterizerTest {
     }
     
     void animate(RasterizerState& state) {
-        const float kScaleMin = 0.f, kScaleMax = 1.2, kTxMin = 0.f, kTxMax = 100.f;
+        const float kScaleMin = 0.2f, kScaleMax = 1.f, kTxMin = 0.f, kTxMax = 0.f;
         double time = 0.5 * state.time, ftime = time - floor(time);
         float t = sinf(M_PI * float(ftime)), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
@@ -318,7 +318,7 @@ struct RasterizerTest {
         for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
             int offset = ss->count * t;
             for (int j = 0; j < ss->count; j++) {
-                jt = float(j) / float(ss->count);
+                jt = 0;//float(j) / float(ss->count);
                 if (1) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
                     Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
