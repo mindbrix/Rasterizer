@@ -346,8 +346,16 @@ struct RasterizerTest {
             for (RasterizerState::Event& e : state.events)
                 switch (e.type) {
                     case RasterizerState::Event::kKeyDown: {
-                        if (e.keyCode == 18)
+                        if (e.keyCode == 18) {
                             animating = !animating;
+                            if (!animating)
+                                for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
+                                    memcpy(ds->ctms, ss->ctms, ss->count * sizeof(ss->ctms[0]));
+                                    memcpy(ds->colors, ss->colors, ss->count * sizeof(ss->colors[0]));
+                                    memcpy(ds->widths, ss->widths, ss->count * sizeof(ss->widths[0]));
+                                    memcpy(ds->flags, ss->flags, ss->count * sizeof(ss->flags[0]));
+                                }
+                        }
                     }
                     default:
                         break;
