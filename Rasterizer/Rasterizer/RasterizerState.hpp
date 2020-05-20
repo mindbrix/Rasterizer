@@ -31,7 +31,7 @@ struct RasterizerState {
         bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
     }
     bool writeEvent(Event e) {
-        const int keyCodes[] = { 8, 31, 35, 36 };
+        const int keyCodes[] = { 8, 18, 31, 35, 36 };
         bool written = e.type != Event::kKeyDown;
         if (e.type == Event::kKeyDown)
             for (int keyCode : keyCodes)
