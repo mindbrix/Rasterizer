@@ -314,14 +314,13 @@ struct RasterizerTest {
         double time = clock, ftime = time - floor(time);
         float t = sinf(kTau * float(ftime)), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
-        float jt, tx, ty, cx, cy;
+        float tx, ty, cx, cy;
         for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
             int offset = ss->count * t;
             for (int j = 0; j < ss->count; j++) {
-                jt = 0;//float(j) / float(ss->count);
                 if (1) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
-                    Ra::Transform rst = Ra::Transform::rst(kTau * ((j & 1 ? s : t) + jt), scale, scale);
+                    Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
                     Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ss->ctms[j]);
                     Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
                     cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
