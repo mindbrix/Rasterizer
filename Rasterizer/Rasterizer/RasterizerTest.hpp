@@ -311,8 +311,8 @@ struct RasterizerTest {
     
     void animate(RasterizerState& state) {
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
-        double time = clock, ftime = time - floor(time);
-        float t = sinf(kTau * float(ftime)), s = 1.f - t;
+        float ftime = clock - floor(clock);
+        float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
         for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
