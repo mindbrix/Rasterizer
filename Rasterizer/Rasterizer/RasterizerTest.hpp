@@ -310,10 +310,9 @@ struct RasterizerTest {
     }
     
     void animate(RasterizerState& state) {
-        const float kScaleMin = 0.2f, kScaleMax = 1.f, kTxMin = 0.f, kTxMax = 0.f;
-        clock += timeScale / 60.0;
+        const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
         double time = clock, ftime = time - floor(time);
-        float t = sinf(M_PI * float(ftime)), s = 1.f - t;
+        float t = sinf(kTau * float(ftime)), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float jt, tx, ty, cx, cy;
         for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
@@ -344,30 +343,28 @@ struct RasterizerTest {
         if (concentrichron.pathsCount)
             return true;
         else if (src.pathsCount) {
-            for (RasterizerState::Event& e : state.events)
+            bool redraw = animating;
+            for (RasterizerState::Event& e : state.events) {
                 switch (e.type) {
                     case RasterizerState::Event::kKeyDown: {
-                        if (e.keyCode == 18) {
-                            animating = !animating;
-                            if (!animating)
-                                for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
-                                    memcpy(ds->ctms, ss->ctms, ss->count * sizeof(ss->ctms[0]));
-                                    memcpy(ds->colors, ss->colors, ss->count * sizeof(ss->colors[0]));
-                                    memcpy(ds->widths, ss->widths, ss->count * sizeof(ss->widths[0]));
-                                    memcpy(ds->flags, ss->flags, ss->count * sizeof(ss->flags[0]));
-                                }
-                        }
-                    }
-                    case RasterizerState::Event::kMouseMove: {
-                        timeScale = e.y / (state.bounds.uy - state.bounds.ly);
+                        if (e.keyCode == 18)
+                            animating = !animating, redraw = true;
+                        else if (e.keyCode == 29)
+                            clock = 0.0, redraw = true;
                         break;
                     }
+                    case RasterizerState::Event::kMouseMove:
+                        timeScale = e.y / (state.bounds.uy - state.bounds.ly);
+                        break;
                     default:
                         break;
                 }
-            if (animating)
+            }
+            if (redraw)
                 animate(state);
-            return animating;
+            if (animating)
+                clock += timeScale / 60.0;
+            return redraw;
         } else
             return false;
     }
