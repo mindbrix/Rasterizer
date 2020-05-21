@@ -62,7 +62,7 @@ struct RasterizerCG {
         return CGAffineTransformMake(t.a, t.b, t.c, t.d, t.tx, t.ty);
     }
     static Ra::Bounds BoundsFromCGRect(CGRect rect) {
-        return Ra::Bounds(float(rect.origin.x), float(rect.origin.y), float(rect.origin.x + rect.size.width), float(rect.origin.y + rect.size.height));
+        return Ra::Bounds(float(CGRectGetMinX(rect)), float(CGRectGetMinY(rect)), float(CGRectGetMaxX(rect)), float(CGRectGetMaxY(rect)));
     }
     static CGRect CGRectFromBounds(Ra::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
