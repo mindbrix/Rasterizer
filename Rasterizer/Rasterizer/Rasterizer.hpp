@@ -238,7 +238,7 @@ struct Rasterizer {
         float x0, y0, x1, y1;
     };
     struct Scene {
-        struct Point16Cache {
+        struct Cache {
             size_t refCount = 0;
             std::vector<uint32_t> ips;
             std::vector<Path> paths;
@@ -287,7 +287,7 @@ struct Rasterizer {
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
-        Ref<Point16Cache> cache;
+        Ref<Cache> cache;
     private:
         Ref<Vector<Path>> _paths;  Ref<Vector<Bounds>> _bounds;  Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
@@ -997,7 +997,7 @@ struct Rasterizer {
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
-            Scene::Point16Cache *cache;
+            Scene::Cache *cache;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
                 for (cache = list.scenes[j].cache.ref, puz = cache->paths.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
@@ -1019,7 +1019,7 @@ struct Rasterizer {
             if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
-                Scene::Point16Cache *cache;
+                Scene::Cache *cache;
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                     for (cache = list.scenes[i].cache.ref, puz = cache->paths.size(), ip = 0; ip < puz; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
