@@ -255,15 +255,15 @@ struct Rasterizer {
                 count++, weight += path->typesSize;
                 auto it = cache->map.find(path->hash);
                 if (it != cache->map.end())
-                    cache->ips.emplace_back(it->second), _paths->v.emplace_back(_paths->v[it->second]);
+                    cache->ips.emplace_back(it->second);
                 else {
-                    _paths->v.emplace_back(path);
-                    cache->ips.emplace_back(cache->map.size()), cache->paths.emplace_back(path);
+                    cache->paths.emplace_back(path);
+                    cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                     if (width == 0.f)
                         writeP16s(path);
                 }
-                _bounds->v.emplace_back(path->bounds), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
+                _paths->v.emplace_back(path), _bounds->v.emplace_back(path->bounds), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], b = & _bounds->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
             }
