@@ -241,7 +241,7 @@ struct Rasterizer {
         struct Cache {
             size_t refCount = 0;
             std::vector<uint32_t> ips;
-            std::vector<Path> paths;
+            std::vector<Path> paths;  std::vector<size_t> _sizes;  size_t *sizes;
             std::unordered_map<size_t, size_t> map;
         };
         template<typename T>
@@ -257,7 +257,7 @@ struct Rasterizer {
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
                 else {
-                    cache->paths.emplace_back(path);
+                    cache->paths.emplace_back(path), cache->_sizes.emplace_back(path->p16s.size()), cache->sizes =  & cache->_sizes[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                 }
@@ -280,13 +280,13 @@ struct Rasterizer {
         }
         void prepare() {
             for (int i = 0; i < count; i++)
-                if (widths[i] == 0.f) {
-                    Path& path = cache->paths[cache->ips[i]];
-                    if (path->p16s.size() == 0) {
+                if (widths[i] == 0.f)
+                    if (cache->sizes[cache->ips[i]] == 0) {
+                        Path& path = cache->paths[cache->ips[i]];
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                        cache->sizes[cache->ips[i]] = path->p16s.size();
                     }
-                }
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
@@ -501,7 +501,7 @@ struct Rasterizer {
                                 size_t ip = scene->cache->ips[is];
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->paths[ip]->p16s.size() / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->sizes[ip] / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
                                 Bounds clu = Bounds(inv.concat(unit));
                                 bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
@@ -1004,7 +1004,7 @@ struct Rasterizer {
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
                 for (cache = list.scenes[j].cache.ref, puz = cache->paths.size(), ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
-                        gpu.ptotal += cache->paths[ip]->p16s.size();
+                        gpu.ptotal += cache->sizes[ip];
             size += contexts[i].segments.end * sizeof(Segment) + gpu.ptotal * sizeof(Point);
         }
         buffer.resize(size, buffer.headerSize);
@@ -1026,9 +1026,8 @@ struct Rasterizer {
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                     for (cache = list.scenes[i].cache.ref, puz = cache->paths.size(), ip = 0; ip < puz; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
-                            Path& path = cache->paths[ip];
-                            memcpy(buffer.base + begin + pbase * sizeof(Point), & path->p16s[0], path->p16s.size() * sizeof(Point));
-                            ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += path->p16s.size();
+                            memcpy(buffer.base + begin + pbase * sizeof(Point), & cache->paths[ip]->p16s[0], cache->sizes[ip] * sizeof(Point));
+                            ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += cache->sizes[ip];
                         }
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
@@ -1062,7 +1061,7 @@ struct Rasterizer {
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             bool molecules = path->molecules.size() > 1;
-                            for (j = 0; j < path->p16s.size(); j += kFastSegments, fast++) {
+                            for (j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++) {
                                 if (molecules && im != path->pims[j >> 2]) {
                                     im = path->pims[j >> 2], b = & path->mols[im];
                                     ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
