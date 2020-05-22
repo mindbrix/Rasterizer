@@ -259,17 +259,14 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->isDrawable) {
                 count++, weight += path->typesSize;
-                if (width)
-                    cache->ips.emplace_back(0);
+                auto it = cache->map.find(path->hash);
+                if (it != cache->map.end())
+                    cache->ips.emplace_back(it->second);
                 else {
-                    auto it = cache->map.find(path->hash);
-                    if (it != cache->map.end())
-                        cache->ips.emplace_back(it->second);
-                    else {
-                        cache->ips.emplace_back(cache->map.size()), cache->paths.emplace_back(path);
-                        cache->map.emplace(path->hash, cache->map.size());
+                    cache->ips.emplace_back(cache->map.size()), cache->paths.emplace_back(path);
+                    cache->map.emplace(path->hash, cache->map.size());
+                    if (width == 0.f)
                         cache->writeP16s(path);
-                    }
                 }
                 _paths->v.emplace_back(path), _bounds->v.emplace_back(path->bounds), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], b = & _bounds->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
