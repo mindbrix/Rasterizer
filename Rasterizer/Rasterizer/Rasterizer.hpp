@@ -239,12 +239,6 @@ struct Rasterizer {
     };
     struct Scene {
         struct Point16Cache {
-            void writeP16s(Path& path) {
-                if (path->p16s.size() == 0) {
-                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
-                }
-            }
             size_t refCount = 0;
             std::vector<uint32_t> ips;
             std::vector<Path> paths;
@@ -266,7 +260,7 @@ struct Rasterizer {
                     cache->ips.emplace_back(cache->map.size()), cache->paths.emplace_back(path);
                     cache->map.emplace(path->hash, cache->map.size());
                     if (width == 0.f)
-                        cache->writeP16s(path);
+                        writeP16s(path);
                 }
                 _paths->v.emplace_back(path), _bounds->v.emplace_back(path->bounds), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], b = & _bounds->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
@@ -284,6 +278,12 @@ struct Rasterizer {
             Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = srcColors->v, colors = & _colors->v[0];
             Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->v = srcWidths->v, widths = & _widths->v[0];
             Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = srcFlags->v, flags = & _flags->v[0];
+        }
+        void writeP16s(Path& path) {
+            if (path->p16s.size() == 0) {
+                float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+            }
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
