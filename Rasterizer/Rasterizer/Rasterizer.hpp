@@ -243,12 +243,12 @@ struct Rasterizer {
                 if (width)
                     ips.emplace_back(0);
                 else {
-                    auto it = cache.find(path->hash);
-                    if (it != cache.end())
+                    auto it = map.find(path->hash);
+                    if (it != map.end())
                         ips.emplace_back(it->second);
                     else {
-                        ips.emplace_back(cache.size()), paths.emplace_back(path);
-                        cache.emplace(path->hash, cache.size());
+                        ips.emplace_back(map.size()), paths.emplace_back(path);
+                        map.emplace(path->hash, map.size());
                         if (path->p16s.size() == 0) {
                             float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                             writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
@@ -259,7 +259,7 @@ struct Rasterizer {
             size_t refCount = 0;
             std::vector<uint32_t> ips;
             std::vector<Path> paths;
-            std::unordered_map<size_t, size_t> cache;
+            std::unordered_map<size_t, size_t> map;
         };
         template<typename T>
         struct Vector {
