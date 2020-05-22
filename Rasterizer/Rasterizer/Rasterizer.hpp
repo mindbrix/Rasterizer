@@ -280,13 +280,12 @@ struct Rasterizer {
         }
         void prepare() {
             for (int i = 0; i < count; i++)
-                if (widths[i] == 0.f)
-                    if (cache->sizes[cache->ips[i]] == 0) {
-                        Path& path = cache->paths[cache->ips[i]];
-                        float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
-                        cache->sizes[cache->ips[i]] = path->p16s.size();
-                    }
+                if (widths[i] == 0.f && cache->sizes[cache->ips[i]] == 0) {
+                    Path& path = cache->paths[cache->ips[i]];
+                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                    cache->sizes[cache->ips[i]] = path->p16s.size();
+                }
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
