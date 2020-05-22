@@ -260,8 +260,6 @@ struct Rasterizer {
                     cache->paths.emplace_back(path);
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
-                    if (width == 0.f)
-                        writeP16s(path);
                 }
                 _paths->v.emplace_back(path), _bounds->v.emplace_back(path->bounds), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
                 paths = & _paths->v[0], b = & _bounds->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
@@ -279,6 +277,13 @@ struct Rasterizer {
             Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = srcColors->v, colors = & _colors->v[0];
             Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->v = srcWidths->v, widths = & _widths->v[0];
             Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = srcFlags->v, flags = & _flags->v[0];
+        }
+        void prepare() {
+            for (int i = 0; i < count; i++)
+                if (widths[i] == 0.f) {
+                    Path& path = cache->paths[cache->ips[i]];
+                    writeP16s(path);
+                }
         }
         void writeP16s(Path& path) {
             if (path->p16s.size() == 0) {

@@ -44,6 +44,8 @@ struct RasterizerRenderer {
          uint32_t *idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
          assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
          buffer->prepare(list.pathsCount);
+         for (Ra::Scene& scene : list.scenes)
+             scene.prepare();
          Ra::Colorant *colors = (Ra::Colorant *)(buffer->base + buffer->colors);
          Ra::Transform *ctms = (Ra::Transform *)(buffer->base + buffer->transforms);
          Ra::Transform *clips = (Ra::Transform *)(buffer->base + buffer->clips);
