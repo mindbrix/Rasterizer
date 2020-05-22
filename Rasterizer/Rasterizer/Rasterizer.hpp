@@ -249,11 +249,14 @@ struct Rasterizer {
                     else {
                         ips.emplace_back(map.size()), paths.emplace_back(path);
                         map.emplace(path->hash, map.size());
-                        if (path->p16s.size() == 0) {
-                            float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                            writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
-                        }
+                        writeP16s(path);
                     }
+                }
+            }
+            void writeP16s(Path& path) {
+                if (path->p16s.size() == 0) {
+                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                    writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                 }
             }
             size_t refCount = 0;
