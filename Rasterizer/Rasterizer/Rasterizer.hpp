@@ -267,10 +267,10 @@ struct Rasterizer {
             }
         }
         Bounds bounds() {
-            Bounds b;
+            Bounds bnds;
             for (int i = 0; i < count; i++)
-                b.extend(Bounds(paths[i]->bounds.unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
-            return b;
+                bnds.extend(Bounds(b[i].unit(ctms[i])).inset(-0.5f * widths[i], -0.5f * widths[i]));
+            return bnds;
         }
         void clone() {
             Ref<Vector<Transform>> srcCTMs = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = srcCTMs->v, ctms = & _ctms->v[0];
