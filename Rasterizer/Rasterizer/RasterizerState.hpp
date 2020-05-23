@@ -100,9 +100,9 @@ struct RasterizerState {
             }
         }
         view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
-        events.resize(0);
         return redraw;
     }
+    void resetEvents() {  events.resize(0);  }
     void doMouseMove(Ra::SceneList& list) {
         index = INT_MAX;
         if (mouseMove && list.pathsCount) {
