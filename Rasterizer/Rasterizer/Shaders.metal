@@ -24,7 +24,7 @@ struct Colorant {
     uint8_t src0, src1, src2, src3;
 };
 
-struct Point {
+struct Point16 {
     uint16_t x, y;
 };
 struct Segment {
@@ -166,7 +166,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                                 const device EdgeCell *edgeCells [[buffer(3)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Bounds *bounds [[buffer(7)]],
-                                const device Point *points [[buffer(8)]],
+                                const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
@@ -179,7 +179,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Transform& m = affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
     int i; float slx, sly, suy, visible = 1.0;
-    const device Point *pt = & points[edgeCell.base + edge.i0];
+    const device Point16 *pt = & points[edgeCell.base + edge.i0];
     int curve;
     if ((pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF) {
         visible = 0.0;
