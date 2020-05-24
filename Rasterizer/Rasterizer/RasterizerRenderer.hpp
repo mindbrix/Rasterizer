@@ -10,11 +10,6 @@
 #import "RasterizerState.hpp"
 
 struct RasterizerRenderer {
-     static const int kQueueCount = 8;
-     void reset() { for (auto& ctx : contexts) ctx.reset(); }
-     Ra::Context contexts[kQueueCount];
-     RasterizerQueue queues[kQueueCount];
-    
      struct ThreadInfo {
          Ra::Context *context;
          Ra::SceneList *list;
@@ -111,6 +106,11 @@ struct RasterizerRenderer {
         size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
         assert(size >= end);
     }
+    
+    static const int kQueueCount = 8;
+     void reset() { for (auto& ctx : contexts) ctx.reset(); }
+     Ra::Context contexts[kQueueCount];
+     RasterizerQueue queues[kQueueCount];
  };
 
  typedef RasterizerRenderer RaR;
