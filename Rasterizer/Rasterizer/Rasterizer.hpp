@@ -485,7 +485,7 @@ struct Rasterizer {
                 uz = lz + scene->count;
                 if ((clz = lz < gpu.slz ? gpu.slz : lz > gpu.suz ? gpu.suz : lz) != (cuz = uz < gpu.slz ? gpu.slz : uz > gpu.suz ? gpu.suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
-                    Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.inset(1.f, 1.f).intersect(clipbounds);
+                    Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.intersect(clipbounds).inset(1.f, 1.f);
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                     for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                         if (scene->flags[is] & Scene::Flags::kInvisible)
