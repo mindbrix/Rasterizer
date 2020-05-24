@@ -18,7 +18,7 @@
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
-@property(nonatomic) RasterizerRenderer renderContext;
+@property(nonatomic) RasterizerRenderer renderer;
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
@@ -188,7 +188,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else if (keyCode == 51) {
         _useCG = !_useCG;
         [self initLayer:_useCG];
-        _renderContext.reset();
+        _renderer.reset();
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
@@ -241,7 +241,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    _renderContext.renderList(_list, _state, buffer);
+    _renderer.renderList(_list, _state, buffer);
 }
 
 #pragma mark - CALayerDelegate
