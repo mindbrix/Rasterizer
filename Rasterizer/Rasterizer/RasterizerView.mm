@@ -251,7 +251,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.src0, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
-    RaCG::drawList(_list, _state.view, _state.device, _state.outlineWidth, ctx);
+    RaCG::drawList(_list, _state, ctx);
 }
 
 #pragma mark - Screen grab to PDF
@@ -264,7 +264,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     CGPDFContextBeginPage(ctx, NULL);
     _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
-    RaCG::drawList(_list, _state.view, _state.device, _state.outlineWidth, ctx);
+    RaCG::drawList(_list, _state, ctx);
     CGPDFContextEndPage(ctx);
     CGPDFContextClose(ctx);
 }

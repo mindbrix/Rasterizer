@@ -20,7 +20,7 @@ struct RasterizerCG {
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
     
-    static void drawList(Ra::SceneList& list, const Ra::Transform view, const Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
+    static void drawList(Ra::SceneList& list, RasterizerState& state, CGContextRef ctx) {
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scene = list.scenes[j];
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
@@ -29,14 +29,14 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.count; i++) {
                 Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
-                if (isVisible(path.ref->bounds, view.concat(t), view.concat(clip), device, scene.widths[i])) {
+                if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scene.widths[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
-                    if (outlineWidth || scene.widths[i]) {
-                        if (outlineWidth == 0.f)
+                    if (state.outlineWidth || scene.widths[i]) {
+                        if (state.outlineWidth == 0.f)
                             CGContextSetRGBStrokeColor(ctx, scene.colors[i].src2 / 255.0, scene.colors[i].src1 / 255.0, scene.colors[i].src0 / 255.0, scene.colors[i].src3 / 255.0);
-                        CGContextSetLineWidth(ctx, outlineWidth ? (CGFloat)-109.05473e+14 : scene.widths[i] );
+                        CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scene.widths[i] );
                         bool end = scene.flags[i] & Ra::Scene::kOutlineEndCap;
                         bool round = scene.flags[i] & Ra::Scene::kOutlineRounded;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : end ? kCGLineCapSquare : kCGLineCapButt);
