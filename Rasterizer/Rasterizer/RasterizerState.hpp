@@ -27,8 +27,11 @@ struct RasterizerState {
         size_t flags;
     };
     void update(float s, float w, float h) {
-        scale = s, view = Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f).concat(ctm);
-        bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(h * s));
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), prepare();
+    }
+    void prepare() {
+        view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+        device = Ra::Bounds(0.f, 0.f, ceilf(scale * (bounds.ux - bounds.lx)), ceilf(scale * (bounds.uy - bounds.ly)));
     }
     bool writeEvent(Event e) {
         const int keyCodes[] = { 8, 18, 29, 31, 35, 36 };
@@ -99,7 +102,7 @@ struct RasterizerState {
                     break;
             }
         }
-        view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+        prepare();
         return redraw;
     }
     void resetEvents() {  events.resize(0);  }
