@@ -14,10 +14,10 @@ struct RasterizerState {
         enum Type { kNull = 0, kMouseMove, kMouseUp, kDragged, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate, kFit };
         
         Event() {}
-        Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y), keyCode(0) {}
+        Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y) {}
         Event(double time, Type type, Ra::Bounds b) : time(time), type(type), bounds(b) {}
-        Event(double time, Type type, unsigned short keyCode) : time(time), type(type), x(0.f), y(0.f), keyCode(keyCode) {}
-        Event(double time, Type type, size_t flags) : time(time), type(type), x(0.f), y(0.f), keyCode(0), flags(flags) {}
+        Event(double time, Type type, unsigned short keyCode) : time(time), type(type), keyCode(keyCode) {}
+        Event(double time, Type type, size_t flags) : time(time), type(type), flags(flags) {}
         
         double time;
         Type type;
