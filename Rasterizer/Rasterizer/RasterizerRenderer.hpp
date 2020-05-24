@@ -12,13 +12,10 @@
 struct RasterizerRenderer {
      struct ThreadInfo {
          Ra::Context *context;
-         Ra::SceneList *list;
-         RasterizerState *state;
-         uint32_t *idxs;
-         Ra::Transform *ctms;  Ra::Colorant *colors;  Ra::Transform *clips;  float *widths;  Ra::Bounds *bounds;
+         Ra::SceneList *list;  RasterizerState *state;
+         uint32_t *idxs;  Ra::Transform *ctms;  Ra::Colorant *colors;  Ra::Transform *clips;  float *widths;  Ra::Bounds *bounds;
+         size_t begin;  std::vector<Ra::Buffer::Entry> *entries;
          Ra::Buffer *buffer;
-         std::vector<Ra::Buffer::Entry> *entries;
-         size_t begin;
     };
     static void drawList(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
