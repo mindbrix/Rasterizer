@@ -14,11 +14,8 @@ struct RasterizerRenderer {
          Ra::Context *context;
          Ra::SceneList *list;
          RasterizerState *state;
-         Ra::Transform *ctms, *clips;
          uint32_t *idxs;
-         Ra::Colorant *colors;
-         float *widths;
-         Ra::Bounds *bounds;
+         Ra::Transform *ctms;  Ra::Colorant *colors;  Ra::Transform *clips;  float *widths;  Ra::Bounds *bounds;
          Ra::Buffer *buffer;
          std::vector<Ra::Buffer::Entry> *entries;
          size_t begin;
