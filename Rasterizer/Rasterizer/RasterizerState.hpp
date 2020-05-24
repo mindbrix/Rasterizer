@@ -33,6 +33,9 @@ struct RasterizerState {
         view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
         device = Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
     }
+    void magnify(float s) {
+        ctm = ctm.concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+    }
     bool writeEvent(Event e) {
         const int keyCodes[] = { 8, 18, 29, 31, 35, 36 };
         bool written = e.type != Event::kKeyDown;
@@ -77,7 +80,7 @@ struct RasterizerState {
                     keyDown = true, keyCode = e.keyCode;
                     break;
                 case Event::kMagnify:
-                    ctm = ctm.concat(Ra::Transform(e.x, 0.f, 0.f, e.x, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    magnify(e.x);
                     redraw = true;
                     break;
                 case Event::kRotate:
