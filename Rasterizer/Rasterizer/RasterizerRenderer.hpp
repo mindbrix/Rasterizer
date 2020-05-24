@@ -27,7 +27,7 @@ struct RasterizerRenderer {
         ThreadInfo *ti = (ThreadInfo *)info;
         ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->state->outlineWidth, ti->buffer);
     }
-    static void writeContexts(void *info) {
+    static void writeContextsToBuffer(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
         Ra::writeContextToBuffer(*ti->list, ti->context, ti->idxs, ti->begin, *ti->entries, *ti->buffer);
     }
@@ -97,7 +97,7 @@ struct RasterizerRenderer {
         else {
             for (i = 0; i < count; i++)
                 threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
-            RasterizerQueue::scheduleAndWait(queues, kQueueCount, writeContexts, threadInfo, sizeof(ThreadInfo), count);
+            RasterizerQueue::scheduleAndWait(queues, kQueueCount, writeContextsToBuffer, threadInfo, sizeof(ThreadInfo), count);
         }
         for (int i = 0; i < count; i++)
             for (auto entry : entries[i])
