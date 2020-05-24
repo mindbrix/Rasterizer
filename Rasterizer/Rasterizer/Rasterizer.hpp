@@ -257,7 +257,7 @@ struct Rasterizer {
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
                 else {
-                    cache->paths.emplace_back(path), cache->_sizes.emplace_back(path->p16s.size()), cache->sizes =  & cache->_sizes[0];
+                    cache->paths.emplace_back(path), cache->_sizes.emplace_back(path->p16s.size()), cache->sizes = & cache->_sizes[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                 }
