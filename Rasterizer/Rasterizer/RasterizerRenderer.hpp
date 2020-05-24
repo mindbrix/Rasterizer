@@ -67,15 +67,15 @@ struct RasterizerRenderer {
     }
     
     void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer, bool multithread) {
-        size_t eiz = 0, total = 0, count, divisions = RasterizerRenderer::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+        size_t eiz = 0, total = 0, count, divisions = kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].count, total += list.scenes[j].weight;
         if (buffer)
             buffer->useCurves = state.useCurves;
-        ThreadInfo threadInfo[RasterizerRenderer::kQueueCount], *ti = threadInfo;
+        ThreadInfo threadInfo[kQueueCount], *ti = threadInfo;
         if (multithread) {
             ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
-            for (i = 1; i < RasterizerRenderer::kQueueCount; i++)
+            for (i = 1; i < kQueueCount; i++)
                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
             izeds[0] = 0, izeds[divisions] = eiz;
             auto scene = & list.scenes[0];
@@ -87,10 +87,10 @@ struct RasterizerRenderer {
                 }
                 izeds[i] = iz;
             }
-            count = RasterizerRenderer::kQueueCount;
+            count = kQueueCount;
             for (i = 0; i < count; i++)
                 contexts[i].prepare(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
-            RasterizerQueue::scheduleAndWait(queues, RasterizerRenderer::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
+            RasterizerQueue::scheduleAndWait(queues, kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
             contexts[0].prepare(state.device.ux, state.device.uy, list.pathsCount, 0, eiz);
@@ -103,7 +103,7 @@ struct RasterizerRenderer {
         else {
             for (i = 0; i < count; i++)
                 threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
-            RasterizerQueue::scheduleAndWait(queues, RasterizerRenderer::kQueueCount, ThreadInfo::writeContexts, threadInfo, sizeof(ThreadInfo), count);
+            RasterizerQueue::scheduleAndWait(queues, kQueueCount, ThreadInfo::writeContexts, threadInfo, sizeof(ThreadInfo), count);
         }
         for (int i = 0; i < count; i++)
             for (auto entry : entries[i])
