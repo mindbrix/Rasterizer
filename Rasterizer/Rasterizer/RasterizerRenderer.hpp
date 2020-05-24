@@ -107,9 +107,9 @@ struct RasterizerRenderer {
     }
     
     static const int kQueueCount = 8;
-     void reset() { for (auto& ctx : contexts) ctx.reset(); }
-     Ra::Context contexts[kQueueCount];
-     RasterizerQueue queues[kQueueCount];
+    void reset() { for (auto& ctx : contexts) ctx.reset(); }
+    Ra::Context contexts[kQueueCount];
+    RasterizerQueue queues[kQueueCount];
  };
 
  typedef RasterizerRenderer RaR;
