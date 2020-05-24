@@ -475,8 +475,7 @@ struct Rasterizer {
             size_t fatlines = ceilf(float(height) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
-            gpu.allocator.init(width, height);
-            gpu.slz = slz, gpu.suz = suz;
+            gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, float outlineWidth, Buffer *buffer) {
