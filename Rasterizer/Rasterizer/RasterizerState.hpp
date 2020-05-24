@@ -102,8 +102,8 @@ struct RasterizerState {
             Ra::Range indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
             if (indices.begin != INT_MAX) {
                 index = indices.end;
-                for (int j = 0; j < indices.begin; j++)
-                    index += list.scenes[j].count;
+                for (int i = 0; i < indices.begin; i++)
+                    index += list.scenes[i].count;
             }
         }
     }
