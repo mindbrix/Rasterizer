@@ -269,7 +269,8 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds bnds;
             for (int i = 0; i < count; i++)
-                bnds.extend(Bounds(b[i].inset(-0.5f * widths[i], -0.5f * widths[i]).unit(ctms[i])));
+                if ((flags[i] & kInvisible) == 0)
+                    bnds.extend(Bounds(b[i].inset(-0.5f * widths[i], -0.5f * widths[i]).unit(ctms[i])));
             return bnds;
         }
         void clone() {
