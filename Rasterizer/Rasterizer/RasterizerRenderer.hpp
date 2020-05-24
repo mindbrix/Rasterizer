@@ -18,10 +18,11 @@ struct RasterizerRenderer {
      struct ThreadInfo {
          Ra::Context *context;
          Ra::SceneList *list;
-         Ra::Transform view, *ctms, *clips;
+         RasterizerState *state;
+         Ra::Transform *ctms, *clips;
          uint32_t *idxs;
          Ra::Colorant *colors;
-         float *widths, outlineWidth;
+         float *widths;
          Ra::Bounds *bounds;
          Ra::Buffer *buffer;
          std::vector<Ra::Buffer::Entry> *entries;
@@ -29,7 +30,7 @@ struct RasterizerRenderer {
          
          static void drawList(void *info) {
              ThreadInfo *ti = (ThreadInfo *)info;
-             ti->context->drawList(*ti->list, ti->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->outlineWidth, ti->buffer);
+             ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->state->outlineWidth, ti->buffer);
          }
          static void writeContexts(void *info) {
              ThreadInfo *ti = (ThreadInfo *)info;
@@ -73,7 +74,7 @@ struct RasterizerRenderer {
             buffer->useCurves = state.useCurves;
         ThreadInfo threadInfo[RasterizerRenderer::kQueueCount], *ti = threadInfo;
         if (multithread) {
-            ti->context = contexts, ti->list = & list, ti->view = state.view, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds, ti->outlineWidth = state.outlineWidth, ti->buffer = buffer;
+            ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
             for (i = 1; i < RasterizerRenderer::kQueueCount; i++)
                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
             izeds[0] = 0, izeds[divisions] = eiz;
