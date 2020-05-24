@@ -89,11 +89,11 @@ struct RasterizerRenderer {
             }
             count = RasterizerRenderer::kQueueCount;
             for (i = 0; i < count; i++)
-                contexts[i].setGPU(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
+                contexts[i].prepare(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
             RasterizerQueue::scheduleAndWait(queues, RasterizerRenderer::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
-            contexts[0].setGPU(state.device.ux, state.device.uy, list.pathsCount, 0, eiz);
+            contexts[0].prepare(state.device.ux, state.device.uy, list.pathsCount, 0, eiz);
             contexts[0].drawList(list, state.view, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, buffer);
         }
         std::vector<Ra::Buffer::Entry> entries[count];

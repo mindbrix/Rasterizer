@@ -470,7 +470,7 @@ struct Rasterizer {
         size_t colors, transforms, clips, widths, bounds, sceneCount, tick, pathsCount, headerSize, size = 0;
     };
     struct Context {
-        void setGPU(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
+        void prepare(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
             device = Bounds(0.f, 0.f, width, height);
             size_t size = ceilf(float(height) * krfh);
             if (indices.size() != size)
