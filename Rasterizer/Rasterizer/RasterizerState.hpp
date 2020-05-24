@@ -42,6 +42,13 @@ struct RasterizerState {
     void translate(float x, float y) {
         ctm.tx += x, ctm.ty += y;
     }
+    void fit(Ra::Bounds b) {
+        Ra::Transform fit = bounds.fit(b);
+        if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
+            ctm = Ra::Transform();
+        else
+            ctm = fit;
+    }
     bool writeEvent(Event e) {
         const int keyCodes[] = { 8, 18, 29, 31, 35, 36 };
         bool written = e.type != Event::kKeyDown;
@@ -99,11 +106,7 @@ struct RasterizerState {
                     redraw = true;
                     break;
                 case Event::kFit: {
-                    Ra::Transform fit = bounds.fit(e.bounds);
-                    if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
-                        ctm = Ra::Transform();
-                    else
-                        ctm = fit;
+                    fit(e.bounds);
                     redraw = true;
                     break;
                 }
