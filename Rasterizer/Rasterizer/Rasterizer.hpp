@@ -537,9 +537,8 @@ struct Rasterizer {
         void reset() { gpu.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0); }
         GPU gpu;
         Bounds device;
-        std::vector<Row<Index>> indices;
-        std::vector<Row<int16_t>> uxcovers;
         Row<Segment> segments;
+        std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, Function function, QuadFunction quadFunction = writeQuadratic, CubicFunction cubicFunction = writeCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
         float *p = & geometry->points[0], sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
