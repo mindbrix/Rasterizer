@@ -26,29 +26,7 @@ struct RasterizerState {
         int keyCode;
         size_t flags;
     };
-    void update(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), prepare();
-    }
-    void prepare() {
-        view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
-        device = Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
-    }
-    void magnify(float s) {
-        ctm = ctm.concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
-    }
-    void rotate(float a) {
-        ctm = ctm.concat(Ra::Transform::rst(a), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
-    }
-    void translate(float x, float y) {
-        ctm.tx += x, ctm.ty += y;
-    }
-    void fit(Ra::Bounds b) {
-        Ra::Transform fit = bounds.fit(b);
-        if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
-            ctm = Ra::Transform();
-        else
-            ctm = fit;
-    }
+    
     bool writeEvent(Event e) {
         const int keyCodes[] = { 8, 18, 29, 31, 35, 36 };
         bool written = e.type != Event::kKeyDown;
@@ -136,6 +114,30 @@ struct RasterizerState {
     int keyCode = 0;
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
+    
+    void update(float s, float w, float h) {
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), prepare();
+    }
+    void prepare() {
+        view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+        device = Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
+    }
+    void magnify(float s) {
+        ctm = ctm.concat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+    }
+    void rotate(float a) {
+        ctm = ctm.concat(Ra::Transform::rst(a), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+    }
+    void translate(float x, float y) {
+        ctm.tx += x, ctm.ty += y;
+    }
+    void fit(Ra::Bounds b) {
+        Ra::Transform fit = bounds.fit(b);
+        if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
+            ctm = Ra::Transform();
+        else
+            ctm = fit;
+    }
     
     float scale, outlineWidth = 0.f;
     Ra::Transform ctm, view;
