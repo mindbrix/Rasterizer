@@ -61,11 +61,11 @@ struct RasterizerRenderer {
          if (state.index != INT_MAX)
              colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
          
-         renderListOnQueues(list, state, list.pathsCount, idxs, ctms, colors, clips, widths, bounds, buffer, true);
+         renderListOnQueues(list, state, idxs, ctms, colors, clips, widths, bounds, buffer, true);
          free(idxs);
     }
     
-    void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, size_t pathsCount, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer, bool multithread) {
+    void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer, bool multithread) {
         size_t eiz = 0, total = 0, count, divisions = RasterizerRenderer::kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].count, total += list.scenes[j].weight;
@@ -88,11 +88,11 @@ struct RasterizerRenderer {
             }
             count = RasterizerRenderer::kQueueCount;
             for (i = 0; i < count; i++)
-                contexts[i].setGPU(state.device.ux, state.device.uy, pathsCount, izs[i], izs[i + 1]);
+                contexts[i].setGPU(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
             RasterizerQueue::scheduleAndWait(queues, RasterizerRenderer::kQueueCount, ThreadInfo::drawList, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
-            contexts[0].setGPU(state.device.ux, state.device.uy, pathsCount, 0, eiz);
+            contexts[0].setGPU(state.device.ux, state.device.uy, list.pathsCount, 0, eiz);
             contexts[0].drawList(list, state.view, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, buffer);
         }
         std::vector<Ra::Buffer::Entry> entries[count];
