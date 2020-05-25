@@ -902,20 +902,20 @@ struct Rasterizer {
             is++;
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, bool a) {
-            float ly, uy, d2a, ity, d, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir;
+            float ly, uy, d2a, ity, d = 0.f, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
             itx = fabsf(ax) < kQuadraticFlatness ? FLT_MAX : -bx / ax * 0.5f;
             if (fabsf(ay) < kQuadraticFlatness)
                 t0 = -(y0 - ly) / by;
             else
-                d = by * by - 4.f * ay * (y0 - ly), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                d = by * by - 4.f * ay * (y0 - ly), t0 = ity + (d < 0.f ? 0.f : sqrtf(d) * d2a);
             tx0 = (ax * t0 + bx) * t0 + x0;
             for (ir = ly * krfh, y = ly; y < uy; y = ny, ir++, t0 = t1, tx0 = tx1) {
-                ny = (floorf(y * krfh) + 1.f) * kfh, ny = uy < ny ? uy : ny;
+                ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
                 if (fabsf(ay) < kQuadraticFlatness)
                     t1 = -(y0 - ny) / by;
                 else
-                    d = by * by - 4.f * ay * (y0 - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                   d -= 4.f * ay * (y - ny), t1 = ity + (d < 0.f ? 0.f : sqrtf(d) * d2a);
                 tx1 = (ax * t1 + bx) * t1 + x0;
                 lx = tx0 < tx1 ? tx0 : tx1, ux = tx0 > tx1 ? tx0 : tx1;
                 if ((t0 <= itx) == (itx <= t1))
