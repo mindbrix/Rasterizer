@@ -691,7 +691,7 @@ struct Rasterizer {
         if (clip.ux >= lx && clip.ux < ux)
             et = solveQuadratic(ax, bx, x0 - clip.ux, et);
         std::sort(ts + 1, et), *et++ = 1.f;
-        for (tx0 = tx2 = x0, ty0 = ty2 = y0, t = ts; t < et - 1; t++, tx0 = tx2, ty0 = ty2) {
+        for (tx0 = x0, ty0 = y0, t = ts; t < et - 1; t++, tx0 = tx2, ty0 = ty2) {
             tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
@@ -769,7 +769,7 @@ struct Rasterizer {
         if (clip.ux >= lx && clip.ux < ux)
             et = solveCubic(bx, cx, x0 - clip.ux, ax, et);
         std::sort(ts + 1, et), *et++ = 1.f;
-        for (tx0 = tx3 = x0, ty0 = ty3 = y0, t = ts; t < et - 1; t++, tx0 = tx3, ty0 = ty3) {
+        for (tx0 = x0, ty0 = y0, t = ts; t < et - 1; t++, tx0 = tx3, ty0 = ty3) {
             tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
@@ -887,9 +887,10 @@ struct Rasterizer {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
-                if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
+                if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask)) {
+                    assert(y0 >= clip.ly && y0 < clip.uy);
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true);
-                else
+                } else
                     ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
