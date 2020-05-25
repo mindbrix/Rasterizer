@@ -887,10 +887,9 @@ struct Rasterizer {
             float ay, by, ax, bx, iy;
             ay = y2 - y1, by = y1 - y0;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
-                if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask)) {
-                    assert(y0 >= clip.ly && y0 < clip.uy);
+                if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true);
-                } else
+                else
                     ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
