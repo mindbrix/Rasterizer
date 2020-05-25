@@ -473,7 +473,7 @@ struct Rasterizer {
     struct Context {
         void prepare(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
             device = Bounds(0.f, 0.f, width, height);
-            size_t fatlines = ceilf(float(height) * krfh);
+            size_t fatlines = 1.f + ceilf(float(height) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz;
