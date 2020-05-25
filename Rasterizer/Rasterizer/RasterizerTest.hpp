@@ -265,8 +265,10 @@ struct RasterizerTest {
             list.addList(dst);
     }
     size_t refCount = 0;
+    
+    Ra::SceneList concentrichron;  Ra::Bounds bounds;
+    
     bool animating = false;
     double clock = 0.0, timeScale = 0.333;
-    Ra::Bounds bounds;
-    Ra::SceneList concentrichron, src, dst;
+    Ra::SceneList src, dst;
 };
