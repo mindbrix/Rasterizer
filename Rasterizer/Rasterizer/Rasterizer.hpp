@@ -884,23 +884,23 @@ struct Rasterizer {
             is++;
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ay = y2 - y1, by = y1 - y0, ax, bx, iy;
+            float ay = y2 - y1, by = y1 - y0, iy;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
                 if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true);
                 else
-                    ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
+                    writeCurve(y0, y2, ay, by, y0, x2 - x1, x1 - x0, x0, true);
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                ax = x2 - x1, bx = x1 - x0;
                 if (y0 != iy)
-                    writeCurve(y0, iy, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
+                    writeCurve(y0, iy, ay, by, y0, x2 - x1, x1 - x0, x0, true);
                 if (iy != y2)
-                    writeCurve(iy, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, false);
+                    writeCurve(iy, y2, ay, by, y0, x2 - x1, x1 - x0, x0, false);
             }
             is++;
         }
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, bool a) {
+            ay -= by, by *= 2.f, ax -= bx, bx *= 2.f;
             float ly, uy, d2a, ity, d = 0.f, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
             itx = fabsf(ax) < kQuadraticFlatness ? FLT_MAX : -bx / ax * 0.5f;
