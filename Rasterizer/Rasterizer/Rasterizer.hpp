@@ -1070,12 +1070,12 @@ struct Rasterizer {
                             }
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
-                            Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin;
+                            Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
-                            for (j = 0; j < inst->quad.count; j++, edge++) {
-                                uxc = uxcovers + is->i * 3, is++, edge->ic = uint32_t(ic) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]);
-                                if (++j < inst->quad.count)
-                                    uxc = uxcovers + is->i * 3, is++, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->ux = uint16_t(uxc[2]);
+                            for (; is < eis; is++, edge++) {
+                                uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]);
+                                if (++is < eis)
+                                    uxc = uxcovers + is->i * 3, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->ux = uint16_t(uxc[2]);
                                 else
                                     edge->ux = kNullIndex;
                             }
