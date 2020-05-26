@@ -884,8 +884,7 @@ struct Rasterizer {
             is++;
         }
         __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ay, by, ax, bx, iy;
-            ay = y2 - y1, by = y1 - y0;
+            float ay = y2 - y1, by = y1 - y0, ax, bx, iy;
             if (fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness || (ay > 0.f) == (by > 0.f)) {
                 if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true);
