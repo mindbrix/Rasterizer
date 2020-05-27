@@ -205,8 +205,7 @@ struct RasterizerTest {
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
-        for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
-            int offset = state.locked.end;// ss->count * t;
+        for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
             for (int j = 0; j < ss->count; j++) {
                 if (1) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
@@ -220,10 +219,10 @@ struct RasterizerTest {
                     ds->widths[j] = scale * ss->widths[j];
                 }
                 if (0) {
-                    ds->colors[j] = ss->colors[(j + offset) % ss->count];
+                    ds->colors[j] = ss->colors[(j) % ss->count];
                 }
                 if (1) {
-                    ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (offset == INT_MAX || j == offset ? 0 : Ra::Scene::kInvisible);
+                    ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
                 }
             }
         }
