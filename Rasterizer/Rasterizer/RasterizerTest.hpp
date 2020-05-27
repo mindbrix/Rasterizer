@@ -228,7 +228,7 @@ struct RasterizerTest {
             }
         }
     }
-    bool readEvents(RasterizerState& state) {
+    bool readEvents(Ra::SceneList& list, RasterizerState& state) {
         if (concentrichron.pathsCount)
             return true;
         else if (src.pathsCount) {
@@ -251,7 +251,7 @@ struct RasterizerTest {
                 }
             }
             if (redraw)
-                animate(state);
+                animate(state), writeList(list.empty());
             if (animating)
                 clock += timeScale / 60.0;
             return redraw;
