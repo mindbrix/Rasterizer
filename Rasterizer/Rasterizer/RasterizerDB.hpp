@@ -170,7 +170,7 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
     }
-    bool readEvents(RasterizerState& state) {
+    bool readEvents(Ra::SceneList& list, RasterizerState& state) {
         bool redraw = false;
         if (db)
             for (RasterizerState::Event& e : state.events)
@@ -201,6 +201,8 @@ struct RasterizerDB {
                     default:
                         break;
                 }
+        if (redraw)
+            writeList(list.empty());
         return redraw;
     }
     void writeList(Ra::SceneList& list) {
