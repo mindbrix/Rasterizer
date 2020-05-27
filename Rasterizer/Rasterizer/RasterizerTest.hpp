@@ -206,7 +206,7 @@ struct RasterizerTest {
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
         for (Ra::Scene *ss = & src.scenes[0], *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
-            int offset = ss->count * t;
+            int offset = state.locked.end;// ss->count * t;
             for (int j = 0; j < ss->count; j++) {
                 if (1) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
@@ -222,8 +222,8 @@ struct RasterizerTest {
                 if (0) {
                     ds->colors[j] = ss->colors[(j + offset) % ss->count];
                 }
-                if (0) {
-                    ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (j == offset ? 0 : Ra::Scene::kInvisible);
+                if (1) {
+                    ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (offset == INT_MAX || j == offset ? 0 : Ra::Scene::kInvisible);
                 }
             }
         }
@@ -240,6 +240,8 @@ struct RasterizerTest {
                             animating = !animating, redraw = true;
                         else if (e.keyCode == 29)
                             clock = 0.0, redraw = true;
+                        else if (e.keyCode == 37)
+                            redraw = true;
                         break;
                     }
                     case RasterizerState::Event::kMouseMove:
