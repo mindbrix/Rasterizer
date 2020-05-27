@@ -149,17 +149,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)readEvents:(double)time {
-    bool stateRedraw = _state.readEvents();
+    bool stateRedraw = _state.readEvents(_list);
     bool testRedraw = _test->readEvents(_state);
     if (testRedraw)
         _test->writeList(_list.empty());
     bool dbRedraw = _db->readEvents(_state);
     if (dbRedraw)
         _db->writeList(_list.empty());
-    if (testRedraw || dbRedraw || stateRedraw) {
-        _state.doMouseMove(_list);
+    if (testRedraw || dbRedraw || stateRedraw)
         [self.layer setNeedsDisplay];
-    }
     _state.resetEvents();
 }
 

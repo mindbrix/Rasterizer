@@ -40,7 +40,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    bool readEvents() {
+    bool readEvents(Ra::SceneList& list) {
         bool redraw = false;
         for (Event& e : events) {
             switch(e.type) {
@@ -93,14 +93,17 @@ struct RasterizerState {
             }
         }
         prepare();
+        if (mouseMove)
+            doMouseMove(list);
         return redraw;
     }
     void resetEvents() {  events.resize(0);  }
     void doMouseMove(Ra::SceneList& list) {
         index = INT_MAX;
         if (mouseMove && list.pathsCount) {
-            Ra::Range indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
+            indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
             if (indices.begin != INT_MAX) {
+//                Ra::Path& p = list.scenes[indices.begin].paths[indices.end];
                 index = indices.end;
                 for (int i = 0; i < indices.begin; i++)
                     index += list.scenes[i].count;
@@ -111,6 +114,7 @@ struct RasterizerState {
     double time;
     float x, y;
     int keyCode = 0;
+    Ra::Range indices = Ra::Range(INT_MAX, INT_MAX);
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
     
