@@ -149,10 +149,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)readEvents:(double)time {
-    bool stateRedraw = _state.readEvents(_list);
-    bool testRedraw = _test->readEvents(_list, _state);
-    bool dbRedraw = _db->readEvents(_list, _state);
-    if (testRedraw || dbRedraw || stateRedraw)
+    bool redraw = _state.readEvents(_list);
+    redraw |= _test->readEvents(_list, _state);
+    redraw |= _db->readEvents(_list, _state);
+    if (redraw)
         [self.layer setNeedsDisplay];
     _state.resetEvents();
 }
