@@ -257,7 +257,11 @@ struct Rasterizer {
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
                 else {
-                    cache->paths.emplace_back(path), cache->_sizes.emplace_back(path->p16s.size()), cache->sizes = & cache->_sizes[0];
+                    if (path->p0 == 0) {
+                        float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
+                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                    }
+                    cache->paths.emplace_back(path), cache->_sizes.emplace_back(path->p0), cache->sizes = & cache->_sizes[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                 }
@@ -278,15 +282,6 @@ struct Rasterizer {
             Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = srcColors->v, colors = & _colors->v[0];
             Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->v = srcWidths->v, widths = & _widths->v[0];
             Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = srcFlags->v, flags = & _flags->v[0];
-        }
-        void prepare() {
-            for (int i = 0; i < count; i++)
-                if ((flags[i] & kInvisible) == 0 && widths[i] == 0.f && cache->sizes[cache->ips[i]] == 0) {
-                    Path& path = cache->paths[cache->ips[i]];
-                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                    writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
-                    cache->sizes[cache->ips[i]] = path->p16s.size();
-                }
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
