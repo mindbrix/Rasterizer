@@ -1051,9 +1051,9 @@ struct Rasterizer {
                             Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->cache->ips[is], im = 0;
                             Path& path = scene->cache->paths[ip];
+                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             bool molecules = path->molecules.size() > 1;
                             uint32_t *pim = & path->pims[0];
-                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++, pim++) {
                                 if (molecules && im == *pim) {
                                     ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
