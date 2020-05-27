@@ -28,7 +28,7 @@ struct RasterizerState {
     };
     
     bool writeEvent(Event e) {
-        const int keyCodes[] = { 8, 18, 29, 31, 35, 36 };
+        const int keyCodes[] = { 8, 18, 29, 31, 35, 36, 37 };
         bool written = e.type != Event::kKeyDown;
         if (e.type == Event::kKeyDown)
             for (int keyCode : keyCodes)
@@ -65,7 +65,9 @@ struct RasterizerState {
                     else if (e.keyCode == 31)
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == 35)
-                        mouseMove = !mouseMove;
+                        mouseMove = !mouseMove, locked = Ra::Range(INT_MAX, INT_MAX);
+                    else if (e.keyCode == 37 && mouseMove)
+                        locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
                     break;
                 case Event::kKeyUp:
                     keyDown = true, keyCode = e.keyCode;
@@ -114,7 +116,7 @@ struct RasterizerState {
     double time;
     float x, y;
     int keyCode = 0;
-    Ra::Range indices = Ra::Range(INT_MAX, INT_MAX);
+    Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
     size_t index = INT_MAX, flags = 0;
     std::vector<Event> events;
     
