@@ -27,6 +27,8 @@ struct RasterizerCG {
             CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
             for (size_t i = 0; i < scene.count; i++) {
+                if (scene.flags[i] & Ra::Scene::Flags::kInvisible)
+                    continue;
                 Ra::Path& path = scene.paths[i];
                 Ra::Transform t = ctm.concat(scene.ctms[i]);
                 if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scene.widths[i])) {
