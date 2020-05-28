@@ -104,11 +104,8 @@ struct RasterizerState {
         index = INT_MAX;
         if (mouseMove && list.pathsCount) {
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
-            if (indices.begin != INT_MAX) {
-                index = indices.end;
-                for (int i = 0; i < indices.begin; i++)
-                    index += list.scenes[i].count;
-            }
+            if (indices.begin != INT_MAX)
+                index = list.index(indices.begin, indices.end);
         }
     }
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true;

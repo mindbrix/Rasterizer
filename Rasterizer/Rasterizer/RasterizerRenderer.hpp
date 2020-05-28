@@ -45,8 +45,9 @@ struct RasterizerRenderer {
              for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
                  memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
          }
-         if (state.index != INT_MAX)
+        if (state.index != INT_MAX) {
              colors[state.index].src0 = 0, colors[state.index].src1 = 0, colors[state.index].src2 = 255, colors[state.index].src3 = 255;
+        }
          
          renderListOnQueues(list, state, idxs, ctms, colors, clips, widths, bounds, buffer, true);
          free(idxs);
