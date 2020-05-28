@@ -65,7 +65,7 @@ struct RasterizerState {
                     else if (e.keyCode == 31)
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == 35)
-                        mouseMove = !mouseMove, locked = Ra::Range(INT_MAX, INT_MAX), index = mouseMove ? index : INT_MAX;
+                        mouseMove = !mouseMove, locked = Ra::Range(INT_MAX, INT_MAX), indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
                     else if (e.keyCode == 37 && mouseMove)
                         locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
                     break;
@@ -101,19 +101,15 @@ struct RasterizerState {
     }
     void resetEvents() {  events.resize(0);  }
     void doMouseMove(Ra::SceneList& list) {
-        index = INT_MAX;
-        if (mouseMove && list.pathsCount) {
+        if (mouseMove && list.pathsCount)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
-            if (indices.begin != INT_MAX)
-                index = list.index(indices.begin, indices.end);
-        }
     }
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true;
     double time;
     float x, y;
     int keyCode = 0;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
-    size_t index = INT_MAX, flags = 0;
+    size_t flags = 0;
     std::vector<Event> events;
     
     void update(float s, float w, float h) {
