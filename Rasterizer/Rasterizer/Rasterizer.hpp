@@ -247,7 +247,7 @@ struct Rasterizer {
         template<typename T>
         struct Vector {
             uint64_t refCount;
-            std::vector<T> v;
+            std::vector<T> dst;
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
@@ -266,8 +266,8 @@ struct Rasterizer {
                     cache->map.emplace(path->hash, cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
-                _paths->v.emplace_back(path), _bounds->v.emplace_back(path->bounds), _ctms->v.emplace_back(ctm), _colors->v.emplace_back(color), _widths->v.emplace_back(width), _flags->v.emplace_back(flag);
-                paths = & _paths->v[0], b = & _bounds->v[0], ctms = & _ctms->v[0], colors = & _colors->v[0], widths = & _widths->v[0], flags = & _flags->v[0];
+                _paths->dst.emplace_back(path), _bounds->dst.emplace_back(path->bounds), _ctms->dst.emplace_back(ctm), _colors->dst.emplace_back(color), _widths->dst.emplace_back(width), _flags->dst.emplace_back(flag);
+                paths = & _paths->dst[0], b = & _bounds->dst[0], ctms = & _ctms->dst[0], colors = & _colors->dst[0], widths = & _widths->dst[0], flags = & _flags->dst[0];
             }
         }
         Bounds bounds() {
@@ -278,10 +278,10 @@ struct Rasterizer {
             return bnds;
         }
         void clone() {
-            Ref<Vector<Transform>> srcCTMs = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->v = srcCTMs->v, ctms = & _ctms->v[0];
-            Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->v = srcColors->v, colors = & _colors->v[0];
-            Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->v = srcWidths->v, widths = & _widths->v[0];
-            Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->v = srcFlags->v, flags = & _flags->v[0];
+            Ref<Vector<Transform>> srcCTMs = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->dst = srcCTMs->dst, ctms = & _ctms->dst[0];
+            Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->dst = srcColors->dst, colors = & _colors->dst[0];
+            Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->dst = srcWidths->dst, widths = & _widths->dst[0];
+            Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->dst = srcFlags->dst, flags = & _flags->dst[0];
         }
         size_t count = 0, weight = 0;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
