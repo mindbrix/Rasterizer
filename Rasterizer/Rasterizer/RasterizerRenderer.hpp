@@ -54,7 +54,7 @@ struct RasterizerRenderer {
     }
     
     void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer, bool multithread) {
-        size_t total = 0, count, divisions = kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+        size_t total = 0, count, base, i, iz, izeds[kQueueCount + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
         buffer->useCurves = state.useCurves;
@@ -63,10 +63,10 @@ struct RasterizerRenderer {
             ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
             for (i = 1; i < kQueueCount; i++)
                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
-            izeds[0] = 0, izeds[divisions] = list.pathsCount;
+            izeds[0] = 0, izeds[kQueueCount] = list.pathsCount;
             auto scene = & list.scenes[0];
-            for (count = base = iz = 0, i = 1; i < divisions; i++) {
-                for (target = total * i / divisions; count < target; iz++) {
+            for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
+                for (target = total * i / kQueueCount; count < target; iz++) {
                     if (iz - base == scene->count)
                         scene++, base = iz;
                     count += scene->paths[iz - base].ref->typesSize;
