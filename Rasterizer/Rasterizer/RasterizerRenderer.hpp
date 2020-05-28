@@ -39,16 +39,16 @@ struct RasterizerRenderer {
         Ra::Scene *scene = & list.scenes[0];
         for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
             memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
-        renderListOnQueues(list, state, idxs, ctms, colors, clips, widths, bounds, buffer, true);
+        renderListOnQueues(list, state, idxs, ctms, colors, clips, widths, bounds, buffer);
         free(idxs);
     }
     
-    void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer, bool multithread) {
+    void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer) {
         size_t total = 0, count, base, i, iz, izeds[kQueueCount + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
         ThreadInfo threadInfo[kQueueCount], *ti = threadInfo;
-        if (multithread) {
+        if (1) {
             ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
             for (i = 1; i < kQueueCount; i++)
                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
