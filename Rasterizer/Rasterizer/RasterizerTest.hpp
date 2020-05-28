@@ -207,23 +207,27 @@ struct RasterizerTest {
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
         for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
+            Ra::Transform *ctms = & ss->_ctms->dst[0];
+            Ra::Colorant *colors = & ss->_colors->dst[0];
+            float *widths = & ss->_widths->dst[0];
+            uint8_t *flags = & ss->_flags->dst[0];
             for (int j = 0; j < ss->count; j++) {
                 if (1) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
                     Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
-                    Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ss->ctms[j]);
+                    Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ctms[j]);
                     Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
                     cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
                     ds->ctms[j] = m.concat(rst, cx, cy);
                 }
                 if (1) {
-                    ds->widths[j] = scale * ss->widths[j];
+                    ds->widths[j] = scale * widths[j];
                 }
                 if (1) {
-                    ds->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : ss->colors[j];
+                    ds->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
                 }
                 if (1) {
-                    ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
+                    ds->flags[j] = (flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
                 }
             }
         }

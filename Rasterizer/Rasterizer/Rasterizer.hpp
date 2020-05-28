@@ -284,9 +284,8 @@ struct Rasterizer {
             Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->dst = srcFlags->dst, flags = & _flags->dst[0];
         }
         size_t count = 0, weight = 0;
-        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
         Ref<Cache> cache;
-    private:
+        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
         Ref<Vector<Path>> _paths;  Ref<Vector<Bounds>> _bounds;  Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     struct SceneList {
