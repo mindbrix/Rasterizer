@@ -57,8 +57,7 @@ struct RasterizerRenderer {
         size_t eiz = 0, total = 0, count, divisions = kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             eiz += list.scenes[j].count, total += list.scenes[j].weight;
-        if (buffer)
-            buffer->useCurves = state.useCurves;
+        buffer->useCurves = state.useCurves;
         ThreadInfo threadInfo[kQueueCount], *ti = threadInfo;
         if (multithread) {
             ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
