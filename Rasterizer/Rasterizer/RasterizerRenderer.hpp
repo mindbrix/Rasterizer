@@ -30,7 +30,7 @@ struct RasterizerRenderer {
             return;
         uint32_t *idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
-        buffer->prepare(list.pathsCount);
+        buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves;
         Ra::Colorant *colors = (Ra::Colorant *)(buffer->base + buffer->colors);
         Ra::Transform *ctms = (Ra::Transform *)(buffer->base + buffer->transforms);
         Ra::Transform *clips = (Ra::Transform *)(buffer->base + buffer->clips);
@@ -47,7 +47,6 @@ struct RasterizerRenderer {
         size_t total = 0, count, base, i, iz, izeds[kQueueCount + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
-        buffer->useCurves = state.useCurves;
         ThreadInfo threadInfo[kQueueCount], *ti = threadInfo;
         if (multithread) {
             ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
