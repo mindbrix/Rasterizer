@@ -26,23 +26,23 @@ struct RasterizerRenderer {
         Ra::writeContextToBuffer(*ti->list, ti->context, ti->idxs, ti->begin, *ti->entries, *ti->buffer);
     }
     void renderList(Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
+        assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         if (list.pathsCount == 0)
             return;
-        uint32_t *idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
-        assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
+        ThreadInfo threadInfo, *ti = & threadInfo;
         buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves;
-        Ra::Colorant *colors = (Ra::Colorant *)(buffer->base + buffer->colors);
-        Ra::Transform *ctms = (Ra::Transform *)(buffer->base + buffer->transforms);
-        Ra::Transform *clips = (Ra::Transform *)(buffer->base + buffer->clips);
-        float *widths = (float *)(buffer->base + buffer->widths);
-        Ra::Bounds *bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
+        ti->context = contexts, ti->list = & list, ti->state = & state, ti->buffer = buffer;
+        ti->idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
+        ti->ctms = (Ra::Transform *)(buffer->base + buffer->transforms);
+        ti->clips = (Ra::Transform *)(buffer->base + buffer->clips);
+        ti->colors = (Ra::Colorant *)(buffer->base + buffer->colors);
+        ti->widths = (float *)(buffer->base + buffer->widths),
+        ti->bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
         Ra::Scene *scene = & list.scenes[0];
         for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
-            memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
-        ThreadInfo threadInfo, *ti = & threadInfo;
-        ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
+            memcpy(ti->colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
         renderListOnQueues(list, state, ti);
-        free(idxs);
+        free(ti->idxs);
     }
     
     void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, ThreadInfo *info) {
