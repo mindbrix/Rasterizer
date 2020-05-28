@@ -46,11 +46,8 @@ struct RasterizerRenderer {
     
     void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, ThreadInfo *info) {
         size_t total = 0, count, base, i, iz, izeds[kQueueCount + 1], target, *izs = izeds;
-        ThreadInfo threadInfo[kQueueCount];
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
-        for (i = 0; i < kQueueCount; i++)
-            threadInfo[i] = *info, threadInfo[i].context += i;
         izeds[0] = 0, izeds[kQueueCount] = list.pathsCount;
         auto scene = & list.scenes[0];
         for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
@@ -61,6 +58,9 @@ struct RasterizerRenderer {
             }
             izeds[i] = iz;
         }
+        ThreadInfo threadInfo[kQueueCount];
+        for (i = 0; i < kQueueCount; i++)
+            threadInfo[i] = *info, threadInfo[i].context += i;
         for (i = 0; i < kQueueCount; i++)
             contexts[i].prepare(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
         RasterizerQueue::scheduleAndWait(queues, kQueueCount, drawList, threadInfo, sizeof(ThreadInfo), kQueueCount);
