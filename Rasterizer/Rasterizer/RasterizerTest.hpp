@@ -199,14 +199,14 @@ struct RasterizerTest {
         }
     }
     
-    void animate(RasterizerState& state) {
+    void animate(Ra::SceneList& list, RasterizerState& state) {
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
         float ftime = clock - floor(clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
-        for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *end = ss + src.scenes.size(); ss < end; ss++) {
+        for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++) {
             Ra::Transform *ctms = & ss->_ctms->src[0];
             Ra::Colorant *colors = & ss->_colors->src[0];
             float *widths = & ss->_widths->src[0];
@@ -258,7 +258,7 @@ struct RasterizerTest {
                 }
             }
             if (redraw)
-                animate(state), writeList(list.empty());
+                animate(src, state), writeList(list.empty());
             if (animating)
                 clock += timeScale / 60.0;
             return redraw;
