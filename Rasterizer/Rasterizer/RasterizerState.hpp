@@ -141,3 +141,5 @@ struct RasterizerState {
     Ra::Transform ctm, view;
     Ra::Bounds bounds, device;
 };
+
+typedef RasterizerState RaSt;

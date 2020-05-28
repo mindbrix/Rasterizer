@@ -232,19 +232,19 @@ struct RasterizerTest {
             return true;
         else if (src.pathsCount) {
             bool redraw = animating;
-            for (RasterizerState::Event& e : state.events) {
+            for (RaSt::Event& e : state.events) {
                 switch (e.type) {
-                    case RasterizerState::Event::kKeyDown: {
-                        if (e.keyCode == RasterizerState::KeyCode::k1)
+                    case RaSt::Event::kKeyDown: {
+                        if (e.keyCode == RaSt::KeyCode::k1)
                             animating = !animating, redraw = true;
-                        else if (e.keyCode == RasterizerState::KeyCode::k0)
+                        else if (e.keyCode == RaSt::KeyCode::k0)
                             clock = 0.0, redraw = true;
-                        else if (e.keyCode == RasterizerState::KeyCode::kL)
+                        else if (e.keyCode == RaSt::KeyCode::kL)
                             redraw = true;
                         break;
                     }
-                    case RasterizerState::Event::kMouseMove:
-                        if (state.flags & RasterizerState::Event::kShift)
+                    case RaSt::Event::kMouseMove:
+                        if (state.flags & RaSt::Event::kShift)
                             timeScale = e.y / (state.bounds.uy - state.bounds.ly);
                         break;
                     default:
