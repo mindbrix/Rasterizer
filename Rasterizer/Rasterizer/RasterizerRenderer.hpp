@@ -39,18 +39,19 @@ struct RasterizerRenderer {
         Ra::Scene *scene = & list.scenes[0];
         for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
             memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
-        renderListOnQueues(list, state, idxs, ctms, colors, clips, widths, bounds, buffer);
+        ThreadInfo threadInfo, *ti = & threadInfo;
+        ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
+        renderListOnQueues(list, state, ti);
         free(idxs);
     }
     
-    void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer) {
+    void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, ThreadInfo *info) {
         size_t total = 0, count, base, i, iz, izeds[kQueueCount + 1], target, *izs = izeds;
+        ThreadInfo threadInfo[kQueueCount];
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
-        ThreadInfo threadInfo[kQueueCount], *ti = threadInfo;
-        ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
-        for (i = 1; i < kQueueCount; i++)
-            threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
+        for (i = 0; i < kQueueCount; i++)
+            threadInfo[i] = *info, threadInfo[i].context += i;
         izeds[0] = 0, izeds[kQueueCount] = list.pathsCount;
         auto scene = & list.scenes[0];
         for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
@@ -66,14 +67,14 @@ struct RasterizerRenderer {
             contexts[i].prepare(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
         RasterizerQueue::scheduleAndWait(queues, kQueueCount, drawList, threadInfo, sizeof(ThreadInfo), count);
         std::vector<Ra::Buffer::Entry> entries[count];
-        size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, begins, *buffer);
+        size_t begins[count], size = Ra::writeContextsToBuffer(list, contexts, count, begins, *info->buffer);
         for (i = 0; i < count; i++)
             threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
         RasterizerQueue::scheduleAndWait(queues, kQueueCount, writeContextsToBuffer, threadInfo, sizeof(ThreadInfo), count);
         for (int i = 0; i < count; i++)
             for (auto entry : entries[i])
-                *(buffer->entries.alloc(1)) = entry;
-        size_t end = buffer->entries.end == 0 ? 0 : buffer->entries.base[buffer->entries.end - 1].end;
+                *(info->buffer->entries.alloc(1)) = entry;
+        size_t end = info->buffer->entries.end == 0 ? 0 : info->buffer->entries.base[info->buffer->entries.end - 1].end;
         assert(size >= end);
     }
     
