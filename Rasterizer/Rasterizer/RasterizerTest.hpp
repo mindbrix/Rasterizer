@@ -235,11 +235,11 @@ struct RasterizerTest {
             for (RasterizerState::Event& e : state.events) {
                 switch (e.type) {
                     case RasterizerState::Event::kKeyDown: {
-                        if (e.keyCode == 18)
+                        if (e.keyCode == RasterizerState::KeyCode::k1)
                             animating = !animating, redraw = true;
-                        else if (e.keyCode == 29)
+                        else if (e.keyCode == RasterizerState::KeyCode::k0)
                             clock = 0.0, redraw = true;
-                        else if (e.keyCode == 37)
+                        else if (e.keyCode == RasterizerState::KeyCode::kL)
                             redraw = true;
                         break;
                     }
