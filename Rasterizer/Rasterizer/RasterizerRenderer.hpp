@@ -38,9 +38,8 @@ struct RasterizerRenderer {
         ti->colors = (Ra::Colorant *)(buffer->base + buffer->colors);
         ti->widths = (float *)(buffer->base + buffer->widths),
         ti->bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
-        Ra::Scene *scene = & list.scenes[0];
-        for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
-            memcpy(ti->colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
+        for (size_t i = 0, iz = 0; i < list.scenes.size(); iz += list.scenes[i].count, i++)
+            memcpy(ti->colors + iz, & list.scenes[i].colors[0].src0, list.scenes[i].count * sizeof(Ra::Colorant));
         renderListOnQueues(list, state, ti);
         free(ti->idxs);
     }
