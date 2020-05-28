@@ -200,6 +200,7 @@ struct RasterizerTest {
     }
     
     void animate(RasterizerState& state) {
+        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
         float ftime = clock - floor(clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
@@ -218,8 +219,8 @@ struct RasterizerTest {
                 if (1) {
                     ds->widths[j] = scale * ss->widths[j];
                 }
-                if (0) {
-                    ds->colors[j] = ss->colors[(j) % ss->count];
+                if (1) {
+                    ds->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : ss->colors[j];
                 }
                 if (1) {
                     ds->flags[j] = (ss->flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
@@ -239,7 +240,7 @@ struct RasterizerTest {
                             animating = !animating, redraw = true;
                         else if (e.keyCode == RaSt::KeyCode::k0)
                             clock = 0.0, redraw = true;
-                        else if (e.keyCode == RaSt::KeyCode::kL)
+                        else if (e.keyCode == RaSt::KeyCode::kL || e.keyCode == RaSt::KeyCode::kO || e.keyCode == RaSt::KeyCode::kP)
                             redraw = true;
                         break;
                     }

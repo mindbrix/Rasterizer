@@ -36,19 +36,9 @@ struct RasterizerRenderer {
         Ra::Transform *clips = (Ra::Transform *)(buffer->base + buffer->clips);
         float *widths = (float *)(buffer->base + buffer->widths);
         Ra::Bounds *bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
-              
-        if (state.outlineWidth) {
-            Ra::Colorant black(0, 0, 0, 255);
-            memset_pattern4(colors, & black, list.pathsCount * sizeof(Ra::Colorant));
-        } else {
-            Ra::Scene *scene = & list.scenes[0];
-            for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
-                memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
-        }
-        if (state.indices.begin != INT_MAX) {
-            size_t index = list.index(state.indices.begin, state.indices.end);
-            colors[index].src0 = 0, colors[index].src1 = 0, colors[index].src2 = 255, colors[index].src3 = 255;
-        }
+        Ra::Scene *scene = & list.scenes[0];
+        for (size_t i = 0, iz = 0; i < list.scenes.size(); i++, iz += scene->count, scene++)
+            memcpy(colors + iz, & scene->colors[0].src0, scene->count * sizeof(Ra::Colorant));
         renderListOnQueues(list, state, idxs, ctms, colors, clips, widths, bounds, buffer, true);
         free(idxs);
     }
