@@ -73,7 +73,7 @@ struct RasterizerTest {
             list.empty().addList(list3D);
         }
         if (list.scenes.size())
-            src.empty().addList(list), dst.empty().addList(list, true);
+            src.empty().addList(list);
     }
     
     static void writeConcentrichronList(Ra::SceneList& src, Ra::Bounds b, Ra::SceneList& list) {
@@ -206,11 +206,11 @@ struct RasterizerTest {
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
-        for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *ds = & dst.scenes[0], *end = ss + src.scenes.size(); ss < end; ss++, ds++) {
-            Ra::Transform *ctms = & ss->_ctms->dst[0];
-            Ra::Colorant *colors = & ss->_colors->dst[0];
-            float *widths = & ss->_widths->dst[0];
-            uint8_t *flags = & ss->_flags->dst[0];
+        for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *end = ss + src.scenes.size(); ss < end; ss++) {
+            Ra::Transform *ctms = & ss->_ctms->src[0];
+            Ra::Colorant *colors = & ss->_colors->src[0];
+            float *widths = & ss->_widths->src[0];
+            uint8_t *flags = & ss->_flags->src[0];
             for (int j = 0; j < ss->count; j++) {
                 if (1) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
@@ -218,16 +218,16 @@ struct RasterizerTest {
                     Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ctms[j]);
                     Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
                     cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                    ds->ctms[j] = m.concat(rst, cx, cy);
+                    ss->ctms[j] = m.concat(rst, cx, cy);
                 }
                 if (1) {
-                    ds->widths[j] = scale * widths[j];
+                    ss->widths[j] = scale * widths[j];
                 }
                 if (1) {
-                    ds->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
+                    ss->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
                 }
                 if (1) {
-                    ds->flags[j] = (flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
+                    ss->flags[j] = (flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
                 }
             }
         }
@@ -269,7 +269,7 @@ struct RasterizerTest {
         if (concentrichron.pathsCount)
             writeConcentrichronList(concentrichron, bounds, list);
         else if(src.pathsCount)
-            list.addList(dst);
+            list.addList(src);
     }
     size_t refCount = 0;
     
@@ -277,5 +277,5 @@ struct RasterizerTest {
     
     bool animating = false;
     double clock = 0.0, timeScale = 0.333;
-    Ra::SceneList src, dst;
+    Ra::SceneList src;
 };

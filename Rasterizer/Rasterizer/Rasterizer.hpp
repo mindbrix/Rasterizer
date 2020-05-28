@@ -278,12 +278,7 @@ struct Rasterizer {
                     bnds.extend(Bounds(b[i].inset(-0.5f * widths[i], -0.5f * widths[i]).unit(ctms[i])));
             return bnds;
         }
-        void clone() {
-            Ref<Vector<Transform>> srcCTMs = _ctms;  _ctms = Ref<Vector<Transform>>(), _ctms->dst = srcCTMs->dst, ctms = & _ctms->dst[0];
-            Ref<Vector<Colorant>> srcColors = _colors;  _colors = Ref<Vector<Colorant>>(), _colors->dst = srcColors->dst, colors = & _colors->dst[0];
-            Ref<Vector<float>> srcWidths = _widths;  _widths = Ref<Vector<float>>(), _widths->dst = srcWidths->dst, widths = & _widths->dst[0];
-            Ref<Vector<uint8_t>> srcFlags = _flags;  _flags = Ref<Vector<uint8_t>>(), _flags->dst = srcFlags->dst, flags = & _flags->dst[0];
-        }
+        void clone() {}
         size_t count = 0, weight = 0;
         Ref<Cache> cache;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
