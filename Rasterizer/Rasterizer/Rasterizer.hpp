@@ -278,7 +278,6 @@ struct Rasterizer {
                     bnds.extend(Bounds(b[i].inset(-0.5f * widths[i], -0.5f * widths[i]).unit(ctms[i])));
             return bnds;
         }
-        void clone() {}
         size_t count = 0, weight = 0;
         Ref<Cache> cache;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *b;
@@ -295,17 +294,14 @@ struct Rasterizer {
             pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
-        SceneList& addList(SceneList& list, bool clone = false) {
+        SceneList& addList(SceneList& list) {
             for (int i = 0; i < list.scenes.size(); i++)
-                addScene(list.scenes[i], clone, list.ctms[i], list.clips[i]);
+                addScene(list.scenes[i], list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, bool clone = false, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
-            if (scene.weight) {
+        SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
+            if (scene.weight)
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
-                if (clone)
-                    scenes.back().clone();
-            }
             return *this;
         }
         size_t index(size_t si, size_t pi) {
