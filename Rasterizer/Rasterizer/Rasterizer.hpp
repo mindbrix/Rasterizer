@@ -247,7 +247,8 @@ struct Rasterizer {
         template<typename T>
         struct Vector {
             uint64_t refCount;
-            std::vector<T> dst;
+            std::vector<T> src, dst;
+            void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj); }
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
@@ -266,7 +267,7 @@ struct Rasterizer {
                     cache->map.emplace(path->hash, cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
-                _paths->dst.emplace_back(path), _bounds->dst.emplace_back(path->bounds), _ctms->dst.emplace_back(ctm), _colors->dst.emplace_back(color), _widths->dst.emplace_back(width), _flags->dst.emplace_back(flag);
+                _paths->dst.emplace_back(path), _bounds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
                 paths = & _paths->dst[0], b = & _bounds->dst[0], ctms = & _ctms->dst[0], colors = & _colors->dst[0], widths = & _widths->dst[0], flags = & _flags->dst[0];
             }
         }
