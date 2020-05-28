@@ -245,6 +245,7 @@ struct RasterizerTest {
                         break;
                     }
                     case RaSt::Event::kMouseMove:
+                        redraw = state.mouseMove;
                         if (state.flags & RaSt::Event::kShift)
                             timeScale = e.y / (state.bounds.uy - state.bounds.ly);
                         break;
