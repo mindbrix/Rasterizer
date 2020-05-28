@@ -54,16 +54,16 @@ struct RasterizerRenderer {
     }
     
     void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, uint32_t *idxs, Ra::Transform *ctms, Ra::Colorant *colors, Ra::Transform *clips, float *widths, Ra::Bounds *bounds, Ra::Buffer *buffer, bool multithread) {
-        size_t eiz = 0, total = 0, count, divisions = kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
+        size_t total = 0, count, divisions = kQueueCount, base, i, iz, izeds[divisions + 1], target, *izs = izeds;
         for (int j = 0; j < list.scenes.size(); j++)
-            eiz += list.scenes[j].count, total += list.scenes[j].weight;
+            total += list.scenes[j].weight;
         buffer->useCurves = state.useCurves;
         ThreadInfo threadInfo[kQueueCount], *ti = threadInfo;
         if (multithread) {
             ti->context = contexts, ti->list = & list, ti->state = & state, ti->idxs = idxs, ti->ctms = ctms, ti->clips = clips, ti->colors = colors, ti->widths = widths, ti->bounds = bounds,  ti->buffer = buffer;
             for (i = 1; i < kQueueCount; i++)
                 threadInfo[i] = threadInfo[0], threadInfo[i].context += i;
-            izeds[0] = 0, izeds[divisions] = eiz;
+            izeds[0] = 0, izeds[divisions] = list.pathsCount;
             auto scene = & list.scenes[0];
             for (count = base = iz = 0, i = 1; i < divisions; i++) {
                 for (target = total * i / divisions; count < target; iz++) {
@@ -79,7 +79,7 @@ struct RasterizerRenderer {
             RasterizerQueue::scheduleAndWait(queues, kQueueCount, drawList, threadInfo, sizeof(ThreadInfo), count);
         } else {
             count = 1;
-            contexts[0].prepare(state.device.ux, state.device.uy, list.pathsCount, 0, eiz);
+            contexts[0].prepare(state.device.ux, state.device.uy, list.pathsCount, 0, list.pathsCount);
             contexts[0].drawList(list, state.view, idxs, ctms, colors, clips, widths, bounds, state.outlineWidth, buffer);
         }
         std::vector<Ra::Buffer::Entry> entries[count];
