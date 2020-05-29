@@ -102,6 +102,7 @@ struct RasterizerState {
             doMouseMove(list);
         return redraw;
     }
+    bool shouldRedraw() {  return animating || events.size() > 0;  }
     void resetEvents() {  events.resize(0);  }
     void doMouseMove(Ra::SceneList& list) {
         if (mouseMove && list.pathsCount)
