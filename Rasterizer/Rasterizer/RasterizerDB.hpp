@@ -170,9 +170,8 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
     }
-    bool readEvents(Ra::SceneList& list, RasterizerState& state) {
-        bool redraw = false;
-        if (db)
+    void readEvents(Ra::SceneList& list, RasterizerState& state) {
+        if (db) {
             for (RasterizerState::Event& e : state.events)
                 switch (e.type) {
                     case RasterizerState::Event::kMouseMove: {
@@ -180,30 +179,24 @@ struct RasterizerDB {
                         Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
                         int si = indices.begin, pi = indices.end;
                         if (pi != lastpi) {
-                            if (lastpi != INT_MAX) { // exit
+                            if (lastpi != INT_MAX) // exit
                                 foregroundList.scenes[0].colors[lastpi] = kClear;
-                                redraw = true;
-                            }
-                            if (pi != INT_MAX) { // enter
+                            if (pi != INT_MAX)  // enter
                                 foregroundList.scenes[0].colors[pi] = kBlack;
-                                redraw = true;
-                            }
                         }
                         lastpi = pi;
                         if (si != INT_MAX) {
                             Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                             ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
                             writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
-                            redraw = true;
                         }
                         break;
                     }
                     default:
                         break;
                 }
-        if (redraw)
             writeList(list.empty());
-        return redraw;
+        }
     }
     void writeList(Ra::SceneList& list) {
         list.addList(backgroundList);

@@ -41,13 +41,11 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    bool readEvents(Ra::SceneList& list) {
-        bool redraw = false;
+    void readEvents(Ra::SceneList& list) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
                     x = e.x, y = e.y;
-                    redraw = mouseMove;
                     break;
                 case Event::kMouseUp:
                     mouseDown = false;
@@ -60,7 +58,6 @@ struct RasterizerState {
                     break;
                 case Event::kKeyDown:
                     keyDown = true, keyCode = e.keyCode;
-                    redraw = true;
                     if (e.keyCode == KeyCode::k1)
                         animating = !animating;
                     else if (e.keyCode == KeyCode::kC)
@@ -77,20 +74,16 @@ struct RasterizerState {
                     break;
                 case Event::kMagnify:
                     magnify(e.x);
-                    redraw = true;
                     break;
                 case Event::kRotate:
                     rotate(e.x);
-                    redraw = true;
                     break;
                 case Event::kDragged:
                 case Event::kTranslate:
                     translate(e.x, e.y);
-                    redraw = true;
                     break;
                 case Event::kFit: {
                     fit(e.bounds);
-                    redraw = true;
                     break;
                 }
                 case Event::kNull:
@@ -100,7 +93,6 @@ struct RasterizerState {
         prepare();
         if (mouseMove)
             doMouseMove(list);
-        return redraw;
     }
     bool shouldRedraw() {  return animating || events.size() > 0;  }
     void resetEvents() {  events.resize(0);  }

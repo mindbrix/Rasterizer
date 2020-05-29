@@ -232,22 +232,18 @@ struct RasterizerTest {
             }
         }
     }
-    bool readEvents(Ra::SceneList& list, RasterizerState& state) {
+    void readEvents(Ra::SceneList& list, RasterizerState& state) {
         if (concentrichron.pathsCount)
-            return true;
+            return;
         else if (src.pathsCount) {
-            bool redraw = state.animating;
             for (RaSt::Event& e : state.events) {
                 switch (e.type) {
                     case RaSt::Event::kKeyDown: {
                         if (e.keyCode == RaSt::KeyCode::k0)
-                            clock = 0.0, redraw = true;
-                        else if (e.keyCode == RaSt::KeyCode::kL || e.keyCode == RaSt::KeyCode::kO || e.keyCode == RaSt::KeyCode::kP)
-                            redraw = true;
+                            clock = 0.0;
                         break;
                     }
                     case RaSt::Event::kMouseMove:
-                        redraw |= state.mouseMove;
                         if (state.flags & RaSt::Event::kShift)
                             timeScale = e.y / (state.bounds.uy - state.bounds.ly);
                         break;
@@ -255,13 +251,10 @@ struct RasterizerTest {
                         break;
                 }
             }
-            if (redraw)
-                animate(src, state), writeList(list.empty());
+            animate(src, state), writeList(list.empty());
             if (state.animating)
                 clock += timeScale / 60.0;
-            return redraw;
-        } else
-            return false;
+        }
     }
     void writeList(Ra::SceneList& list) {
         if (concentrichron.pathsCount)
