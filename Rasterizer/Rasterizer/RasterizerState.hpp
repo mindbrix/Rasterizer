@@ -95,7 +95,7 @@ struct RasterizerState {
             }
         }
         prepare();
-        if (mouseMove && list.pathsCount)
+        if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
         if (animating)
             clock += timeScale / 60.0;
