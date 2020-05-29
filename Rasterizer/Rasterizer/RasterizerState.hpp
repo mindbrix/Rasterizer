@@ -105,7 +105,7 @@ struct RasterizerState {
         if (mouseMove && list.pathsCount)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
     }
-    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true;
+    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false;
     double time;
     float x, y;
     int keyCode = 0;

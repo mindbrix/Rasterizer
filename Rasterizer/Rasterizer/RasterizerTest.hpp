@@ -236,12 +236,12 @@ struct RasterizerTest {
         if (concentrichron.pathsCount)
             return true;
         else if (src.pathsCount) {
-            bool redraw = animating;
+            bool redraw = state.animating;
             for (RaSt::Event& e : state.events) {
                 switch (e.type) {
                     case RaSt::Event::kKeyDown: {
                         if (e.keyCode == RaSt::KeyCode::k1)
-                            animating = !animating, redraw = true;
+                            state.animating = !state.animating, redraw = true;
                         else if (e.keyCode == RaSt::KeyCode::k0)
                             clock = 0.0, redraw = true;
                         else if (e.keyCode == RaSt::KeyCode::kL || e.keyCode == RaSt::KeyCode::kO || e.keyCode == RaSt::KeyCode::kP)
@@ -259,7 +259,7 @@ struct RasterizerTest {
             }
             if (redraw)
                 animate(src, state), writeList(list.empty());
-            if (animating)
+            if (state.animating)
                 clock += timeScale / 60.0;
             return redraw;
         } else
@@ -275,7 +275,6 @@ struct RasterizerTest {
     
     Ra::SceneList concentrichron;  Ra::Bounds bounds;
     
-    bool animating = false;
     double clock = 0.0, timeScale = 0.333;
     Ra::SceneList src;
 };
