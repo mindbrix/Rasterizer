@@ -77,7 +77,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)timerFired:(double)time {
     _state.time = time;
-    [self readEvents: time];
+    if (_state.needsRedraw()) {
+        _state.readEvents(_list), _test->readEvents(_list, _state), _db->readEvents(_list, _state);
+        [self.layer setNeedsDisplay];
+    }
+    _state.resetEvents();
 }
 
 - (void)toggleTimer {
@@ -137,16 +141,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)updateRasterizerLabel {
     self.rasterizerLabel.stringValue = _useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
-}
-
-#pragma mark - AppState
-
-- (void)readEvents:(double)time {
-    if (_state.needsRedraw()) {
-        _state.readEvents(_list), _test->readEvents(_list, _state), _db->readEvents(_list, _state);
-        [self.layer setNeedsDisplay];
-    }
-    _state.resetEvents();
 }
 
 #pragma mark - NSResponder
