@@ -61,7 +61,9 @@ struct RasterizerState {
                 case Event::kKeyDown:
                     keyDown = true, keyCode = e.keyCode;
                     redraw = true;
-                    if (e.keyCode == KeyCode::kC)
+                    if (e.keyCode == KeyCode::k1)
+                        animating = !animating;
+                    else if (e.keyCode == KeyCode::kC)
                         useCurves = !useCurves;
                     else if (e.keyCode == KeyCode::kO)
                         outlineWidth = outlineWidth ? 0.f : -1.f;

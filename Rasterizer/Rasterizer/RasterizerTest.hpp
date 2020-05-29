@@ -240,9 +240,7 @@ struct RasterizerTest {
             for (RaSt::Event& e : state.events) {
                 switch (e.type) {
                     case RaSt::Event::kKeyDown: {
-                        if (e.keyCode == RaSt::KeyCode::k1)
-                            state.animating = !state.animating, redraw = true;
-                        else if (e.keyCode == RaSt::KeyCode::k0)
+                        if (e.keyCode == RaSt::KeyCode::k0)
                             clock = 0.0, redraw = true;
                         else if (e.keyCode == RaSt::KeyCode::kL || e.keyCode == RaSt::KeyCode::kO || e.keyCode == RaSt::KeyCode::kP)
                             redraw = true;
