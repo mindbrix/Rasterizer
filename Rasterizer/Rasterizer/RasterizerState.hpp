@@ -91,15 +91,12 @@ struct RasterizerState {
             }
         }
         prepare();
-        if (mouseMove)
-            doMouseMove(list);
-    }
-    bool shouldRedraw() {  return animating || events.size() > 0;  }
-    void resetEvents() {  events.resize(0);  }
-    void doMouseMove(Ra::SceneList& list) {
         if (mouseMove && list.pathsCount)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
     }
+    bool shouldRedraw() {  return animating || events.size() > 0;  }
+    void resetEvents() {  events.resize(0);  }
+    
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false;
     double time;
     float x, y;
