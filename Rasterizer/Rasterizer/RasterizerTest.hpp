@@ -233,9 +233,7 @@ struct RasterizerTest {
         }
     }
     void readEvents(Ra::SceneList& list, RasterizerState& state) {
-        if (concentrichron.pathsCount)
-            return;
-        else if (src.pathsCount) {
+        if (src.pathsCount) {
             animate(src, state), writeList(list.empty());
         }
     }
