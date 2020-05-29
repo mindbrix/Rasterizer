@@ -111,7 +111,7 @@ struct RasterizerDB {
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
                         Ra::Path fgPath;  fgPath.ref->addBounds(bb.inset(hw * 0.5f, hw * 0.5f));
-                        foreground.addPath(fgPath, Ra::Transform(), kClear, hw, 0);
+                        foreground.addPath(fgPath, Ra::Transform(), kBlack, hw, Ra::Scene::kInvisible);
                         if (status == SQLITE_ROW)
                             tables.emplace_back(
                                 (const char *)sqlite3_column_text(pStmt0, 0),
@@ -180,11 +180,11 @@ struct RasterizerDB {
                         int si = indices.begin, pi = indices.end;
                         if (pi != lastpi) {
                             if (lastpi != INT_MAX) // exit
-                                foregroundList.scenes[0].colors[lastpi] = kClear;
+                                foregroundList.scenes[0]._flags->src[lastpi] |= Ra::Scene::kInvisible;
                             if (pi != INT_MAX)  // enter
-                                foregroundList.scenes[0].colors[pi] = kBlack;
+                                foregroundList.scenes[0]._flags->src[pi] &= ~Ra::Scene::kInvisible;
+                            lastpi = indices.end;
                         }
-                        lastpi = pi;
                         if (si != INT_MAX) {
                             Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                             ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;

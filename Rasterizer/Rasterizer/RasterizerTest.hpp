@@ -227,7 +227,7 @@ struct RasterizerTest {
                     ss->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
                 }
                 if (1) {
-                    ss->flags[j] = (flags[j] & ~Ra::Scene::kInvisible) | (state.locked.begin == INT_MAX || (ss - sb == state.locked.begin && j == state.locked.end) ? 0 : Ra::Scene::kInvisible);
+                    ss->flags[j] = state.locked.begin == INT_MAX ? flags[j] : ss - sb == state.locked.begin && j == state.locked.end ? flags[j] & ~Ra::Scene::kInvisible : flags[j] | Ra::Scene::kInvisible;
                 }
             }
         }
