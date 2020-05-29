@@ -96,6 +96,18 @@ struct RasterizerCG {
             }
         }
     }
+    static void screenGrabToPDF(Ra::SceneList& list, RasterizerState& state, CGRect bounds) {
+        NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
+        NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"test.pdf"];
+        CGRect mediaBox = bounds;
+        CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
+        CGPDFContextBeginPage(ctx, NULL);
+        state.update(1.0, bounds.size.width, bounds.size.height);
+        CGContextConcatCTM(ctx, CGFromTransform(state.ctm));
+        drawList(list, state, ctx);
+        CGPDFContextEndPage(ctx);
+        CGPDFContextClose(ctx);
+    }
     static void writeFontsTable(RasterizerDB& db) {
         const char *values[5], *kFontsTable = "fonts";
         NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();

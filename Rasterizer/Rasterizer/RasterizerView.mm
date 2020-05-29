@@ -178,7 +178,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 49) {
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 1)
-        [self screenGrabToPDF];
+        RaCG::screenGrabToPDF(_list, _state, self.bounds);
     else {
         [super keyDown:event];
     }
@@ -232,21 +232,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     memset_pattern4(CGBitmapContextGetData(ctx), & color.src0, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
     RaCG::drawList(_list, _state, ctx);
-}
-
-#pragma mark - Screen grab to PDF
-
-- (void)screenGrabToPDF {
-    NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
-    NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"test.pdf"];
-    CGRect mediaBox = self.bounds;
-    CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
-    CGPDFContextBeginPage(ctx, NULL);
-    _state.update(1.0, self.bounds.size.width, self.bounds.size.height);
-    CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
-    RaCG::drawList(_list, _state, ctx);
-    CGPDFContextEndPage(ctx);
-    CGPDFContextClose(ctx);
 }
 
 #pragma mark - Properies
