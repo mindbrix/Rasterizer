@@ -212,7 +212,9 @@ struct RasterizerTest {
             float *widths = & ss->_widths->src[0];
             uint8_t *flags = & ss->_flags->src[0];
             for (int j = 0; j < ss->count; j++) {
-                if (1) {
+                if (state.clock == 0.0)
+                    ss->ctms[j] = ctms[j];
+                else {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
                     Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
                     Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ctms[j]);
@@ -220,15 +222,15 @@ struct RasterizerTest {
                     cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
                     ss->ctms[j] = m.concat(rst, cx, cy);
                 }
-                if (1) {
-                    ss->widths[j] = scale * widths[j];
-                }
-                if (1) {
-                    ss->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
-                }
-                if (1) {
-                    ss->flags[j] = state.locked.begin == INT_MAX ? flags[j] : ss - sb == state.locked.begin && j == state.locked.end ? flags[j] & ~Ra::Scene::kInvisible : flags[j] | Ra::Scene::kInvisible;
-                }
+            }
+            for (int j = 0; j < ss->count; j++) {
+                ss->widths[j] = scale * widths[j];
+            }
+            for (int j = 0; j < ss->count; j++) {
+                ss->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
+            }
+            for (int j = 0; j < ss->count; j++) {
+                ss->flags[j] = state.locked.begin == INT_MAX ? flags[j] : ss - sb == state.locked.begin && j == state.locked.end ? flags[j] & ~Ra::Scene::kInvisible : flags[j] | Ra::Scene::kInvisible;
             }
         }
     }
