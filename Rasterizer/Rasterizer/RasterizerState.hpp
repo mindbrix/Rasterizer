@@ -70,7 +70,7 @@ struct RasterizerState {
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == KeyCode::kP)
                         mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
-                    else if (e.keyCode == KeyCode::kL && mouseMove)
+                    else if (e.keyCode == KeyCode::kL)
                         locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
                     break;
                 case Event::kKeyUp:
