@@ -202,7 +202,7 @@ struct RasterizerTest {
     void animate(Ra::SceneList& list, RasterizerState& state) {
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
-        float ftime = clock - floor(clock);
+        float ftime = state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
@@ -236,24 +236,7 @@ struct RasterizerTest {
         if (concentrichron.pathsCount)
             return;
         else if (src.pathsCount) {
-            for (RaSt::Event& e : state.events) {
-                switch (e.type) {
-                    case RaSt::Event::kKeyDown: {
-                        if (e.keyCode == RaSt::KeyCode::k0)
-                            clock = 0.0;
-                        break;
-                    }
-                    case RaSt::Event::kMouseMove:
-                        if (state.flags & RaSt::Event::kShift)
-                            timeScale = e.y / (state.bounds.uy - state.bounds.ly);
-                        break;
-                    default:
-                        break;
-                }
-            }
             animate(src, state), writeList(list.empty());
-            if (state.animating)
-                clock += timeScale / 60.0;
         }
     }
     void writeList(Ra::SceneList& list) {
@@ -266,6 +249,5 @@ struct RasterizerTest {
     
     Ra::SceneList concentrichron;  Ra::Bounds bounds;
     
-    double clock = 0.0, timeScale = 0.333;
     Ra::SceneList src;
 };
