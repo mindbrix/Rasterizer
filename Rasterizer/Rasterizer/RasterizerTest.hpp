@@ -213,7 +213,7 @@ struct RasterizerTest {
             float *widths = & ss->_widths->src[0];
             uint8_t *flags = & ss->_flags->src[0];
             for (int j = 0; j < ss->count; j++) {
-                if (concentrichron.pathsCount || state.clock == 0.0)
+                if (ftime == 0.f)
                     ss->ctms[j] = ctms[j];
                 else {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
