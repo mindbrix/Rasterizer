@@ -49,7 +49,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    void readEvents(Ra::SceneList& list, EventFunction eventFunction, WriteFunction writeFunction, TransferFunction transferFunction, void *info) {
+    void readEvents(Ra::SceneList& list, EventFunction eventFunction, WriteFunction writeFunction, TransferFunction transferFunction, void *info, void *transferInfo) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
@@ -116,7 +116,7 @@ struct RasterizerState {
                          & ss->_colors->src[0], ss->colors,
                          & ss->_widths->src[0], ss->widths,
                          & ss->_flags->src[0], ss->flags,
-                        info
+                        transferInfo
                 );
             ;
         }
