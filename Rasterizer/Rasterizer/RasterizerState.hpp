@@ -127,7 +127,7 @@ struct RasterizerState {
     void resetEvents() {  events.resize(0);  }
     
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false;
-    double time, clock = 0.0, timeScale = 0.333;
+    double clock = 0.0, timeScale = 0.333;
     float x, y;
     int keyCode = 0;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);

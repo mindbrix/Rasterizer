@@ -76,7 +76,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)timerFired:(double)time {
-    _state.time = time;
     if (_state.needsRedraw()) {
         _state.readEvents(_list,
             _db->db ? RasterizerDB::EventFunction : NULL,
