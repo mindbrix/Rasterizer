@@ -9,6 +9,14 @@
 #import "RasterizerWinding.hpp"
 
 struct RasterizerState {
+    typedef void (*EventFunction)(RasterizerState& state, void *info);
+    typedef void (*WriteFunction)(Ra::SceneList& list, void *info);
+    typedef void (*TransferFunction)(RasterizerState& state, size_t count, size_t si, Ra::Path *paths,
+        Ra::Transform *srcCtms, Ra::Transform *dstCtms,
+        Ra::Colorant *srcColors, Ra::Colorant *dstColors,
+        float *srcWidths, float *dstWidths,
+        uint8_t *srcFlags, uint8_t *dstFlags, void *info);
+    
     enum KeyCode { kC = 8, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
@@ -41,7 +49,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    void readEvents(Ra::SceneList& list) {
+    void readEvents(Ra::SceneList& list, EventFunction eventFunction, WriteFunction writeFunction, TransferFunction transferFunction, void *info) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
@@ -95,8 +103,23 @@ struct RasterizerState {
             }
         }
         prepare();
+        if (eventFunction)
+            (*eventFunction)(*this, info);
+        if (writeFunction)
+            (*writeFunction)(list, info);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
+        if (transferFunction) {
+            for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
+                (*transferFunction)(*this, ss->count, ss - sb, ss->paths,
+                         & ss->_ctms->src[0], ss->ctms,
+                         & ss->_colors->src[0], ss->colors,
+                         & ss->_widths->src[0], ss->widths,
+                         & ss->_flags->src[0], ss->flags,
+                        info
+                );
+            ;
+        }
         if (animating)
             clock += timeScale / 60.0;
     }

@@ -78,7 +78,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)timerFired:(double)time {
     _state.time = time;
     if (_state.needsRedraw()) {
-        _state.readEvents(_list), _test->readEvents(_list, _state), _db->readEvents(_list, _state);
+        _state.readEvents(_list, NULL, NULL, NULL, nullptr), _test->readEvents(_list, _state), _db->readEvents(_list, _state);
         [self.layer setNeedsDisplay];
     }
     _state.resetEvents();
