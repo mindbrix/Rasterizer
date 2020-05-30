@@ -78,7 +78,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)timerFired:(double)time {
     _state.time = time;
     if (_state.needsRedraw()) {
-        _state.readEvents(_list, NULL, RasterizerTest::WriteFunction, RasterizerTest::TransferFunction, _test.ref);
+        _state.readEvents(_list,
+            _db->db ? RasterizerDB::EventFunction : NULL,
+            _db->db ? RasterizerDB::WriteFunction : RasterizerTest::WriteFunction,
+            RasterizerTest::TransferFunction,
+            _db->db ? (void *)_db.ref : (void *)_test.ref);
         [self.layer setNeedsDisplay];
     }
     _state.resetEvents();
@@ -101,7 +105,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if ([_dbURL isFileURL]) {
         _db->font = font;
         _db->writeTables(RaCG::BoundsFromCGRect(self.bounds));
-        _db->writeList(list);
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else {

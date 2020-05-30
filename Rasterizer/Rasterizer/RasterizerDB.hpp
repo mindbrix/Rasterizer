@@ -170,7 +170,11 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
     }
-    void readEvents(Ra::SceneList& list, RasterizerState& state) {
+    static void EventFunction(RasterizerState& state, void *info) {
+        RasterizerDB& db = *((RasterizerDB *)info);
+        db.readEvents(state);
+    }
+    void readEvents(RasterizerState& state) {
         if (db) {
             for (RasterizerState::Event& e : state.events)
                 switch (e.type) {
@@ -195,8 +199,11 @@ struct RasterizerDB {
                     default:
                         break;
                 }
-            writeList(list.empty());
         }
+    }
+    static void WriteFunction(Ra::SceneList& list, void *info) {
+        RasterizerDB& db = *((RasterizerDB *)info);
+        db.writeList(list);
     }
     void writeList(Ra::SceneList& list) {
         list.addList(backgroundList);
