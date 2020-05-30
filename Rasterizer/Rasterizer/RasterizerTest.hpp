@@ -200,42 +200,48 @@ struct RasterizerTest {
         }
     }
     
-    void animate(Ra::SceneList& list, RasterizerState& state) {
+    void transfer(RasterizerState& state, size_t count, size_t si, Ra::Path *paths,
+                  Ra::Transform *srcCtms, Ra::Transform *dstCtms,
+                  Ra::Colorant *srcColors, Ra::Colorant *dstColors,
+                  float *srcWidths, float *dstWidths,
+                  uint8_t *srcFlags, uint8_t *dstFlags) {
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
         float ftime = concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
-        for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++) {
-            Ra::Transform *ctms = & ss->_ctms->src[0];
-            Ra::Colorant *colors = & ss->_colors->src[0];
-            float *widths = & ss->_widths->src[0];
-            uint8_t *flags = & ss->_flags->src[0];
-            if (ftime == 0.f)
-                memcpy(ss->ctms, ctms, ss->count * sizeof(ctms[0]));
-            else {
-                for (int j = 0; j < ss->count; j++) {
-                    tx = s * kTxMin + t * kTxMax, ty = tx;
-                    Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
-                    Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ctms[j]);
-                    Ra::Bounds b = Ra::Bounds(ss->paths[j]->bounds.unit(m));
-                    cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                    ss->ctms[j] = m.concat(rst, cx, cy);
-                }
-            }
-            if (ftime == 0.f)
-                memcpy(ss->widths, widths, ss->count * sizeof(widths[0]));
-            else
-                for (int j = 0; j < ss->count; j++)
-                    ss->widths[j] = scale * widths[j];
-            for (int j = 0; j < ss->count; j++) {
-                ss->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
-            }
-            for (int j = 0; j < ss->count; j++) {
-                ss->flags[j] = state.locked.begin == INT_MAX ? flags[j] : ss - sb == state.locked.begin && j == state.locked.end ? flags[j] & ~Ra::Scene::kInvisible : flags[j] | Ra::Scene::kInvisible;
+        if (ftime == 0.f)
+            memcpy(dstCtms, srcCtms, count * sizeof(srcCtms[0]));
+        else {
+            for (int j = 0; j < count; j++) {
+                tx = s * kTxMin + t * kTxMax, ty = tx;
+                Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
+                Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(srcCtms[j]);
+                Ra::Bounds b = Ra::Bounds(paths[j]->bounds.unit(m));
+                cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+                dstCtms[j] = m.concat(rst, cx, cy);
             }
         }
+        if (ftime == 0.f)
+            memcpy(dstWidths, srcWidths, count * sizeof(srcWidths[0]));
+        else
+            for (int j = 0; j < count; j++)
+                dstWidths[j] = scale * srcWidths[j];
+        for (int j = 0; j < count; j++) {
+            dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : srcColors[j];
+        }
+        for (int j = 0; j < count; j++) {
+            dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
+        }
+    }
+    void animate(Ra::SceneList& list, RasterizerState& state) {
+        for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
+            transfer(state, ss->count, ss - sb, ss->paths,
+                     & ss->_ctms->src[0], ss->ctms,
+                     & ss->_colors->src[0], ss->colors,
+                     & ss->_widths->src[0], ss->widths,
+                     & ss->_flags->src[0], ss->flags);
     }
     void readEvents(Ra::SceneList& list, RasterizerState& state) {
         if (src.pathsCount)
