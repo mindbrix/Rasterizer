@@ -106,7 +106,7 @@ struct RasterizerState {
         if (eventFunction)
             (*eventFunction)(*this, info);
         if (writeFunction)
-            (*writeFunction)(list, info);
+            (*writeFunction)(list.empty(), info);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
         if (transferFunction) {

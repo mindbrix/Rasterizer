@@ -65,7 +65,6 @@ struct RasterizerTest {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
             bounds = b;
             state.animating = true;
-            writeList(list.empty());
         }
         if (0 && list.scenes.size()) {
             Ra::SceneList list3D;
@@ -239,14 +238,12 @@ struct RasterizerTest {
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerTest& test = *((RasterizerTest *)info);
-        test.writeList(list);
+        if (test.concentrichron.pathsCount)
+            test.writeConcentrichronList(test.concentrichron, test.bounds, list);
+        else if(test.src.pathsCount)
+            list.addList(test.src);
     }
-    void writeList(Ra::SceneList& list) {
-        if (concentrichron.pathsCount)
-            writeConcentrichronList(concentrichron, bounds, list);
-        else if(src.pathsCount)
-            list.addList(src);
-    }
+
     size_t refCount = 0;
     
     Ra::SceneList concentrichron;  Ra::Bounds bounds;
