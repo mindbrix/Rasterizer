@@ -236,15 +236,16 @@ struct RasterizerTest {
         }
     }
     void readEvents(Ra::SceneList& list, RasterizerState& state) {
-        if (src.pathsCount) {
-            for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *end = ss + src.scenes.size(); ss < end; ss++)
-                transfer(state, ss->count, ss - sb, ss->paths,
-                         & ss->_ctms->src[0], ss->ctms,
-                         & ss->_colors->src[0], ss->colors,
-                         & ss->_widths->src[0], ss->widths,
-                         & ss->_flags->src[0], ss->flags);
-            writeList(list.empty());
-        }
+        if (src.pathsCount == 0)
+            return;
+        for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *end = ss + src.scenes.size(); ss < end; ss++)
+            transfer(state, ss->count, ss - sb, ss->paths,
+                     & ss->_ctms->src[0], ss->ctms,
+                     & ss->_colors->src[0], ss->colors,
+                     & ss->_widths->src[0], ss->widths,
+                     & ss->_flags->src[0], ss->flags
+            );
+        writeList(list.empty());
     }
     void writeList(Ra::SceneList& list) {
         if (concentrichron.pathsCount)
