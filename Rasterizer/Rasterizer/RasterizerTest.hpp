@@ -224,9 +224,11 @@ struct RasterizerTest {
                     ss->ctms[j] = m.concat(rst, cx, cy);
                 }
             }
-            for (int j = 0; j < ss->count; j++) {
-                ss->widths[j] = scale * widths[j];
-            }
+            if (ftime == 0.f)
+                memcpy(ss->widths, widths, ss->count * sizeof(widths[0]));
+            else
+                for (int j = 0; j < ss->count; j++)
+                    ss->widths[j] = scale * widths[j];
             for (int j = 0; j < ss->count; j++) {
                 ss->colors[j] = (state.indices.begin == (ss - sb) && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : colors[j];
             }
