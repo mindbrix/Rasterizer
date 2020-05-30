@@ -212,10 +212,10 @@ struct RasterizerTest {
             Ra::Colorant *colors = & ss->_colors->src[0];
             float *widths = & ss->_widths->src[0];
             uint8_t *flags = & ss->_flags->src[0];
-            for (int j = 0; j < ss->count; j++) {
-                if (ftime == 0.f)
-                    ss->ctms[j] = ctms[j];
-                else {
+            if (ftime == 0.f)
+                memcpy(ss->ctms, ctms, ss->count * sizeof(ctms[0]));
+            else {
+                for (int j = 0; j < ss->count; j++) {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
                     Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
                     Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(ctms[j]);
