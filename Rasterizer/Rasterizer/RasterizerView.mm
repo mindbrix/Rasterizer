@@ -112,7 +112,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             RasterizerFont::writeGlyphGrid(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
-    _test->addTestScenes(RaCG::BoundsFromCGRect(self.bounds), *font.ref, list);
+    _test->addTestScenes(list, _state, RaCG::BoundsFromCGRect(self.bounds), *font.ref);
     _list.empty().addList(list);
     [self.layer setNeedsDisplay];
 }

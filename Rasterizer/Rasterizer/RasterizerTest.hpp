@@ -11,7 +11,7 @@
 #import <time.h>
 
 struct RasterizerTest {
-    void addTestScenes(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
+    void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (0) {
@@ -64,6 +64,7 @@ struct RasterizerTest {
         if (0) {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
             bounds = b;
+            state.animating = true;
             writeList(list.empty());
         }
         if (0 && list.scenes.size()) {
@@ -202,7 +203,7 @@ struct RasterizerTest {
     void animate(Ra::SceneList& list, RasterizerState& state) {
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
-        float ftime = state.clock - floor(state.clock);
+        float ftime = concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
@@ -212,7 +213,7 @@ struct RasterizerTest {
             float *widths = & ss->_widths->src[0];
             uint8_t *flags = & ss->_flags->src[0];
             for (int j = 0; j < ss->count; j++) {
-                if (state.clock == 0.0)
+                if (concentrichron.pathsCount || state.clock == 0.0)
                     ss->ctms[j] = ctms[j];
                 else {
                     tx = s * kTxMin + t * kTxMax, ty = tx;
