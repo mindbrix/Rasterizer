@@ -200,14 +200,16 @@ struct RasterizerTest {
         }
     }
     
-    void transfer(RasterizerState& state, size_t count, size_t si, Ra::Path *paths,
-                  Ra::Transform *srcCtms, Ra::Transform *dstCtms,
-                  Ra::Colorant *srcColors, Ra::Colorant *dstColors,
-                  float *srcWidths, float *dstWidths,
-                  uint8_t *srcFlags, uint8_t *dstFlags) {
+    static void TransferFunction(RasterizerState& state, size_t count, size_t si, Ra::Path *paths,
+        Ra::Transform *srcCtms, Ra::Transform *dstCtms,
+        Ra::Colorant *srcColors, Ra::Colorant *dstColors,
+        float *srcWidths, float *dstWidths,
+        uint8_t *srcFlags, uint8_t *dstFlags,
+        void *info) {
+        RasterizerTest& test = *((RasterizerTest *)info);
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
-        float ftime = concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
+        float ftime = test.concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
         float tx, ty, cx, cy;
@@ -235,17 +237,9 @@ struct RasterizerTest {
             dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
         }
     }
-    void readEvents(Ra::SceneList& list, RasterizerState& state) {
-        if (src.pathsCount == 0)
-            return;
-        for (Ra::Scene *sb = & src.scenes[0], *ss = sb, *end = ss + src.scenes.size(); ss < end; ss++)
-            transfer(state, ss->count, ss - sb, ss->paths,
-                     & ss->_ctms->src[0], ss->ctms,
-                     & ss->_colors->src[0], ss->colors,
-                     & ss->_widths->src[0], ss->widths,
-                     & ss->_flags->src[0], ss->flags
-            );
-        writeList(list.empty());
+    static void WriteFunction(Ra::SceneList& list, void *info) {
+        RasterizerTest& test = *((RasterizerTest *)info);
+        test.writeList(list);
     }
     void writeList(Ra::SceneList& list) {
         if (concentrichron.pathsCount)
