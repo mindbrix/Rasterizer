@@ -179,8 +179,8 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Transform& m = affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
     const device Point16 *pt = & points[edgeCell.base + edge.i0];
-    int i; float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF ? 0 : 1.0;
-    int curve;
+    int i, curve;
+    float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
         const device Bounds& b = bounds[edgeCell.iz];
         float w, h, tx, ty, x, y, x0, y0, x1, y1, px, py, nx, ny, cpx, cpy;
