@@ -86,7 +86,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
                 _test.ref);
         [self.layer setNeedsDisplay];
     }
-    _state.resetEvents();
 }
 
 - (void)toggleTimer {

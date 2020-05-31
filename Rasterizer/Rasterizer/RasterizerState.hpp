@@ -108,6 +108,7 @@ struct RasterizerState {
         prepare();
         if (eventFunction)
             (*eventFunction)(*this, eventInfo);
+        events.resize(0);
         if (writeFunction)
             (*writeFunction)(list.empty(), writeInfo);
         if (mouseMove)
@@ -127,7 +128,6 @@ struct RasterizerState {
             clock += timeScale / 60.0;
     }
     bool needsRedraw() {  return animating || events.size() > 0;  }
-    void resetEvents() {  events.resize(0);  }
     
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false;
     double clock = 0.0, timeScale = 0.333;
