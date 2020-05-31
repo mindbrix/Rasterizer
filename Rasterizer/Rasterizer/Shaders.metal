@@ -196,7 +196,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                 x1 = dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
             else {
                 x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
-                dst[2] = x1 = x * ma + y * mc + tx, dst[3] = y1 = x * mb + y * md + ty;
+                x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
                 slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
                 if (!*useCurves || curve == 0)
                     dst[0] = FLT_MAX;
@@ -216,6 +216,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                     else
                         dst[0] = cpx, dst[1] = cpy;
                 }
+                dst[2] = x1, dst[3] = y1;
             }
         }
     }
