@@ -187,17 +187,17 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-        x = pts->x & 0x7FFF, y = pts->y & 0x7FFF, pts++;
+        x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
+        curve = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
         *dst++ = slx = x0 = x * ma + y * mc + tx;
         *dst++ = sly = suy = y0 = x * mb + y * md + ty;
-        for (i = 0; i < kFastSegments; i++, pts++, dst += 4, x0 = x1, y0 = y1) {
+        for (i = 0; i < kFastSegments; i++, dst += 4, x0 = x1, y0 = y1, curve = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++) {
             if (x1 == FLT_MAX || (pts->x == 0xFFFF && pts->y == 0xFFFF))
                 x1 = dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
             else {
                 x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
                 dst[2] = x1 = x * ma + y * mc + tx, dst[3] = y1 = x * mb + y * md + ty;
                 slx = min(slx, dst[2]), sly = min(sly, dst[3]), suy = max(suy, dst[3]);
-                curve = (((pts - 1)->x & 0x8000) >> 14) | (((pts - 1)->y & 0x8000) >> 15);
                 if (!*useCurves || curve == 0)
                     dst[0] = FLT_MAX;
                 else {
@@ -234,7 +234,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    return 0.2;
+//    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
     + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
     + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
