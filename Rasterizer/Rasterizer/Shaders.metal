@@ -186,10 +186,10 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         float w, h, tx, ty, x, y, x0, y0, x1, y1, px, py, nx, ny, cpx, cpy;
         w = (b.ux - b.lx) / 32767.0, h = (b.uy - b.ly) / 32767.0;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-        x = pt->x & 0x7FFF, y = pt->y & 0x7FFF;
-        slx = dst[0] = x0 = x * w * m.a + y * h * m.c + tx;
-        sly = suy = dst[1] = y0 = x * w * m.b + y * h * m.d + ty;
-        for (pt++, dst += 2, i = 0; i < kFastSegments; i++, pt++, dst += 4, x0 = x1, y0 = y1) {
+        x = pt->x & 0x7FFF, y = pt->y & 0x7FFF, pt++;
+        *dst++ = slx = x0 = x * w * m.a + y * h * m.c + tx;
+        *dst++ = sly = suy = y0 = x * w * m.b + y * h * m.d + ty;
+        for (i = 0; i < kFastSegments; i++, pt++, dst += 4, x0 = x1, y0 = y1) {
             if (x1 == FLT_MAX || (pt->x == 0xFFFF && pt->y == 0xFFFF))
                 x1 = dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
             else {
