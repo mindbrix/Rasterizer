@@ -1046,7 +1046,7 @@ struct Rasterizer {
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             bool molecules = path->molecules.size() > 1, update = true;
-                            uint16_t *p16 = & path->p16s[0].x;
+                            uint16_t *p16 = & path->p16s[kFastSegments - 1].x;
                             for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++, p16 += 2 * kFastSegments) {
                                 if (molecules) {
                                     if (update) {
@@ -1054,7 +1054,7 @@ struct Rasterizer {
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                         ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
                                     }
-                                    if (p16[2 * kFastSegments - 2] == 0xFFFF && p16[2 * kFastSegments - 1] == 0xFFFF)
+                                    if (p16[0] == 0xFFFF && p16[1] == 0xFFFF)
                                         b++, update = true;
                                 }
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
