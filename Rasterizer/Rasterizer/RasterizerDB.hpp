@@ -175,31 +175,24 @@ struct RasterizerDB {
         db.readEvents(state);
     }
     void readEvents(RasterizerState& state) {
-        if (db) {
-            for (RasterizerState::Event& e : state.events)
-                switch (e.type) {
-                    case RasterizerState::Event::kMouseMove: {
-                        float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
-                        Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
-                        int si = indices.begin, pi = indices.end;
-                        if (pi != lastpi) {
-                            if (lastpi != INT_MAX) // exit
-                                foregroundList.scenes[0]._flags->src[lastpi] |= Ra::Scene::kInvisible;
-                            if (pi != INT_MAX)  // enter
-                                foregroundList.scenes[0]._flags->src[pi] &= ~Ra::Scene::kInvisible;
-                            lastpi = indices.end;
-                        }
-                        if (si != INT_MAX) {
-                            Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
-                            ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
-                            writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
-                        }
-                        break;
-                    }
-                    default:
-                        break;
+        for (RasterizerState::Event& e : state.events)
+            if (e.type == RaSt::Event::kMouseMove) {
+                float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
+                Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
+                int si = indices.begin, pi = indices.end;
+                if (pi != lastpi) {
+                    if (lastpi != INT_MAX) // exit
+                        foregroundList.scenes[0]._flags->src[lastpi] |= Ra::Scene::kInvisible;
+                    if (pi != INT_MAX)  // enter
+                        foregroundList.scenes[0]._flags->src[pi] &= ~Ra::Scene::kInvisible;
+                    lastpi = indices.end;
                 }
-        }
+                if (si != INT_MAX) {
+                    Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
+                    ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
+                    writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
+                }
+            }
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
