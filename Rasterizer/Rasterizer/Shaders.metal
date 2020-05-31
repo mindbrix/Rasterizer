@@ -188,9 +188,10 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
+        x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
+        slx = x0, sly = suy = y0;
+        *dst++ = x0, *dst++ = y0;
         curve = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
-        *dst++ = slx = x0 = x * ma + y * mc + tx;
-        *dst++ = sly = suy = y0 = x * mb + y * md + ty;
         for (i = 0; i < kFastSegments; i++, dst += 4, x0 = x1, y0 = y1, curve = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++) {
             if (x1 == FLT_MAX || (pts->x == 0xFFFF && pts->y == 0xFFFF))
                 x1 = dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
