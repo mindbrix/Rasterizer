@@ -485,7 +485,7 @@ struct Rasterizer {
                                 size_t ip = scene->cache->ips[is];
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->sizes[ip] / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->sizes[ip] / kMoleculeSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
                                 Bounds clu = Bounds(inv.concat(unit));
                                 bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
@@ -1043,15 +1043,15 @@ struct Rasterizer {
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             bool molecules = path->molecules.size() > 1, update = true;
-                            uint16_t *p16 = & path->p16s[kFastSegments - 1].x;
-                            for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++, p16 += 2 * kFastSegments) {
+                            uint16_t *p16 = & path->p16s[0].x;
+                            for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
                                 if (molecules) {
                                     if (update) {
                                         update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                         ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
                                     }
-                                    if (p16[0] == 0xFFFF && p16[1] == 0xFFFF)
+                                    if (p16[2 * kFastSegments - 2] == 0xFFFF && p16[2 * kFastSegments - 1] == 0xFFFF)
                                         b++, update = true;
                                 }
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;

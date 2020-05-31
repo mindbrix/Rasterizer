@@ -20,6 +20,7 @@
 #define kMoleculesHeight 128
 #define kClipMargin 1e-2f
 #define kFastSegments 4
+#define kMoleculeSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFFF
 #define kMinUpperDet 16.f
