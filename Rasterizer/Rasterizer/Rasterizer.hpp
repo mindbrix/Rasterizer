@@ -1038,13 +1038,13 @@ struct Rasterizer {
                     } else {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
-                            Scene *scene = & list.scenes[i];  Bounds *b;  float ta, tc, ux;  Transform& m = ctms[iz];
+                            Scene *scene = & list.scenes[i];  float ta, tc, ux;  Transform& m = ctms[iz];
                             ip = scene->cache->ips[is];
-                            Path& path = scene->cache->paths[ip];
+                            Path& path = scene->cache->paths[ip];  Bounds *b = path->mols;
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             bool molecules = path->molecules.size() > 1, update = true;
                             uint16_t *p16 = & path->p16s[0].x;
-                            for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
+                            for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
                                 if (molecules) {
                                     if (update) {
                                         update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
