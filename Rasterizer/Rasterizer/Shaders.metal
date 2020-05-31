@@ -178,11 +178,10 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Cell& cell = edgeCell.cell;
     const device Transform& m = affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
-    int i; float slx, sly, suy, visible = 1.0;
     const device Point16 *pt = & points[edgeCell.base + edge.i0];
+    int i; float slx, sly, suy, visible = (pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF ? 0 : 1.0;
     int curve;
-    if ((pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF) {
-        visible = 0.0;
+    if (visible == 0.0) {
         for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
             dst[0] = dst[1] = 0.0;
         for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
@@ -240,6 +239,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
+//    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
     + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
     + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
