@@ -1042,18 +1042,21 @@ struct Rasterizer {
                             ip = scene->cache->ips[is];
                             Path& path = scene->cache->paths[ip];  Bounds *b = path->mols;
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
-                            bool molecules = path->molecules.size() > 1, update = true;
-                            uint16_t *p16 = & path->p16s[0].x;
-                            for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
-                                if (molecules) {
+                            if (path->molecules.size() == 1) {
+                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++)
+                                    fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
+                            } else {
+                                bool update = true;
+                                uint16_t *p16 = & path->p16s[0].x;
+                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
                                     if (update) {
                                         update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                     }
                                     if (p16[2 * kFastSegments - 2] == 0xFFFF && p16[2 * kFastSegments - 1] == 0xFFFF)
                                         b++, update = true;
+                                    fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                                 }
-                                fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                             }
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
