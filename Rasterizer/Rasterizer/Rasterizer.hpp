@@ -1005,14 +1005,14 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t i, j, iz, puz, ip, im, is, lz, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0;
+        size_t i, j, iz, ip, im, is, lz, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
                 Scene::Cache *cache;
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (cache = list.scenes[i].cache.ref, puz = cache->uniques, ip = 0; ip < puz; ip++)
+                    for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->uniques; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
                             memcpy(buffer.base + begin + pbase * sizeof(Point), & cache->paths[ip]->p16s[0], cache->sizes[ip] * sizeof(Point));
                             ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += cache->sizes[ip];
