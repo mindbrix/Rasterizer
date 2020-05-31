@@ -184,8 +184,6 @@ struct Rasterizer {
                 p16s.emplace_back(
                     uint16_t((x0 - bounds.lx) / (bounds.ux - bounds.lx) * 32767.f) | ((curve & 2) << 14),
                     uint16_t((y0 - bounds.ly) / (bounds.uy - bounds.ly) * 32767.f) | ((curve & 1) << 15));
-            if ((p16s.size() - p0) % 4 == 0)
-                pims.emplace_back(im);
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
@@ -195,15 +193,14 @@ struct Rasterizer {
                 g->writePoint16(g->x1, g->y1, 0), g->writePoint16(FLT_MAX, FLT_MAX, 0);
                 for (size_t pi = g->p16s.size() - g->p0; pi % 4; pi++)
                     g->writePoint16(FLT_MAX, FLT_MAX, 0);
-                g->im++, g->p0 = g->p16s.size();
+                g->p0 = g->p16s.size();
             }
         }
-        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, hash = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, im = 0, p0 = 0, minUpper = 0;
+        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, hash = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;
-        std::vector<uint32_t> pims;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         bool isGlyph = false, isDrawable = false;
         Bounds bounds, *mols = nullptr;
@@ -1048,14 +1045,17 @@ struct Rasterizer {
                             ip = scene->cache->ips[is], im = 0;
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
-                            bool molecules = path->molecules.size() > 1;
-                            uint32_t *pim = & path->pims[0];
-                            for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++, pim++) {
-                                if (molecules && im == *pim) {
-                                    ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
-                                    ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
-                                    im++, b++;
+                            bool molecules = path->molecules.size() > 1, update = true;
+                            uint16_t *p16 = & path->p16s[0].x;
+                            for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++, p16 += 2 * kFastSegments) {
+                                if (molecules) {
+                                    if (update) {
+                                        ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
+                                        ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                        ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
+                                    }
+                                    if (p16[2 * kFastSegments - 2] == 0xFFFF && p16[2 * kFastSegments - 1] == 0xFFFF)
+                                        b++, update = true;
                                 }
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                             }
