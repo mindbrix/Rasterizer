@@ -1050,7 +1050,7 @@ struct Rasterizer {
                             for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, fast++, p16 += 2 * kFastSegments) {
                                 if (molecules) {
                                     if (update) {
-                                        ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
+                                        update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                         ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
                                     }
