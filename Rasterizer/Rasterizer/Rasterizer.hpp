@@ -1044,9 +1044,13 @@ struct Rasterizer {
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ux = cell->cell.ux, ic = cell - c0, cell++;
                             bool molecules = path->molecules.size() > 1, update = true;
                             uint16_t *p16 = & path->p16s[0].x;
+            // ma = m.a * (path->bounds->ux - path->bounds->lx) / 32767.f;
+            // mc = m.c * (path->bounds->uy - path->bounds->ly) / 32767.f;
                             for (b = path->mols, j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
                                 if (molecules) {
                                     if (update) {
+//                                      ta = ma * (b.ux - b.lx), tc = mc * (b.uy - b.ly);
+            // ux = b->lx * ma + b->ly * mc + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f);
                                         update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                         ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
