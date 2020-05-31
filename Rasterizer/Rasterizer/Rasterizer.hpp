@@ -1049,7 +1049,6 @@ struct Rasterizer {
                                     if (update) {
                                         update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                        ux = ux < inst->quad.cell.lx ? inst->quad.cell.lx : ux > inst->quad.cell.ux ? inst->quad.cell.ux : ux;
                                     }
                                     if (p16[2 * kFastSegments - 2] == 0xFFFF && p16[2 * kFastSegments - 1] == 0xFFFF)
                                         b++, update = true;
