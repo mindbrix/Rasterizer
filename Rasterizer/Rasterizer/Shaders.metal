@@ -180,7 +180,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     thread float *dst = & vert.x0;
     const device Point16 *pts = & points[edgeCell.base + edge.i0];
     int i, curve;
-    float slx = 0.0, sly = 0.0, sux = edge.ux, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
+    float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
         const device Bounds& b = bounds[edgeCell.iz];
         float tx, ty, ma, mb, mc, md, x, y, x0, y0, x1, y1, cpx, cpy;
@@ -224,7 +224,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
             }
         }
     }
-    float ox = clamp(select(floor(slx), sux, vid & 1), float(cell.lx), float(cell.ux));
+    float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
