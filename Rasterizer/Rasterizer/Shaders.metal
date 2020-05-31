@@ -183,7 +183,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
         const device Bounds& b = bounds[edgeCell.iz];
-        float tx, ty, ma, mb, mc, md, x, y, x0, y0, x1, y1, px, py, nx, ny, cpx, cpy;
+        float tx, ty, ma, mb, mc, md, x, y, x0, y0, x1, y1, cpx, cpy;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
@@ -201,14 +201,14 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                 if (!*useCurves || curve == 0)
                     dst[0] = FLT_MAX;
                 else {
-                    if (curve == 1) {
+                    if (curve == 1) {  // next
                         x = (pts + 1)->x & 0x7FFF, y = (pts + 1)->y & 0x7FFF;
-                        nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
-                        cpx = 0.25f * (x0 - nx) + x1, cpy = 0.25f * (y0 - ny) + y1;
-                    } else {
+                        cpx = 0.25f * (x0 - (x * ma + y * mc + tx)) + x1;
+                        cpy = 0.25f * (y0 - (x * mb + y * md + ty)) + y1;
+                    } else {  // prev
                         x = (pts - 2)->x & 0x7FFF, y = (pts - 2)->y & 0x7FFF;
-                        px = x * ma + y * mc + tx, py = x * mb + y * md + ty;
-                        cpx = 0.25f * (x1 - px) + x0, cpy = 0.25f * (y1 - py) + y0;
+                        cpx = 0.25f * (x1 - (x * ma + y * mc + tx)) + x0;
+                        cpy = 0.25f * (y1 - (x * mb + y * md + ty)) + y0;
                     }
                     slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
                     if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
@@ -234,7 +234,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    return 0.2;
+//    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
     + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
     + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
