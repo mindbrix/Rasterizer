@@ -182,7 +182,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     int i; float slx, sly, suy, visible = (pt + 1)->x == 0xFFFF && (pt + 1)->y == 0xFFFF ? 0 : 1.0;
     int curve;
     if (visible == 0.0) {
-        for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
+        for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
             dst[0] = dst[1] = 0.0;
         for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
             dst[0] = FLT_MAX;
@@ -229,7 +229,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
     float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, visible);
-    for (dst = & vert.x0, i = 0; i <= kFastSegments; i++, dst += 4)
+    for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
     for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
         if (dst[0] != FLT_MAX)
