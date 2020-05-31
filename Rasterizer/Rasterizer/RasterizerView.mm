@@ -79,10 +79,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (_state.needsRedraw()) {
         _state.readEvents(_list,
             _db->db ? RasterizerDB::EventFunction : NULL,
+                _db->db ? (void *)_db.ref : nullptr,
             _db->db ? RasterizerDB::WriteFunction : RasterizerTest::WriteFunction,
+                _db->db ? (void *)_db.ref : (void *)_test.ref,
             RasterizerTest::TransferFunction,
-            _db->db ? (void *)_db.ref : (void *)_test.ref,
-            _test.ref);
+                _test.ref);
         [self.layer setNeedsDisplay];
     }
     _state.resetEvents();

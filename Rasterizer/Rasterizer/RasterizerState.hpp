@@ -49,7 +49,10 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    void readEvents(Ra::SceneList& list, EventFunction eventFunction, WriteFunction writeFunction, TransferFunction transferFunction, void *info, void *transferInfo) {
+    void readEvents(Ra::SceneList& list,
+                    EventFunction eventFunction, void *eventInfo,
+                    WriteFunction writeFunction, void *writeInfo,
+                    TransferFunction transferFunction, void *transferInfo) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
@@ -104,9 +107,9 @@ struct RasterizerState {
         }
         prepare();
         if (eventFunction)
-            (*eventFunction)(*this, info);
+            (*eventFunction)(*this, eventInfo);
         if (writeFunction)
-            (*writeFunction)(list.empty(), info);
+            (*writeFunction)(list.empty(), writeInfo);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
         if (transferFunction) {
