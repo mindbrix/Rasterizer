@@ -491,7 +491,7 @@ struct Rasterizer {
                                 size_t ip = scene->cache->ips[is];
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
-                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->sizes[ip] / kMoleculeSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->sizes[ip] / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
                                 Bounds clu = Bounds(inv.concat(unit));
                                 bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
@@ -1050,7 +1050,7 @@ struct Rasterizer {
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ic = cell - c0;
                             float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
                             bool update = path->hasMolecules;  Bounds *mol = path->mols;   uint8_t *p16end = path->p16end;
-                            for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, update = path->hasMolecules && *p16end++) {
+                            for (j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, update = path->hasMolecules && *p16end++) {
                                 if (update) {
                                     ta = m.a * (mol->ux - mol->lx), tc = m.c * (mol->uy - mol->ly);
                                     ux = ceilf(mol->lx * m.a + mol->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
