@@ -196,13 +196,10 @@ struct RasterizerDB {
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
-        db.writeList(list);
-    }
-    void writeList(Ra::SceneList& list) {
-        list.addList(backgroundList);
-        for (Ra::SceneList& tableList: tableLists)
+        list.addList(db.backgroundList);
+        for (Ra::SceneList& tableList: db.tableLists)
             list.addList(tableList);
-        list.addList(foregroundList);
+        list.addList(db.foregroundList);
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
