@@ -1047,20 +1047,16 @@ struct Rasterizer {
                             ip = scene->cache->ips[is];
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ic = cell - c0;
-                            if (! path->hasMolecules) {
-                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++)
-                                    fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = cell->cell.ux;
-                            } else {
-                                Bounds *b = path->mols;  float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
-                                bool update = true; uint8_t *p16end = & path->p16ends[0];
-                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, update = *p16end++) {
-                                    if (update) {
-                                        ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
-                                        ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                        b++;
-                                    }
-                                    fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
+                            Bounds *b = path->mols;  float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
+                            bool update = path->hasMolecules; uint8_t *p16end = & path->p16ends[0];
+                            for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++) {
+                                if (update) {
+                                    ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
+                                    ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                    b++;
                                 }
+                                update = path->hasMolecules && *p16end, p16end++;
+                                fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                             }
                             cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
