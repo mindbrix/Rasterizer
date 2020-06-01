@@ -1056,7 +1056,7 @@ struct Rasterizer {
                                     ux = ceilf(mol->lx * m.a + mol->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                     mol++;
                                 }
-                                update = path->hasMolecules && *p16end, p16end++;
+                                update = path->hasMolecules && *p16end++;
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                             }
                             cell++;
