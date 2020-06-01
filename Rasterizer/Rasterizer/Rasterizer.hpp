@@ -202,7 +202,7 @@ struct Rasterizer {
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
-        std::vector<Point16> p16s;  std::vector<bool> p16ends;
+        std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         bool isGlyph = false, isDrawable = false;
         Bounds bounds, *mols = nullptr;
@@ -1051,15 +1051,14 @@ struct Rasterizer {
                                 for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++)
                                     fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = cell->cell.ux;
                             } else {
-                                assert(path->p16s.size() == 4 * path->p16ends.size());
                                 Bounds *b = path->mols;  float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
-                                bool update = true;  uint16_t *p16 = & path->p16s[0].x;
-                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
+                                bool update = true; uint8_t *p16end = & path->p16ends[0];
+                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16end++) {
                                     if (update) {
                                         update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
                                     }
-                                    if (p16[2 * kFastSegments - 2] == 0xFFFF && p16[2 * kFastSegments - 1] == 0xFFFF)
+                                    if (*p16end)
                                         b++, update = true;
                                     fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                                 }
