@@ -1046,14 +1046,13 @@ struct Rasterizer {
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
                             ip = cache->ips[is], ic = cell - c0;
-                            float ta, tc, ux = inst->quad.cell.ux;  Transform& m = ctms[iz];
+                            float ux = inst->quad.cell.ux, x, y;  Transform& m = ctms[iz];
                             Path& path = cache->paths[ip];
                             bool update = path->hasMolecules;  Bounds *mol = path->mols;   uint8_t *p16end = path->p16end;
                             for (j = 0; j < cache->sizes[ip]; j += kFastSegments, update = path->hasMolecules && *p16end++) {
                                 if (update) {
-                                    ta = m.a * (mol->ux - mol->lx), tc = m.c * (mol->uy - mol->ly);
-                                    ux = ceilf(mol->lx * m.a + mol->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    mol++;
+                                    x = m.a > 0.f ? mol->ux : mol->lx, y = m.c > 0.f ? mol->uy : mol->ly, mol++;
+                                    ux = ceilf(x * m.a + y * m.c + m.tx);
                                 }
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux, fast++;
                             }
