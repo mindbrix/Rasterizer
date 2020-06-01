@@ -1045,10 +1045,9 @@ struct Rasterizer {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene *scene = & list.scenes[i];
-                            ip = scene->cache->ips[is];
+                            ip = scene->cache->ips[is], ic = cell - c0;
                             Path& path = scene->cache->paths[ip];
-                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ic = cell - c0;
-                            float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
+                            float ta, tc, ux = inst->quad.cell.ux;  Transform& m = ctms[iz];
                             bool update = path->hasMolecules;  Bounds *mol = path->mols;   uint8_t *p16end = path->p16end;
                             for (j = 0; j < scene->cache->sizes[ip]; j += kFastSegments, update = path->hasMolecules && *p16end++) {
                                 if (update) {
@@ -1058,7 +1057,7 @@ struct Rasterizer {
                                 }
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux, fast++;
                             }
-                            cell++;
+                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
