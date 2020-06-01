@@ -103,7 +103,7 @@ struct Rasterizer {
         void update(Type type, size_t size, float *p) {
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == kMove)
-                molecules.emplace_back(Bounds()), mols = & molecules[0];
+                molecules.emplace_back(Bounds()), mols = & molecules[0], hasMolecules = molecules.size() > 1;
             else if (type == kQuadratic) {
                 float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
                 quadraticSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
@@ -204,7 +204,7 @@ struct Rasterizer {
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
-        bool isGlyph = false, isDrawable = false;
+        bool isGlyph = false, isDrawable = false, hasMolecules = false;
         Bounds bounds, *mols = nullptr;
     };
     template<typename T>
@@ -1047,7 +1047,7 @@ struct Rasterizer {
                             ip = scene->cache->ips[is];
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ic = cell - c0;
-                            if (path->molecules.size() == 1) {
+                            if (! path->hasMolecules) {
                                 for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++)
                                     fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = cell->cell.ux;
                             } else {
