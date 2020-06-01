@@ -177,8 +177,13 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
+        void writePoint16(uint16_t x, uint16_t y) {
+            p16s.emplace_back(x, y);
+            if (p16s.size() % kFastSegments == 0)
+                p16ends.emplace_back(x == 0xFFFF && y == 0xFFFF);
+        }
         void writePoint16(float x0, float y0, uint32_t curve) {
-            p16s.emplace_back(
+            writePoint16(
                 uint16_t((x0 - bounds.lx) / (bounds.ux - bounds.lx) * 32767.f) | ((curve & 2) << 14),
                 uint16_t((y0 - bounds.ly) / (bounds.uy - bounds.ly) * 32767.f) | ((curve & 1) << 15));
         }
@@ -189,7 +194,7 @@ struct Rasterizer {
             else if (g->p16s.size() > g->p0) {
                 g->writePoint16(g->x1, g->y1, 0);
                 for (size_t count = kFastSegments - (g->p16s.size() % kFastSegments); count; count--)
-                    g->p16s.emplace_back(0xFFFF, 0xFFFF);
+                    g->writePoint16(0xFFFF, 0xFFFF);
                 g->p0 = g->p16s.size();
             }
         }
@@ -197,7 +202,7 @@ struct Rasterizer {
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
-        std::vector<Point16> p16s;
+        std::vector<Point16> p16s;  std::vector<bool> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         bool isGlyph = false, isDrawable = false;
         Bounds bounds, *mols = nullptr;
@@ -1046,6 +1051,7 @@ struct Rasterizer {
                                 for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++)
                                     fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = cell->cell.ux;
                             } else {
+                                assert(path->p16s.size() == 4 * path->p16ends.size());
                                 Bounds *b = path->mols;  float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
                                 bool update = true;  uint16_t *p16 = & path->p16s[0].x;
                                 for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16 += 2 * kMoleculeSegments) {
