@@ -180,7 +180,7 @@ struct Rasterizer {
         void writePoint16(uint16_t x, uint16_t y) {
             p16s.emplace_back(x, y);
             if (p16s.size() % kFastSegments == 0)
-                p16ends.emplace_back(x == 0xFFFF && y == 0xFFFF);
+                p16ends.emplace_back(x == 0xFFFF && y == 0xFFFF), p16end = & p16ends[0];
         }
         void writePoint16(float x0, float y0, uint32_t curve) {
             writePoint16(
@@ -204,8 +204,9 @@ struct Rasterizer {
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
-        bool isGlyph = false, isDrawable = false, hasMolecules = false;
-        Bounds bounds, *mols = nullptr;
+        Bounds bounds;
+        bool isGlyph = false, isDrawable = false;
+        bool hasMolecules = false;  Bounds *mols = nullptr;  uint8_t *p16end;
     };
     template<typename T>
     struct Ref {
@@ -1047,13 +1048,13 @@ struct Rasterizer {
                             ip = scene->cache->ips[is];
                             Path& path = scene->cache->paths[ip];
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), ic = cell - c0;
-                            Bounds *b = path->mols;  float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
-                            bool update = path->hasMolecules; uint8_t *p16end = & path->p16ends[0];
+                            float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
+                            bool update = path->hasMolecules;  Bounds *mol = path->mols;   uint8_t *p16end = path->p16end;
                             for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++) {
                                 if (update) {
-                                    ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
-                                    ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
-                                    b++;
+                                    ta = m.a * (mol->ux - mol->lx), tc = m.c * (mol->uy - mol->ly);
+                                    ux = ceilf(mol->lx * m.a + mol->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                    mol++;
                                 }
                                 update = path->hasMolecules && *p16end, p16end++;
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
