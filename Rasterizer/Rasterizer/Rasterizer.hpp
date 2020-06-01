@@ -1053,13 +1053,12 @@ struct Rasterizer {
                             } else {
                                 Bounds *b = path->mols;  float ta, tc, ux = cell->cell.ux;  Transform& m = ctms[iz];
                                 bool update = true; uint8_t *p16end = & path->p16ends[0];
-                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, p16end++) {
+                                for (j = 0; j < scene->cache->sizes[ip]; j += kMoleculeSegments, fast++, update = *p16end++) {
                                     if (update) {
-                                        update = false, ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
+                                        ta = m.a * (b->ux - b->lx), tc = m.c * (b->uy - b->ly);
                                         ux = ceilf(b->lx * m.a + b->ly * m.c + m.tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f));
+                                        b++;
                                     }
-                                    if (*p16end)
-                                        b++, update = true;
                                     fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux;
                                 }
                             }
