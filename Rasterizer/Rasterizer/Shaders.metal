@@ -45,9 +45,6 @@ struct Outline {
     Segment s;
     short prev, next;
 };
-struct SceneInstance {
-    uint32_t idx, iz;
-};
 struct Instance {
     enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
     union { Quad quad;  Outline outline; };
