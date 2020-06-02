@@ -239,12 +239,12 @@ struct Rasterizer {
     struct Scene {
         struct Cache {
             struct Entry {
-                Entry(size_t size, bool hasMolecules, float *mols, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), mols(mols), p16end(p16end) {}
-                size_t size;  bool hasMolecules;  float *mols;  uint8_t *p16end;
+                Entry(size_t size, bool hasMolecules, float *mols, uint16_t *p16s, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), mols(mols), p16s(p16s), p16end(p16end) {}
+                size_t size;  bool hasMolecules;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
             };
             size_t refCount = 0, uniques = 0;
             std::vector<uint32_t> ips;
-            std::vector<Path> paths;  std::vector<Entry> _entries;  Entry *entries;
+            std::vector<Entry> _entries;  Entry *entries;
             std::unordered_map<size_t, size_t> map;
         };
         template<typename T>
@@ -265,7 +265,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                     }
-                    cache->uniques++, cache->paths.emplace_back(path), cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, (float *)& path->molecules[0], & path->p16ends[0]), cache->entries = & cache->_entries[0];
+                    cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, (float *)& path->molecules[0], & path->p16s[0].x, & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                 }
@@ -1017,7 +1017,7 @@ struct Rasterizer {
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                     for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->uniques; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
-                            memcpy(buffer.base + begin + pbase * sizeof(Point), & cache->paths[ip]->p16s[0], cache->entries[ip].size * sizeof(Point));
+                            memcpy(buffer.base + begin + pbase * sizeof(Point), cache->entries[ip].p16s, cache->entries[ip].size * sizeof(Point));
                             ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += cache->entries[ip].size;
                         }
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
