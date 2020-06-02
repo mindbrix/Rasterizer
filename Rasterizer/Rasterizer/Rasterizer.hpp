@@ -1050,12 +1050,12 @@ struct Rasterizer {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
                             ip = cache->ips[is], ic = cell - c0;
                             Scene::Cache::Entry *entry = & cache->entries[ip];
-                            uint16_t ux = inst->quad.cell.ux;  Transform& m = ctms[iz];
-                            float *px = entry->mols + (m.a > 0.f ? 2 : 0), *py = entry->mols + (m.c > 0.f ? 3 : 1);
+                            uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
+                            float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
-                                    ux = ceilf(*px * m.a + *py * m.c + m.tx), px += 4, py += 4;
+                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux, fast++;
                             }
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
