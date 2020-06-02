@@ -239,8 +239,8 @@ struct Rasterizer {
     struct Scene {
         struct Cache {
             struct Entry {
-                Entry(size_t size, bool hasMolecules, Bounds *mols, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), mols(mols), p16end(p16end) {}
-                size_t size;  bool hasMolecules;  Bounds *mols;  uint8_t *p16end;
+                Entry(size_t size, bool hasMolecules, float *mols, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), mols(mols), p16end(p16end) {}
+                size_t size;  bool hasMolecules;  float *mols;  uint8_t *p16end;
             };
             size_t refCount = 0, uniques = 0;
             std::vector<uint32_t> ips;
@@ -265,7 +265,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                     }
-                    cache->uniques++, cache->paths.emplace_back(path), cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, & path->molecules[0], & path->p16ends[0]), cache->entries = & cache->_entries[0];
+                    cache->uniques++, cache->paths.emplace_back(path), cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, (float *)& path->molecules[0], & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                 }
@@ -1051,8 +1051,7 @@ struct Rasterizer {
                             ip = cache->ips[is], ic = cell - c0;
                             Scene::Cache::Entry *entry = & cache->entries[ip];
                             uint16_t ux = inst->quad.cell.ux;  Transform& m = ctms[iz];
-                            float *px = (float *)entry->mols + (m.a > 0.f ? 2 : 0);
-                            float *py = (float *)entry->mols + (m.c > 0.f ? 3 : 1);
+                            float *px = entry->mols + (m.a > 0.f ? 2 : 0), *py = entry->mols + (m.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
