@@ -187,9 +187,6 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-        // ta = ma * (m.ux - m.lx), tc = mc * (m.uy - m.ly);
-        // ux = m->lx * ma + m->ly * mc + tx + (ta > 0.f ? ta : 0.f) + (tc > 0.f ? tc : 0.f);
-        // ux = ceil(ux);
         x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
         x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
         slx = x0, sly = suy = y0;
