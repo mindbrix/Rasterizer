@@ -103,7 +103,7 @@ struct Rasterizer {
         void update(Type type, size_t size, float *p) {
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == kMove)
-                molecules.emplace_back(Bounds()), mols = & molecules[0], hasMolecules = molecules.size() > 1;
+                molecules.emplace_back(Bounds());
             else if (type == kQuadratic) {
                 float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
                 quadraticSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
@@ -180,7 +180,7 @@ struct Rasterizer {
         void writePoint16(uint16_t x, uint16_t y) {
             p16s.emplace_back(x, y);
             if (p16s.size() % kFastSegments == 0)
-                p16ends.emplace_back(x == 0xFFFF && y == 0xFFFF), p16end = & p16ends[0];
+                p16ends.emplace_back(x == 0xFFFF && y == 0xFFFF);
         }
         void writePoint16(float x0, float y0, uint32_t curve) {
             writePoint16(
@@ -206,7 +206,6 @@ struct Rasterizer {
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         Bounds bounds;
         bool isGlyph = false, isDrawable = false;
-        bool hasMolecules = false;  Bounds *mols = nullptr;  uint8_t *p16end;
     };
     template<typename T>
     struct Ref {
@@ -266,7 +265,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                     }
-                    cache->uniques++, cache->paths.emplace_back(path), cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, path->mols, & path->p16ends[0]), cache->entries = & cache->_entries[0];
+                    cache->uniques++, cache->paths.emplace_back(path), cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, & path->molecules[0], & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash, cache->map.size());
                 }
