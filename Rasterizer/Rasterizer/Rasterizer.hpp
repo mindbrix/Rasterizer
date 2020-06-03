@@ -137,6 +137,8 @@ struct Rasterizer {
         void prepare(size_t moveCount, size_t lineCount, size_t quadCount, size_t cubicCount, size_t closeCount) {
             size_t size = moveCount + lineCount + 2 * quadCount + 3 * cubicCount + closeCount;
             types.alloc(size), types.empty(), points.alloc(size * 2), points.empty(), molecules.alloc(moveCount), molecules.empty();
+            size_t p16sSize = 5 * moveCount + lineCount + 2 * quadCount + 3 * cubicCount;
+            p16s.alloc(p16sSize), p16s.empty(), p16ends.alloc(p16sSize / kFastSegments), p16ends.empty();
         }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
