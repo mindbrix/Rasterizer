@@ -133,7 +133,6 @@ struct Rasterizer {
         };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
-        float *alloc(size_t size) {  return points.alloc(size * 2);  }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
             for (int i = 0; i < size; i++)
@@ -176,15 +175,15 @@ struct Rasterizer {
             cubicTo(cx + vx0 - f * vy0, cy + vy0 + f * vx0, cx + vx1 + f * vy1, cy + vy1 - f * vx1, cx + vx1, cy + vy1);
         }
         void moveTo(float x, float y) {
-            float *points = alloc(1);
-            px = points[0] = x, py = points[1] = y;
-            update(kMove, 1, points);
+            float *pts = points.alloc(2);
+            px = pts[0] = x, py = pts[1] = y;
+            update(kMove, 1, pts);
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
-                float *points = alloc(1);
-                px = points[0] = x, py = points[1] = y;
-                update(kLine, 1, points);
+                float *pts = points.alloc(2);
+                px = pts[0] = x, py = pts[1] = y;
+                update(kLine, 1, pts);
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
@@ -194,9 +193,9 @@ struct Rasterizer {
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
                 lineTo(x, y);
             } else {
-                float *points = alloc(2);
-                points[0] = cx, points[1] = cy, px = points[2] = x, py = points[3] = y;
-                update(kQuadratic, 2, points);
+                float *pts = points.alloc(4);
+                pts[0] = cx, pts[1] = cy, px = pts[2] = x, py = pts[3] = y;
+                update(kQuadratic, 2, pts);
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -204,15 +203,15 @@ struct Rasterizer {
             if (dx * dx + dy * dy < 1e-2f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
-                float *points = alloc(3);
-                points[0] = cx0, points[1] = cy0, points[2] = cx1, points[3] = cy1, px = points[4] = x, py = points[5] = y;
-                update(kCubic, 3, points);
+                float *pts = points.alloc(6);
+                pts[0] = cx0, pts[1] = cy0, pts[2] = cx1, pts[3] = cy1, px = pts[4] = x, py = pts[5] = y;
+                update(kCubic, 3, pts);
             }
         }
         void close() {
-            float *points = alloc(1);
-            points[0] = px, points[1] = py;
-            update(kClose, 1, points);
+            float *pts = points.alloc(2);
+            pts[0] = px, pts[1] = py;
+            update(kClose, 1, pts);
         }
         size_t hash() {
             if (crc == 0)
