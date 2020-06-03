@@ -134,9 +134,9 @@ struct Rasterizer {
         };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
-        void prepare(size_t moveCount, size_t lineCount, size_t quadCount, size_t cubicCount, size_t closeCount, size_t molCount) {
+        void prepare(size_t moveCount, size_t lineCount, size_t quadCount, size_t cubicCount, size_t closeCount) {
             size_t size = moveCount + lineCount + 2 * quadCount + 3 * cubicCount + closeCount;
-            types.alloc(size), types.empty(), points.alloc(size * 2), points.empty(), molecules.alloc(molCount), molecules.empty();
+            types.alloc(size), types.empty(), points.alloc(size * 2), points.empty(), molecules.alloc(moveCount), molecules.empty();
         }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
