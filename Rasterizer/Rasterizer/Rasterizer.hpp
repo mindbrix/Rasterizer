@@ -284,8 +284,8 @@ struct Rasterizer {
                     cache->ips.emplace_back(it->second);
                 else {
                     if (path->p0 == 0) {
-                        float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
-                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
+                        float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
+                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.end > 1, (float *) path->molecules.base, & path->p16s[0].x, & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
