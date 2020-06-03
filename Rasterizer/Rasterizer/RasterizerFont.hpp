@@ -78,7 +78,7 @@ struct RasterizerFont {
                         ccount++;
                         break;
                 }
-            path->prepare(mcount, lcount, qcount, ccount, molcount);
+            path->prepare(mcount, lcount, qcount, ccount, 0, molcount);
             for (i = 0; i < nverts; i++)
                 switch (v[i].type) {
                     case STBTT_vmove:
