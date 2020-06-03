@@ -179,9 +179,9 @@ struct Rasterizer {
             update(kClose, 1, points);
         }
         size_t _hash() {
-            if (hash == 0)
-                hash = ::crc64(::crc64(hash, & types[0], types.size() * sizeof(uint8_t)), & points[0], points.size() * 2 * sizeof(float));
-            return hash;
+            if (crc == 0)
+                crc = ::crc64(::crc64(crc, & types[0], types.size() * sizeof(uint8_t)), & points[0], points.size() * 2 * sizeof(float));
+            return crc;
         }
         inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
             p16s.emplace_back(
@@ -201,7 +201,7 @@ struct Rasterizer {
                         g->p16ends.emplace_back(g->p16s[g->p0].x == 0xFFFF && g->p16s[g->p0].y == 0xFFFF);
             }
         }
-        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, hash = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
+        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
         std::vector<uint8_t> types;
         std::vector<float> points;
         std::vector<Bounds> molecules;
