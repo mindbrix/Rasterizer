@@ -141,9 +141,7 @@ struct Rasterizer {
             counts[type]++;
             for (int i = 0; i < size; i++)
                 *(types.alloc(1)) = type;
-            if (type == kMove)
-                *(molecules.alloc(1)) = Bounds();
-            else if (type == kQuadratic) {
+            if (type == kQuadratic) {
                 float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
                 quadraticSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
             } else if (type == kCubic) {
@@ -179,6 +177,7 @@ struct Rasterizer {
             cubicTo(cx + vx0 - f * vy0, cy + vy0 + f * vx0, cx + vx1 + f * vy1, cy + vy1 - f * vx1, cx + vx1, cy + vy1);
         }
         void moveTo(float x, float y) {
+            *(molecules.alloc(1)) = Bounds();
             float *pts = points.alloc(2);
             px = pts[0] = x, py = pts[1] = y;
             update(kMove, 1, pts);
