@@ -85,6 +85,46 @@ struct Rasterizer {
         Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
         uint8_t src0, src1, src2, src3;
     };
+    template<typename T>
+    struct Ref {
+        Ref()                               { ref = new T(), ref->refCount = 1; }
+        ~Ref()                              { if (--(ref->refCount) == 0) delete ref; }
+        Ref(const Ref& other)               { *this = other; }
+        Ref& operator= (const Ref& other)   {
+            if (this != & other) {
+                if (ref)
+                    this->~Ref();
+                ref = other.ref, ref->refCount++;
+            }
+            return *this;
+        }
+        T* operator->() { return ref; }
+        T *ref = nullptr;
+    };
+    template<typename T>
+    struct Memory {
+        ~Memory() { if (addr) free(addr); }
+        void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
+        size_t refCount = 0, size = 0;
+        T *addr = nullptr;
+    };
+    template<typename T>
+    struct Row {
+    public:
+        Row<T>& operator+(const T *src) { if (src) { do *(alloc(1)) = *src; while (*src++);  --end; } return *this; }
+        Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), sprintf(buf, "%d", n); operator+((T *)buf); return *this; }
+        Row<T>& empty() { end = idx = 0; return *this; }
+        void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
+        inline T *alloc(size_t n) {
+            end += n;
+            if (memory->size < end)
+                memory->resize(end * 1.5), base = memory->addr;
+            return base + end - n;
+        }
+        Ref<Memory<T>> memory;
+        size_t end = 0, idx = 0;
+        T *base = nullptr;
+    };
     struct Geometry {
         static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
         struct Point16 {
@@ -209,22 +249,6 @@ struct Rasterizer {
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         Bounds bounds;
     };
-    template<typename T>
-    struct Ref {
-        Ref()                               { ref = new T(), ref->refCount = 1; }
-        ~Ref()                              { if (--(ref->refCount) == 0) delete ref; }
-        Ref(const Ref& other)               { *this = other; }
-        Ref& operator= (const Ref& other)   {
-            if (this != & other) {
-                if (ref)
-                    this->~Ref();
-                ref = other.ref, ref->refCount++;
-            }
-            return *this;
-        }
-        T* operator->() { return ref; }
-        T *ref = nullptr;
-    };
     typedef Ref<Geometry> Path;
     
     typedef void (*Function)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
@@ -315,30 +339,6 @@ struct Rasterizer {
             return pi;
         }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;
-    };
-    template<typename T>
-    struct Memory {
-        ~Memory() { if (addr) free(addr); }
-        void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
-        size_t refCount = 0, size = 0;
-        T *addr = nullptr;
-    };
-    template<typename T>
-    struct Row {
-    public:
-        Row<T>& operator+(const T *src) { if (src) { do *(alloc(1)) = *src; while (*src++);  --end; } return *this; }
-        Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), sprintf(buf, "%d", n); operator+((T *)buf); return *this; }
-        Row<T>& empty() { end = idx = 0; return *this; }
-        void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
-        inline T *alloc(size_t n) {
-            end += n;
-            if (memory->size < end)
-                memory->resize(end * 1.5), base = memory->addr;
-            return base + end - n;
-        }
-        Ref<Memory<T>> memory;
-        size_t end = 0, idx = 0;
-        T *base = nullptr;
     };
     struct Range {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
