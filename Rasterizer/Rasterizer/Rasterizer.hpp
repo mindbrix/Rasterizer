@@ -177,17 +177,17 @@ struct Rasterizer {
         void close() {
             update(kClose, 0, alloc(kClose, 1));
         }
-        void writePoint16(float x0, float y0, uint32_t curve) {
+        inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
             p16s.emplace_back(
-                uint16_t((x0 - bounds.lx) / (bounds.ux - bounds.lx) * 32767.f) | ((curve & 2) << 14),
-                uint16_t((y0 - bounds.ly) / (bounds.uy - bounds.ly) * 32767.f) | ((curve & 1) << 15));
+                uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14),
+                uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15));
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
             if (x0 != FLT_MAX)
-                g->writePoint16(x0, y0, curve), g->x1 = x1, g->y1 = y1;
+                g->writePoint16(x0, y0, g->bounds, curve), g->x1 = x1, g->y1 = y1;
             else if (g->p16s.size() > g->p0) {
-                g->writePoint16(g->x1, g->y1, 0);
+                g->writePoint16(g->x1, g->y1, g->bounds, 0);
                 for (size_t count = kFastSegments - (g->p16s.size() % kFastSegments); count; count--)
                     g->p16s.emplace_back(0xFFFF, 0xFFFF);
                 for (; g->p0 < g->p16s.size(); g->p0++)
