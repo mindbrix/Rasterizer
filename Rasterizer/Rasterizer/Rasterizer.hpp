@@ -93,7 +93,7 @@ struct Rasterizer {
         };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
-        float *alloc(Type type, size_t size) {
+        float *alloc(size_t size) {
             size_t idx = points.size();
             points.resize(idx + size * 2);
             return & points[idx];
@@ -140,13 +140,13 @@ struct Rasterizer {
             cubicTo(cx + vx0 - f * vy0, cy + vy0 + f * vx0, cx + vx1 + f * vy1, cy + vy1 - f * vx1, cx + vx1, cy + vy1);
         }
         void moveTo(float x, float y) {
-            float *points = alloc(kMove, 1);
+            float *points = alloc(1);
             px = points[0] = x, py = points[1] = y;
             update(kMove, 1, points);
         }
         void lineTo(float x, float y) {
             if (px != x || py != y) {
-                float *points = alloc(kLine, 1);
+                float *points = alloc(1);
                 px = points[0] = x, py = points[1] = y;
                 update(kLine, 1, points);
             }
@@ -158,7 +158,7 @@ struct Rasterizer {
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
                 lineTo(x, y);
             } else {
-                float *points = alloc(kQuadratic, 2);
+                float *points = alloc(2);
                 points[0] = cx, points[1] = cy, px = points[2] = x, py = points[3] = y;
                 update(kQuadratic, 2, points);
             }
@@ -168,13 +168,13 @@ struct Rasterizer {
             if (dx * dx + dy * dy < 1e-2f)
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
-                float *points = alloc(kCubic, 3);
+                float *points = alloc(3);
                 points[0] = cx0, points[1] = cy0, points[2] = cx1, points[3] = cy1, px = points[4] = x, py = points[5] = y;
                 update(kCubic, 3, points);
             }
         }
         void close() {
-            float *points = alloc(kClose, 1);
+            float *points = alloc(1);
             points[0] = px, points[1] = py;
             update(kClose, 1, points);
         }
