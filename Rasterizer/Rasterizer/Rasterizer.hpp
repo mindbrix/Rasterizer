@@ -121,6 +121,7 @@ struct Rasterizer {
                 memory->resize(end * 1.5), base = memory->addr;
             return base + end - n;
         }
+        inline T& back() { return base[end - 1]; }
         Ref<Memory<T>> memory;
         size_t end = 0, idx = 0;
         T *base = nullptr;
@@ -141,7 +142,7 @@ struct Rasterizer {
             for (int i = 0; i < size; i++)
                 *(types.alloc(1)) = type;
             if (type == kMove)
-                molecules.emplace_back(Bounds());
+                *(molecules.alloc(1)) = Bounds();
             else if (type == kQuadratic) {
                 float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
                 quadraticSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
@@ -158,7 +159,7 @@ struct Rasterizer {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t quads = quadraticSums == 0 || kQuadraticScale == 0.f ? 0 : (det < 1.f ? ceilf(s * (quadraticSums + 2.f)) : ceilf(s) * quadraticSums);
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
-            return quads + cubics + 2 * (molecules.size() + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
+            return quads + cubics + 2 * (molecules.end + counts[kLine] + counts[kQuadratic] + counts[kCubic]);
         }
         void addBounds(Bounds b) { moveTo(b.lx, b.ly), lineTo(b.ux, b.ly), lineTo(b.ux, b.uy), lineTo(b.lx, b.uy), lineTo(b.lx, b.ly); }
         void addEllipse(Bounds b) {
@@ -240,8 +241,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
-        Row<uint8_t> types;  Row<float> points;
-        std::vector<Bounds> molecules;
+        Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;
         std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         Bounds bounds;
@@ -288,7 +288,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, cubicScale = kMoleculesHeight / (w > h ? w : h);
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, (cubicScale < 1.f ? 1.f : cubicScale) * kCubicScale);
                     }
-                    cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, (float *)& path->molecules[0], & path->p16s[0].x, & path->p16ends[0]), cache->entries = & cache->_entries[0];
+                    cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.end > 1, (float *) path->molecules.base, & path->p16s[0].x, & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
