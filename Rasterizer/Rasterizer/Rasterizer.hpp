@@ -139,7 +139,7 @@ struct Rasterizer {
         void update(Type type, size_t size, float *p) {
             counts[type]++;
             for (int i = 0; i < size; i++)
-                *(types.alloc(1)) = type, typesSize++;
+                *(types.alloc(1)) = type;
             if (type == kMove)
                 molecules.emplace_back(Bounds());
             else if (type == kQuadratic) {
@@ -239,7 +239,7 @@ struct Rasterizer {
                         g->p16ends.emplace_back(g->p16s[g->p0].x == 0xFFFF && g->p16s[g->p0].y == 0xFFFF);
             }
         }
-        size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
+        size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
         Row<uint8_t> types;  Row<float> points;
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
@@ -278,8 +278,8 @@ struct Rasterizer {
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
-            if (path->typesSize > 1 && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
-                count++, weight += path->typesSize;
+            if (path->types.end > 1 && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
+                count++, weight += path->types.end;
                 auto it = cache->map.find(path->hash());
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
@@ -536,7 +536,7 @@ struct Rasterizer {
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, Function function, QuadFunction quadFunction = writeQuadratic, CubicFunction cubicFunction = writeCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
         float *p = geometry->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (uint8_t *type = geometry->types.base, *end = type + geometry->typesSize; type < end; )
+        for (uint8_t *type = geometry->types.base, *end = type + geometry->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
