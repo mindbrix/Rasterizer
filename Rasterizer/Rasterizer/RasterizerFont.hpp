@@ -61,8 +61,24 @@ struct RasterizerFont {
         }
         Ra::Path path;
         stbtt_vertex *v;
-        int i, nverts;
-        if ((nverts = stbtt_GetGlyphShape(& info, glyph, & v))) {
+        int i, count = 0, nverts = stbtt_GetGlyphShape(& info, glyph, & v);
+        if (nverts) {
+            for (i = 0; i < nverts; i++)
+                switch (v[i].type) {
+                    case STBTT_vmove:
+                        count++;
+                        break;
+                    case STBTT_vline:
+                        count++;
+                        break;
+                    case STBTT_vcurve:
+                        count += 2;
+                        break;
+                    case STBTT_vcubic:
+                        count += 3;
+                        break;
+                }
+            path->prepare(count);
             for (i = 0; i < nverts; i++)
                 switch (v[i].type) {
                     case STBTT_vmove:
