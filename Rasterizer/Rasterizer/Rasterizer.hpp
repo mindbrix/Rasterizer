@@ -57,7 +57,7 @@ struct Rasterizer {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
         inline void extend(float x, float y) {
-            lx = lx < x ? lx : x, ux = ux > x ? ux : x, ly = ly < y ? ly : y, uy = uy > y ? uy : y;
+            if (x < lx) lx = x;  if (x > ux) ux = x;  if (y < ly) ly = y;  if (y > uy) uy = y;
         }
         inline void extend(Bounds b) {
             extend(b.lx, b.ly), extend(b.ux, b.uy);
