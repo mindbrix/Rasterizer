@@ -115,7 +115,6 @@ struct Rasterizer {
             }
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
-            isDrawable = typesSize > 1 && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
         }
         size_t upperBound(float det) {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
@@ -202,7 +201,6 @@ struct Rasterizer {
         std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         Bounds bounds;
-        bool isGlyph = false, isDrawable = false;
     };
     template<typename T>
     struct Ref {
@@ -252,7 +250,7 @@ struct Rasterizer {
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
-            if (path->isDrawable) {
+            if (path->typesSize > 1 && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->typesSize;
                 auto it = cache->map.find(path->hash);
                 if (it != cache->map.end())

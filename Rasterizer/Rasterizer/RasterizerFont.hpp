@@ -81,7 +81,6 @@ struct RasterizerFont {
             stbtt_FreeShape(& info, v);
             if (cacheable)
                 cache.emplace(glyph, path);
-            path.ref->isGlyph = true;
         }
         return path;
     }
