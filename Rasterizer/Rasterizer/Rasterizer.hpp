@@ -220,8 +220,7 @@ struct Rasterizer {
             update(kClose, 1, pts);
         }
         size_t hash() {
-            if (crc == 0)
-                crc = ::crc64(::crc64(crc, types.base, types.end * sizeof(uint8_t)), points.base, points.end* sizeof(float));
+            crc = crc ?: ::crc64(::crc64(crc, types.base, types.end * sizeof(uint8_t)), points.base, points.end* sizeof(float));
             return crc;
         }
         inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
