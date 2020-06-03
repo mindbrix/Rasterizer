@@ -94,13 +94,13 @@ struct Rasterizer {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
         float *alloc(Type type, size_t size) {
-            for (int i = 0; i < size; i++)
-                types.emplace_back(type), typesSize++;
             size_t idx = points.size();
             points.resize(idx + size * 2);
             return & points[idx];
         }
         void update(Type type, size_t size, float *p) {
+            for (int i = 0; i < size; i++)
+                types.emplace_back(type), typesSize++;
             counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == kMove)
                 molecules.emplace_back(Bounds());
@@ -174,7 +174,9 @@ struct Rasterizer {
             }
         }
         void close() {
-            update(kClose, 0, alloc(kClose, 1));
+            float *points = alloc(kClose, 1);
+            points[0] = px, points[1] = py;
+            update(kClose, 1, points);
         }
         inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
             p16s.emplace_back(
