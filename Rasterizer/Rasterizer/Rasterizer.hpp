@@ -242,8 +242,8 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
-        Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;
-        Row<Point16> p16s;  Row<uint8_t> p16ends;
+        Row<uint8_t> types;  Row<float> points;
+        Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         Bounds bounds;
     };
