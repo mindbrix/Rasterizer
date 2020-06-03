@@ -178,7 +178,7 @@ struct Rasterizer {
             points[0] = px, points[1] = py;
             update(kClose, 1, points);
         }
-        size_t _hash() {
+        size_t hash() {
             if (crc == 0)
                 crc = ::crc64(::crc64(crc, & types[0], types.size() * sizeof(uint8_t)), & points[0], points.size() * 2 * sizeof(float));
             return crc;
@@ -259,7 +259,7 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->typesSize > 1 && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->typesSize;
-                auto it = cache->map.find(path->_hash());
+                auto it = cache->map.find(path->hash());
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
                 else {
@@ -269,7 +269,7 @@ struct Rasterizer {
                     }
                     cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, (float *)& path->molecules[0], & path->p16s[0].x, & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
-                    cache->map.emplace(path->_hash(), cache->map.size());
+                    cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
                 _paths->dst.emplace_back(path), _bounds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
