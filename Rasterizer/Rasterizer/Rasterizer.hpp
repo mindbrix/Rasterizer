@@ -99,9 +99,9 @@ struct Rasterizer {
             return & points[idx];
         }
         void update(Type type, size_t size, float *p) {
+            counts[type]++;
             for (int i = 0; i < size; i++)
                 types.emplace_back(type), typesSize++;
-            counts[type]++, hash = ::crc64(::crc64(hash, & type, sizeof(type)), p, size * 2 * sizeof(float));
             if (type == kMove)
                 molecules.emplace_back(Bounds());
             else if (type == kQuadratic) {
@@ -177,6 +177,11 @@ struct Rasterizer {
             float *points = alloc(1);
             points[0] = px, points[1] = py;
             update(kClose, 1, points);
+        }
+        size_t _hash() {
+            if (hash == 0)
+                hash = ::crc64(::crc64(hash, & types[0], types.size() * sizeof(uint8_t)), & points[0], points.size() * 2 * sizeof(float));
+            return hash;
         }
         inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
             p16s.emplace_back(
@@ -254,7 +259,7 @@ struct Rasterizer {
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             if (path->typesSize > 1 && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->typesSize;
-                auto it = cache->map.find(path->hash);
+                auto it = cache->map.find(path->_hash());
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
                 else {
@@ -264,7 +269,7 @@ struct Rasterizer {
                     }
                     cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.size() > 1, (float *)& path->molecules[0], & path->p16s[0].x, & path->p16ends[0]), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
-                    cache->map.emplace(path->hash, cache->map.size());
+                    cache->map.emplace(path->_hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
                 _paths->dst.emplace_back(path), _bounds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
