@@ -83,7 +83,7 @@ static Ra::Scene create3DScene(Ra::Scene scene) {
         Ra::Path& path = scene.paths[i], path3D;
         Transform3D mat = mvp.concat(Transform3D::Transform(scene.ctms[i]));
         for (size_t index = 0; index < path->typesSize; ) {
-            float *p = & path->points[0] + index * 2;
+            float *p = path->points.base + index * 2;
             switch (path->types[index]) {
                 case Ra::Geometry::kMove:
                     mat.map2DTo3D(p[0], p[1], sx, sy, x0, y0);

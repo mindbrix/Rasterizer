@@ -133,11 +133,7 @@ struct Rasterizer {
         };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
-        float *alloc(size_t size) {
-            size_t idx = points.size();
-            points.resize(idx + size * 2);
-            return & points[idx];
-        }
+        float *alloc(size_t size) {  return points.alloc(size * 2);  }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
             for (int i = 0; i < size; i++)
@@ -220,7 +216,7 @@ struct Rasterizer {
         }
         size_t hash() {
             if (crc == 0)
-                crc = ::crc64(::crc64(crc, & types[0], types.size() * sizeof(uint8_t)), & points[0], points.size() * 2 * sizeof(float));
+                crc = ::crc64(::crc64(crc, & types[0], types.size() * sizeof(uint8_t)), points.base, points.end* sizeof(float));
             return crc;
         }
         inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
@@ -243,7 +239,7 @@ struct Rasterizer {
         }
         size_t refCount = 0, typesSize = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
         std::vector<uint8_t> types;
-        std::vector<float> points;
+        Row<float> points;
         std::vector<Bounds> molecules;
         std::vector<Point16> p16s;  std::vector<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
@@ -538,7 +534,7 @@ struct Rasterizer {
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
     static void writePath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, Function function, QuadFunction quadFunction = writeQuadratic, CubicFunction cubicFunction = writeCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
-        float *p = & geometry->points[0], sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        float *p = geometry->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = & geometry->types[0], *end = type + geometry->typesSize; type < end; )
             switch (*type) {
                 case Geometry::kMove:
