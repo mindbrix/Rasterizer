@@ -237,12 +237,12 @@ struct Rasterizer {
                     new (g->p16s.alloc(1)) Point16(0xFFFF, 0xFFFF);
                 for (; g->p0 < g->p16s.end; g->p0++)
                     if (g->p0 % kFastSegments == kFastSegments - 1)
-                        g->p16ends.emplace_back(g->p16s.base[g->p0].x == 0xFFFF && g->p16s.base[g->p0].y == 0xFFFF);
+                        *(g->p16ends.alloc(1)) = g->p16s.base[g->p0].x == 0xFFFF && g->p16s.base[g->p0].y == 0xFFFF;
             }
         }
         size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
         Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;
-        Row<Point16> p16s;  std::vector<uint8_t> p16ends;
+        Row<Point16> p16s;  Row<uint8_t> p16ends;
         float px = FLT_MAX, py = FLT_MAX, x1 = 0.f, y1 = 0.f;
         Bounds bounds;
     };
@@ -288,7 +288,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.end > 1, (float *) path->molecules.base, (uint16_t *)path->p16s.base, & path->p16ends[0]), cache->entries = & cache->_entries[0];
+                    cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.end > 1, (float *) path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
