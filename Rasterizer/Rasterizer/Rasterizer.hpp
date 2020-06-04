@@ -232,16 +232,16 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;
             if (x0 != FLT_MAX)
                 g->writePoint16(x0, y0, g->bounds, curve), g->x1 = x1, g->y1 = y1;
-            else if (g->p16s.end > g->p0) {
+            else if (g->p16s.end > g->p16s.idx) {
                 g->writePoint16(g->x1, g->y1, g->bounds, 0);
                 for (size_t count = kFastSegments - (g->p16s.end % kFastSegments); count; count--)
                     new (g->p16s.alloc(1)) Point16(0xFFFF, 0xFFFF);
-                for (; g->p0 < g->p16s.end; g->p0++)
-                    if (g->p0 % kFastSegments == kFastSegments - 1)
-                        *(g->p16ends.alloc(1)) = g->p16s.base[g->p0].x == 0xFFFF && g->p16s.base[g->p0].y == 0xFFFF;
+                for (; g->p16s.idx < g->p16s.end; g->p16s.idx++)
+                    if (g->p16s.idx % kFastSegments == kFastSegments - 1)
+                        *(g->p16ends.alloc(1)) = g->p16s.base[g->p16s.idx].x == 0xFFFF && g->p16s.base[g->p16s.idx].y == 0xFFFF;
             }
         }
-        size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, p0 = 0, minUpper = 0;
+        size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, minUpper = 0;
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
         float px = 0.f, py = 0.f, x1 = 0.f, y1 = 0.f;
@@ -285,11 +285,11 @@ struct Rasterizer {
                 if (it != cache->map.end())
                     cache->ips.emplace_back(it->second);
                 else {
-                    if (path->p0 == 0) {
+                    if (path->p16s.idx == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    cache->uniques++, cache->_entries.emplace_back(path->p0, path->molecules.end > 1, (float *) path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base), cache->entries = & cache->_entries[0];
+                    cache->uniques++, cache->_entries.emplace_back(path->p16s.idx, path->molecules.end > 1, (float *) path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base), cache->entries = & cache->_entries[0];
                     cache->ips.emplace_back(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
