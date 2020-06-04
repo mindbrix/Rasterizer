@@ -268,7 +268,7 @@ struct Rasterizer {
                 Entry(size_t size, bool hasMolecules, float *mols, uint16_t *p16s, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), mols(mols), p16s(p16s), p16end(p16end) {}
                 size_t size;  bool hasMolecules;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
             };
-            size_t refCount = 0, uniques = 0;
+            size_t refCount = 0;
             Row<uint32_t> ips;  Row<Entry> entries;
             std::unordered_map<size_t, size_t> map;
         };
@@ -290,7 +290,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    cache->uniques++, new (cache->entries.alloc(1)) Cache::Entry(path->p16s.idx, path->molecules.end > 1, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
+                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.idx, path->molecules.end > 1, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
@@ -994,7 +994,7 @@ struct Rasterizer {
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             Scene::Cache *cache;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
-                for (cache = list.scenes[j].cache.ref, puz = cache->uniques, ip = 0; ip < puz; ip++)
+                for (cache = list.scenes[j].cache.ref, puz = cache->entries.end, ip = 0; ip < puz; ip++)
                     if (gpu.fasts.base[lz + ip])
                         gpu.ptotal += cache->entries.base[ip].size;
             size += contexts[i].segments.end * sizeof(Segment) + gpu.ptotal * sizeof(Point);
@@ -1016,7 +1016,7 @@ struct Rasterizer {
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
                 Scene::Cache *cache;
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->uniques; ip++)
+                    for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->entries.end; ip++)
                         if (ctx->gpu.fasts.base[lz + ip]) {
                             memcpy(buffer.base + begin + pbase * sizeof(Point), cache->entries.base[ip].p16s, cache->entries.base[ip].size * sizeof(Point));
                             ctx->gpu.fasts.base[lz + ip] = uint32_t(pbase), pbase += cache->entries.base[ip].size;
