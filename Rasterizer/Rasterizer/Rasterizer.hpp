@@ -269,7 +269,7 @@ struct Rasterizer {
                 size_t size;  bool hasMolecules;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
             };
             size_t refCount = 0, uniques = 0;
-            std::vector<uint32_t> ips;
+            Row<uint32_t> ips;
             std::vector<Entry> _entries;  Entry *entries;
             std::unordered_map<size_t, size_t> map;
         };
@@ -285,14 +285,14 @@ struct Rasterizer {
                 count++, weight += path->types.end;
                 auto it = cache->map.find(path->hash());
                 if (it != cache->map.end())
-                    cache->ips.emplace_back(it->second);
+                    *(cache->ips.alloc(1)) = uint32_t(it->second);
                 else {
                     if (path->p16s.idx == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     cache->uniques++, cache->_entries.emplace_back(path->p16s.idx, path->molecules.end > 1, (float *) path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base), cache->entries = & cache->_entries[0];
-                    cache->ips.emplace_back(cache->map.size());
+                    *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
@@ -493,7 +493,7 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
-                                size_t ip = scene->cache->ips[is];
+                                size_t ip = scene->cache->ips.base[is];
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0));
                                 inst->quad.cell = gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, scene->cache->entries[ip].size / kFastSegments), inst->quad.cover = 0, inst->quad.iy = int(lz);
@@ -1050,7 +1050,7 @@ struct Rasterizer {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
-                            ip = cache->ips[is], ic = cell - c0;
+                            ip = cache->ips.base[is], ic = cell - c0;
                             Scene::Cache::Entry *entry = & cache->entries[ip];
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
