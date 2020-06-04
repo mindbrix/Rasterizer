@@ -234,8 +234,9 @@ struct Rasterizer {
                 g->writePoint16(x0, y0, g->bounds, curve), g->x1 = x1, g->y1 = y1;
             else if (g->p16s.end > g->p16s.idx) {
                 g->writePoint16(g->x1, g->y1, g->bounds, 0);
-                for (size_t count = kFastSegments - (g->p16s.end % kFastSegments); count; count--)
-                    new (g->p16s.alloc(1)) Point16(0xFFFF, 0xFFFF);
+                size_t count = kFastSegments - (g->p16s.end % kFastSegments);
+                for (Point16 *ep16 = g->p16s.alloc(count); count; count--)
+                    new (ep16++) Point16(0xFFFF, 0xFFFF);
                 Point16 *p16 = & g->p16s.base[g->p16s.idx + kFastSegments - 1];
                 uint8_t *p16end = g->p16ends.alloc((g->p16s.end - g->p16s.idx) / kFastSegments);
                 for (; g->p16s.idx < g->p16s.end; g->p16s.idx += kFastSegments, p16 += kFastSegments, p16end++)
