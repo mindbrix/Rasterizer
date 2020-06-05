@@ -362,7 +362,7 @@ struct Rasterizer {
                 size_t cells = 0, edgeInstances = 0, fastInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
-                width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
+                full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
             Cell allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t edgeInstances, size_t fastInstances) {
                 float w = ux - lx, h = uy - ly, hght;  Bounds *b;
@@ -376,7 +376,7 @@ struct Rasterizer {
                 if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < hght) {
                         pass = sheet.ux == 0.f ? pass : new (passes.alloc(1)) Pass(idx);
-                        sheet = Bounds(0.f, 0.f, width, height), strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
+                        sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
@@ -388,9 +388,8 @@ struct Rasterizer {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 pass->ui++;
             }
-            size_t width, height;
             Row<Pass> passes;
-            Bounds sheet, strip, fast, molecules;
+            Bounds full, sheet, strip, fast, molecules;
         };
         struct Quad {
             Cell cell;
