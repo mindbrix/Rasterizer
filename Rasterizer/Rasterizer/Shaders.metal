@@ -70,12 +70,14 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
-float fastWinding(float x0, float y0, float x1, float y1, float f) {
-    float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
+float fastWinding(float x0, float y0, float x1, float y1) {
+    float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0, dx, dy, a0, t, a, b;
     if ((x0 <= 0.0 && x1 <= 0.0) || cover == 0.0)
         return cover;
-    float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
-    return saturate((-a0 / fma(abs(dx), cover, dy) - 0.5) * f + 0.5) * cover;
+    dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
+    dx = abs(dx), t = -a0 / fma(dx, cover, dy), dy = abs(dy);
+    a = min(dx, dy) * 0.4142135624, b = max(dx, dy);
+    return saturate((t - 0.5) * b / (b - a) + 0.5) * cover;
 }
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
@@ -163,7 +165,6 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct FastEdgesVertex
 {
     float4 position [[position]];
-    float f0, f1, f2, f3;
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
@@ -184,7 +185,6 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Cell& cell = edgeCell.cell;
     const device Transform& m = affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
-    thread float *fs = & vert.f0;
     const device Point16 *pts = & points[edgeCell.base + edge.i0];
     int i;
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
@@ -195,14 +195,15 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = x0 = x1 = x16 * ma + y16 * mc + _tx, *dst++ = y0 = y1 = x16 * mb + y16 * md + _ty;
-        float slx = x0, sly = y0, suy = y0, dx, dy, fa, fb;
+        float slx = x0, sly = y0, suy = y0;
         for (i = 0; i < kFastSegments; i++, x0 = x1, y0 = y1) {
-            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-            *dst++ = x1 = x16 * ma + y16 * mc + _tx, *dst++ = y1 = x16 * mb + y16 * md + _ty;
-            dx = abs(x1 - x0), dy = abs(y1 - y0);
-            fa = min(dx, dy) * 0.4142135624, fb = max(dx, dy);
-            *fs++ = fb / (fb - fa);
-            slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
+            if (pts->x == 0xFFFF && pts->y == 0xFFFF)
+                dst[0] = dst[-2], dst[1] = dst[-1], dst += 2;
+            else {
+                x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+                *dst++ = x1 = x16 * ma + y16 * mc + _tx, *dst++ = y1 = x16 * mb + y16 * md + _ty;
+                slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
+            }
         }
         float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
         float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
@@ -218,10 +219,11 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.f0)
-    + fastWinding(vert.x1, vert.y1, vert.x2, vert.y2, vert.f1)
-    + fastWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.f2)
-    + fastWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.f3);
+//    return 0.2;
+    return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
+        + fastWinding(vert.x1, vert.y1, vert.x2, vert.y2)
+        + fastWinding(vert.x2, vert.y2, vert.x3, vert.y3)
+        + fastWinding(vert.x3, vert.y3, vert.x4, vert.y4);
 }
 
 #pragma mark - Quad Edges
@@ -307,7 +309,7 @@ vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 quad_edges_fragment_main(QuadEdgesVertex vert [[stage_in]])
 {
-//    return 0.2;
+    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
     + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
     + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
