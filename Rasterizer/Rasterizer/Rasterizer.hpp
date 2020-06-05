@@ -405,7 +405,7 @@ struct Rasterizer {
             short prev, next;
         };
         struct Instance {
-            enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29,    kMolecule = 1 << 31 };
+            enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
             Instance(size_t iz, int type) : iz((uint32_t)iz | type) {}
             union { Quad quad;  Outline outline; };
             uint32_t iz;
