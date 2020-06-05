@@ -152,13 +152,13 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 
 #pragma mark - Fast Edges
 
-struct FastEdgesVertex
+struct QuadEdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8;
 };
 
-vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]],
+vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device EdgeCell *edgeCells [[buffer(3)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
@@ -168,7 +168,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
                                 constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    FastEdgesVertex vert;
+    QuadEdgesVertex vert;
     
     const device Edge& edge = edges[iid];
     const device EdgeCell& edgeCell = edgeCells[edge.ic];
@@ -231,7 +231,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     return vert;
 }
 
-fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
+fragment float4 quad_edges_fragment_main(QuadEdgesVertex vert [[stage_in]])
 {
 //    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)

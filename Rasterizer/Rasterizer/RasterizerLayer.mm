@@ -20,7 +20,7 @@
 @property (nonatomic) id <MTLBuffer> mtlBuffer0;
 @property (nonatomic) id <MTLBuffer> mtlBuffer1;
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> quadEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
@@ -86,10 +86,10 @@
     descriptor.label = @"edges";
     self.edgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_vertex_main"];
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_fragment_main"];
-    descriptor.label = @"fast edges";
-    self.fastEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_fragment_main"];
+    descriptor.label = @"quad edges";
+    self.quadEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
 
@@ -182,13 +182,13 @@
                                   baseInstance:0];
                 break;
             case Ra::Buffer::kEdges:
-            case Ra::Buffer::kFastEdges:
+            case Ra::Buffer::kQuadEdges:
                 if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
                 } else
-                    [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
+                    [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
@@ -205,7 +205,7 @@
                                      instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Edge)
                                       baseInstance:0];
                 }
-                if (entry.type == Ra::Buffer::kFastEdges) {
+                if (entry.type == Ra::Buffer::kQuadEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }

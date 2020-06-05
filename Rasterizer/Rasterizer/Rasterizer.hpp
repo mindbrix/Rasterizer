@@ -429,7 +429,7 @@ struct Rasterizer {
     };
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
-        enum Type { kEdges, kFastEdges, kOpaques, kInstances };
+        enum Type { kEdges, kQuadEdges, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end), segments(0), points(0), cells(0) {}
             Type type;
@@ -1034,7 +1034,7 @@ struct Rasterizer {
                 }
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
-                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
                     entries.back().segments = segbase, entries.back().cells = cellbase, entries.back().points = pointsbase;
                 }
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
