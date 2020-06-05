@@ -152,6 +152,48 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 
 #pragma mark - Fast Edges
 
+struct FastEdgesVertex
+{
+    float4 position [[position]];
+    float f0, f1, f2, f3;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
+};
+
+vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]],
+                                const device Segment *segments [[buffer(2)]],
+                                const device EdgeCell *edgeCells [[buffer(3)]],
+                                const device Transform *affineTransforms [[buffer(4)]],
+                                const device Bounds *bounds [[buffer(7)]],
+                                const device Point16 *points [[buffer(8)]],
+                                constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                constant bool *useCurves [[buffer(14)]],
+                                uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    FastEdgesVertex vert;
+    
+    const device Edge& edge = edges[iid];
+    const device EdgeCell& edgeCell = edgeCells[edge.ic];
+    const device Cell& cell = edgeCell.cell;
+    const device Transform& m = affineTransforms[edgeCell.iz];
+    thread float *dst = & vert.x0;
+    const device Point16 *pts = & points[edgeCell.base + edge.i0];
+    int i, curve;
+    float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
+    if (visible) {
+    }
+    return vert;
+}
+
+fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
+{
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1)
+    + winding(vert.x1, vert.y1, vert.x2, vert.y2)
+    + winding(vert.x2, vert.y2, vert.x3, vert.y3)
+    + winding(vert.x3, vert.y3, vert.x4, vert.y4);
+}
+
+#pragma mark - Quad Edges
+
 struct QuadEdgesVertex
 {
     float4 position [[position]];
