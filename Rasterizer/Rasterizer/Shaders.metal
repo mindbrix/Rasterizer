@@ -70,6 +70,15 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
+float winding(float x0, float y0, float x1, float y1, float f) {
+    float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
+    if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
+        return cover;
+    float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
+    float t = -a0 / fma(abs(dx), cover, dy);
+    return saturate((t - 0.5) * f + 0.5) * cover;
+}
+
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float cover, dx, dy, a0, t, a, b;
     cover = w1 - w0, dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
@@ -186,10 +195,10 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
-    return winding(vert.x0, vert.y0, vert.x1, vert.y1)
-    + winding(vert.x1, vert.y1, vert.x2, vert.y2)
-    + winding(vert.x2, vert.y2, vert.x3, vert.y3)
-    + winding(vert.x3, vert.y3, vert.x4, vert.y4);
+    return winding(vert.x0, vert.y0, vert.x1, vert.y1, vert.f0)
+    + winding(vert.x1, vert.y1, vert.x2, vert.y2, vert.f1)
+    + winding(vert.x2, vert.y2, vert.x3, vert.y3, vert.f2)
+    + winding(vert.x3, vert.y3, vert.x4, vert.y4, vert.f3);
 }
 
 #pragma mark - Quad Edges
