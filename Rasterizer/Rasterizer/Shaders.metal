@@ -294,8 +294,8 @@ vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(
     }
     float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
     float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
-    float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
+    float x = (cell.ox - cell.lx + ox) / *width * 2.0 - 1.0, tx = 0.5 - ox;
+    float y = (cell.oy - cell.ly + oy) / *height * 2.0 - 1.0, ty = 0.5 - oy;
     vert.position = float4(x, y, 1.0, visible);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
