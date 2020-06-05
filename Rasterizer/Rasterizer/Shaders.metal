@@ -184,11 +184,35 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     const device Cell& cell = edgeCell.cell;
     const device Transform& m = affineTransforms[edgeCell.iz];
     thread float *dst = & vert.x0;
+    thread float *fs = & vert.f0;
     const device Point16 *pts = & points[edgeCell.base + edge.i0];
-    int i, curve;
-    float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
-    if (visible) {
-    }
+    int i;
+    if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
+        const device Bounds& b = bounds[edgeCell.iz];
+        float _tx, _ty, ma, mb, mc, md, x16, y16, x0, y0, x1, y1;
+        _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
+        ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
+        mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
+        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+        *dst++ = x0 = x1 = x16 * ma + y16 * mc + _tx, *dst++ = y0 = y1 = x16 * mb + y16 * md + _ty;
+        float slx = x0, sly = y0, suy = y0, dx, dy, fa, fb;
+        for (i = 0; i < kFastSegments; i++, x0 = x1, y0 = y1) {
+            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+            *dst++ = x1 = x16 * ma + y16 * mc + _tx, *dst++ = y1 = x16 * mb + y16 * md + _ty;
+            dx = abs(x1 - x0), dy = abs(y1 - y0);
+            fa = min(dx, dy) * 0.4142135624, fb = max(dx, dy);
+            *fs++ = fb / (fb - fa);
+            slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
+        }
+        float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
+        float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
+        float x = (cell.ox - cell.lx + ox) / *width * 2.0 - 1.0, tx = 0.5 - ox;
+        float y = (cell.oy - cell.ly + oy) / *height * 2.0 - 1.0, ty = 0.5 - oy;
+        vert.position = float4(x, y, 1.0, 1.0);
+        for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
+            dst[0] += tx, dst[1] += ty;
+    } else
+        vert.position = float4(0.0, 0.0, 1.0, 0.0);
     return vert;
 }
 
