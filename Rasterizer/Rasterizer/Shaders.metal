@@ -75,8 +75,7 @@ float fastWinding(float x0, float y0, float x1, float y1, float f) {
     if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0))
         return cover;
     float dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
-    float t = -a0 / fma(abs(dx), cover, dy);
-    return saturate((t - 0.5) * f + 0.5) * cover;
+    return saturate((-a0 / fma(abs(dx), cover, dy) - 0.5) * f + 0.5) * cover;
 }
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
