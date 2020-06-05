@@ -365,16 +365,14 @@ struct Rasterizer {
                 width = w, height = h, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
             Cell allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t cells, size_t edgeInstances, size_t fastInstances) {
-                float w = ux - lx, h = uy - ly;
+                float w = ux - lx, h = uy - ly, hght;  Bounds *b;
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
-                Bounds *b = & strip;
-                float hght = kfh;
-                if (h > kfh) {
-                    if (h > kFastHeight)
-                        b = & molecules, hght = kMoleculesHeight;
-                    else
-                        b = & fast, hght = kFastHeight;
-                }
+                if (h <= kfh)
+                    b = & strip, hght = kfh;
+                else if (h <- kFastHeight)
+                    b = & fast, hght = kFastHeight;
+                else
+                    b = & molecules, hght = kMoleculesHeight;
                 if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < hght) {
                         pass = sheet.ux == 0.f ? pass : new (passes.alloc(1)) Pass(idx);
