@@ -937,9 +937,9 @@ struct Rasterizer {
                 for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf(winding - roundf(winding)) < 1e-3f) {
                         if (lx != ux) {
-                            GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
-                            inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
+                            inst->quad.cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, 1, (i - begin + 1) / 2, 0);
+                            inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque) {
@@ -957,9 +957,9 @@ struct Rasterizer {
                     ux = _ux > ux ? _ux : ux, winding += uxcover[1] * 0.00003051850948f;
                 }
                 if (lx != ux) {
-                    GPU::Cell cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end, 1, (i - begin + 1) / 2, 0);
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0));
-                    inst->quad.cell = cell, inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
+                    inst->quad.cell = gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, 1, (i - begin + 1) / 2, 0);
+                    inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                 }
             }
         }
