@@ -309,7 +309,7 @@ vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(
 
 fragment float4 quad_edges_fragment_main(QuadEdgesVertex vert [[stage_in]])
 {
-    return 0.2;
+//    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
     + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
     + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
