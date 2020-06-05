@@ -382,7 +382,7 @@ struct Rasterizer {
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
-                Cell cell(lx, ly, lx + w, uy, b->lx, b->ly);
+                Cell cell(lx, ly, ux, uy, b->lx, b->ly);
                 b->lx += w, pass->cells += cells, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastInstances += fastInstances;
                 return cell;
             }
