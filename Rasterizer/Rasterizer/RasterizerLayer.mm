@@ -188,6 +188,7 @@
                                   baseInstance:0];
                 break;
             case Ra::Buffer::kEdges:
+            case Ra::Buffer::kFastEdges:
             case Ra::Buffer::kQuadEdges:
                 if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
