@@ -359,7 +359,7 @@ struct Rasterizer {
         struct Allocator {
             struct Pass {
                 Pass(size_t idx) : li(idx), ui(idx) {}
-                size_t cells = 0, edgeInstances = 0, fastInstances = 0, li, ui;
+                size_t cells = 0, edgeInstances = 0, quadInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
                 full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
@@ -381,7 +381,7 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly);
-                b->lx += w, pass->cells += cells, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastInstances += fastInstances;
+                b->lx += w, pass->cells += cells, pass->ui++, pass->edgeInstances += edgeInstances, pass->quadInstances += fastInstances;
             }
             inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
@@ -986,7 +986,7 @@ struct Rasterizer {
             begins[i] = size;
             GPU& gpu = contexts[i].gpu;
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].fastInstances;
+                cells += gpu.allocator.passes.base[j].cells, instances += gpu.allocator.passes.base[j].edgeInstances, instances += gpu.allocator.passes.base[j].quadInstances;
             size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             Scene::Cache *cache;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
@@ -1030,7 +1030,7 @@ struct Rasterizer {
                 }
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells) {
-                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge)), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadInstances * sizeof(GPU::Edge)), begin = entries.back().end;
                     entries.back().segments = segbase, entries.back().cells = cellbase, entries.back().points = pointsbase;
                 }
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
