@@ -471,7 +471,7 @@ struct Rasterizer {
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, float outlineWidth, Buffer *buffer) {
-            size_t lz, uz, i, clz, cuz, iz, is, ip;  Scene *scene;
+            size_t lz, uz, i, clz, cuz, iz, is, ip, count;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
                 if ((clz = lz < gpu.slz ? gpu.slz : lz > gpu.suz ? gpu.suz : lz) != (cuz = uz < gpu.slz ? gpu.slz : uz > gpu.suz ? gpu.suz : uz)) {
@@ -488,9 +488,11 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
-                                ip = scene->cache->ips.base[is], gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
-                                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight ? GPU::Instance::kFastEdges : 0));
-                                 gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, 0, scene->cache->entries.base[ip].size / kFastSegments, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                ip = scene->cache->ips.base[is], count = scene->cache->entries.base[ip].size / kFastSegments;
+                                gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
+                                bool fast = false;// clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
+                                GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
+                                 gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, fast ? count : 0, !fast ? count : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
                                 Bounds clu = Bounds(inv.concat(unit));
                                 bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
