@@ -1050,11 +1050,13 @@ struct Rasterizer {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
+                            GPU::Edge *edge = inst->iz & GPU::Instance::kFastEdges ? fast : quad;
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                quad->ic = uint32_t(ic), quad->i0 = j, quad->ux = ux, quad++;
+                                edge->ic = uint32_t(ic), edge->i0 = j, edge->ux = ux, edge++;
                             }
+                            *(inst->iz & GPU::Instance::kFastEdges ? & fast : & quad) = edge;
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
