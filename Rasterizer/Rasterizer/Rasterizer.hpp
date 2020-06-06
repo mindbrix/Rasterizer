@@ -481,7 +481,7 @@ struct Rasterizer {
                         if (scene->flags[is] & Scene::Flags::kInvisible)
                             continue;
                         Transform m = ctm.concat(scene->ctms[is]);
-                        float det = fabsf(m.det()), ws = sqrtf(det), w = scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
+                        float det = fabsf(m.det()), ws = sqrtf(det), w = scene->widths[is], width = w < 0.f ? -w : w * ws, uw = w < 0.f ? -w / ws : w;
                         Transform unit = scene->b[is].inset(-uw, -uw).unit(m);
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
