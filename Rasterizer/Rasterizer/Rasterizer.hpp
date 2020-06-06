@@ -1026,7 +1026,7 @@ struct Rasterizer {
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase), begin = entries.back().end;
-                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
+                GPU::Edge *quad = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
                     entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase), begin = entries.back().end;
             
@@ -1050,7 +1050,7 @@ struct Rasterizer {
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                fast->ic = uint32_t(ic), fast->i0 = j, fast->ux = ux, fast++;
+                                quad->ic = uint32_t(ic), quad->i0 = j, quad->ux = ux, quad++;
                             }
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
