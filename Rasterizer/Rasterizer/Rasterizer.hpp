@@ -489,7 +489,7 @@ struct Rasterizer {
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                                 ip = scene->cache->ips.base[is], count = scene->cache->entries.base[ip].size / kFastSegments;
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
-                                bool fast = false;// clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
+                                bool fast = clip.uy - clip.ly <= kFastHeight && clip.ux - clip.lx <= kFastHeight;
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
                                  gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 1, 0, fast ? count : 0, !fast ? count : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
