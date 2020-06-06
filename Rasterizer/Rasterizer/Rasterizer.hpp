@@ -481,7 +481,7 @@ struct Rasterizer {
                         if (scene->flags[is] & Scene::Flags::kInvisible)
                             continue;
                         Transform m = ctm.concat(scene->ctms[is]);
-                        float ws = sqrtf(fabsf(m.det())), w = scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
+                        float det = fabsf(m.det()), ws = sqrtf(det), w = scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
                         Transform unit = scene->b[is].inset(-uw, -uw).unit(m);
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
@@ -489,7 +489,7 @@ struct Rasterizer {
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                                 ip = scene->cache->ips.base[is], count = scene->cache->entries.base[ip].size / kFastSegments;
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
-                                bool fast = fabsf(m.det()) * scene->cache->entries.base[ip].maxDot < 16.f;
+                                bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                                 if (fast)
                                     colors[iz] = Colorant(0, 0, 255, 255);
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
