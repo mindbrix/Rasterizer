@@ -194,8 +194,10 @@
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                } else
+                } else if (entry.type == Ra::Buffer::kFastEdges)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
+                else
+                    [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
