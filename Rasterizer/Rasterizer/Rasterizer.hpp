@@ -145,13 +145,13 @@ struct Rasterizer {
             for (int i = 0; i < size; i++)
                 *(types.alloc(1)) = type;
             if (type == kQuadratic) {
-                float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3];
-                quadraticSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay)));
+                float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3], dot = ax * ax + ay * ay;
+                quadraticSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             } else if (type == kCubic) {
-                float *c = p - 2, cx, bx, ax, cy, by, ay;
+                float *c = p - 2, cx, bx, ax, cy, by, ay, dot;
                 cx = 3.f * (c[2] - c[0]), bx = 3.f * (c[4] - c[2]) - cx, ax = c[6] - c[0] - cx - bx;
                 cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
-                cubicSums += ceilf(sqrtf(sqrtf(ax * ax + ay * ay + bx * bx + by * by)));
+                dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
             while (size--)
                 bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
@@ -246,7 +246,7 @@ struct Rasterizer {
         size_t refCount = 0, quadraticSums = 0, cubicSums = 0, crc = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, minUpper = 0;
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
-        float px = 0.f, py = 0.f, x1 = 0.f, y1 = 0.f;
+        float px = 0.f, py = 0.f, x1 = 0.f, y1 = 0.f, maxDot = 0.f;
         Bounds bounds;
     };
     typedef Ref<Geometry> Path;
