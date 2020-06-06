@@ -1026,6 +1026,9 @@ struct Rasterizer {
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase), begin = entries.back().end;
+                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
+                if (pass->cells)
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase), begin = entries.back().end;
                 GPU::Edge *quad = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
                     entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase), begin = entries.back().end;
