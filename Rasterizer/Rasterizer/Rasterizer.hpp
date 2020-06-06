@@ -265,8 +265,8 @@ struct Rasterizer {
     struct Scene {
         struct Cache {
             struct Entry {
-                Entry(size_t size, bool hasMolecules, float maxDot, bool isFast, float *mols, uint16_t *p16s, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), maxDot(maxDot), isFast(isFast), mols(mols), p16s(p16s), p16end(p16end) {}
-                size_t size;  bool hasMolecules;  float maxDot;  bool isFast;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
+                Entry(size_t size, bool hasMolecules, float maxDot, float *mols, uint16_t *p16s, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), maxDot(maxDot), mols(mols), p16s(p16s), p16end(p16end) {}
+                size_t size;  bool hasMolecules;  float maxDot;;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
             };
             size_t refCount = 0;
             Row<uint32_t> ips;  Row<Entry> entries;
@@ -290,7 +290,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.idx, path->molecules.end > 1, path->maxDot, path->counts[Geometry::kQuadratic] == 0 && path->counts[Geometry::kCubic] == 0, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
+                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.idx, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
