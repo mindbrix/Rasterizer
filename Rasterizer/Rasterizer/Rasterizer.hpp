@@ -469,7 +469,7 @@ struct Rasterizer {
             gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
-        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, float outlineWidth, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, count;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
@@ -481,7 +481,7 @@ struct Rasterizer {
                         if (scene->flags[is] & Scene::Flags::kInvisible)
                             continue;
                         Transform m = ctm.concat(scene->ctms[is]);
-                        float ws = sqrtf(fabsf(m.det())), w = outlineWidth ?: scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
+                        float ws = sqrtf(fabsf(m.det())), w = scene->widths[is], width = w * (w < 0.f ? -1.f : ws), uw = w < 0.f ? -w / ws : w;
                         Transform unit = scene->b[is].inset(-uw, -uw).unit(m);
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {

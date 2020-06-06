@@ -224,7 +224,9 @@ struct RasterizerTest {
                 dstCtms[j] = m.concat(rst, cx, cy);
             }
         }
-        if (ftime == 0.f)
+        if (state.outlineWidth)
+            memset_pattern4(dstWidths, & state.outlineWidth, count * sizeof(srcWidths[0]));
+        else if (ftime == 0.f)
             memcpy(dstWidths, srcWidths, count * sizeof(srcWidths[0]));
         else
             for (int j = 0; j < count; j++)
