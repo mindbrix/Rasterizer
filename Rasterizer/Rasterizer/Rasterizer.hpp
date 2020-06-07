@@ -970,15 +970,15 @@ struct Rasterizer {
         }
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, cells, instances, lz, puz, ip;
+        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances, lz, puz, ip;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
             begins[i] = size;
             GPU& gpu = contexts[i].gpu;  GPU::Allocator::Pass *pass = gpu.allocator.passes.base;
-            for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                cells += pass[j].cells, instances += pass[j].edgeInstances + pass[j].fastInstances + pass[j].quadInstances;
-            size += instances * sizeof(GPU::Edge) + cells * 0 + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
+            for (instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
+                instances += pass[j].edgeInstances + pass[j].fastInstances + pass[j].quadInstances;
+            size += instances * sizeof(GPU::Edge) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             Scene::Cache *cache;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
                 for (cache = list.scenes[j].cache.ref, puz = cache->entries.end, ip = 0; ip < puz; ip++)
