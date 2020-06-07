@@ -202,12 +202,12 @@ struct Rasterizer {
                 quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
             else {
                 float *pts = points.alloc(6);
+                float cx, bx, ax, cy, by, ay, dot;
+                cx = 3.f * (cx0 - px), bx = 3.f * (cx1 - cx0) - cx, ax = x - px - cx - bx;
+                cy = 3.f * (cy0 - py), by = 3.f * (cy1 - cy0) - cy, ay = y - py - cy - by;
+                dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
                 pts[0] = cx0, pts[1] = cy0, pts[2] = cx1, pts[3] = cy1, px = pts[4] = x, py = pts[5] = y;
                 update(kCubic, 3, pts);
-                float *c = pts - 2, cx, bx, ax, cy, by, ay, dot;
-                cx = 3.f * (c[2] - c[0]), bx = 3.f * (c[4] - c[2]) - cx, ax = c[6] - c[0] - cx - bx;
-                cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
-                dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
         }
         void close() {
