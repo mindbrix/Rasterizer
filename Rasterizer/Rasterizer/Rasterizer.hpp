@@ -183,7 +183,7 @@ struct Rasterizer {
             }
         }
         void quadTo(float cx, float cy, float x, float y) {
-            float ax = cx - px, ay = cy - py, bx = x - cx, by = y - cy, det = ax * by - ay * bx, dot = ax * bx + ay * by;
+            float ax = x - cx, ay = y - cy, bx = cx - px, by = cy - py, det = bx * ay - by * ax, dot = ax * bx + ay * by;
             if (fabsf(det) < 1e-2f) {
                 if (dot < 0.f && det)
                     lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
@@ -192,7 +192,7 @@ struct Rasterizer {
                 float *pts = points.alloc(4);
                 pts[0] = cx, pts[1] = cy, px = pts[2] = x, py = pts[3] = y;
                 update(kQuadratic, 2, pts);
-                float *q = pts - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3], dot = ax * ax + ay * ay;
+                ax -= bx, ay -= by, dot = ax * ax + ay * ay;
                 quadraticSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
         }
