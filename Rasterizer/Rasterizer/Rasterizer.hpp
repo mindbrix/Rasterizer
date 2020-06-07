@@ -1055,6 +1055,7 @@ struct Rasterizer {
                             cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
+                            ic = dst - dst0 - 1;
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             for (; is < eis; is++, edge++) {
