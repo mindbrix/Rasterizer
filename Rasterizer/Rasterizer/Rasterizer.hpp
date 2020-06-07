@@ -419,8 +419,8 @@ struct Rasterizer {
         static constexpr size_t kPageSize = 4096;
         enum Type { kEdges, kFastEdges, kQuadEdges, kOpaques, kInstances };
         struct Entry {
-            Entry(Type type, size_t begin, size_t end, size_t segments = 0, size_t points = 0, size_t cells = 0, size_t instbase = 0) : type(type), begin(begin), end(end), segments(segments), points(points), cells(cells), instbase(instbase) {}
-            Type type;  size_t begin, end, segments, points, cells, instbase;
+            Entry(Type type, size_t begin, size_t end, size_t segments = 0, size_t points = 0, size_t instbase = 0) : type(type), begin(begin), end(end), segments(segments), points(points), instbase(instbase) {}
+            Type type;  size_t begin, end, segments, points, instbase;
         };
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
@@ -996,7 +996,7 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0, instbase = 0;
+        size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, pointsbase = 0, instbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
@@ -1011,17 +1011,16 @@ struct Rasterizer {
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
-                cellbase = begin, begin = begin + pass->cells * 0;
                 instbase = begin + (pass->edgeInstances + pass->fastInstances + pass->quadInstances) * sizeof(GPU::Edge);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
-                    entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
-                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *quad = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
-                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
             
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
