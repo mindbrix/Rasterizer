@@ -1015,7 +1015,6 @@ struct Rasterizer {
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
-                GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
                 cellbase = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
                 instbase = begin + (pass->edgeInstances + pass->fastInstances + pass->quadInstances) * sizeof(GPU::Edge);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
@@ -1040,8 +1039,7 @@ struct Rasterizer {
                         *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
-                            ip = cache->ips.base[is], ic = cell - c0;
-                            ic = dst - dst0 - 1;
+                            ip = cache->ips.base[is], ic = dst - dst0 - 1;
                             dst[-1].quad.base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
                             Scene::Cache::Entry *entry = & cache->entries.base[ip];
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
@@ -1054,9 +1052,7 @@ struct Rasterizer {
                                 edge->ic = uint32_t(ic), edge->i0 = j, edge->ux = ux, edge++;
                             }
                             *(inst->iz & GPU::Instance::kFastEdges ? & fast : & quad) = edge;
-                            cell->cell = inst->quad.cell, cell->iz = uint32_t(iz), cell->base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]), cell++;
                         } else if (inst->iz & GPU::Instance::kEdge) {
-                            cell->cell = inst->quad.cell, cell->iz = kNullIndex, cell->base = uint32_t(inst->quad.base), ic = cell - c0, cell++;
                             ic = dst - dst0 - 1;
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
