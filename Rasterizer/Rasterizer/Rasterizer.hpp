@@ -1000,7 +1000,7 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
-        size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0;
+        size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, cellbase = 0, pointsbase = 0, instbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.ptotal) {
                 memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
@@ -1017,7 +1017,7 @@ struct Rasterizer {
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
                 GPU::EdgeCell *cell = (GPU::EdgeCell *)(buffer.base + begin), *c0 = cell;
                 cellbase = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
-                
+                instbase = begin + (pass->edgeInstances + pass->fastInstances + pass->quadInstances) * sizeof(GPU::Edge);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, cellbase), begin = entries.back().end;
