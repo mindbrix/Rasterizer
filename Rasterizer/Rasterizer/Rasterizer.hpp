@@ -438,7 +438,7 @@ struct Rasterizer {
             colors = 0, transforms = colors + szcolors, clips = transforms + sztransforms, widths = clips + sztransforms, bounds = widths + szwidths;
             resize(headerSize);
         }
-        uint8_t *resize(size_t n, size_t copySize = 0) {
+        void resize(size_t n, size_t copySize = 0) {
             size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
             if (size < allocation) {
                 size = allocation;
@@ -452,7 +452,6 @@ struct Rasterizer {
                 if (copy)
                     memcpy(base, copy, copySize), free(copy);
             }
-            return base;
         }
         uint8_t *base = nullptr;
         Row<Entry> entries;
