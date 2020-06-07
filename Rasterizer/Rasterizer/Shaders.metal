@@ -50,10 +50,6 @@ struct Instance {
     union { Quad quad;  Outline outline; };
     uint32_t iz;
 };
-struct EdgeCell {
-    Cell cell;
-    uint32_t iz, base;
-};
 struct Edge {
     enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
     uint32_t ic;

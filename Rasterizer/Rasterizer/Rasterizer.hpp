@@ -402,10 +402,6 @@ struct Rasterizer {
             union { Quad quad;  Outline outline; };
             uint32_t iz;
         };
-        struct EdgeCell {
-            Cell cell;
-            uint32_t iz, base;
-        };
         struct Edge {
             enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
             uint32_t ic;
@@ -982,7 +978,7 @@ struct Rasterizer {
             GPU& gpu = contexts[i].gpu;  GPU::Allocator::Pass *pass = gpu.allocator.passes.base;
             for (cells = 0, instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 cells += pass[j].cells, instances += pass[j].edgeInstances + pass[j].fastInstances + pass[j].quadInstances;
-            size += instances * sizeof(GPU::Edge) + cells * sizeof(GPU::EdgeCell) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
+            size += instances * sizeof(GPU::Edge) + cells * 0 + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             Scene::Cache *cache;
             for (gpu.ptotal = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
                 for (cache = list.scenes[j].cache.ref, puz = cache->entries.end, ip = 0; ip < puz; ip++)
@@ -1015,7 +1011,7 @@ struct Rasterizer {
                 pointsbase = begin, begin += ctx->gpu.ptotal * sizeof(Point);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
-                cellbase = begin, begin = begin + pass->cells * sizeof(GPU::EdgeCell);
+                cellbase = begin, begin = begin + pass->cells * 0;
                 instbase = begin + (pass->edgeInstances + pass->fastInstances + pass->quadInstances) * sizeof(GPU::Edge);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (pass->cells)
