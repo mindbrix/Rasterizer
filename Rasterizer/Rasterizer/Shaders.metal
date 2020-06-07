@@ -182,14 +182,14 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     FastEdgesVertex vert;
     
     const device Edge& edge = edges[iid];
-    const device EdgeCell& edgeCell = edgeCells[edge.ic];
-    const device Cell& cell = edgeCell.cell;
-    const device Transform& m = affineTransforms[edgeCell.iz];
+    const device Instance& inst = instances[edge.ic & Edge::kMask];
+    const device Cell& cell = inst.quad.cell;
+    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
-    const device Point16 *pts = & points[edgeCell.base + edge.i0];
     int i;
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
-        const device Bounds& b = bounds[edgeCell.iz];
         float _tx, _ty, ma, mb, mc, md, x16, y16, x0, y0, x1, y1;
         _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
@@ -249,15 +249,15 @@ vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(
     QuadEdgesVertex vert;
     
     const device Edge& edge = edges[iid];
-    const device EdgeCell& edgeCell = edgeCells[edge.ic];
-    const device Cell& cell = edgeCell.cell;
-    const device Transform& m = affineTransforms[edgeCell.iz];
+    const device Instance& inst = instances[edge.ic & Edge::kMask];
+    const device Cell& cell = inst.quad.cell;
+    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
-    const device Point16 *pts = & points[edgeCell.base + edge.i0];
     int i, curve;
     float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
-        const device Bounds& b = bounds[edgeCell.iz];
         float tx, ty, ma, mb, mc, md, x, y, x0, y0, x1, y1, cpx, cpy;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;

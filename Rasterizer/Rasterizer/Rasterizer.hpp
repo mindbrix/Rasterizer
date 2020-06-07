@@ -1041,6 +1041,8 @@ struct Rasterizer {
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
                             ip = cache->ips.base[is], ic = cell - c0;
+                            ic = dst - dst0 - 1;
+                            dst[-1].quad.base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
                             Scene::Cache::Entry *entry = & cache->entries.base[ip];
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
