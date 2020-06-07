@@ -201,7 +201,6 @@
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.cells atIndex:3];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->transforms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];

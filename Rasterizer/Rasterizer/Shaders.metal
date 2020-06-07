@@ -170,7 +170,6 @@ struct FastEdgesVertex
 
 vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device EdgeCell *edgeCells [[buffer(3)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device Bounds *bounds [[buffer(7)]],
@@ -237,7 +236,6 @@ struct QuadEdgesVertex
 
 vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device EdgeCell *edgeCells [[buffer(3)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device Bounds *bounds [[buffer(7)]],
@@ -330,7 +328,6 @@ struct EdgesVertex
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Segment *segments [[buffer(2)]],
-                                     const device EdgeCell *edgeCells [[buffer(3)]],
                                      const device Transform *affineTransforms [[buffer(4)]],
                                      const device Instance *instances [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
