@@ -262,7 +262,7 @@ struct Rasterizer {
         struct Cache {
             struct Entry {
                 Entry(size_t size, bool hasMolecules, float maxDot, float *mols, uint16_t *p16s, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), maxDot(maxDot), mols(mols), p16s(p16s), p16end(p16end) {}
-                size_t size;  bool hasMolecules;  float maxDot;;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
+                size_t size;  bool hasMolecules;  float maxDot;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
             };
             size_t refCount = 0;
             Row<uint32_t> ips;  Row<Entry> entries;
