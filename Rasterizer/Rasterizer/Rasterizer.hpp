@@ -142,19 +142,9 @@ struct Rasterizer {
         }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
-            for (int i = 0; i < size; i++)
-                *(types.alloc(1)) = type;
-            if (type == kQuadratic) {
-                float *q = p - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3], dot = ax * ax + ay * ay;
-                quadraticSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
-            } else if (type == kCubic) {
-                float *c = p - 2, cx, bx, ax, cy, by, ay, dot;
-                cx = 3.f * (c[2] - c[0]), bx = 3.f * (c[4] - c[2]) - cx, ax = c[6] - c[0] - cx - bx;
-                cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
-                dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
-            }
-            while (size--)
-                bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]), p += 2;
+            uint8_t *tp = types.alloc(size);
+            for (int i = 0; i < size; i++, p += 2)
+                tp[i] = type, bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]);
         }
         size_t upperBound(float det) {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
@@ -202,6 +192,8 @@ struct Rasterizer {
                 float *pts = points.alloc(4);
                 pts[0] = cx, pts[1] = cy, px = pts[2] = x, py = pts[3] = y;
                 update(kQuadratic, 2, pts);
+                float *q = pts - 2, ax = q[0] + q[4] - q[2] - q[2], ay = q[1] + q[5] - q[3] - q[3], dot = ax * ax + ay * ay;
+                quadraticSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
         }
         void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
@@ -212,6 +204,10 @@ struct Rasterizer {
                 float *pts = points.alloc(6);
                 pts[0] = cx0, pts[1] = cy0, pts[2] = cx1, pts[3] = cy1, px = pts[4] = x, py = pts[5] = y;
                 update(kCubic, 3, pts);
+                float *c = pts - 2, cx, bx, ax, cy, by, ay, dot;
+                cx = 3.f * (c[2] - c[0]), bx = 3.f * (c[4] - c[2]) - cx, ax = c[6] - c[0] - cx - bx;
+                cy = 3.f * (c[3] - c[1]), by = 3.f * (c[5] - c[3]) - cy, ay = c[7] - c[1] - cy - by;
+                dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
         }
         void close() {
