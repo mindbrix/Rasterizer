@@ -1031,10 +1031,10 @@ struct Rasterizer {
                         writePath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::writeInstance);
                         dst = info.dst, ctms[iz] = Transform();
                     } else {
-                        *dst++ = *inst;
+                        ic = dst - dst0, *dst++ = *inst;
                         if (inst->iz & GPU::Instance::kMolecule) {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
-                            ip = cache->ips.base[is], ic = dst - dst0 - 1;
+                            ip = cache->ips.base[is];
                             dst[-1].quad.base = uint32_t(ctx->gpu.fasts.base[inst->quad.iy + ip]);
                             Scene::Cache::Entry *entry = & cache->entries.base[ip];
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
@@ -1048,7 +1048,6 @@ struct Rasterizer {
                             }
                             *(inst->iz & GPU::Instance::kFastEdges ? & fast : & quad) = edge;
                         } else if (inst->iz & GPU::Instance::kEdge) {
-                            ic = dst - dst0 - 1;
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             for (; is < eis; is++, edge++) {
