@@ -282,11 +282,11 @@ struct Rasterizer {
                 if (it != cache->map.end())
                     *(cache->ips.alloc(1)) = uint32_t(it->second);
                 else {
-                    if (path->p16s.idx == 0) {
+                    if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.idx, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
+                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
