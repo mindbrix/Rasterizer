@@ -407,9 +407,8 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, ux;
         };
-        void empty() { zero(), blends.empty(), fasts.empty(), opaques.empty(); }
-        void reset() { zero(), blends.reset(), fasts.reset(), opaques.reset(); }
-        void zero() { outlinePaths = outlineUpper = 0; }
+        void empty() { outlinePaths = outlineUpper = 0, blends.empty(), fasts.empty(), opaques.empty(); }
+        void reset() { outlinePaths = outlineUpper = 0, blends.reset(), fasts.reset(), opaques.reset(); }
         size_t outlinePaths = 0, outlineUpper = 0, slz, suz, ptotal;
         Allocator allocator;
         Row<uint32_t> fasts;
