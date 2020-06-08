@@ -425,9 +425,9 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
             this->pathsCount = pathsCount;
-            size_t szcolors = pathsCount * sizeof(Colorant), sztransforms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds);
-            headerSize = szcolors + 2 * sztransforms + szwidths + szbounds;
-            colors = 0, transforms = colors + szcolors, clips = transforms + sztransforms, widths = clips + sztransforms, bounds = widths + szwidths;
+            size_t szcolors = pathsCount * sizeof(Colorant), szctms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds);
+            headerSize = szcolors + 2 * szctms + szwidths + szbounds;
+            colors = 0, ctms = colors + szcolors, clips = ctms + szctms, widths = clips + szctms, bounds = widths + szwidths;
             resize(headerSize);
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -449,7 +449,7 @@ struct Rasterizer {
         Row<Entry> entries;
         bool useCurves = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, transforms, clips, widths, bounds, sceneCount, tick, pathsCount, headerSize, size = 0;
+        size_t colors, ctms, clips, widths, bounds, sceneCount, tick, pathsCount, headerSize, size = 0;
     };
     struct Context {
         void prepare(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
@@ -995,7 +995,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
-        Transform *ctms = (Transform *)(buffer.base + buffer.transforms);
+        Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->gpu.slz != ctx->gpu.suz) {
             if (ctx->segments.end || ctx->gpu.ptotal) {

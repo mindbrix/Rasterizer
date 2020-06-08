@@ -33,7 +33,7 @@ struct RasterizerRenderer {
         buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves;
         ti->context = contexts, ti->list = & list, ti->state = & state, ti->buffer = buffer;
         ti->idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
-        ti->ctms = (Ra::Transform *)(buffer->base + buffer->transforms);
+        ti->ctms = (Ra::Transform *)(buffer->base + buffer->ctms);
         ti->clips = (Ra::Transform *)(buffer->base + buffer->clips);
         ti->colors = (Ra::Colorant *)(buffer->base + buffer->colors);
         ti->widths = (float *)(buffer->base + buffer->widths),

@@ -201,7 +201,7 @@
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->transforms atIndex:4];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.points atIndex:8];
@@ -224,7 +224,7 @@
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->transforms atIndex:4];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
