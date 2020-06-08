@@ -1049,9 +1049,9 @@ struct Rasterizer {
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
                             for (; is < eis; is++, edge++) {
-                                uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a0), edge->i0 = uint16_t(uxc[2]);
+                                uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | GPU::Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
                                 if (++is < eis)
-                                    uxc = uxcovers + is->i * 3, edge->ic |= (bool(uint16_t(uxc[0]) & CurveIndexer::Flags::a) * GPU::Edge::a1), edge->ux = uint16_t(uxc[2]);
+                                    uxc = uxcovers + is->i * 3, edge->ic |= GPU::Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
                                 else
                                     edge->ux = kNullIndex;
                             }
