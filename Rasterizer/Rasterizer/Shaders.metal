@@ -397,7 +397,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 
 fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return 0.0 + quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2, vert.a0, vert.iy0)
+    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2, vert.a0, vert.iy0)
         + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5, vert.a1, vert.iy1);
 }
 
