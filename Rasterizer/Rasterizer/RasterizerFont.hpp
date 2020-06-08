@@ -107,7 +107,7 @@ struct RasterizerFont {
     
     static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
         if (font.isEmpty() || str == nullptr)
-            return Ra::Bounds::zero();
+            return { 0.f, 0.f, 0.f, 0.f };
         Ra::Bounds glyphBounds;
         int i, j, begin, step, len, codepoint, glyph, l0, l1;
         const char nl = '\n', sp = ' ', tab = '\t';

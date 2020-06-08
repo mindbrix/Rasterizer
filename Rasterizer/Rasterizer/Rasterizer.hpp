@@ -45,7 +45,6 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
-        static inline Bounds zero() { return { 0.f, 0.f, 0.f, 0.f }; }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         Bounds(Transform t) :
@@ -358,7 +357,7 @@ struct Rasterizer {
                 size_t edgeInstances = 0, fastInstances = 0, quadInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
-                full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds::zero(), passes.empty();
+                full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
             void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t edgeInstances, size_t fastInstances, size_t quadInstances, Cell *cell) {
                 float w = ux - lx, h = uy - ly, hght;  Bounds *b;
@@ -372,7 +371,7 @@ struct Rasterizer {
                 if (b->ux - b->lx < w) {
                     if (sheet.uy - sheet.ly < hght) {
                         pass = sheet.ux == 0.f ? pass : new (passes.alloc(1)) Pass(idx);
-                        sheet = full, strip = fast = molecules = Bounds::zero();
+                        sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
                     }
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
