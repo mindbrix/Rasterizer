@@ -283,7 +283,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        writePath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, writeQuadratic, writeCubic, kQuadraticScale, kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
                     }
                     new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
@@ -786,7 +786,7 @@ struct Rasterizer {
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         a = s * (ax * ax + ay * ay + bx * bx + by * by);
-        count = a < s ? 1.f : 2.f + floorf(sqrtf(sqrtf(a)));
+        count = a < 0.1f ? 1.f : 2.f + floorf(sqrtf(sqrtf(a)));
         dt = 1.f / count, dt2 = dt * dt;
         bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
         by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
