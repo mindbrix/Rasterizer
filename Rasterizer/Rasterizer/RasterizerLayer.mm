@@ -20,6 +20,7 @@
 @property (nonatomic) id <MTLBuffer> mtlBuffer0;
 @property (nonatomic) id <MTLBuffer> mtlBuffer1;
 @property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> fastWindingEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
@@ -86,7 +87,9 @@
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"edges_fragment_main"];
     descriptor.label = @"edges";
     self.edgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fastWinding_edges_fragment_main"];
+    descriptor.label = @"fastWinding edges";
+    self.fastWindingEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_fragment_main"];
     descriptor.label = @"fast edges";
@@ -193,7 +196,7 @@
                 if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
-                    [commandEncoder setRenderPipelineState:_edgesPipelineState];
+                    [commandEncoder setRenderPipelineState:buffer->useCurves ? _edgesPipelineState : _fastWindingEdgesPipelineState];
                 } else if (entry.type == Ra::Buffer::kFastEdges)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
                 else

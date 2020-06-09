@@ -509,7 +509,7 @@ struct Rasterizer {
                 float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                 ctm = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(ctm);
                 CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = useCurves, out.dst = segments.alloc(det < kMinUpperDet ? geometry->minUpper : geometry->upperBound(det));
-                writePath(geometry, ctm, clip, unclipped, true, false, & out, CurveIndexer::WriteSegment);
+                writePath(geometry, ctm, clip, unclipped, true, false, & out, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, useCurves ? kCubicScale : kFastCubicScale);
                 writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, flags & Scene::kFillEvenOdd, iz, opaque, gpu);
                 segments.idx = segments.end = out.dst - segments.base;
             }
