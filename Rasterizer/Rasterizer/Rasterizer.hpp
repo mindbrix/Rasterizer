@@ -872,10 +872,8 @@ struct Rasterizer {
                     writeCurve(y0, y2, ay, by, y0, x2 - x1, x1 - x0, x0, true);
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                if (y0 != iy)
-                    writeCurve(y0, iy, ay, by, y0, x2 - x1, x1 - x0, x0, true);
-                if (iy != y2)
-                    writeCurve(iy, y2, ay, by, y0, x2 - x1, x1 - x0, x0, false);
+                writeCurve(y0, iy, ay, by, y0, x2 - x1, x1 - x0, x0, true);
+                writeCurve(iy, y2, ay, by, y0, x2 - x1, x1 - x0, x0, false);
             }
             is++;
         }
