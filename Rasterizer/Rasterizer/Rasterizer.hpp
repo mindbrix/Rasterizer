@@ -892,7 +892,7 @@ struct Rasterizer {
                 if (fabsf(ay) < kQuadraticFlatness)
                     t1 = -(y0 - ny) / by;
                 else
-                   d = by * by - 4.f * ay * (y0 - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                   d = by * by - 4.f * ay * (y0 - ny), t1 = ity + (d < 0.f ? 0.f : sqrtf(d) * d2a);
                 tx1 = (ax * t1 + bx) * t1 + x0;
                 lx = tx0 < tx1 ? tx0 : tx1, ux = tx0 > tx1 ? tx0 : tx1;
                 if ((t0 <= itx) == (itx <= t1))
