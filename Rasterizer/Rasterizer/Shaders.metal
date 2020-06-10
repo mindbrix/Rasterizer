@@ -395,7 +395,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     return vert;
 }
 
-fragment float4 fastWinding_edges_fragment_main(EdgesVertex vert [[stage_in]])
+fragment float4 fast_winding_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     return fastWinding(vert.x0, vert.y0, vert.x2, vert.y2) + fastWinding(vert.x3, vert.y3, vert.x5, vert.y5);
 }

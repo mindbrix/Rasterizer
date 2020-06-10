@@ -87,8 +87,8 @@
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"edges_fragment_main"];
     descriptor.label = @"edges";
     self.edgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fastWinding_edges_fragment_main"];
-    descriptor.label = @"fastWinding edges";
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_winding_edges_fragment_main"];
+    descriptor.label = @"fast winding edges";
     self.fastWindingEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_fragment_main"];
