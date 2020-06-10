@@ -878,25 +878,25 @@ struct Rasterizer {
             }
             is++;
         }
-        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, bool a) {
-            float ly, uy, d2a, ity, d, t0, t1, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir;
+        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float cy, float ax, float bx, float cx, bool a) {
+            float ly, uy, d2a, ity, d, t0, t1, itx, x0, x1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
             itx = fabsf(ax) < kQuadraticFlatness ? FLT_MAX : -bx / ax * 0.5f;
             if (fabsf(ay) < kQuadraticFlatness)
-                t0 = -(y0 - ly) / by;
+                t0 = -(cy - ly) / by;
             else
-                d = by * by - 4.f * ay * (y0 - ly), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-            tx0 = (ax * t0 + bx) * t0 + x0;
-            for (ir = ly * krfh, y = ly; y < uy; y = ny, ir++, tx0 = tx1, t0 = t1) {
+                d = by * by - 4.f * ay * (cy - ly), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+            x0 = (ax * t0 + bx) * t0 + cx;
+            for (ir = ly * krfh, y = ly; y < uy; y = ny, ir++, x0 = x1, t0 = t1) {
                 ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
                 if (fabsf(ay) < kQuadraticFlatness)
-                    t1 = -(y0 - ny) / by;
+                    t1 = -(cy - ny) / by;
                 else
-                    d = by * by - 4.f * ay * (y0 - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-                tx1 = (ax * t1 + bx) * t1 + x0;
-                lx = tx0 < tx1 ? tx0 : tx1, ux = tx0 > tx1 ? tx0 : tx1;
+                    d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                x1 = (ax * t1 + bx) * t1 + cx;
+                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 if ((t0 <= itx) == (itx <= t1))
-                    ix = (ax * itx + bx) * itx + x0, lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
+                    ix = (ax * itx + bx) * itx + cx, lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
                 writeIndex(ir, lx, ux, sign * (ny - y), a);
             }
         }
