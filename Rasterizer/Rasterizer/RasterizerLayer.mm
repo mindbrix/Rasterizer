@@ -197,7 +197,7 @@
                 if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
-                    [commandEncoder setRenderPipelineState:buffer->useCurves ? _edgesPipelineState : _fastWindingEdgesPipelineState];
+                    [commandEncoder setRenderPipelineState:_edgesPipelineState];
                 } else if (entry.type == Ra::Buffer::kFastWindingEdges)
                     [commandEncoder setRenderPipelineState:_fastWindingEdgesPipelineState];
                 else if (entry.type == Ra::Buffer::kFastEdges)
