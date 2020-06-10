@@ -482,12 +482,12 @@ struct Rasterizer {
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
                                  gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 0, fast ? count : 0, !fast ? count : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
-                                bool unclipped = uc.contains(dev);  Geometry *g = scene->paths[is].ref;
+                                Geometry *g = scene->paths[is].ref;
                                 if (width) {
                                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
                                         | (scene->flags[is] & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
                                         | (scene->flags[is] & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
-                                    inst->outline.clip = unclipped ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
+                                    inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                                     if (det > 1e2f) {
                                         size_t count = 0;
                                         writePath(g, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
@@ -499,7 +499,7 @@ struct Rasterizer {
                                     CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = buffer->useCurves, out.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                                     float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                                     m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
-                                    writePath(g, m, clip, unclipped, true, false, & out, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, buffer->useCurves ? kCubicScale : kFastCubicScale);
+                                    writePath(g, m, clip, uc.contains(dev), true, false, & out, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, buffer->useCurves ? kCubicScale : kFastCubicScale);
                                     Bounds clu = Bounds(inv.concat(unit));
                                     bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, gpu);
