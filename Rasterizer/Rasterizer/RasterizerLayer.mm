@@ -191,13 +191,16 @@
                                   baseInstance:0];
                 break;
             case Ra::Buffer::kEdges:
+            case Ra::Buffer::kFastWindingEdges:
             case Ra::Buffer::kFastEdges:
             case Ra::Buffer::kQuadEdges:
                 if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:buffer->useCurves ? _edgesPipelineState : _fastWindingEdgesPipelineState];
-                } else if (entry.type == Ra::Buffer::kFastEdges)
+                } else if (entry.type == Ra::Buffer::kFastWindingEdges)
+                    [commandEncoder setRenderPipelineState:_fastWindingEdgesPipelineState];
+                else if (entry.type == Ra::Buffer::kFastEdges)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
                 else
                     [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];

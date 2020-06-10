@@ -415,7 +415,7 @@ struct Rasterizer {
     };
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
-        enum Type { kEdges, kFastEdges, kQuadEdges, kOpaques, kInstances };
+        enum Type { kEdges, kFastWindingEdges, kFastEdges, kQuadEdges, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end, size_t segments = 0, size_t points = 0, size_t instbase = 0) : type(type), begin(begin), end(end), segments(segments), points(points), instbase(instbase) {}
             Type type;  size_t begin, end, segments, points, instbase;
