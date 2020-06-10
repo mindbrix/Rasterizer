@@ -969,7 +969,7 @@ struct Rasterizer {
             begins[i] = size;
             GPU& gpu = contexts[i].gpu;  GPU::Allocator::Pass *pass = gpu.allocator.passes.base;
             for (instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                instances += pass[j].edgeInstances + pass[j].fastInstances + pass[j].quadInstances;
+                instances += pass[j].edgeInstances + pass[j].fastEdgeInstances + pass[j].fastInstances + pass[j].quadInstances;
             size += instances * sizeof(GPU::Edge) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             Scene::Cache *cache;
             for (gpu.p16total = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
@@ -1003,7 +1003,7 @@ struct Rasterizer {
                 pointsbase = begin, begin += ctx->gpu.p16total * sizeof(Geometry::Point16);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
-                instcount = pass->edgeInstances + pass->fastInstances + pass->quadInstances, instbase = begin + instcount * sizeof(GPU::Edge);
+                instcount = pass->edgeInstances + pass->fastEdgeInstances + pass->fastInstances + pass->quadInstances, instbase = begin + instcount * sizeof(GPU::Edge);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
