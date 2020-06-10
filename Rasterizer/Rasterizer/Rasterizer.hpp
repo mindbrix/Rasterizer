@@ -885,14 +885,14 @@ struct Rasterizer {
             if (fabsf(ay) < kQuadraticFlatness)
                 t = -(y0 - ly) / by;
             else
-                d = by * by - 4.f * ay * (y0 - ly), t = ity + (d < 0.f ? 0.f : sqrtf(d) * d2a);
+                d = by * by - 4.f * ay * (y0 - ly), t = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
             tx0 = (ax * t + bx) * t + x0;
             for (ir = ly * krfh, y = ly; y < uy; y = ny, ir++, tx0 = tx1) {
                 ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
                 if (fabsf(ay) < kQuadraticFlatness)
                     t = -(y0 - ny) / by;
                 else
-                   d = by * by - 4.f * ay * (y0 - ny), t = ity + (d < 0.f ? 0.f : sqrtf(d) * d2a);
+                   d = by * by - 4.f * ay * (y0 - ny), t = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
                 tx1 = (ax * t + bx) * t + x0;
                 lx = tx0 < tx1 ? tx0 : tx1, ux = tx0 > tx1 ? tx0 : tx1;
                 if (ir == itxr)
