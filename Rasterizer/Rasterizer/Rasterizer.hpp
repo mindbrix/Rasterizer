@@ -881,7 +881,7 @@ struct Rasterizer {
         __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float y0, float ax, float bx, float x0, bool a) {
             float ly, uy, d2a, ity, d, t, itx, tx0, tx1, y, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;  int ir, itxr;
             ly = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-            itx = -bx / ax * 0.5f, itxr = itx > 0.f && itx < 1.f ? krfh * ((ay * itx + by) * itx + y0) : INT_MAX;
+            itx = -bx / ax * 0.5f, itxr = fabsf(ax) < kQuadraticFlatness || itx <= 0.f || itx >= 1.f ? INT_MAX : krfh * ((ay * itx + by) * itx + y0);
             if (fabsf(ay) < kQuadraticFlatness)
                 t = -(y0 - ly) / by;
             else
