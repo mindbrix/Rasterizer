@@ -502,7 +502,7 @@ struct Rasterizer {
                                     writePath(g, m, clip, uc.contains(dev), true, false, & out, CurveIndexer::WriteSegment, writeQuadratic, writeCubic, kQuadraticScale, buffer->useCurves ? kCubicScale : kFastCubicScale);
                                     Bounds clu = Bounds(inv.concat(unit));
                                     bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
-                                    writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, gpu);
+                                    writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, false, gpu);
                                     segments.idx = segments.end = out.dst - segments.base;
                                 }
                             }
@@ -901,7 +901,7 @@ struct Rasterizer {
             int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
-    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, GPU& gpu) {
+    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, bool fast, GPU& gpu) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, count, i, begin;
         uint16_t counts[256];
         float ly, uy, cover, winding, lx, ux;
