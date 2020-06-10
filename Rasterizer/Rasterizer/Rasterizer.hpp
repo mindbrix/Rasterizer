@@ -1007,6 +1007,9 @@ struct Rasterizer {
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                GPU::Edge *fastWindingEdge = (GPU::Edge *)(buffer.base + begin);
+                if (instcount)
+                    entries.emplace_back(Buffer::kFastWindingEdges, begin, begin + pass->fastEdgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
@@ -1042,13 +1045,15 @@ struct Rasterizer {
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
-                            for (; is < eis; is++, edge++) {
-                                uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | GPU::Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
+                            GPU::Edge *e = inst->iz & GPU::Instance::kFastEdges ? fastWindingEdge : edge;
+                            for (; is < eis; is++, e++) {
+                                uxc = uxcovers + is->i * 3, e->ic = uint32_t(ic) | GPU::Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), e->i0 = uint16_t(uxc[2]);
                                 if (++is < eis)
-                                    uxc = uxcovers + is->i * 3, edge->ic |= GPU::Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
+                                    uxc = uxcovers + is->i * 3, e->ic |= GPU::Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), e->ux = uint16_t(uxc[2]);
                                 else
-                                    edge->ux = kNullIndex;
+                                    e->ux = kNullIndex;
                             }
+                            *(inst->iz & GPU::Instance::kFastEdges ? & fastWindingEdge : & edge) = e;
                         }
                     }
                 }
