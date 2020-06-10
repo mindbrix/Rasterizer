@@ -920,7 +920,7 @@ struct Rasterizer {
                     if (index->x >= ux && fabsf(winding - roundf(winding)) < 1e-3f) {
                         if (lx != ux) {
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0)| (fast ? GPU::Instance::kFastEdges : 0));
-                            count = (i - begin + 1) / 2, gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, count, 0, 0, 0, & inst->quad.cell);
+                            count = (i - begin + 1) / 2, gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, !fast ? count : 0, fast ? count : 0, 0, 0, & inst->quad.cell);
                             inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
                         if (alphaForCover(winding, even) > 0.998f) {
@@ -940,7 +940,7 @@ struct Rasterizer {
                 }
                 if (lx != ux) {
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
-                    count = (i - begin + 1) / 2, gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, count, 0, 0, 0, & inst->quad.cell);
+                    count = (i - begin + 1) / 2, gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, !fast ? count : 0, fast ? count : 0, 0, 0, & inst->quad.cell);
                     inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                 }
             }
