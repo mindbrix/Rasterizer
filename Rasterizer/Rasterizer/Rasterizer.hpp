@@ -852,8 +852,7 @@ struct Rasterizer {
                 float lx, ux, ly, uy, m, c, y, ny, minx, maxx, scale;  int ir;
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                 ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
-                ir = ly * krfh, y = ir * kfh;
-                m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
+                ir = ly * krfh, y = ir * kfh, m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
                 minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                 maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                 for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
