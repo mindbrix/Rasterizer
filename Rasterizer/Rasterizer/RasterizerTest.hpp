@@ -73,7 +73,7 @@ struct RasterizerTest {
             list.empty().addList(list3D);
         }
         if (list.scenes.size())
-            src.empty().addList(list);
+            copy.empty().addList(list);
     }
     
     static void writeConcentrichronList(Ra::SceneList& src, Ra::Bounds b, Ra::SceneList& list) {
@@ -242,13 +242,13 @@ struct RasterizerTest {
         RasterizerTest& test = *((RasterizerTest *)info);
         if (test.concentrichron.pathsCount)
             test.writeConcentrichronList(test.concentrichron, test.bounds, list);
-        else if(test.src.pathsCount)
-            list.addList(test.src);
+        else if(test.copy.pathsCount)
+            list.addList(test.copy);
     }
 
     size_t refCount = 0;
     
     Ra::SceneList concentrichron;  Ra::Bounds bounds;
     
-    Ra::SceneList src;
+    Ra::SceneList copy;
 };
