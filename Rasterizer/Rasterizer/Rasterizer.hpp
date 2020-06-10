@@ -354,12 +354,12 @@ struct Rasterizer {
         struct Allocator {
             struct Pass {
                 Pass(size_t idx) : li(idx), ui(idx) {}
-                size_t edgeInstances = 0, fastInstances = 0, quadInstances = 0, li, ui;
+                size_t edgeInstances = 0, fastEdgeInstances = 0, fastInstances = 0, quadInstances = 0, li, ui;
             };
             void init(size_t w, size_t h) {
                 full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
             }
-            void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t edgeInstances, size_t fastInstances, size_t quadInstances, Cell *cell) {
+            void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t edgeInstances, size_t fastEdgeInstances, size_t fastInstances, size_t quadInstances, Cell *cell) {
                 float w = ux - lx, h = uy - ly, hght;  Bounds *b;
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
                 if (h <= kfh)
@@ -376,7 +376,7 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly);
-                b->lx += w, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastInstances += fastInstances, pass->quadInstances += quadInstances;
+                b->lx += w, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastEdgeInstances += fastEdgeInstances, pass->fastInstances += fastInstances, pass->quadInstances += quadInstances;
             }
             inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
@@ -480,7 +480,7 @@ struct Rasterizer {
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
-                                 gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 0, fast ? count : 0, !fast ? count : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                 gpu.allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, gpu.blends.end - 1, 0, 0, fast ? count : 0, !fast ? count : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
                                 Geometry *g = scene->paths[is].ref;
                                 if (width) {
@@ -920,7 +920,7 @@ struct Rasterizer {
                     if (index->x >= ux && fabsf(winding - roundf(winding)) < 1e-3f) {
                         if (lx != ux) {
                             GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0)| (fast ? GPU::Instance::kFastEdges : 0));
-                            gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, (i - begin + 1) / 2, 0, 0, & inst->quad.cell);
+                            count = (i - begin + 1) / 2, gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, count, 0, 0, 0, & inst->quad.cell);
                             inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
                         if (alphaForCover(winding, even) > 0.998f) {
@@ -940,7 +940,7 @@ struct Rasterizer {
                 }
                 if (lx != ux) {
                     GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kEdge | (even ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
-                    gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, (i - begin + 1) / 2, 0, 0, & inst->quad.cell);
+                    count = (i - begin + 1) / 2, gpu.allocator.allocAndCount(lx, ly, ux, uy, gpu.blends.end - 1, count, 0, 0, 0, & inst->quad.cell);
                     inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                 }
             }
