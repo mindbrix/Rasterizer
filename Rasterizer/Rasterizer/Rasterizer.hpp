@@ -949,7 +949,7 @@ struct Rasterizer {
     }
     struct OutlineInfo {
         uint32_t type;  GPU::Instance *dst0, *dst;  size_t iz;
-        static void writeInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+        static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             OutlineInfo *in = (OutlineInfo *)info;
             if (x0 != FLT_MAX) {
                 GPU::Outline& outline = (new (in->dst++) GPU::Instance(in->iz, GPU::Instance::Type(in->type)))->outline;
@@ -1024,7 +1024,7 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        readGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::writeInstance);
+                        readGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::WriteInstance);
                         dst = info.dst, ctms[iz] = Transform();
                     } else {
                         ic = dst - dst0, *dst++ = *inst;
