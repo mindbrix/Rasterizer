@@ -1036,25 +1036,25 @@ struct Rasterizer {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
-                            GPU::Edge *edge = inst->iz & GPU::Instance::kFastEdges ? fastMolecule : quadMolecule;
+                            GPU::Edge *molecule = inst->iz & GPU::Instance::kFastEdges ? fastMolecule : quadMolecule;
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                edge->ic = uint32_t(ic), edge->i0 = j, edge->ux = ux, edge++;
+                                molecule->ic = uint32_t(ic), molecule->i0 = j, molecule->ux = ux, molecule++;
                             }
-                            *(inst->iz & GPU::Instance::kFastEdges ? & fastMolecule : & quadMolecule) = edge;
+                            *(inst->iz & GPU::Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
-                            GPU::Edge *e = inst->iz & GPU::Instance::kFastEdges ? fastEdge : quadEdge;
-                            for (; is < eis; is++, e++) {
-                                uxc = uxcovers + is->i * 3, e->ic = uint32_t(ic) | GPU::Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), e->i0 = uint16_t(uxc[2]);
+                            GPU::Edge *edge = inst->iz & GPU::Instance::kFastEdges ? fastEdge : quadEdge;
+                            for (; is < eis; is++, edge++) {
+                                uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | GPU::Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
                                 if (++is < eis)
-                                    uxc = uxcovers + is->i * 3, e->ic |= GPU::Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), e->ux = uint16_t(uxc[2]);
+                                    uxc = uxcovers + is->i * 3, edge->ic |= GPU::Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
                                 else
-                                    e->ux = kNullIndex;
+                                    edge->ux = kNullIndex;
                             }
-                            *(inst->iz & GPU::Instance::kFastEdges ? & fastEdge : & quadEdge) = e;
+                            *(inst->iz & GPU::Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
                         }
                     }
                 }
