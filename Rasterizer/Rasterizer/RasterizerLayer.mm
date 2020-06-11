@@ -19,10 +19,10 @@
 @property (nonatomic) size_t tick;
 @property (nonatomic) id <MTLBuffer> mtlBuffer0;
 @property (nonatomic) id <MTLBuffer> mtlBuffer1;
-@property (nonatomic) id <MTLRenderPipelineState> edgesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> fastWindingEdgesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadEdgesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> fastMoleculesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> quadMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
@@ -86,19 +86,18 @@
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"edges_fragment_main"];
     descriptor.label = @"edges";
-    self.edgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    self.quadEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_winding_edges_fragment_main"];
-    descriptor.label = @"fast winding edges";
-    self.fastWindingEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    descriptor.label = @"fast edges";
+    self.fastEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_fragment_main"];
     descriptor.label = @"fast edges";
-    self.fastEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    
+    self.fastMoleculesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_fragment_main"];
     descriptor.label = @"quad edges";
-    self.quadEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    self.quadMoleculesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
 
@@ -197,13 +196,13 @@
                 if (entry.type == Ra::Buffer::kQuadEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
-                    [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                } else if (entry.type == Ra::Buffer::kFastEdges)
-                    [commandEncoder setRenderPipelineState:_fastWindingEdgesPipelineState];
-                else if (entry.type == Ra::Buffer::kFastMolecules)
-                    [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
-                else
                     [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];
+                } else if (entry.type == Ra::Buffer::kFastEdges)
+                    [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
+                else if (entry.type == Ra::Buffer::kFastMolecules)
+                    [commandEncoder setRenderPipelineState:_fastMoleculesPipelineState];
+                else
+                    [commandEncoder setRenderPipelineState:_quadMoleculesPipelineState];
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
