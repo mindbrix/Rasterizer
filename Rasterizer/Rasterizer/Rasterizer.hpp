@@ -415,7 +415,7 @@ struct Rasterizer {
     };
     struct Buffer {
         static constexpr size_t kPageSize = 4096;
-        enum Type { kEdges, kFastWindingEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances };
+        enum Type { kQuadEdges, kFastEdges, kFastMolecules, kQuadMolecules, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end, size_t segments = 0, size_t points = 0, size_t instbase = 0) : type(type), begin(begin), end(end), segments(segments), points(points), instbase(instbase) {}
             Type type;  size_t begin, end, segments, points, instbase;
@@ -1007,10 +1007,10 @@ struct Rasterizer {
                 instcount = pass->edgeInstances + pass->fastEdgeInstances + pass->fastInstances + pass->quadInstances, instbase = begin + instcount * sizeof(GPU::Edge);
                 GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *fastWindingEdge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kFastWindingEdges, begin, begin + pass->fastEdgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastEdgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;

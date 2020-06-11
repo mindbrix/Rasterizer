@@ -190,15 +190,15 @@
                                  instanceCount:reverse
                                   baseInstance:0];
                 break;
-            case Ra::Buffer::kEdges:
-            case Ra::Buffer::kFastWindingEdges:
+            case Ra::Buffer::kQuadEdges:
+            case Ra::Buffer::kFastEdges:
             case Ra::Buffer::kFastMolecules:
             case Ra::Buffer::kQuadMolecules:
-                if (entry.type == Ra::Buffer::kEdges) {
+                if (entry.type == Ra::Buffer::kQuadEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
-                } else if (entry.type == Ra::Buffer::kFastWindingEdges)
+                } else if (entry.type == Ra::Buffer::kFastEdges)
                     [commandEncoder setRenderPipelineState:_fastWindingEdgesPipelineState];
                 else if (entry.type == Ra::Buffer::kFastMolecules)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
