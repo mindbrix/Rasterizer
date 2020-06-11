@@ -85,18 +85,18 @@
     descriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_fragment_main"];
-    descriptor.label = @"edges";
+    descriptor.label = @"quad edges";
     self.quadEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_edges_fragment_main"];
     descriptor.label = @"fast edges";
     self.fastEdgesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_molecules_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_molecules_fragment_main"];
-    descriptor.label = @"fast edges";
+    descriptor.label = @"fast molecules";
     self.fastMoleculesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quad_molecules_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_molecules_fragment_main"];
-    descriptor.label = @"quad edges";
+    descriptor.label = @"quad molecules";
     self.quadMoleculesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
