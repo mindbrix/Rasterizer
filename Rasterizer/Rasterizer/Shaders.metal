@@ -150,15 +150,15 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
     return vert.color;
 }
 
-#pragma mark - Fast Edges
+#pragma mark - Fast Molecules
 
-struct FastEdgesVertex
+struct FastMoleculesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
-vertex FastEdgesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
+vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
@@ -168,7 +168,7 @@ vertex FastEdgesVertex fast_molecules_vertex_main(const device Edge *edges [[buf
                                 constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    FastEdgesVertex vert;
+    FastMoleculesVertex vert;
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
@@ -207,7 +207,7 @@ vertex FastEdgesVertex fast_molecules_vertex_main(const device Edge *edges [[buf
     return vert;
 }
 
-fragment float4 fast_molecules_fragment_main(FastEdgesVertex vert [[stage_in]])
+fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
 //    return 0.2;
     return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
@@ -216,15 +216,15 @@ fragment float4 fast_molecules_fragment_main(FastEdgesVertex vert [[stage_in]])
         + fastWinding(vert.x3, vert.y3, vert.x4, vert.y4);
 }
 
-#pragma mark - Quad Edges
+#pragma mark - Quad Molecules
 
-struct QuadEdgesVertex
+struct QuadMoleculesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8;
 };
 
-vertex QuadEdgesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
+vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
@@ -234,7 +234,7 @@ vertex QuadEdgesVertex quad_molecules_vertex_main(const device Edge *edges [[buf
                                 constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    QuadEdgesVertex vert;
+    QuadMoleculesVertex vert;
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
@@ -297,7 +297,7 @@ vertex QuadEdgesVertex quad_molecules_vertex_main(const device Edge *edges [[buf
     return vert;
 }
 
-fragment float4 quad_molecules_fragment_main(QuadEdgesVertex vert [[stage_in]])
+fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
 {
 //    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
