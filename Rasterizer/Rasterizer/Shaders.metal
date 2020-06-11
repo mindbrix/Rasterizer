@@ -158,7 +158,7 @@ struct FastEdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
-vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(1)]],
+vertex FastEdgesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
@@ -207,7 +207,7 @@ vertex FastEdgesVertex fast_edges_vertex_main(const device Edge *edges [[buffer(
     return vert;
 }
 
-fragment float4 fast_edges_fragment_main(FastEdgesVertex vert [[stage_in]])
+fragment float4 fast_molecules_fragment_main(FastEdgesVertex vert [[stage_in]])
 {
 //    return 0.2;
     return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
@@ -224,7 +224,7 @@ struct QuadEdgesVertex
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8;
 };
 
-vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(1)]],
+vertex QuadEdgesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
@@ -297,7 +297,7 @@ vertex QuadEdgesVertex quad_edges_vertex_main(const device Edge *edges [[buffer(
     return vert;
 }
 
-fragment float4 quad_edges_fragment_main(QuadEdgesVertex vert [[stage_in]])
+fragment float4 quad_molecules_fragment_main(QuadEdgesVertex vert [[stage_in]])
 {
 //    return 0.2;
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
@@ -389,12 +389,12 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     return vert;
 }
 
-fragment float4 fast_winding_edges_fragment_main(EdgesVertex vert [[stage_in]])
+fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     return fastWinding(vert.x0, vert.y0, vert.x2, vert.y2) + fastWinding(vert.x3, vert.y3, vert.x5, vert.y5);
 }
 
-fragment float4 edges_fragment_main(EdgesVertex vert [[stage_in]])
+fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2, vert.a0, vert.iy0)
         + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5, vert.a1, vert.iy1);
