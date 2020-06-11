@@ -354,7 +354,7 @@ struct Rasterizer {
         struct Allocator {
             struct Pass {
                 Pass(size_t idx) : li(idx), ui(idx) {}
-                size_t quadEdges = 0, fastEdges = 0, fastMolecules = 0, quadMolecules = 0, li, ui;
+                size_t fastEdges = 0, quadEdges = 0, fastMolecules = 0, quadMolecules = 0, li, ui;
             };
             void init(size_t w, size_t h) {
                 full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
@@ -376,7 +376,7 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly);
-                b->lx += w, pass->ui++, pass->quadEdges += quadEdges, pass->fastEdges += fastEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
+                b->lx += w, pass->ui++, pass->fastEdges += fastEdges, pass->quadEdges += quadEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
             }
             inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
