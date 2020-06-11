@@ -84,6 +84,8 @@ float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
     return saturate((t - 0.5) * b / (b - a) + 0.5) * cover;
 }
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2, bool a, float iy) {
+    if (x1 == FLT_MAX)
+        return fastWinding(x0, y0, x2, y2);
     float w0 = saturate(a ? y0 : iy), w1 = saturate(a ? iy : y2), w = w1 - w0;
     if (w && (x0 > 0.0 || x1 > 0.0 || x2 > 0.0)) {
         float ay, by, cy, t, s;
@@ -346,11 +348,11 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 x1 = x2 + 0.25 * (x0 - n.x1), y1 = y2 + 0.25 * (y0 - n.y1);
             }
             if (!pcurve && !ncurve)
-                dst[2] = 0.5f * (x0 + x2), dst[3] = 0.5f * (y0 + y2), iys[i] = y2, as[i] = true;
+                dst[2] = FLT_MAX;
             else
                 dst[2] = x1, dst[3] = y1;
             sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
-            if (!pcurve && !ncurve) {
+            if (dst[2] == FLT_MAX) {
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             } else {
@@ -371,7 +373,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
             }
         } else
-            dst[0] = 0.0, dst[1] = 0.0, dst[2] = 0.0, dst[4] = 0.0, dst[5] = 0.0;
+            dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
     }
     float ox = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
     float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
@@ -380,8 +382,10 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
     vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
-    vert.x1 += tx, vert.y1 += ty, vert.iy0 += ty;
-    vert.x4 += tx, vert.y4 += ty, vert.iy1 += ty;
+    if (vert.x1 != FLT_MAX)
+        vert.x1 += tx, vert.y1 += ty, vert.iy0 += ty;
+    if (vert.x4 != FLT_MAX)
+        vert.x4 += tx, vert.y4 += ty, vert.iy1 += ty;
     return vert;
 }
 
