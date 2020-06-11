@@ -644,32 +644,32 @@ struct Rasterizer {
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
             }
     }
-    static float *solveQuadratic(double A, double B, double C, float *ts) {
+    static float *solveQuadratic(double A, double B, double C, float *roots) {
         if (fabs(A) < 1e-3) {
-            float t = -C / B;  if (t > 0.f && t < 1.f)  *ts++ = t;
+            float t = -C / B;  if (t > 0.f && t < 1.f)  *roots++ = t;
         } else {
             double d = B * B - 4.0 * A * C, r = sqrt(d);
             if (d >= 0.0) {
-                float t0 = (-B + r) * 0.5 / A;  if (t0 > 0.f && t0 < 1.f)  *ts++ = t0;
-                float t1 = (-B - r) * 0.5 / A;  if (t1 > 0.f && t1 < 1.f)  *ts++ = t1;
+                float t0 = (-B + r) * 0.5 / A;  if (t0 > 0.f && t0 < 1.f)  *roots++ = t0;
+                float t1 = (-B - r) * 0.5 / A;  if (t1 > 0.f && t1 < 1.f)  *roots++ = t1;
             }
         }
-        return ts;
+        return roots;
     }
     static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, QuadFunction quadFunction, void *info, float s) {
-        float ax, bx, ay, by, ts[10], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx2, ty2;
+        float ax, bx, ay, by, roots[10], *root = roots, *t, mt, mx, my, vx, tx0, ty0, tx2, ty2;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
-        *et++ = 0.f;
+        *root++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
-            et = solveQuadratic(ay, by, y0 - clip.ly, et);
+            root = solveQuadratic(ay, by, y0 - clip.ly, root);
         if (clip.uy >= ly && clip.uy < uy)
-            et = solveQuadratic(ay, by, y0 - clip.uy, et);
+            root = solveQuadratic(ay, by, y0 - clip.uy, root);
         if (clip.lx >= lx && clip.lx < ux)
-            et = solveQuadratic(ax, bx, x0 - clip.lx, et);
+            root = solveQuadratic(ax, bx, x0 - clip.lx, root);
         if (clip.ux >= lx && clip.ux < ux)
-            et = solveQuadratic(ax, bx, x0 - clip.ux, et);
-        std::sort(ts + 1, et), *et++ = 1.f;
-        for (tx0 = x0, ty0 = y0, t = ts; t < et - 1; t++, tx0 = tx2, ty0 = ty2) {
+            root = solveQuadratic(ax, bx, x0 - clip.ux, root);
+        std::sort(roots + 1, root), *root++ = 1.f;
+        for (tx0 = x0, ty0 = y0, t = roots; t < root - 1; t++, tx0 = tx2, ty0 = ty2) {
             tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
@@ -708,9 +708,9 @@ struct Rasterizer {
             (*function)(x0, y0, x2, y2, dt == 1.f ? 0 : 2, info);
         }
     }
-    static float *solveCubic(double A, double B, double C, double D, float *ts) {
+    static float *solveCubic(double A, double B, double C, double D, float *roots) {
         if (fabs(D) < 1e-3)
-            return solveQuadratic(A, B, C, ts);
+            return solveQuadratic(A, B, C, roots);
         else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
             double  p, q, q2, u1, v1, a3, discriminant, sd, t;
@@ -719,35 +719,35 @@ struct Rasterizer {
             if (discriminant < 0) {
                 double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
                 __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
-                t = crtr * cosine - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
-                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
-                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = crtr * cosine - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                t = 2 * u1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
-                t = -u1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = 2 * u1 - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = -u1 - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                t = u1 - v1 - a3; if (t > 0.f && t < 1.f)  *ts++ = t;
+                t = u1 - v1 - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
             }
         }
-        return ts;
+        return roots;
     }
     static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, CubicFunction cubicFunction, void *info, float s) {
-        float cy, by, ay, cx, bx, ax, ts[14], *et = ts, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
+        float cy, by, ay, cx, bx, ax, roots[14], *root = roots, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        *et++ = 0.f;
+        *root++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
-            et = solveCubic(by, cy, y0 - clip.ly, ay, et);
+            root = solveCubic(by, cy, y0 - clip.ly, ay, root);
         if (clip.uy >= ly && clip.uy < uy)
-            et = solveCubic(by, cy, y0 - clip.uy, ay, et);
+            root = solveCubic(by, cy, y0 - clip.uy, ay, root);
         if (clip.lx >= lx && clip.lx < ux)
-            et = solveCubic(bx, cx, x0 - clip.lx, ax, et);
+            root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
         if (clip.ux >= lx && clip.ux < ux)
-            et = solveCubic(bx, cx, x0 - clip.ux, ax, et);
-        std::sort(ts + 1, et), *et++ = 1.f;
-        for (tx0 = x0, ty0 = y0, t = ts; t < et - 1; t++, tx0 = tx3, ty0 = ty3) {
+            root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
+        std::sort(roots + 1, root), *root++ = 1.f;
+        for (tx0 = x0, ty0 = y0, t = roots; t < root - 1; t++, tx0 = tx3, ty0 = ty3) {
             tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
             if (t[0] != t[1]) {
                 mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
