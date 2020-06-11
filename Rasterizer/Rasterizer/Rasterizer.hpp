@@ -283,7 +283,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        readPath(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, divideQuadratic, divideCubic, kQuadraticScale, kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
+                        readGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, divideQuadratic, divideCubic, kQuadraticScale, kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
                     }
                     new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
@@ -490,7 +490,7 @@ struct Rasterizer {
                                     inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                                     if (det > 1e2f) {
                                         size_t count = 0;
-                                        readPath(g, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
+                                        readGeometry(g, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
                                         gpu.outlineUpper += count;
                                     } else
                                         gpu.outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
@@ -499,7 +499,7 @@ struct Rasterizer {
                                     CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = buffer->useCurves, out.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                                     float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                                     m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
-                                    readPath(g, m, clip, uc.contains(dev), true, false, & out, CurveIndexer::WriteSegment);
+                                    readGeometry(g, m, clip, uc.contains(dev), true, false, & out, CurveIndexer::WriteSegment);
                                     Bounds clu = Bounds(inv.concat(unit));
                                     bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                                     bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
@@ -519,9 +519,9 @@ struct Rasterizer {
         Row<Segment> segments;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
-    static void readPath(Geometry *geometry, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = divideQuadratic, CubicFunction cubicFunction = divideCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
-        float *p = geometry->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (uint8_t *type = geometry->types.base, *end = type + geometry->types.end; type < end; )
+    static void readGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = divideQuadratic, CubicFunction cubicFunction = divideCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
+        float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0)) {
@@ -1024,7 +1024,7 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & GPU::Instance::kOutlines) {
                         OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        readPath(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::writeInstance);
+                        readGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::writeInstance);
                         dst = info.dst, ctms[iz] = Transform();
                     } else {
                         ic = dst - dst0, *dst++ = *inst;
