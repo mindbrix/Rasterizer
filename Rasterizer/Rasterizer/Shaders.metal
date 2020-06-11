@@ -306,7 +306,7 @@ fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in
     + quadraticWinding(vert.x6, vert.y6, vert.x7, vert.y7, vert.x8, vert.y8);
 }
 
-#pragma mark - Edges
+#pragma mark - Fast & Quad Edges
 
 struct EdgesVertex
 {
