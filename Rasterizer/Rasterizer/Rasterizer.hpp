@@ -957,7 +957,7 @@ struct Rasterizer {
             } else if (in->dst - in->dst0 > 0) {
                 GPU::Outline& first = in->dst0->outline, & last = (in->dst - 1)->outline;
                 float dx = first.s.x0 - last.s.x1, dy = first.s.y0 - last.s.y1;
-                first.prev = dx * dx + dy * dy > 1e-6f ? 0 : (int)(in->dst - in->dst0 - 1), last.next = -first.prev;
+                first.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(in->dst - in->dst0 - 1), last.next = -first.prev;
                 in->dst0 = in->dst;
             }
         }
