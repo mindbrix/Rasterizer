@@ -502,7 +502,7 @@ struct Rasterizer {
                                     readPath(g, m, clip, uc.contains(dev), true, false, & out, CurveIndexer::WriteSegment);
                                     Bounds clu = Bounds(inv.concat(unit));
                                     bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
-                                    bool fast = !buffer->useCurves || det * g->maxDot < 16.f || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
+                                    bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
                                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, gpu);
                                     segments.idx = segments.end = out.dst - segments.base;
                                 }
