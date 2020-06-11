@@ -192,15 +192,15 @@
                 break;
             case Ra::Buffer::kEdges:
             case Ra::Buffer::kFastWindingEdges:
-            case Ra::Buffer::kFastEdges:
-            case Ra::Buffer::kQuadEdges:
+            case Ra::Buffer::kFastMolecules:
+            case Ra::Buffer::kQuadMolecules:
                 if (entry.type == Ra::Buffer::kEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
                     [commandEncoder setRenderPipelineState:_edgesPipelineState];
                 } else if (entry.type == Ra::Buffer::kFastWindingEdges)
                     [commandEncoder setRenderPipelineState:_fastWindingEdgesPipelineState];
-                else if (entry.type == Ra::Buffer::kFastEdges)
+                else if (entry.type == Ra::Buffer::kFastMolecules)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
                 else
                     [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];
@@ -220,7 +220,7 @@
                                      instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Edge)
                                       baseInstance:0];
                 }
-                if (entry.type == Ra::Buffer::kQuadEdges) {
+                if (entry.type == Ra::Buffer::kQuadMolecules) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
