@@ -1005,16 +1005,16 @@ struct Rasterizer {
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
                 instcount = pass->edgeInstances + pass->fastEdgeInstances + pass->fastInstances + pass->quadInstances, instbase = begin + instcount * sizeof(GPU::Edge);
-                GPU::Edge *edge = (GPU::Edge *)(buffer.base + begin);
+                GPU::Edge *quadEdge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                GPU::Edge *fastWindingEdge = (GPU::Edge *)(buffer.base + begin);
+                GPU::Edge *fastEdge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastEdgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                GPU::Edge *fast = (GPU::Edge *)(buffer.base + begin);
+                GPU::Edge *fastMolecule = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                GPU::Edge *quad = (GPU::Edge *)(buffer.base + begin);
+                GPU::Edge *quadMolecule = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
                     entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->quadInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
             
@@ -1036,17 +1036,17 @@ struct Rasterizer {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
-                            GPU::Edge *edge = inst->iz & GPU::Instance::kFastEdges ? fast : quad;
+                            GPU::Edge *edge = inst->iz & GPU::Instance::kFastEdges ? fastMolecule : quadMolecule;
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 edge->ic = uint32_t(ic), edge->i0 = j, edge->ux = ux, edge++;
                             }
-                            *(inst->iz & GPU::Instance::kFastEdges ? & fast : & quad) = edge;
+                            *(inst->iz & GPU::Instance::kFastEdges ? & fastMolecule : & quadMolecule) = edge;
                         } else if (inst->iz & GPU::Instance::kEdge) {
                             Index *is = ctx->indices[inst->quad.iy].base + inst->quad.begin, *eis = is + inst->quad.count;
                             int16_t *uxcovers = ctx->uxcovers[inst->quad.iy].base + 3 * inst->quad.idx, *uxc;
-                            GPU::Edge *e = inst->iz & GPU::Instance::kFastEdges ? fastWindingEdge : edge;
+                            GPU::Edge *e = inst->iz & GPU::Instance::kFastEdges ? fastEdge : quadEdge;
                             for (; is < eis; is++, e++) {
                                 uxc = uxcovers + is->i * 3, e->ic = uint32_t(ic) | GPU::Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), e->i0 = uint16_t(uxc[2]);
                                 if (++is < eis)
@@ -1054,7 +1054,7 @@ struct Rasterizer {
                                 else
                                     e->ux = kNullIndex;
                             }
-                            *(inst->iz & GPU::Instance::kFastEdges ? & fastWindingEdge : & edge) = e;
+                            *(inst->iz & GPU::Instance::kFastEdges ? & fastEdge : & quadEdge) = e;
                         }
                     }
                 }
