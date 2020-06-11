@@ -354,7 +354,7 @@ struct Rasterizer {
         struct Allocator {
             struct Pass {
                 Pass(size_t idx) : li(idx), ui(idx) {}
-                size_t edgeInstances = 0, fastEdgeInstances = 0, fastInstances = 0, quadInstances = 0, li, ui;
+                size_t quadEdges = 0, fastEdges = 0, fastMolecules = 0, quadMolecules = 0, li, ui;
             };
             void init(size_t w, size_t h) {
                 full = Bounds(0.f, 0.f, w, h), sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
@@ -376,7 +376,7 @@ struct Rasterizer {
                     b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
                 }
                 new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly);
-                b->lx += w, pass->ui++, pass->edgeInstances += edgeInstances, pass->fastEdgeInstances += fastEdgeInstances, pass->fastInstances += fastInstances, pass->quadInstances += quadInstances;
+                b->lx += w, pass->ui++, pass->quadEdges += edgeInstances, pass->fastEdges += fastEdgeInstances, pass->fastMolecules += fastInstances, pass->quadMolecules += quadInstances;
             }
             inline void countInstance() {
                 Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
@@ -970,7 +970,7 @@ struct Rasterizer {
             begins[i] = size;
             GPU& gpu = contexts[i].gpu;  GPU::Allocator::Pass *pass = gpu.allocator.passes.base;
             for (instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
-                instances += pass[j].edgeInstances + pass[j].fastEdgeInstances + pass[j].fastInstances + pass[j].quadInstances;
+                instances += pass[j].quadEdges + pass[j].fastEdges + pass[j].fastMolecules + pass[j].quadMolecules;
             size += instances * sizeof(GPU::Edge) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
             Scene::Cache *cache;
             for (gpu.p16total = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
@@ -1004,19 +1004,19 @@ struct Rasterizer {
                 pointsbase = begin, begin += ctx->gpu.p16total * sizeof(Geometry::Point16);
             }
             for (GPU::Allocator::Pass *pass = ctx->gpu.allocator.passes.base, *upass = pass + ctx->gpu.allocator.passes.end; pass < upass; pass++) {
-                instcount = pass->edgeInstances + pass->fastEdgeInstances + pass->fastInstances + pass->quadInstances, instbase = begin + instcount * sizeof(GPU::Edge);
+                instcount = pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules, instbase = begin + instcount * sizeof(GPU::Edge);
                 GPU::Edge *quadEdge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->edgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadEdges * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *fastEdge = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastEdgeInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastEdges * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *fastMolecule = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->fastInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->fastMolecules * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 GPU::Edge *quadMolecule = (GPU::Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->quadInstances * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->quadMolecules * sizeof(GPU::Edge), segbase, pointsbase, instbase), begin = entries.back().end;
             
                 GPU::Instance *linst = ctx->gpu.blends.base + pass->li, *uinst = ctx->gpu.blends.base + pass->ui, *inst, *dst, *dst0;
                 dst0 = dst = (GPU::Instance *)(buffer.base + begin);
