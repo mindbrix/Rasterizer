@@ -218,10 +218,10 @@ struct Rasterizer {
             crc = crc ?: ::crc64(::crc64(crc, types.base, types.end * sizeof(uint8_t)), points.base, points.end * sizeof(float));
             return crc;
         }
-        inline void writePoint16(float x0, float y0, Bounds& b, uint32_t curve) {
+        inline void writePoint16(float x, float y, Bounds& b, uint32_t curve) {
             new (p16s.alloc(1)) Point16(
-                uint16_t((x0 - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14),
-                uint16_t((y0 - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15));
+                uint16_t((x - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14),
+                uint16_t((y - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15));
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
