@@ -467,7 +467,20 @@ struct Rasterizer {
                         Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                            if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
+                            Geometry *g = scene->paths[is].ref;
+                            if (width) {
+                               GPU::Instance *inst = new (blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
+                                   | (scene->flags[is] & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
+                                   | (scene->flags[is] & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
+                               inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
+                               if (det > 1e2f) {
+                                   size_t count = 0;
+                                   readGeometry(g, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
+                                   outlineUpper += count;
+                               } else
+                                   outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
+                               outlinePaths++, allocator.countInstance();
+                           } else if (clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                                 ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                                 if (fasts.base[lz + ip] == 0)
                                     p16total += size;
@@ -476,30 +489,15 @@ struct Rasterizer {
                                 GPU::Instance *inst = new (blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
                                  allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
-                                Geometry *g = scene->paths[is].ref;
-                                if (width) {
-                                    GPU::Instance *inst = new (blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kOutlines
-                                        | (scene->flags[is] & Scene::kOutlineRounded ? GPU::Instance::kRounded : 0)
-                                        | (scene->flags[is] & Scene::kOutlineEndCap ? GPU::Instance::kEndCap : 0));
-                                    inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
-                                    if (det > 1e2f) {
-                                        size_t count = 0;
-                                        readGeometry(g, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
-                                        outlineUpper += count;
-                                    } else
-                                        outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
-                                    outlinePaths++, allocator.countInstance();
-                                } else {
-                                    CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
-                                    float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
-                                    m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
-                                    readGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
-                                    Bounds clu = Bounds(inv.concat(unit));
-                                    bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
-                                    bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
-                                    writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
-                                    segments.idx = segments.end = idxr.dst - segments.base;
-                                }
+                                CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                                float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
+                                m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
+                                readGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
+                                Bounds clu = Bounds(inv.concat(unit));
+                                bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
+                                bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
+                                writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                                segments.idx = segments.end = idxr.dst - segments.base;
                             }
                         }
                     }
