@@ -455,7 +455,7 @@ struct Rasterizer {
             size_t fatlines = 1.f + ceilf(float(height) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
-            gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz;
+            gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz, gpu.p16total = 0;
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
@@ -477,6 +477,8 @@ struct Rasterizer {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                                 ip = scene->cache->ips.base[is], count = scene->cache->entries.base[ip].size / kFastSegments;
+                                if (gpu.fasts.base[lz + ip] == 0)
+                                    gpu.p16total += scene->cache->entries.base[ip].size;
                                 gpu.fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                                 GPU::Instance *inst = new (gpu.blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
@@ -963,7 +965,7 @@ struct Rasterizer {
         }
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances, lz, puz, ip;
+        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].gpu.opaques.end * sizeof(GPU::Instance);
         for (i = 0; i < count; i++) {
@@ -972,11 +974,6 @@ struct Rasterizer {
             for (instances = 0, j = 0; j < gpu.allocator.passes.end; j++)
                 instances += pass[j].quadEdges + pass[j].fastEdges + pass[j].fastMolecules + pass[j].quadMolecules;
             size += instances * sizeof(GPU::Edge) + (gpu.outlineUpper - gpu.outlinePaths + gpu.blends.end) * sizeof(GPU::Instance);
-            Scene::Cache *cache;
-            for (gpu.p16total = 0, j = lz = 0; j < list.scenes.size(); lz += list.scenes[j].count, j++)
-                for (cache = list.scenes[j].cache.ref, puz = cache->entries.end, ip = 0; ip < puz; ip++)
-                    if (gpu.fasts.base[lz + ip])
-                        gpu.p16total += cache->entries.base[ip].size;
             size += contexts[i].segments.end * sizeof(Segment) + gpu.p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
