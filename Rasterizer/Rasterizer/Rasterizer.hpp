@@ -381,10 +381,9 @@ struct Rasterizer {
         };
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
-            this->pathsCount = pathsCount;
             size_t szcolors = pathsCount * sizeof(Colorant), szctms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds);
             headerSize = szcolors + 2 * szctms + szwidths + szbounds;
-            colors = 0, ctms = colors + szcolors, clips = ctms + szctms, widths = clips + szctms, bounds = widths + szwidths;
+            this->pathsCount = pathsCount, colors = 0, ctms = colors + szcolors, clips = ctms + szctms, widths = clips + szctms, bounds = widths + szwidths;
             resize(headerSize);
         }
         void resize(size_t n, size_t copySize = 0) {
