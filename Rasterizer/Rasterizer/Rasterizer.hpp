@@ -490,15 +490,15 @@ struct Rasterizer {
                                         outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                                     outlinePaths++, allocator.countInstance();
                                 } else {
-                                    CurveIndexer out;  out.clip = clip, out.indices = & indices[0] - int(clip.ly * krfh), out.uxcovers = & uxcovers[0] - int(clip.ly * krfh), out.useCurves = buffer->useCurves, out.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                                    CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                                     float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                                     m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
-                                    readGeometry(g, m, clip, uc.contains(dev), true, false, & out, CurveIndexer::WriteSegment);
+                                    readGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                                     Bounds clu = Bounds(inv.concat(unit));
                                     bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                                     bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
                                     writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
-                                    segments.idx = segments.end = out.dst - segments.base;
+                                    segments.idx = segments.end = idxr.dst - segments.base;
                                 }
                             }
                         }
