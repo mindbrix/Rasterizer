@@ -160,13 +160,13 @@ struct Rasterizer {
             cubicTo(b.lx, t1 * b.ly + t0 * b.uy, t1 * b.lx + t0 * b.ux, b.ly, mx, b.ly);
             cubicTo(t0 * b.lx + t1 * b.ux, b.ly, b.ux, t1 * b.ly + t0 * b.uy, b.ux, my);
         }
-        void addArc(float cx, float cy, float r, float a0, float a1) {
-            float da, f, vx0, vy0, vx1, vy1;
+        void addArc(float x, float y, float r, float a0, float a1) {
+            float da, f, ax, ay, bx, by, sx, sy, ex, ey;
             a0 = normalizeRadians(a0), a1 = normalizeRadians(a1);
             da = a1 > a0 ? a1 - a0 : a1 - a0 + kTau, f = 4.f * tanf(da * 0.25f) / 3.f;
-            vx0 = r * cosf(a0), vy0 = r * sinf(a0), vx1 = r * cosf(a1), vy1 = r * sinf(a1);
-            moveTo(cx + vx0, cy + vy0);
-            cubicTo(cx + vx0 - f * vy0, cy + vy0 + f * vx0, cx + vx1 + f * vy1, cy + vy1 - f * vx1, cx + vx1, cy + vy1);
+            ax = r * cosf(a0), ay = r * sinf(a0), bx = r * cosf(a1), by = r * sinf(a1);
+            sx = x + ax, sy = y + ay, ex = x + bx, ey = y + by;
+            moveTo(sx, sx), cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
         }
         void moveTo(float x, float y) {
             *(molecules.alloc(1)) = Bounds();
