@@ -451,7 +451,7 @@ struct Rasterizer {
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
-            size_t lz, uz, i, clz, cuz, iz, is, ip, count;  Scene *scene;
+            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
@@ -468,13 +468,13 @@ struct Rasterizer {
                         if (clip.lx != clip.ux && clip.ly != clip.uy) {
                             ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                             if (width == 0.f && clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
-                                ip = scene->cache->ips.base[is], count = scene->cache->entries.base[ip].size / kFastSegments;
+                                ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                                 if (fasts.base[lz + ip] == 0)
-                                    p16total += scene->cache->entries.base[ip].size;
+                                    p16total += size;
                                 fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                                 bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                                 GPU::Instance *inst = new (blends.alloc(1)) GPU::Instance(iz, GPU::Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? GPU::Instance::kEvenOdd : 0) | (fast ? GPU::Instance::kFastEdges : 0));
-                                 allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? count : 0, !fast ? count : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                                 allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                             } else {
                                 Geometry *g = scene->paths[is].ref;
                                 if (width) {
