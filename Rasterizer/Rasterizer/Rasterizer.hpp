@@ -171,47 +171,47 @@ struct Rasterizer {
         void moveTo(float x, float y) {
             *(molecules.alloc(1)) = Bounds();
             float *pts = points.alloc(2);
-            px = pts[0] = x, py = pts[1] = y;
+            x0 = pts[0] = x, y0 = pts[1] = y;
             update(kMove, 1, pts);
         }
-        void lineTo(float x, float y) {
-            if (px != x || py != y) {
+        void lineTo(float x1, float y1) {
+            if (x0 != x1 || y0 != y1) {
                 float *pts = points.alloc(2);
-                px = pts[0] = x, py = pts[1] = y;
+                x0 = pts[0] = x1, y0 = pts[1] = y1;
                 update(kLine, 1, pts);
             }
         }
-        void quadTo(float cx, float cy, float x, float y) {
-            float ax = x - cx, ay = y - cy, bx = cx - px, by = cy - py, det = bx * ay - by * ax, dot = ax * bx + ay * by;
+        void quadTo(float x1, float y1, float x2, float y2) {
+            float ax = x2 - x1, ay = y2 - y1, bx = x1 - x0, by = y1 - y0, det = bx * ay - by * ax, dot = ax * bx + ay * by;
             if (fabsf(det) < 1e-2f) {
                 if (dot < 0.f && det)
-                    lineTo((px + x) * 0.25f + cx * 0.5f, (py + y) * 0.25f + cy * 0.5f);
-                lineTo(x, y);
+                    lineTo((x0 + x2) * 0.25f + x1 * 0.5f, (y0 + y2) * 0.25f + y1 * 0.5f);
+                lineTo(x2, y2);
             } else {
                 float *pts = points.alloc(4);
-                pts[0] = cx, pts[1] = cy, px = pts[2] = x, py = pts[3] = y;
+                pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2;
                 update(kQuadratic, 2, pts);
                 ax -= bx, ay -= by, dot = ax * ax + ay * ay;
                 quadraticSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
         }
-        void cubicTo(float cx0, float cy0, float cx1, float cy1, float x, float y) {
-            float dx = 3.f * (cx0 - cx1) - px + x, dy = 3.f * (cy0 - cy1) - py + y;
+        void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
+            float dx = 3.f * (x1 - x2) - x0 + x3, dy = 3.f * (y1 - y2) - y0 + y3;
             if (dx * dx + dy * dy < 1e-2f)
-                quadTo((3.f * (cx0 + cx1) - px - x) * 0.25f, (3.f * (cy0 + cy1) - py - y) * 0.25f, x, y);
+                quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
                 float *pts = points.alloc(6);
                 float cx, bx, ax, cy, by, ay, dot;
-                cx = 3.f * (cx0 - px), bx = 3.f * (cx1 - cx0) - cx, ax = x - px - cx - bx;
-                cy = 3.f * (cy0 - py), by = 3.f * (cy1 - cy0) - cy, ay = y - py - cy - by;
+                cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+                cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
                 dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
-                pts[0] = cx0, pts[1] = cy0, pts[2] = cx1, pts[3] = cy1, px = pts[4] = x, py = pts[5] = y;
+                pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, x0 = pts[4] = x3, y0 = pts[5] = y3;
                 update(kCubic, 3, pts);
             }
         }
         void close() {
             float *pts = points.alloc(2);
-            pts[0] = px, pts[1] = py;
+            pts[0] = x0, pts[1] = y0;
             update(kClose, 1, pts);
         }
         size_t hash() {
@@ -241,7 +241,7 @@ struct Rasterizer {
         size_t refCount = 0, crc = 0, minUpper = 0, quadraticSums = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
-        float px = 0.f, py = 0.f, maxDot = 0.f;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;
         Bounds bounds;
     };
     typedef Ref<Geometry> Path;
