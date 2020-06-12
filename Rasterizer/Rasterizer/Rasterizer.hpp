@@ -937,18 +937,18 @@ struct Rasterizer {
             }
         }
     }
-    struct OutlineInfo {
+    struct Outliner {
         uint32_t type;  Instance *dst0, *dst;  size_t iz;
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            OutlineInfo *in = (OutlineInfo *)info;
+            Outliner *out = (Outliner *)info;
             if (x0 != FLT_MAX) {
-                Outline& outline = (new (in->dst++) Instance(in->iz, Instance::Type(in->type)))->outline;
+                Outline& outline = (new (out->dst++) Instance(out->iz, Instance::Type(out->type)))->outline;
                 new (& outline.s) Segment(x0, y0, x1, y1, curve), outline.prev = -1, outline.next = 1;
-            } else if (in->dst - in->dst0 > 0) {
-                Outline& first = in->dst0->outline, & last = (in->dst - 1)->outline;
+            } else if (out->dst - out->dst0 > 0) {
+                Outline& first = out->dst0->outline, & last = (out->dst - 1)->outline;
                 float dx = first.s.x0 - last.s.x1, dy = first.s.y0 - last.s.y1;
-                first.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(in->dst - in->dst0 - 1), last.next = -first.prev;
-                in->dst0 = in->dst;
+                first.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(out->dst - out->dst0 - 1), last.next = -first.prev;
+                out->dst0 = out->dst;
             }
         }
     };
@@ -1008,9 +1008,9 @@ struct Rasterizer {
                 for (inst = linst; inst < uinst; inst++) {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & Instance::kOutlines) {
-                        OutlineInfo info; info.type = (inst->iz & ~kPathIndexMask), info.dst = info.dst0 = dst, info.iz = iz;
-                        readGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & info, OutlineInfo::WriteInstance);
-                        dst = info.dst, ctms[iz] = Transform();
+                        Outliner out; out.type = (inst->iz & ~kPathIndexMask), out.dst = out.dst0 = dst, out.iz = iz;
+                        readGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                        dst = out.dst, ctms[iz] = Transform();
                     } else {
                         ic = dst - dst0, *dst++ = *inst;
                         if (inst->iz & Instance::kMolecule) {
