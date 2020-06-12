@@ -406,8 +406,8 @@ struct Rasterizer {
             uint32_t ic;
             uint16_t i0, ux;
         };
-        void empty() { outlinePaths = outlineUpper = 0, blends.empty(), fasts.empty(), opaques.empty(); }
-        void reset() { outlinePaths = outlineUpper = 0, blends.reset(), fasts.reset(), opaques.reset(); }
+        void empty() { outlinePaths = outlineUpper = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(); }
+        void reset() { outlinePaths = outlineUpper = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(); }
         size_t outlinePaths = 0, outlineUpper = 0, slz, suz, p16total;
         Allocator allocator;
         Row<uint32_t> fasts;
@@ -455,7 +455,7 @@ struct Rasterizer {
             size_t fatlines = 1.f + ceilf(float(height) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
-            gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz, gpu.p16total = 0;
+            gpu.allocator.init(width, height), gpu.slz = slz, gpu.suz = suz, empty();
             bzero(gpu.fasts.alloc(pathsCount), pathsCount * sizeof(*gpu.fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
@@ -1059,7 +1059,6 @@ struct Rasterizer {
                     entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(GPU::Instance)), begin = entries.back().end;
             }
         }
-        ctx->empty();
     }
 };
 typedef Rasterizer Ra;
