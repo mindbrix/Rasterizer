@@ -178,7 +178,7 @@
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::GPU::Instance));
+                reverse = uint32_t((entry.end - entry.begin) / sizeof(Ra::Instance));
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& reverse length:sizeof(reverse) atIndex:12];
@@ -216,7 +216,7 @@
                     [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Edge)
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge)
                                       baseInstance:0];
                 }
                 if (entry.type == Ra::Buffer::kQuadMolecules) {
@@ -240,7 +240,7 @@
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::GPU::Instance)
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
                                       baseInstance:0];
                 break;
         }
