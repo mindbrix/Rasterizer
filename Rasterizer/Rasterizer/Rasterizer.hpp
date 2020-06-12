@@ -454,7 +454,7 @@ struct Rasterizer {
             size_t lz, uz, i, clz, cuz, iz, is, ip, count;  Scene *scene;
             for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 uz = lz + scene->count;
-                if ((clz = lz < this->slz ? this->slz : lz > this->suz ? this->suz : lz) != (cuz = uz < this->slz ? this->slz : uz > this->suz ? this->suz : uz)) {
+                if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.intersect(clipbounds).inset(1.f, 1.f);
                     float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
