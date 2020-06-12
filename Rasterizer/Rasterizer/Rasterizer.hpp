@@ -196,14 +196,14 @@ struct Rasterizer {
             }
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
-            float dx = 3.f * (x1 - x2) - x0 + x3, dy = 3.f * (y1 - y2) - y0 + y3;
-            if (dx * dx + dy * dy < 1e-2f)
+            float bx, ax, by, ay, cx, cy, dot;
+            bx = 3.f * (x2 - x1), ax = -bx - x0 + x3, by = 3.f * (y2 - y1), ay = -by - y0 + y3;
+            if (ax * ax + ay * ay < 1e-2f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
                 float *pts = points.alloc(6);
-                float cx, bx, ax, cy, by, ay, dot;
-                cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-                cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
+                cx = 3.f * (x1 - x0), bx -= cx, ax = x3 - x0 - cx - bx;
+                cy = 3.f * (y1 - y0), by -= cy, ay = y3 - y0 - cy - by;
                 dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
                 pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, x0 = pts[4] = x3, y0 = pts[5] = y3;
                 update(kCubic, 3, pts);
