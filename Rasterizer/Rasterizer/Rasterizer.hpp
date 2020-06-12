@@ -443,12 +443,12 @@ struct Rasterizer {
         Bounds full, sheet, strip, fast, molecules;
     };
     struct Context {
-        void prepare(size_t width, size_t height, size_t pathsCount, size_t slz, size_t suz) {
-            device = Bounds(0.f, 0.f, width, height);
-            size_t fatlines = 1.f + ceilf(float(height) * krfh);
+        void prepare(size_t w, size_t h, size_t pathsCount, size_t slz, size_t suz) {
+            device = Bounds(0.f, 0.f, w, h), this->slz = slz, this->suz = suz;
+            size_t fatlines = 1.f + ceilf(float(h) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
-            empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
+            empty(), allocator.empty(device);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
