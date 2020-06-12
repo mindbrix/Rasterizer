@@ -413,7 +413,7 @@ struct Rasterizer {
             Pass(size_t idx) : li(idx), ui(idx) {}
             size_t fastEdges = 0, quadEdges = 0, fastMolecules = 0, quadMolecules = 0, li, ui;
         };
-        void init(Bounds device) {
+        void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
         }
         void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t fastEdges, size_t quadEdges, size_t fastMolecules, size_t quadMolecules, GPU::Cell *cell) {
@@ -448,7 +448,7 @@ struct Rasterizer {
             size_t fatlines = 1.f + ceilf(float(height) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
-            allocator.init(device), this->slz = slz, this->suz = suz, empty();
+            empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
