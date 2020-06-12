@@ -226,9 +226,9 @@ struct Rasterizer {
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
             if (x0 != FLT_MAX)
-                g->writePoint16(x0, y0, g->bounds, curve), g->x1 = x1, g->y1 = y1;
+                g->writePoint16(x0, y0, g->bounds, curve);
             else if (g->p16s.end > g->p16s.idx) {
-                g->writePoint16(g->x1, g->y1, g->bounds, 0);
+                g->writePoint16(x1, y1, g->bounds, 0);
                 size_t count = kFastSegments - (g->p16s.end % kFastSegments);
                 for (Point16 *ep16 = g->p16s.alloc(count); count; count--)
                     new (ep16++) Point16(0xFFFF, 0xFFFF);
@@ -241,7 +241,7 @@ struct Rasterizer {
         size_t refCount = 0, crc = 0, minUpper = 0, quadraticSums = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
-        float px = 0.f, py = 0.f, x1 = 0.f, y1 = 0.f, maxDot = 0.f;
+        float px = 0.f, py = 0.f, maxDot = 0.f;
         Bounds bounds;
     };
     typedef Ref<Geometry> Path;
@@ -540,7 +540,7 @@ struct Rasterizer {
                         }
                     }
                     if (mark && sx != FLT_MAX)
-                        (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, 0, info);
+                        (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
                     sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty, p += 2, type++;
                     break;
                 case Geometry::kLine:
@@ -619,7 +619,7 @@ struct Rasterizer {
             }
         }
         if (mark && sx != FLT_MAX)
-            (*function)(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, 0, info);
+            (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
     }
     static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, SegmentFunction function, void *info) {
         float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
