@@ -511,11 +511,8 @@ struct Rasterizer {
         void empty() { outlinePaths = outlineUpper = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
         void reset() { outlinePaths = outlineUpper = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0); }
         size_t outlinePaths = 0, outlineUpper = 0, slz, suz, p16total;
-        Row<uint32_t> fasts;
-        Row<GPU::Instance> blends, opaques;
-        Allocator allocator;
-        Bounds device;
-        Row<Segment> segments;
+        Bounds device;  Allocator allocator;
+        Row<uint32_t> fasts;  Row<GPU::Instance> blends, opaques;  Row<Segment> segments;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
     static void readGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = divideQuadratic, CubicFunction cubicFunction = divideCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
