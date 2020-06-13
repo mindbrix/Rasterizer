@@ -1111,18 +1111,11 @@ uint64_t crc64_slow(size_t crc, const void *input, size_t nbytes) {
 
 // Loads an input 32-bit word in little-endian order from a big-endian machine.
 static inline uint32_t crc64_load_le32_(const uint32_t *p) {
-#ifdef __ppc__
-  // See: http://hardwarebug.org/2008/10/25/gcc-inline-asm-annoyance/
-  uint32_t v;
-  asm ("lwbrx %0, %y1" : "=r"(v) : "Z"(*p));
-  return v;
-#else
   uint32_t w = *p;
   return  ((((w) & 0xff000000) >> 24)
          | (((w) & 0x00ff0000) >>  8)
          | (((w) & 0x0000ff00) <<  8)
          | (((w) & 0x000000ff) << 24));
-#endif
 }
 
 // A parallel multiword interleaved algorithm with a word size of 4 bytes
