@@ -956,13 +956,11 @@ struct Rasterizer {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Instance);
-        for (i = 0; i < count; i++) {
-            begins[i] = size;
-            Context& ctx = contexts[i];  Allocator::Pass *pass = ctx.allocator.passes.base;
-            for (instances = 0, j = 0; j < ctx.allocator.passes.end; j++)
-                instances += pass[j].quadEdges + pass[j].fastEdges + pass[j].fastMolecules + pass[j].quadMolecules;
-            size += instances * sizeof(Edge) + (ctx.outlineUpper - ctx.outlinePaths + ctx.blends.end) * sizeof(Instance);
-            size += ctx.segments.end * sizeof(Segment) + ctx.p16total * sizeof(Geometry::Point16);
+        Context *ctx = contexts;   Allocator::Pass *pass;
+        for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+            for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
+                instances += pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules;
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineUpper - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
