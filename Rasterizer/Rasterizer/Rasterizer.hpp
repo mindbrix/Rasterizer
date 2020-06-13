@@ -824,11 +824,11 @@ struct Rasterizer {
                     idxr->indexLine(x0, y0, x1, y1);
                 else if (curve == 1) {
                     if (idxr->px != FLT_MAX)
-                        idxr->indexCurve(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
+                        idxr->indexQuadratic(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
                     idxr->px = x0, idxr->py = y0;
                 } else {
-                    idxr->indexCurve(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
-                    idxr->indexCurve(x0, y0, 0.25f * (x1 - idxr->px) + x0, 0.25f * (y1 - idxr->py) + y0, x1, y1);
+                    idxr->indexQuadratic(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
+                    idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px) + x0, 0.25f * (y1 - idxr->py) + y0, x1, y1);
                     idxr->px = FLT_MAX;
                 }
             }
@@ -850,22 +850,22 @@ struct Rasterizer {
             }
             is++;
         }
-        __attribute__((always_inline)) void indexCurve(float x0, float y0, float x1, float y1, float x2, float y2) {
+        __attribute__((always_inline)) void indexQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ay = y2 - y1, by = y1 - y0, ax, bx, iy;
             if ((ay > 0.f) == (by > 0.f) || fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness) {
                 if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                     writeIndex(y0 * krfh, x0 < x2 ? x0 : x2, x0 > x2 ? x0 : x2, (y2 - y0) * kCoverScale, true);
                 else
-                    ax = x2 - x1, bx = x1 - x0, writeCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
+                    ax = x2 - x1, bx = x1 - x0, indexCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
             } else {
                 iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
                 ay -= by, by *= 2.f, ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
-                writeCurve(y0, iy, ay, by, y0, ax, bx, x0, true);
-                writeCurve(iy, y2, ay, by, y0, ax, bx, x0, false);
+                indexCurve(y0, iy, ay, by, y0, ax, bx, x0, true);
+                indexCurve(iy, y2, ay, by, y0, ax, bx, x0, false);
             }
             is++;
         }
-        __attribute__((always_inline)) void writeCurve(float w0, float w1, float ay, float by, float cy, float ax, float bx, float cx, bool a) {
+        __attribute__((always_inline)) void indexCurve(float w0, float w1, float ay, float by, float cy, float ax, float bx, float cx, bool a) {
             float y, uy, d2a, ity, d, t0, t1, itx, x0, x1, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;
             y = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
             itx = fabsf(ax) < kQuadraticFlatness ? FLT_MAX : -bx / ax * 0.5f;
