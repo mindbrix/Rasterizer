@@ -450,8 +450,7 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene;
-            for (scene = & list.scenes[0], lz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
-                uz = lz + scene->count;
+            for (scene = & list.scenes[0], lz = i = 0, uz = scene->count; i < list.scenes.size(); i++, scene++, lz = uz, uz = lz + scene->count)
                 if ((clz = lz < slz ? slz : lz > suz ? suz : lz) != (cuz = uz < slz ? slz : uz > suz ? suz : uz)) {
                     Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                     Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = device.intersect(clipbounds).inset(1.f, 1.f);
@@ -500,7 +499,6 @@ struct Rasterizer {
                         }
                     }
                 }
-            }
         }
         void empty() { outlinePaths = outlineUpper = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
         void reset() { outlinePaths = outlineUpper = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0); }
