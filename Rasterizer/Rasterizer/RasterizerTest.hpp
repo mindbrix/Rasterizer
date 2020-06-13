@@ -234,7 +234,7 @@ struct RasterizerTest {
         for (int j = 0; j < count; j++) {
             dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : srcColors[j];
             if (state.opaque)
-                dstColors[j].src3 = 255;
+                dstColors[j].a = 255;
         }
         for (int j = 0; j < count; j++) {
             dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;

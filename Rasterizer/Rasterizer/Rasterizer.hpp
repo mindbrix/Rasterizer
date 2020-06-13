@@ -81,8 +81,8 @@ struct Rasterizer {
         float lx, ly, ux, uy;
     };
     struct Colorant {
-        Colorant(uint8_t src0, uint8_t src1, uint8_t src2, uint8_t src3) : src0(src0), src1(src1), src2(src2), src3(src3) {}
-        uint8_t src0, src1, src2, src3;
+        Colorant(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
+        uint8_t b, g, r, a;
     };
     template<typename T>
     struct Ref {
@@ -491,7 +491,7 @@ struct Rasterizer {
                                 m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
                                 readGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                                 Bounds clu = Bounds(inv.concat(unit));
-                                bool opaque = colors[iz].src3 == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
+                                bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                                 bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
                                 writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                                 segments.idx = segments.end = idxr.dst - segments.base;
