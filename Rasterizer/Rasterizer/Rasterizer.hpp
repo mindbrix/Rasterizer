@@ -472,7 +472,7 @@ struct Rasterizer {
                                inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                                if (det > 1e2f) {
                                    size_t count = 0;
-                                   readGeometry(g, ctm, inst->outline.clip, false, false, true, & count, CountSegment);
+                                   readGeometry(g, m, inst->outline.clip, false, false, true, & count, CountSegment);
                                    outlineUpper += count;
                                } else
                                    outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
