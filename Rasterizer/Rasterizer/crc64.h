@@ -70,11 +70,6 @@ extern uint64_t crc64_slow(size_t crc, const void *input, size_t nbytes);
 extern uint64_t crc64(uint64_t crc, const void *input, size_t nbytes);
 
 /*
- * Calculate the CRC64 of the provided buffer, in parallel if possible.
- */
-uint64_t crc64_omp(const void *input, size_t nbytes);
-
-/*
  * Calculate the 'check bytes' for the provided CRC64. If these bytes are
  * appended to the original buffer, then the new total CRC64 should be -1.
  */

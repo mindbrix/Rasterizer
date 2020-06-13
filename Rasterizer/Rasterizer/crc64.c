@@ -47,10 +47,6 @@
 #include <config.h>
 #endif
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 #include <stdbool.h>
 
 // The polynomial here is the bit-reversed encoding of 0x42f0e1eba9ea3693.
@@ -1406,45 +1402,3 @@ uint64_t crc64_combine(uint64_t cs1, uint64_t cs2, size_t nbytes2) {
   // CRC(M, b) = CRC(M, a) + ((b-a)x^|M|) mod P.
   return cs2 ^ crc64_multiply_(cs1, crc64_x_pow_n_(8*nbytes2));
 }
-
-static const size_t crc64_min_thread_bytes = 1024;
-
-uint64_t crc64_omp(const void *input, size_t nbytes) {
-#ifdef _OPENMP
-  if (nbytes > 2*crc64_min_thread_bytes) {
-    int nthreads = omp_get_max_threads();
-
-    if (nbytes < nthreads*crc64_min_thread_bytes)
-      nthreads = nbytes/crc64_min_thread_bytes;
-
-    uint64_t thread_cs[nthreads];
-    size_t thread_sz[nthreads];
-
-    const unsigned char *data = (const unsigned char*) input;
-#pragma omp parallel num_threads(nthreads)
-    {
-      int tid = omp_get_thread_num();
-      size_t bpt = nbytes/nthreads;
-      const unsigned char *start = data + bpt*tid, *end;
-      if (tid != nthreads - 1)
-        end = start + bpt;
-      else
-        end = data + nbytes;
-
-      size_t sz = end - start;
-      thread_sz[tid] = sz;
-      thread_cs[tid] = crc64(start, sz);
-    }
-
-    uint64_t cs = thread_cs[0];
-    for (int i = 1; i < nthreads; ++i) {
-      cs = crc64_combine(cs, thread_cs[i], thread_sz[i]);
-    }
-
-    return cs;
-  }
-#endif
-
-  return crc64(UINT64_C(0xffffffffffffffff), input, nbytes);
-}
-
