@@ -58,7 +58,7 @@ struct RasterizerState {
                 case Event::kMouseMove:
                     x = e.x, y = e.y;
                     if (flags & Event::kShift)
-                        timeScale = e.y / (bounds.uy - bounds.ly);
+                        timeScale = e.y / (bounds.uy - bounds.ly), timeScale *= timeScale;
                     break;
                 case Event::kMouseUp:
                     mouseDown = false;
