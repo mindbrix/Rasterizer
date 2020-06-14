@@ -659,21 +659,19 @@ struct Rasterizer {
         std::sort(roots + 1, root), *root++ = 1.f;
         for (tx0 = x0, ty0 = y0, t = roots; t < root - 1; t++, tx0 = tx2, ty0 = ty2) {
             tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
-            if (t[0] != t[1]) {
-                mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
-                if (my >= clip.ly && my < clip.uy) {
-                    if (mx >= clip.lx && mx < clip.ux) {
-                        (*quadFunction)(
-                            tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
-                            ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
-                            2.f * mx - 0.5f * (tx0 + tx2), 2.f * my - 0.5f * (ty0 + ty2),
-                            tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2,
-                            ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2,
-                            function, info, s);
-                    } else if (polygon) {
-                        vx = mx <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, 0, info);
-                    }
+            mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
+            if (my >= clip.ly && my < clip.uy) {
+                if (mx >= clip.lx && mx < clip.ux) {
+                    (*quadFunction)(
+                        tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
+                        ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
+                        2.f * mx - 0.5f * (tx0 + tx2), 2.f * my - 0.5f * (ty0 + ty2),
+                        tx2 < clip.lx ? clip.lx : tx2 > clip.ux ? clip.ux : tx2,
+                        ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2,
+                        function, info, s);
+                } else if (polygon) {
+                    vx = mx <= clip.lx ? clip.lx : clip.ux;
+                    (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty2 < clip.ly ? clip.ly : ty2 > clip.uy ? clip.uy : ty2, 0, info);
                 }
             }
         }
