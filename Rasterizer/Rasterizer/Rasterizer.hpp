@@ -283,7 +283,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        readGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, divideQuadratic, divideCubic, kQuadraticScale, kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
+                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, divideQuadratic, divideCubic, kQuadraticScale, kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
                     }
                     new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
@@ -472,7 +472,7 @@ struct Rasterizer {
                                inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                                if (det > 1e2f) {
                                    size_t count = 0;
-                                   readGeometry(g, m, inst->outline.clip, false, false, true, & count, CountSegment);
+                                   divideGeometry(g, m, inst->outline.clip, false, false, true, & count, CountSegment);
                                    outlineUpper += count;
                                } else
                                    outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
@@ -489,7 +489,7 @@ struct Rasterizer {
                                 CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                                 float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                                 m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
-                                readGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
+                                divideGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                                 Bounds clu = Bounds(inv.concat(unit));
                                 bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                                 bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
@@ -507,7 +507,7 @@ struct Rasterizer {
         Row<uint32_t> fasts;  Row<Instance> blends, opaques;  Row<Segment> segments;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
-    static void readGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = divideQuadratic, CubicFunction cubicFunction = divideCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
+    static void divideGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = divideQuadratic, CubicFunction cubicFunction = divideCubic, float quadScale = kQuadraticScale, float cubicScale = kCubicScale) {
         float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -1005,7 +1005,7 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & Instance::kOutlines) {
                         Outliner out; out.type = (inst->iz & ~kPathIndexMask), out.dst = out.dst0 = dst, out.iz = iz;
-                        readGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                        divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
                         dst = out.dst, ctms[iz] = Transform();
                     } else {
                         ic = dst - dst0, *dst++ = *inst;

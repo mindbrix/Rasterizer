@@ -64,9 +64,9 @@ struct RasterizerWinding {
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
         if (clip.lx != clip.ux && clip.ly != clip.uy && ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
             if (w)
-                Ra::readGeometry(path.ref, ctm, clip, false, false, false, & info, WindingInfo::countOutline, Ra::divideQuadratic, Ra::divideCubic, 1.f, 1.f);
+                Ra::divideGeometry(path.ref, ctm, clip, false, false, false, & info, WindingInfo::countOutline, Ra::divideQuadratic, Ra::divideCubic, 1.f, 1.f);
             else
-                Ra::readGeometry(path.ref, ctm, clip, false, true, false, & info, WindingInfo::count, Ra::divideQuadratic, Ra::divideCubic, 1.f, 1.f);
+                Ra::divideGeometry(path.ref, ctm, clip, false, true, false, & info, WindingInfo::count, Ra::divideQuadratic, Ra::divideCubic, 1.f, 1.f);
         }
         return info.winding;
     }
