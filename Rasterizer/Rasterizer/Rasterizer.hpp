@@ -735,28 +735,26 @@ struct Rasterizer {
         std::sort(roots + 1, root), *root++ = 1.f;
         for (tx0 = x0, ty0 = y0, t = roots; t < root - 1; t++, tx0 = tx3, ty0 = ty3) {
             tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
-            if (t[0] != t[1]) {
-                mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
-                if (my >= clip.ly && my < clip.uy) {
-                    if (mx >= clip.lx && mx < clip.ux) {
-                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
-                        mt = v * t[0] + u * t[1], tx1 = ((ax * mt + bx) * mt + cx) * mt + x0, ty1 = ((ay * mt + by) * mt + cy) * mt + y0;
-                        mt = u * t[0] + v * t[1], tx2 = ((ax * mt + bx) * mt + cx) * mt + x0, ty2 = ((ay * mt + by) * mt + cy) * mt + y0;
-                        fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
-                        gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
-                        (*cubicFunction)(
-                            tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
-                            ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
-                            fx * m0 + gx * -m1, fy * m0 + gy * -m1,
-                            fx * -m1 + gx * m0, fy * -m1 + gy * m0,
-                            tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3,
-                            ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3,
-                            function, info, s
-                        );
-                    } else if (polygon) {
-                        vx = mx <= clip.lx ? clip.lx : clip.ux;
-                        (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3, 0, info);
-                    }
+            mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
+            if (my >= clip.ly && my < clip.uy) {
+                if (mx >= clip.lx && mx < clip.ux) {
+                    const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
+                    mt = v * t[0] + u * t[1], tx1 = ((ax * mt + bx) * mt + cx) * mt + x0, ty1 = ((ay * mt + by) * mt + cy) * mt + y0;
+                    mt = u * t[0] + v * t[1], tx2 = ((ax * mt + bx) * mt + cx) * mt + x0, ty2 = ((ay * mt + by) * mt + cy) * mt + y0;
+                    fx = tx1 - v3 * tx0 - u3 * tx3, fy = ty1 - v3 * ty0 - u3 * ty3;
+                    gx = tx2 - u3 * tx0 - v3 * tx3, gy = ty2 - u3 * ty0 - v3 * ty3;
+                    (*cubicFunction)(
+                        tx0 < clip.lx ? clip.lx : tx0 > clip.ux ? clip.ux : tx0,
+                        ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0,
+                        fx * m0 + gx * -m1, fy * m0 + gy * -m1,
+                        fx * -m1 + gx * m0, fy * -m1 + gy * m0,
+                        tx3 < clip.lx ? clip.lx : tx3 > clip.ux ? clip.ux : tx3,
+                        ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3,
+                        function, info, s
+                    );
+                } else if (polygon) {
+                    vx = mx <= clip.lx ? clip.lx : clip.ux;
+                    (*function)(vx, ty0 < clip.ly ? clip.ly : ty0 > clip.uy ? clip.uy : ty0, vx, ty3 < clip.ly ? clip.ly : ty3 > clip.uy ? clip.uy : ty3, 0, info);
                 }
             }
         }
