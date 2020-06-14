@@ -39,18 +39,21 @@ struct RasterizerSVG {
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
             Ra::Scene scene;
-//            Ra::Path path;
-//            for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
-//                if (shape->fill.type != NSVG_PAINT_NONE)
-//                    writePathFromShape(shape, image->height, path);
-//            scene.addPath(path, Ra::Transform(), Ra::Colorant(0, 0, 0, 255), 0.f, Ra::Scene::kFillEvenOdd);
-            for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
+            if (0) {
                 Ra::Path path;
-                writePathFromShape(shape, image->height, path);
-                if (shape->fill.type != NSVG_PAINT_NONE)
-                    scene.addPath(path, Ra::Transform(), colorFromPaint(shape->fill), 0.f, 0);
-                if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
-                    scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, 0);
+                for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
+                    if (shape->fill.type != NSVG_PAINT_NONE)
+                        writePathFromShape(shape, image->height, path);
+                scene.addPath(path, Ra::Transform(), Ra::Colorant(0, 0, 0, 255), 0.f, Ra::Scene::kFillEvenOdd);
+            } else {
+                for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
+                    Ra::Path path;
+                    writePathFromShape(shape, image->height, path);
+                    if (shape->fill.type != NSVG_PAINT_NONE)
+                        scene.addPath(path, Ra::Transform(), colorFromPaint(shape->fill), 0.f, 0);
+                    if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
+                        scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, 0);
+                }
             }
             list.addScene(scene);
             nsvgDelete(image);
