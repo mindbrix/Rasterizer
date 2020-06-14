@@ -170,7 +170,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else if (keyCode == 51) {
         _useCG = !_useCG;
         [self initLayer:_useCG];
-        _renderer.reset();
+//        _renderer.reset();
         [self updateRasterizerLabel];
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
