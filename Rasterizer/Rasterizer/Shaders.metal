@@ -192,10 +192,10 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
                 slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
             }
         }
-        float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
-        float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-        float x = (cell.ox - cell.lx + ox) / *width * 2.0 - 1.0, tx = 0.5 - ox;
-        float y = (cell.oy - cell.ly + oy) / *height * 2.0 - 1.0, ty = 0.5 - oy;
+        float dx = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
+        float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
+        float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
+        float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
         vert.position = float4(x, y, 1.0, 1.0);
         for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
             dst[0] += tx, dst[1] += ty;
@@ -281,10 +281,10 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
             }
         }
     }
-    float ox = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
-    float oy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float x = (cell.ox - cell.lx + ox) / *width * 2.0 - 1.0, tx = 0.5 - ox;
-    float y = (cell.oy - cell.ly + oy) / *height * 2.0 - 1.0, ty = 0.5 - oy;
+    float dx = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
+    float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
     vert.position = float4(x, y, 1.0, visible);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
@@ -372,10 +372,10 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         } else
             dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
     }
-    float ox = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
-    float oy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
-    float dx = cell.ox - cell.lx + ox, x = dx / *width * 2.0 - 1.0, tx = 0.5 - ox;
-    float dy = cell.oy - cell.ly + oy, y = dy / *height * 2.0 - 1.0, ty = 0.5 - oy;
+    float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
+    float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
     vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
     vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
