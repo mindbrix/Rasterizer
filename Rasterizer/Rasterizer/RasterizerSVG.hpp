@@ -15,8 +15,7 @@ struct RasterizerSVG {
         else
             return Ra::Colorant(0, 0, 0, 64);
     }
-    static Ra::Path createPathFromShape(NSVGshape *shape, float height) {
-        Ra::Path p;
+    static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
         float *pts, x, y, dx, dy, dot;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
@@ -32,7 +31,6 @@ struct RasterizerSVG {
             if (path->closed)
                 p.ref->close();
         }
-        return p;
     }
     static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
         char *data = (char *)malloc(size + 1);
@@ -41,8 +39,14 @@ struct RasterizerSVG {
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {
             Ra::Scene scene;
+//            Ra::Path path;
+//            for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
+//                if (shape->fill.type != NSVG_PAINT_NONE)
+//                    writePathFromShape(shape, image->height, path);
+//            scene.addPath(path, Ra::Transform(), Ra::Colorant(0, 0, 0, 255), 0.f, Ra::Scene::kFillEvenOdd);
             for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next) {
-                Ra::Path path = createPathFromShape(shape, image->height);
+                Ra::Path path;
+                writePathFromShape(shape, image->height, path);
                 if (shape->fill.type != NSVG_PAINT_NONE)
                     scene.addPath(path, Ra::Transform(), colorFromPaint(shape->fill), 0.f, 0);
                 if (shape->stroke.type != NSVG_PAINT_NONE && shape->strokeWidth)
