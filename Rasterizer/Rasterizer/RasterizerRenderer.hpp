@@ -72,7 +72,7 @@ struct RasterizerRenderer {
         for (int i = 0; i < kQueueCount; i++)
             for (auto entry : entries[i])
                 *(info->buffer->entries.alloc(1)) = entry;
-        size_t end = info->buffer->entries.end == 0 ? 0 : info->buffer->entries.base[info->buffer->entries.end - 1].end;
+        size_t end = info->buffer->entries.end == 0 ? 0 : info->buffer->entries.back().end;
         assert(size >= end);
     }
     
