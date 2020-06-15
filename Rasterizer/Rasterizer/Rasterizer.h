@@ -17,7 +17,6 @@
 #define krfh 0.0625f
 #define kFastHeight 32
 #define kMoleculesHeight 128
-#define kClipMargin 1e-2f
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
 #define kPathIndexMask 0xFFFFFF
