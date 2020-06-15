@@ -506,7 +506,6 @@ struct Rasterizer {
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
     static void divideGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
-        bool flat = true;
         float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -546,12 +545,9 @@ struct Rasterizer {
                 case Geometry::kQuadratic:
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                    if (unclipped) {
-                        if (flat)
-                            (*function)(x0, y0, x2, y2, 0, info);
-                        else
-                            (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, quadScale);
-                    } else {
+                    if (unclipped)
+                        (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, quadScale);
+                    else {
                         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
                         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
                         if (ly < clip.uy && uy > clip.ly) {
@@ -571,12 +567,9 @@ struct Rasterizer {
                     x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
                     x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
                     x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
-                    if (unclipped) {
-                        if (flat)
-                            (*function)(x0, y0, x3, y3, 0, info);
-                        else
-                            (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, cubicScale);
-                    } else {
+                    if (unclipped)
+                        (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, cubicScale);
+                    else {
                         ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
                         uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
                         if (ly < clip.uy && uy > clip.ly) {
