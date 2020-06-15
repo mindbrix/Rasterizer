@@ -895,7 +895,7 @@ struct Rasterizer {
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
                             inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
-                        winding = cover = roundf(winding);
+                        winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
                             if (opaque) {
                                 Instance *inst = new (ctx.opaques.alloc(1)) Instance(iz, 0);
