@@ -413,7 +413,6 @@ struct Rasterizer {
         }
         void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t fastEdges, size_t quadEdges, size_t fastMolecules, size_t quadMolecules, Cell *cell) {
             float w = ux - lx, h = uy - ly, hght;  Bounds *b;
-            Pass *pass = & passes.back();
             if (h <= kfh)
                 b = & strip, hght = kfh;
             else if (h <- kFastHeight)
@@ -421,14 +420,13 @@ struct Rasterizer {
             else
                 b = & molecules, hght = kMoleculesHeight;
             if (b->ux - b->lx < w) {
-                if (sheet.uy - sheet.ly < hght) {
-                    pass = sheet.ux == 0.f ? pass : new (passes.alloc(1)) Pass(idx);
-                    sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f);
-                }
+                if (sheet.uy - sheet.ly < hght)
+                    sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), new (passes.alloc(1)) Pass(idx);
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
-            new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly);
-            b->lx += w, pass->ui++, pass->fastEdges += fastEdges, pass->quadEdges += quadEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
+            new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly), b->lx += w;
+            Pass *pass = & passes.back();
+            pass->ui++, pass->fastEdges += fastEdges, pass->quadEdges += quadEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
         }
         Row<Pass> passes;
         Bounds full, sheet, strip, fast, molecules;
