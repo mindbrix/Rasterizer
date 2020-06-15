@@ -409,11 +409,11 @@ struct Rasterizer {
             size_t fastEdges = 0, quadEdges = 0, fastMolecules = 0, quadMolecules = 0, li, ui;
         };
         void empty(Bounds device) {
-            full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty();
+            full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
         void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t fastEdges, size_t quadEdges, size_t fastMolecules, size_t quadMolecules, Cell *cell) {
             float w = ux - lx, h = uy - ly, hght;  Bounds *b;
-            Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
+            Pass *pass = & passes.base[passes.end - 1];
             if (h <= kfh)
                 b = & strip, hght = kfh;
             else if (h <- kFastHeight)
@@ -431,8 +431,7 @@ struct Rasterizer {
             b->lx += w, pass->ui++, pass->fastEdges += fastEdges, pass->quadEdges += quadEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
         }
         inline void countInstance() {
-            Pass *pass = passes.end ? & passes.base[passes.end - 1] : new (passes.alloc(1)) Pass(0);
-            pass->ui++;
+            passes.back().ui++;
         }
         Row<Pass> passes;
         Bounds full, sheet, strip, fast, molecules;
