@@ -183,12 +183,12 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = slx = x0 = x1 = x16 * ma + y16 * mc + _tx,
         *dst++ = sly = suy = y0 = y1 = x16 * mb + y16 * md + _ty;
-        for (i = 0; i < kFastSegments; i++, x0 = x1, y0 = y1) {
+        for (i = 0; i < kFastSegments; i++, x0 = x1, y0 = y1, dst += 2) {
             if (pts->x == 0xFFFF && pts->y == 0xFFFF)
-                dst[0] = dst[-2], dst[1] = dst[-1], dst += 2;
+                dst[0] = dst[-2], dst[1] = dst[-1];
             else {
                 x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-                *dst++ = x1 = x16 * ma + y16 * mc + _tx, *dst++ = y1 = x16 * mb + y16 * md + _ty;
+                dst[0] = x1 = x16 * ma + y16 * mc + _tx, dst[1] = y1 = x16 * mb + y16 * md + _ty;
                 slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
             }
         }
