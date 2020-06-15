@@ -897,7 +897,7 @@ struct Rasterizer {
                         if (lx != ux) {
                             Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, edgeType);
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                            inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
+                            inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
                         if (alphaForCover(winding, even) > 0.998f) {
                             if (opaque) {
@@ -917,7 +917,7 @@ struct Rasterizer {
                 if (lx != ux) {
                     Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, edgeType);
                     *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                    inst->quad.cover = short(roundf(cover)), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
+                    inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                 }
             }
         }
