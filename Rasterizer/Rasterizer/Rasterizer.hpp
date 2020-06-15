@@ -425,8 +425,8 @@ struct Rasterizer {
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly), b->lx += w;
-            Pass *pass = & passes.back();
-            pass->ui++, pass->fastEdges += fastEdges, pass->quadEdges += quadEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
+            Pass& pass = passes.back();
+            pass.ui++, pass.fastEdges += fastEdges, pass.quadEdges += quadEdges, pass.fastMolecules += fastMolecules, pass.quadMolecules += quadMolecules;
         }
         Row<Pass> passes;
         Bounds full, sheet, strip, fast, molecules;
