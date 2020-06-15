@@ -413,7 +413,7 @@ struct Rasterizer {
         }
         void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t fastEdges, size_t quadEdges, size_t fastMolecules, size_t quadMolecules, Cell *cell) {
             float w = ux - lx, h = uy - ly, hght;  Bounds *b;
-            Pass *pass = & passes.base[passes.end - 1];
+            Pass *pass = & passes.back();
             if (h <= kfh)
                 b = & strip, hght = kfh;
             else if (h <- kFastHeight)
