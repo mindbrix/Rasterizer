@@ -773,35 +773,6 @@ struct Rasterizer {
         }
         (*function)(x0, y0, x3, y3, dt == 1.f ? 0 : 2, info);
     }
-    static inline float alphaForCover(float cover, bool even) {
-        float alpha = fabsf(cover);
-        return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
-    }
-    static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts) {
-        range = range < 4 ? 4 : range;
-        uint32_t tmp[n], mask = range - 1;
-        memset(counts, 0, sizeof(uint16_t) * range);
-        for (int i = 0; i < n; i++)
-            counts[(in[i] - bias) & mask]++;
-        uint64_t *sums = (uint64_t *)counts, sum = 0, count;
-        for (int i = 0; i < range / 4; i++) {
-            count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
-            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
-        }
-        for (int i = n - 1; i >= 0; i--)
-            tmp[--counts[(in[i] - bias) & mask]] = in[i];
-        if (single)
-            memcpy(in, tmp, n * sizeof(uint32_t));
-        else {
-            memset(counts, 0, sizeof(uint16_t) * 64);
-            for (int i = 0; i < n; i++)
-                counts[(in[i] >> 8) & 0x3F]++;
-            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
-                *dst++ += *src++;
-            for (int i = n - 1; i >= 0; i--)
-                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
-        }
-    }
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
         bool useCurves = false;  Bounds clip;  float px = FLT_MAX, py = FLT_MAX;  int is = 0;
@@ -883,6 +854,36 @@ struct Rasterizer {
             int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
+    static inline float alphaForCover(float cover, bool even) {
+        float alpha = fabsf(cover);
+        return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
+    }
+    static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts) {
+        range = range < 4 ? 4 : range;
+        uint32_t tmp[n], mask = range - 1;
+        memset(counts, 0, sizeof(uint16_t) * range);
+        for (int i = 0; i < n; i++)
+            counts[(in[i] - bias) & mask]++;
+        uint64_t *sums = (uint64_t *)counts, sum = 0, count;
+        for (int i = 0; i < range / 4; i++) {
+            count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
+            sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
+        }
+        for (int i = n - 1; i >= 0; i--)
+            tmp[--counts[(in[i] - bias) & mask]] = in[i];
+        if (single)
+            memcpy(in, tmp, n * sizeof(uint32_t));
+        else {
+            memset(counts, 0, sizeof(uint16_t) * 64);
+            for (int i = 0; i < n; i++)
+                counts[(in[i] >> 8) & 0x3F]++;
+            for (uint16_t *src = counts, *dst = src + 1, i = 1; i < 64; i++)
+                *dst++ += *src++;
+            for (int i = n - 1; i >= 0; i--)
+                in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
+        }
+    }
+    
     static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, fastCount = 0, quadCount = 0, *count = fast ? & fastCount : & quadCount, i, begin;
         uint16_t counts[256];  float ly, uy, cover, winding, lx, ux;
