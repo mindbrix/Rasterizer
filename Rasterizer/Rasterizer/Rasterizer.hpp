@@ -848,10 +848,6 @@ struct Rasterizer {
             int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
-    static inline float alphaForCover(float cover, bool even) {
-        float alpha = fabsf(cover);
-        return even ? (1.f - fabsf(fmodf(alpha, 2.f) - 1.f)) : (alpha < 1.f ? alpha : 1.f);
-    }
     static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts) {
         range = range < 4 ? 4 : range;
         uint32_t tmp[n], mask = range - 1;
@@ -894,12 +890,13 @@ struct Rasterizer {
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
+                        winding = roundf(winding);
                         if (lx != ux) {
                             Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, edgeType);
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
                             inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
-                        if (alphaForCover(winding, even) > 0.998f) {
+                        if ((even && (int(winding) & 1)) || (!even && winding)) {
                             if (opaque) {
                                 Instance *inst = new (ctx.opaques.alloc(1)) Instance(iz, 0);
                                 new (& inst->quad.cell) Cell(ux, ly, index->x, uy, 0.f, 0.f);
@@ -909,7 +906,7 @@ struct Rasterizer {
                                 ctx.allocator.passes.back().ui++;
                             }
                         }
-                        begin = i, lx = ux = index->x, cover = winding = roundf(winding);
+                        begin = i, lx = ux = index->x, cover = winding;
                     }
                     int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, _ux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
                     ux = _ux > ux ? _ux : ux, winding += uxcover[1] * 0.00003051850948f;
