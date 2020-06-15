@@ -482,7 +482,7 @@ struct Rasterizer {
                             fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Instance *inst = new (blends.alloc(1)) Instance(iz, Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0));
-                             allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
+                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->quad.iy = int(lz);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
