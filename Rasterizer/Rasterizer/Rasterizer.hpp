@@ -430,9 +430,6 @@ struct Rasterizer {
             new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly);
             b->lx += w, pass->ui++, pass->fastEdges += fastEdges, pass->quadEdges += quadEdges, pass->fastMolecules += fastMolecules, pass->quadMolecules += quadMolecules;
         }
-        inline void countInstance() {
-            passes.back().ui++;
-        }
         Row<Pass> passes;
         Bounds full, sheet, strip, fast, molecules;
     };
@@ -473,7 +470,7 @@ struct Rasterizer {
                                outlineUpper += count;
                            } else
                                outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
-                           outlinePaths++, allocator.countInstance();
+                           outlinePaths++, allocator.passes.back().ui++;
                        } else if (clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                             ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip] == 0)
@@ -909,7 +906,7 @@ struct Rasterizer {
                             } else {
                                 Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, Instance::kSolidCell);
                                 new (& inst->quad.cell) Cell(ux, ly, index->x, uy, 0.f, 0.f);
-                                ctx.allocator.countInstance();
+                                ctx.allocator.passes.back().ui++;
                             }
                         }
                         begin = i, lx = ux = index->x, cover = winding = roundf(winding);
