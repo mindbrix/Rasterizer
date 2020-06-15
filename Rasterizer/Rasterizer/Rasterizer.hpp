@@ -890,12 +890,12 @@ struct Rasterizer {
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
-                        winding = roundf(winding);
                         if (lx != ux) {
                             Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, edgeType);
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
                             inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
                         }
+                        winding = cover = roundf(winding);
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
                             if (opaque) {
                                 Instance *inst = new (ctx.opaques.alloc(1)) Instance(iz, 0);
@@ -906,7 +906,7 @@ struct Rasterizer {
                                 ctx.allocator.passes.back().ui++;
                             }
                         }
-                        begin = i, lx = ux = index->x, cover = winding;
+                        begin = i, lx = ux = index->x;
                     }
                     int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, _ux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
                     ux = _ux > ux ? _ux : ux, winding += uxcover[1] * 0.00003051850948f;
