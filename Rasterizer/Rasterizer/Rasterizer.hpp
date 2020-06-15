@@ -467,9 +467,9 @@ struct Rasterizer {
                            if (det > 1e2f) {
                                size_t count = 0;
                                divideGeometry(g, m, inst->outline.clip, false, false, true, & count, CountSegment);
-                               outlineUpper += count;
+                               outlineInstances += count;
                            } else
-                               outlineUpper += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
+                               outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                            outlinePaths++, allocator.passes.back().ui++;
                        } else if (clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                             ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
@@ -492,9 +492,9 @@ struct Rasterizer {
                 }
             }
         }
-        void empty() { outlinePaths = outlineUpper = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
-        void reset() { outlinePaths = outlineUpper = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0); }
-        size_t slz, suz, outlinePaths = 0, outlineUpper = 0, p16total;
+        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty();  }
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0); }
+        size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;
         Row<uint32_t> fasts;  Row<Instance> blends, opaques;  Row<Segment> segments;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
@@ -945,7 +945,7 @@ struct Rasterizer {
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules;
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineUpper - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
