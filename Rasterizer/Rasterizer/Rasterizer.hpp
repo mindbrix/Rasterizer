@@ -450,7 +450,7 @@ struct Rasterizer {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];
             for (lz = i = 0, uz = scene->count; i < list.scenes.size(); i++, scene++, lz = uz, uz = lz + scene->count) {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
-                Bounds clipbounds = Bounds(clipctm).integral().intersect(device), uc = clipbounds.inset(1.f, 1.f);
+                Bounds clipbounds = Bounds(clipctm).integral().intersect(device);
                 float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
@@ -467,7 +467,7 @@ struct Rasterizer {
                            Instance *inst = new (blends.alloc(1)) Instance(iz, Instance::kOutlines
                                | (scene->flags[is] & Scene::kOutlineRounded ? Instance::kRounded : 0)
                                | (scene->flags[is] & Scene::kOutlineEndCap ? Instance::kEndCap : 0));
-                           inst->outline.clip = uc.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
+                           inst->outline.clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
                                divideGeometry(g, m, inst->outline.clip, false, false, true, & count, CountSegment);
@@ -487,7 +487,7 @@ struct Rasterizer {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                             m = Transform(sx, 0.f, 0.f, sy, clip.lx * (1.f - sx) + kClipMargin, clip.ly * (1.f - sy) + kClipMargin).concat(m);
-                            divideGeometry(g, m, clip, uc.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
+                            divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
