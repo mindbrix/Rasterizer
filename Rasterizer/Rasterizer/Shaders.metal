@@ -408,7 +408,7 @@ struct InstancesVertex
 };
 
 vertex InstancesVertex instances_vertex_main(
-            const device Colorant *paints [[buffer(0)]],
+            const device Colorant *colors [[buffer(0)]],
             const device Instance *instances [[buffer(1)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
@@ -421,8 +421,8 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
-    const device Colorant& paint = paints[iz];
-    float alpha = paint.a * 0.003921568627, visible = 1.0, dx, dy;
+    const device Colorant& color = colors[iz];
+    float alpha = color.a * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
@@ -491,7 +491,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.position = float4(x, y, z, visible);
     
     float ma = alpha * 0.003921568627;
-    vert.color = float4(paint.r * ma, paint.g * ma, paint.b * ma, alpha);
+    vert.color = float4(color.r * ma, color.g * ma, color.b * ma, alpha);
     vert.clip = distances(clips[iz], dx, dy);
     return vert;
 }
