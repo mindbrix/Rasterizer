@@ -410,7 +410,6 @@ struct InstancesVertex
 vertex InstancesVertex instances_vertex_main(
             const device Colorant *paints [[buffer(0)]],
             const device Instance *instances [[buffer(1)]],
-            const device Transform *affineTransforms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
