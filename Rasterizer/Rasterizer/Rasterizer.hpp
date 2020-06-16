@@ -349,9 +349,7 @@ struct Rasterizer {
         uint16_t lx, ly, ux, uy, ox, oy;
     };
     struct Quad {
-        Cell cell;
-        short cover;
-        int base;
+        Cell cell;  short cover;  int base;
     };
     struct Outline {
         union { Segment s;  Bounds clip; };

@@ -36,9 +36,7 @@ struct Cell {
 };
 
 struct Quad {
-    Cell cell;
-    short cover;
-    int base;
+    Cell cell;  short cover;  int base;
 };
 struct Outline {
     Segment s;
