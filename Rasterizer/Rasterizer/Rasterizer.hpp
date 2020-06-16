@@ -955,8 +955,8 @@ struct Rasterizer {
         size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->slz != ctx->suz) {
             if (ctx->segments.end || ctx->p16total) {
-                memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
+                memcpy(buffer.base + segbase, ctx->segments.base, begin - segbase);
                 Scene::Cache *cache;
                 for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                     for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->entries.end; ip++)
