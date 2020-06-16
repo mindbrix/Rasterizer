@@ -273,7 +273,7 @@ struct Rasterizer {
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
-            if (path->types.end > 1 && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
+            if (path->types.end > 2 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->types.end;
                 auto it = cache->map.find(path->hash());
                 if (it != cache->map.end())
