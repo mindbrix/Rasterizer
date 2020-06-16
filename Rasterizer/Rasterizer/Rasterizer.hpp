@@ -483,7 +483,7 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
-                            writeSegmentInstances(& indices[0], & uxcovers[0], int(segments.idx), clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            writeSegmentInstances(& indices[0], & uxcovers[0], clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -871,7 +871,7 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, int base, Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
+    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, fastCount = 0, quadCount = 0, *count = fast ? & fastCount : & quadCount, i, begin;
         uint16_t counts[256];  float ly, uy, cover, winding, lx, ux;
         int edgeType = Instance::kEdge | (even ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0);
@@ -891,7 +891,7 @@ struct Rasterizer {
                         if (lx != ux) {
                             Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, edgeType);
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                            inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
+                            inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->quad.idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
@@ -912,7 +912,7 @@ struct Rasterizer {
                 if (lx != ux) {
                     Instance *inst = new (ctx.blends.alloc(1)) Instance(iz, edgeType);
                     *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                    inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = base, inst->quad.idx = int(indices->idx);
+                    inst->quad.cover = short(cover), inst->quad.count = uint16_t(i - begin), inst->quad.iy = int(iy - ily), inst->quad.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->quad.idx = int(indices->idx);
                 }
             }
         }
