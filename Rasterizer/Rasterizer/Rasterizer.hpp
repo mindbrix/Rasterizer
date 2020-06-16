@@ -988,7 +988,7 @@ struct Rasterizer {
                     if (inst->iz & Instance::kOutlines) {
                         Outliner out; out.type = (inst->iz & ~kPathIndexMask), out.dst = out.dst0 = dst, out.iz = iz;
                         divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-                        dst = out.dst, ctms[iz] = Transform();
+                        dst = out.dst;
                     } else {
                         ic = dst - dst0, *dst++ = *inst;
                         if (inst->iz & Instance::kMolecule) {
