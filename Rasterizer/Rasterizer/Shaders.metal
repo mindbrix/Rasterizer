@@ -130,7 +130,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
 {
     const device Instance& inst = instances[*reverse - 1 - iid];
     const device Cell& cell = inst.quad.cell;
-    const device Colorant& color = colors[(inst.iz & kPathIndexMask)];
+    const device Colorant& color = colors[inst.iz & kPathIndexMask];
     OpaquesVertex vert;
     vert.position = {
         select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
