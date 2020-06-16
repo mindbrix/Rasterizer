@@ -475,7 +475,7 @@ struct Rasterizer {
                             if (fasts.base[lz + ip] == 0)
                                 p16total += size;
                             fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
-                            bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
+                            bool fast = 0 && det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz, Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0));
                             allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->iy = int(lz);
                         } else {
