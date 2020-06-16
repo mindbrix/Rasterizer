@@ -122,7 +122,7 @@ struct OpaquesVertex
     float4 color;
 };
 
-vertex OpaquesVertex opaques_vertex_main(const device Colorant *paints [[buffer(0)]],
+vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
                                          const device Instance *instances [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
@@ -130,7 +130,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *paints [[buffer(
 {
     const device Instance& inst = instances[*reverse - 1 - iid];
     const device Cell& cell = inst.quad.cell;
-    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
+    const device Colorant& color = colors[(inst.iz & kPathIndexMask)];
     OpaquesVertex vert;
     vert.position = {
         select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
@@ -138,7 +138,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *paints [[buffer(
         ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2),
         1.0
     };
-    vert.color = { paint.r / 255.0, paint.g / 255.0, paint.b / 255.0, 1.0 };
+    vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
     return vert;
 }
 
