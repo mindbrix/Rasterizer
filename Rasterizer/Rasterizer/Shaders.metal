@@ -21,7 +21,7 @@ struct Bounds {
 };
 
 struct Colorant {
-    uint8_t src0, src1, src2, src3;
+    uint8_t b, g, r, a;
 };
 
 struct Point16 {
@@ -134,7 +134,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *paints [[buffer(
     float z = ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
     
     const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
+    float r = paint.r / 255.0, g = paint.g / 255.0, b = paint.b / 255.0;
     
     OpaquesVertex vert;
     vert.position = float4(x, y, z, 1.0);
@@ -423,7 +423,7 @@ vertex InstancesVertex instances_vertex_main(
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& paint = paints[iz];
-    float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
+    float alpha = paint.a * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Transform& m = affineTransforms[iz];
         const device Segment& o = inst.outline.s;
@@ -496,7 +496,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.position = float4(x, y, z, visible);
     
     float ma = alpha * 0.003921568627;
-    vert.color = float4(paint.src2 * ma, paint.src1 * ma, paint.src0 * ma, alpha);
+    vert.color = float4(paint.r * ma, paint.g * ma, paint.b * ma, alpha);
     vert.clip = distances(clips[iz], dx, dy);
     return vert;
 }
