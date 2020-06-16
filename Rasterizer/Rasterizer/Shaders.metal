@@ -270,13 +270,8 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 if (!*useCurves || curve0 == 0)
                     dst[0] = FLT_MAX;
                 else {
-                    if (curve0 == 1) {  // next
-                        cpx = 0.25f * (x0 - nx) + x1;
-                        cpy = 0.25f * (y0 - ny) + y1;
-                    } else {  // prev
-                        cpx = 0.25f * (x1 - px) + x0;
-                        cpy = 0.25f * (y1 - py) + y0;
-                    }
+                    cpx = curve0 == 1 ? 0.25f * (x0 - nx) + x1 : 0.25f * (x1 - px) + x0;
+                    cpy = curve0 == 1 ? 0.25f * (y0 - ny) + y1 : 0.25f * (y1 - py) + y0;
                     slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
                     if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
                         dst[0] = FLT_MAX;
