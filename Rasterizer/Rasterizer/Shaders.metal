@@ -38,7 +38,6 @@ struct Cell {
 struct Quad {
     Cell cell;
     short cover;
-    uint16_t count;
     int base;
 };
 struct Outline {
