@@ -483,7 +483,7 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
-                            writeSegmentInstances(& indices[0], & uxcovers[0], clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            writeSegmentInstances(clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -871,7 +871,8 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Row<Index> *indices, Row<int16_t> *uxcovers, Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
+        Row<Index> *indices = & ctx.indices[0]; Row<int16_t> *uxcovers = & ctx.uxcovers[0];
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, fastCount = 0, quadCount = 0, *count = fast ? & fastCount : & quadCount, i, begin;
         uint16_t counts[256];  float ly, uy, cover, winding, lx, ux;
         int edgeType = Instance::kEdge | (even ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0);
