@@ -872,12 +872,12 @@ struct Rasterizer {
         }
     }
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
-        Row<Index> *indices = & ctx.indices[0]; Row<int16_t> *uxcovers = & ctx.uxcovers[0];
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, fastCount = 0, quadCount = 0, *count = fast ? & fastCount : & quadCount, i, begin;
         uint16_t counts[256];  float ly, uy, cover, winding, lx, ux;
         int edgeType = Instance::kEdge | (even ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0);
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
+        Row<Index> *indices = & ctx.indices[0];  Row<int16_t> *uxcovers = & ctx.uxcovers[0];
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
             if (indices->end != indices->idx) {
                 if (indices->end - indices->idx > 32)
