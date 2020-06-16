@@ -952,19 +952,19 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
-        size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
+        size_t i, j, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->slz != ctx->suz) {
             if (ctx->segments.end || ctx->p16total) {
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
                 memcpy(buffer.base + segbase, ctx->segments.base, begin - segbase);
-                Scene::Cache *cache;
-                for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->entries.end; ip++)
+                Row<Scene::Cache::Entry> *entries;
+                for (pointsbase = begin, pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                    for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
                         if (ctx->fasts.base[lz + ip]) {
-                            memcpy(buffer.base + begin + pbase * sizeof(Geometry::Point16), cache->entries.base[ip].p16s, cache->entries.base[ip].size * sizeof(Geometry::Point16));
-                            ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += cache->entries.base[ip].size;
+                            end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
+                            memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);
+                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                         }
-                pointsbase = begin, begin += ctx->p16total * sizeof(Geometry::Point16);
             }
             for (Allocator::Pass *pass = ctx->allocator.passes.base, *upass = pass + ctx->allocator.passes.end; pass < upass; pass++) {
                 instcount = pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules, instbase = begin + instcount * sizeof(Edge);
