@@ -497,7 +497,7 @@ struct Rasterizer {
         Row<uint32_t> fasts;  Row<Instance> blends, opaques;  Row<Segment> segments;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
-    static void divideGeometry(Geometry *g, Transform ctm, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
+    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
         float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -517,10 +517,10 @@ struct Rasterizer {
                     }
                     if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
-                    sx = x0 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, sy = y0 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty, p += 2, type++;
+                    sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++;
                     break;
                 case Geometry::kLine:
-                    x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
+                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
                     if (unclipped)
                         (*function)(x0, y0, x1, y1, 0, info);
                     else {
@@ -535,8 +535,8 @@ struct Rasterizer {
                     x0 = x1, y0 = y1, p += 2, type++;
                     break;
                 case Geometry::kQuadratic:
-                    x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
+                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                    x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
                     if (unclipped)
                         (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, quadScale);
                     else {
@@ -556,9 +556,9 @@ struct Rasterizer {
                     x0 = x2, y0 = y2, p += 4, type += 2;
                     break;
                 case Geometry::kCubic:
-                    x1 = p[0] * ctm.a + p[1] * ctm.c + ctm.tx, y1 = p[0] * ctm.b + p[1] * ctm.d + ctm.ty;
-                    x2 = p[2] * ctm.a + p[3] * ctm.c + ctm.tx, y2 = p[2] * ctm.b + p[3] * ctm.d + ctm.ty;
-                    x3 = p[4] * ctm.a + p[5] * ctm.c + ctm.tx, y3 = p[4] * ctm.b + p[5] * ctm.d + ctm.ty;
+                    x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
+                    x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
+                    x3 = p[4] * m.a + p[5] * m.c + m.tx, y3 = p[4] * m.b + p[5] * m.d + m.ty;
                     if (unclipped)
                         (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, cubicScale);
                     else {
@@ -952,19 +952,19 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
-        size_t i, j, iz, ip, is, lz, ic, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
+        size_t i, j, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->slz != ctx->suz) {
             if (ctx->segments.end || ctx->p16total) {
-                memcpy(buffer.base + begin, ctx->segments.base, ctx->segments.end * sizeof(Segment));
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
-                Scene::Cache *cache;
-                for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (cache = list.scenes[i].cache.ref, ip = 0; ip < cache->entries.end; ip++)
+                memcpy(buffer.base + segbase, ctx->segments.base, begin - segbase);
+                Row<Scene::Cache::Entry> *entries;
+                for (pointsbase = begin, pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                    for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
                         if (ctx->fasts.base[lz + ip]) {
-                            memcpy(buffer.base + begin + pbase * sizeof(Geometry::Point16), cache->entries.base[ip].p16s, cache->entries.base[ip].size * sizeof(Geometry::Point16));
-                            ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += cache->entries.base[ip].size;
+                            end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
+                            memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);
+                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                         }
-                pointsbase = begin, begin += ctx->p16total * sizeof(Geometry::Point16);
             }
             for (Allocator::Pass *pass = ctx->allocator.passes.base, *upass = pass + ctx->allocator.passes.end; pass < upass; pass++) {
                 instcount = pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules, instbase = begin + instcount * sizeof(Edge);
@@ -988,7 +988,7 @@ struct Rasterizer {
                     if (inst->iz & Instance::kOutlines) {
                         Outliner out; out.type = (inst->iz & ~kPathIndexMask), out.dst = out.dst0 = dst, out.iz = iz;
                         divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-                        dst = out.dst, ctms[iz] = Transform();
+                        dst = out.dst;
                     } else {
                         ic = dst - dst0, *dst++ = *inst;
                         if (inst->iz & Instance::kMolecule) {

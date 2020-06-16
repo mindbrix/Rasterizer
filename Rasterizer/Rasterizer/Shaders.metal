@@ -21,7 +21,7 @@ struct Bounds {
 };
 
 struct Colorant {
-    uint8_t src0, src1, src2, src3;
+    uint8_t b, g, r, a;
 };
 
 struct Point16 {
@@ -122,23 +122,23 @@ struct OpaquesVertex
     float4 color;
 };
 
-vertex OpaquesVertex opaques_vertex_main(const device Colorant *paints [[buffer(0)]], const device Instance *instances [[buffer(1)]],
+vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(0)]],
+                                         const device Instance *instances [[buffer(1)]],
                                          constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                          constant uint *reverse [[buffer(12)]], constant uint *pathCount [[buffer(13)]],
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Instance& inst = instances[*reverse - 1 - iid];
     const device Cell& cell = inst.quad.cell;
-    float x = select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0;
-    float y = select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0;
-    float z = ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2);
-    
-    const device Colorant& paint = paints[(inst.iz & kPathIndexMask)];
-    float r = paint.src2 / 255.0, g = paint.src1 / 255.0, b = paint.src0 / 255.0;
-    
+    const device Colorant& color = colors[inst.iz & kPathIndexMask];
     OpaquesVertex vert;
-    vert.position = float4(x, y, z, 1.0);
-    vert.color = float4(r, g, b, 1.0);
+    vert.position = {
+        select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
+        select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0,
+        ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2),
+        1.0
+    };
+    vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
     return vert;
 }
 
@@ -335,7 +335,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         if (idxes[i] != kNullIndex) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
             x0 = dst[0] = s.x0, y0 = dst[1] = s.y0, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
-            bool pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
+            bool pcurve = *useCurves && as_type<uint>(x0) & 2, ncurve = *useCurves && as_type<uint>(x0) & 1;
             if (pcurve) {
                 const device Segment& p = segments[inst.quad.base + idxes[i] - 1];
                 x1 = x0 + 0.25 * (x2 - p.x0), y1 = y0 + 0.25 * (y2 - p.y0);
@@ -408,9 +408,8 @@ struct InstancesVertex
 };
 
 vertex InstancesVertex instances_vertex_main(
-            const device Colorant *paints [[buffer(0)]],
+            const device Colorant *colors [[buffer(0)]],
             const device Instance *instances [[buffer(1)]],
-            const device Transform *affineTransforms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
@@ -422,20 +421,16 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
-    const device Colorant& paint = paints[iz];
-    float alpha = paint.src3 * 0.003921568627, visible = 1.0, dx, dy;
+    const device Colorant& color = colors[iz];
+    float alpha = color.a * 0.003921568627, visible = 1.0, dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const device Transform& m = affineTransforms[iz];
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
-        float x0 = m.a * o.x0 + m.c * o.y0 + m.tx, y0 = m.b * o.x0 + m.d * o.y0 + m.ty;
-        float x1 = m.a * o.x1 + m.c * o.y1 + m.tx, y1 = m.b * o.x1 + m.d * o.y1 + m.ty;
-        float px = m.a * p.x0 + m.c * p.y0 + m.tx, py = m.b * p.x0 + m.d * p.y0 + m.ty;
-        float nx = m.a * n.x1 + m.c * n.y1 + m.tx, ny = m.b * n.x1 + m.d * n.y1 + m.ty;
-        bool pcap = inst.outline.prev == 0 || abs(o.y0 - p.y1) > 1e-3 || abs(o.x0 - p.x1) > 1e-3;
-        bool ncap = inst.outline.next == 0 || abs(o.y1 - n.y0) > 1e-3 || abs(o.x1 - n.x0) > 1e-3;
-        bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
+        float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
+        bool pcap = inst.outline.prev == 0 || abs(y0 - p.y1) > 1e-3 || abs(x0 - p.x1) > 1e-3;
+        bool ncap = inst.outline.next == 0 || abs(y1 - n.y0) > 1e-3 || abs(x1 - n.x0) > 1e-3;
+        bool pcurve = (as_type<uint>(x0) & 2) != 0, ncurve = (as_type<uint>(x0) & 1) != 0;
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
         ax = x1 - x0, ay = y1 - y0;
         if (pcurve)
@@ -496,7 +491,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.position = float4(x, y, z, visible);
     
     float ma = alpha * 0.003921568627;
-    vert.color = float4(paint.src2 * ma, paint.src1 * ma, paint.src0 * ma, alpha);
+    vert.color = float4(color.r * ma, color.g * ma, color.b * ma, alpha);
     vert.clip = distances(clips[iz], dx, dy);
     return vert;
 }
