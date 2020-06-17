@@ -345,7 +345,6 @@ struct Rasterizer {
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct Cell {
-        Cell(float lx, float ly, float ux, float uy, float ox, float oy) : lx(lx), ly(ly), ux(ux), uy(uy), ox(ox), oy(oy) {}
         uint16_t lx, ly, ux, uy, ox, oy;
     };
     struct Quad {
@@ -425,7 +424,7 @@ struct Rasterizer {
                     sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), new (passes.alloc(1)) Pass(idx);
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
-            new (cell) Cell(lx, ly, ux, uy, b->lx, b->ly), b->lx += w;
+            cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
             Pass& pass = passes.back();
             pass.ui++, pass.fastEdges += fastEdges, pass.quadEdges += quadEdges, pass.fastMolecules += fastMolecules, pass.quadMolecules += quadMolecules;
         }
@@ -898,11 +897,11 @@ struct Rasterizer {
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
                             if (opaque) {
-                                Instance *inst = new (ctx.opaques.alloc(1)) Instance(iz, 0);
-                                new (& inst->quad.cell) Cell(ux, ly, index->x, uy, 0.f, 0.f);
+                                Cell *cell = & (new (ctx.opaques.alloc(1)) Instance(iz, 0))->quad.cell;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy;
                             } else {
-                                Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, Instance::kSolidCell);
-                                new (& inst->quad.cell) Cell(ux, ly, index->x, uy, 0.f, 0.f);
+                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz, Instance::kSolidCell))->quad.cell;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy;
                                 ctx.allocator.passes.back().ui++;
                             }
                         }
