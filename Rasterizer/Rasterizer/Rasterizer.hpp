@@ -352,8 +352,7 @@ struct Rasterizer {
         Cell cell;  short cover;  int base;
     };
     struct Outline {
-        union { Segment s;  Bounds clip; };
-        short prev, next;
+        Segment s;  short prev, next;
     };
     struct Instance {
         enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
@@ -363,7 +362,8 @@ struct Rasterizer {
     };
     struct Blend : Instance {
         Blend(size_t iz, int type) : Instance(iz, type) {}
-        int count, iy, begin, idx;
+        struct Data {  int count, iy, begin, idx;  };
+        union { Data data;  Bounds clip; };
     };
     struct Edge {
         uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
@@ -462,10 +462,10 @@ struct Rasterizer {
                            Blend *inst = new (blends.alloc(1)) Blend(iz, Instance::kOutlines
                                | (scene->flags[is] & Scene::kOutlineRounded ? Instance::kRounded : 0)
                                | (scene->flags[is] & Scene::kOutlineEndCap ? Instance::kEndCap : 0));
-                           inst->outline.clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
+                           inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
-                               divideGeometry(g, m, inst->outline.clip, false, false, true, & count, CountSegment);
+                               divideGeometry(g, m, inst->clip, false, false, true, & count, CountSegment);
                                outlineInstances += count;
                            } else
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
@@ -477,7 +477,7 @@ struct Rasterizer {
                             fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz, Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0));
-                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->iy = int(lz);
+                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->data.iy = int(lz);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -893,7 +893,7 @@ struct Rasterizer {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                            inst->quad.cover = short(cover), inst->count = int(i - begin), inst->iy = int(iy - ily), inst->begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->idx = int(indices->idx);
+                            inst->quad.cover = short(cover), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->data.idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
@@ -914,7 +914,7 @@ struct Rasterizer {
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
                     *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                    inst->quad.cover = short(cover), inst->count = int(i - begin), inst->iy = int(iy - ily), inst->begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->idx = int(indices->idx);
+                    inst->quad.cover = short(cover), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->data.idx = int(indices->idx);
                 }
             }
         }
@@ -988,14 +988,14 @@ struct Rasterizer {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & Instance::kOutlines) {
                         Outliner out;  out.dst = out.dst0 = dst, out.iz = inst->iz;
-                        divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->outline.clip, inst->outline.clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                        divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
                         dst = out.dst;
                     } else {
                         ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                         if (inst->iz & Instance::kMolecule) {
                             Scene::Cache *cache = list.scenes[i].cache.ref;
                             ip = cache->ips.base[is];
-                            dst[-1].quad.base = uint32_t(ctx->fasts.base[inst->iy + ip]);
+                            dst[-1].quad.base = uint32_t(ctx->fasts.base[inst->data.iy + ip]);
                             Scene::Cache::Entry *entry = & cache->entries.base[ip];
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
@@ -1008,8 +1008,8 @@ struct Rasterizer {
                             }
                             *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
                         } else if (inst->iz & Instance::kEdge) {
-                            Index *is = ctx->indices[inst->iy].base + inst->begin, *eis = is + inst->count;
-                            int16_t *uxcovers = ctx->uxcovers[inst->iy].base + 3 * inst->idx, *uxc;
+                            Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
+                            int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + 3 * inst->data.idx, *uxc;
                             Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                             for (; is < eis; is++, edge++) {
                                 uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
