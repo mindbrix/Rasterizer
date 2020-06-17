@@ -918,7 +918,7 @@ struct Rasterizer {
         }
     }
     struct Outliner {
-        Instance *dst0, *dst;  uint32_t iz;
+        uint32_t iz;  Instance *dst0, *dst;
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Outliner *out = (Outliner *)info;
             if (x0 != FLT_MAX)
@@ -985,7 +985,7 @@ struct Rasterizer {
                 for (inst = linst; inst < uinst; inst++) {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & Instance::kOutlines) {
-                        Outliner out;  out.dst = out.dst0 = dst, out.iz = inst->iz;
+                        Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
                         divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
                         dst = out.dst;
                     } else {
