@@ -237,7 +237,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
-    int i, curve0, curve1, curven;
+    int i, curve0, curve1, curve2;
     float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
         float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
@@ -257,13 +257,12 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
         curve1 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
         x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
         
-        for (i = 0; i < kFastSegments; i++, dst += 4, px = x0, x0 = x1, x1 = nx, py = y0, y0 = y1, y1 = ny, curve0 = curve1, curve1 = curven, pts++) {
-
+        for (i = 0; i < kFastSegments; i++, dst += 4, px = x0, x0 = x1, x1 = nx, py = y0, y0 = y1, y1 = ny, curve0 = curve1, curve1 = curve2, pts++) {
             if (x1 == FLT_MAX)
                 dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
             else {
                 x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
-                curven = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
+                curve2 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
                 nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
                 nx = x1 == FLT_MAX || (pts->x == 0xFFFF && pts->y == 0xFFFF) ? FLT_MAX : nx;
                 slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
