@@ -44,8 +44,7 @@ struct Outline {
 };
 struct Instance {
     enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
-    union { Quad quad;  Outline outline; };
-    uint32_t iz;
+    uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
     uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
@@ -126,8 +125,8 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
                                          uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Instance& inst = instances[*reverse - 1 - iid];
-    const device Cell& cell = inst.quad.cell;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
+    const device Cell& cell = inst.quad.cell;
     OpaquesVertex vert;
     vert.position = {
         select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
@@ -166,9 +165,9 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    const device Cell& cell = inst.quad.cell;
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
     int i;
@@ -232,9 +231,9 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    const device Cell& cell = inst.quad.cell;
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
     int i, curve0, curve1, curve2;
