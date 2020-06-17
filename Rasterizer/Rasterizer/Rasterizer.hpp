@@ -926,9 +926,9 @@ struct Rasterizer {
             if (x0 != FLT_MAX)
                 out->dst->iz = out->iz, new (& out->dst->outline.s) Segment(x0, y0, x1, y1, curve), out->dst->outline.prev = -1, out->dst->outline.next = 1, out->dst++;
             else if (out->dst - out->dst0 > 0) {
-                Outline& first = out->dst0->outline, & last = (out->dst - 1)->outline;
-                float dx = first.s.x0 - last.s.x1, dy = first.s.y0 - last.s.y1;
-                first.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(out->dst - out->dst0 - 1), last.next = -first.prev;
+                Instance *first = out->dst0, *last = out->dst - 1;
+                float dx = first->outline.s.x0 - last->outline.s.x1, dy = first->outline.s.y0 - last->outline.s.y1;
+                first->outline.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(last - first), last->outline.next = -first->outline.prev;
                 out->dst0 = out->dst;
             }
         }
