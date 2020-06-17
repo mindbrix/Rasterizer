@@ -908,8 +908,8 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x;
                     }
-                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, _ux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
-                    ux = _ux > ux ? _ux : ux, winding += uxcover[1] * 0.00003051850948f;
+                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, iux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
+                    ux = iux > ux ? iux : ux, winding += uxcover[1] * 0.00003051850948f;
                 }
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
