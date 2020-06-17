@@ -232,7 +232,7 @@ struct RasterizerTest {
             for (int j = 0; j < count; j++)
                 dstWidths[j] = scale * srcWidths[j];
         for (int j = 0; j < count; j++) {
-            dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? black : srcColors[j];
+            dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
             if (state.opaque)
                 dstColors[j].a = 255;
         }
