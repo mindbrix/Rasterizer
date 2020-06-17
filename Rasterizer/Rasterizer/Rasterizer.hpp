@@ -923,10 +923,9 @@ struct Rasterizer {
         Instance *dst0, *dst;  uint32_t iz;
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Outliner *out = (Outliner *)info;
-            if (x0 != FLT_MAX) {
-                out->dst->iz = out->iz;
-                new (& out->dst->outline.s) Segment(x0, y0, x1, y1, curve), out->dst->outline.prev = -1, out->dst->outline.next = 1, out->dst++;
-            } else if (out->dst - out->dst0 > 0) {
+            if (x0 != FLT_MAX)
+                out->dst->iz = out->iz, new (& out->dst->outline.s) Segment(x0, y0, x1, y1, curve), out->dst->outline.prev = -1, out->dst->outline.next = 1, out->dst++;
+            else if (out->dst - out->dst0 > 0) {
                 Outline& first = out->dst0->outline, & last = (out->dst - 1)->outline;
                 float dx = first.s.x0 - last.s.x1, dy = first.s.y0 - last.s.y1;
                 first.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(out->dst - out->dst0 - 1), last.next = -first.prev;
