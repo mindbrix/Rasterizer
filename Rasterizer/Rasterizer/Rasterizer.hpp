@@ -470,9 +470,9 @@ struct Rasterizer {
                            outlinePaths++, allocator.passes.back().ui++;
                        } else if (clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                             ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
-                            if (fasts.base[lz + ip] == 0)
+                            if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
-                            fasts.base[lz + ip] = 1, bounds[iz] = scene->b[is];
+                            bounds[iz] = scene->b[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz, Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0));
                             allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->data.iy = int(lz);
