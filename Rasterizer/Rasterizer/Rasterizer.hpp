@@ -363,7 +363,7 @@ struct Rasterizer {
     };
     struct Blend : Instance {
         Blend(size_t iz, int type) : Instance(iz, type) {}
-        uint16_t count;  int iy, begin, idx;
+        int count, iy, begin, idx;
     };
     struct Edge {
         uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
@@ -893,7 +893,7 @@ struct Rasterizer {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
                             *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                            inst->quad.cover = short(cover), inst->count = uint16_t(i - begin), inst->iy = int(iy - ily), inst->begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->idx = int(indices->idx);
+                            inst->quad.cover = short(cover), inst->count = int(i - begin), inst->iy = int(iy - ily), inst->begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
@@ -914,7 +914,7 @@ struct Rasterizer {
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
                     *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
-                    inst->quad.cover = short(cover), inst->count = uint16_t(i - begin), inst->iy = int(iy - ily), inst->begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->idx = int(indices->idx);
+                    inst->quad.cover = short(cover), inst->count = int(i - begin), inst->iy = int(iy - ily), inst->begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->idx = int(indices->idx);
                 }
             }
         }
