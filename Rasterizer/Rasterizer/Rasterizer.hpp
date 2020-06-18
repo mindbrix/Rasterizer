@@ -397,12 +397,12 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : li(idx), ui(idx) {}
-            size_t fastEdges = 0, quadEdges = 0, fastMolecules = 0, quadMolecules = 0, li, ui;
+            size_t counts[4] = { 0, 0, 0, 0 }, li, ui;  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
-        void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, size_t fastEdges, size_t quadEdges, size_t fastMolecules, size_t quadMolecules, Cell *cell) {
+        void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, Pass::CountType type, size_t count, Cell *cell) {
             float w = ux - lx, h = uy - ly, hght;  Bounds *b;
             if (h <= kfh)
                 b = & strip, hght = kfh;
@@ -416,8 +416,7 @@ struct Rasterizer {
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
-            Pass& pass = passes.back();
-            pass.ui++, pass.fastEdges += fastEdges, pass.quadEdges += quadEdges, pass.fastMolecules += fastMolecules, pass.quadMolecules += quadMolecules;
+            Pass& pass = passes.back();  pass.ui++, pass.counts[type] += count;
         }
         Row<Pass> passes;
         Bounds full, sheet, strip, fast, molecules;
@@ -467,7 +466,7 @@ struct Rasterizer {
                             bounds[iz] = scene->bnds[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz, Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0));
-                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->data.idx = int(lz + ip);
+                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, fast ? Allocator::Pass::kFastMolecules : Allocator::Pass::kQuadMolecules, size / kFastSegments, & inst->quad.cell), inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -867,9 +866,10 @@ struct Rasterizer {
         }
     }
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
-        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, fastCount = 0, quadCount = 0, *count = fast ? & fastCount : & quadCount, i, begin;
+        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin;
         uint16_t counts[256];  float ly, uy, cover, winding, lx, ux;
         int edgeType = Instance::kEdge | (even ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0);
+        Allocator::Pass::CountType type = fast ? Allocator::Pass::kFastEdges : Allocator::Pass::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Row<Index> *indices = & ctx.indices[0];  Row<int16_t> *uxcovers = & ctx.uxcovers[0];
@@ -886,7 +886,7 @@ struct Rasterizer {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
-                            *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
+                            ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, type, (i - begin + 1) / 2, & inst->quad.cell);
                             inst->quad.cover = short(cover), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->data.idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
@@ -907,7 +907,7 @@ struct Rasterizer {
                 }
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
-                    *count = (i - begin + 1) / 2, ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, fastCount, quadCount, 0, 0, & inst->quad.cell);
+                    ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, type, (i - begin + 1) / 2, & inst->quad.cell);
                     inst->quad.cover = short(cover), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->data.idx = int(indices->idx);
                 }
             }
@@ -937,7 +937,7 @@ struct Rasterizer {
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
-                instances += pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules;
+                instances += pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3];
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
@@ -965,19 +965,19 @@ struct Rasterizer {
                         }
             }
             for (Allocator::Pass *pass = ctx->allocator.passes.base, *upass = pass + ctx->allocator.passes.end; pass < upass; pass++) {
-                instcount = pass->quadEdges + pass->fastEdges + pass->fastMolecules + pass->quadMolecules, instbase = begin + instcount * sizeof(Edge);
+                instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
                 Edge *quadEdge = (Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->quadEdges * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->counts[Allocator::Pass::kQuadEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 Edge *fastEdge = (Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->fastEdges * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->counts[Allocator::Pass::kFastEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 Edge *fastMolecule = (Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->fastMolecules * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->counts[Allocator::Pass::kFastMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
                 Edge *quadMolecule = (Edge *)(buffer.base + begin);
                 if (instcount)
-                    entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->quadMolecules * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                    entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
             
                 Blend *linst = ctx->blends.base + pass->li, *uinst = ctx->blends.base + pass->ui, *inst;
                 Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
