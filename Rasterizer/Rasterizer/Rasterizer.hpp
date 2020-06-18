@@ -397,7 +397,7 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : li(idx), ui(idx) {}
-            size_t counts[4] = { 0, 0, 0, 0 }, li, ui;  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
+            size_t li, ui, counts[4] = { 0, 0, 0, 0 };  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
