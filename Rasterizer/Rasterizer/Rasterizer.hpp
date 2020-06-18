@@ -360,8 +360,7 @@ struct Rasterizer {
     };
     struct Blend : Instance {
         Blend(size_t iz, int type) : Instance(iz, type) {}
-        struct Data {  int count, iy, begin, idx;  };
-        union { Data data;  Bounds clip; };
+        union { struct { int count, iy, begin, idx; } data;  Bounds clip; };
     };
     struct Edge {
         uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, kMask = ~(a0 | a1) };
