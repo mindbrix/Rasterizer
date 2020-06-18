@@ -914,7 +914,6 @@ struct Rasterizer {
         }
     }
     struct Outliner {
-        uint32_t iz;  Instance *dst0, *dst;
         static void CountSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             size_t *count = (size_t *)info;  (*count)++;
         }
@@ -929,6 +928,7 @@ struct Rasterizer {
                 out->dst0 = out->dst;
             }
         }
+        uint32_t iz;  Instance *dst0, *dst;
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
