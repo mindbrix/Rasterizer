@@ -336,9 +336,6 @@ struct Rasterizer {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
         int begin, end;
     };
-    static void CountSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-        size_t *count = (size_t *)info;  (*count)++;
-    }
     struct Index {
         Index(uint16_t x, uint16_t i) : x(x), i(i) {}
         uint16_t x, i;
@@ -462,7 +459,7 @@ struct Rasterizer {
                            inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
-                               divideGeometry(g, m, inst->clip, false, false, true, & count, CountSegment);
+                               divideGeometry(g, m, inst->clip, false, false, true, & count, Outliner::CountSegment);
                                outlineInstances += count;
                            } else
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
@@ -918,6 +915,9 @@ struct Rasterizer {
     }
     struct Outliner {
         uint32_t iz;  Instance *dst0, *dst;
+        static void CountSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            size_t *count = (size_t *)info;  (*count)++;
+        }
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Outliner *out = (Outliner *)info;
             if (x0 != FLT_MAX)
