@@ -47,7 +47,7 @@ struct RasterizerWinding {
                     for (int si = int(scene.count) - 1; si >= 0; si--) {
                         if (scene.flags[si] & Ra::Scene::kInvisible)
                             continue;
-                        int winding = pointWinding(scene.paths[si], scene.b[si], ctm.concat(scene.ctms[si]), device, dx, dy, scene.widths[si]);
+                        int winding = pointWinding(scene.paths[si], scene.bnds[si], ctm.concat(scene.ctms[si]), device, dx, dy, scene.widths[si]);
                         bool even = scene.flags[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
                             return Ra::Range(li, si);
