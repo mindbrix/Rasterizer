@@ -471,7 +471,7 @@ struct Rasterizer {
                             bounds[iz] = scene->b[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz, Instance::kMolecule | (scene->flags[is] & Scene::kFillEvenOdd ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0));
-                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->data.iy = int(lz);
+                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, 0, 0, fast ? size / kFastSegments : 0, !fast ? size / kFastSegments : 0, & inst->quad.cell), inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -990,10 +990,9 @@ struct Rasterizer {
                     } else {
                         ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                         if (inst->iz & Instance::kMolecule) {
-                            Scene::Cache *cache = list.scenes[i].cache.ref;
-                            ip = cache->ips.base[is];
-                            dst[-1].quad.base = uint32_t(ctx->fasts.base[inst->data.iy + ip]);
-                            Scene::Cache::Entry *entry = & cache->entries.base[ip];
+                            dst[-1].quad.base = uint32_t(ctx->fasts.base[inst->data.idx]);
+                            Scene::Cache& cache = *list.scenes[i].cache.ref;
+                            Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
