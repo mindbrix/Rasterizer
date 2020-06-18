@@ -887,7 +887,7 @@ struct Rasterizer {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
                             ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, type, (i - begin + 1) / 2, & inst->quad.cell);
-                            inst->quad.cover = short(cover), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->data.idx = int(indices->idx);
+                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
@@ -908,7 +908,7 @@ struct Rasterizer {
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz, edgeType);
                     ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, type, (i - begin + 1) / 2, & inst->quad.cell);
-                    inst->quad.cover = short(cover), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->quad.base = int(ctx.segments.idx), inst->data.idx = int(indices->idx);
+                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                 }
             }
         }
