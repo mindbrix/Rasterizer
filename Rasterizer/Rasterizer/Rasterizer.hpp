@@ -761,8 +761,8 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
-        bool useCurves = false;  Bounds clip;  float px = FLT_MAX, py = FLT_MAX;  int is = 0;
-        Segment *dst;  Row<Index> *indices;  Row<int16_t> *uxcovers;
+        Segment *dst;  bool useCurves = false;  float px = FLT_MAX, py = FLT_MAX;  int is = 0;  Bounds clip; 
+        Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (y0 != y1 || curve) {
