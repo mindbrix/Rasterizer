@@ -248,13 +248,6 @@ struct Rasterizer {
     typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     
-    struct Segment {
-        Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
-        Segment(float _x0, float _y0, float _x1, float _y1, uint32_t curve) {
-            *((uint32_t *)& x0) = (*((uint32_t *)& _x0) & ~3) | curve, y0 = _y0, x1 = _x1, y1 = _y1;
-        }
-        float x0, y0, x1, y1;
-    };
     struct Scene {
         struct Cache {
             struct Entry {
@@ -340,6 +333,13 @@ struct Rasterizer {
         Index(uint16_t x, uint16_t i) : x(x), i(i) {}
         uint16_t x, i;
         inline bool operator< (const Index& other) const { return x < other.x; }
+    };
+    struct Segment {
+        Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
+        Segment(float _x0, float _y0, float _x1, float _y1, uint32_t curve) {
+            *((uint32_t *)& x0) = (*((uint32_t *)& _x0) & ~3) | curve, y0 = _y0, x1 = _x1, y1 = _y1;
+        }
+        float x0, y0, x1, y1;
     };
     struct Cell {
         uint16_t lx, ly, ux, uy, ox, oy;
