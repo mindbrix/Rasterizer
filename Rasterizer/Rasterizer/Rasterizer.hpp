@@ -403,7 +403,7 @@ struct Rasterizer {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
         inline void alloc(float w, float h, size_t idx, Cell *cell) {
-            Bounds *b;  float hght;  
+            Bounds *b;  float hght;
             if (h <= kfh)
                 b = & strip, hght = kfh;
             else if (h <- kFastHeight)
@@ -981,9 +981,8 @@ struct Rasterizer {
                 if (instcount)
                     entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
             
-                Blend *linst = ctx->blends.base + pass->li, *uinst = ctx->blends.base + pass->ui, *inst;
                 Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
-                for (inst = linst; inst < uinst; inst++) {
+                for (Blend *inst = ctx->blends.base + pass->li, *endinst = ctx->blends.base + pass->ui; inst < endinst; inst++) {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & Instance::kOutlines) {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
