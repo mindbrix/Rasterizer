@@ -459,10 +459,9 @@ struct Rasterizer {
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                            outlinePaths++, allocator.passes.back().ui++;
                        } else if (clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
-                            ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                            bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
-                            bounds[iz] = scene->bnds[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(scene->flags[is] & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cell.lx = clip.lx, inst->quad.cell.ly = clip.ly, inst->quad.cell.ux = clip.ux, inst->quad.cell.uy = clip.uy, inst->quad.cover = 0, inst->data.idx = int(lz + ip);
