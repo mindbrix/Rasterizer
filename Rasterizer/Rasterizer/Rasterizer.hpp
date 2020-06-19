@@ -847,9 +847,8 @@ struct Rasterizer {
         }
     }
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
-        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin;
+        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding;
-        int edgeType = Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         Allocator::Pass::CountType type = fast ? Allocator::Pass::kFastEdges : Allocator::Pass::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
@@ -866,7 +865,7 @@ struct Rasterizer {
                 for (h = uy - ly, cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
-                            Blend *inst = new (ctx.blends.alloc(1)) Blend(iz | edgeType);
+                            Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(ux - lx, h, ctx.blends.end - 1, & inst->quad.cell);
                             inst->quad.cell.lx = lx, inst->quad.cell.ly = ly, inst->quad.cell.ux = ux, inst->quad.cell.uy = uy, inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                             Allocator::Pass& pass = ctx.allocator.passes.back();  pass.size++, pass.counts[type] += (i - begin + 1) / 2;
@@ -888,7 +887,7 @@ struct Rasterizer {
                     ux = iux > ux ? iux : ux, winding += uxcover[1] * 0.00003051850948f;
                 }
                 if (lx != ux) {
-                    Blend *inst = new (ctx.blends.alloc(1)) Blend(iz | edgeType);
+                    Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                     ctx.allocator.alloc(ux - lx, h, ctx.blends.end - 1, & inst->quad.cell);
                     inst->quad.cell.lx = lx, inst->quad.cell.ly = ly, inst->quad.cell.ux = ux, inst->quad.cell.uy = uy, inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                     Allocator::Pass& pass = ctx.allocator.passes.back();  pass.size++, pass.counts[type] += (i - begin + 1) / 2;
