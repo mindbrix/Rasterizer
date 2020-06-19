@@ -403,7 +403,7 @@ struct Rasterizer {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
         inline void alloc(float w, float h, size_t idx, Cell *cell) {
-            float hght;  Bounds *b;
+            Bounds *b;  float hght;  
             if (h <= kfh)
                 b = & strip, hght = kfh;
             else if (h <- kFastHeight)
