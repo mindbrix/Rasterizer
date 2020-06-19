@@ -868,7 +868,7 @@ struct Rasterizer {
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin;
         uint16_t counts[256];  float ly, uy, cover, winding, lx, ux;
-        int edgeType = Instance::kEdge | (even ? Instance::kEvenOdd : 0) | (fast ? Instance::kFastEdges : 0);
+        int edgeType = Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         Allocator::Pass::CountType type = fast ? Allocator::Pass::kFastEdges : Allocator::Pass::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
