@@ -402,7 +402,7 @@ struct Rasterizer {
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
-        void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, Pass::CountType type, size_t count, Cell *cell) {
+        void allocAndCount(float lx, float ly, float ux, float uy, size_t idx, Cell *cell) {
             float w = ux - lx, h = uy - ly, hght;  Bounds *b;
             if (h <= kfh)
                 b = & strip, hght = kfh;
@@ -416,7 +416,6 @@ struct Rasterizer {
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
-            Pass& pass = passes.back();  pass.ui++, pass.counts[type] += count;
         }
         Row<Pass> passes;
         Bounds full, sheet, strip, fast, molecules;
@@ -466,7 +465,8 @@ struct Rasterizer {
                             bounds[iz] = scene->bnds[is];
                             bool fast = det * scene->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(scene->flags[is] & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, fast ? Allocator::Pass::kFastMolecules : Allocator::Pass::kQuadMolecules, size / kFastSegments, & inst->quad.cell), inst->quad.cover = 0, inst->data.idx = int(lz + ip);
+                            allocator.allocAndCount(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell), inst->quad.cover = 0, inst->data.idx = int(lz + ip);
+                            Allocator::Pass& pass = allocator.passes.back();  pass.ui++, pass.counts[fast ? Allocator::Pass::kFastMolecules : Allocator::Pass::kQuadMolecules] += size / kFastSegments;
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -886,7 +886,8 @@ struct Rasterizer {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(iz | edgeType);
-                            ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, type, (i - begin + 1) / 2, & inst->quad.cell);
+                            ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell);
+                            Allocator::Pass& pass = ctx.allocator.passes.back();  pass.ui++, pass.counts[type] += (i - begin + 1) / 2;
                             inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
@@ -907,7 +908,8 @@ struct Rasterizer {
                 }
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz | edgeType);
-                    ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, type, (i - begin + 1) / 2, & inst->quad.cell);
+                    ctx.allocator.allocAndCount(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell);
+                    Allocator::Pass& pass = ctx.allocator.passes.back();  pass.ui++, pass.counts[type] += (i - begin + 1) / 2;
                     inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                 }
             }
