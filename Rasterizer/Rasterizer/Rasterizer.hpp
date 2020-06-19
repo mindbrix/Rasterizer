@@ -850,7 +850,7 @@ struct Rasterizer {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding;
         Allocator::Pass::CountType type = fast ? Allocator::Pass::kFastEdges : Allocator::Pass::kQuadEdges;
-        bool single = clip.ux - clip.lx < 256.f;
+        bool single = clip.ux - clip.lx < 256.f;  Index *index;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Row<Index> *indices = & ctx.indices[0];  Row<int16_t> *uxcovers = & ctx.uxcovers[0];
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
@@ -859,7 +859,6 @@ struct Rasterizer {
                     radixSort((uint32_t *)indices->base + indices->idx, int(indices->end - indices->idx), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices->base + indices->idx, indices->base + indices->end);
-                Index *index;
                 ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (h = uy - ly, cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
