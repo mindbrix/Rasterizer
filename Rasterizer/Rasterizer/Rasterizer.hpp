@@ -396,8 +396,8 @@ struct Rasterizer {
     };
     struct Allocator {
         struct Pass {
-            Pass(size_t idx) : idx(idx), count(0) {}
-            size_t idx, count, counts[4] = { 0, 0, 0, 0 };  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
+            Pass(size_t idx) : idx(idx), size(0) {}
+            size_t idx, size, counts[4] = { 0, 0, 0, 0 };  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -457,7 +457,7 @@ struct Rasterizer {
                                outlineInstances += count;
                            } else
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
-                           outlinePaths++, allocator.passes.back().count++;
+                           outlinePaths++, allocator.passes.back().size++;
                        } else if (clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight) {
                             bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
@@ -466,7 +466,7 @@ struct Rasterizer {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(scene->flags[is] & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cell.lx = clip.lx, inst->quad.cell.ly = clip.ly, inst->quad.cell.ux = clip.ux, inst->quad.cell.uy = clip.uy, inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                             allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, blends.end - 1, & inst->quad.cell);
-                            Allocator::Pass& pass = allocator.passes.back();  pass.count++, pass.counts[fast ? Allocator::Pass::kFastMolecules : Allocator::Pass::kQuadMolecules] += size / kFastSegments;
+                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[fast ? Allocator::Pass::kFastMolecules : Allocator::Pass::kQuadMolecules] += size / kFastSegments;
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -887,7 +887,7 @@ struct Rasterizer {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(iz | edgeType);
                             ctx.allocator.alloc(ux - lx, uy - ly, ctx.blends.end - 1, & inst->quad.cell);
-                            Allocator::Pass& pass = ctx.allocator.passes.back();  pass.count++, pass.counts[type] += (i - begin + 1) / 2;
+                            Allocator::Pass& pass = ctx.allocator.passes.back();  pass.size++, pass.counts[type] += (i - begin + 1) / 2;
                             inst->quad.cell.lx = lx, inst->quad.cell.ly = ly, inst->quad.cell.ux = ux, inst->quad.cell.uy = uy, inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
@@ -898,7 +898,7 @@ struct Rasterizer {
                             } else {
                                 Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz | Instance::kSolidCell))->quad.cell;
                                 cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy;
-                                ctx.allocator.passes.back().count++;
+                                ctx.allocator.passes.back().size++;
                             }
                         }
                         begin = i, lx = ux = index->x;
@@ -909,7 +909,7 @@ struct Rasterizer {
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(iz | edgeType);
                     ctx.allocator.alloc(ux - lx, uy - ly, ctx.blends.end - 1, & inst->quad.cell);
-                    Allocator::Pass& pass = ctx.allocator.passes.back();  pass.count++, pass.counts[type] += (i - begin + 1) / 2;
+                    Allocator::Pass& pass = ctx.allocator.passes.back();  pass.size++, pass.counts[type] += (i - begin + 1) / 2;
                     inst->quad.cell.lx = lx, inst->quad.cell.ly = ly, inst->quad.cell.ux = ux, inst->quad.cell.uy = uy, inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                 }
             }
@@ -982,7 +982,7 @@ struct Rasterizer {
                     entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
             
                 Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
-                for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->count; inst < endinst; inst++) {
+                for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                     iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                     if (inst->iz & Instance::kOutlines) {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
