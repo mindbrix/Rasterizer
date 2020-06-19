@@ -491,19 +491,6 @@ struct Rasterizer {
     typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     
-    static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
-        if (unclipped)
-            (*function)(x0, y0, x1, y1, 0, info);
-        else {
-            float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
-            if (!unclipped && ly < clip.uy && uy > clip.ly) {
-                if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
-                    clipLine(x0, y0, x1, y1, clip, polygon, function, info);
-                else
-                    (*function)(x0, y0, x1, y1, 0, info);
-            }
-        }
-    }
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
         float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
@@ -571,6 +558,19 @@ struct Rasterizer {
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark && sx != FLT_MAX)
             (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
+    }
+    static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
+        if (unclipped)
+            (*function)(x0, y0, x1, y1, 0, info);
+        else {
+            float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+            if (!unclipped && ly < clip.uy && uy > clip.ly) {
+                if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
+                    clipLine(x0, y0, x1, y1, clip, polygon, function, info);
+                else
+                    (*function)(x0, y0, x1, y1, 0, info);
+            }
+        }
     }
     static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, SegmentFunction function, void *info) {
         float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
