@@ -449,8 +449,8 @@ struct Rasterizer {
                         Geometry *g = scene->paths[is].ref;
                         if (width) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
-                               | (scene->flags[is] & Scene::kOutlineRounded ? Instance::kRounded : 0)
-                               | (scene->flags[is] & Scene::kOutlineEndCap ? Instance::kEndCap : 0));
+                               | bool(scene->flags[is] & Scene::kOutlineRounded) * Instance::kRounded
+                               | bool(scene->flags[is] & Scene::kOutlineEndCap) * Instance::kEndCap);
                            inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
