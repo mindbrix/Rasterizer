@@ -127,7 +127,7 @@ struct RasterizerFont {
     int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm, refCount;
     stbtt_fontinfo info;
     
-    static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
+    static Ra::Bounds layoutGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
         const char nl = '\n', sp = ' ', tab = '\t';
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
@@ -196,7 +196,7 @@ struct RasterizerFont {
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
                 scene.addPath(font.glyphPath(glyph, false), Ra::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color, 0.f, 0);
     }
-    static void writeGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
+    static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py;
         for (int i = 0; i < glyphs.count; i++) {
             path = glyphs.paths[i], m = glyphs.ctms[i], b = Ra::Bounds(path->bounds.unit(m));

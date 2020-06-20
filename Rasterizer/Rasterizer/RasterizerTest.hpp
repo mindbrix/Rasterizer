@@ -141,14 +141,14 @@ struct RasterizerTest {
                         str = str.empty() + labels[i][j];
                     else
                         str = str.empty() + j;
-                    Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::writeGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
+                    Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::layoutGlyphs(font, inset * 0.666f, black, b, false, false, false, str.base, glyphs);
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                     
                     if (0) {
                         Ra::Path arcPath;  arcPath->addArc(cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
                         ring.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
                     }
-                    RasterizerFont::writeGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
+                    RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
                 }
             }
             list.addScene(ring);

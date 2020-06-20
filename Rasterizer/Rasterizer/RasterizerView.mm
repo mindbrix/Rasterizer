@@ -110,7 +110,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
-            RasterizerFont::writeGlyphs(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+            RasterizerFont::layoutGlyphs(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         else
             RasterizerFont::writeGlyphGrid(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
