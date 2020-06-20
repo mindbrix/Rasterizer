@@ -131,25 +131,25 @@ struct RasterizerFont {
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
         Ra::Bounds glyphBounds;
-        int i, j, begin, len, l0, l1;
+        int end, i, j, begin, len, l0, l1;
         std::vector<int> glyphs, lines;
         font.writeGlyphs((uint8_t *)str, glyphs);
         float s = size / float(font.unitsPerEm), width, lineHeight, space, x, y, xs[glyphs.size()];
         for (int k = 0; k < glyphs.size(); k++) xs[k] = FLT_MAX;
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
         space = font.monospace ?: font.space ?: lineHeight * 0.166f;
-        x = 0.f, i = 0, len = (int)glyphs.size(), lines.emplace_back(i);
+        x = 0.f, end = 0, len = (int)glyphs.size(), lines.emplace_back(end);
         do {
-            for (; i < len && glyphs[i] < 0; i++)
-                if (glyphs[i] != -RasterizerFont::nl)
-                    x += (glyphs[i] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -space : space);
+            for (; end < len && glyphs[end] < 0; end++)
+                if (glyphs[end] != -RasterizerFont::nl)
+                    x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -space : space);
                 else if (!single)
-                    x = 0.f, lines.emplace_back(i);
-            for (begin = i; i < len && glyphs[i] > 0; i++) {}
+                    x = 0.f, lines.emplace_back(end);
+            for (begin = end; end < len && glyphs[end] > 0; end++) {}
             if (rtl)
-                std::reverse(& glyphs[begin], & glyphs[i]);
-            int advances[i - begin], *adv = advances, total = 0;
-            for (j = begin; j < i; j++, total += *adv++) {
+                std::reverse(& glyphs[begin], & glyphs[end]);
+            int advances[end - begin], *adv = advances, total = 0;
+            for (j = begin; j < end; j++, total += *adv++) {
                 stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
                 if (j < len - 1)
                     *adv += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]);
@@ -158,13 +158,13 @@ struct RasterizerFont {
                 x = 0.f, lines.emplace_back(begin);
             if (rtl)
                 x -= total;
-            for (adv = advances, j = begin; j < i; j++, x += *adv++)
+            for (adv = advances, j = begin; j < end; j++, x += *adv++)
                 if (!(single && (fabsf(x) + *adv > width)))
                     xs[j] = x;
             if (rtl)
                 x -= total;
-        } while (i < len);
-        lines.emplace_back(i);
+        } while (end < len);
+        lines.emplace_back(end);
         for (y = -font.ascent, i = 0; i < lines.size() - 1; i++, y -= lineHeight)
             if ((l0 = lines[i]) != (l1 = lines[i + 1])) {
                 float dx = 0.f;
