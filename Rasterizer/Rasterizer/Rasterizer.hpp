@@ -821,19 +821,19 @@ struct Rasterizer {
             int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
-    static void radixSort(uint32_t *in, int n, uint32_t bias, uint32_t range, bool single, uint16_t *counts) {
+    static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
         range = range < 4 ? 4 : range;
         uint32_t tmp[n], mask = range - 1;
         memset(counts, 0, sizeof(uint16_t) * range);
         for (int i = 0; i < n; i++)
-            counts[(in[i] - bias) & mask]++;
+            counts[(in[i] - lower) & mask]++;
         uint64_t *sums = (uint64_t *)counts, sum = 0, count;
         for (int i = 0; i < range / 4; i++) {
             count = sums[i], sum += count + (count << 16) + (count << 32) + (count << 48), sums[i] = sum;
             sum = sum & 0xFFFF000000000000, sum = sum | (sum >> 16) | (sum >> 32) | (sum >> 48);
         }
         for (int i = n - 1; i >= 0; i--)
-            tmp[--counts[(in[i] - bias) & mask]] = in[i];
+            tmp[--counts[(in[i] - lower) & mask]] = in[i];
         if (single)
             memcpy(in, tmp, n * sizeof(uint32_t));
         else {
