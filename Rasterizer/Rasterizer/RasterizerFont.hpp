@@ -102,8 +102,7 @@ struct RasterizerFont {
         return path;
     }
     void writeGlyphs(uint8_t *utf8, std::vector<int>& glyphs) {
-        int i, step, codepoint, glyph;
-        for (step = 1, codepoint = i = 0; step; i += step) {
+        for (int glyph = 0, step = 1, codepoint = 0, i = 0; step; i += step) {
             if (utf8[i] == 0)
                 break;
             else if (utf8[i] < 128)
