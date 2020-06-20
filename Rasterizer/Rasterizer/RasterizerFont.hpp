@@ -12,6 +12,7 @@
 #import "stb_truetype.h"
 
 struct RasterizerFont {
+    static const char nl = '\n', sp = ' ', tab = '\t';
     RasterizerFont() { empty(); }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
@@ -101,7 +102,6 @@ struct RasterizerFont {
         return path;
     }
     void writeGlyphs(uint8_t *utf8, std::vector<int>& glyphs) {
-        const char nl = '\n', sp = ' ', tab = '\t';
         int i, step, codepoint, glyph;
         for (step = 1, codepoint = i = 0; step; i += step) {
             if (utf8[i] == 0)
@@ -128,7 +128,6 @@ struct RasterizerFont {
     stbtt_fontinfo info;
     
     static Ra::Bounds layoutGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
-        const char nl = '\n', sp = ' ', tab = '\t';
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
         Ra::Bounds glyphBounds;
@@ -142,8 +141,8 @@ struct RasterizerFont {
         x = 0.f, i = 0, len = (int)glyphs.size(), lines.emplace_back(i);
         do {
             for (; i < len && glyphs[i] < 0; i++)
-                if (glyphs[i] != -nl)
-                    x += (glyphs[i] == -tab ? 4 : 1) * (rtl ? -space : space);
+                if (glyphs[i] != -RasterizerFont::nl)
+                    x += (glyphs[i] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -space : space);
                 else if (!single)
                     x = 0.f, lines.emplace_back(i);
             for (begin = i; i < len && glyphs[i] > 0; i++) {}
