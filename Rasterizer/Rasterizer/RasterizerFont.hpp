@@ -151,7 +151,7 @@ struct RasterizerFont {
                 std::reverse(& glyphs[begin], & glyphs[i]);
             int advances[i - begin], *adv = advances, total = 0;
             for (j = begin; j < i; j++, adv++) {
-                *adv = 0, stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
+                stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
                 if (j < len - 1)
                     *adv += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]), total += *adv;
             }
