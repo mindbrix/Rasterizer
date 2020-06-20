@@ -100,19 +100,9 @@ struct RasterizerFont {
         }
         return path;
     }
-    Ra::Ref<Ra::Memory<uint8_t>> bytes;
-    std::unordered_map<int, Ra::Path> cache;
-    int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm, refCount;
-    stbtt_fontinfo info;
-    
-    static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
-        if (font.isEmpty() || str == nullptr)
-            return { 0.f, 0.f, 0.f, 0.f };
-        Ra::Bounds glyphBounds;
-        int i, j, begin, step, len, codepoint, glyph, l0, l1;
+    void writeGlyphs(uint8_t *utf8, std::vector<int>& glyphs) {
         const char nl = '\n', sp = ' ', tab = '\t';
-        const uint8_t *utf8 = (uint8_t *)str;
-        std::vector<int> glyphs, lines;
+        int i, step, codepoint, glyph;
         for (step = 1, codepoint = i = 0; step; i += step) {
             if (utf8[i] == 0)
                 break;
@@ -128,9 +118,23 @@ struct RasterizerFont {
                 assert(0);
             if (codepoint == sp || codepoint == nl || codepoint == tab)
                 glyphs.emplace_back(-codepoint);
-            else if ((glyph = stbtt_FindGlyphIndex(& font.info, codepoint)) && stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
+            else if ((glyph = stbtt_FindGlyphIndex(& info, codepoint)) && stbtt_IsGlyphEmpty(& info, glyph) == 0)
                 glyphs.emplace_back(glyph);
         }
+    }
+    Ra::Ref<Ra::Memory<uint8_t>> bytes;
+    std::unordered_map<int, Ra::Path> cache;
+    int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm, refCount;
+    stbtt_fontinfo info;
+    
+    static Ra::Bounds writeGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
+        const char nl = '\n', sp = ' ', tab = '\t';
+        if (font.isEmpty() || str == nullptr)
+            return { 0.f, 0.f, 0.f, 0.f };
+        Ra::Bounds glyphBounds;
+        int i, j, begin, len, l0, l1;
+        std::vector<int> glyphs, lines;
+        font.writeGlyphs((uint8_t *)str, glyphs);
         float s = size / float(font.unitsPerEm), width, lineHeight, space, x, y, xs[glyphs.size()];
         for (int k = 0; k < glyphs.size(); k++) xs[k] = FLT_MAX;
         width = (bounds.ux - bounds.lx) / s, lineHeight = font.ascent - font.descent + font.lineGap;
