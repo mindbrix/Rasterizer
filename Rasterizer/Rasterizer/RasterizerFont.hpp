@@ -151,7 +151,7 @@ struct RasterizerFont {
             int advances[end - begin], *adv = advances, total = 0;
             for (j = begin; j < end; j++, total += *adv++) {
                 stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
-                if (j < len - 1)
+                if (j < end - 1)
                     *adv += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]);
             }
             if (!single && (fabsf(x) + total > width))
