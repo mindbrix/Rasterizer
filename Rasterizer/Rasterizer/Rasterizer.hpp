@@ -137,7 +137,7 @@ struct Rasterizer {
             size_t size = moveCount + lineCount + 2 * quadCount + 3 * cubicCount + closeCount;
             types.alloc(size), types.empty(), points.alloc(size * 2), points.empty(), molecules.alloc(moveCount), molecules.empty();
             size_t p16sSize = 5 * moveCount + lineCount + 2 * quadCount + 3 * cubicCount;
-            p16s.alloc(p16sSize), p16s.empty(), p16ends.alloc(p16sSize / kFastSegments), p16ends.empty();
+            p16s.alloc(p16sSize), p16s.empty(), p16ends.alloc(p16sSize / kFastSegments), p16ends.empty(), instcounts.alloc(p16sSize / 2), instcounts.empty();
         }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
@@ -227,6 +227,9 @@ struct Rasterizer {
                 g->writePoint16(x0, y0, g->bounds, curve);
             else if (g->p16s.end > g->p16s.idx) {
                 g->writePoint16(x1, y1, g->bounds, 0);
+                for (int cnt = int(g->p16s.end - g->p16s.idx); cnt > 0; cnt -= 4)
+                    *(g->instcounts.alloc(1)) = cnt < 4 ? cnt : 4;
+                g->instcounts.back() |= 0x80;
                 size_t count = kFastSegments - (g->p16s.end % kFastSegments);
                 for (Point16 *ep16 = g->p16s.alloc(count); count; count--)
                     new (ep16++) Point16(0xFFFF, 0xFFFF);
@@ -238,7 +241,7 @@ struct Rasterizer {
         }
         size_t refCount = 0, crc = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
-        Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
+        Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<uint8_t> instcounts;  Row<Bounds> molecules;
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;
         Bounds bounds;
     };
@@ -493,14 +496,15 @@ struct Rasterizer {
     
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
         float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
+        uint8_t *type, *end, *move;
+        for (move = type = g->types.base, end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
                     if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
                         (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
-                    sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++;
+                    sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, move = type++;
                     break;
                 case Geometry::kLine:
                     x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
@@ -556,7 +560,7 @@ struct Rasterizer {
             }
         if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
-        if (mark && sx != FLT_MAX)
+        if (mark && sx != FLT_MAX && type - move > 1)
             (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
