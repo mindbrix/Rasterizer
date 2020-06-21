@@ -166,7 +166,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
-    int i;
+    int i, cnt = (edge.ic & Edge::cnt) >> 27;
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
         float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sly, suy;
         _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -175,6 +175,14 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = slx = x16 * ma + y16 * mc + _tx,
         *dst++ = sly = suy = x16 * mb + y16 * md + _ty;
+//        for (i = 0; i < cnt; i++, dst += 2) {
+//            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+//            dst[0] = x16 * ma + y16 * mc + _tx, dst[1] = x16 * mb + y16 * md + _ty;
+//            slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+//        }
+//        for (; i < kFastSegments; i++, dst += 2)
+//            dst[0] = dst[-2], dst[1] = dst[-1];
+        
         for (i = 0; i < kFastSegments; i++, dst += 2) {
             if (pts->x == 0xFFFF && pts->y == 0xFFFF)
                 dst[0] = dst[-2], dst[1] = dst[-1];
@@ -232,7 +240,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
-    int i, curve0, curve1, curve2;
+    int i, cnt = (edge.ic & Edge::cnt) >> 27, curve0, curve1, curve2;
     float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
         float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
@@ -252,6 +260,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
         curve1 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
         x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
         
+//        for (i = 0; i < cnt; i++, dst += 4, px = x0, x0 = x1, x1 = nx, py = y0, y0 = y1, y1 = ny, curve0 = curve1, curve1 = curve2, pts++) {
         for (i = 0; i < kFastSegments; i++, dst += 4, px = x0, x0 = x1, x1 = nx, py = y0, y0 = y1, y1 = ny, curve0 = curve1, curve1 = curve2, pts++) {
             if (x1 == FLT_MAX)
                 dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
@@ -275,6 +284,9 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 dst[2] = x1, dst[3] = y1;
             }
         }
+//        for (; i < kFastSegments; i++, dst += 4) {
+//            dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
+//        }
     }
     float dx = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
