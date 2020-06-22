@@ -500,9 +500,9 @@ struct Rasterizer {
         for (move = type = g->types.base, end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
-                    if (polygon && move != type && (sx != x0 || sy != y0))
+                    if (polygon && type - move > 1 && (sx != x0 || sy != y0))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
-                    if (mark && move != type)
+                    if (mark && type - move > 1)
                         (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, move = type++;
                     break;
