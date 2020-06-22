@@ -166,7 +166,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
-    int i, cnt = (edge.ic & Edge::cnt) >> 27;
+    int i;
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
         float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sly, suy;
         _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -175,14 +175,6 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = slx = x16 * ma + y16 * mc + _tx,
         *dst++ = sly = suy = x16 * mb + y16 * md + _ty;
-//        for (i = 0; i < cnt; i++, dst += 2) {
-//            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-//            dst[0] = x16 * ma + y16 * mc + _tx, dst[1] = x16 * mb + y16 * md + _ty;
-//            slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
-//        }
-//        for (; i < kFastSegments; i++, dst += 2)
-//            dst[0] = dst[-2], dst[1] = dst[-1];
-        
         for (i = 0; i < kFastSegments; i++, dst += 2) {
             if (pts->x == 0xFFFF && pts->y == 0xFFFF)
                 dst[0] = dst[-2], dst[1] = dst[-1];
