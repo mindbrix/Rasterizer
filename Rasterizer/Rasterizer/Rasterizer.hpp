@@ -169,9 +169,9 @@ struct Rasterizer {
         }
         void moveTo(float x, float y) {
             if (points.end - points.idx == 2)
-                molecules.end--, points.end -= 2, types.end--;
-            *(molecules.alloc(1)) = Bounds();
+                counts[types.back()]--, molecules.end--, points.end -= 2, types.end--;
             points.idx = points.end;
+            *(molecules.alloc(1)) = Bounds();
             float *pts = points.alloc(2);
             x0 = pts[0] = x, y0 = pts[1] = y;
             update(kMove, 1, pts);
