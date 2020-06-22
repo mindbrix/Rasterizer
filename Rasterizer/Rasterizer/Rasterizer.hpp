@@ -495,14 +495,14 @@ struct Rasterizer {
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
-        float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        float *p = g->points.base, sx = 0.f, sy = 0.f, x0 = 0.f, y0 = 0.f, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         uint8_t *type, *end, *move;
         for (move = type = g->types.base, end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
-                    if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
+                    if (polygon && move != type && (sx != x0 || sy != y0))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
-                    if (mark && sx != FLT_MAX)
+                    if (mark && move != type)
                         (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, move = type++;
                     break;
