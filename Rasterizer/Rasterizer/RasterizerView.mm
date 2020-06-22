@@ -25,6 +25,7 @@
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) BOOL useCG;
 @property(nonatomic) NSString *pastedString;
+@property(nonatomic) NSFont *fnt;
 - (void)timerFired:(double)time;
 
 @end
@@ -52,7 +53,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         return nil;
     self.inflight_semaphore = dispatch_semaphore_create(1);
     [self initLayer:_useCG];
-    [self changeFont:nil];
+    self.fnt = [NSFont fontWithName:@"AppleSymbols" size:14];
+    [self writeList:self.fnt];
     return self;
 }
 
@@ -98,7 +100,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    NSFont *fnt = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
+    self.fnt = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
+    [self writeList: self.fnt];
+}
+- (void)writeList:(NSFont *)fnt {
     NSURL *url = RaCG::fontURL(fnt.fontName);
     Ra::Ref<RasterizerFont> font;  font->set(url.path.UTF8String, fnt.fontName.UTF8String);
     Ra::SceneList list;
@@ -191,7 +196,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    [self changeFont: nil];
+    [self writeList: self.fnt];
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
