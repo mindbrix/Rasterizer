@@ -558,9 +558,9 @@ struct Rasterizer {
                     p += 2, type++;
                     break;
             }
-        if (polygon && sx != FLT_MAX && (sx != x0 || sy != y0))
+        if (polygon && (sx != x0 || sy != y0))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
-        if (mark && sx != FLT_MAX && type - move > 1)
+        if (mark && type - move > 1)
             (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
