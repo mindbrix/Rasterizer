@@ -935,7 +935,7 @@ struct Rasterizer {
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
-        size_t i, j, i0, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
+        size_t i, j, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->slz != ctx->suz) {
             if (ctx->segments.end || ctx->p16total) {
                 segbase = begin, begin += ctx->segments.end * sizeof(Segment);
@@ -981,15 +981,6 @@ struct Rasterizer {
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
-//                            uint8_t *instcount = entry->instcounts->base;
-//                            for (i0 = j = 0; j < entry->instcounts->end; i0 += instcount[j] & 0x7F, update = entry->hasMolecules && instcount[j] & 0x80, j++) {
-//                                if (update)
-//                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-//                                uint32_t cnt = (instcount[j] & 0x7F) - 1 * bool(instcount[j] & 0x80);
-//                                molecule->ic = uint32_t(ic) | cnt << 27;//, molecule->i0 = i0, molecule->ux = ux, molecule++;
-//                            }
-//                            molx = entry->mols + (ctm.a > 0.f ? 2 : 0), moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
-//                            update = entry->hasMolecules;  ux = inst->quad.cell.ux;
                             for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
