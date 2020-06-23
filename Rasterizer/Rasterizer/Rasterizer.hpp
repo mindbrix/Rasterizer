@@ -941,75 +941,73 @@ struct Rasterizer {
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         size_t i, j, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
-        if (ctx->slz != ctx->suz) {
-            if (ctx->segments.end || ctx->p16total) {
-                segbase = begin, begin += ctx->segments.end * sizeof(Segment);
-                memcpy(buffer.base + segbase, ctx->segments.base, begin - segbase);
-                Row<Scene::Cache::Entry> *entries;
-                for (pointsbase = begin, pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                    for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
-                        if (ctx->fasts.base[lz + ip]) {
-                            end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
-                            memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);
-                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
+        if (ctx->segments.end || ctx->p16total) {
+            segbase = begin, begin += ctx->segments.end * sizeof(Segment);
+            memcpy(buffer.base + segbase, ctx->segments.base, begin - segbase);
+            Row<Scene::Cache::Entry> *entries;
+            for (pointsbase = begin, pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+                for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
+                    if (ctx->fasts.base[lz + ip]) {
+                        end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
+                        memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);
+                        begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
+                    }
+        }
+        for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
+            instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
+            Edge *quadEdge = (Edge *)(buffer.base + begin);
+            if (instcount)
+                entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->counts[Allocator::Pass::kQuadEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+            Edge *fastEdge = (Edge *)(buffer.base + begin);
+            if (instcount)
+                entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->counts[Allocator::Pass::kFastEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+            Edge *fastMolecule = (Edge *)(buffer.base + begin);
+            if (instcount)
+                entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->counts[Allocator::Pass::kFastMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+            Edge *quadMolecule = (Edge *)(buffer.base + begin);
+            if (instcount)
+                entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+        
+            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
+            for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
+                iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
+                if (inst->iz & Instance::kOutlines) {
+                    Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
+                    divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                    dst = out.dst;
+                } else {
+                    ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
+                    if (inst->iz & Instance::kMolecule) {
+                        dst[-1].quad.base = uint32_t(ctx->fasts.base[inst->data.idx]);
+                        Scene::Cache& cache = *list.scenes[i].cache.ref;
+                        Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
+                        uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
+                        float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
+                        bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
+                        Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
+                        for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
+                            if (update)
+                                ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                            molecule->ic = uint32_t(ic), molecule->i0 = j, molecule->ux = ux, molecule++;
                         }
-            }
-            for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
-                instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
-                Edge *quadEdge = (Edge *)(buffer.base + begin);
-                if (instcount)
-                    entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->counts[Allocator::Pass::kQuadEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                Edge *fastEdge = (Edge *)(buffer.base + begin);
-                if (instcount)
-                    entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->counts[Allocator::Pass::kFastEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                Edge *fastMolecule = (Edge *)(buffer.base + begin);
-                if (instcount)
-                    entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->counts[Allocator::Pass::kFastMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                Edge *quadMolecule = (Edge *)(buffer.base + begin);
-                if (instcount)
-                    entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-            
-                Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
-                for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
-                    iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
-                    if (inst->iz & Instance::kOutlines) {
-                        Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
-                        divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-                        dst = out.dst;
-                    } else {
-                        ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
-                        if (inst->iz & Instance::kMolecule) {
-                            dst[-1].quad.base = uint32_t(ctx->fasts.base[inst->data.idx]);
-                            Scene::Cache& cache = *list.scenes[i].cache.ref;
-                            Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
-                            uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
-                            float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
-                            bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
-                            Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
-                            for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
-                                if (update)
-                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic), molecule->i0 = j, molecule->ux = ux, molecule++;
-                            }
-                            *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
-                        } else if (inst->iz & Instance::kEdge) {
-                            Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                            int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + 3 * inst->data.idx, *uxc;
-                            Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
-                            for (; is < eis; is++, edge++) {
-                                uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
-                                if (++is < eis)
-                                    uxc = uxcovers + is->i * 3, edge->ic |= Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
-                                else
-                                    edge->ux = kNullIndex;
-                            }
-                            *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
+                        *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
+                    } else if (inst->iz & Instance::kEdge) {
+                        Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
+                        int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + 3 * inst->data.idx, *uxc;
+                        Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
+                        for (; is < eis; is++, edge++) {
+                            uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
+                            if (++is < eis)
+                                uxc = uxcovers + is->i * 3, edge->ic |= Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
+                            else
+                                edge->ux = kNullIndex;
                         }
+                        *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
                     }
                 }
-                if (dst > dst0)
-                    entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(Instance)), begin = entries.back().end;
             }
+            if (dst > dst0)
+                entries.emplace_back(Buffer::kInstances, begin, begin + (dst - dst0) * sizeof(Instance)), begin = entries.back().end;
         }
     }
 };
