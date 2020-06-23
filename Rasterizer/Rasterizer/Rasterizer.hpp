@@ -335,8 +335,8 @@ struct Rasterizer {
     };
     struct Segment {
         Segment(float x0, float y0, float x1, float y1) : x0(x0), y0(y0), x1(x1), y1(y1) {}
-        Segment(float _x0, float _y0, float _x1, float _y1, uint32_t curve) {
-            *((uint32_t *)& x0) = (*((uint32_t *)& _x0) & ~3) | curve, y0 = _y0, x1 = _x1, y1 = _y1;
+        Segment(float x0, float y0, float x1, float y1, uint32_t curve) : y0(y0), x1(x1), y1(y1) {
+            *((uint32_t *)& this->x0) = (*((uint32_t *)& x0) & ~3) | curve;
         }
         float x0, y0, x1, y1;
     };
