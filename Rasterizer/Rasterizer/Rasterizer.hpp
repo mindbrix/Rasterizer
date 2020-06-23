@@ -329,10 +329,8 @@ struct Rasterizer {
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct Segment {
-        Segment(float x0, float y0, float x1, float y1, uint32_t curve) : y0(y0), x1(x1), y1(y1) {
-            *((uint32_t *)& this->x0) = (*((uint32_t *)& x0) & ~3) | curve;
-        }
-        float x0, y0, x1, y1;
+        Segment(float x0, float y0, float x1, float y1, uint32_t curve) : ix0((*((uint32_t *)& x0) & ~3) | curve), y0(y0), x1(x1), y1(y1) {}
+        union { float x0; uint32_t ix0; };  float y0, x1, y1;
     };
     struct Cell {
         uint16_t lx, ly, ux, uy, ox, oy;
