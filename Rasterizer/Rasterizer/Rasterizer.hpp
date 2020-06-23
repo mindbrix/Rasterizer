@@ -172,14 +172,12 @@ struct Rasterizer {
                 counts[types.back()]--, molecules.end--, points.end -= 2, types.end--;
             points.idx = points.end;
             *(molecules.alloc(1)) = Bounds();
-            float *pts = points.alloc(2);
-            x0 = pts[0] = x, y0 = pts[1] = y;
+            float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y;
             update(kMove, 1, pts);
         }
         void lineTo(float x1, float y1) {
             if (x0 != x1 || y0 != y1) {
-                float *pts = points.alloc(2);
-                x0 = pts[0] = x1, y0 = pts[1] = y1;
+                float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1;
                 update(kLine, 1, pts);
             }
         }
@@ -190,8 +188,7 @@ struct Rasterizer {
                     lineTo((x0 + x2) * 0.25f + x1 * 0.5f, (y0 + y2) * 0.25f + y1 * 0.5f);
                 lineTo(x2, y2);
             } else {
-                float *pts = points.alloc(4);
-                pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2;
+                float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2;
                 update(kQuadratic, 2, pts);
                 ax -= bx, ay -= by, dot = ax * ax + ay * ay, maxDot = maxDot > dot ? maxDot : dot;
             }
@@ -202,17 +199,15 @@ struct Rasterizer {
             if (ax * ax + ay * ay < 1e-2f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
-                float *pts = points.alloc(6);
+                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, x0 = pts[4] = x3, y0 = pts[5] = y3;
+                update(kCubic, 3, pts);
                 cx = 3.f * (x1 - x0), bx -= cx, ax = x3 - x0 - cx - bx;
                 cy = 3.f * (y1 - y0), by -= cy, ay = y3 - y0 - cy - by;
                 dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
-                pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, x0 = pts[4] = x3, y0 = pts[5] = y3;
-                update(kCubic, 3, pts);
             }
         }
         void close() {
-            float *pts = points.alloc(2);
-            pts[0] = x0, pts[1] = y0;
+            float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0;
             update(kClose, 1, pts);
         }
         size_t hash() {
