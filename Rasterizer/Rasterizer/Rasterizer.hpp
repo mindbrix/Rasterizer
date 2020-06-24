@@ -179,8 +179,7 @@ struct Rasterizer {
             moveTo(sx, sx), cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
         }
         void moveTo(float x, float y) {
-            validate();
-            *(molecules.alloc(1)) = Bounds();
+            validate(), new (molecules.alloc(1)) Bounds();
             points.idx = points.end;  float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y;
             update(kMove, 1, pts);
         }
