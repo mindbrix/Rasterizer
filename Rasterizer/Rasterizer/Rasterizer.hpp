@@ -150,8 +150,7 @@ struct Rasterizer {
             if (b && b->lx == b->ux && b->ly == b->uy) {
                 for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
                     counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
-                molecules.end--, types.end = points.idx / 2, points.end = points.idx;
-                bounds = Bounds();
+                molecules.end--, types.end = points.idx / 2, points.end = points.idx, bounds = Bounds();
                 for (int i = 0; i < molecules.end; i++)
                     bounds.extend(molecules.base[i]);
             }
