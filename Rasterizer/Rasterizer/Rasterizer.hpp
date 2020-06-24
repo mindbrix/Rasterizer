@@ -503,8 +503,8 @@ struct Rasterizer {
     
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
         float *p = g->points.base, sx, sy, x0, y0, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
-        uint8_t *type, *end;
-        for (sx = sy = x0 = y0 = FLT_MAX, type = g->types.base, end = type + g->types.end; type < end; )
+        uint8_t *type = g->types.base, *end = type + g->types.end;
+        for (sx = sy = x0 = y0 = FLT_MAX; type < end; )
             switch (*type) {
                 case Geometry::kMove:
                     if (polygon && (sx != x0 || sy != y0))
