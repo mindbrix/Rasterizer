@@ -235,10 +235,8 @@ struct Rasterizer {
                 size_t count = kFastSegments - (g->p16s.end % kFastSegments);
                 for (Point16 *ep16 = g->p16s.alloc(count); count; count--)
                     new (ep16++) Point16(0xFFFF, 0xFFFF);
-                Point16 *p16 = & g->p16s.base[g->p16s.idx + kFastSegments - 1];
-                uint8_t *p16end = g->p16ends.alloc((g->p16s.end - g->p16s.idx) / kFastSegments);
-                for (; g->p16s.idx < g->p16s.end; g->p16s.idx += kFastSegments, p16 += kFastSegments, p16end++)
-                    *p16end = p16->x == 0xFFFF && p16->y == 0xFFFF;
+                count = (g->p16s.end - g->p16s.idx) / kFastSegments, bzero(g->p16ends.alloc(count), count * sizeof(uint8_t));
+                g->p16ends.back() = 1, g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, crc = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
