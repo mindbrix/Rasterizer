@@ -173,6 +173,9 @@ struct Rasterizer {
                 for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
                     counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
                 molecules.end--, types.end = points.idx / 2, points.end = points.idx;
+                bounds = Bounds();
+                for (int i = 0; i < molecules.end; i++)
+                    bounds.extend(molecules.base[i]);
             }
             *(molecules.alloc(1)) = Bounds();
             points.idx = points.end;  float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y;
