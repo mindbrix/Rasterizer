@@ -168,8 +168,17 @@ struct Rasterizer {
             moveTo(sx, sx), cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
         }
         void moveTo(float x, float y) {
-            if (points.end - points.idx == 2)
-                counts[types.back()]--, molecules.end--, points.end -= 2, types.end--;
+            if (molecules.end) {
+                Bounds b = molecules.back();
+                if (b.lx == b.ux && b.ly == b.uy) {
+                    for (size_t i = points.idx / 2, end = points.end / 2; i < end;) {
+                        uint8_t type = types.base[i];
+                        counts[type]--;
+                        i += type == kMove || type == kLine || type == kClose ? 1 : type == kQuadratic ? 2 : 3;
+                    }
+                    molecules.end--, types.end = points.idx / 2, points.end = points.idx;
+                }
+            }
             points.idx = points.end;
             *(molecules.alloc(1)) = Bounds();
             float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y;
