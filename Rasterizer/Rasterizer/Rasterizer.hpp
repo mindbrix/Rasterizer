@@ -232,7 +232,7 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;
             if (x0 != FLT_MAX)
                 g->writePoint16(x0, y0, g->bounds, curve);
-            else if (g->p16s.end > g->p16s.idx) {
+            else {
                 g->writePoint16(x1, y1, g->bounds, 0);
                 size_t count = kFastSegments - (g->p16s.end % kFastSegments);
                 for (Point16 *ep16 = g->p16s.alloc(count); count; count--)
