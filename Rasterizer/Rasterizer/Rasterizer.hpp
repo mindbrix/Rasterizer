@@ -425,11 +425,11 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];
-            for (lz = i = 0, uz = scene->count; i < list.scenes.size(); i++, scene++, lz = uz, uz = lz + scene->count) {
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert();
                 Bounds clipbounds = Bounds(clipctm).integral().intersect(device);
                 float err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
-                clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
+                uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if (scene->flags[is] & Scene::Flags::kInvisible)
                         continue;
