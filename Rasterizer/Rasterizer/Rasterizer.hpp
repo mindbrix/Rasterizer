@@ -145,6 +145,17 @@ struct Rasterizer {
             for (int i = 0; i < size; i++, p += 2)
                 tp[i] = type, bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]);
         }
+        void validate() {
+            Bounds *b = molecules.end ? & molecules.back() : nullptr;
+            if (b && b->lx == b->ux && b->ly == b->uy) {
+                for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
+                    counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
+                molecules.end--, types.end = points.idx / 2, points.end = points.idx;
+                bounds = Bounds();
+                for (int i = 0; i < molecules.end; i++)
+                    bounds.extend(molecules.base[i]);
+            }
+        }
         size_t upperBound(float det) {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
@@ -168,15 +179,7 @@ struct Rasterizer {
             moveTo(sx, sx), cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
         }
         void moveTo(float x, float y) {
-            Bounds *b = molecules.end ? & molecules.back() : nullptr;
-            if (b && b->lx == b->ux && b->ly == b->uy) {
-                for (uint8_t *type = types.base + points.idx / 2, *end = types.base + points.end / 2; type < end;)
-                    counts[*type]--, type += *type == kMove || *type == kLine || *type == kClose ? 1 : *type == kQuadratic ? 2 : 3;
-                molecules.end--, types.end = points.idx / 2, points.end = points.idx;
-                bounds = Bounds();
-                for (int i = 0; i < molecules.end; i++)
-                    bounds.extend(molecules.base[i]);
-            }
+            validate();
             *(molecules.alloc(1)) = Bounds();
             points.idx = points.end;  float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y;
             update(kMove, 1, pts);
@@ -266,6 +269,7 @@ struct Rasterizer {
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
+            path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->types.end;
                 auto it = cache->map.find(path->hash());
