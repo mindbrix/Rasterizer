@@ -12,7 +12,7 @@
 #import "stb_truetype.h"
 
 struct RasterizerFont {
-    static const char nl = 0, sp = ' ', tab = '\t';
+    static const char nl = '\n', sp = ' ', tab = '\t';
     RasterizerFont() { empty(); }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
