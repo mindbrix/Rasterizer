@@ -318,11 +318,6 @@ struct Rasterizer {
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        size_t index(size_t si, size_t pi) {
-            for (int i = 0; i < si; i++)
-                pi += scenes[i].count;
-            return pi;
-        }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;
     };
     struct Range {
