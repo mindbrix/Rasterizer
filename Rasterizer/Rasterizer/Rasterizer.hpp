@@ -949,14 +949,14 @@ struct Rasterizer {
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
             if (instcount) {
-                quadEdge = (Edge *)(buffer.base + begin);
-                entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->counts[Allocator::Pass::kQuadEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                fastEdge = (Edge *)(buffer.base + begin);
-                entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->counts[Allocator::Pass::kFastEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                fastMolecule = (Edge *)(buffer.base + begin);
-                entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->counts[Allocator::Pass::kFastMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-                quadMolecule = (Edge *)(buffer.base + begin);
-                entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
+                quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::Pass::kQuadEdges] * sizeof(Edge);
+                entries.emplace_back(Buffer::kQuadEdges, begin, end, segbase, pointsbase, instbase), begin = end;
+                fastEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::Pass::kFastEdges] * sizeof(Edge);
+                entries.emplace_back(Buffer::kFastEdges, begin, end, segbase, pointsbase, instbase), begin = end;
+                fastMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::Pass::kFastMolecules] * sizeof(Edge);
+                entries.emplace_back(Buffer::kFastMolecules, begin, end, segbase, pointsbase, instbase), begin = end;
+                quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge);
+                entries.emplace_back(Buffer::kQuadMolecules, begin, end, segbase, pointsbase, instbase), begin = end;
             }
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
