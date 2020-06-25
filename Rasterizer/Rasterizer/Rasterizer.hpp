@@ -945,21 +945,19 @@ struct Rasterizer {
                         begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                     }
         }
+        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
-            Edge *quadEdge = (Edge *)(buffer.base + begin);
-            if (instcount)
+            if (instcount) {
+                quadEdge = (Edge *)(buffer.base + begin);
                 entries.emplace_back(Buffer::kQuadEdges, begin, begin + pass->counts[Allocator::Pass::kQuadEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-            Edge *fastEdge = (Edge *)(buffer.base + begin);
-            if (instcount)
+                fastEdge = (Edge *)(buffer.base + begin);
                 entries.emplace_back(Buffer::kFastEdges, begin, begin + pass->counts[Allocator::Pass::kFastEdges] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-            Edge *fastMolecule = (Edge *)(buffer.base + begin);
-            if (instcount)
+                fastMolecule = (Edge *)(buffer.base + begin);
                 entries.emplace_back(Buffer::kFastMolecules, begin, begin + pass->counts[Allocator::Pass::kFastMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-            Edge *quadMolecule = (Edge *)(buffer.base + begin);
-            if (instcount)
+                quadMolecule = (Edge *)(buffer.base + begin);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, begin + pass->counts[Allocator::Pass::kQuadMolecules] * sizeof(Edge), segbase, pointsbase, instbase), begin = entries.back().end;
-        
+            }
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
