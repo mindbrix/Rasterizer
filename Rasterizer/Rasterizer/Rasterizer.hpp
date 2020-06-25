@@ -931,7 +931,6 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
-        Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         size_t i, j, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->segments.end || ctx->p16total) {
             segbase = begin, begin += ctx->segments.end * sizeof(Segment);
@@ -945,6 +944,7 @@ struct Rasterizer {
                         begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                     }
         }
+        Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
