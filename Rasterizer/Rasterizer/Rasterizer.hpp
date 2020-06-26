@@ -258,8 +258,7 @@ struct Rasterizer {
         };
         template<typename T>
         struct Vector {
-            uint64_t refCount;
-            std::vector<T> src, dst;
+            uint64_t refCount;  std::vector<T> src, dst;
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj); }
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
