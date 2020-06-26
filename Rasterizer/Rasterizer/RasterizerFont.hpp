@@ -17,13 +17,10 @@ struct RasterizerFont {
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
     bool set(const char *filename, const char *name) {
-        empty();
         int fd;  struct stat st;
         if ((fd = open(filename, O_RDONLY)) == -1 || fstat(fd, & st) == -1)
             return false;
-        bytes->resize(st.st_size);
-        read(fd, bytes->addr, st.st_size);
-        close(fd);
+        empty(), bytes->resize(st.st_size), read(fd, bytes->addr, st.st_size), close(fd);
         
         const unsigned char *ttf_buffer = (const unsigned char *)bytes->addr;
         int numfonts = stbtt_GetNumberOfFonts(ttf_buffer), numchars = (int)strlen(name), length, offset;
