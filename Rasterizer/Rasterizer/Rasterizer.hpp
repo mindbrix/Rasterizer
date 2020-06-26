@@ -387,8 +387,8 @@ struct Rasterizer {
     };
     struct Allocator {
         struct Pass {
-            Pass(size_t idx) : idx(idx), size(0) {}
-            size_t idx, size, counts[4] = { 0, 0, 0, 0 };
+            Pass(size_t idx) : idx(idx) {}
+            size_t idx, size = 0, counts[4] = { 0, 0, 0, 0 };
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
