@@ -16,7 +16,7 @@ struct RasterizerFont {
     RasterizerFont() { empty(); }
     void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
-    bool set(const char *filename, const char *name) {
+    bool load(const char *filename, const char *name) {
         int fd;  struct stat st;
         if ((fd = open(filename, O_RDONLY)) == -1 || fstat(fd, & st) == -1)
             return false;
@@ -44,6 +44,7 @@ struct RasterizerFont {
                             avg = total / 96, em = widths[1], space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
+                            spaceGlyph = stbtt_FindGlyphIndex(& info, ' ');
                             return true;
                         }
                     }
@@ -120,7 +121,7 @@ struct RasterizerFont {
     }
     Ra::Ref<Ra::Memory<uint8_t>> bytes;
     std::unordered_map<int, Ra::Path> cache;
-    int monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm, refCount;
+    int refCount, monospace, avg, em, space, ascent, descent, lineGap, unitsPerEm, spaceGlyph;
     stbtt_fontinfo info;
     
     static Ra::Bounds layoutGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
