@@ -154,12 +154,12 @@ struct RasterizerFont {
                 stbtt_GetGlyphBox(& font.info, glyphs[j], nullptr, nullptr, & x1, nullptr);
                 x1 += wx, wux = wux > x1 ? wux : x1;
             }
-            if (!single && (abs(x) + wux > width))
+            if (!single && abs(x) + wux > width)
                 x = 0, lines.emplace_back(begin);
             if (rtl)
                 x -= wux;
             for (adv = advances, j = begin; j < end; j++, x += *adv++)
-                if (!(single && (abs(x) + *adv > width)))
+                if (!(single && abs(x) + *adv > width))
                     xs[j] = x;
             if (rtl)
                 x -= wux;
