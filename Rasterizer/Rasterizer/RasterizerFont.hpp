@@ -146,8 +146,8 @@ struct RasterizerFont {
             for (begin = end; end < len && glyphs[end] > 0; end++) {}
             if (rtl)
                 std::reverse(& glyphs[begin], & glyphs[end]);
-            int advances[end - begin], *adv = advances, wx = 0, x1, wux = -INT_MAX;
-            for (j = begin; j < end; j++, wx += *adv++) {
+            int advances[end - begin], *adv, wx = 0, x1, wux = -INT_MAX;
+            for (adv = advances, j = begin; j < end; j++, wx += *adv++) {
                 stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
                 if (j < end - 1)
                     *adv += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]);
