@@ -137,7 +137,6 @@ struct RasterizerFont {
         x = end = 0, len = (int)glyphs.size(), lines.emplace_back(end);
         do {
             for (; end < len && glyphs[end] < 0; end++) {
-                xs[end] = INT_MAX;
                 if (glyphs[end] != -RasterizerFont::nl)
                     x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -space : space);
                 else if (!single)
@@ -172,15 +171,15 @@ struct RasterizerFont {
                     dx = width;
                 else
                     for (int j = right ? l1 - 1 : l0; j >= 0 && j < l1; j += (right ? -1 : 1))
-                        if ((x = xs[j]) != INT_MAX) {
+                        if (glyphs[j] > 0) {
                             Ra::Path path = font.glyphPath(glyphs[j], true);
-                            dx += right ? width - (x + path.ref->bounds.ux) : -path.ref->bounds.lx;
+                            dx += right ? width - (xs[j] + path.ref->bounds.ux) : -path.ref->bounds.lx;
                             break;
                         }
                 for (int j = l0; j < l1; j++) 
-                    if ((x = xs[j]) != INT_MAX) {
+                    if (glyphs[j] > 0) {
                         Ra::Path path = font.glyphPath(glyphs[j], true);
-                        Ra::Transform ctm(s, 0.f, 0.f, s, (x + dx) * s + bounds.lx, y * s + bounds.uy);
+                        Ra::Transform ctm(s, 0.f, 0.f, s, (xs[j] + dx) * s + bounds.lx, y * s + bounds.uy);
                         scene.addPath(path, ctm, color, 0.f, 0);
                         glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                     }
