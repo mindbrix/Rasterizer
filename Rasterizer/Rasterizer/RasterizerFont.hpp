@@ -131,14 +131,13 @@ struct RasterizerFont {
         int end, i, j, begin, len, l0, l1;
         std::vector<int> glyphs, lines;
         font.writeGlyphs((uint8_t *)str, glyphs);
-        float s = size / float(font.unitsPerEm); int width, lineHeight, space, x, y, xs[glyphs.size()];
+        float s = size / float(font.unitsPerEm); int width, lineHeight, x, y, xs[glyphs.size()];
         width = ceilf((bounds.ux - bounds.lx) / s), lineHeight = font.ascent - font.descent + font.lineGap;
-        space = font.monospace ?: font.space ?: ceilf(lineHeight * 0.166f);
         x = end = 0, len = (int)glyphs.size(), lines.emplace_back(end);
         do {
             for (; end < len && glyphs[end] < 0; end++) {
                 if (glyphs[end] != -RasterizerFont::nl)
-                    x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -space : space);
+                    x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -font.space : font.space);
                 else if (!single)
                     x = 0, lines.emplace_back(end);
             }
