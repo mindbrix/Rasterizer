@@ -145,13 +145,13 @@ struct RasterizerFont {
             for (begin = end; end < len && glyphs[end] > 0; end++) {}
             if (rtl)
                 std::reverse(& glyphs[begin], & glyphs[end]);
-            int advances[end - begin], *adv, wx = 0, x1, wux = -INT_MAX;
-            for (adv = advances, j = begin; j < end; j++, wx += *adv++) {
+            int advances[end - begin], *adv, x0 = 0, x1, wux = -INT_MAX;
+            for (adv = advances, j = begin; j < end; j++, x0 += *adv++) {
                 stbtt_GetGlyphHMetrics(& font.info, glyphs[j], adv, NULL);
                 if (j < end - 1)
                     *adv += stbtt_GetGlyphKernAdvance(& font.info, glyphs[j], glyphs[j + 1]);
                 stbtt_GetGlyphBox(& font.info, glyphs[j], nullptr, nullptr, & x1, nullptr);
-                x1 += wx, wux = wux > x1 ? wux : x1;
+                x1 += x0, wux = wux > x1 ? wux : x1;
             }
             if (!single && abs(x) + wux > width)
                 x = 0, lines.emplace_back(begin);
@@ -173,10 +173,10 @@ struct RasterizerFont {
                     for (int j = right ? l1 - 1 : l0; j >= 0 && j < l1; j += (right ? -1 : 1))
                         if (glyphs[j] > 0) {
                             Ra::Path path = font.glyphPath(glyphs[j], true);
-                            dx += right ? width - (xs[j] + path.ref->bounds.ux) : -path.ref->bounds.lx;
+                            dx += right ? width - (xs[j] + path.ref->bounds.ux) : 0;
                             break;
                         }
-                for (int j = l0; j < l1; j++) 
+                for (int j = l0; j < l1; j++)
                     if (glyphs[j] > 0) {
                         Ra::Path path = font.glyphPath(glyphs[j], true);
                         Ra::Transform ctm(s, 0.f, 0.f, s, (xs[j] + dx) * s + bounds.lx, y * s + bounds.uy);
