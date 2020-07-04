@@ -43,7 +43,7 @@ struct RasterizerFont {
                                     stbtt_GetGlyphHMetrics(& info, glyph, & width, NULL), total += width;
                             avg = total / 96, space = widths[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
-                            unitsPerEm = 1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f);
+                            unitsPerEm = ceilf(1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f));
                             spaceGlyph = stbtt_FindGlyphIndex(& info, ' ');
                             return true;
                         }
