@@ -14,7 +14,7 @@
 struct RasterizerFont {
     static const char nl = '\n', sp = ' ', tab = '\t';
     RasterizerFont() { empty(); }
-    void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = 0, bzero(& info, sizeof(info)), cache.clear(); }
+    void empty() { monospace = avg = em = space = ascent = descent = lineGap = unitsPerEm = spaceGlyph = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
     bool load(const char *filename, const char *name) {
         int fd;  struct stat st;
