@@ -30,13 +30,12 @@ struct RasterizerFont {
                 if (info.numGlyphs) {
                     const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                     if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
-                        int l = 0, M = 0, glyph, advance, total = 0;
+                        int l = 0, M = 0, spc = 0, glyph, advance, total = 0;
                         stbtt_GetCodepointHMetrics(& info, 'l', & l, NULL);
                         stbtt_GetCodepointHMetrics(& info, 'M', & M, NULL);
-                        stbtt_GetCodepointHMetrics(& info, ' ', & space, NULL);                        
-                        if (l && M && space) {
-                            if (l == M && M == space)
-                                monospace = space;
+                        stbtt_GetCodepointHMetrics(& info, ' ', & spc, NULL);
+                        if (l && M && spc) {
+                            space = spc, monospace = l == M && M == spc ? spc : 0;
                             for (int j = 32; j < 128; j++)
                                 if ((glyph = stbtt_FindGlyphIndex(& info, j)) != -1)
                                     stbtt_GetGlyphHMetrics(& info, glyph, & advance, NULL), total += advance;
