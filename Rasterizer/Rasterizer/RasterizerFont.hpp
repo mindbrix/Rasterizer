@@ -33,8 +33,7 @@ struct RasterizerFont {
                         const char* lM_ =  "lM ";
                         int advances[3] = { 0, 0, 0 }, glyph, advance, total = 0;
                         for (int j = 0; j < 3; j++)
-                            if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
-                                stbtt_GetGlyphHMetrics(& info, glyph, & advances[j], NULL);
+                            stbtt_GetCodepointHMetrics(& info, lM_[j], & advances[j], NULL);
                         if (advances[0] && advances[1] && advances[2]) {
                             if (advances[0] == advances[1] && advances[1] == advances[2])
                                 monospace = advances[0];
