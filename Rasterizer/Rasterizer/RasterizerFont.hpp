@@ -31,17 +31,17 @@ struct RasterizerFont {
                     const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                     if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
                         const char* lM_ =  "lM ";
-                        int widths[3] = { 0, 0, 0 }, glyph, width, total = 0;
+                        int advances[3] = { 0, 0, 0 }, glyph, advance, total = 0;
                         for (int j = 0; j < 3; j++)
                             if ((glyph = stbtt_FindGlyphIndex(& info, lM_[j])) != -1)
-                                stbtt_GetGlyphHMetrics(& info, glyph, & widths[j], NULL);
-                        if (widths[0] && widths[1] && widths[2]) {
-                            if (widths[0] == widths[1] && widths[1] == widths[2])
-                                monospace = widths[0];
+                                stbtt_GetGlyphHMetrics(& info, glyph, & advances[j], NULL);
+                        if (advances[0] && advances[1] && advances[2]) {
+                            if (advances[0] == advances[1] && advances[1] == advances[2])
+                                monospace = advances[0];
                             for (int j = 32; j < 128; j++)
                                 if ((glyph = stbtt_FindGlyphIndex(& info, j)) != -1)
-                                    stbtt_GetGlyphHMetrics(& info, glyph, & width, NULL), total += width;
-                            avg = total / 96, space = widths[2];
+                                    stbtt_GetGlyphHMetrics(& info, glyph, & advance, NULL), total += advance;
+                            avg = total / 96, space = advances[2];
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = ceilf(1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f));
                             spaceGlyph = stbtt_FindGlyphIndex(& info, ' ');
