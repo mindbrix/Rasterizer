@@ -153,12 +153,12 @@ struct RasterizerFont {
             if (!single && abs(x) + wux > width)
                 x = 0, lines.emplace_back(begin);
             if (rtl)
-                x -= wux;
+                x -= x0;
             for (adv = advances, j = begin; j < end; j++, x += *adv++)
                 if (!(single && abs(x) + *adv > width))
                     xs[j] = x;
             if (rtl)
-                x -= wux;
+                x -= x0;
         } while (end < len);
         lines.emplace_back(end);
         for (y = -font.ascent, i = 0; i < lines.size() - 1; i++, y -= lineHeight)
