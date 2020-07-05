@@ -126,18 +126,20 @@ struct RasterizerFont {
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
         Ra::Bounds glyphBounds;
-        int end, i, j, begin, len, l0, l1;
-        std::vector<int> glyphs, lines;
+        int end, j, begin, len, l0, l1;
+        std::vector<int> glyphs;
         font.writeGlyphs((uint8_t *)str, glyphs);
         float scale = pointSize / float(font.unitsPerEm); int width, lineHeight, x, y, xs[glyphs.size()];
         width = ceilf((bounds.ux - bounds.lx) / scale), lineHeight = font.ascent - font.descent + font.lineGap;
-        x = end = 0, len = (int)glyphs.size(), lines.emplace_back(end);
+        x = end = l0 = l1 = 0, y = -font.ascent, len = (int)glyphs.size();
         do {
             for (; end < len && glyphs[end] < 0; end++) {
                 if (glyphs[end] != -RasterizerFont::nl)
                     x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -font.space : font.space);
-                else if (!single)
-                    x = 0, lines.emplace_back(end);
+                else if (!single) {
+                    glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene));
+                    x = 0, y -= lineHeight, l0 = end + 1;
+                }
             }
             for (begin = end; end < len && glyphs[end] > 0; end++) {}
             if (rtl)
@@ -150,8 +152,10 @@ struct RasterizerFont {
                 stbtt_GetGlyphBox(& font.info, glyphs[j], nullptr, nullptr, & x1, nullptr);
                 x1 += x0, wux = wux > x1 ? wux : x1;
             }
-            if (!single && abs(x) + wux > width)
-                x = 0, lines.emplace_back(begin);
+            if (!single && abs(x) + wux > width) {
+                glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, begin, xs, y, rtl, right, scene));
+                x = 0, y -= lineHeight, l0 = begin;
+            }
             if (rtl)
                 x -= x0;
             for (adv = advances, j = begin; j < end; j++, x += *adv++)
@@ -160,10 +164,7 @@ struct RasterizerFont {
             if (rtl)
                 x -= x0;
         } while (end < len);
-        lines.emplace_back(end);
-        for (y = -font.ascent, i = 0; i < lines.size() - 1; i++, y -= lineHeight)
-            if ((l0 = lines[i]) != (l1 = lines[i + 1]))
-                glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, l1, xs, y, rtl, right, scene));
+        glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene));
         return glyphBounds;
     }
     static Ra::Bounds writeLine(RasterizerFont& font, float scale, Ra::Colorant color, Ra::Bounds bounds, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool right, Ra::Scene& scene) {
