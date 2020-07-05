@@ -122,15 +122,15 @@ struct RasterizerFont {
     int refCount, monospace, avg, space, ascent, descent, lineGap, unitsPerEm, spaceGlyph;
     stbtt_fontinfo info;
     
-    static Ra::Bounds layoutGlyphs(RasterizerFont& font, float size, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
+    static Ra::Bounds layoutGlyphs(RasterizerFont& font, float pointSize, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
         Ra::Bounds glyphBounds;
         int end, i, j, begin, len, l0, l1;
         std::vector<int> glyphs, lines;
         font.writeGlyphs((uint8_t *)str, glyphs);
-        float s = size / float(font.unitsPerEm); int width, lineHeight, x, y, xs[glyphs.size()];
-        width = ceilf((bounds.ux - bounds.lx) / s), lineHeight = font.ascent - font.descent + font.lineGap;
+        float scale = pointSize / float(font.unitsPerEm); int width, lineHeight, x, y, xs[glyphs.size()];
+        width = ceilf((bounds.ux - bounds.lx) / scale), lineHeight = font.ascent - font.descent + font.lineGap;
         x = end = 0, len = (int)glyphs.size(), lines.emplace_back(end);
         do {
             for (; end < len && glyphs[end] < 0; end++) {
@@ -176,7 +176,7 @@ struct RasterizerFont {
                 for (int j = l0; j < l1; j++)
                     if (glyphs[j] > 0) {
                         Ra::Path path = font.glyphPath(glyphs[j], true);
-                        Ra::Transform ctm(s, 0.f, 0.f, s, (xs[j] + dx) * s + bounds.lx, y * s + bounds.uy);
+                        Ra::Transform ctm(scale, 0.f, 0.f, scale, (xs[j] + dx) * scale + bounds.lx, y * scale + bounds.uy);
                         scene.addPath(path, ctm, color, 0.f, 0);
                         glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                     }
