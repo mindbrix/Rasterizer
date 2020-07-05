@@ -156,13 +156,11 @@ struct RasterizerFont {
                 glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, begin, xs, y, rtl, right, scene));
                 x = 0, y -= lineHeight, l0 = begin;
             }
-            if (rtl)
-                x -= x0;
-            for (adv = advances, j = begin; j < end; j++, x += *adv++)
-                if (!(single && abs(x) + *adv > width))
-                    xs[j] = x;
-            if (rtl)
-                x -= x0;
+            x1 = rtl ? x - x0 : x;
+            for (adv = advances, j = begin; j < end; j++, x1 += *adv++)
+                if (!(single && abs(x1) + *adv > width))
+                    xs[j] = x1;
+            x = rtl ? x - x0 : x + x0;
         } while (end < len);
         glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene));
         return glyphBounds;
