@@ -237,10 +237,10 @@
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                       vertexStart:0
-                                       vertexCount:4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
-                                      baseInstance:0];
+                                   vertexStart:0
+                                   vertexCount:4
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
+                                  baseInstance:0];
                 break;
         }
     }
