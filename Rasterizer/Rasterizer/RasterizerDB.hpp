@@ -166,10 +166,8 @@ struct RasterizerDB {
                 for (status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1))
                     for (i = 0; i < columns; i++)
                         if (lengths[i]) {
-                            *(indices.alloc(1)) = strings.idx;
                             const char *text = (const char *)sqlite3_column_text(pStmt1, i);
-                            strcpy(strings.alloc(strlen(text) + 1), text);
-                            strings.idx = strings.end;
+                            *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(text) + 1), text);
                         }
                 size_t idx = 0;
                 for (j = lower; idx < indices.end; j++, uy -= h)
