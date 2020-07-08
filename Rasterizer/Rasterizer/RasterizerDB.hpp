@@ -165,15 +165,12 @@ struct RasterizerDB {
                 Ra::Row<size_t> indices;
                 for (status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1))
                     for (i = 0; i < columns; i++)
-                        if (lengths[i]) {
-                            const char *text = (const char *)sqlite3_column_text(pStmt1, i);
-                            *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(text) + 1), text);
-                        }
+                        *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt1, i) + 1), (const char *)sqlite3_column_text(pStmt1, i));
                 size_t idx = 0;
                 for (j = lower; idx < indices.end; j++, uy -= h)
-                    for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
+                    for (lx = frame.lx, i = 0; i < columns; i++, lx = ux, idx++)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                            RasterizerFont::layoutGlyphs(font, fs * float(font.unitsPerEm), j == n ? kRed : kGray, Ra::Bounds(lx, -FLT_MAX, ux, uy), false, true, lengths[i] != kTextChars, strings.base + indices.base[idx++], rows);
+                            RasterizerFont::layoutGlyphs(font, fs * float(font.unitsPerEm), j == n ? kRed : kGray, Ra::Bounds(lx, -FLT_MAX, ux, uy), false, true, lengths[i] != kTextChars, strings.base + indices.base[idx], rows);
                 list.addScene(chrome), list.addScene(rows, Ra::Transform(), clip);
             }
         }
