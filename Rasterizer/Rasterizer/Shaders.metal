@@ -446,8 +446,8 @@ vertex InstancesVertex instances_vertex_main(
         float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
         alpha *= width / cw;
         
-        pcap |= dot(np, no) < -0.86 || rp * dw > 5e2;
-        ncap |= dot(no, nn) < -0.86 || rn * dw > 5e2;
+        pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
+        ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float spo = (dw + ow) / (tpo.y * np.y + tpo.x * np.x);
