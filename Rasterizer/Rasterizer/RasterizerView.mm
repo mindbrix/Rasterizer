@@ -171,7 +171,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     int keyCode = event.keyCode;
     if (keyCode == 36) {
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds()));
-    } else if (_state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode))) {}
+    } else if (_state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode, event.characters.UTF8String))) {}
     else if (keyCode == 51) {
         _useCG = !_useCG;
         [self initLayer:_useCG];
@@ -191,7 +191,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     }
 }
 - (void)keyUp:(NSEvent *)event {
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyUp, event.keyCode));
+    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyUp, event.keyCode, event.characters.UTF8String));
 }
 
 - (void)paste:(id)sender {

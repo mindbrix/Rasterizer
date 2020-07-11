@@ -25,14 +25,14 @@ struct RasterizerState {
         Event() {}
         Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y) {}
         Event(double time, Type type, Ra::Bounds b) : time(time), type(type), bounds(b) {}
-        Event(double time, Type type, unsigned short keyCode) : time(time), type(type), keyCode(keyCode) {}
+        Event(double time, Type type, unsigned short keyCode, const char *chars) : time(time), type(type), keyCode(keyCode) { characters = characters + chars; }
         Event(double time, Type type, size_t flags) : time(time), type(type), flags(flags) {}
         
         double time;
         Type type;
         float x, y;
         Ra::Bounds bounds;
-        int keyCode;
+        int keyCode;  Ra::Row<char> characters;
         size_t flags;
     };
     
