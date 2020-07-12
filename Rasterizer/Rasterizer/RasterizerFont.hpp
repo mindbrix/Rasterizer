@@ -14,7 +14,7 @@
 struct RasterizerFont {
     static const char nl = '\n', sp = ' ', tab = '\t';
     RasterizerFont() { empty(); }
-    void empty() { monospace = avg = space = ascent = descent = lineGap = unitsPerEm = spaceGlyph = 0, bzero(& info, sizeof(info)), cache.clear(); }
+    void empty() { monospace = space = ascent = descent = lineGap = unitsPerEm = spaceGlyph = 0, bzero(& info, sizeof(info)), cache.clear(); }
     bool isEmpty() { return info.numGlyphs == 0 || space == 0; }
     bool load(const char *filename, const char *name) {
         int fd;  struct stat st;
@@ -30,16 +30,12 @@ struct RasterizerFont {
                 if (info.numGlyphs) {
                     const char *n = stbtt_GetFontNameString(& info, & length, STBTT_PLATFORM_ID_MAC, 0, 0, 6);
                     if (n != NULL && length == numchars && memcmp(name, n, length) == 0) {
-                        int l = 0, M = 0, spc = 0, glyph, advance, total = 0;
+                        int l = 0, M = 0, spc = 0;
                         stbtt_GetCodepointHMetrics(& info, 'l', & l, NULL);
                         stbtt_GetCodepointHMetrics(& info, 'M', & M, NULL);
                         stbtt_GetCodepointHMetrics(& info, ' ', & spc, NULL);
                         if (l && M && spc) {
                             space = spc, monospace = l == M && M == spc ? spc : 0;
-                            for (int j = 32; j < 128; j++)
-                                if ((glyph = stbtt_FindGlyphIndex(& info, j)) != -1)
-                                    stbtt_GetGlyphHMetrics(& info, glyph, & advance, NULL), total += advance;
-                            avg = total / 96;
                             stbtt_GetFontVMetrics(& info, & ascent, & descent, & lineGap);
                             unitsPerEm = ceilf(1.f / stbtt_ScaleForMappingEmToPixels(& info, 1.f));
                             spaceGlyph = stbtt_FindGlyphIndex(& info, ' ');
@@ -119,7 +115,7 @@ struct RasterizerFont {
     }
     Ra::Ref<Ra::Memory<uint8_t>> bytes;
     std::unordered_map<int, Ra::Path> cache;
-    int refCount, monospace, avg, space, ascent, descent, lineGap, unitsPerEm, spaceGlyph;
+    int refCount, monospace, space, ascent, descent, lineGap, unitsPerEm, spaceGlyph;
     stbtt_fontinfo info;
     
     static Ra::Bounds layoutGlyphs(RasterizerFont& font, float pointSize, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
