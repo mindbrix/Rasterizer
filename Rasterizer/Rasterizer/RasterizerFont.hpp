@@ -180,13 +180,13 @@ struct RasterizerFont {
             }
         return glyphBounds;
     }
-    static void writeGlyphGrid(RasterizerFont& font, float size, Ra::Colorant color, Ra::Scene& scene) {
+    static void writeGlyphGrid(RasterizerFont& font, float pointSize, Ra::Colorant color, Ra::Scene& scene) {
         if (font.isEmpty())
             return;
-        float s = size / float(font.unitsPerEm);
+        float scale = pointSize / float(font.unitsPerEm);
         for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
             if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0)
-                scene.addPath(font.glyphPath(glyph, false), Ra::Transform(s, 0.f, 0.f, s, size * float(glyph % d), size * float(glyph / d)), color, 0.f, 0);
+                scene.addPath(font.glyphPath(glyph, false), Ra::Transform(scale, 0.f, 0.f, scale, pointSize * float(glyph % d), pointSize * float(glyph / d)), color, 0.f, 0);
     }
     static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py;
