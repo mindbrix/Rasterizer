@@ -158,7 +158,7 @@ struct RasterizerDB {
                 Ra::Row<size_t> indices;
                 Ra::Scene chrome, rows;
                 for (i = 0; i < columns; i++)
-                    lengths[i] = lengths[i] == 0 ? 0 : kRealChars;
+                    lengths[i] /= 2;
                 for (i = 0; i < columns; i++)
                     *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
                 RasterizerFont::layoutColumns(font, 2 * fw / total, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, columns, indices, strings, chrome);
