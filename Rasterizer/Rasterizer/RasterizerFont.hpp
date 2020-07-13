@@ -117,6 +117,20 @@ struct RasterizerFont {
     int refCount, monospace, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
+    static Ra::Bounds layoutColumns(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, int colCount, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
+        int idx;
+        float emWidth = emSize * floorf((bounds.ux - bounds.lx) / emSize), lx = 0.f, ux = 0.f, uy = bounds.uy;
+        for (idx = 0; idx < indices.end; idx++, lx = ux) {
+            ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
+            if (lx != ux) {
+                Ra::Bounds b = { bounds.lx + lx, -FLT_MAX, bounds.lx + ux, uy };
+                layoutGlyphs(font, emSize, color, b, false, true, false, strings.base + indices.base[idx], scene);
+            }
+            if (colCount - idx % colCount == 1)
+                lx = ux = 0.f, uy -= emSize / float(font.unitsPerEm) * (font.ascent - font.descent + font.lineGap);
+        }
+        return { 0.f, 0.f, 0.f, 0.f };
+    }
     static Ra::Bounds layoutGlyphs(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
@@ -151,9 +165,11 @@ struct RasterizerFont {
                 x = 0, y -= lineHeight, l0 = begin;
             }
             x1 = rtl ? x - x0 : x;
-            for (adv = advances, i = begin; i < end; i++, x1 += *adv++)
-                if (!(single && abs(x1) + *adv > width))
-                    xs[i] = x1;
+            for (adv = advances, i = begin; i < end; i++, x1 += *adv++) {
+                xs[i] = x1;
+                if (single && abs(x1) + *adv > width)
+                    glyphs[i] = 0;
+            }
             x = rtl ? x - x0 : x + x0;
         } while (end < len);
         glyphBounds.extend(writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene));
