@@ -155,14 +155,12 @@ struct RasterizerDB {
                     str = str + (i == 0 ? "" : ", ") + names[i];
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
-                Ra::Row<char> strings;  strings.alloc(4096), strings.empty();
-                Ra::Row<size_t> indices;
                 Ra::Scene chrome, rows;
+                Ra::Row<size_t> indices;  Ra::Row<char> strings;  strings.alloc(4096), strings.empty();
                 bool useLayout = true;
                 if (useLayout) {
                     for (i = 0; i < columns; i++) {
-                        rights[i] = lengths[i] != kTextChars;
-                        lengths[i] /= 2;
+                        rights[i] = lengths[i] != kTextChars, lengths[i] /= 2;
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
                     }
                     RasterizerFont::layoutColumns(font, 2 * fw / total, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, indices, strings, chrome);
