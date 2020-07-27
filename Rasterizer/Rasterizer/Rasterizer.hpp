@@ -6,7 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.h"
-#import "crc64.h"
+#import "xxhash.h"
 #import <unordered_map>
 #import <vector>
 #pragma clang diagnostic ignored "-Wcomma"
@@ -218,7 +218,7 @@ struct Rasterizer {
             update(kClose, 1, pts);
         }
         size_t hash() {
-            crc = crc ?: crc64(crc64(crc, types.base, types.end * sizeof(uint8_t)), points.base, points.end * sizeof(float));
+            crc = crc ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return crc;
         }
         inline void writePoint16(float x, float y, Bounds& b, uint32_t curve) {

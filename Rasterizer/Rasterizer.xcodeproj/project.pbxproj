@@ -17,11 +17,11 @@
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* RasterizerView.mm */; };
+		E9710C4C24CF975B00F31953 /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = E9710C4A24CF975B00F31953 /* xxhash.c */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
 		E9FA61EB22776F72006BA8A6 /* libsqlite3.0.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */; };
-		E9FD16642494ED660032589C /* crc64.c in Sources */ = {isa = PBXBuildFile; fileRef = E9FD16622494ED660032589C /* crc64.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +49,8 @@
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
 		E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerFont.hpp; sourceTree = "<group>"; };
 		E963FF6E21DF5A29007C1327 /* stb_truetype.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../../stb/stb_truetype.h; sourceTree = "<group>"; };
+		E9710C4A24CF975B00F31953 /* xxhash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = xxhash.c; sourceTree = "<group>"; };
+		E9710C4B24CF975B00F31953 /* xxhash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xxhash.h; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
 		E97782A822BF7D78003C2D3E /* RasterizerQueue.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerQueue.hpp; sourceTree = "<group>"; };
 		E990649021C2E11500D2DBF2 /* RasterizerLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerLayer.h; sourceTree = "<group>"; };
@@ -60,8 +62,6 @@
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 		E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDB.hpp; sourceTree = "<group>"; };
 		E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
-		E9FD16622494ED660032589C /* crc64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = crc64.c; sourceTree = "<group>"; };
-		E9FD16632494ED660032589C /* crc64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = crc64.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,8 +106,8 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
-				E9FD16622494ED660032589C /* crc64.c */,
-				E9FD16632494ED660032589C /* crc64.h */,
+				E9710C4A24CF975B00F31953 /* xxhash.c */,
+				E9710C4B24CF975B00F31953 /* xxhash.h */,
 				E9A7FA84218FAB380031FD4E /* nanosvg.h */,
 				E91ADF962243FED000729DA0 /* nanosvg.cc */,
 				E963FF6E21DF5A29007C1327 /* stb_truetype.h */,
@@ -220,9 +220,9 @@
 				E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
 				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
-				E9FD16642494ED660032589C /* crc64.c in Sources */,
 				E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */,
 				E920A5AC21762BCE00F52C25 /* main.m in Sources */,
+				E9710C4C24CF975B00F31953 /* xxhash.c in Sources */,
 				E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
