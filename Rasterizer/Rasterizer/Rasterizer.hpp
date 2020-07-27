@@ -218,8 +218,8 @@ struct Rasterizer {
             update(kClose, 1, pts);
         }
         size_t hash() {
-            crc = crc ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
-            return crc;
+            xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
+            return xxhash;
         }
         inline void writePoint16(float x, float y, Bounds& b, uint32_t curve) {
             new (p16s.alloc(1)) Point16(
@@ -238,7 +238,7 @@ struct Rasterizer {
                 g->p16ends.back() = 1, g->p16s.idx = g->p16s.end;
             }
         }
-        size_t refCount = 0, crc = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
+        size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;
