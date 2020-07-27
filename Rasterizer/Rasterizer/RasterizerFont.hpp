@@ -117,14 +117,14 @@ struct RasterizerFont {
     int refCount, monospace, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static void layoutColumns(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, int colCount, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
+    static void layoutColumns(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, bool *colRights, int colCount, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
         float emWidth = emSize * floorf((bounds.ux - bounds.lx) / emSize), lx = 0.f, ux = 0.f, uy = bounds.uy;
         float lineHeight = emSize / float(font.unitsPerEm) * (font.ascent - font.descent + font.lineGap);
         for (int idx = 0; idx < indices.end; idx++, lx = ux) {
             ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
             if (lx != ux) {
                 Ra::Bounds b = { bounds.lx + lx, -FLT_MAX, bounds.lx + ux, uy };
-                layoutGlyphs(font, emSize, color, b, false, true, false, strings.base + indices.base[idx], scene);
+                layoutGlyphs(font, emSize, color, b, false, true, colRights[idx % colCount], strings.base + indices.base[idx], scene);
             }
             if (colCount - idx % colCount == 1)
                 lx = ux = 0.f, uy -= lineHeight;

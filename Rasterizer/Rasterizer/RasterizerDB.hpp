@@ -136,6 +136,7 @@ struct RasterizerDB {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status, rows, count, n, range, lower, upper;
             float fw, fh, fs, lx, ux, my, h, uy;
             const char *names[columns];
+            bool rights[columns];
             for (i = 0; i < columns; i++)
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, total += lengths[i];
             total = total < kTextChars ? kTextChars : total;
@@ -157,12 +158,14 @@ struct RasterizerDB {
                 Ra::Row<char> strings;  strings.alloc(4096), strings.empty();
                 Ra::Row<size_t> indices;
                 Ra::Scene chrome, rows;
-                if (0) {
-                    for (i = 0; i < columns; i++)
+                bool useLayout = true;
+                if (useLayout) {
+                    for (i = 0; i < columns; i++) {
+                        rights[i] = lengths[i] != kTextChars;
                         lengths[i] /= 2;
-                    for (i = 0; i < columns; i++)
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, columns, indices, strings, chrome);
+                    }
+                    RasterizerFont::layoutColumns(font, 2 * fw / total, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, indices, strings, chrome);
                 } else {
                     for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
@@ -175,8 +178,8 @@ struct RasterizerDB {
                 for (status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1))
                     for (i = 0; i < columns; i++)
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt1, i) + 1), (const char *)sqlite3_column_text(pStmt1, i));
-                if (0) {
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, kGray, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, columns, indices, strings, rows);
+                if (useLayout) {
+                    RasterizerFont::layoutColumns(font, 2 * fw / total, kGray, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
                 } else {
                     size_t idx = 0;
                     for (j = lower; idx < indices.end; j++, uy -= h)
