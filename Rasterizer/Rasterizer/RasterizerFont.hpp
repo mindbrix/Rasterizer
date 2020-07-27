@@ -118,10 +118,9 @@ struct RasterizerFont {
     stbtt_fontinfo info;
     
     static Ra::Bounds layoutColumns(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, int colCount, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
-        int idx;
         float emWidth = emSize * floorf((bounds.ux - bounds.lx) / emSize), lx = 0.f, ux = 0.f, uy = bounds.uy;
         float lineHeight = emSize / float(font.unitsPerEm) * (font.ascent - font.descent + font.lineGap);
-        for (idx = 0; idx < indices.end; idx++, lx = ux) {
+        for (int idx = 0; idx < indices.end; idx++, lx = ux) {
             ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
             if (lx != ux) {
                 Ra::Bounds b = { bounds.lx + lx, -FLT_MAX, bounds.lx + ux, uy };
