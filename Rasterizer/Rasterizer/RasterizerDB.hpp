@@ -85,8 +85,8 @@ struct RasterizerDB {
     }
     void writeTables(Ra::Bounds frame) {
         Ra::Colorant bg[4] = {
-            Ra::Colorant(240, 240, 240, 255), Ra::Colorant(244, 244, 244, 255),
-            Ra::Colorant(248, 248, 248, 255), Ra::Colorant(253, 253, 253, 255)
+            Ra::Colorant(240, 240, 240, 0), Ra::Colorant(244, 244, 244, 0),
+            Ra::Colorant(248, 248, 248, 0), Ra::Colorant(253, 253, 253, 0)
         };
         tables = std::vector<Table>();
         Ra::Row<char> str;
