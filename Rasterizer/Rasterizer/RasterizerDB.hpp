@@ -88,7 +88,7 @@ struct RasterizerDB {
         Ra::Row<char> str;
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(tbl_name)) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
-        float fw, fh, dim, pad, lx, ly, hw;
+        float fw, fh, dim, pad, hw;
         fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = 0, hw = dim / 1024.f;
         
         sqlite3_stmt *pStmt;
@@ -96,8 +96,7 @@ struct RasterizerDB {
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
             Ra::Scene background, foreground;
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt ), i++, x = i % N, y = i / N) {
-                lx = frame.lx + x * dim, ly = frame.uy - (y + 1) * dim;
-                Ra::Bounds b = { lx, ly, lx + dim, ly + dim };
+                Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
                 if (status == SQLITE_ROW)
                     tables.emplace_back(
