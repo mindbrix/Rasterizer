@@ -163,7 +163,7 @@ struct RasterizerDB {
                         rights[i] = lengths[i] != kTextChars, lengths[i] /= 2;
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
                     }
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, 0.f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, indices, strings, chrome);
+                    RasterizerFont::layoutColumns(font, 2 * fw / total, 0.125f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, indices, strings, chrome);
                 } else {
                     for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
                         if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
@@ -177,7 +177,7 @@ struct RasterizerDB {
                     for (i = 0; i < columns; i++)
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt1, i) + 1), (const char *)sqlite3_column_text(pStmt1, i));
                 if (useLayout) {
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, 0.f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
+                    RasterizerFont::layoutColumns(font, 2 * fw / total, 0.125f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
                 } else {
                     size_t idx = 0;
                     for (j = lower; idx < indices.end; j++, uy -= h)
