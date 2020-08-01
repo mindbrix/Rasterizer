@@ -133,8 +133,8 @@ struct RasterizerDB {
         str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
-            int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, j, status, rows, count, n, range, lower, upper;
-            float fw, fh, fs, lx, ux, my, h, uy;
+            int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, status, rows, count, n, range, lower, upper;
+            float fw, fh, fs, my, h, uy;
             const char *names[columns];
             bool rights[columns];
             for (i = 0; i < columns; i++)
@@ -157,18 +157,11 @@ struct RasterizerDB {
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Ra::Scene chrome, rows;
                 Ra::Row<size_t> indices;  Ra::Row<char> strings;  strings.alloc(4096), strings.empty();
-                bool useLayout = true;
-                if (useLayout) {
-                    for (i = 0; i < columns; i++) {
-                        rights[i] = lengths[i] != kTextChars, lengths[i] /= 2;
-                        *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
-                    }
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, 0.125f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, indices, strings, chrome);
-                } else {
-                    for (lx = frame.lx, i = 0; i < columns; i++, lx = ux)
-                        if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                            RasterizerFont::layoutGlyphs(font, fs * float(font.unitsPerEm), 0.f, kBlack, Ra::Bounds(lx, -FLT_MAX, ux, frame.uy), false, true, lengths[i] != kTextChars, names[i], chrome);
+                for (i = 0; i < columns; i++) {
+                    rights[i] = lengths[i] != kTextChars, lengths[i] /= 2;
+                    *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
                 }
+                RasterizerFont::layoutColumns(font, 2 * fw / total, 0.125f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, indices, strings, chrome);
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
                 chrome.addPath(linePath, Ra::Transform(), kRed, h / 128.f, 0);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
@@ -176,15 +169,7 @@ struct RasterizerDB {
                 for (status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1))
                     for (i = 0; i < columns; i++)
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt1, i) + 1), (const char *)sqlite3_column_text(pStmt1, i));
-                if (useLayout) {
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, 0.125f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
-                } else {
-                    size_t idx = 0;
-                    for (j = lower; idx < indices.end; j++, uy -= h)
-                        for (lx = frame.lx, i = 0; i < columns; i++, lx = ux, idx++)
-                            if (lx != (ux = lx + fw * float(lengths[i]) / float(total)))
-                                RasterizerFont::layoutGlyphs(font, fs * float(font.unitsPerEm), 0.f, j == n ? kRed : kGray, Ra::Bounds(lx, -FLT_MAX, ux, uy), false, true, lengths[i] != kTextChars, strings.base + indices.base[idx], rows);
-                }
+                RasterizerFont::layoutColumns(font, 2 * fw / total, 0.125f, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
                 list.addScene(chrome), list.addScene(rows, Ra::Transform(), clip);
             }
         }
