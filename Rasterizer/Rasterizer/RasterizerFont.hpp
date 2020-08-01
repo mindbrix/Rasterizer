@@ -127,7 +127,7 @@ struct RasterizerFont {
                 Ra::Path bPath;  bPath->addBounds(b);   scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, (idx / colCount) & 1 ? 8 : 16), 0.f, 0);
                 layoutGlyphs(font, emSize, gap, color, b, false, true, colRights[idx % colCount], strings.base + indices.base[idx], scene);
             }
-            if (colCount - idx % colCount == 1)
+            if ((idx + 1) % colCount == 0)
                 lx = ux = 0.f, uy -= lineHeight;
         }
     }
