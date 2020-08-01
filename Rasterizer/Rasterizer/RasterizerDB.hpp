@@ -84,10 +84,6 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt);
     }
     void writeTables(Ra::Bounds frame) {
-        Ra::Colorant bg[4] = {
-            Ra::Colorant(240, 240, 240, 0), Ra::Colorant(244, 244, 244, 0),
-            Ra::Colorant(248, 248, 248, 0), Ra::Colorant(253, 253, 253, 0)
-        };
         tables = std::vector<Table>();
         Ra::Row<char> str;
         int count, N;
@@ -109,7 +105,7 @@ struct RasterizerDB {
                         Ra::Bounds tb = { lx, ly, lx + gdim, ly + gdim };
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
-                        background.addPath(bbPath, Ra::Transform(), bg[((y & 1) ^ (x & 1)) * 2 + ((gy & 1) ^ (gx & 1))], 0.f, 0);
+                        background.addPath(bbPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
                         Ra::Path fgPath;  fgPath.ref->addBounds(bb.inset(hw * 0.5f, hw * 0.5f));
                         foreground.addPath(fgPath, Ra::Transform(), kBlack, hw, Ra::Scene::kInvisible);
                         if (status == SQLITE_ROW)
