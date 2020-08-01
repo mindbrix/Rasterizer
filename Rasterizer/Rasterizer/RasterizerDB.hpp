@@ -122,6 +122,8 @@ struct RasterizerDB {
         sqlite3_finalize(pStmt1);
     }
     void writeTable(RasterizerFont& font, float t, Ra::Bounds frame, const char *table, Ra::SceneList& list) {
+        if (font.isEmpty())
+            return;
         Ra::Row<char> str;
         str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
