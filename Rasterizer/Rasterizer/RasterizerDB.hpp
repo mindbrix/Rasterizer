@@ -177,7 +177,7 @@ struct RasterizerDB {
                     for (i = 0; i < columns; i++)
                         *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt1, i) + 1), (const char *)sqlite3_column_text(pStmt1, i));
                 if (useLayout) {
-                    RasterizerFont::layoutColumns(font, 2 * fw / total, kGray, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
+                    RasterizerFont::layoutColumns(font, 2 * fw / total, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, indices, strings, rows);
                 } else {
                     size_t idx = 0;
                     for (j = lower; idx < indices.end; j++, uy -= h)
