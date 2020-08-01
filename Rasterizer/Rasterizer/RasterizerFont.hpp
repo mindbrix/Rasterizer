@@ -139,7 +139,7 @@ struct RasterizerFont {
         float scale = emSize / float(font.unitsPerEm);
         int width, lineHeight, end, x, y, len, l0, i, begin, xs[glyphs.size()];
         width = ceilf((bounds.ux - bounds.lx) / scale), lineHeight = font.ascent - font.descent + font.lineGap;
-        x = end = l0 = 0, y = -font.ascent, len = (int)glyphs.size();
+        x = end = l0 = 0, y = -(font.ascent + font.lineGap / 2), len = (int)glyphs.size();
         do {
             for (; end < len && glyphs[end] < 0; end++) {
                 if (glyphs[end] != -RasterizerFont::nl)
