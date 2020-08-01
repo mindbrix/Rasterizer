@@ -89,7 +89,7 @@ struct RasterizerDB {
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(SUBSTR(tbl_name, 1, 1))) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw, fh, dim, pad, lx, ly, hw;
-        fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = dim / float(kTextChars), hw = dim / 1024.f;
+        fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = 0, hw = dim / 1024.f;
         sqlite3_stmt *pStmt0, *pStmt1;
         if (sqlite3_prepare_v2(db, "SELECT SUBSTR(tbl_name, 1, 1) as initial, COUNT(*) AS count FROM sqlite_master WHERE LOWER(initial) != UPPER(initial) AND name NOT LIKE 'sqlite%' GROUP BY initial ORDER BY initial ASC", -1, & pStmt1, NULL) == SQLITE_OK) {
             Ra::Scene background, foreground;
@@ -97,7 +97,7 @@ struct RasterizerDB {
                 lx = frame.lx + x * dim, ly = frame.uy - (y + 1) * dim;
                 Ra::Bounds b = { lx, ly, lx + dim, ly + dim }, gb = b.inset(pad, pad);
                 int gCount = sqlite3_column_int(pStmt1, 1), gN = ceilf(sqrtf(gCount));
-                float gdim = (gb.ux - gb.lx) / (gN + 2.f * (gN - 1.f) / float(kTextChars)), gpad = gdim * 2.f / float(kTextChars);
+                float gdim = (gb.ux - gb.lx) / (gN + 2.f * (gN - 1.f) / float(kTextChars)), gpad = 0;
                 str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, ras_ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = ras_ts.tid AND SUBSTR(tbl_name, 1, 1) = '" + (const char *)sqlite3_column_text(pStmt1, 0) + "' ORDER BY tbl_name ASC";
                 if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK)
                     for (int gi = 0, gx = 0, gy = 0, status = sqlite3_step(pStmt0); gi < gN * gN; status = status == SQLITE_ROW ? sqlite3_step(pStmt0) : status, gi++, gx = gi % gN, gy = gi / gN) {
