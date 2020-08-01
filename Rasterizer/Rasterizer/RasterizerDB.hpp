@@ -106,8 +106,6 @@ struct RasterizerDB {
                         Ra::Bounds bb = { gx == 0 ? b.lx : tb.lx - 0.5f * gpad, gy == gN - 1 ? b.ly : tb.ly - 0.5f * gpad, gx == gN - 1 ? b.ux : tb.ux + 0.5f * gpad, gy == 0 ? b.uy : tb.uy + 0.5f * gpad };
                         Ra::Path bbPath;  bbPath.ref->addBounds(bb);
                         background.addPath(bbPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
-                        Ra::Path fgPath;  fgPath.ref->addBounds(bb.inset(hw * 0.5f, hw * 0.5f));
-                        foreground.addPath(fgPath, Ra::Transform(), kBlack, hw, Ra::Scene::kInvisible);
                         if (status == SQLITE_ROW)
                             tables.emplace_back(
                                 (const char *)sqlite3_column_text(pStmt0, 0),
@@ -117,7 +115,6 @@ struct RasterizerDB {
                 sqlite3_finalize(pStmt0);
             }
             backgroundList.empty().addScene(background);
-            foregroundList.empty().addScene(foreground);
             tableLists = std::vector<Ra::SceneList>(tables.size());
             for (int i = 0; i < tables.size(); i++)
                 writeTable(*font.ref, tables[i].t, tables[i].bounds, tables[i].name.base, tableLists[i]);
@@ -181,13 +178,7 @@ struct RasterizerDB {
                 float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
                 Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
                 int si = indices.begin, pi = indices.end;
-                if (pi != lastpi) {
-                    if (lastpi != INT_MAX) // exit
-                        foregroundList.scenes[0]._flags->src[lastpi] |= Ra::Scene::kInvisible;
-                    if (pi != INT_MAX)  // enter
-                        foregroundList.scenes[0]._flags->src[pi] &= ~Ra::Scene::kInvisible;
-                    lastpi = indices.end;
-                }
+                if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                     ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
@@ -200,14 +191,13 @@ struct RasterizerDB {
         list.addList(db.backgroundList);
         for (Ra::SceneList& tableList: db.tableLists)
             list.addList(tableList);
-        list.addList(db.foregroundList);
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
     int lastpi = INT_MAX;
     std::vector<Ra::SceneList> tableLists;
-    Ra::SceneList backgroundList, foregroundList;
+    Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
     size_t refCount;
 };
