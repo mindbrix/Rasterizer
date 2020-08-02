@@ -92,9 +92,9 @@ struct RasterizerDB {
         fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = 0, hw = dim / 1024.f;
         
         sqlite3_stmt *pStmt;
-        str = str.empty() + "SELECT tbl_name, t FROM sqlite_master t0, ras_ts WHERE name NOT LIKE 'sqlite%' AND t0.rowid = ras_ts.tid ORDER BY tbl_name ASC";
+        str = str.empty() + "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC";
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
-            Ra::Scene background, foreground;
+            Ra::Scene background;
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt ), i++, x = i % N, y = i / N) {
                 Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
@@ -102,7 +102,7 @@ struct RasterizerDB {
                     tables.emplace_back(
                         (const char *)sqlite3_column_text(pStmt, 0),
                         b,
-                        sqlite3_column_double(pStmt, 1));
+                        0.5f);
             }
             sqlite3_finalize(pStmt);
             backgroundList.empty().addScene(background);
