@@ -117,18 +117,18 @@ struct RasterizerFont {
     int refCount, monospace, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static void layoutColumns(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, bool *colRights, int colCount, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
+    static void layoutColumns(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, bool *colRights, int colCount, bool odd, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
         float emWidth = emSize * floorf((bounds.ux - bounds.lx) / emSize), lx = 0.f, ux = 0.f, uy = bounds.uy;
         float lineHeight = emSize / float(font.unitsPerEm) * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap);
         for (int idx = 0; idx < indices.end; idx++, lx = ux) {
             ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
             if (lx != ux) {
                 Ra::Bounds b = { bounds.lx + lx, uy - lineHeight, bounds.lx + ux, uy };
-                Ra::Path bPath;  bPath->addBounds(b);   scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, (idx / colCount) & 1 ? 8 : 16), 0.f, 0);
+                Ra::Path bPath;  bPath->addBounds(b);   scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, odd ? 8 : 16), 0.f, 0);
                 layoutGlyphs(font, emSize, gap, color, b, false, true, colRights[idx % colCount], strings.base + indices.base[idx], scene);
             }
             if ((idx + 1) % colCount == 0)
-                lx = ux = 0.f, uy -= lineHeight;
+                lx = ux = 0.f, uy -= lineHeight, odd = !odd;
         }
     }
     static Ra::Bounds layoutGlyphs(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
