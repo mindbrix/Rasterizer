@@ -118,7 +118,7 @@ struct RasterizerDB {
         str = str + "SELECT * FROM " + table + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
-            int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, status, rows, count, n, range, lower, upper;
+            int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, rows, count, n, range, lower, upper;
             float fw, fh, fs, my, h, uy, gap = 0.125f;
             const char *names[columns];
             bool rights[columns];
@@ -139,24 +139,31 @@ struct RasterizerDB {
                 else
                     str = str + (i == 0 ? "" : ", ") + names[i];
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
-            if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
+            Ra::Row<size_t> indices;  Ra::Row<char> strings;
+            writeQuery(str.base, columns, indices, strings);
+            if (indices.end) {
                 Ra::Scene chrome, rows;
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
                 chrome.addPath(linePath, Ra::Transform(), kRed, h / 32.f, 0);
-                Ra::Row<size_t> indices;  Ra::Row<char> strings;  strings.alloc(4096), strings.empty();
+                Ra::Row<size_t> hindices;  Ra::Row<char> hstrings;  hstrings.alloc(4096), hstrings.empty();
                 for (i = 0; i < columns; i++)
-                    *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
-                RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, false, indices, strings, chrome);
+                    *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(names[i]) + 1), names[i]);
+                RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, false, hindices, hstrings, chrome);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
-                indices.empty(), strings.empty();
-                for (status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1))
-                    for (i = 0; i < columns; i++)
-                        *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt1, i) + 1), (const char *)sqlite3_column_text(pStmt1, i));
                 RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, lower & 1, indices, strings, rows);
                 list.addScene(rows, Ra::Transform(), clip), list.addScene(chrome);
             }
         }
         sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
+    }
+    void writeQuery(char *str, int columns, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
+        sqlite3_stmt *pStmt = NULL;
+        strings.alloc(4096), strings.empty(), indices.empty();
+        if (sqlite3_prepare_v2(db, str, -1, & pStmt, NULL) == SQLITE_OK) {
+            for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt))
+                for (int i = 0; i < columns; i++)
+                    *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt, i) + 1), (const char *)sqlite3_column_text(pStmt, i));
+        }
     }
     static void EventFunction(RasterizerState& state, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
