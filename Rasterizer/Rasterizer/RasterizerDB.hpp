@@ -100,15 +100,10 @@ struct RasterizerDB {
                 Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
                 if (status == SQLITE_ROW)
-                    tables.emplace_back(
-                        (const char *)sqlite3_column_text(pStmt, 0),
-                        b,
-                        0.5f);
+                    tables.emplace_back((const char *)sqlite3_column_text(pStmt, 0), b, 0.5f), writeTable(*font.ref, tables.back());
             }
             sqlite3_finalize(pStmt);
             backgroundList.empty().addScene(background);
-            for (Table& table : tables)
-                writeTable(*font.ref, table);
         }
     }
     void writeTable(RasterizerFont& font, Table& table) {
