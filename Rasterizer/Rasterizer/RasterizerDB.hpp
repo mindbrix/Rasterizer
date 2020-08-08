@@ -86,13 +86,11 @@ struct RasterizerDB {
     }
     void writeTables(Ra::Bounds frame) {
         tables = std::vector<Table>();
-        Ra::Row<char> str;
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(tbl_name)) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N;
-        str = str.empty() + "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC";
         Ra::Row<size_t> indices;  Ra::Row<char> strings;
-        writeQuery(str.base, indices, strings);
+        writeQuery("SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", indices, strings);
         Ra::Scene background;
         for (int i = 0, x = 0, y = 0; i < indices.end; i++, x = i % N, y = i / N) {
             Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
@@ -151,7 +149,7 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
-    void writeQuery(char *str, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
+    void writeQuery(const char *str, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
         sqlite3_stmt *pStmt = NULL;
         strings.alloc(4096), strings.empty(), indices.empty();
         if (sqlite3_prepare_v2(db, str, -1, & pStmt, NULL) == SQLITE_OK)
