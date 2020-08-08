@@ -89,9 +89,7 @@ struct RasterizerDB {
         Ra::Row<char> str;
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(tbl_name)) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
-        float fw, fh, dim, pad, hw;
-        fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N, pad = 0, hw = dim / 1024.f;
-        
+        float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N;
         sqlite3_stmt *pStmt;
         str = str.empty() + "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC";
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
