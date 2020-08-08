@@ -97,8 +97,8 @@ struct RasterizerDB {
             for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt ), i++, x = i % N, y = i / N) {
                 Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
                 Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
-                if (status == SQLITE_ROW)
-                    tables.emplace_back((const char *)sqlite3_column_text(pStmt, 0), b, 0.5f), writeTable(*font.ref, tables.back());
+                tables.emplace_back((const char *)sqlite3_column_text(pStmt, 0), b, 0.5f);
+                writeTable(*font.ref, tables.back());
             }
             sqlite3_finalize(pStmt);
             backgroundList.empty().addScene(background);
