@@ -141,12 +141,12 @@ struct RasterizerDB {
             str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
             if (sqlite3_prepare_v2(db, str.base, -1, & pStmt1, NULL) == SQLITE_OK) {
                 Ra::Scene chrome, rows;
+                Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
+                chrome.addPath(linePath, Ra::Transform(), kRed, h / 32.f, 0);
                 Ra::Row<size_t> indices;  Ra::Row<char> strings;  strings.alloc(4096), strings.empty();
                 for (i = 0; i < columns; i++)
                     *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(strlen(names[i]) + 1), names[i]);
                 RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, false, indices, strings, chrome);
-                Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
-                chrome.addPath(linePath, Ra::Transform(), kRed, h / 32.f, 0);
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 indices.empty(), strings.empty();
                 for (status = sqlite3_step(pStmt1); status == SQLITE_ROW; status = sqlite3_step(pStmt1))
@@ -165,14 +165,14 @@ struct RasterizerDB {
     void readEvents(RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseMove) {
-                float dx = state.scale * e.x, dy = state.scale * e.y, ux, uy;
+                float dx = state.scale * e.x, dy = state.scale * e.y, t;
                 Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
-                    ux = dx + inv.a + dy * inv.c + inv.tx, uy = dx * inv.b + dy * inv.d + inv.ty;
-                    writeTable(*font.ref, uy, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
+                    t = dx * inv.b + dy * inv.d + inv.ty;
+                    writeTable(*font.ref, t, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
                 }
             }
     }
