@@ -119,14 +119,14 @@ struct RasterizerDB {
         Ra::SceneList& list = table.list;
         list.empty();
         str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
-        sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
-        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
-            int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, rows, count, n, range, lower, upper;
+        sqlite3_stmt *pStmt = NULL;
+        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
+            int columns = sqlite3_column_count(pStmt), lengths[columns], types[columns], total = 0, i, rows, count, n, range, lower, upper;
             float fw, fh, fs, my, h, uy, gap = 0.125f;
             const char *names[columns];
             bool rights[columns];
             for (i = 0; i < columns; i++)
-                types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, rights[i] = lengths[i] != kTextChars, total += lengths[i];
+                types[i] = sqlite3_column_type(pStmt, i), names[i] = sqlite3_column_name(pStmt, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, rights[i] = lengths[i] != kTextChars, total += lengths[i];
             total = total < kTextChars ? kTextChars : total;
             fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
             fs = fw / (total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
@@ -159,7 +159,7 @@ struct RasterizerDB {
                 list.addScene(chrome);
             }
         }
-        sqlite3_finalize(pStmt0), sqlite3_finalize(pStmt1);
+        sqlite3_finalize(pStmt);
     }
     void writeQuery(char *str, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
         sqlite3_stmt *pStmt = NULL;
