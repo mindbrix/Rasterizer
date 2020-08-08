@@ -130,7 +130,7 @@ struct RasterizerDB {
             str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
             rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count);
             n = n > count - 1 ? count - 1 : n;
-            lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
+            lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             uy = my + h * (t * float(count) - lower);
             str = str.empty() + "SELECT ";
             for (int i = 0; i < columns; i++)
