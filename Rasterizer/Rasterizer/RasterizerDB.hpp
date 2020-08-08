@@ -108,14 +108,15 @@ struct RasterizerDB {
             backgroundList.empty().addScene(background);
             tableLists = std::vector<Ra::SceneList>(tables.size());
             for (int i = 0; i < tables.size(); i++)
-                writeTable(*font.ref, tables[i].t, tables[i].bounds, tables[i].name.base, tableLists[i]);
+                writeTable(*font.ref, tables[i], tableLists[i]);
         }
     }
-    void writeTable(RasterizerFont& font, float t, Ra::Bounds frame, const char *table, Ra::SceneList& list) {
+    void writeTable(RasterizerFont& font, Table& table, Ra::SceneList& list) {
         if (font.isEmpty())
             return;
         Ra::Row<char> str;
-        str = str + "SELECT * FROM " + table + " LIMIT 1";
+        Ra::Bounds frame = table.bounds;
+        str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
             int columns = sqlite3_column_count(pStmt0), lengths[columns], types[columns], total = 0, i, rows, count, n, range, lower, upper;
@@ -127,18 +128,18 @@ struct RasterizerDB {
             total = total < kTextChars ? kTextChars : total;
             fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
             fs = fw / (total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
-            str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
-            rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count);
+            str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnValues(str.base, & count, false);
+            rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = table.t * float(count);
             n = n > count - 1 ? count - 1 : n;
             lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-            uy = my + h * (t * float(count) - lower);
+            uy = my + h * (table.t * float(count) - lower);
             str = str.empty() + "SELECT ";
             for (int i = 0; i < columns; i++)
                 if (types[i] == SQLITE_TEXT)
                     str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + names[i] + ") < 24 THEN " + names[i] + " ELSE SUBSTR(" + names[i] + ", 1, 11) || '…' || SUBSTR(" + names[i] + ", LENGTH(" + names[i] + ") - 11) END AS " + names[i];
                 else
                     str = str + (i == 0 ? "" : ", ") + names[i];
-            str = str + " FROM " + table + " LIMIT " + lower + ", " + (upper - lower);
+            str = str + " FROM " + table.name.base + " LIMIT " + lower + ", " + (upper - lower);
             Ra::Row<size_t> indices;  Ra::Row<char> strings;
             writeQuery(str.base, indices, strings);
             if (indices.end) {
@@ -173,14 +174,14 @@ struct RasterizerDB {
     void readEvents(RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseMove) {
-                float dx = state.scale * e.x, dy = state.scale * e.y, t;
+                float dx = state.scale * e.x, dy = state.scale * e.y;
                 Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
-                    t = dx * inv.b + dy * inv.d + inv.ty;
-                    writeTable(*font.ref, t, tables[pi].bounds, tables[pi].name.base, tableLists[pi].empty());
+                    tables[pi].t = dx * inv.b + dy * inv.d + inv.ty;
+                    writeTable(*font.ref, tables[pi], tableLists[pi].empty());
                 }
             }
     }
