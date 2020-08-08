@@ -74,7 +74,7 @@ struct RasterizerDB {
         sqlite3_step(stmt), sqlite3_reset(stmt);
     }
     void writeColumnValues(const char *sql, void *values, bool real) {
-        sqlite3_stmt *pStmt;
+        sqlite3_stmt *pStmt = NULL;
         if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
             for (int i = 0; i < sqlite3_column_count(pStmt); i++)
                 if (real)
@@ -84,10 +84,10 @@ struct RasterizerDB {
         }
         sqlite3_finalize(pStmt);
     }
-    void writeColumnStrings(const char *str, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
+    void writeColumnStrings(const char *sql, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
         sqlite3_stmt *pStmt = NULL;
         strings.alloc(4096), strings.empty(), indices.empty();
-        if (sqlite3_prepare_v2(db, str, -1, & pStmt, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK)
             for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt))
                 for (int i = 0; i < sqlite3_column_count(pStmt); i++)
                     *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt, i) + 1), (const char *)sqlite3_column_text(pStmt, i));
