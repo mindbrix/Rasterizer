@@ -107,8 +107,8 @@ struct RasterizerDB {
             }
             sqlite3_finalize(pStmt);
             backgroundList.empty().addScene(background);
-            for (int i = 0; i < tables.size(); i++)
-                writeTable(*font.ref, tables[i]);
+            for (Table& table : tables)
+                writeTable(*font.ref, table);
         }
     }
     void writeTable(RasterizerFont& font, Table& table) {
