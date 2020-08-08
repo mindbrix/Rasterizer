@@ -168,6 +168,7 @@ struct RasterizerDB {
             for (int status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt))
                 for (int i = 0; i < sqlite3_column_count(pStmt); i++)
                     *(indices.alloc(1)) = strings.end, strcpy(strings.alloc(sqlite3_column_bytes(pStmt, i) + 1), (const char *)sqlite3_column_text(pStmt, i));
+        sqlite3_finalize(pStmt);
     }
     static void EventFunction(RasterizerState& state, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
