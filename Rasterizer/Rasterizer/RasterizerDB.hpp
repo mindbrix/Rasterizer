@@ -18,6 +18,7 @@ struct RasterizerDB {
         Ra::Row<char> name;
         Ra::Bounds bounds;
         float t;
+        Ra::SceneList list;
     };
     const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
     const static int kTextChars = 12, kRealChars = 2;
@@ -106,16 +107,17 @@ struct RasterizerDB {
             }
             sqlite3_finalize(pStmt);
             backgroundList.empty().addScene(background);
-            tableLists = std::vector<Ra::SceneList>(tables.size());
             for (int i = 0; i < tables.size(); i++)
-                writeTable(*font.ref, tables[i], tableLists[i]);
+                writeTable(*font.ref, tables[i]);
         }
     }
-    void writeTable(RasterizerFont& font, Table& table, Ra::SceneList& list) {
+    void writeTable(RasterizerFont& font, Table& table) {
         if (font.isEmpty())
             return;
         Ra::Row<char> str;
         Ra::Bounds frame = table.bounds;
+        Ra::SceneList& list = table.list;
+        list.empty();
         str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
         sqlite3_stmt *pStmt0 = NULL, *pStmt1 = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt0, NULL) == SQLITE_OK && sqlite3_step(pStmt0) == SQLITE_ROW) {
@@ -181,21 +183,20 @@ struct RasterizerDB {
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                     tables[pi].t = dx * inv.b + dy * inv.d + inv.ty;
-                    writeTable(*font.ref, tables[pi], tableLists[pi].empty());
+                    writeTable(*font.ref, tables[pi]);
                 }
             }
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
         list.addList(db.backgroundList);
-        for (Ra::SceneList& tableList: db.tableLists)
-            list.addList(tableList);
+        for (Table& table : db.tables)
+            list.addList(table.list);
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
     int lastpi = INT_MAX;
-    std::vector<Ra::SceneList> tableLists;
     Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
     size_t refCount;
