@@ -90,19 +90,17 @@ struct RasterizerDB {
         int count, N;
         writeColumnValues("SELECT COUNT(DISTINCT(tbl_name)) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N;
-        sqlite3_stmt *pStmt;
         str = str.empty() + "SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC";
-        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK) {
-            Ra::Scene background;
-            for (int i = 0, x = 0, y = 0, status = sqlite3_step(pStmt); status == SQLITE_ROW; status = sqlite3_step(pStmt ), i++, x = i % N, y = i / N) {
-                Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
-                Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
-                tables.emplace_back((const char *)sqlite3_column_text(pStmt, 0), b, 0.5f);
-                writeTable(*font.ref, tables.back());
-            }
-            sqlite3_finalize(pStmt);
-            backgroundList.empty().addScene(background);
+        Ra::Row<size_t> indices;  Ra::Row<char> strings;
+        writeQuery(str.base, indices, strings);
+        Ra::Scene background;
+        for (int i = 0, x = 0, y = 0; i < indices.end; i++, x = i % N, y = i / N) {
+            Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
+            Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
+            tables.emplace_back(strings.base + indices.base[i], b, 0.5f);
+            writeTable(*font.ref, tables.back());
         }
+        backgroundList.empty().addScene(background);
     }
     void writeTable(RasterizerFont& font, Table& table) {
         if (font.isEmpty())
@@ -125,7 +123,7 @@ struct RasterizerDB {
             str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnValues(str.base, & count, false);
             rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = table.t * float(count);
             n = n > count - 1 ? count - 1 : n;
-            lower = n - range, upper = n + range, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
+            lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
             uy = my + h * (table.t * float(count) - lower);
             str = str.empty() + "SELECT ";
             for (int i = 0; i < columns; i++)
