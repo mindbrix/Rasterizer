@@ -18,7 +18,7 @@ struct RasterizerDB {
         Ra::Row<char> name;
         Ra::Bounds bounds;
         float t;
-        Ra::SceneList list;
+        Ra::SceneList rows, chrome;
     };
     const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
     const static int kTextChars = 12, kRealChars = 2;
@@ -109,8 +109,7 @@ struct RasterizerDB {
             return;
         Ra::Row<char> str;
         Ra::Bounds frame = table.bounds;
-        Ra::SceneList& list = table.list;
-        list.empty();
+        table.rows.empty(), table.chrome.empty();
         str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
         sqlite3_stmt *pStmt = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
@@ -141,7 +140,7 @@ struct RasterizerDB {
                 Ra::Scene rows;
                 Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
                 RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, lower & 1, indices, strings, rows);
-                list.addScene(rows, Ra::Transform(), clip);
+                table.rows.addScene(rows, Ra::Transform(), clip);
                 Ra::Scene chrome;
                 Ra::Row<size_t> hindices;  Ra::Row<char> hstrings;  hstrings.alloc(4096), hstrings.empty();
                 for (i = 0; i < columns; i++)
@@ -149,7 +148,7 @@ struct RasterizerDB {
                 RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, false, hindices, hstrings, chrome);
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
                 chrome.addPath(linePath, Ra::Transform(), kRed, h / 32.f, 0);
-                list.addScene(chrome);
+                table.chrome.addScene(chrome);
             }
         }
         sqlite3_finalize(pStmt);
@@ -185,7 +184,7 @@ struct RasterizerDB {
         RasterizerDB& db = *((RasterizerDB *)info);
         list.addList(db.backgroundList);
         for (Table& table : db.tables)
-            list.addList(table.list);
+            list.addList(table.rows), list.addList(table.chrome);
     }
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
