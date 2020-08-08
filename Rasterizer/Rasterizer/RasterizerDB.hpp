@@ -126,7 +126,7 @@ struct RasterizerDB {
                 types[i] = sqlite3_column_type(pStmt0, i), names[i] = sqlite3_column_name(pStmt0, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, rights[i] = lengths[i] != kTextChars, total += lengths[i];
             total = total < kTextChars ? kTextChars : total;
             fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
-            fs = fw / (total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - roundf(0.5f * fh / h) * h;
+            fs = fw / (total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
             str = str.empty() + "SELECT COUNT(*) FROM " + table, writeColumnValues(str.base, & count, false);
             rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count);
             n = n > count - 1 ? count - 1 : n;
