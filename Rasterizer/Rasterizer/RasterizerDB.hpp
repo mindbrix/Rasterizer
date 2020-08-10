@@ -101,11 +101,11 @@ struct RasterizerDB {
             Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
             Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
             tables.emplace_back(strings.base + indices.base[i], b, 0.5f);
-            writeTable(*font.ref, tables.back());
+            writeTableLists(*font.ref, tables.back());
         }
         backgroundList.empty().addScene(background);
     }
-    void writeTable(RasterizerFont& font, Table& table) {
+    void writeTableLists(RasterizerFont& font, Table& table) {
         if (font.isEmpty())
             return;
         Ra::Row<char> str;
@@ -168,7 +168,7 @@ struct RasterizerDB {
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
                     tables[pi].t = dx * inv.b + dy * inv.d + inv.ty;
-                    writeTable(*font.ref, tables[pi]);
+                    writeTableLists(*font.ref, tables[pi]);
                 }
             }
     }
