@@ -148,7 +148,7 @@ struct RasterizerDB {
                     *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(names[i]) + 1), names[i]);
                 RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, false, hindices, hstrings, chrome);
                 Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
-                chrome.addPath(linePath, Ra::Transform(), kRed, h / 32.f, 0);
+                chrome.addPath(linePath, Ra::Transform(), kRed, h / 64.f, 0);
                 table.chrome.addScene(chrome);
             }
         }
