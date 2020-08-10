@@ -43,7 +43,7 @@ struct RasterizerDB {
         tabs = tabs + "_" + table, str = str + "SELECT ";
         for (int i = 0; i < count; i++)
             str = str + (i == 0 ? "" : ", ") + "MAX(LENGTH(" + names[i] + "))";
-        str = str + " FROM " + tabs.base, writeColumnValues(str.base, lengths, false);
+        str = str + " FROM " + tabs.base, writeColumnInts(str.base, lengths);
         str = str.empty() + "CREATE TABLE IF NOT EXISTS " + table + "(id INTEGER PRIMARY KEY, ";
         for (int i = 0; i < count; i++)
             if (names[i][0] == '_') {
@@ -73,15 +73,11 @@ struct RasterizerDB {
             sqlite3_bind_text(stmt, i + 1, values[i], -1, SQLITE_STATIC);
         sqlite3_step(stmt), sqlite3_reset(stmt);
     }
-    void writeColumnValues(const char *sql, void *values, bool real) {
+    void writeColumnInts(const char *sql, int *values) {
         sqlite3_stmt *pStmt = NULL;
-        if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
+        if (sqlite3_prepare_v2(db, sql, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW)
             for (int i = 0; i < sqlite3_column_count(pStmt); i++)
-                if (real)
-                    ((float *)values)[i] = sqlite3_column_double(pStmt, i);
-                else
-                    ((int *)values)[i] = sqlite3_column_int(pStmt, i);
-        }
+                values[i] = sqlite3_column_int(pStmt, i);
         sqlite3_finalize(pStmt);
     }
     void writeColumnStrings(const char *sql, Ra::Row<size_t>& indices, Ra::Row<char>& strings) {
@@ -96,7 +92,7 @@ struct RasterizerDB {
     void writeTables(Ra::Bounds frame) {
         tables = std::vector<Table>();
         int count, N;
-        writeColumnValues("SELECT COUNT(DISTINCT(tbl_name)) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count, false), N = ceilf(sqrtf(count));
+        writeColumnInts("SELECT COUNT(DISTINCT(tbl_name)) FROM sqlite_master WHERE name NOT LIKE 'sqlite%'", & count), N = ceilf(sqrtf(count));
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N;
         Ra::Row<size_t> indices;  Ra::Row<char> strings;
         writeColumnStrings("SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", indices, strings);
@@ -127,7 +123,7 @@ struct RasterizerDB {
             total = total < kTextChars ? kTextChars : total;
             fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
             fs = fw / (total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
-            str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnValues(str.base, & count, false);
+            str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & count);
             rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = table.t * float(count);
             n = n > count - 1 ? count - 1 : n;
             lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
