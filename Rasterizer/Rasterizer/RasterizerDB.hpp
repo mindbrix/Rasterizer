@@ -18,7 +18,7 @@ struct RasterizerDB {
         Ra::Row<char> name;
         Ra::Bounds bounds;
         float t;
-        int columns = 0, total = 0;  std::vector<int> types, lengths;  std::vector<bool> rights;  std::vector<Ra::Row<char>> names;
+        int columns = 0, total = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> rights;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
     const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
@@ -122,56 +122,47 @@ struct RasterizerDB {
                 table.total += length;
             }
         }
+        table.total = table.total < kTextChars ? kTextChars : table.total;
         sqlite3_finalize(pStmt);
     }
     void writeTableLists(RasterizerFont& font, Table& table) {
-        if (font.isEmpty())
+        if (font.isEmpty() || table.columns == 0)
             return;
-        Ra::Row<char> str;
         Ra::Bounds frame = table.bounds;
         table.rows.empty(), table.chrome.empty();
-        str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
-        sqlite3_stmt *pStmt = NULL;
-        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
-            int columns = sqlite3_column_count(pStmt), lengths[columns], types[columns], total = 0, i, rows, count, n, range, lower, upper;
-            float fw, fh, fs, my, h, uy, gap = 0.125f;
-            const char *names[columns];
-            bool rights[columns];
-            for (i = 0; i < columns; i++)
-                types[i] = sqlite3_column_type(pStmt, i), names[i] = sqlite3_column_name(pStmt, i), lengths[i] = types[i] == SQLITE_TEXT ? kTextChars : strstr(names[i], "_") == NULL && strcmp(names[i], "id") ? kRealChars : 0, rights[i] = lengths[i] != kTextChars, total += lengths[i];
-            total = total < kTextChars ? kTextChars : total;
-            fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
-            fs = fw / (total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
-            str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & count);
-            rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = table.t * float(count);
-            n = n > count - 1 ? count - 1 : n;
-            lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-            uy = my + h * (table.t * float(count) - lower);
-            str = str.empty() + "SELECT ";
-            for (int i = 0; i < columns; i++)
-                if (types[i] == SQLITE_TEXT)
-                    str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + names[i] + ") < 24 THEN " + names[i] + " ELSE SUBSTR(" + names[i] + ", 1, 11) || '…' || SUBSTR(" + names[i] + ", LENGTH(" + names[i] + ") - 11) END AS " + names[i];
-                else
-                    str = str + (i == 0 ? "" : ", ") + names[i];
-            str = str + " FROM " + table.name.base + " LIMIT " + lower + ", " + (upper - lower);
-            Ra::Row<size_t> indices;  Ra::Row<char> strings;
-            writeColumnStrings(str.base, indices, strings);
-            if (indices.end) {
-                Ra::Scene rows;
-                Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
-                RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), lengths, rights, columns, lower & 1, indices, strings, rows);
-                table.rows.addScene(rows, Ra::Transform(), clip);
-                Ra::Scene chrome;
-                Ra::Row<size_t> hindices;  Ra::Row<char> hstrings;  hstrings.alloc(4096), hstrings.empty();
-                for (i = 0; i < columns; i++)
-                    *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(names[i]) + 1), names[i]);
-                RasterizerFont::layoutColumns(font, fw / total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), lengths, rights, columns, false, hindices, hstrings, chrome);
-                Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
-                chrome.addPath(linePath, Ra::Transform(), kRed, h / 64.f, 0);
-                table.chrome.addScene(chrome);
-            }
+        float fw, fh, fs, my, h, uy, gap = 0.125f;
+        int i, rows, count, n, range, lower, upper;
+        fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
+        fs = fw / (table.total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
+        Ra::Row<char> str;  str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & count);
+        rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = table.t * float(count);
+        n = n > count - 1 ? count - 1 : n;
+        lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
+        uy = my + h * (table.t * float(count) - lower);
+        str = str.empty() + "SELECT ";
+        for (int i = 0; i < table.columns; i++) {
+            if (table.types[i] == SQLITE_TEXT)
+                str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + table.names[i].base + ") < 24 THEN " + table.names[i].base + " ELSE SUBSTR(" + table.names[i].base + ", 1, 11) || '…' || SUBSTR(" + table.names[i].base + ", LENGTH(" + table.names[i].base + ") - 11) END AS " + table.names[i].base;
+            else
+                str = str + (i == 0 ? "" : ", ") + table.names[i].base;
         }
-        sqlite3_finalize(pStmt);
+        str = str + " FROM " + table.name.base + " LIMIT " + lower + ", " + (upper - lower);
+        Ra::Row<size_t> indices;  Ra::Row<char> strings;
+        writeColumnStrings(str.base, indices, strings);
+        if (indices.end) {
+            Ra::Scene rows;
+            Ra::Transform clip(frame.ux - frame.lx, 0.f, 0.f, frame.uy - frame.ly - h, frame.lx, frame.ly);
+            RasterizerFont::layoutColumns(font, fw / table.total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, uy), & table.lengths[0], (bool *)& table.rights[0], table.columns, lower & 1, indices, strings, rows);
+            table.rows.addScene(rows, Ra::Transform(), clip);
+            Ra::Scene chrome;
+            Ra::Row<size_t> hindices;  Ra::Row<char> hstrings;  hstrings.alloc(4096), hstrings.empty();
+            for (i = 0; i < table.columns; i++)
+                *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(table.names[i].base) + 1), table.names[i].base);
+            RasterizerFont::layoutColumns(font, fw / table.total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), & table.lengths[0], (bool *)& table.rights[0], table.columns, false, hindices, hstrings, chrome);
+            Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
+            chrome.addPath(linePath, Ra::Transform(), kRed, h / 64.f, 0);
+            table.chrome.addScene(chrome);
+        }
     }
     static void EventFunction(RasterizerState& state, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
