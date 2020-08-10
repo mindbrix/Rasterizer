@@ -18,6 +18,7 @@ struct RasterizerDB {
         Ra::Row<char> name;
         Ra::Bounds bounds;
         float t;
+        int columns;  std::vector<int> types;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
     const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
@@ -101,9 +102,23 @@ struct RasterizerDB {
             Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
             Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
             tables.emplace_back(strings.base + indices.base[i], b, 0.5f);
+            writeTableMetadata(tables.back());
             writeTableLists(*font.ref, tables.back());
         }
         backgroundList.empty().addScene(background);
+    }
+    void writeTableMetadata(Table& table) {
+        Ra::Row<char> str;  str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
+        sqlite3_stmt *pStmt = NULL;
+        if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
+            table.columns = sqlite3_column_count(pStmt);
+            for (int i = 0; i < table.columns; i++) {
+                table.types.emplace_back(sqlite3_column_type(pStmt, i));
+                Ra::Row<char> name;  name = name + sqlite3_column_name(pStmt, i);
+                table.names.emplace_back(name);
+            }
+        }
+        sqlite3_finalize(pStmt);
     }
     void writeTableLists(RasterizerFont& font, Table& table) {
         if (font.isEmpty())
