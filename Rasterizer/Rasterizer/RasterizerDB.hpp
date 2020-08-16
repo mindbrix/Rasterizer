@@ -16,7 +16,7 @@
 
 struct RasterizerDB {
     struct Table {
-        Table(const char *nm, Ra::Bounds bounds, float t) : bounds(bounds) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
+        Table(const char *nm, Ra::Bounds bounds) : bounds(bounds) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
         Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;
         int columns = 0, total = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> rights;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
@@ -101,12 +101,12 @@ struct RasterizerDB {
         for (int i = 0, x = 0, y = 0; i < indices.end; i++, x = i % N, y = i / N) {
             Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
             Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
-            tables.emplace_back(strings.base + indices.base[i], b, 0.5f);
-            auto it = ts.find(tables.back().hash);
-            if (it == ts.end())
-                ts[tables.back().hash] = 0.f;
-            writeTableMetadata(tables.back());
-            writeTableLists(*font.ref, tables.back());
+            tables.emplace_back(strings.base + indices.base[i], b);
+            Table& table = tables.back();
+            if (ts.find(table.hash) == ts.end())
+                ts[table.hash] = 0.f;
+            writeTableMetadata(table);
+            writeTableLists(*font.ref, table);
         }
         backgroundList.empty().addScene(background);
     }
