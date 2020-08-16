@@ -7,6 +7,7 @@
 //
 #import <stdio.h>
 #import <sqlite3.h>
+#import "xxhash.h"
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
 #import "RasterizerState.hpp"
@@ -14,10 +15,11 @@
 
 struct RasterizerDB {
     struct Table {
-        Table(const char *nm, Ra::Bounds bounds, float t) : bounds(bounds), t(t) { name = name + nm; }
+        Table(const char *nm, Ra::Bounds bounds, float t) : bounds(bounds), t(t) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
         Ra::Row<char> name;
         Ra::Bounds bounds;
         float t;
+        size_t hash = 0;
         int columns = 0, total = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> rights;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
