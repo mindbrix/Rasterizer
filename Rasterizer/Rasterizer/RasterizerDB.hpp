@@ -7,6 +7,7 @@
 //
 #import <stdio.h>
 #import <sqlite3.h>
+#import <unordered_map>
 #import "xxhash.h"
 #import "Rasterizer.hpp"
 #import "RasterizerFont.hpp"
@@ -15,11 +16,8 @@
 
 struct RasterizerDB {
     struct Table {
-        Table(const char *nm, Ra::Bounds bounds, float t) : bounds(bounds), t(t) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
-        Ra::Row<char> name;
-        Ra::Bounds bounds;
-        float t;
-        size_t hash = 0;
+        Table(const char *nm, Ra::Bounds bounds, float t) : bounds(bounds) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
+        Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;
         int columns = 0, total = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> rights;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
@@ -104,6 +102,9 @@ struct RasterizerDB {
             Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
             Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
             tables.emplace_back(strings.base + indices.base[i], b, 0.5f);
+            auto it = ts.find(tables.back().hash);
+            if (it == ts.end())
+                ts[tables.back().hash] = 0.f;
             writeTableMetadata(tables.back());
             writeTableLists(*font.ref, tables.back());
         }
@@ -132,15 +133,15 @@ struct RasterizerDB {
             return;
         Ra::Bounds frame = table.bounds;
         table.rows.empty(), table.chrome.empty();
-        float fw, fh, fs, my, h, uy, gap = 0.125f;
+        float t = ts[table.hash], fw, fh, fs, my, h, uy, gap = 0.125f;
         int i, rows, count, n, range, lower, upper;
         fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
         fs = fw / (table.total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
         Ra::Row<char> str;  str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & count);
-        rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = table.t * float(count);
+        rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count);
         n = n > count - 1 ? count - 1 : n;
         lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-        uy = my + h * (table.t * float(count) - lower);
+        uy = my + h * (t * float(count) - lower);
         str = str.empty() + "SELECT ";
         for (int i = 0; i < table.columns; i++) {
             if (table.types[i] == SQLITE_TEXT)
@@ -179,7 +180,7 @@ struct RasterizerDB {
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
-                    tables[pi].t = dx * inv.b + dy * inv.d + inv.ty;
+                    ts[tables[pi].hash] = dx * inv.b + dy * inv.d + inv.ty;
                     writeTableLists(*font.ref, tables[pi]);
                 }
             }
@@ -193,6 +194,7 @@ struct RasterizerDB {
     sqlite3 *db = nullptr;
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
+    std::unordered_map<size_t, float> ts;
     int lastpi = INT_MAX;
     Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
