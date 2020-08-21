@@ -161,7 +161,7 @@ struct RasterizerDB {
             Ra::Row<size_t> hindices;  Ra::Row<char> hstrings;  hstrings.alloc(4096), hstrings.empty();
             for (i = 0; i < table.columns; i++)
                 *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(table.names[i].base) + 1), table.names[i].base);
-            RasterizerFont::layoutColumns(font, fw / table.total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), & table.lengths[0], (bool *)& table.rights[0], table.columns, false, hindices, hstrings, chrome);
+            RasterizerFont::layoutColumns(font, fw / table.total, gap, kBlack, Ra::Bounds(frame.lx, -FLT_MAX, frame.ux, frame.uy), & table.lengths[0], (bool *)& table.rights[0], table.columns, true, hindices, hstrings, chrome);
             Ra::Path linePath; linePath.ref->moveTo(frame.lx, my), linePath.ref->lineTo(frame.ux, my);
             chrome.addPath(linePath, Ra::Transform(), kRed, h / 64.f, 0);
             table.chrome.addScene(chrome);

@@ -123,7 +123,7 @@ struct RasterizerFont {
         for (int idx = 0; idx < indices.end; idx++, lx = ux) {
             if (idx % colCount == 0) {
                 Ra::Path bPath;  bPath->addBounds(Ra::Bounds(bounds.lx, uy - lineHeight, bounds.ux, uy));
-                scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, odd ? 8 : 16), 0.f, 0);
+                scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, odd ? 16 : 8), 0.f, 0);
             }
             ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
             if (lx != ux) {
