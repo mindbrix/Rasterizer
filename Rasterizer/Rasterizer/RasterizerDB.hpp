@@ -119,9 +119,9 @@ struct RasterizerDB {
                 table.types.emplace_back(sqlite3_column_type(pStmt, i));
                 Ra::Row<char> name;  name = name + sqlite3_column_name(pStmt, i);
                 table.names.emplace_back(name);
-                length = table.types.back() == SQLITE_TEXT ? kTextChars : strcmp(name.base, "id") ? kRealChars : 0;
+                length = table.types.back() == SQLITE_TEXT ? kTextChars : kRealChars;
                 table.lengths.emplace_back(length);
-                table.rights.emplace_back(length != kTextChars);
+                table.rights.emplace_back(strcmp(name.base, "id") && length != kTextChars);
                 table.total += length;
             }
         }
