@@ -121,10 +121,13 @@ struct RasterizerFont {
         float emWidth = emSize * floorf((bounds.ux - bounds.lx) / emSize), lx = 0.f, ux = 0.f, uy = bounds.uy;
         float lineHeight = emSize / float(font.unitsPerEm) * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap);
         for (int idx = 0; idx < indices.end; idx++, lx = ux) {
+            if (idx % colCount == 0) {
+                Ra::Path bPath;  bPath->addBounds(Ra::Bounds(bounds.lx, uy - lineHeight, bounds.ux, uy));
+                scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, odd ? 8 : 16), 0.f, 0);
+            }
             ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
             if (lx != ux) {
                 Ra::Bounds b = { bounds.lx + lx, uy - lineHeight, bounds.lx + ux, uy };
-                Ra::Path bPath;  bPath->addBounds(b);   scene.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, odd ? 8 : 16), 0.f, 0);
                 layoutGlyphs(font, emSize, gap, color, b, false, true, colRights[idx % colCount], strings.base + indices.base[idx], scene);
             }
             if ((idx + 1) % colCount == 0)
