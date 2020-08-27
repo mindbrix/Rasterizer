@@ -17,6 +17,7 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
+@property(nonatomic) NSFont *fnt;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
 @property(nonatomic) Ra::Ref<RasterizerDB> db;
@@ -25,7 +26,6 @@
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) BOOL useCG;
 @property(nonatomic) NSString *pastedString;
-@property(nonatomic) NSFont *fnt;
 - (void)timerFired:(double)time;
 
 @end
