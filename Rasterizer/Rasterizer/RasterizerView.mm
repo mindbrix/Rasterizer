@@ -65,16 +65,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - NSTimer
 
-- (void)stopTimer {
-    if (_displayLink)
-        CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
-}
-
-- (void)resetTimer {
-    [self stopTimer];
+- (void)startTimer {
     CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
     cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
     CVDisplayLinkStart(_displayLink);
+}
+
+- (void)stopTimer {
+    if (_displayLink)
+        CVDisplayLinkStop(_displayLink), CVDisplayLinkRelease(_displayLink), _displayLink = nil;
 }
 
 - (void)timerFired:(double)time {
@@ -88,13 +87,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
                 _test.ref);
         [self.layer setNeedsDisplay];
     }
-}
-
-- (void)toggleTimer {
-    if (_displayLink)
-        [self stopTimer];
-    else
-        [self resetTimer];
 }
 
 #pragma mark - NSFontManager
@@ -159,7 +151,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (BOOL)becomeFirstResponder {
     self.window.acceptsMouseMovedEvents = YES;
     [self.rasterizerLabel setHidden:YES];
-    [self toggleTimer];
+    [self startTimer];
     return YES;
 }
 
