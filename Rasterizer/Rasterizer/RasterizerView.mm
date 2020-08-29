@@ -139,10 +139,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     [self.layer setNeedsDisplay];
 }
 
-- (void)updateRasterizerLabel {
-    self.rasterizerLabel.stringValue = _useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
-}
-
 #pragma mark - NSResponder
 
 - (BOOL)acceptsFirstResponder {
@@ -167,7 +163,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _useCG = !_useCG;
         [self initLayer:_useCG];
         _renderer.reset();
-        [self updateRasterizerLabel];
+        self.rasterizerLabel.stringValue = _useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
