@@ -51,10 +51,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    self.inflight_semaphore = dispatch_semaphore_create(1);
     [self initLayer:_useCG];
     self.fnt = [NSFont fontWithName:@"AppleSymbols" size:14];
     [self writeList:self.fnt];
+    [self startTimer];
     return self;
 }
 
@@ -66,6 +66,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - NSTimer
 
 - (void)startTimer {
+    _inflight_semaphore = dispatch_semaphore_create(1);
     CVReturn cvReturn = CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &_displayLink);
     cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &OnDisplayLinkFrame, (__bridge void *)self);
     CVDisplayLinkStart(_displayLink);
@@ -150,8 +151,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (BOOL)becomeFirstResponder {
     self.window.acceptsMouseMovedEvents = YES;
-    [self.rasterizerLabel setHidden:YES];
-    [self startTimer];
     return YES;
 }
 
