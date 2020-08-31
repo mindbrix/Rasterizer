@@ -56,12 +56,13 @@
 		E990649021C2E11500D2DBF2 /* RasterizerLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerLayer.h; sourceTree = "<group>"; };
 		E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerLayer.mm; sourceTree = "<group>"; };
 		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.metal; };
-		E9A7FA84218FAB380031FD4E /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = nanosvg.h; path = ../../../nanosvg/src/nanosvg.h; sourceTree = "<group>"; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 		E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerRenderer.hpp; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 		E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDB.hpp; sourceTree = "<group>"; };
 		E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
+		E9FB275E24FD18900093F619 /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = nanosvg.h; sourceTree = "<group>"; };
+		E9FB275F24FD18A10093F619 /* stb_truetype.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stb_truetype.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,10 +109,11 @@
 			children = (
 				E9710C4A24CF975B00F31953 /* xxhash.c */,
 				E9710C4B24CF975B00F31953 /* xxhash.h */,
-				E9A7FA84218FAB380031FD4E /* nanosvg.h */,
 				E91ADF962243FED000729DA0 /* nanosvg.cc */,
+				E9FB275E24FD18900093F619 /* nanosvg.h */,
 				E963FF6E21DF5A29007C1327 /* stb_truetype.h */,
 				E91ADF9322425C2F00729DA0 /* stb_truetype.c */,
+				E9FB275F24FD18A10093F619 /* stb_truetype.h */,
 				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
