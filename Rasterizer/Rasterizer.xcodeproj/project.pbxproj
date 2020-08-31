@@ -126,6 +126,11 @@
 				E9E36F08223A722100F6533A /* RasterizerTest.hpp */,
 				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
 				E93B479524770A0F009C18C1 /* Rasterizer3D.hpp */,
+				E920A5B3217631E600F52C25 /* RasterizerView.h */,
+				E920A5B4217631E600F52C25 /* RasterizerView.mm */,
+				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
+				E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */,
+				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
 				E920A59D21762BCD00F52C25 /* AppDelegate.m */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
@@ -137,11 +142,6 @@
 				E920A5AB21762BCE00F52C25 /* main.m */,
 				E920A5AD21762BCE00F52C25 /* Rasterizer.entitlements */,
 				E971DB2C218495AA005AE5E5 /* Rasterizer.icns */,
-				E920A5B3217631E600F52C25 /* RasterizerView.h */,
-				E920A5B4217631E600F52C25 /* RasterizerView.mm */,
-				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
-				E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */,
-				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 			);
 			path = Rasterizer;
 			sourceTree = "<group>";
