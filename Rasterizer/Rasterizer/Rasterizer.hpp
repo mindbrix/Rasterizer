@@ -617,8 +617,8 @@ struct Rasterizer {
             root = solveQuadratic(ax, bx, x0 - clip.lx, root);
         if (clip.ux >= lx && clip.ux < ux)
             root = solveQuadratic(ax, bx, x0 - clip.ux, root);
-        std::sort(roots + 1, root), *root++ = 1.f;
-        for (tx0 = x0, ty0 = y0, t = roots; t < root - 1; t++, tx0 = tx2, ty0 = ty2) {
+        std::sort(roots + 1, root), *root = 1.f;
+        for (tx0 = x0, ty0 = y0, t = roots; t < root; t++, tx0 = tx2, ty0 = ty2) {
             tx2 = (ax * t[1] + bx) * t[1] + x0, ty2 = (ay * t[1] + by) * t[1] + y0;
             mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
@@ -692,8 +692,8 @@ struct Rasterizer {
             root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
         if (clip.ux >= lx && clip.ux < ux)
             root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
-        std::sort(roots + 1, root), *root++ = 1.f;
-        for (tx0 = x0, ty0 = y0, t = roots; t < root - 1; t++, tx0 = tx3, ty0 = ty3) {
+        std::sort(roots + 1, root), *root = 1.f;
+        for (tx0 = x0, ty0 = y0, t = roots; t < root; t++, tx0 = tx3, ty0 = ty3) {
             tx3 = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, ty3 = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
             mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
