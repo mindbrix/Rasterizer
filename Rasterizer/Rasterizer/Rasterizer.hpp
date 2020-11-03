@@ -580,14 +580,14 @@ struct Rasterizer {
         else
             ts[1] = t0 < t1 ? t0 : t1, ts[1] = ts[1] < ts[0] ? ts[0] : ts[1] > ts[3] ? ts[3] : ts[1],
             ts[2] = t0 > t1 ? t0 : t1, ts[2] = ts[2] < ts[0] ? ts[0] : ts[2] > ts[3] ? ts[3] : ts[2];
-        for (t = ts; t < ts + 3; t++)
-            if (t[0] != t[1]) {
-                sy0 = y0 + t[0] * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                sy1 = y0 + t[1] * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                mx = x0 + (t[0] + t[1]) * 0.5f * dx;
+        for (t = ts, t0 = t[0], t1 = t[1]; t < ts + 3; t++, t0 = t1, t1 = t[1])
+            if (t0 != t1) {
+                sy0 = y0 + t0 * dy, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                sy1 = y0 + t1 * dy, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                mx = x0 + (t0 + t1) * 0.5f * dx;
                 if (mx >= clip.lx && mx < clip.ux) {
-                    sx0 = x0 + t[0] * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                    sx1 = x0 + t[1] * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    sx0 = x0 + t0 * dx, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                    sx1 = x0 + t1 * dx, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                     (*function)(sx0, sy0, sx1, sy1, 0, info);
                 } else if (polygon)
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
