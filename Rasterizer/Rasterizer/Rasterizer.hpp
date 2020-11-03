@@ -569,7 +569,7 @@ struct Rasterizer {
         }
     }
     static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, SegmentFunction function, void *info) {
-        float dx = x1 - x0, dy = y1 - y0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
+        float dx = x1 - x0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, dy = y1 - y0, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
         if (dy == 0.f)
             ts[0] = 0.f, ts[3] = 1.f;
         else
