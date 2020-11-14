@@ -182,11 +182,10 @@ struct RasterizerFont {
         int dx = 0, width = ceilf((bounds.ux - bounds.lx) / scale);
         if (rtl)
             dx = width;
-        else
-            for (int j = right ? l1 - 1 : l0; j >= 0 && j < l1; j += (right ? -1 : 1))
+        else if (right)
+            for (int j = l1 - 1; j >= l0 && j < l1; j--)
                 if (glyphs[j] > 0) {
-                    Ra::Path path = font.glyphPath(glyphs[j], true);
-                    dx += right ? width - (xs[j] + path.ref->bounds.ux) : 0;
+                    dx += width - (xs[j] + font.glyphPath(glyphs[j], true).ref->bounds.ux);
                     break;
                 }
         for (int j = l0; j < l1; j++)
