@@ -168,11 +168,8 @@ struct RasterizerFont {
                 x = 0, y -= lineHeight, l0 = begin;
             }
             x1 = rtl ? x - x0 : x;
-            for (adv = advances, i = begin; i < end; i++, x1 += *adv++) {
+            for (adv = advances, i = begin; i < end; i++, x1 += *adv++)
                 xs[i] = x1;
-                if (single && abs(x1) + *adv > width)
-                    glyphs[i] = 0;
-            }
             x = rtl ? x - x0 : x + x0;
         } while (end < len);
         writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene, glyphBounds);
@@ -191,9 +188,13 @@ struct RasterizerFont {
         for (int j = l0; j < l1; j++)
             if (glyphs[j] > 0) {
                 Ra::Path path = font.glyphPath(glyphs[j], true);
-                Ra::Transform ctm(scale, 0.f, 0.f, scale, (xs[j] + dx) * scale + bounds.lx, y * scale + bounds.uy);
-                scene.addPath(path, ctm, color, 0.f, 0);
-                glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
+                float tx = (xs[j] + dx) * scale + bounds.lx;
+                float x0 = tx + path->bounds.lx * scale, x1 = tx + path->bounds.ux * scale;
+                if (x0 >= bounds.lx && x1 <= bounds.ux) {
+                    Ra::Transform ctm(scale, 0.f, 0.f, scale, tx, y * scale + bounds.uy);
+                    scene.addPath(path, ctm, color, 0.f, 0);
+                    glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
+                }
             }
     }
     static void writeGlyphGrid(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Scene& scene) {
