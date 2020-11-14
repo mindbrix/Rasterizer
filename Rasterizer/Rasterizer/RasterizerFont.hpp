@@ -180,9 +180,9 @@ struct RasterizerFont {
         if (rtl)
             dx = width;
         else if (right)
-            for (int j = l1 - 1; j >= l0 && j < l1; j--)
+            for (int j = l1 - 1; j >= l0; j--)
                 if (glyphs[j] > 0) {
-                    dx += width - (xs[j] + font.glyphPath(glyphs[j], true).ref->bounds.ux);
+                    dx = width - (xs[j] + font.glyphPath(glyphs[j], true)->bounds.ux);
                     break;
                 }
         for (int j = l0; j < l1; j++)
