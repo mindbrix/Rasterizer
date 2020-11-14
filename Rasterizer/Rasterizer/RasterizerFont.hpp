@@ -140,9 +140,9 @@ struct RasterizerFont {
         Ra::Bounds glyphBounds;
         std::vector<int> glyphs;  font.writeGlyphs((uint8_t *)str, glyphs);
         float scale = emSize / float(font.unitsPerEm);
-        int width, lineHeight, end, x, y, len, l0, i, begin, xs[glyphs.size()];
-        width = ceilf((bounds.ux - bounds.lx) / scale), lineHeight = font.ascent - font.descent + font.lineGap;
-        x = end = l0 = 0, y = -(font.ascent + (font.lineGap + (font.ascent - font.descent) * gap) / 2), len = (int)glyphs.size();
+        int width = ceilf((bounds.ux - bounds.lx) / scale), lineGap, lineHeight;
+        lineGap = (font.ascent - font.descent) * gap + font.lineGap, lineHeight = font.ascent - font.descent + lineGap;
+        int len = (int)glyphs.size(), xs[len], end = 0, l0 = 0, x = 0, y = -(font.ascent + lineGap / 2), begin, i;
         do {
             for (; end < len && glyphs[end] < 0; end++) {
                 if (glyphs[end] != -RasterizerFont::nl)
