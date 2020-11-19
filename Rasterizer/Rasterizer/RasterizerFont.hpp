@@ -176,24 +176,30 @@ struct RasterizerFont {
         return glyphBounds;
     }
     static void writeLine(RasterizerFont& font, float scale, Ra::Colorant color, Ra::Bounds bounds, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool opposite, Ra::Scene& scene, Ra::Bounds& glyphBounds) {
+        if (l0 == l1)  return;
+        
         int dx = 0, width = ceilf((bounds.ux - bounds.lx) / scale);
-        if (rtl)
-            dx = width;
-        else if (opposite) {
-            for (int j = l1 - 1; j >= l0; j--)
-                if (glyphs[j] > 0) {
-                    dx = width - (xs[j] + font.glyphPath(glyphs[j], true)->bounds.ux);
-                    break;
-                }
-        } else if (glyphs[l0] > 0)
-            dx = -(xs[l0] + font.glyphPath(glyphs[l0], true)->bounds.lx);
+        if (rtl) {
+            if (opposite)
+                dx = -(glyphs[l0] > 0 ? xs[l0] + font.glyphPath(glyphs[l0], true)->bounds.lx : 0);
+            else
+                dx = width - (glyphs[l1 - 1] > 0 ? xs[l1 - 1] + font.glyphPath(glyphs[l1 - 1], true)->bounds.ux : 0);
+        } else {
+            if (opposite) {
+                for (int j = l1 - 1; j >= l0; j--)
+                    if (glyphs[j] > 0) {
+                        dx = width - (xs[j] + font.glyphPath(glyphs[j], true)->bounds.ux);
+                        break;
+                    }
+            } else if (glyphs[l0] > 0)
+                dx = -(xs[l0] + font.glyphPath(glyphs[l0], true)->bounds.lx);
+        }
         for (int j = l0; j < l1; j++)
             if (glyphs[j] > 0) {
                 Ra::Path path = font.glyphPath(glyphs[j], true);
-                float tx = (xs[j] + dx) * scale + bounds.lx;
-                float x0 = tx + path->bounds.lx * scale, x1 = tx + path->bounds.ux * scale;
-                if (x0 >= bounds.lx && x1 <= bounds.ux) {
-                    Ra::Transform ctm(scale, 0.f, 0.f, scale, tx, y * scale + bounds.uy);
+                int tx = xs[j] + dx, x0 = tx + path->bounds.lx, x1 = tx + path->bounds.ux;
+                if (x0 >= 0 && x1 <= width) {
+                    Ra::Transform ctm(scale, 0.f, 0.f, scale, tx * scale + bounds.lx, y * scale + bounds.uy);
                     scene.addPath(path, ctm, color, 0.f, 0);
                     glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                 }
