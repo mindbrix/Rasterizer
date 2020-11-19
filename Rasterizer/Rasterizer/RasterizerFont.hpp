@@ -176,8 +176,8 @@ struct RasterizerFont {
         return glyphBounds;
     }
     static void writeLine(RasterizerFont& font, float scale, Ra::Colorant color, Ra::Bounds bounds, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool opposite, Ra::Scene& scene, Ra::Bounds& glyphBounds) {
-        if (l0 == l1)  return;
-        
+        if (l0 == l1)
+            return;
         int dx = 0, width = ceilf((bounds.ux - bounds.lx) / scale);
         if (rtl) {
             if (opposite)
@@ -197,9 +197,9 @@ struct RasterizerFont {
         for (int j = l0; j < l1; j++)
             if (glyphs[j] > 0) {
                 Ra::Path path = font.glyphPath(glyphs[j], true);
-                int tx = xs[j] + dx, x0 = tx + path->bounds.lx, x1 = tx + path->bounds.ux;
+                int x = xs[j] + dx, x0 = x + path->bounds.lx, x1 = x + path->bounds.ux;
                 if (x0 >= 0 && x1 <= width) {
-                    Ra::Transform ctm(scale, 0.f, 0.f, scale, tx * scale + bounds.lx, y * scale + bounds.uy);
+                    Ra::Transform ctm(scale, 0.f, 0.f, scale, x * scale + bounds.lx, y * scale + bounds.uy);
                     scene.addPath(path, ctm, color, 0.f, 0);
                     glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
                 }
