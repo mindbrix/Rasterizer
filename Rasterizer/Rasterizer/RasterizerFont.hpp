@@ -117,7 +117,7 @@ struct RasterizerFont {
     int refCount, monospace, space, ascent, descent, lineGap, unitsPerEm;
     stbtt_fontinfo info;
     
-    static void layoutColumns(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, bool *colRights, int colCount, bool odd, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
+    static void layoutColumns(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, int *colWidths, bool *colOpposites, int colCount, bool odd, Ra::Row<size_t>& indices, Ra::Row<char>& strings, Ra::Scene& scene) {
         float emWidth = emSize * floorf((bounds.ux - bounds.lx) / emSize), lx = 0.f, ux = 0.f, uy = bounds.uy;
         float lineHeight = emSize / float(font.unitsPerEm) * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap);
         for (int idx = 0; idx < indices.end; idx++, lx = ux) {
@@ -128,13 +128,13 @@ struct RasterizerFont {
             ux = lx + emSize * colWidths[idx % colCount], ux = ux < emWidth ? ux : emWidth;
             if (lx != ux) {
                 Ra::Bounds b = { bounds.lx + lx, uy - lineHeight, bounds.lx + ux, uy };
-                layoutGlyphs(font, emSize, gap, color, b, false, true, colRights[idx % colCount], strings.base + indices.base[idx], scene);
+                layoutGlyphs(font, emSize, gap, color, b, false, true, colOpposites[idx % colCount], strings.base + indices.base[idx], scene);
             }
             if ((idx + 1) % colCount == 0)
                 lx = ux = 0.f, uy -= lineHeight, odd = !odd;
         }
     }
-    static Ra::Bounds layoutGlyphs(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool right, const char *str, Ra::Scene& scene) {
+    static Ra::Bounds layoutGlyphs(RasterizerFont& font, float emSize, float gap, Ra::Colorant color, Ra::Bounds bounds, bool rtl, bool single, bool opposite, const char *str, Ra::Scene& scene) {
         if (font.isEmpty() || str == nullptr)
             return { 0.f, 0.f, 0.f, 0.f };
         Ra::Bounds glyphBounds;
@@ -148,7 +148,7 @@ struct RasterizerFont {
                 if (glyphs[end] != -RasterizerFont::nl)
                     x += (glyphs[end] == -RasterizerFont::tab ? 4 : 1) * (rtl ? -font.space : font.space);
                 else if (!single) {
-                    writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene, glyphBounds);
+                    writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, opposite, scene, glyphBounds);
                     x = 0, y -= lineHeight, l0 = end + 1;
                 }
             }
@@ -164,7 +164,7 @@ struct RasterizerFont {
                 x1 += x0, wux = wux > x1 ? wux : x1;
             }
             if (!single && abs(x) + wux > width) {
-                writeLine(font, scale, color, bounds, & glyphs[0], l0, begin, xs, y, rtl, right, scene, glyphBounds);
+                writeLine(font, scale, color, bounds, & glyphs[0], l0, begin, xs, y, rtl, opposite, scene, glyphBounds);
                 x = 0, y -= lineHeight, l0 = begin;
             }
             x1 = rtl ? x - x0 : x;
@@ -172,14 +172,14 @@ struct RasterizerFont {
                 xs[i] = x1;
             x = rtl ? x - x0 : x + x0;
         } while (end < len);
-        writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, right, scene, glyphBounds);
+        writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, opposite, scene, glyphBounds);
         return glyphBounds;
     }
-    static void writeLine(RasterizerFont& font, float scale, Ra::Colorant color, Ra::Bounds bounds, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool right, Ra::Scene& scene, Ra::Bounds& glyphBounds) {
+    static void writeLine(RasterizerFont& font, float scale, Ra::Colorant color, Ra::Bounds bounds, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool opposite, Ra::Scene& scene, Ra::Bounds& glyphBounds) {
         int dx = 0, width = ceilf((bounds.ux - bounds.lx) / scale);
         if (rtl)
             dx = width;
-        else if (right) {
+        else if (opposite) {
             for (int j = l1 - 1; j >= l0; j--)
                 if (glyphs[j] > 0) {
                     dx = width - (xs[j] + font.glyphPath(glyphs[j], true)->bounds.ux);
