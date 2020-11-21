@@ -156,7 +156,7 @@
     drawableDescriptor.colorAttachments[0].clearColor = clear;
     drawableDescriptor.depthAttachment.texture = _depthTexture;
     drawableDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
-    drawableDescriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+    drawableDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
     drawableDescriptor.depthAttachment.clearDepth = 0;
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
     drawableDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
