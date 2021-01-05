@@ -56,7 +56,7 @@ struct RasterizerState {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
-                    x = e.x, y = e.y;
+                    dx = scale * e.x, dy = scale * e.y;
                     if (flags & Event::kShift)
                         timeScale = e.y / (bounds.uy - bounds.ly), timeScale *= timeScale;
                     break;
@@ -114,7 +114,7 @@ struct RasterizerState {
         if (writeFunction)
             (*writeFunction)(list.empty(), writeInfo);
         if (mouseMove)
-            indices = RasterizerWinding::indicesForPoint(list, view, device, scale * x, scale * y);
+            indices = RasterizerWinding::indicesForPoint(list, view, device, dx, dy);
         if (transferFunction) {
             for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
                 (*transferFunction)(*this, ss->count, ss - sb, ss->paths,
@@ -133,7 +133,7 @@ struct RasterizerState {
     
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
-    float x, y;
+    float dx, dy;
     int keyCode = 0;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
     size_t flags = 0;

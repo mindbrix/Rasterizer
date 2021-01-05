@@ -174,13 +174,12 @@ struct RasterizerDB {
     void readEvents(RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseMove) {
-                float dx = state.scale * e.x, dy = state.scale * e.y;
-                Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, dx, dy);
+                Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, state.dx, state.dy);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
                     Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
-                    ts[tables[pi].hash] = dx * inv.b + dy * inv.d + inv.ty;
+                    ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
                     writeTableLists(*font.ref, tables[pi]);
                 }
             }
