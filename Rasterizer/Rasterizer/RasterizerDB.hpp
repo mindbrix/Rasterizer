@@ -17,12 +17,13 @@
 struct RasterizerDB {
     struct Table {
         Table(const char *nm, Ra::Bounds bounds) : bounds(bounds) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
-        Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;
+        Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;  float h;
         int columns = 0, total = 0, count = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> opposites;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
     const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
     const static int kTextChars = 12, kRealChars = 2;
+    constexpr const static float kLineGap = 0.25f;
     ~RasterizerDB() { close(); }
     int open(const char *filename) { close();  return sqlite3_open(filename, & db); }
     void close() { sqlite3_close(db), db = nullptr; }
@@ -128,19 +129,22 @@ struct RasterizerDB {
         table.total = table.total < kTextChars ? kTextChars : table.total;
         sqlite3_finalize(pStmt);
         str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & table.count);
+        
+//        table.h = (table.bounds.ux - table.bounds.lx) / (table.total * font.unitsPerEm) * ((1.f + kLineGap) * (font.ascent - font.descent) + font.lineGap);
     }
     void writeTableLists(RasterizerFont& font, Table& table) {
         if (font.isEmpty() || table.columns == 0)
             return;
         table.rows.empty(), table.chrome.empty();
-        float t = ts[table.hash], fw, fh, fs, my, h, uy, gap = 0.125f;
+        float t = ts[table.hash], fh, fs, my, uh, uy;
         int i, rows, n, range, lower, upper;
-        fw = table.bounds.ux - table.bounds.lx, fh = table.bounds.uy - table.bounds.ly;
-        fs = fw / (table.total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = table.bounds.uy - ceilf(0.5f * fh / h) * h;
-        rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(table.count);
+        fs = (table.bounds.ux - table.bounds.lx) / table.total, uh = fs / font.unitsPerEm * ((1.f + kLineGap) * (font.ascent - font.descent) + font.lineGap);
+        fh = (table.bounds.uy - table.bounds.ly) / uh, my = table.bounds.uy - ceilf(0.5f * fh) * uh;
+        
+        rows = ceilf(fh), range = ceilf(0.5f * rows), n = t * float(table.count);
         n = n > table.count - 1 ? table.count - 1 : n;
         lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > table.count ? table.count : upper;
-        uy = my + h * (t * float(table.count) - lower);
+        uy = my + uh * (t * float(table.count) - lower);
         Ra::Row<char> str;  str = str + "SELECT ";
         for (int i = 0; i < table.columns; i++) {
             if (table.types[i] == SQLITE_TEXT)
@@ -153,16 +157,16 @@ struct RasterizerDB {
         writeColumnStrings(str.base, indices, strings);
         if (indices.end) {
             Ra::Scene rows;
-            Ra::Transform clip(table.bounds.ux - table.bounds.lx, 0.f, 0.f, table.bounds.uy - table.bounds.ly - h, table.bounds.lx, table.bounds.ly);
-            RasterizerFont::layoutColumns(font, fw / table.total, gap, kBlack, Ra::Bounds(table.bounds.lx, -FLT_MAX, table.bounds.ux, uy), & table.lengths[0], (bool *)& table.opposites[0], table.columns, lower & 1, indices, strings, rows);
+            Ra::Transform clip(table.bounds.ux - table.bounds.lx, 0.f, 0.f, table.bounds.uy - table.bounds.ly - uh, table.bounds.lx, table.bounds.ly);
+            RasterizerFont::layoutColumns(font, fs, kLineGap, kBlack, Ra::Bounds(table.bounds.lx, -FLT_MAX, table.bounds.ux, uy), & table.lengths[0], (bool *)& table.opposites[0], table.columns, lower & 1, indices, strings, rows);
             table.rows.addScene(rows, Ra::Transform(), clip);
             Ra::Scene chrome;
             Ra::Row<size_t> hindices;  Ra::Row<char> hstrings;  hstrings.alloc(4096), hstrings.empty();
             for (i = 0; i < table.columns; i++)
                 *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(table.names[i].base) + 1), table.names[i].base);
-            RasterizerFont::layoutColumns(font, fw / table.total, gap, kBlack, Ra::Bounds(table.bounds.lx, -FLT_MAX, table.bounds.ux, table.bounds.uy), & table.lengths[0], (bool *)& table.opposites[0], table.columns, true, hindices, hstrings, chrome);
+            RasterizerFont::layoutColumns(font, fs, kLineGap, kBlack, Ra::Bounds(table.bounds.lx, -FLT_MAX, table.bounds.ux, table.bounds.uy), & table.lengths[0], (bool *)& table.opposites[0], table.columns, true, hindices, hstrings, chrome);
             Ra::Path linePath; linePath.ref->moveTo(table.bounds.lx, my), linePath.ref->lineTo(table.bounds.ux, my);
-            chrome.addPath(linePath, Ra::Transform(), kRed, h / 64.f, 0);
+            chrome.addPath(linePath, Ra::Transform(), kRed, uh / 64.f, 0);
             table.chrome.addScene(chrome);
         }
     }
