@@ -105,12 +105,12 @@ struct RasterizerDB {
             Table& table = tables.back();
             if (ts.find(table.hash) == ts.end())
                 ts[table.hash] = 0.f;
-            writeTableMetadata(table);
+            writeTableMetadata(*font.ref, table);
             writeTableLists(*font.ref, table);
         }
         backgroundList.empty().addScene(background);
     }
-    void writeTableMetadata(Table& table) {
+    void writeTableMetadata(RasterizerFont& font, Table& table) {
         Ra::Row<char> str;  str = str + "SELECT * FROM " + table.name.base + " LIMIT 1";
         sqlite3_stmt *pStmt = NULL;
         if (sqlite3_prepare_v2(db, str.base, -1, & pStmt, NULL) == SQLITE_OK && sqlite3_step(pStmt) == SQLITE_ROW) {
