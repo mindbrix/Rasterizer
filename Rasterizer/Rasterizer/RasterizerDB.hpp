@@ -18,7 +18,7 @@ struct RasterizerDB {
     struct Table {
         Table(const char *nm, Ra::Bounds bounds) : bounds(bounds) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
         Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;
-        int columns = 0, total = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> opposites;  std::vector<Ra::Row<char>> names;
+        int columns = 0, total = 0, count = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> opposites;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
     const Ra::Colorant kBlack = Ra::Colorant(0, 0, 0, 255), kClear = Ra::Colorant(0, 0, 0, 0), kRed = Ra::Colorant(0, 0, 255, 255), kGray = Ra::Colorant(144, 144, 144, 255);
@@ -127,6 +127,7 @@ struct RasterizerDB {
         }
         table.total = table.total < kTextChars ? kTextChars : table.total;
         sqlite3_finalize(pStmt);
+        str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & table.count);
     }
     void writeTableLists(RasterizerFont& font, Table& table) {
         if (font.isEmpty() || table.columns == 0)
@@ -134,15 +135,14 @@ struct RasterizerDB {
         Ra::Bounds frame = table.bounds;
         table.rows.empty(), table.chrome.empty();
         float t = ts[table.hash], fw, fh, fs, my, h, uy, gap = 0.125f;
-        int i, rows, count, n, range, lower, upper;
+        int i, rows, n, range, lower, upper;
         fw = frame.ux - frame.lx, fh = frame.uy - frame.ly;
         fs = fw / (table.total * font.unitsPerEm), h = fs * ((1.f + gap) * (font.ascent - font.descent) + font.lineGap), my = frame.uy - ceilf(0.5f * fh / h) * h;
-        Ra::Row<char> str;  str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & count);
-        rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(count);
-        n = n > count - 1 ? count - 1 : n;
-        lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > count ? count : upper;
-        uy = my + h * (t * float(count) - lower);
-        str = str.empty() + "SELECT ";
+        rows = ceilf(fh / h), range = ceilf(0.5f * rows), n = t * float(table.count);
+        n = n > table.count - 1 ? table.count - 1 : n;
+        lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > table.count ? table.count : upper;
+        uy = my + h * (t * float(table.count) - lower);
+        Ra::Row<char> str;  str = str + "SELECT ";
         for (int i = 0; i < table.columns; i++) {
             if (table.types[i] == SQLITE_TEXT)
                 str = str + (i == 0 ? "" : ", ") + "CASE WHEN LENGTH(" + table.names[i].base + ") < 24 THEN " + table.names[i].base + " ELSE SUBSTR(" + table.names[i].base + ", 1, 11) || '…' || SUBSTR(" + table.names[i].base + ", LENGTH(" + table.names[i].base + ") - 11) END AS " + table.names[i].base;
