@@ -182,7 +182,8 @@ struct RasterizerDB {
                     ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
                     writeTableLists(*font.ref, tables[pi]);
                 }
-            }
+            } else if (e.type == RaSt::Event::kMouseUp)
+                lastpi = INT_MAX;
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
