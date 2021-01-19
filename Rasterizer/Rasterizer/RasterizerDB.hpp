@@ -99,9 +99,9 @@ struct RasterizerDB {
         writeColumnStrings("SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", indices, strings);
         Ra::Scene background;
         for (int i = 0, x = 0, y = 0; i < indices.end; i++, x = i % N, y = i / N) {
-            Ra::Bounds b = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
-            Ra::Path bPath;  bPath.ref->addBounds(b);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
-            tables.emplace_back(strings.base + indices.base[i], b);
+            Ra::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
+            Ra::Path bPath;  bPath.ref->addBounds(bounds);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
+            tables.emplace_back(strings.base + indices.base[i], bounds);
             Table& table = tables.back();
             if (ts.find(table.hash) == ts.end())
                 ts[table.hash] = 0.f;
