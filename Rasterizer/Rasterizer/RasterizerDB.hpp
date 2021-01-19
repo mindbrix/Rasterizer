@@ -17,7 +17,7 @@
 struct RasterizerDB {
     struct Table {
         Table(const char *nm, Ra::Bounds bounds) : bounds(bounds) { name = name + nm; hash = XXH64(name.base, name.end, 0); }
-        Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;  float h;
+        Ra::Row<char> name;  Ra::Bounds bounds;  size_t hash = 0;
         int columns = 0, total = 0, count = 0;  std::vector<int> types, lengths;  std::vector<uint8_t> opposites;  std::vector<Ra::Row<char>> names;
         Ra::SceneList rows, chrome;
     };
@@ -129,8 +129,6 @@ struct RasterizerDB {
         table.total = table.total < kTextChars ? kTextChars : table.total;
         sqlite3_finalize(pStmt);
         str = str.empty() + "SELECT COUNT(*) FROM " + table.name.base, writeColumnInts(str.base, & table.count);
-        
-//        table.h = (table.bounds.ux - table.bounds.lx) / (table.total * font.unitsPerEm) * ((1.f + kLineGap) * (font.ascent - font.descent) + font.lineGap);
     }
     void writeTableLists(RasterizerFont& font, Table& table) {
         if (font.isEmpty() || table.columns == 0)
