@@ -136,12 +136,12 @@ struct RasterizerDB {
         if (font.isEmpty() || table.columns == 0)
             return;
         table.rows.empty(), table.chrome.empty();
-        float t = ts[table.hash], fh, fs, my, uh, uy;
+        float t = ts[table.hash], fs, my, uh, uy;
         int i, rows, n, range, lower, upper;
-        fs = (table.bounds.ux - table.bounds.lx) / table.total, uh = fs / font.unitsPerEm * ((1.f + kLineGap) * (font.ascent - font.descent) + font.lineGap);
-        fh = (table.bounds.uy - table.bounds.ly) / uh, my = table.bounds.uy - ceilf(0.5f * fh) * uh;
-        
-        rows = ceilf(fh), range = ceilf(0.5f * rows), n = t * float(table.count);
+        fs = (table.bounds.ux - table.bounds.lx) / table.total;
+        uh = fs / font.unitsPerEm * ((1.f + kLineGap) * (font.ascent - font.descent) + font.lineGap);
+        rows = ceilf((table.bounds.uy - table.bounds.ly) / uh), range = ceilf(0.5f * rows), n = t * float(table.count);
+        my = table.bounds.uy - range * uh;
         n = n > table.count - 1 ? table.count - 1 : n;
         lower = n - range, upper = n + range + 1, lower = lower < 0 ? 0 : lower, upper = upper > table.count ? table.count : upper;
         uy = my + uh * (t * float(table.count) - lower);
