@@ -87,7 +87,7 @@ struct RasterizerState {
                         locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
                     break;
                 case Event::kKeyUp:
-                    keyDown = true, keyCode = e.keyCode;
+                    keyDown = false, keyCode = e.keyCode;
                     break;
                 case Event::kMagnify:
                     magnify(e.x);
@@ -95,7 +95,11 @@ struct RasterizerState {
                 case Event::kRotate:
                     rotate(e.x);
                     break;
-//                case Event::kDragged:
+                case Event::kDragged:
+                    if (flags & Event::kShift)
+                        translate(e.x, e.y);
+                    dx += scale * e.x, dy += scale * e.y;
+                    break;
                 case Event::kTranslate:
                     translate(e.x, e.y);
                     break;
