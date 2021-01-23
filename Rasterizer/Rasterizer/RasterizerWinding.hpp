@@ -41,7 +41,7 @@ struct RasterizerWinding {
         if (dx >= device.lx && dx < device.ux && dy >= device.ly && dy < device.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
                 Ra::Scene& scene = list.scenes[li];
-                if (scene.tag != tag)
+                if ((scene.tag & tag) == 0)
                     continue;
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
