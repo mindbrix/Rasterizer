@@ -98,7 +98,7 @@ struct RasterizerDB {
         float fw = frame.ux - frame.lx, fh = frame.uy - frame.ly, dim = (fh < fw ? fh : fw) / N;
         Ra::Row<size_t> indices;  Ra::Row<char> strings;
         writeColumnStrings("SELECT tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite%' ORDER BY tbl_name ASC", indices, strings);
-        Ra::Scene background;
+        Ra::Scene background;  background.tag = 1;
         for (int i = 0, x = 0, y = 0; i < indices.end; i++, x = i % N, y = i / N) {
             Ra::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
             Ra::Path bPath;  bPath.ref->addBounds(bounds);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
