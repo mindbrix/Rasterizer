@@ -175,18 +175,16 @@ struct RasterizerDB {
     void readEvents(Ra::SceneList& list, RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseDown) {
-                Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
-                if (indices.begin != INT_MAX)
-                    downsi = indices.begin, downpi = indices.end;
+                downindices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
             } else if (e.type == RaSt::Event::kDragged && (state.flags & RaSt::Event::kShift) == 0) {
-                updateT(list, state, downsi, downpi);
+                updateT(list, state, downindices.begin, downindices.end);
             } else if (e.type == RaSt::Event::kMouseMove) {
                 Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 updateT(list, state, si, pi);
             } else if (e.type == RaSt::Event::kMouseUp)
-                downpi = downsi = lastpi = INT_MAX;
+                downindices = Ra::Range(INT_MAX, INT_MAX), lastpi = INT_MAX;
     }
     void updateT(Ra::SceneList& list, RasterizerState& state, int si, int pi) {
         if (si == INT_MAX)
@@ -205,7 +203,7 @@ struct RasterizerDB {
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
     std::unordered_map<size_t, float> ts;
-    int lastpi = INT_MAX, downsi = INT_MAX, downpi = INT_MAX;
+    int lastpi = INT_MAX;  Ra::Range downindices = Ra::Range(INT_MAX, INT_MAX);
     Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
     size_t refCount;
