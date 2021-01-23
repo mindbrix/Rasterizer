@@ -178,24 +178,22 @@ struct RasterizerDB {
                 Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
                 if (indices.begin != INT_MAX)
                     downsi = indices.begin, downpi = indices.end;
-            } else if (e.type == RaSt::Event::kDragged) {
-                if ((state.flags & RaSt::Event::kShift) == 0 && downsi != INT_MAX) {
-                    int si = downsi, pi = downpi;
-                    Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si])).invert();
-                    ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
-                    writeTableLists(*font.ref, tables[pi]);
-                }
+            } else if (e.type == RaSt::Event::kDragged && (state.flags & RaSt::Event::kShift) == 0) {
+                updateT(list, state, downsi, downpi);
             } else if (e.type == RaSt::Event::kMouseMove) {
-                Ra::Range indices = downsi != INT_MAX ? Ra::Range(downsi, downpi) : RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
+                Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
-                if (si != INT_MAX) {
-                    Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si])).invert();
-                    ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
-                    writeTableLists(*font.ref, tables[pi]);
-                }
+                updateT(list, state, si, pi);
             } else if (e.type == RaSt::Event::kMouseUp)
                 downpi = downsi = lastpi = INT_MAX;
+    }
+    void updateT(Ra::SceneList& list, RasterizerState& state, int si, int pi) {
+        if (si == INT_MAX)
+            return;
+        Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si])).invert();
+        ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
+        writeTableLists(*font.ref, tables[pi]);
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
