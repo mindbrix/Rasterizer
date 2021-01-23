@@ -290,7 +290,7 @@ struct Rasterizer {
                     b.extend(Bounds(bnds[i].inset(-0.5f * widths[i], -0.5f * widths[i]).unit(ctms[i])));
             return b;
         }
-        size_t count = 0, weight = 0;
+        size_t count = 0, weight = 0;  uint64_t tag = 0;
         Ref<Cache> cache;
         Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *bnds;
         Ref<Vector<Path>> _paths;  Ref<Vector<Bounds>> _bnds;  Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
