@@ -303,7 +303,7 @@ struct Rasterizer {
             return b;
         }
         SceneList& empty() {
-            pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0), tags.resize(0);
+            pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
         SceneList& addList(SceneList& list) {
@@ -311,12 +311,12 @@ struct Rasterizer {
                 addScene(list.scenes[i], list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f), uint64_t tag = 0) {
+        SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
             if (scene.weight)
-                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip), tags.emplace_back(tag);
+                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;  std::vector<uint64_t> tags;
+        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;
     };
     struct Range {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
