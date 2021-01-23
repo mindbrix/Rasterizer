@@ -188,7 +188,7 @@ struct RasterizerDB {
     void updateT(Ra::SceneList& list, RasterizerState& state, int si, int pi) {
         if (si == INT_MAX)
             return;
-        Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si])).invert();
+        Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si].concat(list.scenes[si].ctms[pi]))).invert();
         ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
         writeTableLists(*font.ref, tables[pi]);
     }
