@@ -180,9 +180,8 @@ struct RasterizerDB {
                 updateT(list, state, downindices.begin, downindices.end);
             } else if (e.type == RaSt::Event::kMouseMove) {
                 Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
-                int si = indices.begin, pi = indices.end;
-                if (pi != lastpi) {  lastpi = pi; }
-                updateT(list, state, si, pi);
+                if (indices.end != lastpi) {  lastpi = indices.end; }
+                updateT(list, state, indices.begin, indices.end);
             } else if (e.type == RaSt::Event::kMouseUp)
                 downindices = Ra::Range(INT_MAX, INT_MAX), lastpi = INT_MAX;
     }
