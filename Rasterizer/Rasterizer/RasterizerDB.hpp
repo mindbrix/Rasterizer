@@ -175,7 +175,7 @@ struct RasterizerDB {
     void readEvents(RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseMove) {
-                Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, state.dx, state.dy);
+                Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, state.dx, state.dy, 1);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {

@@ -37,13 +37,15 @@ struct RasterizerWinding {
                 ((WindingInfo *)info)->distance(x0, y0, x1, y1);
         }
     };
-    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float dx, float dy) {
+    static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float dx, float dy, uint64_t tag = ~0) {
         if (dx >= device.lx && dx < device.ux && dy >= device.ly && dy < device.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
+                Ra::Scene& scene = list.scenes[li];
+                if (scene.tag != tag)
+                    continue;
                 Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
                 float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                 if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                    Ra::Scene& scene = list.scenes[li];
                     for (int si = int(scene.count) - 1; si >= 0; si--) {
                         if (scene.flags[si] & Ra::Scene::kInvisible)
                             continue;
