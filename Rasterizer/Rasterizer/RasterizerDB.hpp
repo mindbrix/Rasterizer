@@ -176,12 +176,26 @@ struct RasterizerDB {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseDown) {
                 downindices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, kBackgroundTag);
+                int si = downindices.begin, pi = downindices.end;
+                if (si != INT_MAX) {
+                    Table& table = tables[pi];
+                    float fs = (table.bounds.ux - table.bounds.lx) / table.total;
+                    float uh = fs / font->unitsPerEm * ((1.f + kLineGap) * (font->ascent - font->descent) + font->lineGap);
+                    mt = (state.view.concat(list.ctms[si].concat(list.scenes[si].ctms[pi]))).invert();
+                    float suy = state.sdx * mt.b + state.sdy * mt.d + mt.ty;
+                    mt = Ra::Transform(1, 0, 0, 1.f / (uh * float(table.count)), 0, 0).concat(Ra::Transform(1, 0, 0, 1, 0, -suy).concat(mt));
+                    mt = Ra::Transform(1, 0, 0, 1, 0, ts[table.hash]).concat(mt);
+                }
             } else if (e.type == RaSt::Event::kDragged && (state.flags & RaSt::Event::kShift) == 0) {
-                updateT(list, state, downindices.begin, downindices.end);
+                if (downindices.begin != INT_MAX) {
+                    float t = state.dx * mt.b + state.dy * mt.d + mt.ty;
+                    ts[tables[downindices.end].hash] = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
+                    writeTableLists(*font.ref, tables[downindices.end]);
+                }
             } else if (e.type == RaSt::Event::kMouseMove) {
                 Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, kBackgroundTag);
                 if (indices.end != lastpi) {  lastpi = indices.end; }
-                updateT(list, state, indices.begin, indices.end);
+//                updateT(list, state, indices.begin, indices.end);
             } else if (e.type == RaSt::Event::kMouseUp)
                 downindices = Ra::Range(INT_MAX, INT_MAX), lastpi = INT_MAX;
     }
@@ -203,6 +217,7 @@ struct RasterizerDB {
     std::vector<Table> tables;
     std::unordered_map<size_t, float> ts;
     int lastpi = INT_MAX;  Ra::Range downindices = Ra::Range(INT_MAX, INT_MAX);
+    Ra::Transform mt;
     Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
     size_t refCount;
