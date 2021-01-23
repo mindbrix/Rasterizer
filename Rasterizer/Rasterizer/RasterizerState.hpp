@@ -9,7 +9,7 @@
 #import "RasterizerWinding.hpp"
 
 struct RasterizerState {
-    typedef void (*EventFunction)(RasterizerState& state, void *info);
+    typedef void (*EventFunction)(Ra::SceneList& list, RasterizerState& state, void *info);
     typedef void (*WriteFunction)(Ra::SceneList& list, void *info);
     typedef void (*TransferFunction)(RasterizerState& state, size_t count, size_t si, Ra::Path *paths,
         Ra::Transform *srcCtms, Ra::Transform *dstCtms,
@@ -95,7 +95,7 @@ struct RasterizerState {
                 case Event::kRotate:
                     rotate(e.x);
                     break;
-                case Event::kDragged:
+//                case Event::kDragged:
                 case Event::kTranslate:
                     translate(e.x, e.y);
                     break;
@@ -109,7 +109,7 @@ struct RasterizerState {
         }
         prepare();
         if (eventFunction)
-            (*eventFunction)(*this, eventInfo);
+            (*eventFunction)(list, *this, eventInfo);
         events.resize(0);
         if (writeFunction)
             (*writeFunction)(list.empty(), writeInfo);

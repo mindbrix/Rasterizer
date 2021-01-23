@@ -168,18 +168,18 @@ struct RasterizerDB {
             table.chrome.addScene(chrome);
         }
     }
-    static void EventFunction(RasterizerState& state, void *info) {
+    static void EventFunction(Ra::SceneList& list, RasterizerState& state, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
-        db.readEvents(state);
+        db.readEvents(list, state);
     }
-    void readEvents(RasterizerState& state) {
+    void readEvents(Ra::SceneList& list, RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseMove) {
-                Ra::Range indices = RasterizerWinding::indicesForPoint(backgroundList, state.view, state.device, state.dx, state.dy, 1);
+                Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 1);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
-                    Ra::Transform inv = backgroundList.scenes[si].paths[pi]->bounds.unit(state.view.concat(backgroundList.ctms[si])).invert();
+                    Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si])).invert();
                     ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
                     writeTableLists(*font.ref, tables[pi]);
                 }
