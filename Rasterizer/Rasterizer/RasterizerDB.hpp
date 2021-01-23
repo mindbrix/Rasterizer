@@ -174,8 +174,19 @@ struct RasterizerDB {
     }
     void readEvents(Ra::SceneList& list, RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
-            if (e.type == RaSt::Event::kMouseMove) {
+            if (e.type == RaSt::Event::kMouseDown) {
                 Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
+                if (indices.begin != INT_MAX)
+                    downsi = indices.begin, downpi = indices.end;
+            } else if (e.type == RaSt::Event::kDragged) {
+                if ((state.flags & RaSt::Event::kShift) == 0 && downsi != INT_MAX) {
+                    int si = downsi, pi = downpi;
+                    Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si])).invert();
+                    ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
+                    writeTableLists(*font.ref, tables[pi]);
+                }
+            } else if (e.type == RaSt::Event::kMouseMove) {
+                Ra::Range indices = downsi != INT_MAX ? Ra::Range(downsi, downpi) : RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, 2);
                 int si = indices.begin, pi = indices.end;
                 if (pi != lastpi) {  lastpi = pi; }
                 if (si != INT_MAX) {
@@ -184,7 +195,7 @@ struct RasterizerDB {
                     writeTableLists(*font.ref, tables[pi]);
                 }
             } else if (e.type == RaSt::Event::kMouseUp)
-                lastpi = INT_MAX;
+                downpi = downsi = lastpi = INT_MAX;
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
@@ -196,7 +207,7 @@ struct RasterizerDB {
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
     std::unordered_map<size_t, float> ts;
-    int lastpi = INT_MAX;
+    int lastpi = INT_MAX, downsi = INT_MAX, downpi = INT_MAX;
     Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
     size_t refCount;
