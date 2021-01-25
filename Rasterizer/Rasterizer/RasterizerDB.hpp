@@ -192,19 +192,8 @@ struct RasterizerDB {
                     ts[tables[downindices.end].hash] = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
                     writeTableLists(*font.ref, tables[downindices.end]);
                 }
-            } else if (e.type == RaSt::Event::kMouseMove) {
-                Ra::Range indices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, kBackgroundTag);
-                if (indices.end != lastpi) {  lastpi = indices.end; }
-//                updateT(list, state, indices.begin, indices.end);
             } else if (e.type == RaSt::Event::kMouseUp)
-                downindices = Ra::Range(INT_MAX, INT_MAX), lastpi = INT_MAX;
-    }
-    void updateT(Ra::SceneList& list, RasterizerState& state, int si, int pi) {
-        if (si == INT_MAX)
-            return;
-        Ra::Transform inv = list.scenes[si].paths[pi]->bounds.unit(state.view.concat(list.ctms[si].concat(list.scenes[si].ctms[pi]))).invert();
-        ts[tables[pi].hash] = state.dx * inv.b + state.dy * inv.d + inv.ty;
-        writeTableLists(*font.ref, tables[pi]);
+                downindices = Ra::Range(INT_MAX, INT_MAX);
     }
     static void WriteFunction(Ra::SceneList& list, void *info) {
         RasterizerDB& db = *((RasterizerDB *)info);
@@ -216,7 +205,7 @@ struct RasterizerDB {
     sqlite3_stmt *stmt = nullptr;
     std::vector<Table> tables;
     std::unordered_map<size_t, float> ts;
-    int lastpi = INT_MAX;  Ra::Range downindices = Ra::Range(INT_MAX, INT_MAX);
+    Ra::Range downindices = Ra::Range(INT_MAX, INT_MAX);
     Ra::Transform mt;
     Ra::SceneList backgroundList;
     Ra::Ref<RasterizerFont> font;
