@@ -90,10 +90,16 @@ struct RasterizerState {
                     keyDown = false, keyCode = e.keyCode;
                     break;
                 case Event::kMagnify:
-                    magnify(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    if ((flags & Event::kShift) == 0)
+                        magnify(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    else
+                        magnify(e.x, dx / scale, dy / scale);
                     break;
                 case Event::kRotate:
-                    rotate(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    if ((flags & Event::kShift) == 0)
+                        rotate(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                    else
+                        rotate(e.x, dx / scale, dy / scale);
                     break;
                 case Event::kDragged:
                     if (eventFunction == NULL || (flags & Event::kShift))

@@ -190,7 +190,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
      _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMagnify, float(1 + event.magnification), 0.f));
 }
 - (void)rotateWithEvent:(NSEvent *)event {
-    if (!(event.modifierFlags & NSEventModifierFlagShift))
+    if (!(event.modifierFlags & NSEventModifierFlagControl))
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kRotate, float(event.rotation / 10), 0.f));
 }
 - (void)scrollWheel:(NSEvent *)event {
