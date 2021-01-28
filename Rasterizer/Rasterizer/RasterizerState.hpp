@@ -96,7 +96,7 @@ struct RasterizerState {
                     rotate(e.x);
                     break;
                 case Event::kDragged:
-                    if (flags & Event::kShift)
+                    if (eventFunction == NULL || (flags & Event::kShift))
                         translate(e.x, e.y);
                     dx += scale * e.x, dy += scale * e.y;
                     break;
