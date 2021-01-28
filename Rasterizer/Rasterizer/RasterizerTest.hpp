@@ -92,7 +92,7 @@ struct RasterizerTest {
         
         for (int i = 0; i < src.scenes.size(); i++)
             if (i > 0 && i < 8)
-                list.addScene(src.scenes[i], Ra::Transform().concat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
+                list.addScene(src.scenes[i], Ra::Transform().preconcat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
             else
                 list.addScene(src.scenes[i]);
     }
@@ -221,7 +221,7 @@ struct RasterizerTest {
                 Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(srcCtms[j]);
                 Ra::Bounds b = Ra::Bounds(paths[j]->bounds.unit(m));
                 cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                dstCtms[j] = m.concat(rst, cx, cy);
+                dstCtms[j] = m.preconcat(rst, cx, cy);
             }
         }
         if (state.outlineWidth)
