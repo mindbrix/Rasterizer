@@ -26,11 +26,9 @@ struct Rasterizer {
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
-        inline Transform concat(Transform t, float ax, float ay) const {
-            Transform inv = invert();  float ix = ax * inv.a + ay * inv.c + inv.tx, iy = ax * inv.b + ay * inv.d + inv.ty;
-            return Transform(a, b, c, d, ax, ay).concat(t).translate(-ix, -iy);
+        inline Transform concat(Transform t, float dx, float dy) const {
+            return Transform(1.f, 0.f, 0.f, 1., dx, dy).concat(t).concat(Transform(a, b, c, d, tx - dx, ty - dy));
         }
-        inline Transform translate(float x, float y) const { return { a, b, c, d, x * a + y * c + tx, x * b + y * d + ty }; }
         inline Transform invert() const {
             float det = a * d - b * c, recip = 1.f / det;
             if (det == 0.f)
