@@ -90,10 +90,10 @@ struct RasterizerState {
                     keyDown = false, keyCode = e.keyCode;
                     break;
                 case Event::kMagnify:
-                    magnify(e.x);
+                    magnify(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     break;
                 case Event::kRotate:
-                    rotate(e.x);
+                    rotate(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
                     break;
                 case Event::kDragged:
                     if (eventFunction == NULL || (flags & Event::kShift))
@@ -149,11 +149,11 @@ struct RasterizerState {
     void prepare() {
         view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
     }
-    void magnify(float s) {
-        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+    void magnify(float s, float ax, float ay) {
+        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), ax, ay);
     }
-    void rotate(float a) {
-        ctm = ctm.preconcat(Ra::Transform::rst(a), 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+    void rotate(float a, float ax, float ay) {
+        ctm = ctm.preconcat(Ra::Transform::rst(a), ax, ay);
     }
     void translate(float x, float y) {
         ctm.tx += x, ctm.ty += y;
