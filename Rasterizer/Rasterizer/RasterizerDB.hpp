@@ -183,8 +183,7 @@ struct RasterizerDB {
                     uh = fs / font->unitsPerEm * ((1.f + kLineGap) * (font->ascent - font->descent) + font->lineGap);
                     mt = (state.ctm.concat(list.ctms[si].concat(list.scenes[si].ctms[pi]))).invert();
                     uy = state.mx * mt.b + state.my * mt.d + mt.ty, sy = 1.f / (uh * float(table.count));
-                    mt = Ra::Transform(1.f, 0.f, 0.f, sy, 0.f, 0.f).concat(Ra::Transform(1.f, 0.f, 0.f, 1.f, 0.f, -uy).concat(mt));
-                    mt = Ra::Transform(1.f, 0.f, 0.f, 1.f, 0.f, ts[table.hash]).concat(mt);
+                    mt = Ra::Transform(1.f, 0.f, 0.f, sy, 0.f, sy * -uy + ts[table.hash]).concat(mt);
                 }
             } else if (e.type == RaSt::Event::kDragged && (state.flags & RaSt::Event::kShift) == 0) {
                 if (downindices.begin != INT_MAX) {
