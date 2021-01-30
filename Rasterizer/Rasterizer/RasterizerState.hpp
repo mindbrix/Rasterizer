@@ -124,7 +124,7 @@ struct RasterizerState {
         if (writeFunction)
             (*writeFunction)(list.empty(), writeInfo);
         if (mouseMove)
-            indices = RasterizerWinding::indicesForPoint(list, view, device, dx, dy);
+            indices = RasterizerWinding::indicesForPoint(list, ctm, bounds, dx / scale, dy / scale);
         if (transferFunction) {
             for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
                 (*transferFunction)(*this, ss->count, ss - sb, ss->paths,
