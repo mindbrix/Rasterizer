@@ -175,20 +175,20 @@ struct RasterizerDB {
     void readEvents(Ra::SceneList& list, RasterizerState& state) {
         for (RasterizerState::Event& e : state.events)
             if (e.type == RaSt::Event::kMouseDown) {
-                downindices = RasterizerWinding::indicesForPoint(list, state.view, state.device, state.dx, state.dy, kBackgroundTag);
+                downindices = RasterizerWinding::indicesForPoint(list, state.ctm, state.bounds, state.mx, state.my, kBackgroundTag);
                 int si = downindices.begin, pi = downindices.end;
                 if (si != INT_MAX) {
                     Table& table = tables[pi];  float fs, uh, uy, sy;
                     fs = (table.bounds.ux - table.bounds.lx) / table.total;
                     uh = fs / font->unitsPerEm * ((1.f + kLineGap) * (font->ascent - font->descent) + font->lineGap);
-                    mt = (state.view.concat(list.ctms[si].concat(list.scenes[si].ctms[pi]))).invert();
-                    uy = state.dx * mt.b + state.dy * mt.d + mt.ty, sy = 1.f / (uh * float(table.count));
+                    mt = (state.ctm.concat(list.ctms[si].concat(list.scenes[si].ctms[pi]))).invert();
+                    uy = state.mx * mt.b + state.my * mt.d + mt.ty, sy = 1.f / (uh * float(table.count));
                     mt = Ra::Transform(1.f, 0.f, 0.f, sy, 0.f, 0.f).concat(Ra::Transform(1.f, 0.f, 0.f, 1.f, 0.f, -uy).concat(mt));
                     mt = Ra::Transform(1.f, 0.f, 0.f, 1.f, 0.f, ts[table.hash]).concat(mt);
                 }
             } else if (e.type == RaSt::Event::kDragged && (state.flags & RaSt::Event::kShift) == 0) {
                 if (downindices.begin != INT_MAX) {
-                    float t = state.dx * mt.b + state.dy * mt.d + mt.ty;
+                    float t = state.mx * mt.b + state.my * mt.d + mt.ty;
                     ts[tables[downindices.end].hash] = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
                     writeTableLists(*font.ref, tables[downindices.end]);
                 }
