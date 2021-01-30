@@ -150,7 +150,7 @@ struct RasterizerState {
     std::vector<Event> events;
     
     void update(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy)), view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h)), view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
     }
     void magnify(float s, float ax, float ay) {
         ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), ax, ay);
