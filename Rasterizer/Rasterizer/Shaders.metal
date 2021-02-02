@@ -424,8 +424,7 @@ vertex InstancesVertex instances_vertex_main(
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
-        bool pcap = inst.outline.prev == 0 || abs(y0 - p.y1) > 1e-3 || abs(x0 - p.x1) > 1e-3;
-        bool ncap = inst.outline.next == 0 || abs(y1 - n.y0) > 1e-3 || abs(x1 - n.x0) > 1e-3;
+        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         bool pcurve = (as_type<uint>(x0) & 2) != 0, ncurve = (as_type<uint>(x0) & 1) != 0;
         float cpx, cpy, ax, ay, bx, by, cx, cy, area;
         ax = x1 - x0, ay = y1 - y0;
