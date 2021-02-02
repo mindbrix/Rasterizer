@@ -187,8 +187,10 @@ struct Rasterizer {
             }
         }
         void quadTo(float x1, float y1, float x2, float y2) {
-            float ax = x2 - x1, ay = y2 - y1, bx = x1 - x0, by = y1 - y0, det = bx * ay - by * ax, dot = ax * bx + ay * by;
-            if (dot * dot / ((ax * ax + ay * ay) * (bx * bx + by * by)) > 0.999695413509548f) {
+            float ax = x2 - x1, ay = y2 - y1, bx = x1 - x0, by = y1 - y0, adot = ax * ax + ay * ay, bdot = bx * bx + by * by, det = bx * ay - by * ax, dot = ax * bx + ay * by;
+            if (adot == 0.f && bdot == 0.f)
+                return;
+            if (adot == 0.f || bdot == 0.f || dot * dot / (adot * bdot) > 0.999695413509548f) {
                 if (dot < 0.f && det)
                     lineTo((x0 + x2) * 0.25f + x1 * 0.5f, (y0 + y2) * 0.25f + y1 * 0.5f);
                 lineTo(x2, y2);
