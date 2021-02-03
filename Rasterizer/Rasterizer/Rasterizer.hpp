@@ -206,10 +206,10 @@ struct Rasterizer {
             if (ax * ax + ay * ay < 1e-2f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
-                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, x0 = pts[4] = x3, y0 = pts[5] = y3;
+                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3;
                 update(kCubic, 3, pts);
-                cx = 3.f * (x1 - x0), bx -= cx, ax = x3 - x0 - cx - bx;
-                cy = 3.f * (y1 - y0), by -= cy, ay = y3 - y0 - cy - by;
+                cx = 3.f * (x1 - x0), bx -= cx, ax = x3 - x0 - cx - bx, x0 = x3;
+                cy = 3.f * (y1 - y0), by -= cy, ay = y3 - y0 - cy - by, y0 = y3;
                 dot = ax * ax + ay * ay + bx * bx + by * by, cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
         }
@@ -582,14 +582,14 @@ struct Rasterizer {
         else
             ts[1] = t0 < t1 ? t0 : t1, ts[1] = ts[1] < ts[0] ? ts[0] : ts[1] > ts[3] ? ts[3] : ts[1],
             ts[2] = t0 > t1 ? t0 : t1, ts[2] = ts[2] < ts[0] ? ts[0] : ts[2] > ts[3] ? ts[3] : ts[2];
-        for (t = ts, t0 = t[0], t1 = t[1]; t < ts + 3; t++, t0 = t1, t1 = t[1])
-            if (t0 != t1) {
-                sy0 = (1.f - t0) * y0 + t0 * y1, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                sy1 = (1.f - t1) * y0 + t1 * y1, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                mx = x0 + (t0 + t1) * 0.5f * dx;
+        for (t = ts; t < ts + 3; t++)
+            if (t[0] != t[1]) {
+                sy0 = (1.f - t[0]) * y0 + t[0] * y1, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                sy1 = (1.f - t[1]) * y0 + t[1] * y1, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                mx = x0 + (t[0] + t[1]) * 0.5f * dx;
                 if (mx >= clip.lx && mx < clip.ux) {
-                    sx0 = (1.f - t0) * x0 + t0 * x1, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                    sx1 = (1.f - t1) * x0 + t1 * x1, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    sx0 = (1.f - t[0]) * x0 + t[0] * x1, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                    sx1 = (1.f - t[1]) * x0 + t[1] * x1, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
                     (*function)(sx0, sy0, sx1, sy1, 0, info);
                 } else if (polygon)
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
