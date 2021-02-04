@@ -418,7 +418,7 @@ vertex InstancesVertex instances_vertex_main(
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& color = colors[iz];
-    float alpha = color.a * 0.003921568627, visible = 1.0, dx, dy;
+    float alpha = color.a * 0.003921568627, dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;
@@ -440,11 +440,8 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
-        visible = float(lo > 1e-2);
-        
         float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
-        alpha *= width / cw;
-        
+        alpha *= float(lo > 1e-0) * width / cw;
         pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
@@ -483,7 +480,7 @@ vertex InstancesVertex instances_vertex_main(
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
-    vert.position = float4(x, y, z, visible);
+    vert.position = float4(x, y, z, 1.0);
     
     float ma = alpha * 0.003921568627;
     vert.color = float4(color.r * ma, color.g * ma, color.b * ma, alpha);
