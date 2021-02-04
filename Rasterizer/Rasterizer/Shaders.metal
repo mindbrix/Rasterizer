@@ -43,7 +43,7 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
@@ -515,11 +515,11 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         cap0 = select(
                       saturate(cap + vert.d0) * alpha,
                       saturate(vert.dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
-                      vert.flags & Instance::kRounded);
+                      vert.flags & Instance::kRoundCap);
         cap1 = select(
                       saturate(cap + vert.d1) * alpha,
                       saturate(vert.dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
-                      vert.flags & Instance::kRounded);
+                      vert.flags & Instance::kRoundCap);
         
         sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
