@@ -426,8 +426,7 @@ vertex InstancesVertex instances_vertex_main(
         bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;  float px = p.x0, py = p.y0;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;  float nx = n.x1, ny = n.y1;
-        float cpx, cpy, ax, ay, bx, by, cx, cy;
-        ax = x1 - x0, ay = y1 - y0;
+        float cpx, cpy, bx, by, cx, cy;
         if (pcurve)
             cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
         else
@@ -437,7 +436,7 @@ vertex InstancesVertex instances_vertex_main(
         bool isCurve = *useCurves && (pcurve || ncurve) && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
-        float ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        float ax = x1 - x0, ay = y1 - y0, ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
         float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kSquareCap) == 0 ? dw : ew + dw);
         alpha *= float(ro < 1e2) * width / cw;
