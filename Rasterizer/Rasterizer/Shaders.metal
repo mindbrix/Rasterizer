@@ -426,16 +426,15 @@ vertex InstancesVertex instances_vertex_main(
         bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;  float px = p.x0, py = p.y0;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;  float nx = n.x1, ny = n.y1;
-        float cpx, cpy, ax, ay, bx, by, cx, cy, area;
+        float cpx, cpy, ax, ay, bx, by, cx, cy;
         ax = x1 - x0, ay = y1 - y0;
         if (pcurve)
             cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
         else
             cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
-        area = ax * by - ay * bx;
         float _dot = bx * cx + by * cy, bdot = bx * bx + by * by, cdot = cx * cx + cy * cy;
-        bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
+        bool isCurve = *useCurves && (pcurve || ncurve) && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
@@ -461,6 +460,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.dw = dw;
         float dx0 = dx - x0, dy0 = dy - y0, dx1 = dx - x1, dy1 = dy - y1;
         if (isCurve) {
+            float area = ax * by - ay * bx;
             vert.u = (cx * dy1 - cy * dx1) / area;
             vert.v = (ax * dy0 - ay * dx0) / area;
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
