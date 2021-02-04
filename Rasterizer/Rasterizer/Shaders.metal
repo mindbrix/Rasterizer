@@ -434,8 +434,8 @@ vertex InstancesVertex instances_vertex_main(
             cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         area = ax * by - ay * bx;
-        float _dot = bx * cx + by * cy, cos2 = _dot * _dot / ((bx * bx + by * by) * (cx * cx + cy * cy));
-        bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0 && cos2 < 0.999695413509548;
+        float _dot = bx * cx + by * cy, bdot = bx * bx + by * by, cdot = cx * cx + cy * cy;
+        bool isCurve = *useCurves && (pcurve || ncurve) && abs(area) > 1.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
@@ -463,8 +463,8 @@ vertex InstancesVertex instances_vertex_main(
         if (isCurve) {
             vert.u = (cx * dy1 - cy * dx1) / area;
             vert.v = (ax * dy0 - ay * dx0) / area;
-            vert.d0 = rsqrt(bx * bx + by * by) * (bx * dx0 + by * dy0);
-            vert.d1 = rsqrt(cx * cx + cy * cy) * (cx * dx1 + cy * dy1);
+            vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
+            vert.d1 = (cx * dx1 + cy * dy1) * rsqrt(cdot);
             float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
             vert.dm = no.x * (dx - mx) + no.y * (dy - my);
         } else
