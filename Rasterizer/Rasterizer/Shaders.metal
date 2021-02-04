@@ -465,8 +465,7 @@ vertex InstancesVertex instances_vertex_main(
             vert.v = (ax * dy0 - ay * dx0) / area;
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
             vert.d1 = (cx * dx1 + cy * dy1) * rsqrt(cdot);
-            float mx = 0.25 * x0 + 0.5 * cpx + 0.25 * x1, my = 0.25 * y0 + 0.5 * cpy + 0.25 * y1;
-            vert.dm = no.x * (dx - mx) + no.y * (dy - my);
+            vert.dm = no.x * (dx - (0.25 * (x0 + x1) + 0.5 * cpx)) + no.y * (dy - (0.25 * (y0 + y1) + 0.5 * cpy));
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
