@@ -261,7 +261,7 @@ struct Rasterizer {
             uint64_t refCount;  std::vector<T> src, dst;
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj); }
         };
-        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineEndCap = 1 << 3 };
+        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRounded = 1 << 2, kOutlineSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
@@ -445,7 +445,7 @@ struct Rasterizer {
                         if (width) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
                                | bool(scene->flags[is] & Scene::kOutlineRounded) * Instance::kRounded
-                               | bool(scene->flags[is] & Scene::kOutlineEndCap) * Instance::kEndCap);
+                               | bool(scene->flags[is] & Scene::kOutlineSquareCap) * Instance::kEndCap);
                            inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
