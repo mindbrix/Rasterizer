@@ -437,10 +437,10 @@ vertex InstancesVertex instances_vertex_main(
         bool isCurve = *useCurves && (pcurve || ncurve) && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
-        float lo = sqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        float2 no = float2(ax, ay) / lo, np = vp * rp, nn = vn * rn;
+        float ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
         float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
-        alpha *= float(lo > 1e-2) * width / cw;
+        alpha *= float(ro < 1e2) * width / cw;
         pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
