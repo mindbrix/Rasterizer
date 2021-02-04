@@ -43,7 +43,7 @@ struct Outline {
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kEndCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kRounded = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
@@ -439,7 +439,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kEndCap) == 0 ? dw : ew + dw);
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kSquareCap) == 0 ? dw : ew + dw);
         alpha *= float(ro < 1e2) * width / cw;
         pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
@@ -511,7 +511,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     
         alpha = saturate(vert.dw - abs(dist));
         
-        cap = vert.flags & Instance::kEndCap ? vert.dw : 0.5;
+        cap = vert.flags & Instance::kSquareCap ? vert.dw : 0.5;
         cap0 = select(
                       saturate(cap + vert.d0) * alpha,
                       saturate(vert.dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
