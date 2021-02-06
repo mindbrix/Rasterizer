@@ -448,9 +448,8 @@ vertex InstancesVertex instances_vertex_main(
         float son = (dw + ow) / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         
-        float lp = (endCap + ew) * float(pcap) + err, ln = (endCap + ew) * float(ncap) + err;
-        float px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
-        float px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
+        float lp = (endCap + ew) * float(pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
+        float ln = (endCap + ew) * float(ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
         float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         float tl = t < 0.0 ? 1.0 : min(1.0, t), tr = t > 0.0 ? -1.0 : max(-1.0, t), dt = vid & 1 ? tr : tl;
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
