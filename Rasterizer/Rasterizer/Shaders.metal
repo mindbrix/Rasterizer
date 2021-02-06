@@ -438,7 +438,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ax = x1 - x0, ay = y1 - y0, ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = float(isCurve) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = float(isCurve) * 0.41 * dw, ow = float(isCurve) * max(ew, 0.5 * abs(-no.y * bx + no.x * by)), endCap = (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2) * width / cw;
         pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
