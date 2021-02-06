@@ -438,7 +438,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ax = x1 - x0, ay = y1 - y0, ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = (isCurve && (pcap || ncap)) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = ((inst.iz & Instance::kSquareCap) == 0 ? dw : ew + dw);
+        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = float(isCurve) * 0.41 * dw, ow = isCurve ? max(ew, 0.5 * abs(-no.y * bx + no.x * by)) : 0.0, endCap = (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2) * width / cw;
         pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
@@ -448,7 +448,7 @@ vertex InstancesVertex instances_vertex_main(
         float son = (dw + ow) / (ton.y * no.y + ton.x * no.x);
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         
-        float lp = endCap * float(pcap) + err, ln = endCap * float(ncap) + err;
+        float lp = (endCap + ew) * float(pcap) + err, ln = (endCap + ew) * float(ncap) + err;
         float px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
         float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
