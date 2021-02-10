@@ -490,15 +490,14 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
-        float tl, tu, t, s, a, b, c, d, x2, y2, tx0, tx1, vx, ty0, ty1, vy, dist, sd0, sd1, cap, cap0, cap1;
+        float t01, t, s, a, b, c, d, x2, y2, tx0, tx1, vx, ty0, ty1, vy, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
 
-            tl = 0.5 - 0.5 * (-vert.dm / (max(0.0, vert.d0) - vert.dm));
-            tu = 0.5 + 0.5 * (vert.dm / (max(0.0, vert.d1) + vert.dm));
-            t = vert.dm < 0.0 ? tl : tu, s = 1.0 - t;
+            t01 = 0.5 * (abs(vert.dm) / (max(0.0, vert.dm < 0.0 ? vert.d0 : vert.d1) + abs(vert.dm)));
+            t = vert.dm < 0.0 ? 0.5 - t01 : 0.5 + t01, s = 1.0 - t;
             
             tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
