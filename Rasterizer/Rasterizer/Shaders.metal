@@ -492,8 +492,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     if (vert.flags & InstancesVertex::kIsShape) {
         float t, s, a, b, c, d, x2, y2, tx0, tx1, vx, ty0, ty1, vy, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
-            t = 0.5 + copysign(0.5, vert.dm) * (abs(vert.dm) / (max(0.0, vert.dm < 0.0 ? vert.d0 : vert.d1) + abs(vert.dm)));
-            s = 1.0 - t;
+            t = 0.5 + copysign(0.5, vert.dm) * (abs(vert.dm) / (max(0.0, vert.dm < 0.0 ? vert.d0 : vert.d1) + abs(vert.dm))), s = 1.0 - t;
             
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
