@@ -412,9 +412,9 @@ struct Rasterizer {
         Bounds full, sheet, strip, fast, molecules;
     };
     struct Context {
-        void prepare(size_t w, size_t h, size_t pathsCount, size_t slz, size_t suz) {
-            device = Bounds(0.f, 0.f, w, h), empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
-            size_t fatlines = 1.f + ceilf(float(h) * krfh);
+        void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
+            device = dev, empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
+            size_t fatlines = 1.f + ceilf((dev.uy - dev.ly) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));

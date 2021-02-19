@@ -62,7 +62,7 @@ struct RasterizerRenderer {
         for (i = 0; i < kQueueCount; i++)
             threadInfo[i] = *info, threadInfo[i].context += i;
         for (i = 0; i < kQueueCount; i++)
-            contexts[i].prepare(state.device.ux, state.device.uy, list.pathsCount, izs[i], izs[i + 1]);
+            contexts[i].prepare(state.device, list.pathsCount, izs[i], izs[i + 1]);
         RasterizerQueue::scheduleAndWait(queues, kQueueCount, drawList, threadInfo, sizeof(ThreadInfo), kQueueCount);
         std::vector<Ra::Buffer::Entry> entries[kQueueCount];
         size_t begins[kQueueCount], size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *info->buffer);
