@@ -209,21 +209,17 @@ struct RasterizerTest {
         void *info) {
         RasterizerTest& test = *((RasterizerTest *)info);
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
-        const float kScaleMin = 1.0f, kScaleMax = 1.2f, kTxMin = 0.f, kTxMax = 0.f;
+        const float kScaleMin = 1.0f, kScaleMax = 1.2f;
         float ftime = test.concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax;
-        float tx, ty, cx, cy;
         if (ftime == 0.f)
             memcpy(dstCtms, srcCtms, count * sizeof(srcCtms[0]));
         else {
             for (int j = 0; j < count; j++) {
-                tx = s * kTxMin + t * kTxMax, ty = tx;
                 Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
-                Ra::Transform m = Ra::Transform(1.f, 0.f, 0.f, 1.f, tx, ty).concat(srcCtms[j]);
-                Ra::Bounds b = Ra::Bounds(paths[j]->bounds.unit(m));
-                cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
-                dstCtms[j] = m.preconcat(rst, cx, cy);
+                Ra::Bounds b = Ra::Bounds(paths[j]->bounds.unit(srcCtms[j]));
+                dstCtms[j] = srcCtms[j].preconcat(rst, 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy));
             }
         }
         if (state.outlineWidth)
