@@ -61,6 +61,16 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
+float roundDistance(float x0, float y0, float x1, float y1) {
+    x0 -= 0.5, y0 -= 0.5, x1 -= 0.5, y1 -= 0.5;
+    float ax, ay, dot, bx, by, t, x, y;
+    ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay;
+    bx = -x0, by = -y0;
+    t = saturate((ax * bx + ay * by) / dot);
+    x = (1.0 - t) * x0 + t * x1, y = (1.0 - t) * y0 + t * y1;
+    return sqrt(x * x + y * y);
+}
+
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
     float dx, dy, a0, t, b, f;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
@@ -199,6 +209,11 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
 //    return 0.2;
+    float d = min(
+                  min(roundDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
+                  min(roundDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundDistance(vert.x3, vert.y3, vert.x4, vert.y4))
+                  );
+    return saturate(1.0 - d);
     return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
         + fastWinding(vert.x1, vert.y1, vert.x2, vert.y2)
         + fastWinding(vert.x2, vert.y2, vert.x3, vert.y3)
