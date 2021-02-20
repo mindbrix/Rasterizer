@@ -388,7 +388,8 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, size = 0, counts[4] = { 0, 0, 0, 0 };
+            size_t idx, size = 0, counts[5] = { 0, 0, 0, 0, 0 };
+            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4]; }
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -408,7 +409,7 @@ struct Rasterizer {
             }
             cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
         }
-        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
+        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, strip, fast, molecules;
     };
     struct Context {
@@ -916,7 +917,7 @@ struct Rasterizer {
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
-                instances += pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3];
+                instances += pass->count();
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
@@ -942,14 +943,16 @@ struct Rasterizer {
                     }
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
-        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
+        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
-            instcount = pass->counts[0] + pass->counts[1] + pass->counts[2] + pass->counts[3], instbase = begin + instcount * sizeof(Edge);
+            instcount = pass->count(), instbase = begin + instcount * sizeof(Edge);
             if (instcount) {
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadEdges, begin, end, segbase, pointsbase, instbase), begin = end;
                 fastEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastEdges] * sizeof(Edge);
                 entries.emplace_back(Buffer::kFastEdges, begin, end, segbase, pointsbase, instbase), begin = end;
+                fastOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastOutlines] * sizeof(Edge);
+                entries.emplace_back(Buffer::kFastOutlines, begin, end, segbase, pointsbase, instbase), begin = end;
                 fastMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kFastMolecules, begin, end, segbase, pointsbase, instbase), begin = end;
                 quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
