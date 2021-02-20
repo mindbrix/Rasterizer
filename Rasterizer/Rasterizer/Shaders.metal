@@ -63,10 +63,8 @@ float4 distances(Transform ctm, float dx, float dy) {
 
 float roundDistance(float x0, float y0, float x1, float y1) {
     x0 -= 0.5, y0 -= 0.5, x1 -= 0.5, y1 -= 0.5;
-    float ax, ay, dot, bx, by, t, x, y;
-    ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay;
-    bx = -x0, by = -y0;
-    t = saturate((ax * bx + ay * by) / dot);
+    float ax, ay, t, x, y;
+    ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
     x = (1.0 - t) * x0 + t * x1, y = (1.0 - t) * y0 + t * y1;
     return sqrt(x * x + y * y);
 }
@@ -194,8 +192,9 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
                 slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
             }
         }
-        float dx = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
-        float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
+        float dw = 1.0;
+        float dx = clamp(select(floor(slx - dw), float(edge.ux + dw), vid & 1), float(cell.lx), float(cell.ux));
+        float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
         float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
         float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
         vert.position = float4(x, y, 1.0, 1.0);
