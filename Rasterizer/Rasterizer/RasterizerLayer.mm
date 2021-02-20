@@ -197,6 +197,7 @@
                 break;
             case Ra::Buffer::kQuadEdges:
             case Ra::Buffer::kFastEdges:
+            case Ra::Buffer::kFastOutlines:
             case Ra::Buffer::kFastMolecules:
             case Ra::Buffer::kQuadMolecules:
                 if (entry.type == Ra::Buffer::kQuadEdges) {
@@ -205,6 +206,8 @@
                     [commandEncoder setRenderPipelineState:_quadEdgesPipelineState];
                 } else if (entry.type == Ra::Buffer::kFastEdges)
                     [commandEncoder setRenderPipelineState:_fastEdgesPipelineState];
+                else if (entry.type == Ra::Buffer::kFastOutlines)
+                    [commandEncoder setRenderPipelineState:_fastOutlinesPipelineState];
                 else if (entry.type == Ra::Buffer::kFastMolecules)
                     [commandEncoder setRenderPipelineState:_fastMoleculesPipelineState];
                 else
