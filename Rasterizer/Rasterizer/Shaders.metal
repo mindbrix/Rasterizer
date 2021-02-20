@@ -205,14 +205,18 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     return vert;
 }
 
-fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
+fragment float4 fast_outlines_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
-//    return 0.2;
     float d = min(
                   min(roundDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
                   min(roundDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundDistance(vert.x3, vert.y3, vert.x4, vert.y4))
                   );
     return saturate(1.0 - d);
+}
+
+fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
+{
+//    return 0.2;
     return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
         + fastWinding(vert.x1, vert.y1, vert.x2, vert.y2)
         + fastWinding(vert.x2, vert.y2, vert.x3, vert.y3)
