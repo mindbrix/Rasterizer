@@ -180,7 +180,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
         float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
         _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
-        ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
+        ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = slx = sux = x16 * ma + y16 * mc + _tx,
@@ -258,7 +258,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     if (visible) {
         float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-        ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
+        ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         
         x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
