@@ -178,12 +178,12 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     int i;
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
-        float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sly, suy;
+        float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
         _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-        *dst++ = slx = x16 * ma + y16 * mc + _tx,
+        *dst++ = slx = sux = x16 * ma + y16 * mc + _tx,
         *dst++ = sly = suy = x16 * mb + y16 * md + _ty;
         for (i = 0; i < kFastSegments; i++, dst += 2) {
             if (pts->x == 0xFFFF && pts->y == 0xFFFF)
@@ -191,10 +191,11 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
             else {
                 x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
                 dst[0] = x16 * ma + y16 * mc + _tx, dst[1] = x16 * mb + y16 * md + _ty;
-                slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+                slx = min(slx, dst[0]), sux = max(sux, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
             }
         }
-        float dx = clamp(select(floor(slx - dw), float(edge.ux + dw), vid & 1), float(cell.lx), float(cell.ux));
+        float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0);
+        float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
         float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
         float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
         float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
