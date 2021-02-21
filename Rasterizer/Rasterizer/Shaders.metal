@@ -159,6 +159,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
+                                const device float *widths [[buffer(6)]],
                                 const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
@@ -174,6 +175,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
+    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     int i;
     if ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF) {
         float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sly, suy;
@@ -192,7 +194,6 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
                 slx = min(slx, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
             }
         }
-        float dw = 1.0;
         float dx = clamp(select(floor(slx - dw), float(edge.ux + dw), vid & 1), float(cell.lx), float(cell.ux));
         float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
         float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;

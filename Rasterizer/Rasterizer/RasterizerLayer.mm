@@ -217,6 +217,7 @@
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.instbase atIndex:5];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.points atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
