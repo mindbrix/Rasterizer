@@ -152,7 +152,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct FastMoleculesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
+    float dw, x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -202,6 +202,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         vert.position = float4(x, y, 1.0, 1.0);
         for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
             dst[0] += tx, dst[1] += ty;
+        vert.dw = dw;
     } else
         vert.position = float4(0.0, 0.0, 1.0, 0.0);
     return vert;
@@ -213,7 +214,7 @@ fragment float4 fast_outlines_fragment_main(FastMoleculesVertex vert [[stage_in]
                   min(roundDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
                   min(roundDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundDistance(vert.x3, vert.y3, vert.x4, vert.y4))
                   );
-    return saturate(1.0 - d);
+    return saturate(vert.dw - d);
 }
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
@@ -438,7 +439,8 @@ vertex InstancesVertex instances_vertex_main(
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
     const device Colorant& color = colors[iz];
-    float alpha = color.a * 0.003921568627, dx, dy;
+    float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
+    float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
         bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
@@ -458,8 +460,8 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ax = x1 - x0, ay = y1 - y0, ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
-        float width = widths[iz], cw = max(1.0, width), dw = 0.5 + 0.5 * cw, ew = float(isCurve) * 0.41 * dw, ow = float(isCurve) * 0.5 * abs(-no.y * bx + no.x * by), endCap = (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
-        alpha *= float(ro < 1e2) * width / cw;
+        float ew = float(isCurve) * 0.41 * dw, ow = float(isCurve) * 0.5 * abs(-no.y * bx + no.x * by), endCap = (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
+        alpha *= float(ro < 1e2);
         pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
