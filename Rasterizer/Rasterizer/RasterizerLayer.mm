@@ -102,7 +102,7 @@
     descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationMax;
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"fast_molecules_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_outlines_fragment_main"];
-    descriptor.label = @"fast otlines";
+    descriptor.label = @"fast outlines";
     self.fastOutlinesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
