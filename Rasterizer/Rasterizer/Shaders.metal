@@ -64,7 +64,7 @@ float4 distances(Transform ctm, float dx, float dy) {
 float roundDistance(float x0, float y0, float x1, float y1) {
     float ax, ay, t, x, y;
     ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
-    x = (1.0 - t) * x0 + t * x1, y = (1.0 - t) * y0 + t * y1;
+    x = fma(ax, t, x0), y = fma(ay, t, y0);
     return sqrt(x * x + y * y);
 }
 
