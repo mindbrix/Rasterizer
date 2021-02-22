@@ -65,7 +65,7 @@ float roundDistance(float x0, float y0, float x1, float y1) {
     float ax, ay, t, x, y;
     ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
     x = fma(ax, t, x0), y = fma(ay, t, y0);
-    return sqrt(x * x + y * y);
+    return x * x + y * y;
 }
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
@@ -209,7 +209,7 @@ fragment float4 fast_outlines_fragment_main(FastMoleculesVertex vert [[stage_in]
                   min(roundDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
                   min(roundDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundDistance(vert.x3, vert.y3, vert.x4, vert.y4))
                   );
-    return saturate(vert.dw - d);
+    return saturate(vert.dw - sqrt(d));
 }
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
