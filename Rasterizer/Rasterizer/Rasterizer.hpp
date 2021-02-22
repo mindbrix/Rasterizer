@@ -231,6 +231,8 @@ struct Rasterizer {
             if (x0 != FLT_MAX)
                 g->writePoint16(x0, y0, g->bounds, curve);
             else {
+                if (curve)
+                    g->p16s.back().x |= 1 << 14;
                 g->writePoint16(x1, y1, g->bounds, 0);
                 size_t count = kFastSegments - (g->p16s.end % kFastSegments);
                 memset(g->p16s.alloc(count), 0xFF, count * sizeof(Point16));
@@ -492,14 +494,14 @@ struct Rasterizer {
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
-        float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
+        bool closed;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
-                    if (polygon && (sx != x0 || sy != y0))
+                    if ((closed = polygon && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
-                        (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
+                        (*function)(FLT_MAX, FLT_MAX, sx, sy, closed, info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++;
                     break;
                 case Geometry::kLine:
@@ -554,10 +556,10 @@ struct Rasterizer {
                     p += 2, type++;
                     break;
             }
-        if (polygon && (sx != x0 || sy != y0))
+        if ((closed = polygon && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark)
-            (*function)(FLT_MAX, FLT_MAX, sx, sy, 0, info);
+            (*function)(FLT_MAX, FLT_MAX, sx, sy, closed, info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
         if (unclipped)
