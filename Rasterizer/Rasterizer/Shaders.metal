@@ -181,14 +181,14 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+        x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = slx = sux = x16 * ma + y16 * mc + _tx,
         *dst++ = sly = suy = x16 * mb + y16 * md + _ty;
         for (i = 0; i < kFastSegments; i++, dst += 2) {
             if (pts->x == 0xFFFF && pts->y == 0xFFFF)
                 dst[0] = dst[-2], dst[1] = dst[-1];
             else {
-                x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+                x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
                 dst[0] = x16 * ma + y16 * mc + _tx, dst[1] = x16 * mb + y16 * md + _ty;
                 slx = min(slx, dst[0]), sux = max(sux, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
             }
@@ -260,15 +260,15 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
         ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         
-        x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
+        x = pts->x & 0x3FFF, y = pts->y & 0x7FFF;
         curve0 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
         *dst++ = slx = x0 = x * ma + y * mc + tx;
         *dst++ = sly = suy = y0 = x * mb + y * md + ty;
         
-        x = curve0 == 2 ? (pts - 2)->x & 0x7FFF : 0, y = curve0 == 2 ? (pts - 2)->y & 0x7FFF : 0;
+        x = curve0 == 2 ? (pts - 2)->x & 0x3FFF : 0, y = curve0 == 2 ? (pts - 2)->y & 0x7FFF : 0;
         px = x * ma + y * mc + tx, py = x * mb + y * md + ty;
         
-        x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
+        x = pts->x & 0x3FFF, y = pts->y & 0x7FFF;
         curve1 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
         x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
         
@@ -276,7 +276,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
             if (x1 == FLT_MAX)
                 dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
             else {
-                x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
+                x = pts->x & 0x3FFF, y = pts->y & 0x7FFF;
                 curve2 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
                 nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
                 nx = x1 == FLT_MAX || (pts->x == 0xFFFF && pts->y == 0xFFFF) ? FLT_MAX : nx;
