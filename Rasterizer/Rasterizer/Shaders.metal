@@ -175,37 +175,31 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    bool skip = w != 0.0 && (pts->x & 0x4000);
+    bool skip = false;
     int i;
-    if (!skip && ((pts + 1)->x != 0xFFFF || (pts + 1)->y != 0xFFFF)) {
-        float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
-        _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
-        ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
-        mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
+    float _tx, _ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
+    _tx = b.lx * m.a + b.ly * m.c + m.tx, _ty = b.lx * m.b + b.ly * m.d + m.ty;
+    ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
+    mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
+    x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
+    *dst++ = slx = sux = x16 * ma + y16 * mc + _tx,
+    *dst++ = sly = suy = x16 * mb + y16 * md + _ty;
+    for (i = 0; i < kFastSegments; i++, dst += 2) {
+        skip |= (w != 0.0 && (pts[-1].x & 0x4000)) || (pts->x == 0xFFFF && pts->y == 0xFFFF);
+        
         x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
-        *dst++ = slx = sux = x16 * ma + y16 * mc + _tx,
-        *dst++ = sly = suy = x16 * mb + y16 * md + _ty;
-        for (i = 0; i < kFastSegments; i++, dst += 2) {
-            if ((pts->x == 0xFFFF && pts->y == 0xFFFF) || skip)
-                dst[0] = dst[-2], dst[1] = dst[-1];
-            else {
-                skip = w != 0.0 && (pts->x & 0x4000);
-                x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
-                dst[0] = x16 * ma + y16 * mc + _tx, dst[1] = x16 * mb + y16 * md + _ty;
-                slx = min(slx, dst[0]), sux = max(sux, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
-            }
-        }
-        float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
-        float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
-        float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
-        float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = offset - dx;
-        float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = offset - dy;
-        vert.position = float4(x, y, 1.0, 1.0);
-        for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
-            dst[0] += tx, dst[1] += ty;
-        vert.dw = dw;
-    } else
-        vert.position = float4(0.0, 0.0, 1.0, 0.0);
+        dst[0] = select(x16 * ma + y16 * mc + _tx, dst[-2], skip), dst[1] = select(x16 * mb + y16 * md + _ty, dst[-1], skip);
+        slx = min(slx, dst[0]), sux = max(sux, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+    }
+    float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
+    float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
+    float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = offset - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = offset - dy;
+    vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
+    for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
+        dst[0] += tx, dst[1] += ty;
+    vert.dw = dw;
     return vert;
 }
 
