@@ -233,6 +233,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
+                                const device float *widths [[buffer(6)]],
                                 const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
