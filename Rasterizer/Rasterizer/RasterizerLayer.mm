@@ -106,8 +106,8 @@
     descriptor.label = @"fast outlines";
     self.fastOutlinesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quad_molecules_vertex_main"];
-    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fquad_outlines_fragment_main"];
-    descriptor.label = @"fast outlines";
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_outlines_fragment_main"];
+    descriptor.label = @"quad outlines";
     self.quadOutlinesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
