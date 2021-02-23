@@ -265,6 +265,40 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
         mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
+        /*
+        uint16_t ix0, iy0, ix1, iy1;
+        ix0 = pts->x, iy0 = pts->y;
+        x = ix0 & 0x3FFF, y = iy0 & 0x7FFF;
+        x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
+        dst[0] = slx = sux = x0, dst[1] = sly = suy = y0, dst += 2;
+        for (i = 0; i < kFastSegments; i++, pts++, dst += 4, ix0 = ix1, iy0 = iy1, x0 = x1, y0 = y1) {
+            ix1 = (pts + 1)->x, iy1 = (pts + 1)->y;
+            if ((ix0 == 0xFFFF && iy0 == 0xFFFF) || (ix1 == 0xFFFF && iy1 == 0xFFFF)) {
+                cpx = cpy = FLT_MAX, x1 = x0, y1 = y0;
+//                dst[0] = FLT_MAX, dst[2] = x1 = x0, dst[3] = y1 = y0;
+            } else {
+                x = ix1 & 0x3FFF, y = iy1 & 0x7FFF;
+                x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
+                slx = min(slx, x1), sux = max(sux, x1), sly = min(sly, y1), suy = max(suy, y1);
+                
+                if ((ix0 & 0x8000) == 0 && (iy0 & 0x8000) == 0)
+                    cpx = x0, cpy = y0;
+                else if ((iy0 & 0x8000) != 0) {
+                    x = (pts + 2)->x & 0x3FFF, y = (pts + 2)->y & 0x7FFF;
+                    nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
+                    cpx = 0.25f * (x0 - nx) + x1, cpy = 0.25f * (y0 - ny) + y1;
+                } else {
+                    x = (pts - 1)->x & 0x3FFF, y = (pts - 1)->y & 0x7FFF;
+                    px = x * ma + y * mc + tx, py = x * mb + y * md + ty;
+                    cpx = 0.25f * (x1 - px) + x0, cpy = 0.25f * (y1 - py) + y0;
+                }
+                slx = min(slx, cpx), sux = max(sux, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
+                cpx = abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0 ? FLT_MAX : cpx;
+//                dst[0] = abs(det) < 1.0 ? FLT_MAX : cpx, dst[1] = cpy, dst[2] = x1, dst[3] = y1;
+            }
+            dst[0] = cpx, dst[1] = cpy, dst[2] = x1, dst[3] = y1;
+        }
+         */
         
         curve0 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
         curve1 = (((pts + 1)->x & 0x8000) >> 14) | (((pts + 1)->y & 0x8000) >> 15);
