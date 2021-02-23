@@ -466,7 +466,7 @@ struct Rasterizer {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(scene->flags[is] & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cell.lx = clip.lx, inst->quad.cell.ly = clip.ly, inst->quad.cell.ux = clip.ux, inst->quad.cell.uy = clip.uy, inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                             allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, blends.end - 1, & inst->quad.cell);
-                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[width ? Allocator::kFastOutlines : fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules] += size / kFastSegments;
+                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules)] += size / kFastSegments;
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
@@ -977,8 +977,10 @@ struct Rasterizer {
                         Scene::Cache& cache = *list.scenes[i].cache.ref;
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
                         if (widths[iz]) {
-                            for (j = 0; j < entry->size; j += kFastSegments, fastOutline++)
-                                fastOutline->ic = uint32_t(ic), fastOutline->i0 = j;
+                            Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;
+                            for (j = 0; j < entry->size; j += kFastSegments, outline++)
+                                outline->ic = uint32_t(ic), outline->i0 = j;
+                            *(inst->iz & Instance::kFastEdges ? & fastOutline : & quadOutline) = outline;
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
