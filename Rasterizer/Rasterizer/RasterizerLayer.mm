@@ -22,6 +22,7 @@
 @property (nonatomic) id <MTLRenderPipelineState> quadEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastOutlinesPipelineState;
+@property (nonatomic) id <MTLRenderPipelineState> quadOutlinesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
@@ -104,6 +105,10 @@
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fast_outlines_fragment_main"];
     descriptor.label = @"fast outlines";
     self.fastOutlinesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quad_molecules_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"fquad_outlines_fragment_main"];
+    descriptor.label = @"fast outlines";
+    self.quadOutlinesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     return self;
 }
 
