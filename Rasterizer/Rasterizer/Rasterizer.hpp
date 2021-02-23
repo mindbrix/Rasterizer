@@ -390,8 +390,8 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, size = 0, counts[5] = { 0, 0, 0, 0, 0 };
-            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4]; }
+            size_t idx, size = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
+            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -411,7 +411,7 @@ struct Rasterizer {
             }
             cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
         }
-        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kFastMolecules, kQuadMolecules };
+        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, strip, fast, molecules;
     };
     struct Context {
