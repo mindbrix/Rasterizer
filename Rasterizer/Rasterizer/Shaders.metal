@@ -69,12 +69,9 @@ float roundDistance(float x0, float y0, float x1, float y1) {
 }
 
 float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float ax, ay, t, x, y;
-    ax = x2 - x0, ay = y2 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
-    if (x1 == FLT_MAX) {
-        x = fma(ax, t, x0), y = fma(ay, t, y0);
-        return x * x + y * y;
-    }
+    if (x1 == FLT_MAX)
+        return roundDistance(x0, y0, x2, y2);
+    float ax = x2 - x0, ay = y2 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
     return roundDistance((1.0 - t) * x0 + t * x1, (1.0 - t) * y0 + t * y1, (1.0 - t) * x1 + t * x2, (1.0 - t) * y1 + t * y2);
 }
 
@@ -304,10 +301,11 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
             }
         }
     }
+    float offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
-    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = offset - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = offset - dy;
     vert.position = float4(x, y, 1.0, visible);
     vert.dw = dw;
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
