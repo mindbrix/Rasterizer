@@ -236,7 +236,7 @@ fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in
 struct QuadMoleculesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8;
+    float dw, x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8;
 };
 
 vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -259,6 +259,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
+    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     int i, curve0, curve1, curve2;
     float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
@@ -308,6 +309,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
     vert.position = float4(x, y, 1.0, visible);
+    vert.dw = dw;
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
         dst[0] += tx, dst[1] += ty;
     for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
@@ -324,7 +326,7 @@ fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vert [[stage_in]
                   min(roundDistance(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6),
                       roundDistance(vert.x6, vert.y6, vert.x7, vert.y7, vert.x8, vert.y8))
                   );
-    return saturate(1.0 - sqrt(d));
+    return saturate(vert.dw - sqrt(d));
 }
 
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
