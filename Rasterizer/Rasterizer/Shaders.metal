@@ -258,7 +258,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     int i, curve0, curve1, curve2;
-    float slx = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
+    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = (pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF ? 0 : 1.0;
     if (visible) {
         float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -267,7 +267,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
         
         x = pts->x & 0x3FFF, y = pts->y & 0x7FFF;
         curve0 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15), pts++;
-        *dst++ = slx = x0 = x * ma + y * mc + tx;
+        *dst++ = slx = sux = x0 = x * ma + y * mc + tx;
         *dst++ = sly = suy = y0 = x * mb + y * md + ty;
         
         x = curve0 == 2 ? (pts - 2)->x & 0x3FFF : 0, y = curve0 == 2 ? (pts - 2)->y & 0x7FFF : 0;
@@ -285,13 +285,13 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 curve2 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
                 nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
                 nx = x1 == FLT_MAX || (pts->x == 0xFFFF && pts->y == 0xFFFF) ? FLT_MAX : nx;
-                slx = min(slx, x1), sly = min(sly, y1), suy = max(suy, y1);
+                slx = min(slx, x1), sux = max(sux, x1), sly = min(sly, y1), suy = max(suy, y1);
                 if (!*useCurves || curve0 == 0)
                     dst[0] = FLT_MAX;
                 else {
                     cpx = curve0 == 1 ? 0.25f * (x0 - nx) + x1 : 0.25f * (x1 - px) + x0;
                     cpy = curve0 == 1 ? 0.25f * (y0 - ny) + y1 : 0.25f * (y1 - py) + y0;
-                    slx = min(slx, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
+                    slx = min(slx, cpx), sux = max(sux, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
                     if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
                         dst[0] = FLT_MAX;
                     else
@@ -301,9 +301,9 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
             }
         }
     }
-    float offset = select(0.5, 0.0, dw != 0.0);
-    float dx = clamp(select(floor(slx), float(edge.ux), vid & 1), float(cell.lx), float(cell.ux));
-    float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
+    float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
+    float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
+    float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = offset - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = offset - dy;
     vert.position = float4(x, y, 1.0, visible);
