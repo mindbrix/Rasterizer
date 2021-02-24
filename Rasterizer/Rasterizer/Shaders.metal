@@ -244,7 +244,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                                 const device Bounds *bounds [[buffer(7)]],
                                 const device Point16 *points [[buffer(8)]],
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                constant bool *useCurves [[buffer(14)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     QuadMoleculesVertex vert;
@@ -287,7 +286,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 nx = x1 == FLT_MAX || (pts->x == 0xFFFF && pts->y == 0xFFFF) ? FLT_MAX : nx;
                 nx = w != 0.0 && ((pts - 1)->x & 0x4000) != 0 ? FLT_MAX : nx;
                 slx = min(slx, x1), sux = max(sux, x1), sly = min(sly, y1), suy = max(suy, y1);
-                if (!*useCurves || curve0 == 0)
+                if (curve0 == 0)
                     dst[0] = FLT_MAX;
                 else {
                     cpx = curve0 == 1 ? 0.25f * (x0 - nx) + x1 : 0.25f * (x1 - px) + x0;
