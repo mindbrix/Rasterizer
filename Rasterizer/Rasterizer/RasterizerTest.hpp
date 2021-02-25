@@ -14,6 +14,11 @@ struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        if (1) {
+            list.empty();
+            Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, 100, 100));  rectPath->close();
+            scene.addPath(rectPath, Ra::Transform(), black, 10, 0);
+        }
         if (0) {
             float w = 10, r = w;
             for (int i = 0; i < 20; i++, r += w) {
