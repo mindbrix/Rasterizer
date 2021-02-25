@@ -437,7 +437,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]];
     float4 color, clip;
-    float u, v, cover, dw, d0, d1, dm;
+    float u, v, cover, dw, d0, d1, dm, miter0, miter1;
     uint32_t flags;
 };
 
@@ -503,6 +503,8 @@ vertex InstancesVertex instances_vertex_main(
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
             vert.d1 = (cx * dx1 + cy * dy1) * rsqrt(cdot);
             vert.dm = no.x * (dx - (0.25 * (x0 + x1) + 0.5 * cpx)) + no.y * (dy - (0.25 * (y0 + y1) + 0.5 * cpy));
+            vert.miter0 = 1.0;
+            vert.miter1 = 1.0;
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
@@ -556,6 +558,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         
         sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
+        
+        alpha *= saturate(vert.miter0) * saturate(vert.miter1);
         
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
     } else if ((vert.flags & Instance::kSolidCell) == 0) {
