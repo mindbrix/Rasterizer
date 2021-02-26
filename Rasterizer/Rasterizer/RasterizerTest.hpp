@@ -16,8 +16,17 @@ struct RasterizerTest {
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         if (1) {
             list.empty();
-            Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, 100, 100));  rectPath->close();
-            scene.addPath(rectPath, Ra::Transform(), black, 10, 0);
+            float w = 10, grid = 100 + 2 * w;
+            
+            Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, 100, 100));
+            Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, 100, 100));  closedRectPath->close();
+            Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(100, 0), openPath->lineTo(100, 100);
+            Ra::Path closedPath;  closedPath->moveTo(0, 0), closedPath->lineTo(100, 0), closedPath->lineTo(100, 100), closedPath->close();
+            
+            scene.addPath(closedRectPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 1 * grid), black, w, 0);
+            scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 1 * grid), black, w, 0);
+            scene.addPath(closedPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 2 * grid), black, w, 0);
+            scene.addPath(openPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 2 * grid), black, w, 0);
         }
         if (0) {
             float w = 10, r = w;
