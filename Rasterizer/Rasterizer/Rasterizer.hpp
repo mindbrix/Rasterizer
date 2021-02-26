@@ -501,7 +501,7 @@ struct Rasterizer {
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
-                        (*function)(FLT_MAX, FLT_MAX, sx, sy, closed && !closeSubpath, info);
+                        (*function)(FLT_MAX, FLT_MAX, sx, sy, (closed && !closeSubpath) || (!polygon && closeSubpath), info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -559,7 +559,7 @@ struct Rasterizer {
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark)
-            (*function)(FLT_MAX, FLT_MAX, sx, sy, closed && !closeSubpath, info);
+            (*function)(FLT_MAX, FLT_MAX, sx, sy, (closed && !closeSubpath) || (!polygon && closeSubpath), info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
         if (unclipped)
@@ -906,8 +906,7 @@ struct Rasterizer {
                 out->dst->iz = out->iz, new (& out->dst->outline.s) Segment(x0, y0, x1, y1, curve), out->dst->outline.prev = -1, out->dst->outline.next = 1, out->dst++;
             else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;
-                float dx = first->outline.s.x0 - last->outline.s.x1, dy = first->outline.s.y0 - last->outline.s.y1;
-                first->outline.prev = dx * dx + dy * dy > 1e-6f ? 0 : int(last - first), last->outline.next = -first->outline.prev;
+                first->outline.prev = int(curve) * int(last - first), last->outline.next = -first->outline.prev;
                 out->dst0 = out->dst;
             }
         }

@@ -14,7 +14,7 @@ struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
-        if (1) {
+        if (0) {
             list.empty();
             float w = 10, grid = 100 + 2 * w;
             
