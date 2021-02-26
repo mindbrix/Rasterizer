@@ -500,8 +500,8 @@ vertex InstancesVertex instances_vertex_main(
             float area = ax * by - ay * bx;
             vert.u = (cx * dy1 - cy * dx1) / area;
             vert.v = (ax * dy0 - ay * dx0) / area;
-            vert.d0 = (ax * dx0 + ay * dy0) * ro;
-            vert.d1 = -(ax * dx1 + ay * dy1) * ro;
+            vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
+            vert.d1 = (cx * dx1 + cy * dy1) * rsqrt(cdot);
             vert.dm = no.x * (dx - (0.25 * (x0 + x1) + 0.5 * cpx)) + no.y * (dy - (0.25 * (y0 + y1) + 0.5 * cpy));
             vert.miter0 = 1.0;
             vert.miter1 = 1.0;
@@ -534,7 +534,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         float t, s, a, b, c, d, x2, y2, tx0, tx1, vx, ty0, ty1, vy, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
             t = abs(vert.dm) / ((vert.dm < 0.0 ? vert.d0 : vert.d1) + abs(vert.dm));
-            t = 0.5 + copysign(0.5, vert.dm) * t, s = 1.0 - t;
+            t = 0.5 + copysign(0.5, vert.dm) * saturate(t), s = 1.0 - t;
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
