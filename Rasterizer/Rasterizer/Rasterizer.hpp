@@ -498,10 +498,10 @@ struct Rasterizer {
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
-                    if ((closed = polygon && (sx != x0 || sy != y0)))
+                    if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
-                        (*function)(FLT_MAX, FLT_MAX, sx, sy, closed, info);
+                        (*function)(FLT_MAX, FLT_MAX, sx, sy, closed && !closeSubpath, info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -556,10 +556,10 @@ struct Rasterizer {
                     p += 2, type++, closeSubpath = true;
                     break;
             }
-        if ((closed = polygon && (sx != x0 || sy != y0)))
+        if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark)
-            (*function)(FLT_MAX, FLT_MAX, sx, sy, closed, info);
+            (*function)(FLT_MAX, FLT_MAX, sx, sy, closed && !closeSubpath, info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
         if (unclipped)
