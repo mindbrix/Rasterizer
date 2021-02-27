@@ -71,12 +71,12 @@ float roundDistance(float x0, float y0, float x1, float y1) {
 float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
-    float cpt, at, bt, t, s;
+    float pt, cpt, bt, at, t, s;
     float ax = x2 - x0, ay = y2 - y0, adot = ax * ax + ay * ay;
-    t = saturate(-(ax * x0 + ay * y0) / adot);
+    pt = saturate(-(ax * x0 + ay * y0) / adot);
     cpt = saturate((ax * (x1 - x0) + ay * (y1 - y0)) / adot);
     bt = 2.0 * cpt, at = 1.0 - bt;
-    t = abs(at) < kQuadraticFlatness ? t / bt : (-cpt + sqrt(max(0.0, cpt * cpt + at * t))) / at, s = 1.0 - t;
+    t = abs(at) < kQuadraticFlatness ? pt / bt : (-cpt + sqrt(max(0.0, cpt * cpt + at * pt))) / at, s = 1.0 - t;
     return roundDistance((1.0 - t) * x0 + t * x1, (1.0 - t) * y0 + t * y1, (1.0 - t) * x1 + t * x2, (1.0 - t) * y1 + t * y2);
 }
 
