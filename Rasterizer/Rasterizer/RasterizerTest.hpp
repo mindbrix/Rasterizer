@@ -36,10 +36,11 @@ struct RasterizerTest {
             }
         }
         if (0) {
+//            list.empty();
             Ra::Bounds bounds(0, 0, 100, 100);
             Ra::Path rectPath; rectPath->addEllipse(bounds), rectPath->addEllipse(bounds.inset(20, 20));
             Ra::Path bbPath;  bbPath.ref->addEllipse(bounds);
-            Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(0, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
+            Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
             if (0) {
