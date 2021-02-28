@@ -13,7 +13,7 @@
 struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
-        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
         if (0) {
             list.empty();
             float w = 10, grid = 100 + 2 * w;
@@ -43,11 +43,14 @@ struct RasterizerTest {
             Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
-            if (0) {
-                scene.addPath(rectPath, Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
-//                scene.addPath(quadPath, Ra::Transform(), black, 0.f, 0);
+            if (1) {
+                float w = 20;
+                for (int i = 0; i < 10; i++) {
+                    Ra::Path quad;  quad.ref->moveTo(100, 100), quad.ref->quadTo(-200 + i * 30, 100, 00, 00);
+                    scene.addPath(quad, Ra::Transform(1, 0, 0, 1, i * w * 4, 0), alpha64, w, 0);
+                }
             }
-            else {
+            if (0) {
                 float w = 10;
                 scene.addPath(quadPath, Ra::Transform(), black, w, 0);
                 scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 100, 0), black, w, Ra::Scene::kOutlineSquareCap);
