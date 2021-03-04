@@ -77,28 +77,16 @@ float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) 
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
     float x20 = x2 - x0, y20 = y2 - y0, adot = x20 * x20 + y20 * y20;
-    float area = x20 * (y1 - y0) - y20 * (x1 - x0), u, v, d, dot0, dot1, det;
-    u = ((x1 - x2) * -y2 - (y1 - y2) * -x2) / area;
-    v = (x20 * -y0 - y20 * -x0) / area;
-    d = quadraticDistance(u, v);
-    dot0 = (x1 - x0) * -x0 + (y1 - y0) * -y0;
-    dot1 = (x1 - x2) * -x2 + (y1 - y2) * -y2;
-    det = copysign(1.0, area) * (x20 * -y0 - y20 * -x0);
-    return dot0 > 0.0 && dot1 > 0.0 && det > 0.0 ? d : 1.0;
-    
     float dt, pt, cpt, bt, at, t, s;
     
     float d0 = -x0 * (x1 - x0) + -y0 * (y1 - y0), d1 = -x2 * (x1 - x2) + -y2 * (y1 - y2);
     dt = d0 / (d0 + d1);
-    pt = (-(x20 * x0 + y20 * y0) / adot);
+    pt = saturate(-(x20 * x0 + y20 * y0) / adot);
     cpt = (x20 * (x1 - x0) + y20 * (y1 - y0)) / adot;
     bt = 2.0 * cpt, at = 1.0 - bt;
     t = abs(at) < kQuadraticFlatness ? pt / bt : (sqrt(cpt * cpt + at * pt) - cpt) / at, s = 1.0 - t;
-    t = clamp(dt, 0.0, 1.0), s = 1.0 - t;
-    float x = fma(x20, t, x0), y = fma(y20, t, y0);
-//    float x = s * s * x0 + 2.0 * s * t * x1 + t * t * x2, y = s * s * y0 + 2.0 * s * t * y1 + t * t * y2;
+    float x = s * s * x0 + 2.0 * s * t * x1 + t * t * x2, y = s * s * y0 + 2.0 * s * t * y1 + t * t * y2;
     return x * x + y * y;
-    return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
 
@@ -351,8 +339,7 @@ fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vt [[stage_in]])
                   min(roundDistance(vt.x4, vt.y4, vt.x5, vt.y5, vt.x6, vt.y6),
                       roundDistance(vt.x6, vt.y6, vt.x7, vt.y7, vt.x8, vt.y8))
                   );
-    d = abs(roundDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2));
-    return saturate(vt.dw - (d));
+    return saturate(vt.dw - sqrt(d));
 }
 
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
