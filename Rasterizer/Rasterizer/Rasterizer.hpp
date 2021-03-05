@@ -660,27 +660,27 @@ struct Rasterizer {
         }
         (*function)(x0, y0, x2, y2, dt == 1.f ? 0 : 2, info);
     }
-    static float *solveCubic(double A, double B, double C, double D, float *roots) {
-        if (fabs(D) < 1e-3)
-            return solveQuadratic(A, B, C, roots);
+    static float *solveCubic(double B, double C, double D, double A, float *roots) {
+        if (fabs(A) < 1e-3)
+            return solveQuadratic(B, C, D, roots);
         else {
             const double wq0 = 2.0 / 27.0, third = 1.0 / 3.0;
-            double  p, q, q2, u1, v1, a3, discriminant, sd, t;
-            A /= D, B /= D, C /= D, p = B - A * A * third, q = A * (wq0 * A * A - third * B) + C;
-            q2 = q * 0.5, a3 = A * third, discriminant = q2 * q2 + p * p * p / 27.0;
+            double  p, q, q2, u1, v1, b3, discriminant, sd, t;
+            B /= A, C /= A, D /= A, p = C - B * B * third, q = B * (wq0 * B * B - third * C) + D;
+            q2 = q * 0.5, b3 = B * third, discriminant = q2 * q2 + p * p * p / 27.0;
             if (discriminant < 0) {
                 double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
                 __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
-                t = crtr * cosine - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * cosine - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                t = 2 * u1 - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = -u1 - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = 2 * u1 - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = -u1 - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                t = u1 - v1 - a3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = u1 - v1 - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
             }
         }
         return roots;
