@@ -644,6 +644,8 @@ struct Rasterizer {
         }
     }
     static void bisectQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s) {
+        float tx = -x0, ty = -y0;
+        solveQuadratic(x0 + tx, y0 + ty, x1 + tx, y1 + ty, x2 + tx, y2 + ty);
         float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
         (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
     }
@@ -660,7 +662,24 @@ struct Rasterizer {
         }
         (*function)(x0, y0, x2, y2, dt == 1.f ? 0 : 2, info);
     }
-    static float *solveCubic(double B, double C, double D, double A, float *roots) {
+    static void solveQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+        float ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), cx = x0;
+        float ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0), cy = y0;
+        float A = ax * ax + ay * ay, B = 3.f * (ax * bx + ay * by), C = 2.f * (ax * cx + ay * cy) + bx * bx + by * by, D = bx * cx + by * cy;
+        float roots[3];
+        float *rend = solveCubic(B, C, D, A, roots, -FLT_MAX, FLT_MAX);
+//        *t = 0.f;
+        size_t count = rend - roots;
+        float t, s, x, y, d2, d = FLT_MAX;
+        for (int i = 0; i < count; i++) {
+            t = roots[i], t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+            x = s * s * x0 + 2.f * s * t * x1 + t * t * x2, y = s * s * y0 + 2.f * s * t * y1 + t * t * y2;
+            d2 = x * x + y * y;
+            d = d2 < d ? d2 : d;
+        }
+        d = d;
+    }
+    static float *solveCubic(double B, double C, double D, double A, float *roots, float lt = 0.f, float ut = 1.f) {
         if (fabs(A) < 1e-3)
             return solveQuadratic(B, C, D, roots);
         else {
@@ -671,16 +690,16 @@ struct Rasterizer {
             if (discriminant < 0) {
                 double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
                 __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
-                t = crtr * cosine - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * cosine - b3; if (t > lt && t < ut)  *roots++ = t;
+                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - b3; if (t > lt && t < ut)  *roots++ = t;
+                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - b3; if (t > lt && t < ut)  *roots++ = t;
             } else if (discriminant == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                t = 2 * u1 - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = -u1 - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = 2 * u1 - b3; if (t > lt && t < ut)  *roots++ = t;
+                t = -u1 - b3; if (t > lt && t < ut)  *roots++ = t;
             } else {
                 sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                t = u1 - v1 - b3; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = u1 - v1 - b3; if (t > lt && t < ut)  *roots++ = t;
             }
         }
         return roots;
