@@ -77,20 +77,11 @@ float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) 
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
     float x20 = x2 - x0, y20 = y2 - y0, adot = x20 * x20 + y20 * y20;
-    float u, cpt, bt, at, ut, v, disc, vt0, vt1, u0, u1, vt, t, s, x, y;
+    float u, cpt, bt, at, ut, t, s, x, y;
     u = saturate(-(x20 * x0 + y20 * y0) / adot);
     cpt = (x20 * (x1 - x0) + y20 * (y1 - y0)) / adot;
     bt = 2.0 * cpt, at = 1.0 - bt;
     ut = abs(at) < kQuadraticFlatness ? u / bt : (sqrt(cpt * cpt + at * u) - cpt) / at;
-    v = (x20 * -y0 - y20 * -x0) / (x20 * (y1 - y0) - y20 * (x1 - x0));
-    disc = 0.5 * sqrt(1.0 - 2.0 * min(0.5, v));
-    vt0 = 0.5 - disc, vt1 = 0.5 + disc;
-    u0 = vt0 * (2.0 * cpt * (1.0 - vt0) + vt0), u1 = vt1 * (2.0 * cpt * (1.0 - vt1) + vt1);
-    vt = abs(u0 - u) < abs(u1 - u) ? vt0 : vt1;
-    
-//    t = saturate(vt), s = 1.0 - t;
-//    t = saturate(0.5 * (ut + vt)), s = 1.0 - t;
-    
     t = ut, s = 1.0 - t;
     x = s * s * x0 + 2.0 * s * t * x1 + t * t * x2, y = s * s * y0 + 2.0 * s * t * y1 + t * t * y2;
     return x * x + y * y;
