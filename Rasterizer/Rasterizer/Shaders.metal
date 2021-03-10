@@ -72,7 +72,6 @@ float roundDistance(float x0, float y0, float x1, float y1) {
     x = fma(ax, t, x0), y = fma(ay, t, y0);
     return x * x + y * y;
 }
-
 float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
@@ -84,7 +83,6 @@ float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) 
     t = abs(dm) / ((dm < 0.0 ? d0 : d1) + abs(dm)), t = 0.5 + copysign(0.5 * saturate(t), dm), s = 1.0 - t;
     return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
-
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
     float dx, dy, a0, t, b, f;
