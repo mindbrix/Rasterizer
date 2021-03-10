@@ -77,14 +77,13 @@ float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) 
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
     float x20 = x2 - x0, y20 = y2 - y0, adot = x20 * x20 + y20 * y20;
-    float u, cpt, bt, at, ut, t, s, x, y;
-    u = saturate(-(x20 * x0 + y20 * y0) / adot);
-    cpt = (x20 * (x1 - x0) + y20 * (y1 - y0)) / adot;
-    bt = 2.0 * cpt, at = 1.0 - bt;
-    ut = abs(at) < kQuadraticFlatness ? u / bt : (sqrt(cpt * cpt + at * u) - cpt) / at;
-    t = ut, s = 1.0 - t;
-    x = s * s * x0 + 2.0 * s * t * x1 + t * t * x2, y = s * s * y0 + 2.0 * s * t * y1 + t * t * y2;
-    return x * x + y * y;
+    float dm = (x20 * -(0.25 * (x0 + x2) + 0.5 * x1) + y20 * -(0.25 * (y0 + y2) + 0.5 * y1)) * rsqrt(adot);
+    float x10 = x1 - x0, y10 = y1 - y0, x12 = x1 - x2, y12 = y1 - y2;
+    float d0 = (x10 * -x0 + y10 * -y0) * rsqrt(x10 * x10 + y10 * y10);
+    float d1 = (x12 * -x2 + y12 * -y2) * rsqrt(x12 * x12 + y12 * y12);
+    float t = abs(dm) / ((dm < 0.0 ? d0 : d1) + abs(dm)), s;
+    t = 0.5 + copysign(0.5, dm) * saturate(t), s = 1.0 - t;
+    return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
 
