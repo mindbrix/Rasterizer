@@ -512,10 +512,10 @@ vertex InstancesVertex instances_vertex_main(
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
             vert.d1 = (cx * dx1 + cy * dy1) * rsqrt(cdot);
             vert.dm = no.x * (dx - (0.25 * (x0 + x1) + 0.5 * cpx)) + no.y * (dy - (0.25 * (y0 + y1) + 0.5 * cpy));
-            vert.miter0 = 1.0;
-            vert.miter1 = 1.0;
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
+        vert.miter0 = pcap ? 1.0 : copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = ncap ? 1.0 : copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
