@@ -469,11 +469,12 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& o = inst.outline.s;
-        bool pcurve = (as_type<uint>(o.x0) & 2) != 0, ncurve = (as_type<uint>(o.x0) & 1) != 0;
+        uint ix0 = as_type<uint>(o.x0);
+        bool pcurve = (ix0 & 2) != 0, ncurve = (ix0 & 1) != 0;
         float x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
-        bool pcap = inst.outline.prev == 0, ncap = inst.outline.next == 0;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s;  float px = p.x0, py = p.y0;
         const device Segment& n = instances[iid + inst.outline.next].outline.s;  float nx = n.x1, ny = n.y1;
+        bool pcap = inst.outline.prev == 0 || (as_type<uint>(p.x1) & ~3) != (ix0 & ~3) || p.y1 != y0, ncap = inst.outline.next == 0 || (as_type<uint>(x1) & ~3) != (as_type<uint>(n.x0) & ~3) || y1 != n.y0;
         float cpx, cpy, bx, by, cx, cy;
         if (pcurve)
             cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
