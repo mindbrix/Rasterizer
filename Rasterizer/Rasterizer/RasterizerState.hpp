@@ -83,8 +83,13 @@ struct RasterizerState {
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == KeyCode::kP)
                         mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
-                    else if (e.keyCode == KeyCode::kL)
+                    else if (e.keyCode == KeyCode::kL) {
                         locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
+                        if (locked.begin != INT_MAX) {
+                            Ra::Path& p = list.scenes[locked.begin].paths[locked.end];
+                            p = p;
+                        }
+                    }
                     break;
                 case Event::kKeyUp:
                     keyDown = false, keyCode = e.keyCode;
