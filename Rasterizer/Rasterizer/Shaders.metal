@@ -489,8 +489,8 @@ vertex InstancesVertex instances_vertex_main(
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
         float ew = float(isCurve) * 0.41 * dw, ow = float(isCurve) * 0.5 * abs(-no.y * bx + no.x * by), endCap = (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2);
-        pcap |= dot(np, no) < -0.94 || rp * dw > 5e2;
-        ncap |= dot(no, nn) < -0.94 || rn * dw > 5e2;
+        pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
+        ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
         float2 tpo = normalize(np + no), ton = normalize(no + nn);
         float rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow);
@@ -515,8 +515,8 @@ vertex InstancesVertex instances_vertex_main(
             vert.dm = no.x * (dx - (0.25 * (x0 + x1) + 0.5 * cpx)) + no.y * (dy - (0.25 * (y0 + y1) + 0.5 * cpy));
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
-        vert.miter0 = pcap ? 1.0 : min(1.5, rcospo) * dw + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = ncap ? 1.0 : min(1.5, rcoson) * dw + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = pcap || rcospo < 1.5 ? 1.0 : 1.5 * dw + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = ncap || rcoson < 1.5 ? 1.0 : 1.5 * dw + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
