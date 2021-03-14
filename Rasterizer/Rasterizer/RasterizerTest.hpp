@@ -35,7 +35,7 @@ struct RasterizerTest {
                 scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
             }
         }
-        if (1) {
+        if (0) {
             list.empty();
             Ra::Bounds bounds(0, 0, 100, 100);
             Ra::Path rectPath; rectPath->addEllipse(bounds), rectPath->addEllipse(bounds.inset(20, 20));
@@ -44,9 +44,10 @@ struct RasterizerTest {
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
             if (1) {
-                float w = 20;
-                Ra::Path zed;  zed.ref->moveTo(100, 100), zed.ref->lineTo(0, 100), zed.ref->lineTo(100, 0), zed.ref->lineTo(0, 0);
-                scene.addPath(zed, Ra::Transform(), alpha64, w, 0);
+                float uw = 20, w = 500;
+                Ra::Path zed;  zed.ref->moveTo(w, 100), zed.ref->lineTo(0, 100), zed.ref->lineTo(w, 0), zed.ref->lineTo(0, 0);
+                scene.addPath(zed, Ra::Transform(), alpha64, uw, 0);
+                scene.addPath(zed, Ra::Transform(-1, 0, 0, 1, 2.2 * w, 0), alpha64, uw, 0);
             }
             
             if (0) {
