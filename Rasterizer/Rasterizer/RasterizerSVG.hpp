@@ -15,16 +15,18 @@ struct RasterizerSVG {
         else
             return Ra::Colorant(0, 0, 0, 64);
     }
+    static inline float lengthsq(float x0, float y0, float x1, float y1) {
+        return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
+    }
     static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
-        float *pts, x, y, dx, dy, dot;
+        float *pts, dot;
         int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
             for (dot = 0.f, i = path->npts - 1; i > 0 && dot < 1e-6f; i--) {
-                dx = path->pts[i * 2] - path->pts[0], dy = path->pts[i * 2 + 1] - path->pts[1];
-                if ((dot = dx * dx + dy * dy) < 1e-6f)
+                if ((dot = lengthsq(path->pts[0], path->pts[1], path->pts[i * 2], path->pts[i * 2 + 1])) < 1e-6f)
                     path->pts[i * 2] = path->pts[0], path->pts[i * 2 + 1] = path->pts[1];
             }
-            for (x = path->pts[0], y = path->pts[1], p.ref->moveTo(x, height - y), i = 0; i < path->npts - 1; i += 3) {
+            for (p.ref->moveTo(path->pts[0], height - path->pts[1]), i = 0; i < path->npts - 1; i += 3) {
                 pts = path->pts + i * 2;
                 p.ref->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
             }
