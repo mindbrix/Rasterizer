@@ -736,14 +736,10 @@ struct Rasterizer {
             ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0, la = sqrtf(ax * ax + ay * ay);
             t = la == 0 ? 1.f : 1.f / ceilf(cbrtf(la / (precision * multiplier)));
             t = t > 1.f ? 1.f : t, s = 1.f - t;
-            x01 = s * x0 + t * x1, y01 = s * y0 + t * y1;
-            x12 = s * x1 + t * x2, y12 = s * y1 + t * y2,
-            x23 = s * x2 + t * x3, y23 = s * y2 + t * y3;
-            x012 = s * x01 + t * x12, y012 = s * y01 + t * y12;
-            x123 = s * x12 + t * x23, y123 = s * y12 + t * y23;
-            xt = s * x012 + t * x123, yt = s * y012 + t * y123;
-            mx = 0.125f * (x0 + xt) + 0.375f * (x012 + x01);
-            my = 0.125f * (y0 + yt) + 0.375f * (y012 + y01);
+            x01 = s * x0 + t * x1, x12 = s * x1 + t * x2, x23 = s * x2 + t * x3, x012 = s * x01 + t * x12, x123 = s * x12 + t * x23;
+            y01 = s * y0 + t * y1, y12 = s * y1 + t * y2, y23 = s * y2 + t * y3, y012 = s * y01 + t * y12, y123 = s * y12 + t * y23;
+            xt = s * x012 + t * x123, mx = 0.125f * (x0 + xt) + 0.375f * (x012 + x01);
+            yt = s * y012 + t * y123, my = 0.125f * (y0 + yt) + 0.375f * (y012 + y01);
             
             (*function)(x0, y0, mx, my, 1, info), (*function)(mx, my, xt, yt, 2, info);
             
