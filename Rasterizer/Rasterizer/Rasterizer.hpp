@@ -741,7 +741,10 @@ struct Rasterizer {
             xt = s * x012 + t * x123, mx = 0.125f * (x0 + xt) + 0.375f * (x012 + x01);
             yt = s * y012 + t * y123, my = 0.125f * (y0 + yt) + 0.375f * (y012 + y01);
             
-            (*function)(x0, y0, mx, my, 1, info), (*function)(mx, my, xt, yt, 2, info);
+            if (fabs((x0 - mx) * (yt - my) - (y0 - my) * (xt - mx)) < 1.f)
+                (*function)(x0, y0, xt, yt, 0, info);
+            else
+                (*function)(x0, y0, mx, my, 1, info), (*function)(mx, my, xt, yt, 2, info);
             
             x0 = xt, x1 = x123, x2 = x23, y0 = yt, y1 = y123, y2 = y23;
         }
