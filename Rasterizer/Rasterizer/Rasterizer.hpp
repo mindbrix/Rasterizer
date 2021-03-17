@@ -205,10 +205,6 @@ struct Rasterizer {
             bx = 3.f * (x2 - x1), ax = -bx - x0 + x3, by = 3.f * (y2 - y1), ay = -by - y0 + y3;
             if (ax * ax + ay * ay < 1e-2f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
-//            else if (x0 == x1 && y0 == y1)
-//                quadTo(x2, y2, x3, y3);
-//            else if (x2 == x3 && y2 == y3)
-//                quadTo(x1, y1, x2, y2);
             else {
                 float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3;
                 update(kCubic, 3, pts);
