@@ -35,7 +35,7 @@ struct RasterizerTest {
                 scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
             }
         }
-        if (0) {
+        if (1) {
             list.empty();
             Ra::Bounds bounds(0, 0, 100, 100);
             Ra::Path rectPath; rectPath->addEllipse(bounds), rectPath->addEllipse(bounds.inset(20, 20));
@@ -44,6 +44,19 @@ struct RasterizerTest {
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
             if (1) {
+                float uw = 20, w = 100;
+                Ra::Path cub0;  cub0.ref->moveTo(0, 0), cub0.ref->cubicTo(0, w, w, w, w, 0);
+                Ra::Path cub1;  cub1.ref->moveTo(0, 0), cub1.ref->cubicTo(0, 0, w, w, w, 0);
+                Ra::Path cub3;  cub3.ref->moveTo(0, 0), cub3.ref->cubicTo(w, w, 0, w, w, 0);
+                Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, w, w, 0, w, 0);
+                
+                scene.addPath(cub0, Ra::Transform(1, 0, 0, 1, 0, 0 * w), alpha64, uw, 0);
+                scene.addPath(cub1, Ra::Transform(1, 0, 0, 1, 0, 1 * w), alpha64, uw, 0);
+                scene.addPath(cub2, Ra::Transform(1, 0, 0, 1, 0, 2 * w), alpha64, uw, 0);
+                scene.addPath(cub3, Ra::Transform(1, 0, 0, 1, 0, 3 * w), alpha64, uw, 0);
+            }
+            
+            if (0) {
                 float uw = 20, w = 500;
                 Ra::Path zed;  zed.ref->moveTo(w, 100), zed.ref->lineTo(0, 100), zed.ref->lineTo(w, 0), zed.ref->lineTo(0, 0);
                 scene.addPath(zed, Ra::Transform(), alpha64, uw, 0);
