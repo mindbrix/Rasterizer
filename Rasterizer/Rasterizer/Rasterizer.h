@@ -8,7 +8,7 @@
 
 #define kTau 6.283185307179586f
 #define kClipMargin 1e-2f
-#define kCubicScale 0.5f
+#define kCubicScale 0.25f
 #define kCoverScale 2047.9375f
 #define kQuadraticFlatness 1e-2f
 #define kMonotoneFlatness 1e-2f
