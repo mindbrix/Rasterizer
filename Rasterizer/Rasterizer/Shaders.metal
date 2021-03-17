@@ -480,7 +480,7 @@ vertex InstancesVertex instances_vertex_main(
             cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         float _dot = bx * cx + by * cy, bdot = bx * bx + by * by, cdot = cx * cx + cy * cy;
-        bool isCurve = *useCurves && (pcurve || ncurve) && _dot * _dot / (bdot * cdot) < 0.999695413509548;
+        bool isCurve = *useCurves && (pcurve || ncurve) && bdot > 1.0 && cdot > 1.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ax = x1 - x0, ay = y1 - y0, ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
