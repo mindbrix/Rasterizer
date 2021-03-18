@@ -727,14 +727,14 @@ struct Rasterizer {
     }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s) {
         constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
-        float cx, bx, ax, cy, by, ay, dot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
+        float cx, bx, ax, cy, by, ay, adot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
-        dot = ax * ax + ay * ay;
-        if (s > 0.f && dot + bx * bx + by * by < 1.f)
+        adot = ax * ax + ay * ay;
+        if (s > 0.f && adot + bx * bx + by * by < 1.f)
             (*function)(x0, y0, x3, y3, 0, info);
         else {
-            count = dot == 0 ? 1.f : ceilf(cbrtf(sqrtf(dot) / (fabsf(s) * multiplier)));
+            count = adot == 0 ? 1.f : ceilf(cbrtf(sqrtf(adot) / (fabsf(s) * multiplier)));
             dt = 0.5f / count, dt2 = dt * dt;
             x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
             y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
