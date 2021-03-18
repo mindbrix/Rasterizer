@@ -726,29 +726,8 @@ struct Rasterizer {
             }
         }
     }
-    static void splitCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float precision) {
-        constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
-        float t = 0.f, s, xt, yt, x01, x12, x012, x23, x123, y01, y12, y012, y23, y123, ax, ay, la, mx, my;
-        while (t < 1.f) {
-            ax = x3 + 3.f * (x1 - x2) - x0, ay = y3 + 3.f * (y1 - y2) - y0, la = sqrtf(ax * ax + ay * ay);
-            t = la == 0 ? 1.f : 1.f / ceilf(cbrtf(la / (fabsf(precision) * multiplier)));
-            t = t > 1.f ? 1.f : t, s = 1.f - t;
-            x01 = s * x0 + t * x1, x12 = s * x1 + t * x2, x23 = s * x2 + t * x3, x012 = s * x01 + t * x12, x123 = s * x12 + t * x23;
-            y01 = s * y0 + t * y1, y12 = s * y1 + t * y2, y23 = s * y2 + t * y3, y012 = s * y01 + t * y12, y123 = s * y12 + t * y23;
-            xt = s * x012 + t * x123, mx = 0.125f * (x0 + xt) + 0.375f * (x012 + x01);
-            yt = s * y012 + t * y123, my = 0.125f * (y0 + yt) + 0.375f * (y012 + y01);
-            
-            if (fabs((x0 - mx) * (yt - my) - (y0 - my) * (xt - mx)) < precision)
-                (*function)(x0, y0, xt, yt, 0, info);
-            else
-                (*function)(x0, y0, mx, my, 1, info), (*function)(mx, my, xt, yt, 2, info);
-            
-            x0 = xt, x1 = x123, x2 = x23, y0 = yt, y1 = y123, y2 = y23;
-        }
-    }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s) {
         constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
-//        return splitCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, s);
         float cx, bx, ax, cy, by, ay, dot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
