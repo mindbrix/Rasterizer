@@ -275,7 +275,7 @@ struct Rasterizer {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicScale / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
-                        // divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
+//                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicScale * powf(dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim, 2.f));
                     }
                     new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
@@ -747,13 +747,33 @@ struct Rasterizer {
         }
     }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s) {
-        splitCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, s);
-        return;
-        float cx, bx, ax, cy, by, ay, a, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-        a = s * (ax * ax + ay * ay + bx * bx + by * by);
-        count = a < s ? 1.f : 2.f + floorf(sqrtf(sqrtf(a)));
+        constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
+//        return splitCubic(x0, y0, x1, y1, x2, y2, x3, y3, function, info, s);
+        float cx, bx, ax, cy, by, ay, dot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
+        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
+        dot = ax * ax + ay * ay;
+        if (s > 0.f && dot + bx * bx + by * by < 1.f)
+            (*function)(x0, y0, x3, y3, 0, info);
+        else {
+            count = dot == 0 ? 1.f : ceilf(cbrtf(sqrtf(dot) / (fabsf(s) * multiplier)));
+            dt = 0.5f / count, dt2 = dt * dt;
+            bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+            by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+            x1 = x0, y1 = y0;
+            while (count--) {
+                x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
+                (*function)(x0, y0, x1, y1, 1, info);
+                x0 = x1, y0 = y1;
+                x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
+                (*function)(x0, y0, x1, y1, 2, info);
+                x0 = x1, y0 = y1;
+            }
+        }
+        
+//        a = fabsf(s) * (ax * ax + ay * ay + bx * bx + by * by);
+//        count = a < s ? 1.f : 2.f + floorf(sqrtf(sqrtf(a)));
+        /*
         dt = 1.f / count, dt2 = dt * dt;
         bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
         by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
@@ -764,6 +784,7 @@ struct Rasterizer {
             x0 = x1, y0 = y1;
         }
         (*function)(x0, y0, x3, y3, dt == 1.f ? 0 : 2, info);
+         */
     }
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
