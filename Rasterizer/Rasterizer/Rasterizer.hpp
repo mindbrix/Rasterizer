@@ -383,7 +383,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;
         Row<Entry> entries;
-        bool useCurves = false;
+        bool useCurves = false, fastOutlines = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, sceneCount, tick, pathsCount, headerSize, size = 0;
     };
@@ -446,7 +446,7 @@ struct Rasterizer {
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
-                        if (width && !(width <= 1.f && useMolecules)) {
+                        if (width && !(buffer->fastOutlines && width <= 1.f && useMolecules)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
                                | bool(scene->flags[is] & Scene::kOutlineRoundCap) * Instance::kRoundCap
                                | bool(scene->flags[is] & Scene::kOutlineSquareCap) * Instance::kSquareCap);
