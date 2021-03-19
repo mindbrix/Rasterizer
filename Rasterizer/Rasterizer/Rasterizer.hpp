@@ -686,9 +686,9 @@ struct Rasterizer {
         return roots;
     }
     static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, CubicFunction cubicFunction, void *info, float s) {
-        float cy, by, ay, cx, bx, ax, roots[14], *root = roots, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1) - cy, ay = y3 - y0 - cy - by;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1) - cx, ax = x3 - x0 - cx - bx;
+        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *t, mt, mx, my, vx, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, fx, gx, fy, gy;
+        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
         *root++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
             root = solveCubic(by, cy, y0 - clip.ly, ay, root);
