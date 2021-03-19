@@ -472,7 +472,7 @@ vertex InstancesVertex instances_vertex_main(
         uint ix0 = as_type<uint>(o.x0);
         bool pcurve = (ix0 & 2) != 0, ncurve = (ix0 & 1) != 0;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
-        bool pcap = inst.outline.prev == 0 || (as_type<uint>(p.x1) & ~3) != (ix0 & ~3) || p.y1 != y0, ncap = inst.outline.next == 0 || (as_type<uint>(x1) & ~3) != (as_type<uint>(n.x0) & ~3) || y1 != n.y0;
+        bool pcap = inst.outline.prev == 0 || abs(p.x1 - x0) > 1e-3 || abs(p.y1 - y0) > 1e-3, ncap = inst.outline.next == 0 || abs(n.x0 - x1) > 1e-3 || abs(n.y0 - y1) > 1e-3;
         float cpx, cpy, bx, by, cx, cy;
         if (pcurve)
             cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
