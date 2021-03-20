@@ -736,7 +736,7 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
-        Segment *dst;  bool useCurves = false;  float px, py;  int is = 0;  Bounds clip; 
+        Segment *dst;  bool useCurves = false;  float px0, py0;  int is = 0;  Bounds clip; 
         Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -746,10 +746,10 @@ struct Rasterizer {
                 if (curve == 0 || !idxr->useCurves)
                     idxr->indexLine(x0, y0, x1, y1);
                 else if (curve == 1)
-                    idxr->px = x0, idxr->py = y0;
+                    idxr->px0 = x0, idxr->py0 = y0;
                 else {
-                    idxr->indexQuadratic(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
-                    idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px) + x0, 0.25f * (y1 - idxr->py) + y0, x1, y1);
+                    idxr->indexQuadratic(idxr->px0, idxr->py0, 0.25f * (idxr->px0 - x1) + x0, 0.25f * (idxr->py0 - y1) + y0, x0, y0);
+                    idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px0) + x0, 0.25f * (y1 - idxr->py0) + y0, x1, y1);
                 }
             }
         }
