@@ -908,9 +908,8 @@ struct Rasterizer {
             if (x0 != FLT_MAX)
                 out->dst->iz = out->iz, new (& out->dst->outline.s) Segment(x0, y0, x1, y1, curve), out->dst->outline.prev = -1, out->dst->outline.next = 1, out->dst++;
             else if (out->dst - out->dst0 > 0) {
-                Instance *first = out->dst0, *last = out->dst - 1;
+                Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
                 first->outline.prev = int(curve) * int(last - first), last->outline.next = -first->outline.prev;
-                out->dst0 = out->dst;
             }
         }
         uint32_t iz;  Instance *dst0, *dst;
