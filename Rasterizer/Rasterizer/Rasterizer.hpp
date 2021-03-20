@@ -385,7 +385,7 @@ struct Rasterizer {
         Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, sceneCount, tick, pathsCount, headerSize, size = 0;
+        size_t colors, ctms, clips, widths, bounds, sceneCount, pathsCount, headerSize, size = 0;
     };
     struct Allocator {
         struct Pass {
