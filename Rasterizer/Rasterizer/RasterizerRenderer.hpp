@@ -30,7 +30,7 @@ struct RasterizerRenderer {
         if (list.pathsCount == 0)
             return;
         ThreadInfo threadInfo, *ti = & threadInfo;
-        buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves;
+        buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
         ti->context = contexts, ti->list = & list, ti->state = & state, ti->buffer = buffer;
         ti->idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
         ti->ctms = (Ra::Transform *)(buffer->base + buffer->ctms);
