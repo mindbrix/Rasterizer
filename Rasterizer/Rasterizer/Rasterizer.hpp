@@ -646,19 +646,6 @@ struct Rasterizer {
         float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
         (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
     }
-    static void divideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s) {
-        float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
-        ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, a = s * (ax * ax + ay * ay);
-        count = a < s ? 1.f : a < 8.f ? 2.f : 2.f + floorf(sqrtf(sqrtf(a))), dt = 1.f / count;
-        ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
-        ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
-        while (--count) {
-            x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-            (*function)(x0, y0, x1, y1, 1, info);
-            x0 = x1, y0 = y1;
-        }
-        (*function)(x0, y0, x2, y2, dt == 1.f ? 0 : 2, info);
-    }
     static float *solveCubic(double B, double C, double D, double A, float *roots) {
         if (fabs(A) < 1e-3)
             return solveQuadratic(B, C, D, roots);
