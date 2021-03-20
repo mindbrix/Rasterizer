@@ -10,19 +10,17 @@
 struct RasterizerWinding {
     struct WindingInfo {
         WindingInfo(float dx, float dy, float width) : dx(dx), dy(dy), width(width), winding(0) {}
-        inline void count(float x0, float y0, float x1, float y1) {
-            if (dy >= (y0 < y1 ? y0 : y1) && dy < (y0 > y1 ? y0 : y1)) {
-                float det = (x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0);
-                if (y0 < y1 && det < 0.f)
-                    winding++;
-                else if (y0 > y1 && det > 0.f)
-                    winding--;
-            }
-        }
         float dx, dy, width;  int winding;
         
         static void count(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            ((WindingInfo *)info)->count(x0, y0, x1, y1);
+            WindingInfo *w = (WindingInfo *)info;
+            if (w->dy >= (y0 < y1 ? y0 : y1) && w->dy < (y0 > y1 ? y0 : y1)) {
+                float det = (x1 - x0) * (w->dy - y0) - (y1 - y0) * (w->dx - x0);
+                if (y0 < y1 && det < 0.f)
+                    w->winding++;
+                else if (y0 > y1 && det > 0.f)
+                    w->winding--;
+            }
         }
         static void countOutline(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (x0 != x1 || y0 != y1) {
