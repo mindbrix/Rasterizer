@@ -720,18 +720,15 @@ struct Rasterizer {
         if (s > 0.f && adot + bdot < 1.f)
             (*function)(x0, y0, x3, y3, 0, info);
         else {
-            count = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(s) * multiplier)));
-            dt = 0.5f / count, dt2 = dt * dt;
+            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(s) * multiplier)));
+            dt = 1.f / count, dt2 = dt * dt;
             x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
             y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
             while (--count) {
                 x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
-                (*function)(x0, y0, x1, y1, 1, info), x0 = x1, y0 = y1;
-                x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
-                (*function)(x0, y0, x1, y1, 2, info), x0 = x1, y0 = y1;
+                (*function)(x0, y0, x1, y1, 2 - (int(count) & 1), info), x0 = x1, y0 = y1;
             }
-            x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
-            (*function)(x0, y0, x1, y1, 1, info), (*function)(x1, y1, x3, y3, 2, info);
+            (*function)(x0, y0, x3, y3, 2, info);
         }
     }
     struct CurveIndexer {
