@@ -30,8 +30,7 @@ struct RasterizerWinding {
         return Ra::Range(INT_MAX, INT_MAX);
     }
     struct WindingInfo {
-        WindingInfo(float dx, float dy, float width) : dx(dx), dy(dy), width(width), winding(0) {}
-        float dx, dy, width;  int winding;
+        float dx, dy, width;  int winding = 0;
     };
     static void count(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         WindingInfo *w = (WindingInfo *)info;
@@ -56,7 +55,7 @@ struct RasterizerWinding {
     }
     static int pointWinding(Ra::Path& path, Ra::Bounds bounds, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w) {
         float ws = sqrtf(fabsf(ctm.det())), width = w < 0.f ? -w / ws : w;
-        WindingInfo info(dx, dy, w * (w < 0.f ? -1.f : ws));
+        WindingInfo info;  info.dx = dx, info.dy = dy, info.width = w * (w < 0.f ? -1.f : ws);
         Ra::Transform unit = bounds.inset(-width, -width).unit(ctm), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit).intersect(device);
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
