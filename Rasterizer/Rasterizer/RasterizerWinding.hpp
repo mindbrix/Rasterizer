@@ -40,8 +40,7 @@ struct RasterizerWinding {
         ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
         while (--count) {
             x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-            (*function)(x0, y0, x1, y1, 1, info);
-            x0 = x1, y0 = y1;
+            (*function)(x0, y0, x1, y1, 1, info), x0 = x1, y0 = y1;
         }
         (*function)(x0, y0, x2, y2, dt == 1.f ? 0 : 2, info);
     }
