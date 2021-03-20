@@ -737,12 +737,14 @@ struct Rasterizer {
             dt = 0.5f / count, dt2 = dt * dt;
             x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
             y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
-            while (count--) {
+            while (--count) {
                 x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
                 (*function)(x0, y0, x1, y1, 1, info), x0 = x1, y0 = y1;
                 x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
                 (*function)(x0, y0, x1, y1, 2, info), x0 = x1, y0 = y1;
             }
+            x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
+            (*function)(x0, y0, x1, y1, 1, info), (*function)(x1, y1, x3, y3, 2, info);
         }
     }
     struct CurveIndexer {
