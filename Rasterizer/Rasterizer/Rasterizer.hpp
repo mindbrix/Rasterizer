@@ -690,7 +690,7 @@ struct Rasterizer {
             mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux) {
-                    const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f, m0 = 3.f, m1 = 1.5f;
+                    const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
                     mt = v * t[0] + u * t[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
                     mt = u * t[0] + v * t[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
                     fx = x1t - v3 * x0t - u3 * x3t, fy = y1t - v3 * y0t - u3 * y3t;
@@ -698,8 +698,8 @@ struct Rasterizer {
                     (*cubicFunction)(
                         x0t < clip.lx ? clip.lx : x0t > clip.ux ? clip.ux : x0t,
                         y0t < clip.ly ? clip.ly : y0t > clip.uy ? clip.uy : y0t,
-                        fx * m0 + gx * -m1, fy * m0 + gy * -m1,
-                        fx * -m1 + gx * m0, fy * -m1 + gy * m0,
+                        3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
+                        3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
                         x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t,
                         y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t,
                         function, info, s
