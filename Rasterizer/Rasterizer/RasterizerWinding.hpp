@@ -45,10 +45,10 @@ struct RasterizerWinding {
     static void countOutline(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (x0 != x1 || y0 != y1) {
             WindingInfo *w = (WindingInfo *)info;
-            float ax, ay, bx, by, cx, cy, t;
+            float ax, ay, bx, by, cx, cy, t, s;
             ax = x1 - x0, ay = y1 - y0, bx = w->dx - x0, by = w->dy - y0;
-            t = (ax * bx + ay * by) / (ax * ax + ay * ay), t = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-            cx = (1.f - t) * x0 + t * x1 - w->dx, cy = (1.f - t) * y0 + t * y1 - w->dy;
+            t = (ax * bx + ay * by) / (ax * ax + ay * ay), t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+            cx = s * x0 + t * x1 - w->dx, cy = s * y0 + t * y1 - w->dy;
             if (sqrtf(cx * cx + cy * cy) < 0.5f * w->dw)
                 w->winding = 1;
         }
