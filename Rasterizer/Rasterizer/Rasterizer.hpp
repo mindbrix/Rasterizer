@@ -679,7 +679,8 @@ struct Rasterizer {
             root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
         std::sort(roots + 1, root), *root = 1.f;
         for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
-            x3t = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, y3t = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0;
+            x3t = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
+            y3t = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0, y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
             mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux) {
@@ -689,18 +690,13 @@ struct Rasterizer {
                     fx = x1t - v3 * x0t - u3 * x3t, fy = y1t - v3 * y0t - u3 * y3t;
                     gx = x2t - u3 * x0t - v3 * x3t, gy = y2t - u3 * y0t - v3 * y3t;
                     (*cubicFunction)(
-                        x0t < clip.lx ? clip.lx : x0t > clip.ux ? clip.ux : x0t,
-                        y0t < clip.ly ? clip.ly : y0t > clip.uy ? clip.uy : y0t,
+                        x0t, y0t,
                         3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
                         3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
-                        x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t,
-                        y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t,
-                        function, info, s
+                        x3t, y3t, function, info, s
                     );
-                } else if (polygon) {
-                    vx = mx <= clip.lx ? clip.lx : clip.ux;
-                    (*function)(vx, y0t < clip.ly ? clip.ly : y0t > clip.uy ? clip.uy : y0t, vx, y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t, 0, info);
-                }
+                } else if (polygon)
+                    vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y3t, 0, info);
             }
         }
     }
