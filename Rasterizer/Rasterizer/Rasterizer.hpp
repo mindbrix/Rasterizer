@@ -626,7 +626,7 @@ struct Rasterizer {
         for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x2t, y0t = y2t) {
             x2t = (ax * t[1] + bx) * t[1] + x0, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
             y2t = (ay * t[1] + by) * t[1] + y0, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
-            mt = (t[0] + t[1]) * 0.5f, mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
+            mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux)
                     (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, s);
