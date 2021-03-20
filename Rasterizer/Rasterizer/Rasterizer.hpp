@@ -758,11 +758,9 @@ struct Rasterizer {
                 new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
                 if (curve == 0 || !idxr->useCurves)
                     idxr->indexLine(x0, y0, x1, y1);
-                else if (curve == 1) {
-                    if (idxr->px != FLT_MAX)
-                        idxr->indexQuadratic(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
+                else if (curve == 1)
                     idxr->px = x0, idxr->py = y0;
-                } else {
+                else {
                     idxr->indexQuadratic(idxr->px, idxr->py, 0.25f * (idxr->px - x1) + x0, 0.25f * (idxr->py - y1) + y0, x0, y0);
                     idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px) + x0, 0.25f * (y1 - idxr->py) + y0, x1, y1);
                     idxr->px = FLT_MAX;
