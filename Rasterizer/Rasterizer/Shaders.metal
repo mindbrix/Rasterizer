@@ -498,7 +498,7 @@ vertex InstancesVertex instances_vertex_main(
         float lp = (endCap + ew) * float(pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float ln = (endCap + ew) * float(ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
         float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
-        float tl = t < 0.0 ? 1.0 : min(1.0, t), tr = t > 0.0 ? -1.0 : max(-1.0, t), dt = vid & 1 ? tr : tl;
+        float dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
