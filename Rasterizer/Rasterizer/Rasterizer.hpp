@@ -687,8 +687,8 @@ struct Rasterizer {
                     const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
                     mt = v * t[0] + u * t[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
                     mt = u * t[0] + v * t[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
-                    fx = x1t - v3 * x0t - u3 * x3t, fy = y1t - v3 * y0t - u3 * y3t;
-                    gx = x2t - u3 * x0t - v3 * x3t, gy = y2t - u3 * y0t - v3 * y3t;
+                    fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
+                    fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
                     (*cubicFunction)(
                         x0t, y0t,
                         3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
