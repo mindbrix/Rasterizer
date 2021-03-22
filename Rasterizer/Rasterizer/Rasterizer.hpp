@@ -273,7 +273,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicScale / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
@@ -492,7 +492,7 @@ struct Rasterizer {
     typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     
-    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicScale) {
+    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
