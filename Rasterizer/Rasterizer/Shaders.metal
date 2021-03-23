@@ -61,11 +61,6 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
-float quadraticDistance(float u, float v) {
-    float w = 1.0 - u - v, f = 4.0 * u * w - v * v, dfx = dfdx(f), dfy = dfdy(f);
-    return f * rsqrt(dfx * dfx + dfy * dfy);
-}
-
 float roundDistance(float x0, float y0, float x1, float y1) {
     float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
     return x * x + y * y;
