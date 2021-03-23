@@ -67,9 +67,7 @@ float quadraticDistance(float u, float v) {
 }
 
 float roundDistance(float x0, float y0, float x1, float y1) {
-    float ax, ay, t, x, y;
-    ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay));
-    x = fma(ax, t, x0), y = fma(ay, t, y0);
+    float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
     return x * x + y * y;
 }
 float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
