@@ -78,7 +78,7 @@ float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
     t1 = select(t1, t, dq < 0.0);
     d0 = select(dq, tangentDistance(x0, y0, x1, y1, x2, y2, t0), dq < 0.0);
     d1 = select(tangentDistance(x0, y0, x1, y1, x2, y2, t1), dq, dq < 0.0);
-    t = saturate(d0 / (d0 - d1)), s = 1.0 - t;
+    t = d0 / (d0 - d1), s = 1.0 - t;
     return s * t0 + t * t1;
 }
 float roundDistance(float x0, float y0, float x1, float y1) {
@@ -88,7 +88,7 @@ float roundDistance(float x0, float y0, float x1, float y1) {
 float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
-    float t = closestT(x0, y0, x1, y1, x2, y2), s = 1.0 - t;
+    float t = saturate(closestT(x0, y0, x1, y1, x2, y2)), s = 1.0 - t;
     return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
