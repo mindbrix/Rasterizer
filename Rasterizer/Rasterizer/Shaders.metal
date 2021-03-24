@@ -518,7 +518,6 @@ vertex InstancesVertex instances_vertex_main(
             vert.v = (ax * dy0 - ay * dx0) / area;
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
             vert.d1 = (cx * dx1 + cy * dy1) * rsqrt(cdot);
-            vert.dm = no.x * (dx - (0.25 * (x0 + x1) + 0.5 * cpx)) + no.y * (dy - (0.25 * (y0 + y1) + 0.5 * cpy));
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : kMiterLimit * dw + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
