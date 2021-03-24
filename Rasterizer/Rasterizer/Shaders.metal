@@ -66,15 +66,7 @@ float tangentDistance(float x0, float y0, float x1, float y1, float x2, float y2
     y01 = s * y0 + t * y1, y12 = s * y1 + t * y2, y = s * y01 + t * y12, ty = y12 - y01;
     return -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
 }
-float roundDistance(float x0, float y0, float x1, float y1) {
-    float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
-    return x * x + y * y;
-}
-float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
-    if (x1 == FLT_MAX)
-        return roundDistance(x0, y0, x2, y2);
-//    float x20, y20, x10, y10, x12, y12, dm, d10, d12, dt, t, s;
-//    x20 = x2 - x0, y20 = y2 - y0, x10 = x1 - x0, y10 = y1 - y0, x12 = x1 - x2, y12 = y1 - y2;
+float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
     float t0, t1, t, s, dm, dq, d0, d1;
     t0 = 0.0, t1 = 1.0, t = 0.5 * (t0 + t1), s = 1.0 - t;
     dm = tangentDistance(x0, y0, x1, y1, x2, y2, t);
@@ -87,11 +79,16 @@ float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) 
     d0 = select(dq, tangentDistance(x0, y0, x1, y1, x2, y2, t0), dq < 0.0);
     d1 = select(tangentDistance(x0, y0, x1, y1, x2, y2, t1), dq, dq < 0.0);
     t = saturate(d0 / (d0 - d1)), s = 1.0 - t;
-    t = s * t0 + t * t1, s = 1.0 - t;
-//    dm = -(x20 * (0.25 * (x0 + x2) + 0.5 * x1) + y20 * (0.25 * (y0 + y2) + 0.5 * y1)) * rsqrt(x20 * x20 + y20 * y20);
-//    d10 = -(x10 * x0 + y10 * y0) * rsqrt(x10 * x10 + y10 * y10);
-//    d12 = -(x12 * x2 + y12 * y2) * rsqrt(x12 * x12 + y12 * y12);
-//    dt = abs(dm) / ((dm < 0.0 ? d10 : d12) + abs(dm)), t = 0.5 + copysign(0.5 * saturate(dt), dm), s = 1.0 - t;
+    return s * t0 + t * t1;
+}
+float roundDistance(float x0, float y0, float x1, float y1) {
+    float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
+    return x * x + y * y;
+}
+float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
+    if (x1 == FLT_MAX)
+        return roundDistance(x0, y0, x2, y2);
+    float t = closestT(x0, y0, x1, y1, x2, y2), s = 1.0 - t;
     return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
@@ -552,11 +549,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
     if (vert.flags & InstancesVertex::kIsShape) {
         float t, s, a, b, c, d, x2, y2, tx0, tx1, vx, ty0, ty1, vy, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
-            t = abs(vert.dm) / ((vert.dm < 0.0 ? vert.d0 : vert.d1) + abs(vert.dm));
-            t = 0.5 + copysign(0.5, vert.dm) * saturate(t), s = 1.0 - t;
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-            // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;  // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+            t = closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2), s = 1.0 - t;
             tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
             dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
