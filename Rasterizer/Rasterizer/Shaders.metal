@@ -60,7 +60,12 @@ float4 distances(Transform ctm, float dx, float dy) {
     d1 = ((ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c) * rlcd;
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
-
+float tangentDistance(float x0, float y0, float x1, float y1, float x2, float y2, float t) {
+    float s = 1.0 - t, x01, y01, x12, y12, x, y, tx, ty;
+    x01 = s * x0 + t * x1, x12 = s * x1 + t * x2, x = s * x01 + t * x12, tx = x12 - x01;
+    y01 = s * y0 + t * y1, y12 = s * y1 + t * y2, y = s * y01 + t * y12, ty = y12 - y01;
+    return -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
+}
 float roundDistance(float x0, float y0, float x1, float y1) {
     float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
     return x * x + y * y;
@@ -68,12 +73,25 @@ float roundDistance(float x0, float y0, float x1, float y1) {
 float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return roundDistance(x0, y0, x2, y2);
-    float x20, y20, x10, y10, x12, y12, dm, d10, d12, dt, t, s;
-    x20 = x2 - x0, y20 = y2 - y0, x10 = x1 - x0, y10 = y1 - y0, x12 = x1 - x2, y12 = y1 - y2;
-    dm = -(x20 * (0.25 * (x0 + x2) + 0.5 * x1) + y20 * (0.25 * (y0 + y2) + 0.5 * y1)) * rsqrt(x20 * x20 + y20 * y20);
-    d10 = -(x10 * x0 + y10 * y0) * rsqrt(x10 * x10 + y10 * y10);
-    d12 = -(x12 * x2 + y12 * y2) * rsqrt(x12 * x12 + y12 * y12);
-    dt = abs(dm) / ((dm < 0.0 ? d10 : d12) + abs(dm)), t = 0.5 + copysign(0.5 * saturate(dt), dm), s = 1.0 - t;
+//    float x20, y20, x10, y10, x12, y12, dm, d10, d12, dt, t, s;
+//    x20 = x2 - x0, y20 = y2 - y0, x10 = x1 - x0, y10 = y1 - y0, x12 = x1 - x2, y12 = y1 - y2;
+    float t0, t1, t, s, dm, dq, d0, d1;
+    t0 = 0.0, t1 = 1.0, t = 0.5 * (t0 + t1), s = 1.0 - t;
+    dm = tangentDistance(x0, y0, x1, y1, x2, y2, t);
+    t0 = select(t, t0, dm < 0.0);
+    t1 = select(t1, t, dm < 0.0);
+    t = 0.5 * (t0 + t1), s = 1.0 - t;
+    dq = tangentDistance(x0, y0, x1, y1, x2, y2, t);
+    t0 = select(t, t0, dq < 0.0);
+    t1 = select(t1, t, dq < 0.0);
+    d0 = select(dq, tangentDistance(x0, y0, x1, y1, x2, y2, t0), dq < 0.0);
+    d1 = select(tangentDistance(x0, y0, x1, y1, x2, y2, t1), dq, dq < 0.0);
+    t = saturate(d0 / (d0 - d1)), s = 1.0 - t;
+    t = s * t0 + t * t1, s = 1.0 - t;
+//    dm = -(x20 * (0.25 * (x0 + x2) + 0.5 * x1) + y20 * (0.25 * (y0 + y2) + 0.5 * y1)) * rsqrt(x20 * x20 + y20 * y20);
+//    d10 = -(x10 * x0 + y10 * y0) * rsqrt(x10 * x10 + y10 * y10);
+//    d12 = -(x12 * x2 + y12 * y2) * rsqrt(x12 * x12 + y12 * y12);
+//    dt = abs(dm) / ((dm < 0.0 ? d10 : d12) + abs(dm)), t = 0.5 + copysign(0.5 * saturate(dt), dm), s = 1.0 - t;
     return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
