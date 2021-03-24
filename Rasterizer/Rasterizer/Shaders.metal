@@ -67,19 +67,15 @@ float tangentDistance(float x0, float y0, float x1, float y1, float x2, float y2
     return -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
 }
 float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float t0, t1, t, s, dm, dq, d0, d1;
-    t0 = 0.0, t1 = 1.0, t = 0.5 * (t0 + t1), s = 1.0 - t;
+    float t0, t1, t, dm, dq, d, d0, d1;
+    t0 = 0.0, t1 = 1.0, t = 0.5;
     dm = tangentDistance(x0, y0, x1, y1, x2, y2, t);
-    t0 = select(t, t0, dm < 0.0);
-    t1 = select(t1, t, dm < 0.0);
-    t = 0.5 * (t0 + t1), s = 1.0 - t;
+    t0 = select(t, t0, dm < 0.0), t1 = select(t1, t, dm < 0.0), t = 0.5 * (t0 + t1);
     dq = tangentDistance(x0, y0, x1, y1, x2, y2, t);
-    t0 = select(t, t0, dq < 0.0);
-    t1 = select(t1, t, dq < 0.0);
-    d0 = select(dq, tangentDistance(x0, y0, x1, y1, x2, y2, t0), dq < 0.0);
-    d1 = select(tangentDistance(x0, y0, x1, y1, x2, y2, t1), dq, dq < 0.0);
-    t = d0 / (d0 - d1), s = 1.0 - t;
-    return s * t0 + t * t1;
+    t0 = select(t, t0, dq < 0.0), t1 = select(t1, t, dq < 0.0);
+    d = tangentDistance(x0, y0, x1, y1, x2, y2, select(t1, t0, dq < 0.0));
+    d0 = select(dq, d, dq < 0.0), d1 = select(d, dq, dq < 0.0), t = d0 / (d0 - d1);
+    return (1.0 - t) * t0 + t * t1;
 }
 float roundDistance(float x0, float y0, float x1, float y1) {
     float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
