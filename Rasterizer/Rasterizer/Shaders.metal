@@ -477,6 +477,7 @@ vertex InstancesVertex instances_vertex_main(
         bool pcurve = (ix0 & 2) != 0, ncurve = (ix0 & 1) != 0;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || abs(p.x1 - x0) > 1e-3 || p.y1 != y0, ncap = inst.outline.next == 0 || abs(n.x0 - x1) > 1e-3 || n.y0 != y1;
+        x0 = select(p.x1, x0, pcap);
         float cpx, cpy, bx, by, cx, cy;
         if (pcurve)
             cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
@@ -502,6 +503,7 @@ vertex InstancesVertex instances_vertex_main(
         float lp = endCap * float(pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float ln = endCap * float(ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
         float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
+//        float dt = select(1.0, -1.0, vid & 1);
         float dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
