@@ -40,6 +40,7 @@ struct Quad {
 };
 struct Outline {
     Segment s;
+    uint16_t curve;
     short prev, next;
 };
 struct Instance {
@@ -473,11 +474,9 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        uint ix0 = as_type<uint>(o.x0);
-        bool pcurve = (ix0 & 2) != 0, ncurve = (ix0 & 1) != 0;
+        bool pcurve = (inst.outline.curve & 2) != 0, ncurve = (inst.outline.curve & 1) != 0;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
-        bool pcap = inst.outline.prev == 0 || abs(p.x1 - x0) > 1e-3 || p.y1 != y0, ncap = inst.outline.next == 0 || abs(n.x0 - x1) > 1e-3 || n.y0 != y1;
-        x0 = select(p.x1, x0, pcap);
+        bool pcap = inst.outline.prev == 0 || p.x1 != x0 || p.y1 != y0, ncap = inst.outline.next == 0 || n.x0 != x1 || n.y0 != y1;
         float cpx, cpy, bx, by, cx, cy;
         if (pcurve)
             cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
@@ -499,6 +498,21 @@ vertex InstancesVertex instances_vertex_main(
         float rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow);
         float rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow) ;
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
+        
+//        float offset = dw + ow, a, u, v, w;
+//        a = vp.x * ay - vp.y * ax;
+//        u = offset * sqrt(ax * ax + ay * ay);
+//        w = offset * sqrt(dot(vp, vp));
+//        v = - u - w;
+//        vx0 = select((u * px + v * x0 + w * x1) / a, -no.y * offset, pcap || abs(a) < 1e-6);
+//        vy0 = select((u * py + v * y0 + w * y1) / a, no.x * offset, pcap || abs(a) < 1e-6);
+//
+//        a = ax * vn.y - ay * vn.x;
+//        u = offset * sqrt(dot(vn, vn));
+//        w = offset * sqrt(ax * ax + ay * ay);
+//        v = - u - w;
+//        vx1 = select((u * x0 + v * x1 + w * nx) / a, -no.y * offset, ncap || abs(a) < 1e-6);
+//        vy1 = select((u * y0 + v * y1 + w * ny) / a, no.x * offset, ncap || abs(a) < 1e-6);
         
         float lp = endCap * float(pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float ln = endCap * float(ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
