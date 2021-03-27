@@ -68,7 +68,7 @@ float tangentDistance(float x0, float y0, float x1, float y1, float x2, float y2
 }
 float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
     float t0, t1, t, dm, dq, d, d0, d1;
-    dm = -((0.125 * (x0 + x2) + 0.25 * x1) * (x2 - x0) + (0.125 * (y0 + y2) + 0.25 * y1) * (y2 - y0));
+    dm = -((x0 + x2 + 2.0 * x1) * (x2 - x0) + (y0 + y2 + 2.0 * y1) * (y2 - y0));
     t0 = select(0.5, 0.0, dm < 0.0), t1 = select(1.0, 0.5, dm < 0.0), t = 0.5 * (t0 + t1);
     dq = tangentDistance(x0, y0, x1, y1, x2, y2, t);
     t0 = select(t, t0, dq < 0.0), t1 = select(t1, t, dq < 0.0);
