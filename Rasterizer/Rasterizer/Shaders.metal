@@ -40,11 +40,10 @@ struct Quad {
 };
 struct Outline {
     Segment s;
-    uint16_t curve;
     short prev, next;
 };
 struct Instance {
-    enum Type { kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
@@ -474,7 +473,7 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        bool pcurve = (inst.outline.curve & 2) != 0, ncurve = (inst.outline.curve & 1) != 0;
+        bool pcurve = (inst.iz & Instance::kPCurve) != 0, ncurve = (inst.iz & Instance::kNCurve) != 0;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != x0 || p.y1 != y0, ncap = inst.outline.next == 0 || n.x0 != x1 || n.y0 != y1;
         float cpx, cpy, bx, by, cx, cy;

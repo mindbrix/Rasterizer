@@ -339,10 +339,10 @@ struct Rasterizer {
         Cell cell;  short cover;  int base;
     };
     struct Outline {
-        Segment s;  uint16_t curve;  short prev, next;
+        Segment s;  short prev, next;
     };
     struct Instance {
-        enum Type { kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kSolidCell = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
+        enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
         uint32_t iz;  union { Quad quad;  Outline outline; };
     };
@@ -878,13 +878,13 @@ struct Rasterizer {
             Outliner *out = (Outliner *)info;
             if (x0 != FLT_MAX) {
                 Outline& o = out->dst->outline;
-                out->dst->iz = out->iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.curve = curve, o.prev = -1, o.next = 1, out->dst++;
+                out->dst->iz = out->iz | out->flags[curve], o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.prev = -1, o.next = 1, out->dst++;
             } else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
                 first->outline.prev = int(curve) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
-        uint32_t iz;  Instance *dst0, *dst;
+        uint32_t iz;  Instance *dst0, *dst;  uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
