@@ -851,8 +851,8 @@ struct Rasterizer {
                                 Cell *cell = & (new (ctx.opaques.alloc(1)) Instance(iz))->quad.cell;
                                 cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy;
                             } else {
-                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz | Instance::kSolidCell))->quad.cell;
-                                cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy;
+                                Cell *cell = & (new (ctx.blends.alloc(1)) Blend(iz))->quad.cell;
+                                cell->lx = ux, cell->ly = ly, cell->ux = index->x, cell->uy = uy, cell->ox = kNullIndex;
                                 ctx.allocator.passes.back().size++;
                             }
                         }
