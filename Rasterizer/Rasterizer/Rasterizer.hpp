@@ -610,8 +610,8 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, QuadFunction quadFunction, void *info, float s) {
-        float ax, bx, ay, by, roots[10], *root = roots, *t, mt, mx, my, vx, x0t, y0t, x2t, y2t;
+    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, QuadFunction quadFunction, void *info, float prec) {
+        float ax, bx, ay, by, roots[10], *root = roots, *t, s, w0, w1, w2, mt, mx, my, vx, x0t, y0t, x2t, y2t;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
         *root++ = 0.f;
         if (clip.ly >= ly && clip.ly < uy)
@@ -624,12 +624,13 @@ struct Rasterizer {
             root = solveQuadratic(ax, bx, x0 - clip.ux, root);
         std::sort(roots + 1, root), *root = 1.f;
         for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x2t, y0t = y2t) {
-            x2t = (ax * t[1] + bx) * t[1] + x0, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
-            y2t = (ay * t[1] + by) * t[1] + y0, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
+            s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
+            x2t = w0 * x0 + w1 * x1 + w2 * x2, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
+            y2t = w0 * y0 + w1 * y1 + w2 * y2, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
             mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux)
-                    (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, s);
+                    (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, prec);
                 else if (polygon)
                     vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y2t, 0, info);
             }
@@ -825,7 +826,7 @@ struct Rasterizer {
     }
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
         size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
-        uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding;
+        uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
@@ -838,7 +839,7 @@ struct Rasterizer {
                     std::sort(indices->base + indices->idx, indices->base + indices->end);
                 ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
+                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
@@ -860,7 +861,7 @@ struct Rasterizer {
                         begin = i, lx = ux = index->x;
                     }
                     int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, iux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
-                    ux = iux > ux ? iux : ux, winding += uxcover[1] * 0.00003051850948f;
+                    ux = iux > ux ? iux : ux, winding += uxcover[1] * wscale;
                 }
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
