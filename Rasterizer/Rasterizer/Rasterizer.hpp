@@ -664,8 +664,8 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, CubicFunction cubicFunction, void *info, float s) {
-        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *t, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
+    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, CubicFunction cubicFunction, void *info, float prec) {
+        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *t, s, w0, w1, w2, w3, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
         *root++ = 0.f;
@@ -679,9 +679,10 @@ struct Rasterizer {
             root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
         std::sort(roots + 1, root), *root = 1.f;
         for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
-            x3t = ((ax * t[1] + bx) * t[1] + cx) * t[1] + x0, x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
-            y3t = ((ay * t[1] + by) * t[1] + cy) * t[1] + y0, y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
-            mt = (t[0] + t[1]) * 0.5f, mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
+            s = 1.f - t[1], w0 = s * s * s, w1 = 3.f * s * s * t[1], w2 = 3.f * s * t[1] * t[1], w3 = t[1] * t[1] * t[1];
+            x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3, x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
+            y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3, y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
+            mt = 0.5f * (t[0] + t[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux) {
                     const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
@@ -693,23 +694,23 @@ struct Rasterizer {
                         x0t, y0t,
                         3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
                         3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
-                        x3t, y3t, function, info, s
+                        x3t, y3t, function, info, prec
                     );
                 } else if (polygon)
                     vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y3t, 0, info);
             }
         }
     }
-    static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s) {
+    static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float prec) {
         constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
         float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
         adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
-        if (s > 0.f && adot + bdot < 1.f)
+        if (prec > 0.f && adot + bdot < 1.f)
             (*function)(x0, y0, x3, y3, 0, info);
         else {
-            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(s) * multiplier))), dt = 1.f / count, dt2 = dt * dt;
+            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(prec) * multiplier))), dt = 1.f / count, dt2 = dt * dt;
             x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
             y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
             while (--count) {
