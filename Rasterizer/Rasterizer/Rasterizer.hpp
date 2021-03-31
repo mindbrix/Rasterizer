@@ -439,7 +439,7 @@ struct Rasterizer {
                         else
                             width = -uw, uw = width / sqrtf(det);
                     }
-                    Transform unit = scene->bnds[is].inset(-uw, -uw).unit(m);
+                    Transform unit = scene->bnds[is].inset(-8.f * uw, -8.f * uw).unit(m);
                     Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
                     bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
@@ -449,7 +449,7 @@ struct Rasterizer {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
                                | bool(scene->flags[is] & Scene::kOutlineRoundCap) * Instance::kRoundCap
                                | bool(scene->flags[is] & Scene::kOutlineSquareCap) * Instance::kSquareCap);
-                           inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
+                           inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-8.f * width, -8.f * width);
                            if (det > 1e2f) {
                                size_t count = 0;
                                divideGeometry(g, m, inst->clip, false, false, true, & count, Outliner::CountSegment);
