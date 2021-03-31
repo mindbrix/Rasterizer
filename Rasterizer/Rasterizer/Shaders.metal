@@ -515,15 +515,9 @@ vertex InstancesVertex instances_vertex_main(
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
-        vert.miter0 = pcap ? 1.0 : max(1.5 * dw, rcospo * (dw - 0.5) - 0.5 * rcospo + 0.5) + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = ncap ? 1.0 : max(1.5 * dw, rcoson * (dw - 0.5) - 0.5 * rcoson + 0.5) + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
-        
-//        float A = 0.5;
-//        vert.miter0 = pcap ? 1.0 : rcospo * dw + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x) - sqrt(A * sqrt(1.0 - cospo * cospo) * rcospo);
-//        vert.miter1 = ncap ? 1.0 : rcoson * dw + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x) - sqrt(A * sqrt(1.0 - coson * coson) * rcoson);
-        
-//        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : kMiterLimit * dw + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-//        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : kMiterLimit * dw + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : max(1.5 * dw, rcospo * (dw - 0.5) - 0.5 * rcospo + 0.5) + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : max(1.5 * dw, rcoson * (dw - 0.5) - 0.5 * rcoson + 0.5) + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
