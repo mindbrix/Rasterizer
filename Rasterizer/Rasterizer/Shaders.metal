@@ -76,15 +76,15 @@ float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
     d0 = select(dq, d, dq < 0.0), d1 = select(d, dq, dq < 0.0), t = d0 / (d0 - d1);
     return (1.0 - t) * t0 + t * t1;
 }
-float roundDistance(float x0, float y0, float x1, float y1) {
+float roundedDistance(float x0, float y0, float x1, float y1) {
     float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
     return x * x + y * y;
 }
-float roundDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
+float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
-        return roundDistance(x0, y0, x2, y2);
+        return roundedDistance(x0, y0, x2, y2);
     float t = saturate(closestT(x0, y0, x1, y1, x2, y2)), s = 1.0 - t;
-    return roundDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
+    return roundedDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
@@ -225,8 +225,8 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
 fragment float4 fast_outlines_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
     float d = min(
-                  min(roundDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
-                  min(roundDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundDistance(vert.x3, vert.y3, vert.x4, vert.y4))
+                  min(roundedDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundedDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
+                  min(roundedDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundedDistance(vert.x3, vert.y3, vert.x4, vert.y4))
                   );
     return saturate(vert.dw - sqrt(d));
 }
@@ -331,10 +331,10 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vt [[stage_in]])
 {
     float d = min(
-                  min(roundDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2),
-                      roundDistance(vt.x2, vt.y2, vt.x3, vt.y3, vt.x4, vt.y4)),
-                  min(roundDistance(vt.x4, vt.y4, vt.x5, vt.y5, vt.x6, vt.y6),
-                      roundDistance(vt.x6, vt.y6, vt.x7, vt.y7, vt.x8, vt.y8))
+                  min(roundedDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2),
+                      roundedDistance(vt.x2, vt.y2, vt.x3, vt.y3, vt.x4, vt.y4)),
+                  min(roundedDistance(vt.x4, vt.y4, vt.x5, vt.y5, vt.x6, vt.y6),
+                      roundedDistance(vt.x6, vt.y6, vt.x7, vt.y7, vt.x8, vt.y8))
                   );
     return saturate(vt.dw - sqrt(d));
 }
