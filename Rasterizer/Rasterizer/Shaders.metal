@@ -570,8 +570,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
         
 //        sd0 = sd1 = 1;
-        alpha = min(saturate(vert.miter1), min(saturate(vert.miter0), alpha));
-//        alpha *= saturate(vert.miter0) * saturate(vert.miter1);
+        alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
         
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
     } else if (vert.u != FLT_MAX) {
