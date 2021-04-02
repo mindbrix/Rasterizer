@@ -67,13 +67,15 @@ float tangentDistance(float x0, float y0, float x1, float y1, float x2, float y2
     return -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
 }
 float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float t0, t1, t, dm, dq, d, d0, d1;
-    dm = -((x0 + x2 + 2.0 * x1) * (x2 - x0) + (y0 + y2 + 2.0 * y1) * (y2 - y0));
-    t0 = select(0.5, 0.0, dm < 0.0), t1 = select(1.0, 0.5, dm < 0.0), t = 0.5 * (t0 + t1);
-    dq = tangentDistance(x0, y0, x1, y1, x2, y2, t);
-    t0 = select(t, t0, dq < 0.0), t1 = select(t1, t, dq < 0.0);
-    d = tangentDistance(x0, y0, x1, y1, x2, y2, select(t1, t0, dq < 0.0));
-    d0 = select(dq, d, dq < 0.0), d1 = select(d, dq, dq < 0.0), t = d0 / (d0 - d1);
+    float t0, t1, t, d2, d4, d8, d, d0, d1;
+    d2 = -((x0 + x2 + 2.0 * x1) * (x2 - x0) + (y0 + y2 + 2.0 * y1) * (y2 - y0));
+    t0 = select(0.5, 0.0, d2 < 0.0), t1 = select(1.0, 0.5, d2 < 0.0), t = 0.5 * (t0 + t1);
+    d4 = tangentDistance(x0, y0, x1, y1, x2, y2, t);
+    t0 = select(t, t0, d4 < 0.0), t1 = select(t1, t, d4 < 0.0), t = 0.5 * (t0 + t1);
+    d8 = tangentDistance(x0, y0, x1, y1, x2, y2, t);
+    t0 = select(t, t0, d8 < 0.0), t1 = select(t1, t, d8 < 0.0);
+    d = tangentDistance(x0, y0, x1, y1, x2, y2, select(t1, t0, d8 < 0.0));
+    d0 = select(d8, d, d8 < 0.0), d1 = select(d, d8, d8 < 0.0), t = d0 / (d0 - d1);
     return (1.0 - t) * t0 + t * t1;
 }
 float roundedDistance(float x0, float y0, float x1, float y1) {
@@ -476,10 +478,33 @@ vertex InstancesVertex instances_vertex_main(
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != x0 || p.y1 != y0, ncap = inst.outline.next == 0 || n.x0 != x1 || n.y0 != y1;
         float cpx, cpy, bx, by, cx, cy;
-        if (pcurve)
-            cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
-        else
-            cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
+        
+        if (*useCurves && (pcurve || ncurve)) {
+            float cx0, cy0, cx2, cy2, ax, ay, bx, by, vx, vy, t, s, x, y;
+            if (pcurve) {
+                cpx = 2.0 * x0 - 0.5 * (px + x1), cpy = 2.0 * y0 - 0.5 * (py + y1);
+                cx0 = px, cy0 = py, cx2 = x1, cy2 = y1;
+            } else {
+                cpx = 2.0 * x1 - 0.5 * (x0 + nx), cpy = 2.0 * y1 - 0.5 * (y0 + ny);
+                cx0 = x0, cy0 = y0, cx2 = nx, cy2 = ny;
+            }
+            ax = cx0 + cx2 - cpx - cpx, ay = cy0 + cy2 - cpy - cpy;
+            bx = 2.0 * (cpx - cx0), by = 2.0 * (cpy - cy0);
+            float2 bi = normalize(float2(cpx - cx0, cpy - cy0)) + normalize(float2(cx2 - cpx, cy2 - cpy));
+            vx = -bi.y, vy = bi.x;
+            t = -0.5 * (vx * bx + vy * by) / (vx * ax + vy * ay), s = 1.0 - t;
+            x = (ax * t + bx) * t + cx0, y = (ay * t + by) * t + cy0;
+            if (pcurve)
+                x0 = x, y0 = y, cpx = s * cpx + t * cx2, cpy = s * cpy + t * cy2;
+            else
+                x1 = x, y1 = y, cpx = s * cx0 + t * cpx, cpy = s * cy0 + t * cpy;
+        }
+        
+        
+//        if (pcurve)
+//            cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
+//        else
+//            cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         float _dot = bx * cx + by * cy, bdot = bx * bx + by * by, cdot = cx * cx + cy * cy;
         bool isCurve = *useCurves && (pcurve || ncurve) && max(bdot, cdot) / min(bdot, cdot) < 36.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
@@ -515,8 +540,10 @@ vertex InstancesVertex instances_vertex_main(
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
-        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : rcospo * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : rcoson * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * tpo.x + dy0 * tpo.y);
+        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * ton.x + dy1 * ton.y);
+//        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : rcospo * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+//        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : rcoson * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
@@ -568,9 +595,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         
         sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
-        
+
+        alpha *= saturate(abs(vert.d0)) * saturate(abs(vert.d1)) * saturate(abs(vert.miter0)) * saturate(abs(vert.miter1));
 //        sd0 = sd1 = 1;
-        alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
+//        alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
         
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
     } else if (vert.u != FLT_MAX) {
