@@ -489,10 +489,8 @@ vertex InstancesVertex instances_vertex_main(
             ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
             t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
             x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
-            if (pcurve)
-                x0 = x, y0 = y, cpx = s * cpx + t * cx2, cpy = s * cpy + t * cy2;
-            else
-                x1 = x, y1 = y, cpx = s * cx0 + t * cpx, cpy = s * cy0 + t * cpy;
+            x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
+            y0 = select(y0, y, pcurve), y1 = select(y, y1, pcurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
         }
         
         
