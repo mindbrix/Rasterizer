@@ -487,8 +487,8 @@ vertex InstancesVertex instances_vertex_main(
         float2 bi = normalize(float2(bx, by)) + normalize(float2(ax, ay));
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
         t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
-        x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
-        x = select(x1, x, pcurve || ncurve), y = select(y1, y, pcurve || ncurve);
+        x = select(x1, fma(fma(ax, t, bx), t, cx0), pcurve || ncurve);
+        y = select(y1, fma(fma(ay, t, by), t, cy0), pcurve || ncurve);
         x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
         y0 = select(y0, y, pcurve), y1 = select(y, y1, pcurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
         
