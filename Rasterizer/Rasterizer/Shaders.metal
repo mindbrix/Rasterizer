@@ -481,10 +481,8 @@ vertex InstancesVertex instances_vertex_main(
         
         if (*useCurves && (pcurve || ncurve)) {
             float cx0, cy0, cx2, cy2, t, s, x, y;
-            if (pcurve)
-                cx0 = px, cy0 = py, x = x0, y = y0, cx2 = x1, cy2 = y1;
-            else
-                cx0 = x0, cy0 = y0, x = x1, y = y1, cx2 = nx, cy2 = ny;
+            cx0 = select(x0, px, pcurve), x = select(x1, x0, pcurve), cx2 = select(nx, x1, pcurve);
+            cy0 = select(y0, py, pcurve), y = select(y1, y0, pcurve), cy2 = select(ny, y1, pcurve);
             cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
             ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
             float2 bi = normalize(float2(bx, by)) + normalize(float2(ax, ay));
