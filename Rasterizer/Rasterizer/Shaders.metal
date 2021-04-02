@@ -474,25 +474,23 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        bool pcurve = (inst.iz & Instance::kPCurve) != 0, ncurve = (inst.iz & Instance::kNCurve) != 0;
+        bool pcurve = *useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = *useCurves && (inst.iz & Instance::kNCurve) != 0;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != x0 || p.y1 != y0, ncap = inst.outline.next == 0 || n.x0 != x1 || n.y0 != y1;
         float cpx, cpy, ax, bx, ay, by, cx, cy;
         
-        if (*useCurves && (pcurve || ncurve)) {
-            float cx0, cy0, cx2, cy2, t, s, x, y;
-            cx0 = select(x0, px, pcurve), x = select(x1, x0, pcurve), cx2 = select(nx, x1, pcurve);
-            cy0 = select(y0, py, pcurve), y = select(y1, y0, pcurve), cy2 = select(ny, y1, pcurve);
-            cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
-            ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
-            float2 bi = normalize(float2(bx, by)) + normalize(float2(ax, ay));
-            ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-            t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
-            x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
-            x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
-            y0 = select(y0, y, pcurve), y1 = select(y, y1, pcurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
-        }
-        
+        float cx0, cy0, cx2, cy2, t, s, x, y;
+        cx0 = select(x0, px, pcurve), x = select(x1, x0, pcurve), cx2 = select(nx, x1, pcurve);
+        cy0 = select(y0, py, pcurve), y = select(y1, y0, pcurve), cy2 = select(ny, y1, pcurve);
+        cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
+        ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
+        float2 bi = normalize(float2(bx, by)) + normalize(float2(ax, ay));
+        ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
+        t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
+        x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
+        x = select(x1, x, pcurve || ncurve), y = select(y1, y, pcurve || ncurve);
+        x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
+        y0 = select(y0, y, pcurve), y1 = select(y, y1, pcurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
         
 //        if (pcurve)
 //            cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
@@ -500,7 +498,7 @@ vertex InstancesVertex instances_vertex_main(
 //            cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         ax = x1 - x0, ay = y1 - y0, bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         float _dot = bx * cx + by * cy, bdot = bx * bx + by * by, cdot = cx * cx + cy * cy;
-        bool isCurve = *useCurves && (pcurve || ncurve) && max(bdot, cdot) / min(bdot, cdot) < 36.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
+        bool isCurve = (pcurve || ncurve) && max(bdot, cdot) / min(bdot, cdot) < 36.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
@@ -517,7 +515,7 @@ vertex InstancesVertex instances_vertex_main(
         
         float lp = endCap * float(pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         float ln = endCap * float(ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
-        float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
+        t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         float dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
