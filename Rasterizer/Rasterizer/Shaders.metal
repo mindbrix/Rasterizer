@@ -477,23 +477,20 @@ vertex InstancesVertex instances_vertex_main(
         bool pcurve = (inst.iz & Instance::kPCurve) != 0, ncurve = (inst.iz & Instance::kNCurve) != 0;
         float px = p.x0, py = p.y0, x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != x0 || p.y1 != y0, ncap = inst.outline.next == 0 || n.x0 != x1 || n.y0 != y1;
-        float cpx, cpy, bx, by, cx, cy;
+        float cpx, cpy, ax, bx, ay, by, cx, cy;
         
         if (*useCurves && (pcurve || ncurve)) {
-            float cx0, cy0, cx2, cy2, ax, ay, bx, by, vx, vy, t, s, x, y;
-            if (pcurve) {
-                cpx = 2.0 * x0 - 0.5 * (px + x1), cpy = 2.0 * y0 - 0.5 * (py + y1);
-                cx0 = px, cy0 = py, cx2 = x1, cy2 = y1;
-            } else {
-                cpx = 2.0 * x1 - 0.5 * (x0 + nx), cpy = 2.0 * y1 - 0.5 * (y0 + ny);
-                cx0 = x0, cy0 = y0, cx2 = nx, cy2 = ny;
-            }
-            ax = cx0 + cx2 - cpx - cpx, ay = cy0 + cy2 - cpy - cpy;
-            bx = 2.0 * (cpx - cx0), by = 2.0 * (cpy - cy0);
-            float2 bi = normalize(float2(cpx - cx0, cpy - cy0)) + normalize(float2(cx2 - cpx, cy2 - cpy));
-            vx = -bi.y, vy = bi.x;
-            t = -0.5 * (vx * bx + vy * by) / (vx * ax + vy * ay), s = 1.0 - t;
-            x = (ax * t + bx) * t + cx0, y = (ay * t + by) * t + cy0;
+            float cx0, cy0, cx2, cy2, t, s, x, y;
+            if (pcurve)
+                cx0 = px, cy0 = py, x = x0, y = y0, cx2 = x1, cy2 = y1;
+            else
+                cx0 = x0, cy0 = y0, x = x1, y = y1, cx2 = nx, cy2 = ny;
+            cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
+            ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
+            float2 bi = normalize(float2(bx, by)) + normalize(float2(ax, ay));
+            ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
+            t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
+            x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
             if (pcurve)
                 x0 = x, y0 = y, cpx = s * cpx + t * cx2, cpy = s * cpy + t * cy2;
             else
@@ -505,12 +502,12 @@ vertex InstancesVertex instances_vertex_main(
 //            cpx = 0.25 * (x1 - px) + x0, cpy = 0.25 * (y1 - py) + y0;
 //        else
 //            cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
-        bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
+        ax = x1 - x0, ay = y1 - y0, bx = cpx - x0, by = cpy - y0, cx = cpx - x1, cy = cpy - y1;
         float _dot = bx * cx + by * cy, bdot = bx * bx + by * by, cdot = cx * cx + cy * cy;
         bool isCurve = *useCurves && (pcurve || ncurve) && max(bdot, cdot) / min(bdot, cdot) < 36.0 && _dot * _dot / (bdot * cdot) < 0.999695413509548;
         
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
-        float ax = x1 - x0, ay = y1 - y0, ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        float ro = rsqrt(ax * ax + ay * ay), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(ax, ay) * ro, np = vp * rp, nn = vn * rn;
         float ow = float(isCurve) * 0.5 * abs(-no.y * bx + no.x * by), endCap = float(isCurve) * 0.41 * dw + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2);
