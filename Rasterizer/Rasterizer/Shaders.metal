@@ -70,8 +70,7 @@ float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
     t0 = select(t, t0, d4 < 0.0), t1 = select(t1, t, d4 < 0.0), t = 0.5 * (t0 + t1);
     tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
     d8 = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
-    t0 = select(t, t0, d8 < 0.0), t1 = select(t1, t, d8 < 0.0);
-    t = select(t1, t0, d8 < 0.0);
+    t0 = select(t, t0, d8 < 0.0), t1 = select(t1, t, d8 < 0.0), t = select(t1, t0, d8 < 0.0);
     tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
     d = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
     d0 = select(d8, d, d8 < 0.0), d1 = select(d, d8, d8 < 0.0), t = d0 / (d0 - d1);
