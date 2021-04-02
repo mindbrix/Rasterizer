@@ -60,21 +60,20 @@ float4 distances(Transform ctm, float dx, float dy) {
     d1 = ((ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c) * rlcd;
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
-float tangentDistance(float x0, float y0, float x1, float y1, float x2, float y2, float t) {
-    float s = 1.0 - t, x01, y01, x12, y12, x, y, tx, ty;
-    x01 = s * x0 + t * x1, x12 = s * x1 + t * x2, x = s * x01 + t * x12, tx = x12 - x01;
-    y01 = s * y0 + t * y1, y12 = s * y1 + t * y2, y = s * y01 + t * y12, ty = y12 - y01;
-    return -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
-}
 float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float t0, t1, t, d2, d4, d8, d, d0, d1;
+    float ax, bx, ay, by, t0, t1, t, d2, d4, d8, d, d0, d1, x, y, tx, ty;
+    ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
     d2 = -((x0 + x2 + 2.0 * x1) * (x2 - x0) + (y0 + y2 + 2.0 * y1) * (y2 - y0));
     t0 = select(0.5, 0.0, d2 < 0.0), t1 = select(1.0, 0.5, d2 < 0.0), t = 0.5 * (t0 + t1);
-    d4 = tangentDistance(x0, y0, x1, y1, x2, y2, t);
+    tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
+    d4 = -(x * tx + y * ty);
     t0 = select(t, t0, d4 < 0.0), t1 = select(t1, t, d4 < 0.0), t = 0.5 * (t0 + t1);
-    d8 = tangentDistance(x0, y0, x1, y1, x2, y2, t);
+    tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
+    d8 = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
     t0 = select(t, t0, d8 < 0.0), t1 = select(t1, t, d8 < 0.0);
-    d = tangentDistance(x0, y0, x1, y1, x2, y2, select(t1, t0, d8 < 0.0));
+    t = select(t1, t0, d8 < 0.0);
+    tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
+    d = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
     d0 = select(d8, d, d8 < 0.0), d1 = select(d, d8, d8 < 0.0), t = d0 / (d0 - d1);
     return (1.0 - t) * t0 + t * t1;
 }
