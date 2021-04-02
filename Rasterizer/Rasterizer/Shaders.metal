@@ -481,11 +481,14 @@ vertex InstancesVertex instances_vertex_main(
         cx0 = select(x0, px, pcurve), x = select(x1, x0, pcurve), cx2 = select(nx, x1, pcurve);
         cy0 = select(y0, py, pcurve), y = select(y1, y0, pcurve), cy2 = select(ny, y1, pcurve);
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
-        ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;//, bdot = bx * bx + by * by;
-        float2 bi = normalize(float2(bx, by)) + normalize(float2(ax, ay));
+        ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0, bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
+        float2 bi = float2(bx, by) * rsqrt(bdot) + float2(ax, ay) * rsqrt(adot);
+        cx = cx2 - cx0, cy = cy2 - cy0;
+        bool notLine = abs((-cy * bx + cx * by) / (cx * cx + cy * cy)) > 0.0;
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-        t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
+        t = select(0.5, -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), notLine), s = 1.0 - t;
 //        t = s = 0.5;
+//        pcurve &= notLine, ncurve &= notLine;
         x = select(x1, fma(fma(ax, t, bx), t, cx0), pcurve || ncurve);
         y = select(y1, fma(fma(ay, t, by), t, cy0), pcurve || ncurve);
         x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
@@ -497,8 +500,9 @@ vertex InstancesVertex instances_vertex_main(
 //            cpx = 0.25 * (x0 - nx) + x1, cpy = 0.25 * (y0 - ny) + y1;
         cx = x1 - x0, cy = y1 - y0, bx = cpx - x0, by = cpy - y0, ax = cpx - x1, ay = cpy - y1;
         _dot = bx * ax + by * ay, bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
-        bool isCurve = (pcurve || ncurve) && max(bdot, adot) / min(bdot, adot) < 36.0 && _dot * _dot / (bdot * adot) < 0.999695413509548;
-        
+        bool isCurve = (pcurve || ncurve);// && max(bdot, adot) / min(bdot, adot) < 36.0 && _dot * _dot / (bdot * adot) < 0.999695413509548;
+//        isCurve &= max(bdot, adot) / min(bdot, adot) < 1e2;
+//        isCurve &= _dot * _dot / (bdot * adot) < 0.999695413509548;
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
