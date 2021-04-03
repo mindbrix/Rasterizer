@@ -456,8 +456,9 @@ struct InstancesVertex
 struct Curve {
     float x0, y0, x1, y1, cpx, cpy;
     bool isCurve, pcurve, ncurve;
-    void unpack(const device Instance& inst, const device Segment& p, const device Segment& o, const device Segment& n, bool useCurves) {
+    void unpack(const device Segment& p, const device Instance& inst, const device Segment& n, bool useCurves) {
         pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
+        const device Segment& o = inst.outline.s;
         float ax, bx, ay, by, bdot, adot, t, s, cx0, cy0, cx2, cy2, x, y;
         cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
@@ -491,11 +492,15 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
+        const device Instance& pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
+        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float ax, bx, ay, by, cx, cy;
-        Curve oc;  oc.unpack(inst, p, o, n, *useCurves);
-        float px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
+        Curve pc, oc, nc;  oc.unpack(p, inst, n, *useCurves);
+        pc.unpack(instances[iid + inst.outline.prev + pinst.outline.prev].outline.s, pinst, o, *useCurves);
+        nc.unpack(o, ninst, instances[iid + inst.outline.next + ninst.outline.next].outline.s, *useCurves);
+        float px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
+        float nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
         
         cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1;
         float2 vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
