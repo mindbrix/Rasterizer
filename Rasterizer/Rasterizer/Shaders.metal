@@ -490,6 +490,7 @@ vertex InstancesVertex instances_vertex_main(
         y0 = select(y0, y, pcurve), y1 = select(y, y1, pcurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
         
         cx = x1 - x0, cy = y1 - y0, bx = cpx - x0, by = cpy - y0, ax = cpx - x1, ay = cpy - y1;
+        bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
