@@ -480,12 +480,14 @@ vertex InstancesVertex instances_vertex_main(
         cy0 = select(y0, py, pcurve), y = select(y1, y0, pcurve), cy2 = select(ny, y1, pcurve);
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
         ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0, bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
-        bool isCurve = (pcurve || ncurve) && max(bdot, adot) / min(bdot, adot) < 1e3;
+        bool isGood = max(bdot, adot) / min(bdot, adot) < 1e3;
+        pcurve &= isGood, ncurve &= isGood;
+        bool isCurve = (pcurve || ncurve);
         float2 bi = float2(bx, by) * rsqrt(bdot) + float2(ax, ay) * rsqrt(adot);
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-        t = select(0.5, -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), isCurve), s = 1.0 - t;
-        x = select(x1, fma(fma(ax, t, bx), t, cx0), pcurve || ncurve);
-        y = select(y1, fma(fma(ay, t, by), t, cy0), pcurve || ncurve);
+        t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
+        x = select(x1, fma(fma(ax, t, bx), t, cx0), isCurve);
+        y = select(y1, fma(fma(ay, t, by), t, cy0), isCurve);
         x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
         y0 = select(y0, y, pcurve), y1 = select(y, y1, pcurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
         
@@ -494,7 +496,7 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-        float ow = float(isCurve) * 0.5 * abs(-no.y * bx + no.x * by), endCap = float(isCurve) * 0.41 * dw + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
+        float ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve), endCap = select(0.0, 0.41, isCurve) * dw + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2);
         pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
