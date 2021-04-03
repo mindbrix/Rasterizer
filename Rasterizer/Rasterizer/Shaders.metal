@@ -497,11 +497,10 @@ vertex InstancesVertex instances_vertex_main(
         bool pcurve = *useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = *useCurves && (inst.iz & Instance::kNCurve) != 0;
         float px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        float ax, bx, ay, by, cx, cy, bdot, adot;
+        float ax, bx, ay, by, cx, cy;
         Curve c;  c.unpack(p, o, n, pcurve, ncurve);
         
         cx = c.x1 - c.x0, cy = c.y1 - c.y0, bx = c.cpx - c.x0, by = c.cpy - c.y0, ax = c.cpx - c.x1, ay = c.cpy - c.y1;
-        bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
         float2 vp = float2(c.x0 - px, c.y0 - py), vn = float2(nx - c.x1, ny - c.y1);
         float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
@@ -528,8 +527,8 @@ vertex InstancesVertex instances_vertex_main(
             float area = cx * by - cy * bx;
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
-            vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bdot);
-            vert.d1 = (ax * dx1 + ay * dy1) * rsqrt(adot);
+            vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bx * bx + by * by);
+            vert.d1 = (ax * dx1 + ay * dy1) * rsqrt(ax * ax + ay * ay);
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
