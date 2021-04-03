@@ -455,9 +455,9 @@ struct InstancesVertex
 
 struct Curve {
     float x0, y0, x1, y1, cpx, cpy;
-    bool isCurve;
+    bool isCurve, pcurve, ncurve;
     void unpack(const device Instance& inst, const device Segment& p, const device Segment& o, const device Segment& n, bool useCurves) {
-        bool pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
+        pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
         float ax, bx, ay, by, bdot, adot, t, s, cx0, cy0, cx2, cy2, x, y;
         cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
@@ -492,16 +492,16 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        float px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float ax, bx, ay, by, cx, cy;
-        Curve c;  c.unpack(inst, p, o, n, *useCurves);
+        Curve oc;  oc.unpack(inst, p, o, n, *useCurves);
+        float px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
         
-        cx = c.x1 - c.x0, cy = c.y1 - c.y0, bx = c.cpx - c.x0, by = c.cpy - c.y0, ax = c.cpx - c.x1, ay = c.cpy - c.y1;
-        float2 vp = float2(c.x0 - px, c.y0 - py), vn = float2(nx - c.x1, ny - c.y1);
+        cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1;
+        float2 vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
         float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-        float ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), c.isCurve), endCap = select(0.0, 0.41, c.isCurve) * dw + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
+        float ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), oc.isCurve), endCap = select(0.0, 0.41, oc.isCurve) * dw + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2);
         pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
@@ -511,16 +511,16 @@ vertex InstancesVertex instances_vertex_main(
         float rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow) ;
         float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
         
-        float lp = endCap * float(pcap) + err, px0 = c.x0 - no.x * lp, py0 = c.y0 - no.y * lp;
-        float ln = endCap * float(ncap) + err, px1 = c.x1 + no.x * ln, py1 = c.y1 + no.y * ln;
+        float lp = endCap * float(pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
+        float ln = endCap * float(ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
         float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         float dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
         
         vert.dw = dw;
-        float dx0 = dx - c.x0, dy0 = dy - c.y0, dx1 = dx - c.x1, dy1 = dy - c.y1;
-        if (c.isCurve) {
+        float dx0 = dx - oc.x0, dy0 = dy - oc.y0, dx1 = dx - oc.x1, dy1 = dy - oc.y1;
+        if (oc.isCurve) {
             float area = cx * by - cy * bx;
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
@@ -534,7 +534,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : rcospo * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : rcoson * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
-        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | c.isCurve * InstancesVertex::kIsCurve;
+        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | oc.isCurve * InstancesVertex::kIsCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
