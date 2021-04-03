@@ -483,12 +483,9 @@ vertex InstancesVertex instances_vertex_main(
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
         ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0, bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
         float2 bi = float2(bx, by) * rsqrt(bdot) + float2(ax, ay) * rsqrt(adot);
-        cx = cx2 - cx0, cy = cy2 - cy0;
-        bool notLine = abs((-cy * bx + cx * by) / (cx * cx + cy * cy)) > 0.0;
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-        t = select(0.5, -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), notLine), s = 1.0 - t;
+        t = select(0.5, -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), pcurve || ncurve), s = 1.0 - t;
 //        t = s = 0.5;
-//        pcurve &= notLine, ncurve &= notLine;
         x = select(x1, fma(fma(ax, t, bx), t, cx0), pcurve || ncurve);
         y = select(y1, fma(fma(ay, t, by), t, cy0), pcurve || ncurve);
         x0 = select(x0, x, pcurve), x1 = select(x, x1, pcurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
