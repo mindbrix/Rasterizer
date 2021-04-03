@@ -536,8 +536,8 @@ vertex InstancesVertex instances_vertex_main(
         
 //        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * tpo.x + dy0 * tpo.y);
 //        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * ton.x + dy1 * ton.y);
-        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : rcospo * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : rcoson * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = oc.pcurve || pcap || rcospo < kMiterLimit ? 1.0 : min(4.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = oc.ncurve || ncap || rcoson < kMiterLimit ? 1.0 : min(4.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | oc.isCurve * InstancesVertex::kIsCurve;
     } else {
