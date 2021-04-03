@@ -456,7 +456,8 @@ struct InstancesVertex
 struct Curve {
     float x0, y0, x1, y1, cpx, cpy;
     bool isCurve;
-    void unpack(const device Segment& p, const device Segment& o, const device Segment& n, bool pcurve, bool ncurve) {
+    void unpack(const device Instance& inst, const device Segment& p, const device Segment& o, const device Segment& n, bool useCurves) {
+        bool pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
         float ax, bx, ay, by, bdot, adot, t, s, cx0, cy0, cx2, cy2, x, y;
         cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
@@ -497,7 +498,7 @@ vertex InstancesVertex instances_vertex_main(
         float px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float ax, bx, ay, by, cx, cy;
-        Curve c;  c.unpack(p, o, n, *useCurves && (inst.iz & Instance::kPCurve) != 0, *useCurves && (inst.iz & Instance::kNCurve) != 0);
+        Curve c;  c.unpack(inst, p, o, n, *useCurves);
         
         cx = c.x1 - c.x0, cy = c.y1 - c.y0, bx = c.cpx - c.x0, by = c.cpy - c.y0, ax = c.cpx - c.x1, ay = c.cpy - c.y1;
         float2 vp = float2(c.x0 - px, c.y0 - py), vn = float2(nx - c.x1, ny - c.y1);
