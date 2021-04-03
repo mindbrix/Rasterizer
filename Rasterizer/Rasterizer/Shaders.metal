@@ -494,11 +494,10 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        bool pcurve = *useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = *useCurves && (inst.iz & Instance::kNCurve) != 0;
         float px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float ax, bx, ay, by, cx, cy;
-        Curve c;  c.unpack(p, o, n, pcurve, ncurve);
+        Curve c;  c.unpack(p, o, n, *useCurves && (inst.iz & Instance::kPCurve) != 0, *useCurves && (inst.iz & Instance::kNCurve) != 0);
         
         cx = c.x1 - c.x0, cy = c.y1 - c.y0, bx = c.cpx - c.x0, by = c.cpy - c.y0, ax = c.cpx - c.x1, ay = c.cpy - c.y1;
         float2 vp = float2(c.x0 - px, c.y0 - py), vn = float2(nx - c.x1, ny - c.y1);
