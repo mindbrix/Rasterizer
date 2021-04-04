@@ -499,19 +499,20 @@ vertex InstancesVertex instances_vertex_main(
         pc.unpack(instances[iid + inst.outline.prev + pinst.outline.prev].outline.s, pinst, o, *useCurves);
         nc.unpack(o, ninst, instances[iid + inst.outline.next + ninst.outline.next].outline.s, *useCurves);
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
-        float2 vp, vn, no, np, nn, tpo, ton;
+        float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
         nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
         vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
         ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
+        _pno = no, _nno = no;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), oc.isCurve);
         lcap = select(0.0, 0.41 * dw, oc.isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-        pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
-        ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
-        np = pcap ? no : np, nn = ncap ? no : nn;
+        pcap |= dot(np, _pno) < -0.99 || rp * dw > 5e2;
+        ncap |= dot(_nno, nn) < -0.99 || rn * dw > 5e2;
+        np = pcap ? _pno : np, nn = ncap ? _nno : nn;
         tpo = normalize(np + no), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(no + nn), rcoson = 1.0 / (ton.y * nn.y + ton.x * nn.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
