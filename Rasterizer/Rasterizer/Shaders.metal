@@ -509,7 +509,7 @@ vertex InstancesVertex instances_vertex_main(
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), oc.isCurve);
-        lcap = select(0.0, 0.41 * dw, oc.isCurve) + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
+        lcap = select(0.0, 0.41 * dw, oc.isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
         pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
