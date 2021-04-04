@@ -500,21 +500,25 @@ vertex InstancesVertex instances_vertex_main(
         nc.unpack(o, ninst, instances[iid + inst.outline.next + ninst.outline.next].outline.s, *useCurves);
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
-        px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
-        nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
+        px = select(select(pc.x0, pc.cpx, pc.isCurve), p.x0, oc.pcurve), py = select(select(pc.y0, pc.cpy, pc.isCurve), p.y0, oc.pcurve);
+        nx = select(select(nc.x1, nc.cpx, nc.isCurve), n.x1, oc.ncurve), ny = select(select(nc.y1, nc.cpy, nc.isCurve), n.y1, oc.ncurve);
+//        px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
+//        nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
         vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
         ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-        _pno = no, _nno = no;
+        _pno = select(no, normalize(float2(bx, by)), oc.isCurve && !oc.pcurve);
+        _nno = select(no, normalize(float2(-ax, -ay)), oc.isCurve && !oc.ncurve);
+//        _pno = no, _nno = no;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), oc.isCurve);
         lcap = select(0.0, 0.41 * dw, oc.isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
         pcap |= dot(np, _pno) < -0.99 || rp * dw > 5e2;
         ncap |= dot(_nno, nn) < -0.99 || rn * dw > 5e2;
         np = pcap ? _pno : np, nn = ncap ? _nno : nn;
-        tpo = normalize(np + no), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(no + nn), rcoson = 1.0 / (ton.y * nn.y + ton.x * nn.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        tpo = normalize(np + _pno), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(_nno + nn), rcoson = 1.0 / (ton.y * nn.y + ton.x * nn.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
@@ -536,8 +540,8 @@ vertex InstancesVertex instances_vertex_main(
         
 //        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * tpo.x + dy0 * tpo.y);
 //        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * ton.x + dy1 * ton.y);
-        vert.miter0 = oc.pcurve || pcap || rcospo < kMiterLimit ? 1.0 : min(4.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = oc.ncurve || ncap || rcoson < kMiterLimit ? 1.0 : min(4.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = oc.pcurve || pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = oc.ncurve || ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | oc.isCurve * InstancesVertex::kIsCurve;
     } else {
