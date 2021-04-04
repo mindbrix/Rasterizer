@@ -15,6 +15,13 @@ struct RasterizerSVG {
         else
             return Ra::Colorant(0, 0, 0, 64);
     }
+    static inline bool isLine(float *pts) {
+        float ax, bx, cx, ay, by, cy, cdot, t0, t1;
+        ax = pts[2] - pts[0], bx = pts[4] - pts[0], cx = pts[6] - pts[0];
+        ay = pts[3] - pts[1], by = pts[5] - pts[1], cy = pts[7] - pts[1];
+        cdot = cx * cx + cy * cy, t0 = (ax * -cy + ay * cx) / cdot, t1 = (bx * -cy + by * cx) / cdot;
+        return fabsf(t0) < 1e-6f && fabsf(t1) < 1e-6f;
+    }
     static inline float lengthsq(float x0, float y0, float x1, float y1) {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
@@ -26,8 +33,12 @@ struct RasterizerSVG {
                     path->pts[i * 2] = path->pts[0], path->pts[i * 2 + 1] = path->pts[1];
             }
             for (pts = path->pts, p.ref->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6) {
-                if (lengthsq(pts[0], pts[1], pts[6], pts[7]) > tolerance)
-                    p.ref->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
+                if (lengthsq(pts[0], pts[1], pts[6], pts[7]) > tolerance) {
+                    if (isLine(pts))
+                        p->lineTo(pts[6], height - pts[7]);
+                    else
+                        p.ref->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
+                }
             }
             if (path->closed)
                 p.ref->close();
