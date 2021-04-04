@@ -457,8 +457,8 @@ struct Curve {
     float x0, y0, x1, y1, cpx, cpy;
     bool isCurve, pcurve, ncurve;
     void unpack(const device Segment& p, const device Instance& inst, const device Segment& n, bool useCurves) {
-        pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
         const device Segment& o = inst.outline.s;
+        pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
         float ax, bx, ay, by, t, s, cx0, cy0, cx2, cy2, x, y, r, bix, biy;
         cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
