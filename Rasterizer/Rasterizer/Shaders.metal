@@ -464,7 +464,7 @@ struct Curve {
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
         ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0, bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
-        isCurve = (pcurve || ncurve) && max(bdot, adot) / min(bdot, adot) < 1e3;
+        isCurve = (pcurve || ncurve) && max(bdot, adot) / min(bdot, adot) < 1e2;
         float2 bi = float2(bx, by) * rsqrt(bdot) + float2(ax, ay) * rsqrt(adot);
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
         t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
