@@ -495,14 +495,14 @@ vertex InstancesVertex instances_vertex_main(
         const device Instance& pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        float ax, bx, ay, by, cx, cy;
         Curve pc, oc, nc;  oc.unpack(p, inst, n, *useCurves);
         pc.unpack(instances[iid + inst.outline.prev + pinst.outline.prev].outline.s, pinst, o, *useCurves);
         nc.unpack(o, ninst, instances[iid + inst.outline.next + ninst.outline.next].outline.s, *useCurves);
-        float px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
-        float nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
+        float px, py, nx, ny, ax, bx, ay, by, cx, cy;
+        px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
+        nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
+        ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0;
         
-        cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1;
         float2 vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
         float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
