@@ -503,10 +503,13 @@ vertex InstancesVertex instances_vertex_main(
         nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
         ax = oc.cpx - oc.x1, ay = oc.cpy - oc.y1, bx = oc.cpx - oc.x0, by = oc.cpy - oc.y0, cx = oc.x1 - oc.x0, cy = oc.y1 - oc.y0;
         
-        float2 vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
-        float ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        float2 no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-        float ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), oc.isCurve), endCap = select(0.0, 0.41, oc.isCurve) * dw + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
+        float2 vp, vn, no, np, nn;
+        float ro, rp, rn, ow, lcap;
+        vp = float2(oc.x0 - px, oc.y0 - py), vn = float2(nx - oc.x1, ny - oc.y1);
+        ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
+        no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
+        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), oc.isCurve);
+        lcap = select(0.0, 0.41 * dw, oc.isCurve) + (inst.iz & (Instance::kSquareCap | Instance::kRoundCap)) == 0 ? 0.5 : dw;
         alpha *= float(ro < 1e2);
         pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
@@ -517,8 +520,8 @@ vertex InstancesVertex instances_vertex_main(
         ton = normalize(no + nn), rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
-        lp = select(0.0, endCap, pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
-        ln = select(0.0, endCap, ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
+        lp = select(0.0, lcap, pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
+        ln = select(0.0, lcap, ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
         t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0), dx0 = dx - oc.x0, dx1 = dx - oc.x1;
