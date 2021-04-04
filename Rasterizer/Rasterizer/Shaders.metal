@@ -516,15 +516,15 @@ vertex InstancesVertex instances_vertex_main(
         tpo = normalize(np + no), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(no + nn), rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
-        float lp = endCap * float(pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
-        float ln = endCap * float(ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
-        float t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
-        float dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
-        dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0);
-        dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0);
+        float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
+        lp = endCap * float(pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
+        ln = endCap * float(ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
+        t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
+        dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
+        dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0), dx0 = dx - oc.x0, dx1 = dx - oc.x1;
+        dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0), dy0 = dy - oc.y0, dy1 = dy - oc.y1;
         
         vert.dw = dw;
-        float dx0 = dx - oc.x0, dy0 = dy - oc.y0, dx1 = dx - oc.x1, dy1 = dy - oc.y1;
         if (oc.isCurve) {
             float area = cx * by - cy * bx;
             vert.u = (ax * dy1 - ay * dx1) / area;
