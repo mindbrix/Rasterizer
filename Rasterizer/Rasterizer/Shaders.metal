@@ -459,15 +459,15 @@ struct Curve {
     void unpack(const device Segment& p, const device Instance& inst, const device Segment& n, bool useCurves) {
         const device Segment& o = inst.outline.s;
         pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
-        float ax, bx, ay, by, t, s, cx0, cy0, cx2, cy2, x, y, r, bix, biy;
+        float ax, bx, ay, by, t, s, cx0, cy0, cx2, cy2, x, y, r, tx, ty;
         cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
         ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
-        r = rsqrt((ax * ax + ay * ay) / (bx * bx + by * by)), bix = fma(ax, r, bx), biy = fma(ay, r, by);
+        r = rsqrt((ax * ax + ay * ay) / (bx * bx + by * by)), tx = fma(ax, r, bx), ty = fma(ay, r, by);
         isCurve = (pcurve || ncurve) && r < 1e1 && r > 1e-1;
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-        t = -0.5 * (bix * by - biy * bx) / (bix * ay - biy * ax), s = 1.0 - t;
+        t = -0.5 * (tx * by - ty * bx) / (tx * ay - ty * ax), s = 1.0 - t;
         x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
         x0 = select(o.x0, x, pcurve && isCurve), x1 = select(o.x1, x, ncurve && isCurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
         y0 = select(o.y0, y, pcurve && isCurve), y1 = select(o.y1, y, ncurve && isCurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
