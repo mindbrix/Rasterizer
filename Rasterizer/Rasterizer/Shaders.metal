@@ -517,8 +517,8 @@ vertex InstancesVertex instances_vertex_main(
         ton = normalize(no + nn), rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
-        lp = endCap * float(pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
-        ln = endCap * float(ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
+        lp = select(0.0, endCap, pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
+        ln = select(0.0, endCap, ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
         t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0), dx0 = dx - oc.x0, dx1 = dx - oc.x1;
