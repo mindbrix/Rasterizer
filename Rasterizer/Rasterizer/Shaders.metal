@@ -464,10 +464,10 @@ struct Curve {
         cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
         ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0, bdot = bx * bx + by * by, adot = ax * ax + ay * ay;
-        isCurve = (pcurve || ncurve) && max(bdot, adot) / min(bdot, adot) < 1e2;
-        float2 bi = float2(bx, by) * rsqrt(bdot) + float2(ax, ay) * rsqrt(adot);
+        float r = rsqrt(adot / bdot), bix = fma(ax, r, bx), biy = fma(ay, r, by);
+        isCurve = (pcurve || ncurve) && r < 1e1 && r > 1e-1;
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-        t = -0.5 * (bi.x * by - bi.y * bx) / (bi.x * ay - bi.y * ax), s = 1.0 - t;
+        t = -0.5 * (bix * by - biy * bx) / (bix * ay - biy * ax), s = 1.0 - t;
         x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
         x0 = select(o.x0, x, pcurve && isCurve), x1 = select(o.x1, x, ncurve && isCurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
         y0 = select(o.y0, y, pcurve && isCurve), y1 = select(o.y1, y, ncurve && isCurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
