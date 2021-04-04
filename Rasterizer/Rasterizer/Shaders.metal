@@ -511,10 +511,10 @@ vertex InstancesVertex instances_vertex_main(
         pcap |= dot(np, no) < -0.99 || rp * dw > 5e2;
         ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
-        float2 tpo = normalize(np + no), ton = normalize(no + nn);
-        float rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow);
-        float rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow) ;
-        float vx0 = -tpo.y * spo, vy0 = tpo.x * spo, vx1 = -ton.y * son, vy1 = ton.x * son;
+        float2 tpo, ton;
+        float rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
+        tpo = normalize(np + no), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(no + nn), rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp = endCap * float(pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
         float ln = endCap * float(ncap) + err, px1 = oc.x1 + no.x * ln, py1 = oc.y1 + no.y * ln;
