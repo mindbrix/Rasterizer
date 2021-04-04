@@ -515,7 +515,7 @@ vertex InstancesVertex instances_vertex_main(
         ncap |= dot(no, nn) < -0.99 || rn * dw > 5e2;
         np = pcap ? no : np, nn = ncap ? no : nn;
         tpo = normalize(np + no), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(no + nn), rcoson = 1.0 / (ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        ton = normalize(no + nn), rcoson = 1.0 / (ton.y * nn.y + ton.x * nn.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
