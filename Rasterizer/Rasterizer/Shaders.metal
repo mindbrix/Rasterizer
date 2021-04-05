@@ -64,7 +64,7 @@ float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
     float ax, bx, ay, by, t0, t1, t, d2, d4, d8, d, d0, d1, x, y, tx, ty;
     ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
     d2 = -((x0 + x2 + 2.0 * x1) * (x2 - x0) + (y0 + y2 + 2.0 * y1) * (y2 - y0));
-    t0 = select(0.5, 0.0, d2 < 0.0), t1 = select(1.0, 0.5, d2 < 0.0), t = 0.5 * (t0 + t1);
+    t0 = select(0.5, -0.1, d2 < 0.0), t1 = select(1.1, 0.5, d2 < 0.0), t = 0.5 * (t0 + t1);
     tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
     d4 = -(x * tx + y * ty);
     t0 = select(t, t0, d4 < 0.0), t1 = select(t1, t, d4 < 0.0), t = 0.5 * (t0 + t1);
@@ -468,6 +468,7 @@ struct Curve {
         isCurve = (pcurve || ncurve) && r < 1e1 && r > 1e-1;
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
         t = -0.5 * (tx * by - ty * bx) / (tx * ay - ty * ax), s = 1.0 - t;
+//        s = t = 0.5;
         x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
         x0 = select(o.x0, x, pcurve && isCurve), x1 = select(o.x1, x, ncurve && isCurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
         y0 = select(o.y0, y, pcurve && isCurve), y1 = select(o.y1, y, ncurve && isCurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
@@ -517,8 +518,8 @@ vertex InstancesVertex instances_vertex_main(
         pcap |= dot(np, _pno) < -0.99 || rp * dw > 5e2;
         ncap |= dot(_nno, nn) < -0.99 || rn * dw > 5e2;
         np = pcap ? _pno : np, nn = ncap ? _nno : nn;
-        tpo = normalize(np + _pno), rcospo = 1.0 / (tpo.y * np.y + tpo.x * np.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(_nno + nn), rcoson = 1.0 / (ton.y * nn.y + ton.x * nn.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        tpo = normalize(np + _pno), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(_nno + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = oc.x0 - no.x * lp, py0 = oc.y0 - no.y * lp;
@@ -572,7 +573,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         if (vert.flags & InstancesVertex::kIsCurve) {
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;  // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-            t = closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2), s = 1.0 - t;
+            t = (closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2)), s = 1.0 - t;
             tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
             dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
