@@ -255,6 +255,7 @@
                 [commandEncoder setRenderPipelineState:_instancesTransformState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
+                [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypePoint
                                    vertexStart:0
                                    vertexCount:1

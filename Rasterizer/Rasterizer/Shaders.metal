@@ -478,11 +478,27 @@ struct Curve {
 vertex void instances_transform_main(
             const device Instance *instances [[buffer(1)]],
             device Segment *segments [[buffer(20)]],
+            constant bool *useCurves [[buffer(14)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const device Instance& inst = instances[iid];
     if (inst.iz & Instance::kOutlines) {
-        segments[iid] = inst.outline.s;
+        bool isCurve, pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
+        const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
+        device Segment& out = segments[iid];
+        float ax, bx, ay, by, t, s, cx0, cy0, cx2, cy2, cpx, cpy, x, y, r, tx, ty;
+        cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
+        cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
+        cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
+        ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
+        r = rsqrt((ax * ax + ay * ay) / (bx * bx + by * by)), tx = fma(ax, r, bx), ty = fma(ay, r, by);
+        isCurve = (pcurve || ncurve) && r < 1e1 && r > 1e-1;
+        ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
+        t = -0.5 * (tx * by - ty * bx) / (tx * ay - ty * ax), s = 1.0 - t;
+        out.x0 = fma(fma(ax, t, bx), t, cx0), out.y0 = fma(fma(ay, t, by), t, cy0);
+        cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
+        cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
+        out.x1 = select(FLT_MAX, cpx, isCurve), out.y1 = select(FLT_MAX, cpy, isCurve);
     }
 }
 vertex InstancesVertex instances_vertex_main(
