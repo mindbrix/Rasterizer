@@ -476,11 +476,11 @@ struct Curve {
 };
 
 vertex void instances_transform_main(
-            device Instance *instances [[buffer(1)]],
+            const device Instance *instances [[buffer(1)]],
             device Segment *segments [[buffer(20)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    device Instance& inst = instances[iid];
+    const device Instance& inst = instances[iid];
     if (inst.iz & Instance::kOutlines) {
         segments[iid] = inst.outline.s;
     }
