@@ -986,7 +986,7 @@ struct Rasterizer {
             }
             if (dst > dst0) {
                 end = begin + (dst - dst0) * sizeof(Instance);
-                entries.emplace_back(Buffer::kInstanceTransforms, begin, end, end), entries.emplace_back(Buffer::kInstances, begin, end);
+                entries.emplace_back(Buffer::kInstanceTransforms, begin, end, end), entries.emplace_back(Buffer::kInstances, begin, end, end);
                 begin = end = end + (dst - dst0) * sizeof(Segment);
             }
         }

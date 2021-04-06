@@ -488,6 +488,7 @@ vertex void instances_transform_main(
 vertex InstancesVertex instances_vertex_main(
             const device Colorant *colors [[buffer(0)]],
             const device Instance *instances [[buffer(1)]],
+            const device Segment *segments [[buffer(20)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
