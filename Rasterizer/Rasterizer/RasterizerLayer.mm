@@ -254,6 +254,7 @@
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setRenderPipelineState:_instancesTransformState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypePoint
                                    vertexStart:0
                                    vertexCount:1
