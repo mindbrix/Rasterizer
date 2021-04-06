@@ -249,7 +249,7 @@
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
-            case Ra::Buffer::kInstances:
+            case Ra::Buffer::kInstanceTransforms:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setRenderPipelineState:_instancesTransformState];
@@ -261,7 +261,8 @@
                                   baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                
+                break;
+            case Ra::Buffer::kInstances:
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
