@@ -453,29 +453,6 @@ struct InstancesVertex
     uint32_t flags;
 };
 
-struct Curve {
-    float x0, y0, x1, y1, cpx, cpy;
-    bool isCurve, pcurve, ncurve;
-    void unpack(const device Segment& p, const device Instance& inst, const device Segment& n, bool useCurves) {
-        const device Segment& o = inst.outline.s;
-//        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1, isCurve = false;
-        pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
-        float ax, bx, ay, by, t, s, cx0, cy0, cx2, cy2, x, y, r, tx, ty;
-        cx0 = select(o.x0, p.x0, pcurve), x = select(o.x1, o.x0, pcurve), cx2 = select(n.x1, o.x1, pcurve);
-        cy0 = select(o.y0, p.y0, pcurve), y = select(o.y1, o.y0, pcurve), cy2 = select(n.y1, o.y1, pcurve);
-        cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
-        ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
-        r = rsqrt((ax * ax + ay * ay) / (bx * bx + by * by)), tx = fma(ax, r, bx), ty = fma(ay, r, by);
-        isCurve = (pcurve || ncurve) && r < 1e1 && r > 1e-1;
-        ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
-        t = -0.5 * (tx * by - ty * bx) / (tx * ay - ty * ax), s = 1.0 - t;
-//        s = t = 0.5;
-        x = fma(fma(ax, t, bx), t, cx0), y = fma(fma(ay, t, by), t, cy0);
-        x0 = select(o.x0, x, pcurve && isCurve), x1 = select(o.x1, x, ncurve && isCurve), cpx = select(s * cx0 + t * cpx, s * cpx + t * cx2, pcurve);
-        y0 = select(o.y0, y, pcurve && isCurve), y1 = select(o.y1, y, ncurve && isCurve), cpy = select(s * cy0 + t * cpy, s * cpy + t * cy2, pcurve);
-    }
-};
-
 vertex void instances_transform_main(
             const device Instance *instances [[buffer(1)]],
             device Segment *segments [[buffer(20)]],
@@ -536,16 +513,6 @@ vertex InstancesVertex instances_vertex_main(
         x0 = select(o.x0, sf.x0, pcurve), x1 = select(o.x1, sf.x0, ncurve), cpx = sf.x1;
         y0 = select(o.y0, sf.y0, pcurve), y1 = select(o.y1, sf.y0, ncurve), cpy = sf.y1;
         
-//        Curve pc, oc, nc;  oc.unpack(p, inst, n, *useCurves);
-//        pc.unpack(instances[iid + inst.outline.prev + pinst.outline.prev].outline.s, pinst, o, *useCurves);
-//        nc.unpack(o, ninst, instances[iid + inst.outline.next + ninst.outline.next].outline.s, *useCurves);
-        
-//        isCurve = oc.isCurve, x0 = oc.x0, y0 = oc.y0, x1 = oc.x1, y1 = oc.y1, cpx = oc.cpx, cpy = oc.cpy;
-        
-//        px = select(select(pc.x0, pc.cpx, pc.isCurve), p.x0, oc.pcurve), py = select(select(pc.y0, pc.cpy, pc.isCurve), p.y0, oc.pcurve);
-//        nx = select(select(nc.x1, nc.cpx, nc.isCurve), n.x1, oc.ncurve), ny = select(select(nc.y1, nc.cpy, nc.isCurve), n.y1, oc.ncurve);
-//        px = select(pc.x0, p.x0, oc.pcurve), py = select(pc.y0, p.y0, oc.pcurve);
-//        nx = select(nc.x1, n.x1, oc.ncurve), ny = select(nc.y1, n.y1, oc.ncurve);
         vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
