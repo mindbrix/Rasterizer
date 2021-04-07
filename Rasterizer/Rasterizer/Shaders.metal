@@ -482,6 +482,8 @@ vertex void instances_transform_main(
             constant bool *useCurves [[buffer(14)]],
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
+    if (vid != 0)
+        return;
     const device Instance& inst = instances[iid];
     if (inst.iz & Instance::kOutlines) {
         bool isCurve, pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;

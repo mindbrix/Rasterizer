@@ -256,9 +256,9 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypePoint
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
-                                   vertexCount:1
+                                   vertexCount:4
                                  instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
                                   baseInstance:0];
                 [commandEncoder endEncoding];
