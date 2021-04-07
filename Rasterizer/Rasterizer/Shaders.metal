@@ -525,16 +525,16 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         const device Instance& pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+        const device Segment& sf = segments[iid];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
-        bool isCurve, pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
-        const device Segment& sf = segments[iid];
+        bool isCurve = sf.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
+        
         px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
         x0 = select(o.x0, sf.x0, pcurve), x1 = select(o.x1, sf.x0, ncurve), cpx = sf.x1;
         y0 = select(o.y0, sf.y0, pcurve), y1 = select(o.y1, sf.y0, ncurve), cpy = sf.y1;
-        isCurve = sf.x1 != FLT_MAX;
         
 //        Curve pc, oc, nc;  oc.unpack(p, inst, n, *useCurves);
 //        pc.unpack(instances[iid + inst.outline.prev + pinst.outline.prev].outline.s, pinst, o, *useCurves);
