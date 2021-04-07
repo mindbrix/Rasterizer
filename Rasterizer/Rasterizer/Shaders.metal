@@ -500,8 +500,7 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const device Instance& pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
-        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+        const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
         const device Segment& sf = segments[iid];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
