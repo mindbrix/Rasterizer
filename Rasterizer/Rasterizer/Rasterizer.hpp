@@ -356,7 +356,7 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms };
+        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances };
         struct Entry {
             Entry(Type type, size_t begin, size_t end, size_t segments = 0, size_t points = 0, size_t instbase = 0) : type(type), begin(begin), end(end), segments(segments), points(points), instbase(instbase) {}
             Type type;  size_t begin, end, segments, points, instbase;
@@ -897,7 +897,7 @@ struct Rasterizer {
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -984,11 +984,8 @@ struct Rasterizer {
                     }
                 }
             }
-            if (dst > dst0) {
-                end = begin + (dst - dst0) * sizeof(Instance);
-                entries.emplace_back(Buffer::kInstanceTransforms, begin, end, end), entries.emplace_back(Buffer::kInstances, begin, end, end);
-                begin = end = end + (dst - dst0) * sizeof(Segment);
-            }
+            if (dst > dst0)
+                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kInstances, begin, end), begin = end;
         }
     }
 };

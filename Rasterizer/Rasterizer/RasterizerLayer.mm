@@ -26,7 +26,6 @@
 @property (nonatomic) id <MTLRenderPipelineState> fastMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadMoleculesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> opaquesPipelineState;
-@property (nonatomic) id <MTLRenderPipelineState> instancesTransformState;
 @property (nonatomic) id <MTLRenderPipelineState> instancesPipelineState;
 @property (nonatomic) id <MTLDepthStencilState> instancesDepthState;
 @property (nonatomic) id <MTLDepthStencilState> opaquesDepthState;
@@ -81,13 +80,6 @@
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"instances_fragment_main"];
     descriptor.label = @"instances";
     self.instancesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_transform_main"];
-    descriptor.fragmentFunction = nil;
-    descriptor.rasterizationEnabled = NO;
-    descriptor.label = @"instances Transform";
-    self.instancesTransformState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    descriptor.rasterizationEnabled = YES;
     
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
@@ -249,27 +241,11 @@
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
-            case Ra::Buffer::kInstanceTransforms:
-                [commandEncoder endEncoding];
-                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                [commandEncoder setRenderPipelineState:_instancesTransformState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
-                [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypePoint
-                                   vertexStart:0
-                                   vertexCount:1
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
-                                  baseInstance:0];
-                [commandEncoder endEncoding];
-                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                break;
             case Ra::Buffer::kInstances:
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
