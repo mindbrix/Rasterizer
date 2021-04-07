@@ -486,7 +486,7 @@ vertex void instances_transform_main(
         return;
     const device Instance& inst = instances[iid];
     if (inst.iz & Instance::kOutlines) {
-        bool isCurve, pcurve = useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = useCurves && (inst.iz & Instance::kNCurve) != 0;
+        bool isCurve, pcurve = *useCurves && (inst.iz & Instance::kPCurve) != 0, ncurve = *useCurves && (inst.iz & Instance::kNCurve) != 0;
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
         device Segment& out = segments[iid];
         float ax, bx, ay, by, t, s, cx0, cy0, cx2, cy2, cpx, cpy, x, y, r, tx, ty;
