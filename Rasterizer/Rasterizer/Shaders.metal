@@ -501,16 +501,16 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        const device Segment& sf = segments[iid];
+        const device Segment& so = segments[iid];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
-        bool isCurve = sf.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
+        bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
         
         px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
-        x0 = select(o.x0, sf.x0, pcurve), x1 = select(o.x1, sf.x0, ncurve), cpx = sf.x1;
-        y0 = select(o.y0, sf.y0, pcurve), y1 = select(o.y1, sf.y0, ncurve), cpy = sf.y1;
+        x0 = select(o.x0, so.x0, pcurve), x1 = select(o.x1, so.x0, ncurve), cpx = so.x1;
+        y0 = select(o.y0, so.y0, pcurve), y1 = select(o.y1, so.y0, ncurve), cpy = so.y1;
         
         vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
