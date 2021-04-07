@@ -501,14 +501,15 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        const device Segment& so = segments[iid];
+        const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
         bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
         
-        px = p.x0, py = p.y0, nx = n.x1, ny = n.y1;
+        px = select(p.x0, sp.x0, ncurve && sp.x1 != FLT_MAX), py = select(p.y0, sp.y0, ncurve && sp.x1 != FLT_MAX);
+        nx = select(n.x1, sn.x0, pcurve && sn.x1 != FLT_MAX), ny = select(n.y1, sn.y0, pcurve && sn.x1 != FLT_MAX);
         x0 = select(o.x0, so.x0, pcurve), x1 = select(o.x1, so.x0, ncurve), cpx = so.x1;
         y0 = select(o.y0, so.y0, pcurve), y1 = select(o.y1, so.y0, ncurve), cpy = so.y1;
         
@@ -516,8 +517,8 @@ vertex InstancesVertex instances_vertex_main(
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-//        _pno = select(no, normalize(float2(bx, by)), oc.isCurve && !oc.pcurve);
-//        _nno = select(no, normalize(float2(-ax, -ay)), oc.isCurve && !oc.ncurve);
+//        _pno = select(no, normalize(float2(bx, by)), isCurve && !pcurve);
+//        _nno = select(no, normalize(float2(-ax, -ay)), isCurve && !ncurve);
         _pno = no, _nno = no;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
