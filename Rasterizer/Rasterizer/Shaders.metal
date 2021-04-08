@@ -500,18 +500,27 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = instances[iid + inst.outline.next].outline.s;
-        const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next];
+        const device Instance& ninst = instances[iid + inst.outline.next];
+        const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+        const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next], & snn = segments[iid + inst.outline.next + ninst.outline.next];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
         bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
-        
-        px = select(p.x0, sp.x0, ncurve && sp.x1 != FLT_MAX), py = select(p.y0, sp.y0, ncurve && sp.x1 != FLT_MAX);
-        nx = select(n.x1, sn.x0, pcurve && sn.x1 != FLT_MAX), ny = select(n.y1, sn.y0, pcurve && sn.x1 != FLT_MAX);
-        x0 = select(o.x0, so.x0, pcurve), x1 = select(o.x1, so.x0, ncurve), cpx = so.x1;
-        y0 = select(o.y0, so.y0, pcurve), y1 = select(o.y1, so.y0, ncurve), cpy = so.y1;
+
+//        px = sp.x0, py = sp.y0;
+//        x0 = so.x0, y0 = so.y0;
+//        const device float *p1 = ncap ? & o.x1 : & sn.x0;  x1 = p1[0], y1 = p1[1];
+//        const device float *p2 = !ncap && ninst.outline.next ? & snn.x0 : & o.x1;
+//        nx = p2[0], ny = p2[1];
+    
+        const device float *pt;
+        pt = ncurve && sp.x1 != FLT_MAX ? & sp.x0 : & p.x0, px = pt[0], py = pt[1];
+        pt = pcurve && sn.x1 != FLT_MAX ? & sn.x0 : & n.x1, nx = pt[0], ny = pt[1];
+        pt = pcurve ? & so.x0 : & o.x0, x0 = pt[0], y0 = pt[1];
+        pt = ncurve ? & so.x0 : & o.x1, x1 = pt[0], y1 = pt[1];
+        cpx = so.x1, cpy = so.y1;
         
         vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
