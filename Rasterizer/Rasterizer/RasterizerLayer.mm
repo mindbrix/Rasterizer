@@ -44,7 +44,6 @@
         return nil;
     
     self.device = MTLCreateSystemDefaultDevice();
-    NSLog(@"%@", self.device.name);
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
