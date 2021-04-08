@@ -44,6 +44,7 @@
         return nil;
     
     self.device = MTLCreateSystemDefaultDevice();
+    NSLog(@"%@", self.device.name);
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
@@ -129,7 +130,7 @@
 }
 
 - (void)draw {
-    BOOL odd = ++_tick & 1;
+    BOOL odd = ++_tick & 1, isM1 = [self.device.name hasPrefix:@"Apple M1"];
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         [self.layerDelegate writeBuffer:buffer forLayer:self];
@@ -256,10 +257,10 @@
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                [commandEncoder drawPrimitives:isM1 ? MTLPrimitiveTypeTriangleStrip : MTLPrimitiveTypePoint
                                    vertexStart:0
-                                   vertexCount:4
-                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
+                                   vertexCount:isM1 ? 4 : 1
+                                  instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
                                   baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
