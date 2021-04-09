@@ -400,7 +400,7 @@ struct Rasterizer {
             Bounds *b;  float hght;
             if (h <= kfh)
                 b = & strip, hght = kfh;
-            else if (h <- kFastHeight)
+            else if (h <= kFastHeight)
                 b = & fast, hght = kFastHeight;
             else
                 b = & molecules, hght = kMoleculesHeight;
