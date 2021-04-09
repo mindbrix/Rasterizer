@@ -191,7 +191,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + edge.i0 * kFastSegments];
+    const device Point16 *pts = & points[inst.quad.base + (((edge.ic & Edge::ui0) >> 10) + edge.i0) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     bool skip = false;
@@ -265,7 +265,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + edge.i0 * kFastSegments];
+    const device Point16 *pts = & points[inst.quad.base + (((edge.ic & Edge::ui0) >> 10) + edge.i0) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     bool skip = (w != 0.0 && (pts->x & 0x4000)) || ((pts + 1)->x == 0xFFFF && (pts + 1)->y == 0xFFFF);

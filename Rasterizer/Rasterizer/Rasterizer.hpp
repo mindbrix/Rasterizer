@@ -953,7 +953,7 @@ struct Rasterizer {
                         if (widths[iz]) {
                             Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
-                                outline->ic = uint32_t(ic), outline->i0 = j;
+                                outline->ic = uint32_t(ic | ((j & ~0xFFFF) << 10)), outline->i0 = j & 0xFFFF;
                             *(inst->iz & Instance::kFastEdges ? & fastOutline : & quadOutline) = outline;
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
@@ -963,7 +963,7 @@ struct Rasterizer {
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic), molecule->i0 = j, molecule->ux = ux, molecule++;
+                                molecule->ic = uint32_t(ic | ((j & ~0xFFFF) << 10)), molecule->i0 = j & 0xFFFF, molecule->ux = ux, molecule++;
                             }
                             *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
                         }
