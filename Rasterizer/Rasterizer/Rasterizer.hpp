@@ -352,7 +352,7 @@ struct Rasterizer {
         union { struct { int count, iy, begin, idx; } data;  Bounds clip; };
     };
     struct Edge {
-        uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0x7 << 27, ue1 = 0x7 << 24, ui0 = ue0 | ue1, kMask = ~(a0 | a1 | ui0) };
+        uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, ui0 = ue0 | ue1, kMask = ~(a0 | a1 | ui0) };
         uint16_t i0, ux;
     };
     struct Buffer {
@@ -972,9 +972,9 @@ struct Rasterizer {
                         int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + kUXCoverSize * inst->data.idx, *uxc;
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
-                            uxc = uxcovers + is->i * kUXCoverSize, edge->ic = uint32_t(ic) | ((uxc[3] << 27) & Edge::ue0) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
+                            uxc = uxcovers + is->i * kUXCoverSize, edge->ic = uint32_t(ic) | ((uxc[3] << 26) & Edge::ue0) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
                             if (++is < eis)
-                                uxc = uxcovers + is->i * kUXCoverSize, edge->ic |= ((uxc[3] << 24) & Edge::ue1) | Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
+                                uxc = uxcovers + is->i * kUXCoverSize, edge->ic |= ((uxc[3] << 22) & Edge::ue1) | Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
                             else
                                 edge->ux = kNullIndex, edge->ic |= Edge::ue1;
                         }
