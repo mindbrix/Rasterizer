@@ -908,7 +908,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
-        size_t i, j, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
+        size_t i, j, size, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->segments.end || ctx->p16total) {
             segbase = begin, end = begin + ctx->segments.end * sizeof(Segment);
             memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end;
@@ -954,7 +954,7 @@ struct Rasterizer {
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
                         if (widths[iz]) {
                             Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;
-                            for (j = 0; j < entry->size; j += kFastSegments, outline++)
+                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
                                 outline->ic = uint32_t(ic), outline->i0 = j;
                             *(inst->iz & Instance::kFastEdges ? & fastOutline : & quadOutline) = outline;
                         } else {
@@ -962,7 +962,7 @@ struct Rasterizer {
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
-                            for (j = 0; j < entry->size; j += kFastSegments, update = entry->hasMolecules && *p16end++) {
+                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic), molecule->i0 = j, molecule->ux = ux, molecule++;
