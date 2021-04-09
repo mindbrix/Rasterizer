@@ -47,7 +47,7 @@ struct Instance {
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
-    uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ui0 = 0xF << 26, kMask = ~(a0 | a1 | ui0) };
+    uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0x7 << 27, ue1 = 0x7 << 24, ui0 = ue0 | ue1, kMask = ~(a0 | a1 | ui0) };
     uint16_t i0, ux;
 };
 
@@ -374,11 +374,12 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     thread float *dst = & vert.x0;
     thread float *iys = & vert.iy0;
     thread bool *as = & vert.a0;
-    const device uint16_t *idxes = & edge.i0;
+    uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 11) + edge.i0, ((edge.ic & Edge::ue1) >> 8) + edge.ux };
+    const thread uint32_t *idxes = & ids[0];
     float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
     for (int i = 0; i < 2; i++, dst += 6) {
         float x0, y0, x1, y1, x2, y2;
-        if (idxes[i] != kNullIndex) {
+        if (idxes[i] != 0x7FFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
             x0 = dst[0] = s.x0, y0 = dst[1] = s.y0, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
             bool pcurve = *useCurves && as_type<uint>(x0) & 2, ncurve = *useCurves && as_type<uint>(x0) & 1;
