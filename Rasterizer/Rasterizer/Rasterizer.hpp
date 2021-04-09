@@ -795,7 +795,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover, bool a) {
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
-            int16_t *dst = uxcovers[ir].alloc(3);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
+            int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is;
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
@@ -859,7 +859,7 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x;
                     }
-                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * 3, iux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
+                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * kUXCoverSize, iux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
                     ux = iux > ux ? iux : ux, winding += uxcover[1] * wscale;
                 }
                 if (lx != ux) {
@@ -969,12 +969,12 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                        int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + 3 * inst->data.idx, *uxc;
+                        int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + kUXCoverSize * inst->data.idx, *uxc;
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
-                            uxc = uxcovers + is->i * 3, edge->ic = uint32_t(ic) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
+                            uxc = uxcovers + is->i * kUXCoverSize, edge->ic = uint32_t(ic) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
                             if (++is < eis)
-                                uxc = uxcovers + is->i * 3, edge->ic |= Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
+                                uxc = uxcovers + is->i * kUXCoverSize, edge->ic |= Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
                             else
                                 edge->ux = kNullIndex;
                         }
