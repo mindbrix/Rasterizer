@@ -831,8 +831,8 @@ struct Rasterizer {
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
         Row<Index> *indices = & ctx.indices[0];  Row<int16_t> *uxcovers = & ctx.uxcovers[0];
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
-            if (indices->end != indices->idx) {
-                if ((size = indices->end - indices->idx) > 32 && size < 65536)
+            if ((size = indices->end - indices->idx)) {
+                if (size > 32 && size < 65536)
                     radixSort((uint32_t *)indices->base + indices->idx, int(size), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices->base + indices->idx, indices->base + indices->end);
