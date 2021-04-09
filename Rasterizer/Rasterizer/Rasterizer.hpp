@@ -732,12 +732,12 @@ struct Rasterizer {
                 CurveIndexer *idxr = (CurveIndexer *)info;
                 new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
                 if (curve == 0 || !idxr->useCurves)
-                    idxr->indexLine(x0, y0, x1, y1);
+                    idxr->indexLine(x0, y0, x1, y1), idxr->is++;
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
-                    idxr->indexQuadratic(idxr->px0, idxr->py0, 0.25f * (idxr->px0 - x1) + x0, 0.25f * (idxr->py0 - y1) + y0, x0, y0);
-                    idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px0) + x0, 0.25f * (y1 - idxr->py0) + y0, x1, y1);
+                    idxr->indexQuadratic(idxr->px0, idxr->py0, 0.25f * (idxr->px0 - x1) + x0, 0.25f * (idxr->py0 - y1) + y0, x0, y0), idxr->is++;
+                    idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px0) + x0, 0.25f * (y1 - idxr->py0) + y0, x1, y1), idxr->is++;
                 }
             }
         }
@@ -756,7 +756,6 @@ struct Rasterizer {
                     writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, (ny - y) * scale, false);
                 }
             }
-            is++;
         }
         __attribute__((always_inline)) void indexQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ay = y2 - y1, by = y1 - y0, ax, bx, iy;
@@ -771,7 +770,6 @@ struct Rasterizer {
                 indexCurve(y0, iy, ay, by, y0, ax, bx, x0, true);
                 indexCurve(iy, y2, ay, by, y0, ax, bx, x0, false);
             }
-            is++;
         }
         __attribute__((always_inline)) void indexCurve(float w0, float w1, float ay, float by, float cy, float ax, float bx, float cx, bool a) {
             float y, uy, d2a, ity, d, t0, t1, itx, x0, x1, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;
