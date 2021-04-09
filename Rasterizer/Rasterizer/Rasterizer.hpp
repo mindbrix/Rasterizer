@@ -824,7 +824,7 @@ struct Rasterizer {
         }
     }
     static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
-        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
@@ -832,8 +832,8 @@ struct Rasterizer {
         Row<Index> *indices = & ctx.indices[0];  Row<int16_t> *uxcovers = & ctx.uxcovers[0];
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
             if (indices->end != indices->idx) {
-                if (indices->end - indices->idx > 32)
-                    radixSort((uint32_t *)indices->base + indices->idx, int(indices->end - indices->idx), single ? clip.lx : 0, range, single, counts);
+                if ((size = indices->end - indices->idx) > 32 && size < 65536)
+                    radixSort((uint32_t *)indices->base + indices->idx, int(size), single ? clip.lx : 0, range, single, counts);
                 else
                     std::sort(indices->base + indices->idx, indices->base + indices->end);
                 ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
