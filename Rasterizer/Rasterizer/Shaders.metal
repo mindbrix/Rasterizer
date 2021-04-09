@@ -502,19 +502,13 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         const device Instance& ninst = instances[iid + inst.outline.next];
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = ninst.outline.s;
-        const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next], & snn = segments[iid + inst.outline.next + ninst.outline.next];
+        const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
         bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
-
-//        px = sp.x0, py = sp.y0;
-//        x0 = so.x0, y0 = so.y0;
-//        const device float *p1 = ncap ? & o.x1 : & sn.x0;  x1 = p1[0], y1 = p1[1];
-//        const device float *p2 = !ncap && ninst.outline.next ? & snn.x0 : & o.x1;
-//        nx = p2[0], ny = p2[1];
-    
+   
         const device float *pt;
         pt = ncurve && sp.x1 != FLT_MAX ? & sp.x0 : & p.x0, px = pt[0], py = pt[1];
         pt = pcurve && sn.x1 != FLT_MAX ? & sn.x0 : & n.x1, nx = pt[0], ny = pt[1];
