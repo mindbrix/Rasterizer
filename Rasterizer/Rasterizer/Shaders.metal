@@ -511,8 +511,8 @@ vertex InstancesVertex instances_vertex_main(
         bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
    
         const device float *pt;
-        pt = ncurve && sp.x1 != FLT_MAX ? & sp.x0 : & p.x0, px = pt[0], py = pt[1];
-        pt = pcurve && sn.x1 != FLT_MAX ? & sn.x0 : & n.x1, nx = pt[0], ny = pt[1];
+        pt = !pcurve && sp.x1 != FLT_MAX ? & sp.x1 : & p.x0, px = pt[0], py = pt[1];
+        pt = !ncurve && sn.x1 != FLT_MAX ? & sn.x1 : & n.x1, nx = pt[0], ny = pt[1];
         pt = pcurve ? & so.x0 : & o.x0, x0 = pt[0], y0 = pt[1];
         pt = ncurve ? & so.x0 : & o.x1, x1 = pt[0], y1 = pt[1];
         cpx = so.x1, cpy = so.y1;
@@ -521,14 +521,14 @@ vertex InstancesVertex instances_vertex_main(
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-//        _pno = select(no, normalize(float2(bx, by)), isCurve && !pcurve);
-//        _nno = select(no, normalize(float2(-ax, -ay)), isCurve && !ncurve);
-        _pno = no, _nno = no;
+        _pno = select(no, normalize(float2(bx, by)), ncurve);
+        _nno = select(no, normalize(float2(-ax, -ay)), pcurve);
+//        _pno = no, _nno = no;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-        pcap |= dot(np, _pno) < -0.99 || rp * dw > 5e2;
-        ncap |= dot(_nno, nn) < -0.99 || rn * dw > 5e2;
+        pcap |= dot(np, _pno) < -0.94 || rp * dw > 5e2;
+        ncap |= dot(_nno, nn) < -0.94 || rn * dw > 5e2;
         np = pcap ? _pno : np, nn = ncap ? _nno : nn;
         tpo = normalize(np + _pno), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(_nno + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
