@@ -355,10 +355,10 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms };
+        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase };
         struct Entry {
-            Entry(Type type, size_t begin, size_t end, size_t segments = 0, size_t points = 0, size_t instbase = 0) : type(type), begin(begin), end(end), segments(segments), points(points), instbase(instbase) {}
-            Type type;  size_t begin, end, segments, points, instbase;
+            Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
+            Type type;  size_t begin, end;
         };
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
@@ -907,8 +907,8 @@ struct Rasterizer {
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         size_t i, j, size, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
         if (ctx->segments.end || ctx->p16total) {
-            segbase = begin, end = begin + ctx->segments.end * sizeof(Segment);
-            memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end;
+            segbase = begin, end = begin + ctx->segments.end * sizeof(Segment), entries.emplace_back(Buffer::kSegmentsBase, segbase, segbase);
+            memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, entries.emplace_back(Buffer::kPointsBase, begin, begin);
             Row<Scene::Cache::Entry> *entries;
             for (pointsbase = begin, pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
@@ -921,20 +921,20 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *quadOutline = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
-            instcount = pass->count(), instbase = begin + instcount * sizeof(Edge);
+            instcount = pass->count(), instbase = begin + instcount * sizeof(Edge), entries.emplace_back(Buffer::kInstancesBase, instbase, instbase);
             if (instcount) {
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
-                entries.emplace_back(Buffer::kQuadEdges, begin, end, segbase, pointsbase, instbase), begin = end;
+                entries.emplace_back(Buffer::kQuadEdges, begin, end), begin = end;
                 fastEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastEdges] * sizeof(Edge);
-                entries.emplace_back(Buffer::kFastEdges, begin, end, segbase, pointsbase, instbase), begin = end;
+                entries.emplace_back(Buffer::kFastEdges, begin, end), begin = end;
                 fastOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastOutlines] * sizeof(Edge);
-                entries.emplace_back(Buffer::kFastOutlines, begin, end, segbase, pointsbase, instbase), begin = end;
+                entries.emplace_back(Buffer::kFastOutlines, begin, end), begin = end;
                 quadOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadOutlines] * sizeof(Edge);
-                entries.emplace_back(Buffer::kQuadOutlines, begin, end, segbase, pointsbase, instbase), begin = end;
+                entries.emplace_back(Buffer::kQuadOutlines, begin, end), begin = end;
                 fastMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastMolecules] * sizeof(Edge);
-                entries.emplace_back(Buffer::kFastMolecules, begin, end, segbase, pointsbase, instbase), begin = end;
+                entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
-                entries.emplace_back(Buffer::kQuadMolecules, begin, end, segbase, pointsbase, instbase), begin = end;
+                entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
             }
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
@@ -982,8 +982,8 @@ struct Rasterizer {
                 }
             }
             if (dst > dst0) {
-                end = begin + (dst - dst0) * sizeof(Instance);
-                entries.emplace_back(Buffer::kInstanceTransforms, begin, end, end), entries.emplace_back(Buffer::kInstances, begin, end, end);
+                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, end);
+                entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
                 begin = end = end + (dst - dst0) * sizeof(Segment);
             }
         }

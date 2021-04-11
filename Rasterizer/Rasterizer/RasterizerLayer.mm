@@ -188,9 +188,21 @@
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
     
-    for (size_t i = 0; i < buffer->entries.end; i++) {
+    for (size_t segbase = 0, ptsbase = 0, instbase = 0, transformbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
+            case Ra::Buffer::kSegmentsBase:
+                segbase = entry.begin;
+                break;
+            case Ra::Buffer::kPointsBase:
+                ptsbase = entry.begin;
+                break;
+            case Ra::Buffer::kInstancesBase:
+                instbase = entry.begin;
+                break;
+            case Ra::Buffer::kTransformBase:
+                transformbase = entry.begin;
+                break;
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
@@ -229,12 +241,12 @@
                     [commandEncoder setRenderPipelineState:_quadMoleculesPipelineState];
                 if (entry.end - entry.begin) {
                     [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:2];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:segbase atIndex:2];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.instbase atIndex:5];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:instbase atIndex:5];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                     [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->bounds atIndex:7];
-                    [commandEncoder setVertexBuffer:mtlBuffer offset:entry.points atIndex:8];
+                    [commandEncoder setVertexBuffer:mtlBuffer offset:ptsbase atIndex:8];
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
@@ -254,7 +266,7 @@
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setRenderPipelineState:_instancesTransformState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:transformbase atIndex:20];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder drawPrimitives:isM1 ? MTLPrimitiveTypeTriangleStrip : MTLPrimitiveTypePoint
                                    vertexStart:0
@@ -269,7 +281,7 @@
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.segments atIndex:20];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:transformbase atIndex:20];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
