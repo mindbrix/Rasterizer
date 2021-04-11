@@ -907,8 +907,8 @@ struct Rasterizer {
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
         size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, instcount = 0;
         if (ctx->segments.end || ctx->p16total) {
-            entries.emplace_back(Buffer::kSegmentsBase, begin, begin), end = begin + ctx->segments.end * sizeof(Segment);
-            memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, entries.emplace_back(Buffer::kPointsBase, begin, begin);
+            entries.emplace_back(Buffer::kSegmentsBase, begin, 0), end = begin + ctx->segments.end * sizeof(Segment);
+            memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, entries.emplace_back(Buffer::kPointsBase, begin, 0);
             Row<Scene::Cache::Entry> *entries;
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
