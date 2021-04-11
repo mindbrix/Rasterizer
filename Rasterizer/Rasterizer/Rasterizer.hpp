@@ -905,12 +905,12 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, std::vector<Buffer::Entry>& entries, Buffer& buffer) {
-        size_t i, j, size, iz, ip, is, lz, ic, end, segbase = 0, pbase = 0, pointsbase = 0, instcount = 0, instbase = 0;
+        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, instcount = 0;
         if (ctx->segments.end || ctx->p16total) {
-            segbase = begin, end = begin + ctx->segments.end * sizeof(Segment), entries.emplace_back(Buffer::kSegmentsBase, segbase, segbase);
+            entries.emplace_back(Buffer::kSegmentsBase, begin, begin), end = begin + ctx->segments.end * sizeof(Segment);
             memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, entries.emplace_back(Buffer::kPointsBase, begin, begin);
             Row<Scene::Cache::Entry> *entries;
-            for (pointsbase = begin, pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
+            for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
                     if (ctx->fasts.base[lz + ip]) {
                         end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
@@ -921,7 +921,7 @@ struct Rasterizer {
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *quadOutline = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
-            instcount = pass->count(), instbase = begin + instcount * sizeof(Edge), entries.emplace_back(Buffer::kInstancesBase, instbase, instbase);
+            instcount = pass->count(), entries.emplace_back(Buffer::kInstancesBase, begin + instcount * sizeof(Edge), 0);
             if (instcount) {
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadEdges, begin, end), begin = end;
