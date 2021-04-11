@@ -523,7 +523,6 @@ vertex InstancesVertex instances_vertex_main(
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
         _pno = select(no, normalize(float2(bx, by)), ncurve);
         _nno = select(no, normalize(float2(-ax, -ay)), pcurve);
-//        _pno = no, _nno = no;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
@@ -585,7 +584,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         if (vert.flags & InstancesVertex::kIsCurve) {
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;  // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-            t = (closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2)), s = 1.0 - t;
+            t = saturate(closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2)), s = 1.0 - t;
             tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
             ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
             dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
