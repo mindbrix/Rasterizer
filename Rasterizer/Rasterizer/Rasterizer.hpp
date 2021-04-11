@@ -153,7 +153,6 @@ struct Rasterizer {
                     bounds.extend(molecules.base[i]);
             }
         }
-        bool isSimple()  {  return molecules.end == 1 && types.back() == kClose;  }
         size_t upperBound(float det) {
             float s = sqrtf(sqrtf(det < 1e-2f ? 1e-2f : det));
             size_t cubics = cubicSums == 0 ? 0 : (det < 1.f ? ceilf(s * (cubicSums + 2.f)) : ceilf(s) * cubicSums);
@@ -446,7 +445,7 @@ struct Rasterizer {
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
-                        if (width && !(buffer->fastOutlines && useMolecules && (width <= 1.f || g->isSimple()))) {
+                        if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
                                | bool(scene->flags[is] & Scene::kOutlineRoundCap) * Instance::kRoundCap
                                | bool(scene->flags[is] & Scene::kOutlineSquareCap) * Instance::kSquareCap);
