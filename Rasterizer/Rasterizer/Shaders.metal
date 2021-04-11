@@ -473,7 +473,7 @@ vertex void instances_transform_main(
         cpx = 2.0 * x - 0.5 * (cx0 + cx2), cpy = 2.0 * y - 0.5 * (cy0 + cy2);
         ax = cx2 - cpx, bx = cpx - cx0, ay = cy2 - cpy, by = cpy - cy0;
         r = rsqrt((ax * ax + ay * ay) / (bx * bx + by * by)), tx = fma(ax, r, bx), ty = fma(ay, r, by);
-        isCurve = (pcurve || ncurve) && r < 1e1 && r > 1e-1;
+        isCurve = (pcurve || ncurve) && r < 25.0 && r > 4e-2;
         ax -= bx, bx *= 2.0, ay -= by, by *= 2.0;
         t = -0.5 * (tx * by - ty * bx) / (tx * ay - ty * ax), s = 1.0 - t;
         out.x0 = fma(fma(ax, t, bx), t, cx0), out.y0 = fma(fma(ay, t, by), t, cy0);
