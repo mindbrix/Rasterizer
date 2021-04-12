@@ -235,8 +235,8 @@ struct Rasterizer {
                 g->writePoint16(x1, y1, g->bounds, 0);
                 size_t count = kFastSegments - (g->p16s.end % kFastSegments);
                 memset(g->p16s.alloc(count), 0xFF, count * sizeof(Point16));
-                count = (g->p16s.end - g->p16s.idx) / kFastSegments, memset(g->p16ends.alloc(count), kFastSegments, count * sizeof(uint8_t));
-                g->p16ends.back() = g->p16s.end % kFastSegments, g->p16s.idx = g->p16s.end;
+                count = (g->p16s.end - g->p16s.idx) / kFastSegments, bzero(g->p16ends.alloc(count), count * sizeof(uint8_t));
+                g->p16ends.back() = 1, g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
@@ -959,7 +959,7 @@ struct Rasterizer {
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
-                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && *p16end++ != kFastSegments) {
+                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && *p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic | ((j & ~0xFFFF) << 10)), molecule->i0 = j & 0xFFFF, molecule->ux = ux, molecule++;
