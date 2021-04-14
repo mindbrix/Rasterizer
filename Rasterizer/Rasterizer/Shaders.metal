@@ -207,8 +207,8 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         skip |= (w != 0.0 && (pts[-1].x & 0x4000)) || (pts->x == 0xFFFF && pts->y == 0xFFFF);
         
         x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
-        dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), dst[1] = select(x16 * mb + y16 * md + ty, dst[-1], skip);
-        slx = min(slx, dst[0]), sux = max(sux, dst[0]), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+        dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
+        dst[1] = select(x16 * mb + y16 * md + ty, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
     }
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
