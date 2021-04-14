@@ -224,7 +224,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     bool skip = false;
-    int i;
+    int i, segcount = (edge.ic & Edge::ue1) >> 22;
     float tx, ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
@@ -233,7 +233,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     *dst++ = slx = sux = x16 * ma + y16 * mc + tx,
     *dst++ = sly = suy = x16 * mb + y16 * md + ty;
     for (i = 0; i < kFastSegments; i++, dst += 2) {
-        skip |= (w != 0.0 && (pts[-1].x & 0x4000)) || (pts->x == 0xFFFF && pts->y == 0xFFFF);
+        skip |= (w != 0.0 && (pts[-1].x & 0x4000)) || i >= segcount;
         
         x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
         dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
