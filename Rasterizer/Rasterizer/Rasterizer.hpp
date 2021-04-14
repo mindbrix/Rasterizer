@@ -135,7 +135,7 @@ struct Rasterizer {
             size_t size = moveCount + lineCount + 2 * quadCount + 3 * cubicCount + closeCount;
             types.alloc(size), types.empty(), points.alloc(size * 2), points.empty(), molecules.alloc(moveCount), molecules.empty();
             size_t p16sSize = 5 * moveCount + lineCount + 2 * quadCount + 3 * cubicCount;
-            p16s.alloc(p16sSize), p16s.empty(), p16ends.alloc(p16sSize / kFastSegments), p16ends.empty();
+            p16s.alloc(p16sSize), p16s.empty(), p16cnts.alloc(p16sSize / kFastSegments), p16cnts.empty();
         }
         void update(Type type, size_t size, float *p) {
             counts[type]++;
@@ -236,14 +236,14 @@ struct Rasterizer {
                 size_t extra, instcount;  int segcount = int(g->p16s.end - g->p16s.idx - 1);
                 extra = kFastSegments - (g->p16s.end % kFastSegments), memset(g->p16s.alloc(extra), 0xFF, extra * sizeof(Point16));
                 instcount = (g->p16s.end - g->p16s.idx) / kFastSegments;
-                for (uint8_t *cnt = g->p16ends.alloc(instcount), *cend = cnt + instcount; cnt < cend; cnt++, segcount -= kFastSegments)
+                for (uint8_t *cnt = g->p16cnts.alloc(instcount), *cend = cnt + instcount; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                g->p16ends.back() |= 0x80, g->p16s.idx = g->p16s.end;
+                g->p16cnts.back() |= 0x80, g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
-        Row<Point16> p16s;  Row<uint8_t> p16ends;  Row<Bounds> molecules;
+        Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Bounds> molecules;
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;
         Bounds bounds;
     };
@@ -277,7 +277,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16ends.base);
+                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16cnts.base);
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
