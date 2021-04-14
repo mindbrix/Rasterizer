@@ -353,7 +353,7 @@ struct Rasterizer {
         union { struct { int count, iy, begin, idx; } data;  Bounds clip; };
     };
     struct Edge {
-        uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, ui0 = ue0 | ue1, kMask = ~(a0 | a1 | ui0) };
+        uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a0 | a1 | ue0 | ue1) };
         uint16_t i0, ux;
     };
     struct Buffer {
@@ -964,7 +964,7 @@ struct Rasterizer {
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16end++ & 0x80)) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic | ((j & ~0xFFFF) << 10)), molecule->i0 = j & 0xFFFF, molecule->ux = ux, molecule++;
+                                molecule->ic = uint32_t(ic | ((j & 0xF0000) << 10)), molecule->i0 = j & 0xFFFF, molecule->ux = ux, molecule++;
                             }
                             *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
                         }
