@@ -187,11 +187,11 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
     P16OutlinesVertex vert;
     
     const device Edge& edge = edges[iid];
-    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, pi, segcount = ue1 & 0x7, j = (((edge.ic & Edge::ue0) >> 10) + edge.i0) * kFastSegments;
+    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, j = (((edge.ic & Edge::ue0) >> 10) + edge.i0) * kFastSegments;
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-    const device Point16 *pts = & points[inst.quad.base + j];
+    const device Point16 *pts = & points[inst.quad.base + j], *pt;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     
     float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, mx, my, rcos, dx, dy;
@@ -199,13 +199,13 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
     
-    pi = clamp(idx - 1, 0, segcount), x16 = pts[pi].x & 0x3FFF, y16 = pts[pi].y & 0x7FFF;
+    pt = pts + clamp(idx - 1, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
-    pi = clamp(idx, 0, segcount), x16 = pts[pi].x & 0x3FFF, y16 = pts[pi].y & 0x7FFF;
+    pt = pts + clamp(idx, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
     
-    pi = clamp(idx + 1, 0, segcount), x16 = pts[pi].x & 0x3FFF, y16 = pts[pi].y & 0x7FFF;
+    pt = pts + clamp(idx + 1, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
     ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = select(rsqrt(pdot), 1.0, pdot == 0.0), npx = ax * rl, npy = ay * rl;
