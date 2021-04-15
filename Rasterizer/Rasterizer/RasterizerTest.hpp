@@ -43,7 +43,7 @@ struct RasterizerTest {
             Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
             Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
             
-            if (1) {
+            if (0) {
                 float uw = 20, w = 100;
                 Ra::Path cub0;  cub0.ref->moveTo(0, 0), cub0.ref->cubicTo(0, w, w, w, w, 0);
                 Ra::Path cub1;  cub1.ref->moveTo(0, 0), cub1.ref->cubicTo(0, 0, w, w, w, 0);

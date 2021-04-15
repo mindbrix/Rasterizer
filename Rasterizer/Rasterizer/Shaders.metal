@@ -198,11 +198,13 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, mx, my, rcos, dx, dy;
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, tanx, tany, rcos, dx, dy;
+    bool pzero, nzero;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
     
+    segcount -= int((pts[max(0, segcount - 1)].x & 0x4000) != 0);
     pt = pts + clamp(idx - 1, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
@@ -212,20 +214,22 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pt = pts + clamp(idx + 1, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
-    ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = rsqrt(pdot == 0.0 ? 1.0 : pdot), npx = ax * rl, npy = ay * rl;
-    ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = rsqrt(ndot == 0.0 ? 1.0 : ndot), nnx = ax * rl, nny = ay * rl;
+    pzero = x == px && y == py, nzero = x == nx && y == ny;
+    ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = rsqrt(pzero ? 1.0 : pdot), npx = ax * rl, npy = ay * rl;
+    ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = rsqrt(nzero ? 1.0 : ndot), nnx = ax * rl, nny = ay * rl;
     
-    ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot == 0.0 ? 1.0 : tdot), mx = -ay * rl, my = ax * rl;
-    rcos = select(1.0 / (npx * mx + npy * my), 1.0, pdot == 0.0 || ndot == 1.0);
+    ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot == 0.0 ? 1.0 : tdot), tanx = ax * rl, tany = ay * rl;
+    rcos = select(1.0 / abs(npx * tanx + npy * tany), 1.0, pzero || nzero);
+    rcos = min(4.0, rcos);
     dw *= rcos * select(1.0, -1.0, vid & 1);
-    dx = x + mx * dw;
-    dy = y + my * dw;
+    dx = x + -tany * dw;
+    dy = y + tanx * dw;
     
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
-        1.0
+        float(segcount != 0)
     };
     float sa = alpha * 0.003921568627;
     vert.color = float4(color.r * sa, color.g * sa, color.b * sa, alpha);
@@ -235,7 +239,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
 {
-    return vert.color * floor(vert.n);
+    return vert.color * (vert.n - floor(vert.n));
 }
 
 #pragma mark - Fast Molecules

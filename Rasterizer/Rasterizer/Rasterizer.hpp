@@ -391,8 +391,8 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, size = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
-            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
+            size_t idx, size = 0, counts[7] = { 0, 0, 0, 0, 0, 0, 0 };
+            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + counts[6]; }
         };
         void empty(Bounds device) {
             full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -412,7 +412,7 @@ struct Rasterizer {
             }
             cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
         }
-        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
+        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kP16Outlines };
         Bounds full, sheet, strip, fast, molecules;
     };
     struct Context {
@@ -447,6 +447,16 @@ struct Rasterizer {
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
+                        if (width) {
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines);
+                            bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                            if (fasts.base[lz + ip]++ == 0)
+                                p16total += size;
+                            inst->data.idx = int(lz + ip);
+                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[Allocator::kP16Outlines] += size / kFastSegments;
+                            outlineInstances++;
+                        }
+                        continue;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
                                | bool(scene->flags[is] & Scene::kOutlineRoundCap) * Instance::kRoundCap
@@ -921,7 +931,7 @@ struct Rasterizer {
                     }
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);
-        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *quadOutline = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr;
+        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *quadOutline = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr, *p16Outline = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             if (pass->count()) {
                 entries.emplace_back(Buffer::kInstancesBase, begin + pass->count() * sizeof(Edge), 0);
@@ -937,14 +947,23 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
+                p16Outline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
+                if (begin != end)
+                    entries.emplace_back(Buffer::kP16Outlines, begin, end), begin = end;
             }
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
-                    Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
-                    divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-                    dst = out.dst;
+                    ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst->quad.base = uint32_t(ctx->fasts.base[inst->data.idx]), dst++;
+                    Scene::Cache& cache = *list.scenes[i].cache.ref;
+                    Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16end;
+                    for (j = 0, size = entry->size / kFastSegments; j < size; j++, p16Outline++)
+                        p16Outline->ic = uint32_t(ic | ((j & ~0xFFFF) << 10) | (uint32_t(*p16end++ & 0xF) << 22)), p16Outline->i0 = j & 0xFFFF;
+                    
+//                    Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
+//                    divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+//                    dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
@@ -983,11 +1002,11 @@ struct Rasterizer {
                     }
                 }
             }
-            if (dst > dst0) {
-                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, 0);
-                entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
-                begin = end = end + (dst - dst0) * sizeof(Segment);
-            }
+//            if (dst > dst0) {
+//                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, 0);
+//                entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
+//                begin = end = end + (dst - dst0) * sizeof(Segment);
+//            }
         }
     }
 };
