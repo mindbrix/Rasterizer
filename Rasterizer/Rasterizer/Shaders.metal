@@ -168,13 +168,16 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 #pragma mark - P16 Outlines
 
 struct P16OutlinesVertex {
-    float4 position [[position]];
+    float4 position [[position]], color, clip;
     float n;
 };
 
-vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buffer(1)]],
+vertex P16OutlinesVertex p16_outlines_vertex_main(
+                               const device Colorant *colors [[buffer(0)]],
+                                const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
+//                                const device Transform *clips [[buffer(5)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device float *widths [[buffer(6)]],
                                 const device Bounds *bounds [[buffer(7)]],
@@ -192,7 +195,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j], *pt;
+    const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
+    float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     
     float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, mx, my, rcos, dx, dy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -223,8 +228,15 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         1.0
     };
+    float sa = alpha * 0.003921568627;
+    vert.color = float4(color.r * sa, color.g * sa, color.b * sa, alpha);
     vert.n = j + idx;
     return vert;
+}
+
+fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
+{
+    return vert.color * floor(vert.n);
 }
 
 #pragma mark - Fast Molecules
