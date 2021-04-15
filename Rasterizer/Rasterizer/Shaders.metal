@@ -208,10 +208,10 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
     pt = pts + clamp(idx + 1, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
-    ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = select(rsqrt(pdot), 1.0, pdot == 0.0), npx = ax * rl, npy = ay * rl;
-    ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = select(rsqrt(ndot), 1.0, ndot == 0.0), nnx = ax * rl, nny = ay * rl;
+    ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = rsqrt(pdot == 0.0 ? 1.0 : pdot), npx = ax * rl, npy = ay * rl;
+    ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = rsqrt(ndot == 0.0 ? 1.0 : ndot), nnx = ax * rl, nny = ay * rl;
     
-    ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = select(rsqrt(tdot), 1.0, tdot == 0.0), mx = -ay * rl, my = ax * rl;
+    ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot == 0.0 ? 1.0 : tdot), mx = -ay * rl, my = ax * rl;
     rcos = select(1.0 / (npx * mx + npy * my), 1.0, pdot == 0.0 || ndot == 1.0);
     dw *= rcos * select(1.0, -1.0, vid & 1);
     dx = x + mx * dw;
