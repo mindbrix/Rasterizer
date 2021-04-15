@@ -194,7 +194,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
     const device Point16 *pts = & points[inst.quad.base + j];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x0, y0, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, mx, my, rcos, dx, dy;
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, mx, my, rcos, dx, dy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
@@ -203,19 +203,19 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(const device Edge *edges [[buf
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
     pi = clamp(idx, 0, segcount), x16 = pts[pi].x & 0x3FFF, y16 = pts[pi].y & 0x7FFF;
-    x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
     
     pi = clamp(idx + 1, 0, segcount), x16 = pts[pi].x & 0x3FFF, y16 = pts[pi].y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
-    ax = x0 - px, ay = y0 - py, pdot = ax * ax + ay * ay, rl = select(rsqrt(pdot), 1.0, pdot == 0.0), npx = ax * rl, npy = ay * rl;
-    ax = nx - x0, ay = ny - y0, ndot = ax * ax + ay * ay, rl = select(rsqrt(ndot), 1.0, ndot == 0.0), nnx = ax * rl, nny = ay * rl;
+    ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = select(rsqrt(pdot), 1.0, pdot == 0.0), npx = ax * rl, npy = ay * rl;
+    ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = select(rsqrt(ndot), 1.0, ndot == 0.0), nnx = ax * rl, nny = ay * rl;
     
     ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = select(rsqrt(tdot), 1.0, tdot == 0.0), mx = -ay * rl, my = ax * rl;
     rcos = select(1.0 / (npx * mx + npy * my), 1.0, pdot == 0.0 || ndot == 1.0);
     dw *= rcos * select(1.0, -1.0, vid & 1);
-    dx = x0 + mx * dw;
-    dy = y0 + my * dw;
+    dx = x + mx * dw;
+    dy = y + my * dw;
     
     vert.position = {
         dx / *width * 2.0 - 1.0,
