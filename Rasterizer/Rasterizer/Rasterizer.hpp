@@ -357,7 +357,7 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase };
+        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase, kP16Outlines };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;

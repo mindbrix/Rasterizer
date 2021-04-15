@@ -168,14 +168,13 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 #pragma mark - P16 Outlines
 
 struct P16OutlinesVertex {
-    float4 position [[position]], color, clip;
+    float4 position [[position]], color;
     float n;
 };
 
 vertex P16OutlinesVertex p16_outlines_vertex_main(
                                const device Colorant *colors [[buffer(0)]],
                                 const device Edge *edges [[buffer(1)]],
-                                const device Segment *segments [[buffer(2)]],
                                 const device Transform *affineTransforms [[buffer(4)]],
 //                                const device Transform *clips [[buffer(5)]],
                                 const device Instance *instances [[buffer(5)]],
