@@ -175,7 +175,7 @@ struct P16OutlinesVertex {
 vertex P16OutlinesVertex p16_outlines_vertex_main(
                                const device Colorant *colors [[buffer(0)]],
                                 const device Edge *edges [[buffer(1)]],
-                                const device Transform *affineTransforms [[buffer(4)]],
+                                const device Transform *ctms [[buffer(4)]],
 //                                const device Transform *clips [[buffer(5)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device float *widths [[buffer(6)]],
@@ -191,7 +191,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.idx, j = i * kFastSegments;
-    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+    const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j], *pt;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
@@ -252,7 +252,7 @@ struct FastMoleculesVertex
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device Transform *affineTransforms [[buffer(4)]],
+                                const device Transform *ctms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device float *widths [[buffer(6)]],
                                 const device Bounds *bounds [[buffer(7)]],
@@ -266,7 +266,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.idx, j = i * kFastSegments;
-    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+    const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + j];
@@ -328,7 +328,7 @@ struct QuadMoleculesVertex
 
 vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
                                 const device Segment *segments [[buffer(2)]],
-                                const device Transform *affineTransforms [[buffer(4)]],
+                                const device Transform *ctms [[buffer(4)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device float *widths [[buffer(6)]],
                                 const device Bounds *bounds [[buffer(7)]],
@@ -341,7 +341,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.idx, j = i * kFastSegments;
-    const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
+    const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + j];
@@ -437,7 +437,7 @@ struct EdgesVertex
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      const device Segment *segments [[buffer(2)]],
-                                     const device Transform *affineTransforms [[buffer(4)]],
+                                     const device Transform *ctms [[buffer(4)]],
                                      const device Instance *instances [[buffer(5)]],
                                      constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                      constant bool *useCurves [[buffer(14)]],
