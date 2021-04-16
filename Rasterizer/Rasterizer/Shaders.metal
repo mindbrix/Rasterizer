@@ -203,8 +203,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-    
-    segcount -= int((pts[max(0, segcount - 1)].x & 0x4000) != 0);
+
+    segcount -= int((ue1 & 0x8) != 0);
     pt = pts + clamp(idx - 1, 0, segcount), x16 = pt->x & 0x3FFF, y16 = pt->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
@@ -271,7 +271,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     bool skip = false;
-    
+    segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
     float tx, ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
@@ -280,7 +280,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     *dst++ = slx = sux = x16 * ma + y16 * mc + tx,
     *dst++ = sly = suy = x16 * mb + y16 * md + ty;
     for (i = 0; i < kFastSegments; i++, dst += 2) {
-        skip |= (w != 0.0 && (pts[-1].x & 0x4000)) || i >= segcount;
+        skip |= i >= segcount;
         
         x16 = pts->x & 0x3FFF, y16 = pts->y & 0x7FFF, pts++;
         dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
@@ -345,8 +345,8 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Point16 *pts = & points[inst.quad.base + j];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    bool skip = (w != 0.0 && (pts->x & 0x4000)) || segcount == 0;
-    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = skip ? 0.0 : 1.0;
+    segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
+   float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = segcount == 0 ? 0.0 : 1.0;
     if (visible) {
         float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -371,7 +371,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 curve2 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
                 x = pts->x & 0x3FFF, y = pts->y & 0x7FFF;
                 nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
-                segcount = w != 0.0 && ((pts - 1)->x & 0x4000) != 0 ? segcount - 1 : segcount;
                 slx = min(slx, x1), sux = max(sux, x1), sly = min(sly, y1), suy = max(suy, y1);
                 if (curve0 == 0)
                     dst[0] = FLT_MAX;
