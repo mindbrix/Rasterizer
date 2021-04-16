@@ -36,7 +36,7 @@ struct Cell {
 };
 
 struct Quad {
-    Cell cell;  short cover;  int base;
+    Cell cell;  short cover;  int base, idx;
 };
 struct Outline {
     Segment s;
@@ -190,7 +190,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - ((int(inst.quad.cell.ly) << 16) | inst.quad.cell.lx), j = i * kFastSegments;
+    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.idx, j = i * kFastSegments;
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j], *pt;

@@ -338,7 +338,7 @@ struct Rasterizer {
         uint16_t lx, ly, ux, uy, ox, oy;
     };
     struct Quad {
-        Cell cell;  short cover;  int base;
+        Cell cell;  short cover;  int base, idx;
     };
     struct Outline {
         Segment s;  short prev, next;
@@ -958,7 +958,7 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     if (buffer.p16Outlines) {
-                        ic = dst - dst0, dst->iz = inst->iz, dst->quad.cell.lx = (p16Outline - p16Outline0) & 0xFFFF, dst->quad.cell.ly = (p16Outline - p16Outline0) >> 16, dst->quad.base = uint32_t(ctx->fasts.base[inst->data.idx]), dst++;
+                        ic = dst - dst0, dst->iz = inst->iz, dst->quad.base = uint32_t(ctx->fasts.base[inst->data.idx]), dst->quad.idx = int(p16Outline - p16Outline0), dst++;
                         Scene::Cache& cache = *list.scenes[i].cache.ref;
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16end;
                         for (j = 0, size = entry->size / kFastSegments; j < size; j++, p16Outline++)
