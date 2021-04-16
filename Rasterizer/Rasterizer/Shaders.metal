@@ -189,8 +189,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     P16OutlinesVertex vert;
     
     const device Edge& edge = edges[iid];
-    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, j = (((edge.ic & Edge::ue0) >> 10) + edge.i0) * kFastSegments;
     const device Instance& inst = instances[edge.ic & Edge::kMask];
+    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - ((int(inst.quad.cell.ly) << 16) | inst.quad.cell.lx), j = i * kFastSegments;
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j], *pt;
@@ -239,7 +239,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
 {
-    return vert.color * (vert.n - floor(vert.n));
+    return vert.color;// * (vert.n - floor(vert.n));
 }
 
 #pragma mark - Fast Molecules
