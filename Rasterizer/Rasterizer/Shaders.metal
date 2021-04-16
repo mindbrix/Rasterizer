@@ -174,7 +174,7 @@ struct P16OutlinesVertex {
 
 vertex P16OutlinesVertex p16_outlines_vertex_main(
                                const device Colorant *colors [[buffer(0)]],
-                                const device Edge *edges [[buffer(1)]],
+                                const device uint32_t *edges [[buffer(1)]],
                                 const device Transform *ctms [[buffer(4)]],
 //                                const device Transform *clips [[buffer(5)]],
                                 const device Instance *instances [[buffer(5)]],
@@ -188,9 +188,10 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
 {
     P16OutlinesVertex vert;
     
-    const device Edge& edge = edges[iid];
-    const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.idx, j = i * kFastSegments;
+//    const device Edge& edge = edges[iid];
+    uint32_t ic = edges[iid];
+    const device Instance& inst = instances[ic & Edge::kMask];
+    int idx = vid >> 1, ue1 = (ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.idx, j = i * kFastSegments;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j], *pt;
