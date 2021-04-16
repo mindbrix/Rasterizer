@@ -221,7 +221,7 @@ struct Rasterizer {
             return xxhash;
         }
         inline void writePoint16(float x, float y, Bounds& b, uint32_t curve) {
-            uint16_t x16 = uint16_t((x - b.lx) / (b.ux - b.lx) * 16383.f) | ((curve & 2) << 14);
+            uint16_t x16 = uint16_t((x - b.lx) / (b.ux - b.lx) * 32767.f) | ((curve & 2) << 14);
             uint16_t y16 = uint16_t((y - b.ly) / (b.uy - b.ly) * 32767.f) | ((curve & 1) << 15);
             new (p16s.alloc(1)) Point16(x16, y16);
         }
