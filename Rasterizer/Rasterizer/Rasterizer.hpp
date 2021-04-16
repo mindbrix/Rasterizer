@@ -933,7 +933,8 @@ struct Rasterizer {
                     }
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);
-        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr, *p16Outline = nullptr, *p16Outline0 = nullptr;
+        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
+        uint32_t *p16Outline = nullptr, *p16Outline0 = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             if (pass->count()) {
                 entries.emplace_back(Buffer::kInstancesBase, begin + pass->count() * sizeof(Edge), 0);
@@ -949,7 +950,7 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
-                p16Outline0 = p16Outline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
+                p16Outline0 = p16Outline = (uint32_t *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
                 if (begin != end)
                     entries.emplace_back(Buffer::kP16Outlines, begin, end), begin = end;
             }
@@ -961,8 +962,8 @@ struct Rasterizer {
                         ic = dst - dst0, dst->iz = inst->iz, dst->quad.base = int(ctx->fasts.base[inst->data.idx]), dst->quad.idx = int(p16Outline - p16Outline0), dst++;
                         Scene::Cache& cache = *list.scenes[i].cache.ref;
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16end;
-                        for (j = 0, size = entry->size / kFastSegments; j < size; j++, p16Outline++)
-                            p16Outline->ic = uint32_t(ic | (uint32_t(*p16end++ & 0xF) << 22));
+                        for (j = 0, size = entry->size / kFastSegments; j < size; j++)
+                            *p16Outline++ = uint32_t(ic | (uint32_t(*p16end++ & 0xF) << 22));
                     } else {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
                         divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
