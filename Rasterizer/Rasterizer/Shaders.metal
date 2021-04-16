@@ -195,7 +195,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j], *pt;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
-    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
+    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw;
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     
     float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, tanx, tany, rcos, dx, dy;
@@ -219,11 +219,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = rsqrt(nzero ? 1.0 : ndot), nnx = ax * rl, nny = ay * rl;
     
     ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot == 0.0 ? 1.0 : tdot), tanx = ax * rl, tany = ay * rl;
-    rcos = select(1.0 / abs(npx * tanx + npy * tany), 1.0, pzero || nzero);
-    rcos = min(4.0, rcos);
-    dw *= rcos * select(1.0, -1.0, vid & 1);
-    dx = x + -tany * dw;
-    dy = y + tanx * dw;
+    rcos = pzero || nzero ? 1.0 : min(4.0, 1.0 / abs(npx * tanx + npy * tany));
+    dw = 0.5 * (cw + 1.0) * rcos * select(1.0, -1.0, vid & 1);
+    dx = x + -tany * dw, dy = y + tanx * dw;
     
     vert.position = {
         dx / *width * 2.0 - 1.0,
