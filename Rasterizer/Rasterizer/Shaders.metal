@@ -265,14 +265,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
+    int i, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, j = kFastSegments * (iid - inst.quad.idx);
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + (((edge.ic & Edge::ue0) >> 10) + edge.i0) * kFastSegments];
+    const device Point16 *pts = & points[inst.quad.base + j];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     bool skip = false;
-    int i, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7;
+    
     float tx, ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 16383.0, mb = m.b * (b.ux - b.lx) / 16383.0;
@@ -340,13 +341,13 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
+    int i, curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, j = kFastSegments * (iid - inst.quad.idx);
     const device Transform& m = affineTransforms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + (((edge.ic & Edge::ue0) >> 10) + edge.i0) * kFastSegments];
+    const device Point16 *pts = & points[inst.quad.base + j];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    int i, curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7;
     bool skip = (w != 0.0 && (pts->x & 0x4000)) || segcount == 0;
     float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = skip ? 0.0 : 1.0;
     if (visible) {

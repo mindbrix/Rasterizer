@@ -933,7 +933,7 @@ struct Rasterizer {
                     }
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);
-        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *quadOutline = nullptr, *fastMolecule = nullptr, *quadMolecule = nullptr, *p16Outline = nullptr, *p16Outline0 = nullptr;
+        Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr, *p16Outline = nullptr, *p16Outline0 = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             if (pass->count()) {
                 entries.emplace_back(Buffer::kInstancesBase, begin + pass->count() * sizeof(Edge), 0);
@@ -941,13 +941,13 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::kQuadEdges, begin, end), begin = end;
                 fastEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastEdges] * sizeof(Edge);
                 entries.emplace_back(Buffer::kFastEdges, begin, end), begin = end;
-                fastOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastOutlines] * sizeof(Edge);
+                fastOutline0 = fastOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastOutlines] * sizeof(Edge);
                 entries.emplace_back(Buffer::kFastOutlines, begin, end), begin = end;
-                quadOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadOutlines] * sizeof(Edge);
+                quadOutline0 = quadOutline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadOutlines] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadOutlines, begin, end), begin = end;
-                fastMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastMolecules] * sizeof(Edge);
+                fastMolecule0 = fastMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
-                quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
+                quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
                 p16Outline0 = p16Outline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
                 if (begin != end)
@@ -976,18 +976,20 @@ struct Rasterizer {
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
                         if (widths[iz]) {
                             Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16end = entry->p16end;
+                            dst[-1].quad.idx = int(outline - (inst->iz & Instance::kFastEdges ? fastOutline0 : quadOutline0));
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
-                                outline->ic = uint32_t(ic | ((j & ~0xFFFF) << 10) | (uint32_t(*p16end++ & 0xF) << 22)), outline->i0 = j & 0xFFFF;
+                                outline->ic = uint32_t(ic | (uint32_t(*p16end++ & 0xF) << 22));
                             *(inst->iz & Instance::kFastEdges ? & fastOutline : & quadOutline) = outline;
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
                             bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
+                            dst[-1].quad.idx = int(molecule - (inst->iz & Instance::kFastEdges ? fastMolecule0 : quadMolecule0));
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16end & 0x80), p16end++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic | ((j & 0xF0000) << 10) | (uint32_t(*p16end & 0xF) << 22)), molecule->i0 = j & 0xFFFF, molecule->ux = ux, molecule++;
+                                molecule->ic = uint32_t(ic | (uint32_t(*p16end & 0xF) << 22)), molecule->ux = ux, molecule++;
                             }
                             *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
                         }
