@@ -346,7 +346,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-   float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = segcount == 0 ? 0.0 : 1.0;
+    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = segcount == 0 ? 0.0 : 1.0;
     if (visible) {
         float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
