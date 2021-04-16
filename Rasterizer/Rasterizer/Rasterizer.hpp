@@ -384,7 +384,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;
         Row<Entry> entries;
-        bool useCurves = false, fastOutlines = false;
+        bool useCurves = false, fastOutlines = false, p16Outlines = true;
         Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, pathsCount, headerSize, size = 0;
     };
@@ -447,16 +447,18 @@ struct Rasterizer {
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
-                        if (width) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines);
-                            bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
-                            if (fasts.base[lz + ip]++ == 0)
-                                p16total += size;
-                            inst->data.idx = int(lz + ip);
-                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[Allocator::kP16Outlines] += size / kFastSegments;
-                            outlineInstances++;
+                        if (buffer->p16Outlines) {
+                            if (width) {
+                                Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines);
+                                bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                                if (fasts.base[lz + ip]++ == 0)
+                                    p16total += size;
+                                inst->data.idx = int(lz + ip);
+                                Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[Allocator::kP16Outlines] += size / kFastSegments;
+                                outlineInstances++;
+                            }
+                            continue;
                         }
-                        continue;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
                                | bool(scene->flags[is] & Scene::kOutlineRoundCap) * Instance::kRoundCap
@@ -955,15 +957,17 @@ struct Rasterizer {
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
-                    ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst->quad.base = uint32_t(ctx->fasts.base[inst->data.idx]), dst++;
-                    Scene::Cache& cache = *list.scenes[i].cache.ref;
-                    Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16end;
-                    for (j = 0, size = entry->size / kFastSegments; j < size; j++, p16Outline++)
-                        p16Outline->ic = uint32_t(ic | ((j & ~0xFFFF) << 10) | (uint32_t(*p16end++ & 0xF) << 22)), p16Outline->i0 = j & 0xFFFF;
-                    
-//                    Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
-//                    divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-//                    dst = out.dst;
+                    if (buffer.p16Outlines) {
+                        ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst->quad.base = uint32_t(ctx->fasts.base[inst->data.idx]), dst++;
+                        Scene::Cache& cache = *list.scenes[i].cache.ref;
+                        Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16end;
+                        for (j = 0, size = entry->size / kFastSegments; j < size; j++, p16Outline++)
+                            p16Outline->ic = uint32_t(ic | ((j & ~0xFFFF) << 10) | (uint32_t(*p16end++ & 0xF) << 22)), p16Outline->i0 = j & 0xFFFF;
+                    } else {
+                        Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
+                        divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                        dst = out.dst;
+                    }
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
@@ -1002,11 +1006,11 @@ struct Rasterizer {
                     }
                 }
             }
-//            if (dst > dst0) {
-//                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, 0);
-//                entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
-//                begin = end = end + (dst - dst0) * sizeof(Segment);
-//            }
+            if (!buffer.p16Outlines && dst > dst0) {
+                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, 0);
+                entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
+                begin = end = end + (dst - dst0) * sizeof(Segment);
+            }
         }
     }
 };
