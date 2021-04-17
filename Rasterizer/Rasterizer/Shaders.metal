@@ -262,11 +262,11 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments;
+    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + j];
+    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     bool skip = false;
@@ -337,11 +337,11 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments;
+    int curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + j];
+    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
