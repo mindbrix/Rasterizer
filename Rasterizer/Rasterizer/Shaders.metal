@@ -176,7 +176,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
                                const device Colorant *colors [[buffer(0)]],
                                 const device Edge *edges [[buffer(1)]],
                                 const device Transform *ctms [[buffer(4)]],
-//                                const device Transform *clips [[buffer(5)]],
                                 const device Instance *instances [[buffer(5)]],
                                 const device float *widths [[buffer(6)]],
                                 const device Bounds *bounds [[buffer(7)]],
