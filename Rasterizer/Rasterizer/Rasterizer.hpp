@@ -955,9 +955,9 @@ struct Rasterizer {
                 if (inst->iz & Instance::kOutlines) {
                     if (buffer.p16Outlines) {
                         ic = dst - dst0, dst->iz = inst->iz, dst->quad.base = int(ctx->fasts.base[inst->data.idx]), dst->quad.biid = int(outline - outline0), dst++;
-                        Scene::Cache& cache = *list.scenes[i].cache.ref;
-                        Scene::Cache::Entry *e = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = e->p16cnts;  short *p16off = e->p16offs;;
-                        for (j = 0, size = e->size / kFastSegments; j < size; j++, outline++, p16end++, p16off += 2)
+                        Scene::Cache& cache = *list.scenes[i].cache.ref;  Scene::Cache::Entry& e = cache.entries.base[cache.ips.base[is]];
+                        uint8_t *p16end = e.p16cnts;  short *p16off = e.p16offs;;
+                        for (j = 0, size = e.size / kFastSegments; j < size; j++, outline++, p16end++, p16off += 2)
                             outline->ic = uint32_t(ic | (uint32_t(*p16end & 0xF) << 22)), outline->i0 = p16off[0], outline->ux = p16off[1];
                     } else {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
