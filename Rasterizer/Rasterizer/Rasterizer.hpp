@@ -251,10 +251,7 @@ struct Rasterizer {
     
     struct Scene {
         struct Cache {
-            struct Entry {
-                Entry(size_t size, bool hasMolecules, float maxDot, float *mols, uint16_t *p16s, uint8_t *p16end) : size(size), hasMolecules(hasMolecules), maxDot(maxDot), mols(mols), p16s(p16s), p16end(p16end) {}
-                size_t size;  bool hasMolecules;  float maxDot;  float *mols;  uint16_t *p16s;  uint8_t *p16end;
-            };
+            struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  short *p16offs;  };
             size_t refCount = 0;
             Row<uint32_t> ips;  Row<Entry> entries;
             std::unordered_map<size_t, size_t> map;
@@ -277,7 +274,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    new (cache->entries.alloc(1)) Cache::Entry(path->p16s.end, path->molecules.end > 1, path->maxDot, (float *)path->molecules.base, (uint16_t *)path->p16s.base, path->p16cnts.base);
+                    Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base, e->p16offs = path->p16offs.base;
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
                     cache->map.emplace(path->hash(), cache->map.size());
                 }
@@ -960,7 +957,7 @@ struct Rasterizer {
                     if (buffer.p16Outlines) {
                         ic = dst - dst0, dst->iz = inst->iz, dst->quad.base = int(ctx->fasts.base[inst->data.idx]), dst->quad.biid = int(p16Outline - p16Outline0), dst++;
                         Scene::Cache& cache = *list.scenes[i].cache.ref;
-                        Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16end;
+                        Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];  uint8_t *p16end = entry->p16cnts;
                         for (j = 0, size = entry->size / kFastSegments; j < size; j++, p16Outline++)
                             p16Outline->ic = uint32_t(ic | (uint32_t(*p16end++ & 0xF) << 22));
                     } else {
@@ -975,7 +972,7 @@ struct Rasterizer {
                         Scene::Cache& cache = *list.scenes[i].cache.ref;
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
                         if (widths[iz]) {
-                            Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16end = entry->p16end;
+                            Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16end = entry->p16cnts;
                             dst[-1].quad.biid = int(outline - (inst->iz & Instance::kFastEdges ? fastOutline0 : quadOutline0));
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
                                 outline->ic = uint32_t(ic | (uint32_t(*p16end++ & 0xF) << 22));
@@ -983,7 +980,7 @@ struct Rasterizer {
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
-                            bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16end;
+                            bool update = entry->hasMolecules;  uint8_t *p16end = entry->p16cnts;
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
                             dst[-1].quad.biid = int(molecule - (inst->iz & Instance::kFastEdges ? fastMolecule0 : quadMolecule0));
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16end & 0x80), p16end++) {
