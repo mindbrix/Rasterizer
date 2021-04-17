@@ -231,13 +231,14 @@ struct Rasterizer {
             else {
                 g->writePoint16(x1, y1, g->bounds, 0);
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  short *off;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1);
+                uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 cnt[g->p16cnts.back() == 0 ? -2 : -1] |= (curve ? 0x8 : 0x0), cnt[-1] |= 0x80;
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
-                for (off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
+                for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
+                off0[0] = short(curve) * (segcount - 1), off[-1] = -off0[0];
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
