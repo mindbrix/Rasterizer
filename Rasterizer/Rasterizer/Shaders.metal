@@ -48,7 +48,7 @@ struct Instance {
 };
 struct Edge {
     uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a0 | a1 | ue0 | ue1) };
-    uint16_t i0, ux;
+    union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
 };
 
 float4 distances(Transform ctm, float dx, float dy) {

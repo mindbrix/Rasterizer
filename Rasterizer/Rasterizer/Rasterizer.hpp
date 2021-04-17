@@ -350,7 +350,7 @@ struct Rasterizer {
     };
     struct Edge {
         uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a0 | a1 | ue0 | ue1) };
-        uint16_t i0, ux;
+        union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
     };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase, kP16Outlines };
@@ -958,7 +958,7 @@ struct Rasterizer {
                         Scene::Cache& cache = *list.scenes[i].cache.ref;  Scene::Cache::Entry& e = cache.entries.base[cache.ips.base[is]];
                         uint8_t *p16end = e.p16cnts;  short *p16off = e.p16offs;;
                         for (j = 0, size = e.size / kFastSegments; j < size; j++, outline++, p16end++, p16off += 2)
-                            outline->ic = uint32_t(ic | (uint32_t(*p16end & 0xF) << 22)), outline->i0 = p16off[0], outline->ux = p16off[1];
+                            outline->ic = uint32_t(ic | (uint32_t(*p16end & 0xF) << 22)), outline->prev = p16off[0], outline->next = p16off[1];
                     } else {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
                         divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
