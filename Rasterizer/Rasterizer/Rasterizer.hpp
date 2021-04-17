@@ -230,12 +230,12 @@ struct Rasterizer {
                 g->writePoint16(x0, y0, g->bounds, curve);
             else {
                 g->writePoint16(x1, y1, g->bounds, 0);
-                int segcount = int(g->p16s.end - g->p16s.idx - 1), icnt = (segcount + kFastSegments) / kFastSegments;
-                g->p16s.alloc((g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments - g->p16s.end);
-                uint8_t *cnt, *cend;
+                size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
+                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                cnt[g->p16cnts.back() == 0 ? -2 : -1] |= (curve ? 0x8 : 0x0), cnt[-1] |= 0x80, g->p16s.idx = g->p16s.end;
+                cnt[g->p16cnts.back() == 0 ? -2 : -1] |= (curve ? 0x8 : 0x0), cnt[-1] |= 0x80;
+                g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
