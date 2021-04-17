@@ -275,8 +275,7 @@ struct Rasterizer {
                         divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base, e->p16offs = path->p16offs.base;
-                    *(cache->ips.alloc(1)) = uint32_t(cache->map.size());
-                    cache->map.emplace(path->hash(), cache->map.size());
+                    *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
                 _paths->dst.emplace_back(path), _bnds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
