@@ -218,7 +218,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
     ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
     
-    ax = npx + nnx, ay = npy + nny, rl = ax == 0.0 && ay == 0.0 ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
+    ax = npx + nnx, ay = npy + nny, rl = pzero && nzero ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
     rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
     flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
     dx = x + -tany * miter, dy = y + tanx * miter;
