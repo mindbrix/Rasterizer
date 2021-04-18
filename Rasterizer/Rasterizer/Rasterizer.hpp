@@ -238,6 +238,8 @@ struct Rasterizer {
                 for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
                 off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty ? -3 : -1] = -off0[0];
+                if (((g->p16s.end - g->p16s.idx - 1) % kFastSegments) == 1 && curve & 0x1)
+                    off[-3] = off[-2] = off[-1] = 0;
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
@@ -956,9 +958,9 @@ struct Rasterizer {
                     if (buffer.p16Outlines) {
                         ic = dst - dst0, dst->iz = inst->iz, dst->quad.base = int(ctx->fasts.base[inst->data.idx]), dst->quad.biid = int(outline - outline0), dst++;
                         Scene::Cache& cache = *list.scenes[i].cache.ref;  Scene::Cache::Entry& e = cache.entries.base[cache.ips.base[is]];
-                        uint8_t *p16end = e.p16cnts;  short *p16off = e.p16offs;;
-                        for (j = 0, size = e.size / kFastSegments; j < size; j++, outline++, p16end++, p16off += 2)
-                            outline->ic = uint32_t(ic | (uint32_t(*p16end & 0xF) << 22)), outline->prev = p16off[0], outline->next = p16off[1];
+                        uint8_t *p16cnt = e.p16cnts;  short *p16off = e.p16offs;;
+                        for (j = 0, size = e.size / kFastSegments; j < size; j++, outline++, p16cnt++, p16off += 2)
+                            outline->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), outline->prev = p16off[0], outline->next = p16off[1];
                     } else {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
                         divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);

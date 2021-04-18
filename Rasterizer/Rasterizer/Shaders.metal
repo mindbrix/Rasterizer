@@ -197,7 +197,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0);
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
@@ -215,10 +215,10 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
     pzero = x == px && y == py, nzero = x == nx && y == ny;
-    ax = x - px, ay = y - py, pdot = ax * ax + ay * ay, rl = rsqrt(pzero ? 1.0 : pdot), npx = ax * rl, npy = ay * rl;
-    ax = nx - x, ay = ny - y, ndot = ax * ax + ay * ay, rl = rsqrt(nzero ? 1.0 : ndot), nnx = ax * rl, nny = ay * rl;
+    ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
+    ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
     
-    ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot == 0.0 ? 1.0 : tdot), tanx = ax * rl, tany = ay * rl;
+    ax = npx + nnx, ay = npy + nny, rl = ax == 0.0 && ay == 0.0 ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
     rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
     flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
     dx = x + -tany * miter, dy = y + tanx * miter;
