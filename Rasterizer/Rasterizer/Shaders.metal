@@ -169,7 +169,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 
 struct P16OutlinesVertex {
     float4 position [[position]], color;
-    float n;
+    float n, d, dw;
 };
 
 vertex P16OutlinesVertex p16_outlines_vertex_main(
@@ -234,12 +234,14 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float sa = alpha * 0.003921568627;
     vert.color = float4(color.r * sa, color.g * sa, color.b * sa, alpha);
     vert.n = j + idx;
+    vert.dw = 0.5 * (cw + 1.0), vert.d = vid & 0x1 ? -vert.dw : vert.dw;
     return vert;
 }
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
 {
-    return vert.color;// * (vert.n - floor(vert.n));
+    return vert.color * saturate(vert.dw - abs(vert.d));
+//    return vert.color * (vert.n - floor(vert.n));
 }
 
 #pragma mark - Fast Molecules
