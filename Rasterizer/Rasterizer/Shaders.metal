@@ -198,22 +198,22 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     
     float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, tanx, tany, rcos, dx, dy;
-    bool pzero, nzero, open = ue1 & 0x8;
+    bool pzero, nzero, skiplast = ue1 & 0x8;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
 
-    segcount -= int(open), open |= segcount == 0;
+    segcount -= int(skiplast);
     idx = min(idx, segcount);
 //    pt = pts + j + clamp(idx - 1, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    pt = pts + j + (!open && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+    pt = pts + j + (segcount && edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
     pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
     
 //    pt = pts + j + clamp(idx + 1, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    pt = pts + j + (!open && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+    pt = pts + j + (segcount && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
     pzero = x == px && y == py, nzero = x == nx && y == ny;

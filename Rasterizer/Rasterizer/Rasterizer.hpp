@@ -234,10 +234,10 @@ struct Rasterizer {
                 uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1), empty;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                --cnt, empty = int(*cnt == 0), cnt -= empty, *cnt |= 0x80 | (curve ? 0x8 : 0x0);
+                --cnt, empty = int(*cnt == 0), cnt -= empty, *cnt |= 0x80 | (curve & 0x1 ? 0x8 : 0x0);
                 for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
-                off0[0] = short(curve) * (segcount - 1), off[empty ? -3 : -1] = -off0[0];
+                off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty ? -3 : -1] = -off0[0];
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
@@ -510,7 +510,7 @@ struct Rasterizer {
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
-                        (*function)(FLT_MAX, FLT_MAX, sx, sy, (closed && !closeSubpath) || (!polygon && closeSubpath), info);
+                        (*function)(FLT_MAX, FLT_MAX, sx, sy, (uint32_t(closeSubpath) << 1) | uint32_t((closed && !closeSubpath) || (!polygon && closeSubpath)), info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -568,7 +568,7 @@ struct Rasterizer {
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark)
-            (*function)(FLT_MAX, FLT_MAX, sx, sy, (closed && !closeSubpath) || (!polygon && closeSubpath), info);
+            (*function)(FLT_MAX, FLT_MAX, sx, sy, (uint32_t(closeSubpath) << 1) | uint32_t((closed && !closeSubpath) || (!polygon && closeSubpath)), info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
         if (unclipped)
@@ -891,7 +891,7 @@ struct Rasterizer {
                 out->dst->iz = out->iz | out->flags[curve], o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.prev = -1, o.next = 1, out->dst++;
             } else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
-                first->outline.prev = int(curve) * int(last - first), last->outline.next = -first->outline.prev;
+                first->outline.prev = int(curve & 0x1) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
         uint32_t iz;  Instance *dst0, *dst;  uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };

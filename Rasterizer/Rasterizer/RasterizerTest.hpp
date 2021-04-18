@@ -39,6 +39,15 @@ struct RasterizerTest {
             list.empty();
             
             if (0) {
+                float uw = 10, dim = 100;
+                Ra::Path openTriangle;  openTriangle->moveTo(0, 0), openTriangle->lineTo(0, 100), openTriangle->lineTo(100, 100), openTriangle->lineTo(0, 0);
+                Ra::Path closedTriangle;  closedTriangle->moveTo(0, 0), closedTriangle->lineTo(0, 100), closedTriangle->lineTo(100, 100), closedTriangle->lineTo(0, 0), closedTriangle->close();
+                Ra::Path openClosedTriangle;  openClosedTriangle->moveTo(0, 0), openClosedTriangle->lineTo(0, 100), openClosedTriangle->lineTo(100, 100), openClosedTriangle->close();
+                scene.addPath(openTriangle, Ra::Transform(1, 0, 0, 1, 0 * (2 * uw + dim), 0), alpha64, uw, 0);
+                scene.addPath(closedTriangle, Ra::Transform(1, 0, 0, 1, 1 * (2 * uw + dim), 0), alpha64, uw, 0);
+                scene.addPath(openClosedTriangle, Ra::Transform(1, 0, 0, 1, 2 * (2 * uw + dim), 0), alpha64, uw, 0);
+            }
+            if (0) {
                 float uw = 20, w = 100;
                 Ra::Path cub0;  cub0.ref->moveTo(0, 0), cub0.ref->cubicTo(0, w, w, w, w, 0);
                 Ra::Path cub1;  cub1.ref->moveTo(0, 0), cub1.ref->cubicTo(0, 0, w, w, w, 0);
@@ -58,7 +67,7 @@ struct RasterizerTest {
                 scene.addPath(zed, Ra::Transform(-1, 0, 0, 1, 2.2 * w, 0), alpha64, uw, 0);
             }
             
-            if (1) {
+            if (0) {
                 float uw = 20;
                 for (int i = 0; i < 10; i++) {
                     Ra::Path quad;  quad.ref->moveTo(100, 100), quad.ref->quadTo(-200 + i * 30, 100, 00, 00);
