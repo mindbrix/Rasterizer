@@ -198,7 +198,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     
     float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, pdot, ndot, tdot, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
-    bool pzero, nzero, skiplast = ue1 & 0x8;
+    bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
@@ -220,7 +220,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot == 0.0 ? 1.0 : tdot), tanx = ax * rl, tany = ay * rl;
     rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
-    miter = dw * left * min(4.0, rcos);
+    flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
     dx = x + -tany * miter, dy = y + tanx * miter;
     
     vert.position = {
