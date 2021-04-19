@@ -172,6 +172,33 @@ struct P16OutlinesVertex {
     float n, d, dw;
 };
 
+vertex void p16_miter_main(
+                                        const device Edge *edges [[buffer(1)]],
+                                        const device Transform *ctms [[buffer(4)]],
+                                        const device Instance *instances [[buffer(5)]],
+                                        const device float *widths [[buffer(6)]],
+                                        const device Bounds *bounds [[buffer(7)]],
+                                        const device Point16 *points [[buffer(8)]],
+                                        constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                        constant uint *pathCount [[buffer(13)]],
+                                        constant bool *useCurves [[buffer(14)]],
+                                        device Point16 *miters [[buffer(20)]],
+                                        uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    if (vid != 0)
+        return;
+    const device Edge& edge = edges[iid];
+    const device Instance& inst = instances[edge.ic & Edge::kMask];
+    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments;
+    const device Transform& m = ctms[inst.iz & kPathIndexMask];
+    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Point16 *pts = & points[inst.quad.base], *pt;
+    
+    device Point16 *dst = miters + iid * 2 * kFastSegments;
+    for (int i = 0; i < 7; i++)
+        dst[i].x = dst[i].y = 0;
+}
+
 vertex P16OutlinesVertex p16_outlines_vertex_main(
                                const device Colorant *colors [[buffer(0)]],
                                 const device Edge *edges [[buffer(1)]],
@@ -183,6 +210,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 constant uint *pathCount [[buffer(13)]],
                                 constant bool *useCurves [[buffer(14)]],
+                                const device Point16 *miters [[buffer(20)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     P16OutlinesVertex vert;
