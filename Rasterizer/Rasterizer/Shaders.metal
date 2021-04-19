@@ -258,42 +258,19 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * 2 * kFastSegments;
     
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
-    bool pzero, nzero, skiplast = ue1 & 0x8, flip;
+    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
 
-//    segcount -= int(skiplast);
     idx = min(idx, segcount);
     
     x16 = mt[idx * 2 + (vid & 1)].x, x16 = (x16 - 16383.0) * 2.0 + 16383.0;
     y16 = mt[idx * 2 + (vid & 1)].y, y16 = (y16 - 16383.0) * 2.0 + 16383.0;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     
-//    dx = mt[idx * 2 + (vid & 1)].x / 32767.0 * *width;
-//    dy = mt[idx * 2 + (vid & 1)].y / 32767.0 * *height;
     left = select(1.0, -1.0, vid & 1);
     
-    /*
-    pt = pts + j + (segcount && edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
-    
-    pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
-    
-    pt = pts + j + (segcount && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
-    
-    pzero = x == px && y == py, nzero = x == nx && y == ny;
-    ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
-    ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
-    
-    ax = npx + nnx, ay = npy + nny, rl = pzero && nzero ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
-    rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
-    flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
-    dx = x + -tany * miter, dy = y + tanx * miter;
-    */
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
