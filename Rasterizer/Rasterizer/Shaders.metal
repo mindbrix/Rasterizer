@@ -205,7 +205,7 @@ vertex void p16_miter_main(
     segcount -= int(skiplast);
     
     device Point16 *dst = miters + iid * 2 * kFastSegments;
-    for (int vid = 0; vid < 2 * kFastSegments; vid++) {
+    for (int vid = 0; vid < 2 * kFastSegments; vid += 2) {
         idx = vid >> 1;
         
         idx = min(idx, segcount);
@@ -223,11 +223,13 @@ vertex void p16_miter_main(
         ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
         
         ax = npx + nnx, ay = npy + nny, rl = pzero && nzero ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
-        rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
-        flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
+        rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
+        flip = rcos > kP16MiterLimit, miter = dw * (flip ? kP16MiterLimit : rcos);
         dx = x + -tany * miter, dy = y + tanx * miter;
         
         dst[vid].x = ((dx * md - dy * mc + itx) * rdet - 16383.0) * 0.5 + 16383.0, dst[vid].y = ((dx * -mb + dy * ma + ity) * rdet - 16383.0) * 0.5 + 16383.0;
+        dx = x + -tany * -miter, dy = y + tanx * -miter;
+        dst[vid + 1].x = ((dx * md - dy * mc + itx) * rdet - 16383.0) * 0.5 + 16383.0, dst[vid + 1].y = ((dx * -mb + dy * ma + ity) * rdet - 16383.0) * 0.5 + 16383.0;
     }
 }
 
