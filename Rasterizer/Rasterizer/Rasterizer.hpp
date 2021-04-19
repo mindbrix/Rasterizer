@@ -355,7 +355,7 @@ struct Rasterizer {
         union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase, kP16Outlines };
+        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase, kP16Outlines, kP16Miters };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -899,14 +899,14 @@ struct Rasterizer {
         uint32_t iz;  Instance *dst0, *dst;  uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
+        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances, p16outlines;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Instance);
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
-            for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
-                instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            for (instances = p16outlines = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
+                instances += pass->count(), p16outlines += pass->counts[Allocator::kP16Outlines];
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + (ctx->p16total + 2 * kFastSegments * p16outlines) * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -934,7 +934,7 @@ struct Rasterizer {
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr, *outline = nullptr, *outline0 = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             if (pass->count()) {
-                entries.emplace_back(Buffer::kInstancesBase, begin + pass->count() * sizeof(Edge), 0);
+                entries.emplace_back(Buffer::kInstancesBase, begin + pass->count() * sizeof(Edge) + pass->counts[Allocator::kP16Outlines] * 2 * kFastSegments * sizeof(Geometry::Point16), 0);
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadEdges, begin, end), begin = end;
                 fastEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastEdges] * sizeof(Edge);
@@ -947,6 +947,8 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
+                end = begin + pass->counts[Allocator::kP16Outlines] * 2 * kFastSegments * sizeof(Geometry::Point16);
+                entries.emplace_back(Buffer::kP16Miters, begin, end), begin = end;
                 outline0 = outline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
                 if (begin != end)
                     entries.emplace_back(Buffer::kP16Outlines, begin, end), begin = end;

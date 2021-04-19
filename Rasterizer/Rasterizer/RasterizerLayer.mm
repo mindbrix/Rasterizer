@@ -194,7 +194,7 @@
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
     
-    for (size_t segbase = 0, ptsbase = 0, instbase = 0, transformbase = 0, i = 0; i < buffer->entries.end; i++) {
+    for (size_t segbase = 0, ptsbase = 0, instbase = 0, transformbase = 0, p16miterbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
             case Ra::Buffer::kSegmentsBase:
@@ -208,6 +208,9 @@
                 break;
             case Ra::Buffer::kTransformBase:
                 transformbase = entry.begin;
+                break;
+            case Ra::Buffer::kP16Miters:
+                p16miterbase = entry.begin;
                 break;
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
