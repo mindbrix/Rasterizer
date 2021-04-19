@@ -195,13 +195,13 @@ vertex void p16_miter_main(
     const device Point16 *pts = & points[inst.quad.base], *pt;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0);
     
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left, sx, sy;
+    float tx, ty, ma, mb, mc, md, rdet, itx, ity, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-
-    sx = 1.0 / *width * 32767.0, sy = 1.0 / *height * 32767.0;
+    rdet = 1.0 / (ma * md - mb * mc), itx = mc * ty - md * tx, ity = -(ma * ty - mb * tx);
+    
     segcount -= int(skiplast);
     
     device Point16 *dst = miters + iid * 2 * kFastSegments;
@@ -227,7 +227,7 @@ vertex void p16_miter_main(
         flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
         dx = x + -tany * miter, dy = y + tanx * miter;
         
-        dst[vid].x = dx * sx, dst[vid].y = dy * sy;
+        dst[vid].x = ((dx * md - dy * mc + itx) * rdet - 16383.0) * 0.5 + 16383.0, dst[vid].y = ((dx * -mb + dy * ma + ity) * rdet - 16383.0) * 0.5 + 16383.0;
     }
 }
 
@@ -267,8 +267,12 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
 //    segcount -= int(skiplast);
     idx = min(idx, segcount);
     
-    dx = mt[idx * 2 + (vid & 1)].x / 32767.0 * *width;
-    dy = mt[idx * 2 + (vid & 1)].y / 32767.0 * *height;
+    x16 = mt[idx * 2 + (vid & 1)].x, x16 = (x16 - 16383.0) * 2.0 + 16383.0;
+    y16 = mt[idx * 2 + (vid & 1)].y, y16 = (y16 - 16383.0) * 2.0 + 16383.0;
+    dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
+    
+//    dx = mt[idx * 2 + (vid & 1)].x / 32767.0 * *width;
+//    dy = mt[idx * 2 + (vid & 1)].y / 32767.0 * *height;
     left = select(1.0, -1.0, vid & 1);
     
     /*
