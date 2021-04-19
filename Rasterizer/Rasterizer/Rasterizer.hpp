@@ -237,9 +237,9 @@ struct Rasterizer {
                 --cnt, empty = int(*cnt == 0), cnt -= empty, *cnt |= 0x80 | (curve & 0x1 ? 0x8 : 0x0);
                 for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
-                off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty ? -3 : -1] = -off0[0];
-                if (((g->p16s.end - g->p16s.idx - 1) % kFastSegments) == 1 && curve & 0x1)
-                    off[-3] = off[-2] = off[-1] = 0;
+                off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty ? -1 : -1] = -off0[0];
+//                if (((g->p16s.end - g->p16s.idx - 1) % kFastSegments) == 1 && curve & 0x1)
+//                    off[-3] = off[-2] = off[-1] = 0;
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }

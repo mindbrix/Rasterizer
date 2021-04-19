@@ -193,10 +193,42 @@ vertex void p16_miter_main(
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
+    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0);
+    
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left, sx, sy;
+    bool pzero, nzero, skiplast = ue1 & 0x8, flip;
+    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
+    mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
+
+    sx = 1.0 / *width * 32767.0, sy = 1.0 / *height * 32767.0;
+    segcount -= int(skiplast);
     
     device Point16 *dst = miters + iid * 2 * kFastSegments;
-    for (int i = 0; i < 7; i++)
-        dst[i].x = dst[i].y = 0;
+    for (int vid = 0; vid < 2 * kFastSegments; vid++) {
+        idx = vid >> 1;
+        
+        idx = min(idx, segcount);
+        pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+        px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
+        
+        pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+        x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
+        
+        pt = pts + j + (edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+        nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
+        
+        pzero = x == px && y == py, nzero = x == nx && y == ny;
+        ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
+        ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
+        
+        ax = npx + nnx, ay = npy + nny, rl = pzero && nzero ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
+        rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
+        flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
+        dx = x + -tany * miter, dy = y + tanx * miter;
+        
+        dst[vid].x = dx * sx, dst[vid].y = dy * sy;
+    }
 }
 
 vertex P16OutlinesVertex p16_outlines_vertex_main(
@@ -224,6 +256,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0);
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
+    const device Point16 *mt = miters + iid * 2 * kFastSegments;
     
     float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
@@ -231,8 +264,14 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
 
-    segcount -= int(skiplast);
+//    segcount -= int(skiplast);
     idx = min(idx, segcount);
+    
+    dx = mt[idx * 2 + (vid & 1)].x / 32767.0 * *width;
+    dy = mt[idx * 2 + (vid & 1)].y / 32767.0 * *height;
+    left = select(1.0, -1.0, vid & 1);
+    
+    /*
     pt = pts + j + (segcount && edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
@@ -250,7 +289,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany), left = select(1.0, -1.0, vid & 1);
     flip = rcos > 4.0, miter = dw * left * (flip ? 4.0 : rcos);
     dx = x + -tany * miter, dy = y + tanx * miter;
-    
+    */
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
