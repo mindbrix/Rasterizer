@@ -947,11 +947,12 @@ struct Rasterizer {
                 entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
-                end = begin + pass->counts[Allocator::kP16Outlines] * 2 * kFastSegments * sizeof(Geometry::Point16);
-                entries.emplace_back(Buffer::kP16Miters, begin, end), begin = end;
-                outline0 = outline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
-                if (begin != end)
+                if (pass->counts[Allocator::kP16Outlines]) {
+                    end = begin + pass->counts[Allocator::kP16Outlines] * 2 * kFastSegments * sizeof(Geometry::Point16);
+                    entries.emplace_back(Buffer::kP16Miters, begin, end), begin = end;
+                    outline0 = outline = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kP16Outlines] * sizeof(Edge);
                     entries.emplace_back(Buffer::kP16Outlines, begin, end), begin = end;
+                }
             }
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
