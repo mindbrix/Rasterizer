@@ -291,7 +291,7 @@
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:miterbase atIndex:20];
-                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                [commandEncoder drawPrimitives:isM1 ? MTLPrimitiveTypeTriangleStrip : MTLPrimitiveTypePoint
                                    vertexStart:0
                                    vertexCount:isM1 ? 4 : 1
                                  instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge)
