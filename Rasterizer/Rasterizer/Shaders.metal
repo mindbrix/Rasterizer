@@ -193,21 +193,17 @@ vertex void p16_miter_main(
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
-    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
-    float tx, ty, ma, mb, mc, md, rdet, itx, ity, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter;
-    bool pcap, ncap, pzero, nzero, skiplast = ue1 & 0x8;
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter;
+    bool pzero, nzero, skiplast = ue1 & 0x8;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-    rdet = 1.0 / (ma * md - mb * mc), itx = mc * ty - md * tx, ity = -(ma * ty - mb * tx);
     
     segcount -= int(skiplast);
     
     device Point16 *dst = miters + iid * 2 * kFastSegments;
     for (int vid = 0; vid < 2 * kFastSegments; vid += 2) {
         idx = min(vid >> 1, segcount);
-        
-        pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
         
         pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
         px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
@@ -226,9 +222,7 @@ vertex void p16_miter_main(
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
         miter = min(rcos, kP16MiterLimit) / kP16MiterLimit * 32767.0;
     
-//        dst[vid].x = (x * md + y * -mc + itx) * rdet, dst[vid].y = (x * -mb + y * ma + ity) * rdet;
-        pt = pts + j + clamp(idx, 0, segcount);
-        dst[vid].x = pt->x & 0x7FFF, dst[vid].y = pt->y & 0x7FFF;
+        pt = pts + j + clamp(idx, 0, segcount), dst[vid].x = pt->x & 0x7FFF, dst[vid].y = pt->y & 0x7FFF;
         dst[vid + 1].x = -tany * miter, dst[vid + 1].y = tanx * miter;
     }
 }
@@ -256,24 +250,27 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
-    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0);
+    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * 2 * kFastSegments;
-    bool skiplast = ue1 & 0x8;
-    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, miter;
+    bool pcap, ncap, skiplast = ue1 & 0x8;
+    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, miter, mx, my;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
 
     segcount -= int(skiplast);
     idx = min(idx, segcount);
+    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     left = select(1.0, -1.0, vid & 1);
-    miter = left / 32767.0 * kP16MiterLimit * dw;
+    miter = 1.0 / 32767.0 * kP16MiterLimit;
     
     x16 = mt[idx * 2].x, y16 = mt[idx * 2].y;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    x16 = mt[idx * 2 + 1].x, y16 = mt[idx * 2 + 1].y;
-    dx += x16 * miter, dy += y16 * miter;
+    x16 = mt[idx * 2 + 1].x, mx = x16 * miter;
+    y16 = mt[idx * 2 + 1].y, my = y16 * miter;
+    dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
+    dy += left * my * dw + cap * mx * (float(pcap) - float(ncap));
     
     vert.position = {
         dx / *width * 2.0 - 1.0,
