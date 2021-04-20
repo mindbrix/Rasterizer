@@ -22,11 +22,13 @@ struct RasterizerTest {
             Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, 100, 100));  closedRectPath->close();
             Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(100, 0), openPath->lineTo(100, 100);
             Ra::Path closedPath;  closedPath->moveTo(0, 0), closedPath->lineTo(100, 0), closedPath->lineTo(100, 100), closedPath->close();
+            Ra::Path openQuadPath;  openQuadPath->moveTo(0, 0), openQuadPath->lineTo(50, 0), openQuadPath->lineTo(100, 50), openQuadPath->lineTo(50, 100), openQuadPath->lineTo(0, 50);
             
             scene.addPath(closedRectPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 1 * grid), black, w, 0);
             scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 1 * grid), black, w, 0);
             scene.addPath(closedPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 2 * grid), black, w, 0);
             scene.addPath(openPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 2 * grid), black, w, 0);
+            scene.addPath(openQuadPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 3 * grid), black, w, 0);
         }
         if (0) {
             float w = 10, r = w;
