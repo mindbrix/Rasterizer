@@ -193,8 +193,9 @@ vertex void p16_miter_main(
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
+    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     float tx, ty, ma, mb, mc, md, rdet, itx, ity, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter;
-    bool pzero, nzero, skiplast = ue1 & 0x8;
+    bool pcap, ncap, pzero, nzero, skiplast = ue1 & 0x8;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
@@ -204,9 +205,10 @@ vertex void p16_miter_main(
     
     device Point16 *dst = miters + iid * 2 * kFastSegments;
     for (int vid = 0; vid < 2 * kFastSegments; vid += 2) {
-        idx = vid >> 1;
+        idx = min(vid >> 1, segcount);
         
-        idx = min(idx, segcount);
+        pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
+        
         pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
         px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
         
@@ -223,7 +225,10 @@ vertex void p16_miter_main(
         ax = npx + nnx, ay = npy + nny, rl = pzero && nzero ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
         miter = min(rcos, kP16MiterLimit) / kP16MiterLimit * 32767.0;
-        pt = pts + j + clamp(idx, 0, segcount), dst[vid].x = pt->x & 0x7FFF, dst[vid].y = pt->y & 0x7FFF;
+    
+//        dst[vid].x = (x * md + y * -mc + itx) * rdet, dst[vid].y = (x * -mb + y * ma + ity) * rdet;
+        pt = pts + j + clamp(idx, 0, segcount);
+        dst[vid].x = pt->x & 0x7FFF, dst[vid].y = pt->y & 0x7FFF;
         dst[vid + 1].x = -tany * miter, dst[vid + 1].y = tanx * miter;
     }
 }
