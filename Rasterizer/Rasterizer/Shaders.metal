@@ -213,7 +213,8 @@ vertex void p16_miter_main(
     for (int vid = 0; vid < 2 * kFastSegments; vid += 2, px = x, py = y, x = nx, y = ny) {
         idx = min(vid >> 1, segcount);
         
-        pt = pts + j + (!skiplast && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+        pt = pts + j + (!skiplast && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount));
+        x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
         nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
         
         pzero = x == px && y == py, nzero = x == nx && y == ny;
