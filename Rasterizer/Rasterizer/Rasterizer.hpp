@@ -431,16 +431,9 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if (scene->flags[is] & Scene::Flags::kInvisible)
                         continue;
-                    Transform m = ctm.concat(scene->ctms[is]);
-                    float det = fabsf(m.det()), uw = scene->widths[is], width = 0.f;
-                    if (uw) {
-                        if (uw > 0.f)
-                            width = uw * sqrtf(det);
-                        else
-                            width = -uw, uw = width / sqrtf(det);
-                    }
-                    Transform unit = scene->bnds[is].inset(-uw, -uw).unit(m);
-                    Bounds dev = Bounds(unit), clip = dev.integral().intersect(clipbounds);
+                    Transform m = ctm.concat(scene->ctms[is]), unit = scene->bnds[is].unit(m);
+                    float det = fabsf(m.det()), uw = scene->widths[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                    Bounds dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbounds);
                     bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
