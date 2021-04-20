@@ -202,14 +202,16 @@ vertex void p16_miter_main(
     segcount -= int(skiplast);
     
     device Point16 *dst = miters + iid * 2 * kFastSegments;
-    for (int vid = 0; vid < 2 * kFastSegments; vid += 2) {
+    
+    idx = 0;
+    pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+    px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
+    
+    pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+    x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
+
+    for (int vid = 0; vid < 2 * kFastSegments; vid += 2, px = x, py = y, x = nx, y = ny) {
         idx = min(vid >> 1, segcount);
-        
-        pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-        px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
-        
-        pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-        x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
         
         pt = pts + j + (!skiplast && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
         nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
