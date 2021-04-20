@@ -265,10 +265,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     left = select(1.0, -1.0, vid & 1);
     miter = 1.0 / 32767.0 * kP16MiterLimit;
     
-    x16 = mt[idx * 2].x, y16 = mt[idx * 2].y;
+    i = idx * 2, x16 = mt[i].x, y16 = mt[i].y;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    x16 = mt[idx * 2 + 1].x, mx = x16 * miter;
-    y16 = mt[idx * 2 + 1].y, my = y16 * miter;
+    mx = mt[i + 1].x * miter, my = mt[i + 1].y * miter;
     dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
     dy += left * my * dw + cap * mx * (float(pcap) - float(ncap));
     
