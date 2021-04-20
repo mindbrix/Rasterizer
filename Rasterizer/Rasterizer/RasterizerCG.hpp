@@ -38,8 +38,8 @@ struct RasterizerCG {
                     if (state.outlineWidth || scene.widths[i]) {
                         CGContextSetRGBStrokeColor(ctx, scene.colors[i].r / 255.0, scene.colors[i].g / 255.0, scene.colors[i].b / 255.0, scene.colors[i].a / 255.0);
                         CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scene.widths[i]);
-                        bool square = scene.flags[i] & Ra::Scene::kOutlineSquareCap;
-                        bool round = scene.flags[i] & Ra::Scene::kOutlineRoundCap;
+                        bool square = scene.flags[i] & Ra::Scene::kSquareCap;
+                        bool round = scene.flags[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
                         CGContextStrokePath(ctx);
                     } else {

@@ -261,7 +261,7 @@ struct Rasterizer {
             uint64_t refCount;  std::vector<T> src, dst;
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj); }
         };
-        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kOutlineRoundCap = 1 << 2, kOutlineSquareCap = 1 << 3 };
+        enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
             path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
@@ -438,7 +438,7 @@ struct Rasterizer {
                         Geometry *g = scene->paths[is].ref;
                         if (buffer->p16Outlines) {
                             if (width) {
-                                Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines);
+                                Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
                                 bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                                 if (fasts.base[lz + ip]++ == 0)
                                     p16total += size;
@@ -449,9 +449,7 @@ struct Rasterizer {
                             continue;
                         }
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
-                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines
-                               | bool(scene->flags[is] & Scene::kOutlineRoundCap) * Instance::kRoundCap
-                               | bool(scene->flags[is] & Scene::kOutlineSquareCap) * Instance::kSquareCap);
+                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
                            inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
