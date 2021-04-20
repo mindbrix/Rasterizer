@@ -127,7 +127,7 @@ struct Rasterizer {
         static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
         struct Point16 {
             Point16(uint16_t x, uint16_t y) : x(x), y(y) {}
-            uint16_t x, y;
+            int16_t x, y;
         };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         

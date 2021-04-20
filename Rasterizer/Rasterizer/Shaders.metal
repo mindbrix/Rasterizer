@@ -25,7 +25,7 @@ struct Colorant {
 };
 
 struct Point16 {
-    uint16_t x, y;
+    int16_t x, y;
 };
 struct Segment {
     float x0, y0, x1, y1;
@@ -193,10 +193,8 @@ vertex void p16_miter_main(
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
-    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0);
-    
-    float tx, ty, ma, mb, mc, md, rdet, itx, ity, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter, dx, dy, left;
-    bool pzero, nzero, skiplast = ue1 & 0x8, flip;
+    float tx, ty, ma, mb, mc, md, rdet, itx, ity, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tanx, tany, rcos, miter;
+    bool pzero, nzero, skiplast = ue1 & 0x8;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
@@ -224,12 +222,9 @@ vertex void p16_miter_main(
         
         ax = npx + nnx, ay = npy + nny, rl = pzero && nzero ? 0.0 : rsqrt(ax * ax + ay * ay), tanx = ax * rl, tany = ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
-        flip = rcos > kP16MiterLimit, miter = dw * (flip ? kP16MiterLimit : rcos);
-        dx = x + -tany * miter, dy = y + tanx * miter;
-        
-        dst[vid].x = ((dx * md - dy * mc + itx) * rdet - 16383.0) * 0.5 + 16383.0, dst[vid].y = ((dx * -mb + dy * ma + ity) * rdet - 16383.0) * 0.5 + 16383.0;
-        dx = x + -tany * -miter, dy = y + tanx * -miter;
-        dst[vid + 1].x = ((dx * md - dy * mc + itx) * rdet - 16383.0) * 0.5 + 16383.0, dst[vid + 1].y = ((dx * -mb + dy * ma + ity) * rdet - 16383.0) * 0.5 + 16383.0;
+        miter = min(rcos, kP16MiterLimit) / kP16MiterLimit * 32767.0;
+        pt = pts + j + clamp(idx, 0, segcount), dst[vid].x = pt->x & 0x7FFF, dst[vid].y = pt->y & 0x7FFF;
+        dst[vid + 1].x = -tany * miter, dst[vid + 1].y = tanx * miter;
     }
 }
 
@@ -260,18 +255,19 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * 2 * kFastSegments;
     
-    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left;
+    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, miter;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
 
     idx = min(idx, segcount);
-    
-    x16 = mt[idx * 2 + (vid & 1)].x, x16 = (x16 - 16383.0) * 2.0 + 16383.0;
-    y16 = mt[idx * 2 + (vid & 1)].y, y16 = (y16 - 16383.0) * 2.0 + 16383.0;
-    dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    
     left = select(1.0, -1.0, vid & 1);
+    miter = left / 32767.0 * kP16MiterLimit * dw;
+    
+    x16 = mt[idx * 2].x, y16 = mt[idx * 2].y;
+    dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
+    x16 = mt[idx * 2 + 1].x, y16 = mt[idx * 2 + 1].y;
+    dx += x16 * miter, dy += y16 * miter;
     
     vert.position = {
         dx / *width * 2.0 - 1.0,
