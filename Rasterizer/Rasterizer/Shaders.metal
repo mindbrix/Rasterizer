@@ -225,8 +225,6 @@ vertex void p16_miter_main(
         tanx = tdot < 1e-3 ? npx : ax * rl, tany = tdot < 1e-3 ? npy : ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
         miter = min(rcos, kP16MiterLimit) / kP16MiterLimit * 32767.0;
-    
-        pt = pts + j + clamp(idx, 0, segcount), dst[vid].x = pt->x & 0x7FFF, dst[vid].y = pt->y & 0x7FFF;
         dst[vid + 1].x = -tany * miter, dst[vid + 1].y = tanx * miter;
     }
 }
@@ -269,7 +267,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     left = select(1.0, -1.0, vid & 1);
     miter = 1.0 / 32767.0 * kP16MiterLimit;
     
-    i = idx * 2, x16 = mt[i].x, y16 = mt[i].y;
+    i = idx * 2;
+    pt = pts + j + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     mx = mt[i + 1].x * miter, my = mt[i + 1].y * miter;
     dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
