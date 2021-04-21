@@ -242,8 +242,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
                                 const device Point16 *miters [[buffer(20)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    P16OutlinesVertex vert;
+    const float miter = 1.0 / 32767.0 * kP16MiterLimit;
     
+    P16OutlinesVertex vert;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments;
@@ -255,7 +256,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
-    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, miter, mx, my;
+    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, mx, my;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
@@ -264,7 +265,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     idx = min(idx, segcount);
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     left = select(1.0, -1.0, vid & 1);
-    miter = 1.0 / 32767.0 * kP16MiterLimit;
     
     pt = pts + j + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
