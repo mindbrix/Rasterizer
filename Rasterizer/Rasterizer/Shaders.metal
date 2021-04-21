@@ -201,7 +201,7 @@ vertex void p16_miter_main(
     
     segcount -= int(skiplast);
     
-    device Point16 *dst = miters + iid * 2 * kFastSegments;
+    device Point16 *dst = miters + iid * kFastSegments;
     
     idx = 0;
     pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
@@ -210,8 +210,8 @@ vertex void p16_miter_main(
     pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
-    for (int vid = 0; vid < 2 * kFastSegments; vid += 2, px = x, py = y, x = nx, y = ny) {
-        idx = min(vid >> 1, segcount);
+    for (int vid = 0; vid < kFastSegments; vid++, px = x, py = y, x = nx, y = ny) {
+        idx = min(vid, segcount);
         
         pt = pts + j + (!skiplast && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount));
         x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
@@ -225,7 +225,7 @@ vertex void p16_miter_main(
         tanx = tdot < 1e-3 ? npx : ax * rl, tany = tdot < 1e-3 ? npy : ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
         miter = min(rcos, kP16MiterLimit) / kP16MiterLimit * 32767.0;
-        dst[vid + 1].x = -tany * miter, dst[vid + 1].y = tanx * miter;
+        dst[vid].x = -tany * miter, dst[vid].y = tanx * miter;
     }
 }
 
@@ -254,7 +254,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
-    const device Point16 *mt = miters + iid * 2 * kFastSegments;
+    const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
     float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, miter, mx, my;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -270,7 +270,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     i = idx * 2;
     pt = pts + j + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    mx = mt[i + 1].x * miter, my = mt[i + 1].y * miter;
+    mx = mt[idx].x * miter, my = mt[idx].y * miter;
     dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
     dy += left * my * dw + cap * mx * (float(pcap) - float(ncap));
     
