@@ -420,33 +420,43 @@ struct Rasterizer {
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
-            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  float err, e0, e1, det, width, uw;
+            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];
+            float clipx, clipy, ax, ay, cx, cy, cliph, clipw, diam, err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
-                Bounds clipbounds = Bounds(clipctm).integral().intersect(device), dev, clip;
+                Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip;
+                clipx = 0.5f * (clipbnds.lx + clipbnds.ux), clipy = 0.5f * (clipbnds.ly + clipbnds.uy);
+                clipw = 0.5f * (clipbnds.ux - clipbnds.lx), cliph = 0.5f * (clipbnds.uy - clipbnds.ly);
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if (scene->flags[is] & Scene::Flags::kInvisible)
                         continue;
                     m = ctm.concat(scene->ctms[is]), det = fabsf(m.det());
+                    Bounds& b = scene->bnds[is];
+                    ax = b.ux - b.lx, ay = b.uy - b.ly, cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy), diam = sqrtf((ax * ax + ay * ay) * det);
+                    if (fabsf(cx * m.a + cy * m.c + m.tx - clipx) > clipw + diam || fabsf(cx * m.b + cy * m.d + m.ty - clipy) > cliph + diam)
+                        continue;
+
                     uw = scene->widths[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    unit = scene->bnds[is].unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbounds);
-                    if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                        ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                        Geometry *g = scene->paths[is].ref;
-                        if (buffer->p16Outlines) {
-                            if (width) {
-                                Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
-                                bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
-                                if (fasts.base[lz + ip]++ == 0)
-                                    p16total += size;
-                                inst->data.idx = int(lz + ip);
-                                Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[Allocator::kP16Outlines] += size / kFastSegments;
-                                outlineInstances++;
-                            }
-                            continue;
+                    ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
+                    
+                    if (buffer->p16Outlines) {
+                        if (width) {
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
+                            bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                            if (fasts.base[lz + ip]++ == 0)
+                                p16total += size;
+                            inst->data.idx = int(lz + ip);
+                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[Allocator::kP16Outlines] += size / kFastSegments;
+                            outlineInstances++;
                         }
+                        continue;
+                    }
+                    
+                    unit = scene->bnds[is].unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
+                    if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                        Geometry *g = scene->paths[is].ref;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
