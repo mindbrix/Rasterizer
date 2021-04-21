@@ -76,16 +76,16 @@ struct RasterizerTest {
                     scene.addPath(quad, Ra::Transform(1, 0, 0, 1, i * uw * 4, 0), alpha64, uw, 0);
                 }
             }
-            if (0) {
+            if (1) {
                 float w = 10;
-                Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);//, quadPath.ref->quadTo(100, 0, 0, 0);
-                Ra::Path endsPath;  endsPath.ref->moveTo(0, 0), endsPath.ref->lineTo(0, 100);//, endsPath.ref->lineTo(1e-2, 100);//, endsPath.ref->quadTo(50, 110, 100, 100);
+                Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);
+                Ra::Path segPath;  segPath.ref->moveTo(0, 0), segPath.ref->lineTo(0, 100), segPath.ref->lineTo(0, 0);
                 scene.addPath(quadPath, Ra::Transform(), black, w, 0);
                 scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 100, 0), black, w, Ra::Scene::kSquareCap);
                 scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 200, 0), black, w, Ra::Scene::kSquareCap | Ra::Scene::kRoundCap);
-                scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 0 * w, 200), black, w, Ra::Scene::kSquareCap);
-                scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 4 * w, 200), black, w, Ra::Scene::kRoundCap);
-                scene.addPath(endsPath, Ra::Transform(1, 0, 0, 1, 8 * w, 200), black, w, 0);
+                scene.addPath(segPath, Ra::Transform(1, 0, 0, 1, 0 * w, 200), black, w, Ra::Scene::kSquareCap);
+                scene.addPath(segPath, Ra::Transform(1, 0, 0, 1, 4 * w, 200), black, w, Ra::Scene::kRoundCap);
+                scene.addPath(segPath, Ra::Transform(1, 0, 0, 1, 8 * w, 200), black, w, 0);
             }
         }
         if (0) {
