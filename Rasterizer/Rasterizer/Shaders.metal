@@ -204,18 +204,17 @@ vertex void p16_miter_main(
     device Point16 *dst = miters + iid * kFastSegments;
     
     idx = 0;
-    pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount)), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
+    pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount));
+    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
-    pt = pts + j + clamp(idx, 0, segcount), x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
+    pt = pts + j + clamp(idx, 0, segcount);
+    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
     for (int vid = 0; vid < kFastSegments; vid++, px = x, py = y, x = nx, y = ny) {
         idx = min(vid, segcount);
         
         pt = pts + j + (!skiplast && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount));
-        x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-        nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
+        x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
         
         pzero = x == px && y == py, nzero = x == nx && y == ny;
         ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
