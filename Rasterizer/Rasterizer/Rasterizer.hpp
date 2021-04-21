@@ -429,9 +429,9 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if (scene->flags[is] & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scene->ctms[is]), unit = scene->bnds[is].unit(m);
-                    det = fabsf(m.det()), uw = scene->widths[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbounds);
+                    m = ctm.concat(scene->ctms[is]), det = fabsf(m.det());
+                    uw = scene->widths[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                    unit = scene->bnds[is].unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbounds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
