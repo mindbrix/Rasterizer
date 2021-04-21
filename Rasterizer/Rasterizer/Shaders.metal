@@ -267,7 +267,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     left = select(1.0, -1.0, vid & 1);
     miter = 1.0 / 32767.0 * kP16MiterLimit;
     
-    i = idx * 2;
     pt = pts + j + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     mx = mt[idx].x * miter, my = mt[idx].y * miter;
