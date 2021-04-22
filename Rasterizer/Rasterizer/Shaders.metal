@@ -194,7 +194,7 @@ vertex void p16_miter_main(
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tdot, tanx, tany, rcos, miter, twist = 1.0;
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tdot, tanx, tany, rcos, miter, twist = 1.0, tmp;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
@@ -225,6 +225,10 @@ vertex void p16_miter_main(
         flip = tdot < 1e-3, tanx = flip ? npx : ax * rl, tany = flip ? npy : ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
         miter = min(rcos, kP16MiterLimit) * mtrscale;
+        if (rcos > 10) {
+            tmp = tanx, tanx = -tany, tany = tmp;
+            miter = mtrscale / abs(npx * tanx + npy * tany);
+        }
         twist = vid == 0 ? 1.0 : copysign(1.0, (npx * dst[vid - 1].y - npy * dst[vid - 1].x) * (npx * tanx * miter - npy * -tany * miter));
         dst[vid].x = twist * -tany * miter, dst[vid].y = twist * tanx * miter;
     }
