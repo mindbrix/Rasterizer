@@ -432,19 +432,19 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if (scene->flags[is] & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scene->ctms[is]), det = fabsf(m.det());
-                    Bounds& b = scene->bnds[is];
-                    ax = b.ux - b.lx, ay = b.uy - b.ly, cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy), diam = sqrtf((ax * ax + ay * ay) * det);
-                    if (fabsf(cx * m.a + cy * m.c + m.tx - clipx) > clipw + diam || fabsf(cx * m.b + cy * m.d + m.ty - clipy) > cliph + diam)
-                        continue;
-
-                    uw = scene->widths[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                    
+                    m = ctm.concat(scene->ctms[is]), det = fabsf(m.det()), uw = scene->widths[is];
+                
                     if (buffer->p16Outlines) {
-                        if (width) {
+                        if (uw) {
+                            Bounds& b = scene->bnds[is];
+                            ax = b.ux - b.lx, ay = b.uy - b.ly, cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy), diam = sqrtf((ax * ax + ay * ay) * det);
+                            if (fabsf(cx * m.a + cy * m.c + m.tx - clipx) > clipw + diam || fabsf(cx * m.b + cy * m.d + m.ty - clipy) > cliph + diam)
+                                continue;
+                            width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                            ctms[iz] = m, bounds[iz] = b, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
+    
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
-                            bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                            ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
                             inst->data.idx = int(lz + ip);
@@ -453,9 +453,10 @@ struct Rasterizer {
                         }
                         continue;
                     }
-                    
+                    width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     unit = scene->bnds[is].unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                        ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
