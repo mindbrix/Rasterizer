@@ -224,9 +224,9 @@ vertex void p16_miter_main(
         ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot);
         flip = tdot < 1e-3, tanx = flip ? npx : ax * rl, tany = flip ? npy : ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
-        miter = twist * min(rcos, kP16MiterLimit) * mtrscale;
-        dst[vid].x = -tany * miter, dst[vid].y = tanx * miter;
-        twist *= flip ? -1.0 : 1.0;
+        miter = min(rcos, kP16MiterLimit) * mtrscale;
+        twist = vid == 0 ? 1.0 : copysign(1.0, (npx * dst[vid - 1].y - npy * dst[vid - 1].x) * (npx * tanx * miter - npy * -tany * miter));
+        dst[vid].x = twist * -tany * miter, dst[vid].y = twist * tanx * miter;
     }
 }
 
