@@ -194,7 +194,7 @@ vertex void p16_miter_main(
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base], *pt;
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tdot, tanx, tany, rcos, miter, twist = 1.0, mx, my, pmx, pmy, tmp;
+    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tdot, tanx, tany, rcos, miter, twist = 1.0, mx, my, pmx, pmy;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
@@ -224,11 +224,12 @@ vertex void p16_miter_main(
         ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot);
         flip = tdot < 1e-3, tanx = flip ? npx : ax * rl, tany = flip ? npy : ay * rl;
         rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
-        miter = min(rcos, kP16MiterLimit) * mtrscale, mx = -tany * miter, my = tanx * miter;
-//        if (rcos > 10) {
-//            tmp = tanx, tanx = -tany, tany = tmp;
-//            miter = mtrscale / abs(npx * tanx + npy * tany);
+        miter = min(rcos, kP16MiterLimit), mx = -tany, my = tanx;
+//        if (rcos > 4) {
+//            miter = 1.0 / abs(npx * mx + npy * my);
+//            mx = -tanx, my = -tany;
 //        }
+        miter *= mtrscale, mx *= miter, my *= miter;
         twist = vid != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, dst[vid].x = mx, my *= twist, dst[vid].y = my;
     }
