@@ -424,7 +424,7 @@ struct Rasterizer {
             float clipx, clipy, ax, ay, cx, cy, cliph, clipw, diam, err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
-                Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip;
+                Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *b;
                 clipx = 0.5f * (clipbnds.lx + clipbnds.ux), clipy = 0.5f * (clipbnds.ly + clipbnds.uy);
                 clipw = 0.5f * (clipbnds.ux - clipbnds.lx), cliph = 0.5f * (clipbnds.uy - clipbnds.ly);
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
@@ -432,15 +432,13 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if (scene->flags[is] & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scene->ctms[is]), det = fabsf(m.det()), uw = scene->widths[is];
-                
+                    m = ctm.concat(scene->ctms[is]), det = fabsf(m.det()), uw = scene->widths[is], b = & scene->bnds[is];
                     if (buffer->p16Outlines) {
                         if (uw) {
-                            Bounds& b = scene->bnds[is];
-                            ax = b.ux - b.lx, ay = b.uy - b.ly, cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy), diam = sqrtf((ax * ax + ay * ay) * det);
+                            ax = b->ux - b->lx, ay = b->uy - b->ly, cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy), diam = sqrtf((ax * ax + ay * ay) * det);
                             if (fabsf(cx * m.a + cy * m.c + m.tx - clipx) > clipw + diam || fabsf(cx * m.b + cy * m.d + m.ty - clipy) > cliph + diam)
                                 continue;
-                            ctms[iz] = m, bounds[iz] = b, widths[iz] = uw * (uw > 0.f ? sqrtf(det) : -1.f), clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
+                            ctms[iz] = m, bounds[iz] = *b, widths[iz] = uw * (uw > 0.f ? sqrtf(det) : -1.f), clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
     
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
                             ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
