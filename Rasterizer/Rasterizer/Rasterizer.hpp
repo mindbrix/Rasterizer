@@ -440,8 +440,7 @@ struct Rasterizer {
                             ax = b.ux - b.lx, ay = b.uy - b.ly, cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy), diam = sqrtf((ax * ax + ay * ay) * det);
                             if (fabsf(cx * m.a + cy * m.c + m.tx - clipx) > clipw + diam || fabsf(cx * m.b + cy * m.d + m.ty - clipy) > cliph + diam)
                                 continue;
-                            width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                            ctms[iz] = m, bounds[iz] = b, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
+                            ctms[iz] = m, bounds[iz] = b, widths[iz] = uw * (uw > 0.f ? sqrtf(det) : -1.f), clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
     
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
                             ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
