@@ -101,7 +101,7 @@ struct RasterizerTest {
         if (0)
             scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)
-            writePhyllotaxisToScene(100000, scene);
+            list.empty(), writePhyllotaxisToScene(100000, scene);
         list.addScene(scene);
         
         if (0) {
