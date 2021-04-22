@@ -451,7 +451,7 @@ struct Rasterizer {
                         continue;
                     }
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    unit = scene->bnds[is].unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
+                    unit = b->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scene->paths[is].ref;
@@ -467,7 +467,7 @@ struct Rasterizer {
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                            outlinePaths++, allocator.passes.back().size++;
                        } else if (useMolecules) {
-                            bounds[iz] = scene->bnds[is], ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                            bounds[iz] = *b, ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
                             bool fast = !buffer->useCurves || det * scene->cache->entries.base[ip].maxDot < 16.f;
