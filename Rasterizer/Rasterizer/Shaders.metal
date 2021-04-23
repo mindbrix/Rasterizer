@@ -250,10 +250,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Point16 *pts = & points[inst.quad.base + j];
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
-    float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, dx, dy, left, mx, my, premul;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, dx, dy, left, mx, my, alpha, premul;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -274,8 +273,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
-    premul = alpha * 0.003921568627;
-    vert.color = float4(color.r * premul, color.g * premul, color.b * premul, alpha);
+    alpha = color.a * w / cw * 0.003921568627, premul = alpha * 0.003921568627;
+    vert.color = { color.r * premul, color.g * premul, color.b * premul, alpha };
     vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
     return vert;
 }
