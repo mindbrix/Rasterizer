@@ -187,7 +187,7 @@ vertex void p16_miter_main(
 {
     if (vid != 0)
         return;
-    const float mtrscale = 1.0 / kP16MiterLimit * 32767.0;
+    const float mtrscale = kP16MiterLimit * 32767.0;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments;
@@ -224,7 +224,7 @@ vertex void p16_miter_main(
         ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot);
         tanx = tdot < 1e-3 ? npx : ax * rl, tany = tdot < 1e-3 ? npy : ay * rl;
         rcos = pzero || nzero ? 1.0 : abs(npx * tanx + npy * tany);
-        flip = rcos < 1.0 / kP16MiterLimit;
+        flip = rcos < kP16MiterLimit;
         miter = mtrscale / (flip ? abs(npx * -tany + npy * tanx) : rcos);
         mx = miter * (flip ? -tanx : -tany), my = miter * (flip ? -tany : tanx);
         
@@ -247,7 +247,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
                                 const device Point16 *miters [[buffer(20)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
-    const float mtrscale = 1.0 / 32767.0 * kP16MiterLimit;
+    const float mtrscale = 1.0 / 32767.0 / kP16MiterLimit;
     
     P16OutlinesVertex vert;
     const device Edge& edge = edges[iid];
