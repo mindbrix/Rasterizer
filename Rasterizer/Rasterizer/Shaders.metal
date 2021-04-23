@@ -222,14 +222,12 @@ vertex void p16_miter_main(
         ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
         
         ax = npx + nnx, ay = npy + nny, tdot = ax * ax + ay * ay, rl = rsqrt(tdot);
-        flip = tdot < 1e-3, tanx = flip ? npx : ax * rl, tany = flip ? npy : ay * rl;
-        rcos = pzero || nzero ? 1.0 : 1.0 / abs(npx * tanx + npy * tany);
-        miter = min(rcos, kP16MiterLimit), mx = -tany, my = tanx;
-//        if (rcos > 4) {
-//            miter = 1.0 / abs(npx * mx + npy * my);
-//            mx = -tanx, my = -tany;
-//        }
-        miter *= mtrscale, mx *= miter, my *= miter;
+        tanx = tdot < 1e-3 ? npx : ax * rl, tany = tdot < 1e-3 ? npy : ay * rl;
+        rcos = pzero || nzero ? 1.0 : abs(npx * tanx + npy * tany);
+        flip = rcos < 1.0 / kP16MiterLimit;
+        miter = mtrscale / (flip ? abs(npx * -tany + npy * tanx) : rcos);
+        mx = miter * (flip ? -tanx : -tany), my = miter * (flip ? -tany : tanx);
+        
         twist = vid != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, dst[vid].x = mx, my *= twist, dst[vid].y = my;
     }
