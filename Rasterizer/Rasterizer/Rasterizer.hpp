@@ -277,7 +277,7 @@ struct Rasterizer {
                     Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base, e->p16offs = path->p16offs.base;
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
                 }
-                path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
+                path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
                 paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
         }
@@ -288,7 +288,7 @@ struct Rasterizer {
                     b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])));
             return b;
         }
-        size_t count = 0, weight = 0;  uint64_t tag = 1;
+        size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache> cache;  Ref<Vector<Path>> paths;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
