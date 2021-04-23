@@ -278,7 +278,7 @@ struct Rasterizer {
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
-                _paths->dst.emplace_back(path), paths = & _paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
+                paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
         }
         Bounds bounds() {
@@ -289,7 +289,7 @@ struct Rasterizer {
             return b;
         }
         size_t count = 0, weight = 0;  uint64_t tag = 1;
-        Ref<Cache> cache;  Ref<Vector<Path>> _paths;  Path *paths;
+        Ref<Cache> cache;  Ref<Vector<Path>> paths;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     struct SceneList {
@@ -452,7 +452,7 @@ struct Rasterizer {
                     unit = b->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                        Geometry *g = scene->paths[is].ref;
+                        Geometry *g = scene->paths->base[is].ref;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
@@ -961,7 +961,7 @@ struct Rasterizer {
                             outline->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), outline->prev = p16off[0], outline->next = p16off[1];
                     } else {
                         Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
-                        divideGeometry(list.scenes[i].paths[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                        divideGeometry(list.scenes[i].paths->base[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
                         dst = out.dst;
                     }
                 } else {

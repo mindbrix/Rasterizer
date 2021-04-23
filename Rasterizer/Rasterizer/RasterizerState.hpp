@@ -90,7 +90,7 @@ struct RasterizerState {
                     else if (e.keyCode == KeyCode::kL) {
                         locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
                         if (locked.begin != INT_MAX) {
-                            Ra::Path& p = list.scenes[locked.begin].paths[locked.end];
+                            Ra::Path& p = list.scenes[locked.begin].paths->base[locked.end];
                             p = p;
                         }
                     }
@@ -136,7 +136,7 @@ struct RasterizerState {
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * mx, scale * my);
         if (transferFunction) {
             for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
-                (*transferFunction)(*this, ss->count, ss - sb, ss->paths,
+                (*transferFunction)(*this, ss->count, ss - sb, ss->paths->base,
                          & ss->ctms->src[0], ss->ctms->base,
                          & ss->colors->src[0], ss->colors->base,
                          & ss->widths->src[0], ss->widths->base,

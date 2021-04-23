@@ -29,7 +29,7 @@ struct RasterizerCG {
             for (size_t i = 0; i < scene.count; i++) {
                 if (scene.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
-                Ra::Path& path = scene.paths[i];
+                Ra::Path& path = scene.paths->base[i];
                 Ra::Transform t = ctm.concat(scene.ctms->base[i]);
                 if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scene.widths->base[i])) {
                     CGContextSaveGState(ctx);
