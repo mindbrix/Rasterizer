@@ -229,8 +229,7 @@ vertex void p16_miter_main(
         mx = miter * (flip ? -tanx : -tany), my = miter * (flip ? -tany : tanx);
         
         twist = vid != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
-        mx *= twist, my *= twist;
-        mtr->x = mx, mtr->y = my;
+        mx *= twist, my *= twist, mtr->x = mx, mtr->y = my;
     }
 }
 
