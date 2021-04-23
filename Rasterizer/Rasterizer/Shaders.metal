@@ -247,13 +247,13 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments, idx;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-    const device Point16 *pts = & points[inst.quad.base + j], *pt;
+    const device Point16 *pts = & points[inst.quad.base + j];
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, dx, dy, left, mx, my;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, dx, dy, left, mx, my, premul;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -262,9 +262,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     left = select(1.0, -1.0, vid & 1);
     
-    pt = pts + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+    x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    mx = mt[idx].x * mtrscale, my = mt[idx].y * mtrscale;
+    mx = (mt + idx)->x * mtrscale, my = (mt + idx)->y * mtrscale;
     dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
     dy += left * my * dw + cap * mx * (float(pcap) - float(ncap));
     
@@ -274,8 +274,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
-    float sa = alpha * 0.003921568627;
-    vert.color = float4(color.r * sa, color.g * sa, color.b * sa, alpha);
+    premul = alpha * 0.003921568627;
+    vert.color = float4(color.r * premul, color.g * premul, color.b * premul, alpha);
     vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
     return vert;
 }
