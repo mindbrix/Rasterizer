@@ -203,10 +203,8 @@ vertex void p16_miter_main(
     
     segcount -= int(skiplast);
     
-    pt = pts + edge.prev;
-    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
-    pt = pts,
-    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
+    x16 = (pts + edge.prev)->x & 0x7FFF, y16 = (pts + edge.prev)->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
+    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
     for (int vid = 0; vid < kFastSegments; vid++, mtr++, px = x, py = y, x = nx, y = ny, pmx = mx, pmy = my) {
         idx = min(vid, segcount);
@@ -251,7 +249,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-    const device Point16 *pts = & points[inst.quad.base], *pt;
+    const device Point16 *pts = & points[inst.quad.base + j], *pt;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
@@ -267,7 +265,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     left = select(1.0, -1.0, vid & 1);
     
-    pt = pts + j + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
+    pt = pts + idx, x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     mx = mt[idx].x * mtrscale, my = mt[idx].y * mtrscale;
     dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
