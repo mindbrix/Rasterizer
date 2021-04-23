@@ -211,7 +211,7 @@ vertex void p16_miter_main(
     pt = pts + j + clamp(idx, 0, segcount);
     x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
-    for (int vid = 0; vid < kFastSegments; vid++, px = x, py = y, x = nx, y = ny, pmx = mx, pmy = my) {
+    for (int vid = 0; vid < kFastSegments; vid++, mtr++, px = x, py = y, x = nx, y = ny, pmx = mx, pmy = my) {
         idx = min(vid, segcount);
         
         pt = pts + j + (!skiplast && edge.next && idx == segcount ? idx + edge.next : clamp(idx + 1, 0, segcount));
@@ -230,7 +230,7 @@ vertex void p16_miter_main(
         
         twist = vid != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, my *= twist;
-        mtr[vid].x = mx, mtr[vid].y = my;
+        mtr->x = mx, mtr->y = my;
     }
 }
 
