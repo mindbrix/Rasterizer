@@ -278,19 +278,19 @@ struct Rasterizer {
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
-                _paths->dst.emplace_back(path), paths = & _paths->dst[0], _bnds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
+                _paths->dst.emplace_back(path), paths = & _paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
         }
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < count; i++)
-                if ((_flags->base[i] & kInvisible) == 0)
-                    b.extend(Bounds(_bnds->base[i].inset(-0.5f * _widths->base[i], -0.5f * _widths->base[i]).unit(_ctms->base[i])));
+                if ((flags->base[i] & kInvisible) == 0)
+                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])));
             return b;
         }
         size_t count = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache> cache;  Path *paths;
-        Ref<Vector<Path>> _paths;  Ref<Vector<Bounds>> _bnds;  Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
+        Ref<Vector<Path>> _paths;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     struct SceneList {
         Bounds bounds() {
@@ -428,9 +428,9 @@ struct Rasterizer {
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    if ((flags = scene->_flags->base[is]) & Scene::Flags::kInvisible)
+                    if ((flags = scene->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scene->_ctms->base[is]), det = fabsf(m.det()), uw = scene->_widths->base[is], b = & scene->_bnds->base[is];
+                    m = ctm.concat(scene->ctms->base[is]), det = fabsf(m.det()), uw = scene->widths->base[is], b = & scene->bnds->base[is];
                     if (buffer->p16Outlines) {
                         if (uw) {
                             ax = b->ux - b->lx, ay = b->uy - b->ly, cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy), diam = sqrtf((ax * ax + ay * ay) * det);

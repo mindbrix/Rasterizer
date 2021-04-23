@@ -18,10 +18,10 @@ struct RasterizerWinding {
                 float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                 if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                     for (int si = int(scene.count) - 1; si >= 0; si--) {
-                        if (scene._flags->base[si] & Ra::Scene::kInvisible)
+                        if (scene.flags->base[si] & Ra::Scene::kInvisible)
                             continue;
-                        int winding = pointWinding(scene.paths[si], scene._bnds->base[si], ctm.concat(scene._ctms->base[si]), device, dx, dy, scene._widths->base[si]);
-                        bool even = scene._flags->base[si] & Ra::Scene::kFillEvenOdd;
+                        int winding = pointWinding(scene.paths[si], scene.bnds->base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si]);
+                        bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
                             return Ra::Range(li, si);
                     }

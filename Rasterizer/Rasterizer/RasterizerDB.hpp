@@ -181,7 +181,7 @@ struct RasterizerDB {
                     Table& table = tables[pi];  float fs, uh, uy, sy;
                     fs = (table.bounds.ux - table.bounds.lx) / table.total;
                     uh = fs / font->unitsPerEm * ((1.f + kLineGap) * (font->ascent - font->descent) + font->lineGap);
-                    mt = (state.ctm.concat(list.ctms[si].concat(list.scenes[si]._ctms->base[pi]))).invert();
+                    mt = (state.ctm.concat(list.ctms[si].concat(list.scenes[si].ctms->base[pi]))).invert();
                     uy = state.mx * mt.b + state.my * mt.d + mt.ty, sy = 1.f / (uh * float(table.count));
                     mt = Ra::Transform(1.f, 0.f, 0.f, sy, 0.f, sy * -uy + ts[table.hash]).concat(mt);
                 }
