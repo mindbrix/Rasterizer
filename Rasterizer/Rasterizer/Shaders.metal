@@ -195,12 +195,12 @@ vertex void p16_miter_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
     device Point16 *mtr = miters + iid * kFastSegments;
-    float tx, ty, ma, mb, mc, md, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tdot, tanx, tany, cosine, miter, twist = 1.0, mx, my, pmx, pmy;
+    float ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, rl, npx, npy, nnx, nny, tdot, tanx, tany, cosine, miter, twist = 1.0, mx, my, pmx, pmy;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-
+    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    
     x16 = (pts + edge.prev)->x & 0x7FFF, y16 = (pts + edge.prev)->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
@@ -253,11 +253,11 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0);
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
-    float tx, ty, ma, mb, mc, md, x16, y16, dx, dy, left, mx, my;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    float ma, mb, mc, md, tx, ty, x16, y16, dx, dy, left, mx, my;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-
+    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    
     segcount -= int(skiplast);
     idx = min(idx, segcount);
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
