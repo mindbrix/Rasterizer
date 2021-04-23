@@ -202,7 +202,7 @@ vertex void p16_miter_main(
     
     segcount -= int(skiplast);
     
-    device Point16 *dst = miters + iid * kFastSegments;
+    device Point16 *mtr = miters + iid * kFastSegments;
     
     idx = 0;
     pt = pts + j + (edge.prev && idx == 0 ? edge.prev : clamp(idx - 1, 0, segcount));
@@ -229,7 +229,7 @@ vertex void p16_miter_main(
         mx = miter * (flip ? -tanx : -tany), my = miter * (flip ? -tany : tanx);
         
         twist = vid != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
-        mx *= twist, dst[vid].x = mx, my *= twist, dst[vid].y = my;
+        mx *= twist, mtr[vid].x = mx, my *= twist, mtr[vid].y = my;
     }
 }
 
