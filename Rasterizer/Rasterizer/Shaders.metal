@@ -190,7 +190,7 @@ vertex void p16_miter_main(
     const float mtrscale = kP16MiterLimit * 32767.0;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int idx = vid >> 1, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid;
+    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j, idx;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
@@ -200,14 +200,12 @@ vertex void p16_miter_main(
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
     mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-    
-    segcount -= int(skiplast);
-    
+
     x16 = (pts + edge.prev)->x & 0x7FFF, y16 = (pts + edge.prev)->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
-    for (int vid = 0; vid < kFastSegments; vid++, mtr++, px = x, py = y, x = nx, y = ny, pmx = mx, pmy = my) {
-        idx = min(vid, segcount);
+    for (segcount -= int(skiplast), j = 0; j < kFastSegments; j++, mtr++, px = x, py = y, x = nx, y = ny, pmx = mx, pmy = my) {
+        idx = min(j, segcount);
         pt = pts + (!skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount));
         x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
         
@@ -222,7 +220,7 @@ vertex void p16_miter_main(
         miter = mtrscale / (flip ? abs(npx * -tany + npy * tanx) : cosine);
         mx = miter * (flip ? -tanx : -tany), my = miter * (flip ? -tany : tanx);
         
-        twist = vid != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
+        twist = j != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, my *= twist, mtr->x = mx, mtr->y = my;
     }
 }
