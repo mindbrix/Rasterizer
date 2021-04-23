@@ -13,7 +13,7 @@
 struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
-        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
+        Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
         if (0) {
             list.empty();
             float w = 10, grid = 100 + 2 * w;
@@ -40,7 +40,7 @@ struct RasterizerTest {
         if (0) {
             list.empty();
             
-            if (0) {
+            if (1) {
                 float uw = 10, dim = 100;
                 Ra::Path openTriangle;  openTriangle->moveTo(0, 0), openTriangle->lineTo(0, 100), openTriangle->lineTo(100, 100), openTriangle->lineTo(0, 0);
                 Ra::Path closedTriangle;  closedTriangle->moveTo(0, 0), closedTriangle->lineTo(0, 100), closedTriangle->lineTo(100, 100), closedTriangle->lineTo(0, 0), closedTriangle->close();

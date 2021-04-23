@@ -137,10 +137,10 @@ struct RasterizerState {
         if (transferFunction) {
             for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
                 (*transferFunction)(*this, ss->count, ss - sb, ss->paths,
-                         & ss->_ctms->src[0], ss->ctms,
-                         & ss->_colors->src[0], ss->colors,
-                         & ss->_widths->src[0], ss->widths,
-                         & ss->_flags->src[0], ss->flags,
+                         & ss->_ctms->src[0], ss->_ctms->base,
+                         & ss->_colors->src[0], ss->_colors->base,
+                         & ss->_widths->src[0], ss->_widths->base,
+                         & ss->_flags->src[0], ss->_flags->base,
                         transferInfo
                 );
             ;

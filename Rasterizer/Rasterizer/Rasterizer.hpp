@@ -258,8 +258,8 @@ struct Rasterizer {
         };
         template<typename T>
         struct Vector {
-            uint64_t refCount;  std::vector<T> src, dst;
-            void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj); }
+            uint64_t refCount;  T *base;  std::vector<T> src, dst;
+            void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj), base = & dst[0]; }
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag) {
@@ -278,20 +278,18 @@ struct Rasterizer {
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet);
-                _paths->dst.emplace_back(path), _bnds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
-                paths = & _paths->dst[0], bnds = & _bnds->dst[0], ctms = & _ctms->dst[0], colors = & _colors->dst[0], widths = & _widths->dst[0], flags = & _flags->dst[0];
+                _paths->dst.emplace_back(path), paths = & _paths->dst[0], _bnds->add(path->bounds), _ctms->add(ctm), _colors->add(color), _widths->add(width), _flags->add(flag);
             }
         }
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < count; i++)
-                if ((flags[i] & kInvisible) == 0)
-                    b.extend(Bounds(bnds[i].inset(-0.5f * widths[i], -0.5f * widths[i]).unit(ctms[i])));
+                if ((_flags->base[i] & kInvisible) == 0)
+                    b.extend(Bounds(_bnds->base[i].inset(-0.5f * _widths->base[i], -0.5f * _widths->base[i]).unit(_ctms->base[i])));
             return b;
         }
         size_t count = 0, weight = 0;  uint64_t tag = 1;
-        Ref<Cache> cache;
-        Path *paths;  Transform *ctms;  Colorant *colors;  float *widths;  uint8_t *flags;  Bounds *bnds;
+        Ref<Cache> cache;  Path *paths;
         Ref<Vector<Path>> _paths;  Ref<Vector<Bounds>> _bnds;  Ref<Vector<Transform>> _ctms;  Ref<Vector<Colorant>> _colors;  Ref<Vector<float>> _widths;  Ref<Vector<uint8_t>> _flags;
     };
     struct SceneList {
@@ -420,7 +418,7 @@ struct Rasterizer {
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
-            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];
+            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  uint8_t flags;
             float clipx, clipy, ax, ay, cx, cy, cliph, clipw, diam, err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
@@ -430,9 +428,9 @@ struct Rasterizer {
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    if (scene->flags[is] & Scene::Flags::kInvisible)
+                    if ((flags = scene->_flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scene->ctms[is]), det = fabsf(m.det()), uw = scene->widths[is], b = & scene->bnds[is];
+                    m = ctm.concat(scene->_ctms->base[is]), det = fabsf(m.det()), uw = scene->_widths->base[is], b = & scene->_bnds->base[is];
                     if (buffer->p16Outlines) {
                         if (uw) {
                             ax = b->ux - b->lx, ay = b->uy - b->ly, cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy), diam = sqrtf((ax * ax + ay * ay) * det);
@@ -440,7 +438,7 @@ struct Rasterizer {
                                 continue;
                             ctms[iz] = m, bounds[iz] = *b, widths[iz] = uw * (uw > 0.f ? sqrtf(det) : -1.f), clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
     
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
@@ -457,7 +455,7 @@ struct Rasterizer {
                         Geometry *g = scene->paths[is].ref;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
-                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(scene->flags[is] & Scene::kRoundCap) * Instance::kRoundCap | bool(scene->flags[is] & Scene::kSquareCap) * Instance::kSquareCap);
+                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                            inst->clip = clip.contains(dev) ? Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX) : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
@@ -471,7 +469,7 @@ struct Rasterizer {
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
                             bool fast = !buffer->useCurves || det * scene->cache->entries.base[ip].maxDot < 16.f;
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(scene->flags[is] & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cell.lx = clip.lx, inst->quad.cell.ly = clip.ly, inst->quad.cell.ux = clip.ux, inst->quad.cell.uy = clip.uy, inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                             allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, blends.end - 1, & inst->quad.cell);
                             Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules)] += size / kFastSegments;
@@ -483,7 +481,7 @@ struct Rasterizer {
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
-                            writeSegmentInstances(clip, scene->flags[is] & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }

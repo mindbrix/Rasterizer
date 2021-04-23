@@ -27,24 +27,24 @@ struct RasterizerCG {
             CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
             for (size_t i = 0; i < scene.count; i++) {
-                if (scene.flags[i] & Ra::Scene::Flags::kInvisible)
+                if (scene._flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 Ra::Path& path = scene.paths[i];
-                Ra::Transform t = ctm.concat(scene.ctms[i]);
-                if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scene.widths[i])) {
+                Ra::Transform t = ctm.concat(scene._ctms->base[i]);
+                if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scene._widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
-                    if (state.outlineWidth || scene.widths[i]) {
-                        CGContextSetRGBStrokeColor(ctx, scene.colors[i].r / 255.0, scene.colors[i].g / 255.0, scene.colors[i].b / 255.0, scene.colors[i].a / 255.0);
-                        CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scene.widths[i]);
-                        bool square = scene.flags[i] & Ra::Scene::kSquareCap;
-                        bool round = scene.flags[i] & Ra::Scene::kRoundCap;
+                    if (state.outlineWidth || scene._widths->base[i]) {
+                        CGContextSetRGBStrokeColor(ctx, scene._colors->base[i].r / 255.0, scene._colors->base[i].g / 255.0, scene._colors->base[i].b / 255.0, scene._colors->base[i].a / 255.0);
+                        CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scene._widths->base[i]);
+                        bool square = scene._flags->base[i] & Ra::Scene::kSquareCap;
+                        bool round = scene._flags->base[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
                         CGContextStrokePath(ctx);
                     } else {
-                        CGContextSetRGBFillColor(ctx, scene.colors[i].r / 255.0, scene.colors[i].g / 255.0, scene.colors[i].b / 255.0, scene.colors[i].a / 255.0);
-                        if (scene.flags[i] & Ra::Scene::kFillEvenOdd)
+                        CGContextSetRGBFillColor(ctx, scene._colors->base[i].r / 255.0, scene._colors->base[i].g / 255.0, scene._colors->base[i].b / 255.0, scene._colors->base[i].a / 255.0);
+                        if (scene._flags->base[i] & Ra::Scene::kFillEvenOdd)
                             CGContextEOFillPath(ctx);
                         else
                             CGContextFillPath(ctx);

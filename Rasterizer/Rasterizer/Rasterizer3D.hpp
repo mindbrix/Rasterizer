@@ -81,7 +81,7 @@ static Ra::Scene create3DScene(Ra::Scene scene) {
     float x0, y0, x1, y1, x2, y2, sx = w / 2, sy = h / 2;
     for (int i = 0; i < scene.count; i++) {
         Ra::Path& path = scene.paths[i], path3D;
-        Transform3D mat = mvp.concat(Transform3D::Transform(scene.ctms[i]));
+        Transform3D mat = mvp.concat(Transform3D::Transform(scene._ctms->base[i]));
         for (size_t index = 0; index < path->types.end; ) {
             float *p = path->points.base + index * 2;
             switch (*(path.ref->types.base + index)) {
@@ -114,7 +114,7 @@ static Ra::Scene create3DScene(Ra::Scene scene) {
                     break;
             }
         }
-        scene3D.addPath(path3D, Ra::Transform(), scene.colors[i], scene.widths[i], scene.flags[i]);
+        scene3D.addPath(path3D, Ra::Transform(), scene._colors->base[i], scene._widths->base[i], scene._flags->base[i]);
     }
     return scene3D;
 }
