@@ -264,16 +264,16 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pidx = idx == 0 ? edge.prev : idx - 1;
     x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
-    pmx = (mt + pidx)->x, pmy = (mt + pidx)->y;
+    pmx = (mt + pidx)->x * mtrscale, pmy = (mt + pidx)->y * mtrscale;
     
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    mx = (mt + idx)->x, my = (mt + idx)->y;
+    mx = (mt + idx)->x * mtrscale, my = (mt + idx)->y * mtrscale;
     
     nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
-    nmx = (mt + nidx)->x, nmy = (mt + nidx)->y;
+    nmx = (mt + nidx)->x * mtrscale, nmy = (mt + nidx)->y * mtrscale;
     
     flip = 1.0;
     if (segcount == kFastSegments && (vid >> 1) == kFastSegments) {
@@ -281,12 +281,13 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         flip = (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
     }
         
-    dx += (flip * left * mx * dw + cap * my * (float(ncap) - float(pcap))) * mtrscale,
-    dy += (flip * left * my * dw + cap * mx * (float(pcap) - float(ncap))) * mtrscale;
+    dx += cap * my * (float(ncap) - float(pcap));
+    dy += cap * mx * (float(pcap) - float(ncap));
+    mx *= flip * left * dw, my *= flip * left * dw;
     
     vert.position = {
-        dx / *width * 2.0 - 1.0,
-        dy / *height * 2.0 - 1.0,
+        (dx + mx) / *width * 2.0 - 1.0,
+        (dy + my) / *height * 2.0 - 1.0,
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
