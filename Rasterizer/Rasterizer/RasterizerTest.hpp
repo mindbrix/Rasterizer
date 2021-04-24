@@ -16,7 +16,7 @@ struct RasterizerTest {
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
         if (1) {
             list.empty();
-            float uw = 10, dim = 100, grdim = dim + 2 * uw, sx, sy, s;  size_t sz, grdsz, i, x, y;
+            float uw = 10, dim = 100, grdim = dim + 2 * uw, w, h, s;  size_t sz, grdsz, i;
             Ra::Path rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle;
             
             rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
@@ -35,14 +35,15 @@ struct RasterizerTest {
             std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle };
             
             for (i = 0; i < 10; i++) {
-                Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 00, 00);
+                Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 0, 0);
                 paths.emplace_back(quad);
             }
-            for (sz = paths.size(), grdsz = ceil(sqrt(sz)), i = 0; i < sz; i++) {
+            sz = paths.size(), grdsz = ceil(sqrt(sz));
+            for (i = 0; i < sz; i++) {
                 Ra::Path& p = paths[i];
-                x = i % grdsz, y = i / grdsz;
-                sx = dim / (p->bounds.ux - p->bounds.lx), sy = dim / (p->bounds.uy - p->bounds.ly), s = sx < sy ? sx : sy;
-                scene.addPath(p, Ra::Transform(s, 0, 0, s, x * grdim - p->bounds.lx, y * grdim - p->bounds.ly), black, uw, 0);
+                w = p->bounds.ux - p->bounds.lx, h = p->bounds.uy - p->bounds.ly, s = dim / (w > h ? w : h);
+                Ra::Transform fit(s, 0, 0, s, (i % grdsz) * grdim - p->bounds.lx, (i / grdsz) * grdim - p->bounds.ly);
+                scene.addPath(p, fit, black, uw, 0);
             }
         }
         if (0) {
