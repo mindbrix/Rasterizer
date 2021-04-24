@@ -17,23 +17,20 @@ struct RasterizerTest {
         if (1) {
             list.empty();
             float uw = 10, dim = 100, grdim = dim + 2 * uw, sx, sy, s;  size_t sz, grdsz, i, x, y;
+            Ra::Path rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle;
             
-            Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
-            Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
-            Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(dim, 0), openPath->lineTo(dim, dim);
-            Ra::Path closedPath;  closedPath->moveTo(0, 0), closedPath->lineTo(dim, 0), closedPath->lineTo(dim, dim), closedPath->close();
-            
-            Ra::Path cub0;  cub0->moveTo(0, 0), cub0->cubicTo(0, dim, dim, dim, dim, 0);
-            Ra::Path cub1;  cub1->moveTo(0, 0), cub1->cubicTo(0, 0, dim, dim, dim, 0);
-            Ra::Path cub3;  cub3->moveTo(0, 0), cub3->cubicTo(dim, dim, 0, dim, dim, 0);
-            Ra::Path cub2;  cub2->moveTo(0, 0), cub2->cubicTo(0, dim, dim, 0, dim, 0);
-            
-            Ra::Path zed;  zed->moveTo(0, 0), zed->lineTo(5 * dim, 0), zed->lineTo(0, dim), zed->lineTo(5 * dim, dim), zed->lineTo(0, 2 * dim);
-            
-            Ra::Path openTriangle;  openTriangle->moveTo(0, 0), openTriangle->lineTo(0, dim), openTriangle->lineTo(dim, dim), openTriangle->lineTo(0, 0);
-            
-            Ra::Path openCircle;  openCircle->addEllipse(Ra::Bounds(0, 0, dim, dim));
-            Ra::Path closedCircle;  closedCircle->addEllipse(Ra::Bounds(0, 0, dim, dim)), closedCircle->close();
+            rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
+            closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
+            openPath->moveTo(0, 0), openPath->lineTo(dim, 0), openPath->lineTo(dim, dim);
+            closedPath->moveTo(0, 0), closedPath->lineTo(dim, 0), closedPath->lineTo(dim, dim), closedPath->close();
+            cub0->moveTo(0, 0), cub0->cubicTo(0, dim, dim, dim, dim, 0);
+            cub1->moveTo(0, 0), cub1->cubicTo(0, 0, dim, dim, dim, 0);
+            cub3->moveTo(0, 0), cub3->cubicTo(dim, dim, 0, dim, dim, 0);
+            cub2->moveTo(0, 0), cub2->cubicTo(0, dim, dim, 0, dim, 0);
+            zed->moveTo(0, 0), zed->lineTo(5 * dim, 0), zed->lineTo(0, dim), zed->lineTo(5 * dim, dim), zed->lineTo(0, 2 * dim);
+            openTriangle->moveTo(0, 0), openTriangle->lineTo(0, dim), openTriangle->lineTo(dim, dim), openTriangle->lineTo(0, 0);
+            openCircle->addEllipse(Ra::Bounds(0, 0, dim, dim));
+            closedCircle->addEllipse(Ra::Bounds(0, 0, dim, dim)), closedCircle->close();
             
             std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle };
             
