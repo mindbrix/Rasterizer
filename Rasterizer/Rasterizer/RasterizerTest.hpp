@@ -28,7 +28,9 @@ struct RasterizerTest {
             Ra::Path cub3;  cub3.ref->moveTo(0, 0), cub3.ref->cubicTo(dim, dim, 0, dim, dim, 0);
             Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, dim, dim, 0, dim, 0);
             
-            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3 };
+            Ra::Path zed;  zed.ref->moveTo(5 * dim, dim), zed.ref->lineTo(0, dim), zed.ref->lineTo(5 * dim, 0), zed.ref->lineTo(0, 0);
+            
+            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed };
             
             for (i = 0; i < 10; i++) {
                 Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 00, 00);
@@ -59,13 +61,6 @@ struct RasterizerTest {
                 scene.addPath(openTriangle, Ra::Transform(1, 0, 0, 1, 0 * (2 * uw + dim), 0), alpha64, uw, 0);
                 scene.addPath(closedTriangle, Ra::Transform(1, 0, 0, 1, 1 * (2 * uw + dim), 0), alpha64, uw, 0);
                 scene.addPath(openClosedTriangle, Ra::Transform(1, 0, 0, 1, 2 * (2 * uw + dim), 0), alpha64, uw, 0);
-            }
-            
-            if (0) {
-                float uw = 20, w = 500;
-                Ra::Path zed;  zed.ref->moveTo(w, 100), zed.ref->lineTo(0, 100), zed.ref->lineTo(w, 0), zed.ref->lineTo(0, 0);
-                scene.addPath(zed, Ra::Transform(), alpha64, uw, 0);
-                scene.addPath(zed, Ra::Transform(-1, 0, 0, 1, 2.2 * w, 0), alpha64, uw, 0);
             }
             
             if (1) {
