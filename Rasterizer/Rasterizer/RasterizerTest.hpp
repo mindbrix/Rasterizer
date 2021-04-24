@@ -28,7 +28,7 @@ struct RasterizerTest {
             Ra::Path cub3;  cub3->moveTo(0, 0), cub3->cubicTo(dim, dim, 0, dim, dim, 0);
             Ra::Path cub2;  cub2->moveTo(0, 0), cub2->cubicTo(0, dim, dim, 0, dim, 0);
             
-            Ra::Path zed;  zed->moveTo(5 * dim, dim), zed->lineTo(0, dim), zed->lineTo(5 * dim, 0), zed->lineTo(0, 0);
+            Ra::Path zed;  zed->moveTo(0, 0), zed->lineTo(5 * dim, 0), zed->lineTo(0, dim), zed->lineTo(5 * dim, dim), zed->lineTo(0, 2 * dim);
             
             Ra::Path openTriangle;  openTriangle->moveTo(0, 0), openTriangle->lineTo(0, dim), openTriangle->lineTo(dim, dim), openTriangle->lineTo(0, 0);
             
