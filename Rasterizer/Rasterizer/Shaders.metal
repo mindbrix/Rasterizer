@@ -244,7 +244,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     P16OutlinesVertex vert;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments, idx;
+    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments, pidx, idx, nidx;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j];
@@ -252,7 +252,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, ax, ay, dx, dy, left, flip, mx, my, pmx, pmy, alpha, premul;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, dx, dy, nx, ny, nmx, nmy, left, flip, mx, my, pmx, pmy, alpha, premul;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -261,15 +261,23 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     left = select(1.0, -1.0, vid & 1);
     
+    pidx = idx == 0 ? edge.prev : idx - 1;
+    x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
+    px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
+    pmx = (mt + pidx)->x, pmy = (mt + pidx)->y;
+    
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     mx = (mt + idx)->x, my = (mt + idx)->y;
     
+    nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
+    x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
+    nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
+    nmx = (mt + nidx)->x, nmy = (mt + nidx)->y;
+    
     flip = 1.0;
     if (segcount == kFastSegments && (vid >> 1) == kFastSegments) {
-        x16 = (pts + idx - 1)->x & 0x7FFF, y16 = (pts + idx - 1)->y & 0x7FFF;
-        ax = x16 * ma + y16 * mc + tx - dx, ay = x16 * mb + y16 * md + ty - dy;
-        pmx = (mt + idx - 1)->x, pmy = (mt + idx - 1)->y;
+        ax = px - dx, ay = py - dy;
         flip = (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
     }
         
