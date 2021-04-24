@@ -23,14 +23,19 @@ struct RasterizerTest {
             Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(dim, 0), openPath->lineTo(dim, dim);
             Ra::Path closedPath;  closedPath->moveTo(0, 0), closedPath->lineTo(dim, 0), closedPath->lineTo(dim, dim), closedPath->close();
             
-            Ra::Path cub0;  cub0.ref->moveTo(0, 0), cub0.ref->cubicTo(0, dim, dim, dim, dim, 0);
-            Ra::Path cub1;  cub1.ref->moveTo(0, 0), cub1.ref->cubicTo(0, 0, dim, dim, dim, 0);
-            Ra::Path cub3;  cub3.ref->moveTo(0, 0), cub3.ref->cubicTo(dim, dim, 0, dim, dim, 0);
-            Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, dim, dim, 0, dim, 0);
+            Ra::Path cub0;  cub0->moveTo(0, 0), cub0->cubicTo(0, dim, dim, dim, dim, 0);
+            Ra::Path cub1;  cub1->moveTo(0, 0), cub1->cubicTo(0, 0, dim, dim, dim, 0);
+            Ra::Path cub3;  cub3->moveTo(0, 0), cub3->cubicTo(dim, dim, 0, dim, dim, 0);
+            Ra::Path cub2;  cub2->moveTo(0, 0), cub2->cubicTo(0, dim, dim, 0, dim, 0);
             
-            Ra::Path zed;  zed.ref->moveTo(5 * dim, dim), zed.ref->lineTo(0, dim), zed.ref->lineTo(5 * dim, 0), zed.ref->lineTo(0, 0);
+            Ra::Path zed;  zed->moveTo(5 * dim, dim), zed->lineTo(0, dim), zed->lineTo(5 * dim, 0), zed->lineTo(0, 0);
             
-            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed };
+            Ra::Path openTriangle;  openTriangle->moveTo(0, 0), openTriangle->lineTo(0, dim), openTriangle->lineTo(dim, dim), openTriangle->lineTo(0, 0);
+            
+            Ra::Path openCircle;  openCircle->addEllipse(Ra::Bounds(0, 0, dim, dim));
+            Ra::Path closedCircle;  closedCircle->addEllipse(Ra::Bounds(0, 0, dim, dim)), closedCircle->close();
+            
+            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle };
             
             for (i = 0; i < 10; i++) {
                 Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 00, 00);
@@ -44,24 +49,7 @@ struct RasterizerTest {
             }
         }
         if (0) {
-            float w = 10, r = w;
-            for (int i = 0; i < 20; i++, r += w) {
-                Ra::Path circle;  circle.ref->addEllipse(Ra::Bounds(-r, -r, r, r));
-                scene.addPath(circle, Ra::Transform(), i & 1 ? black : red, w, 0);
-            }
-        }
-        if (0) {
             list.empty();
-            
-            if (1) {
-                float uw = 10, dim = 100;
-                Ra::Path openTriangle;  openTriangle->moveTo(0, 0), openTriangle->lineTo(0, 100), openTriangle->lineTo(100, 100), openTriangle->lineTo(0, 0);
-                Ra::Path closedTriangle;  closedTriangle->moveTo(0, 0), closedTriangle->lineTo(0, 100), closedTriangle->lineTo(100, 100), closedTriangle->lineTo(0, 0), closedTriangle->close();
-                Ra::Path openClosedTriangle;  openClosedTriangle->moveTo(0, 0), openClosedTriangle->lineTo(0, 100), openClosedTriangle->lineTo(100, 100), openClosedTriangle->close();
-                scene.addPath(openTriangle, Ra::Transform(1, 0, 0, 1, 0 * (2 * uw + dim), 0), alpha64, uw, 0);
-                scene.addPath(closedTriangle, Ra::Transform(1, 0, 0, 1, 1 * (2 * uw + dim), 0), alpha64, uw, 0);
-                scene.addPath(openClosedTriangle, Ra::Transform(1, 0, 0, 1, 2 * (2 * uw + dim), 0), alpha64, uw, 0);
-            }
             
             if (1) {
                 float w = 10;
