@@ -251,7 +251,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     const device Point16 *mt = miters + iid * kFastSegments;
-    bool pcap, ncap, skiplast = ue1 & 0x8;
+    bool pcap, ncap, skiplast = ue1 & 0x8, last;
     float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, dx, dy, nx, ny, nmx, nmy, left, flip, mx, my, pmx, pmy, alpha, premul;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
@@ -273,19 +273,17 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     dx += cap * my * (float(ncap) - float(pcap)), dy += cap * mx * (float(pcap) - float(ncap));
     
+    ax = px - dx, ay = py - dy;
+    last = segcount == kFastSegments && (vid >> 1) == kFastSegments;
+    flip = last && (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
+    mx *= flip * left * dw, my *= flip * left * dw;
+    
     nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     nmx = (mt + nidx)->x * mtrscale, nmy = (mt + nidx)->y * mtrscale;
     ncap = nidx == segcount && edge.next == 0;
     nx += cap * nmy * float(ncap), ny += cap * nmx * -float(ncap);
-    
-    flip = 1.0;
-    if (segcount == kFastSegments && (vid >> 1) == kFastSegments) {
-        ax = px - dx, ay = py - dy;
-        flip = (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
-    }
-    mx *= flip * left * dw, my *= flip * left * dw;
     
     vert.position = {
         (dx + mx) / *width * 2.0 - 1.0,
