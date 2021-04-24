@@ -16,8 +16,8 @@ struct RasterizerTest {
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
         if (1) {
             list.empty();
-            float uw = 10, dim = 100, grid = dim + 2 * uw;
-            
+            float uw = 10, dim = 100, grdsz = dim + 2 * uw;
+            int grdim, i, x, y;
             Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
             Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
             Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(dim, 0), openPath->lineTo(dim, dim);
@@ -28,15 +28,11 @@ struct RasterizerTest {
             Ra::Path cub3;  cub3.ref->moveTo(0, 0), cub3.ref->cubicTo(dim, dim, 0, dim, dim, 0);
             Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, dim, dim, 0, dim, 0);
             
-            scene.addPath(closedRectPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 1 * grid), black, uw, 0);
-            scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 1 * grid), black, uw, 0);
-            scene.addPath(closedPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 2 * grid), black, uw, 0);
-            scene.addPath(openPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 2 * grid), black, uw, 0);
-            
-            scene.addPath(cub0, Ra::Transform(1, 0, 0, 1, 0, 0 * dim), alpha64, uw, 0);
-            scene.addPath(cub1, Ra::Transform(1, 0, 0, 1, 0, 1 * dim), alpha64, uw, 0);
-            scene.addPath(cub2, Ra::Transform(1, 0, 0, 1, 0, 2 * dim), alpha64, uw, 0);
-            scene.addPath(cub3, Ra::Transform(1, 0, 0, 1, 0, 3 * dim), alpha64, uw, 0);
+            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3 };
+            for (grdim = ceilf(sqrt(paths.size())), i = 0; i < paths.size(); i++) {
+                x = i % grdim, y = i / grdim;
+                scene.addPath(paths[i], Ra::Transform(1, 0, 0, 1, x * grdsz, y * grdsz), black, uw, 0);
+            }
         }
         if (0) {
             float w = 10, r = w;
