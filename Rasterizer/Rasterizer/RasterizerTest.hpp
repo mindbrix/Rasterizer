@@ -14,21 +14,29 @@ struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
-        if (0) {
+        if (1) {
             list.empty();
-            float w = 10, grid = 100 + 2 * w;
+            float uw = 10, dim = 100, grid = dim + 2 * uw;
             
-            Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, 100, 100));
-            Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, 100, 100));  closedRectPath->close();
-            Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(100, 0), openPath->lineTo(100, 100);
-            Ra::Path closedPath;  closedPath->moveTo(0, 0), closedPath->lineTo(100, 0), closedPath->lineTo(100, 100), closedPath->close();
-            Ra::Path openQuadPath;  openQuadPath->moveTo(0, 0), openQuadPath->lineTo(50, 0), openQuadPath->lineTo(100, 50), openQuadPath->lineTo(50, 100), openQuadPath->lineTo(0, 50);
+            Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
+            Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
+            Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(dim, 0), openPath->lineTo(dim, dim);
+            Ra::Path closedPath;  closedPath->moveTo(0, 0), closedPath->lineTo(dim, 0), closedPath->lineTo(dim, dim), closedPath->close();
             
-            scene.addPath(closedRectPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 1 * grid), black, w, 0);
-            scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 1 * grid), black, w, 0);
-            scene.addPath(closedPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 2 * grid), black, w, 0);
-            scene.addPath(openPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 2 * grid), black, w, 0);
-            scene.addPath(openQuadPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 3 * grid), black, w, 0);
+            Ra::Path cub0;  cub0.ref->moveTo(0, 0), cub0.ref->cubicTo(0, dim, dim, dim, dim, 0);
+            Ra::Path cub1;  cub1.ref->moveTo(0, 0), cub1.ref->cubicTo(0, 0, dim, dim, dim, 0);
+            Ra::Path cub3;  cub3.ref->moveTo(0, 0), cub3.ref->cubicTo(dim, dim, 0, dim, dim, 0);
+            Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, dim, dim, 0, dim, 0);
+            
+            scene.addPath(closedRectPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 1 * grid), black, uw, 0);
+            scene.addPath(rectPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 1 * grid), black, uw, 0);
+            scene.addPath(closedPath, Ra::Transform(1, 0, 0, 1, 1 * grid, 2 * grid), black, uw, 0);
+            scene.addPath(openPath, Ra::Transform(1, 0, 0, 1, 2 * grid, 2 * grid), black, uw, 0);
+            
+            scene.addPath(cub0, Ra::Transform(1, 0, 0, 1, 0, 0 * dim), alpha64, uw, 0);
+            scene.addPath(cub1, Ra::Transform(1, 0, 0, 1, 0, 1 * dim), alpha64, uw, 0);
+            scene.addPath(cub2, Ra::Transform(1, 0, 0, 1, 0, 2 * dim), alpha64, uw, 0);
+            scene.addPath(cub3, Ra::Transform(1, 0, 0, 1, 0, 3 * dim), alpha64, uw, 0);
         }
         if (0) {
             float w = 10, r = w;
@@ -48,18 +56,6 @@ struct RasterizerTest {
                 scene.addPath(openTriangle, Ra::Transform(1, 0, 0, 1, 0 * (2 * uw + dim), 0), alpha64, uw, 0);
                 scene.addPath(closedTriangle, Ra::Transform(1, 0, 0, 1, 1 * (2 * uw + dim), 0), alpha64, uw, 0);
                 scene.addPath(openClosedTriangle, Ra::Transform(1, 0, 0, 1, 2 * (2 * uw + dim), 0), alpha64, uw, 0);
-            }
-            if (0) {
-                float uw = 20, w = 100;
-                Ra::Path cub0;  cub0.ref->moveTo(0, 0), cub0.ref->cubicTo(0, w, w, w, w, 0);
-                Ra::Path cub1;  cub1.ref->moveTo(0, 0), cub1.ref->cubicTo(0, 0, w, w, w, 0);
-                Ra::Path cub3;  cub3.ref->moveTo(0, 0), cub3.ref->cubicTo(w, w, 0, w, w, 0);
-                Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, w, w, 0, w, 0);
-                
-                scene.addPath(cub0, Ra::Transform(1, 0, 0, 1, 0, 0 * w), alpha64, uw, 0);
-                scene.addPath(cub1, Ra::Transform(1, 0, 0, 1, 0, 1 * w), alpha64, uw, 0);
-                scene.addPath(cub2, Ra::Transform(1, 0, 0, 1, 0, 2 * w), alpha64, uw, 0);
-                scene.addPath(cub3, Ra::Transform(1, 0, 0, 1, 0, 3 * w), alpha64, uw, 0);
             }
             
             if (0) {
