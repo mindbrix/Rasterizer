@@ -14,7 +14,7 @@ struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
-        if (1) {
+        if (0) {
             list.empty();
             float uw = 10, dim = 100, grdim = dim + 2 * uw, w, h, s;  size_t sz, grdsz, i;
             Ra::Path rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle;

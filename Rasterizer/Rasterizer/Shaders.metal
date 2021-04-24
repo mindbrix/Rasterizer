@@ -252,20 +252,29 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, dx, dy, left, mx, my, alpha, premul;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, ax, ay, dx, dy, left, flip, mx, my, pmx, pmy, alpha, premul;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     
-    segcount -= int(skiplast), idx = min(int(vid) >> 1, segcount);
+    segcount -= int(skiplast), idx = min(int(vid >> 1), segcount);
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     left = select(1.0, -1.0, vid & 1);
     
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
-    mx = (mt + idx)->x * mtrscale, my = (mt + idx)->y * mtrscale;
-    dx += left * mx * dw + cap * my * (float(ncap) - float(pcap)),
-    dy += left * my * dw + cap * mx * (float(pcap) - float(ncap));
+    mx = (mt + idx)->x, my = (mt + idx)->y;
+    
+    flip = 1.0;
+    if (segcount == kFastSegments && (vid >> 1) == kFastSegments) {
+        x16 = (pts + idx - 1)->x & 0x7FFF, y16 = (pts + idx - 1)->y & 0x7FFF;
+        ax = x16 * ma + y16 * mc + tx - dx, ay = x16 * mb + y16 * md + ty - dy;
+        pmx = (mt + idx - 1)->x, pmy = (mt + idx - 1)->y;
+        flip = (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
+    }
+        
+    dx += (flip * left * mx * dw + cap * my * (float(ncap) - float(pcap))) * mtrscale,
+    dy += (flip * left * my * dw + cap * mx * (float(pcap) - float(ncap))) * mtrscale;
     
     vert.position = {
         dx / *width * 2.0 - 1.0,
