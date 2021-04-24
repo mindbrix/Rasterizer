@@ -270,6 +270,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     mx = (mt + idx)->x * mtrscale, my = (mt + idx)->y * mtrscale;
+    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
+    dx += cap * my * (float(ncap) - float(pcap)), dy += cap * mx * (float(pcap) - float(ncap));
     
     nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
@@ -283,9 +285,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         ax = px - dx, ay = py - dy;
         flip = (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
     }
-        
-    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
-    dx += cap * my * (float(ncap) - float(pcap)), dy += cap * mx * (float(pcap) - float(ncap));
     mx *= flip * left * dw, my *= flip * left * dw;
     
     vert.position = {
