@@ -16,8 +16,8 @@ struct RasterizerTest {
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
         if (1) {
             list.empty();
-            float uw = 10, dim = 100, grdim = dim + 2 * uw;
-            size_t sz, grdsz, i, x, y;
+            float uw = 10, dim = 100, grdim = dim + 2 * uw, sx, sy, s;  size_t sz, grdsz, i, x, y;
+            
             Ra::Path rectPath;  rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
             Ra::Path closedRectPath;  closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
             Ra::Path openPath;  openPath->moveTo(0, 0), openPath->lineTo(dim, 0), openPath->lineTo(dim, dim);
@@ -29,9 +29,16 @@ struct RasterizerTest {
             Ra::Path cub2;  cub2.ref->moveTo(0, 0), cub2.ref->cubicTo(0, dim, dim, 0, dim, 0);
             
             std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3 };
+            
+            for (i = 0; i < 10; i++) {
+                Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 00, 00);
+                paths.emplace_back(quad);
+            }
             for (sz = paths.size(), grdsz = ceil(sqrt(sz)), i = 0; i < sz; i++) {
+                Ra::Path& p = paths[i];
                 x = i % grdsz, y = i / grdsz;
-                scene.addPath(paths[i], Ra::Transform(1, 0, 0, 1, x * grdim, y * grdim), black, uw, 0);
+                sx = dim / (p->bounds.ux - p->bounds.lx), sy = dim / (p->bounds.uy - p->bounds.ly), s = sx < sy ? sx : sy;
+                scene.addPath(p, Ra::Transform(s, 0, 0, s, x * grdim - p->bounds.lx, y * grdim - p->bounds.ly), black, uw, 0);
             }
         }
         if (0) {
@@ -61,13 +68,6 @@ struct RasterizerTest {
                 scene.addPath(zed, Ra::Transform(-1, 0, 0, 1, 2.2 * w, 0), alpha64, uw, 0);
             }
             
-            if (0) {
-                float uw = 20;
-                for (int i = 0; i < 10; i++) {
-                    Ra::Path quad;  quad.ref->moveTo(100, 100), quad.ref->quadTo(-200 + i * 30, 100, 00, 00);
-                    scene.addPath(quad, Ra::Transform(1, 0, 0, 1, i * uw * 4, 0), alpha64, uw, 0);
-                }
-            }
             if (1) {
                 float w = 10;
                 Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);
