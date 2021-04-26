@@ -252,7 +252,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pcap, ncap, skiplast = ue1 & 0x8, last;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -264,8 +264,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     pmx = (mt + pidx)->x * mtrscale, pmy = (mt + pidx)->y * mtrscale;
-    pcap = idx == 1 && edge.prev == 0;
-    px += cap * pmy * -float(pcap), py += cap * pmx * float(pcap);
     
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
@@ -279,8 +277,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     nmx = (mt + nidx)->x * mtrscale, nmy = (mt + nidx)->y * mtrscale;
-    ncap = nidx == segcount && edge.next == 0;
-    nx += cap * nmy * float(ncap), ny += cap * nmx * -float(ncap);
+
     last = segcount == kFastSegments && (vid >> 1) == kFastSegments - 1;
     ax = nx - dx, ay = ny - dy, nflip = last && (ax * my - ay * mx) * (ax * nmy - ay * nmx) < 0.0 ? -1.0 : 1.0;
     
@@ -288,14 +285,26 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     mx *= flip * left * dw, my *= flip * left * dw;
     nmx *= nflip * left * dw, nmy *= nflip * left * dw;
     
-    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     t0 = pcap ? 1.0 : ((px - dx) * pmy - (py - dy) * pmx) / (mx * pmy - my * pmx);
     t1 = ncap ? 1.0 : ((nx - dx) * nmy - (ny - dy) * nmx) / (mx * nmy - my * nmx);
+    /*
+    t0 = min(1.0, t0);
+    t1 = min(1.0, t1);
+//    t0 = t0 < 0.0 ? 1.0 : t0;
+//    t1 = t1 < 0.0 ? 1.0 : t1;
+    x = dx + mx, y = dy + my;
+    x = pcap || t0 >= 1.0 || t0 < 0.0 ? x : 0.5 * (x + px + pmx);
+    y = pcap || t0 >= 1.0 || t0 < 0.0 ? y : 0.5 * (y + py + pmy);
+//    x = dx + mx, y = dy + my;
+    x = ncap || t1 >= 1.0 || t1 < 0.0 ? x : 0.5 * (x + nx + nmx);
+    y = ncap || t1 >= 1.0 || t1 < 0.0 ? y : 0.5 * (y + ny + nmy);
+    */
     t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
     mx *= t, my *= t;
+    x = dx + mx, y = dy + my;
     vert.position = {
-        (dx + mx) / *width * 2.0 - 1.0,
-        (dy + my) / *height * 2.0 - 1.0,
+        x / *width * 2.0 - 1.0,
+        y / *height * 2.0 - 1.0,
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
