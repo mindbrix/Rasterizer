@@ -234,7 +234,7 @@ struct RasterizerTest {
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax, outlineWidth = state.outlineWidth;
         if (0 && outlineWidth) {
-            black = Ra::Colorant(0, 0, 0, 64 ), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
+            black = Ra::Colorant(0, 0, 0, 64), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
         }
         if (ftime == 0.f)
             memcpy(dstCtms, srcCtms, count * sizeof(srcCtms[0]));
