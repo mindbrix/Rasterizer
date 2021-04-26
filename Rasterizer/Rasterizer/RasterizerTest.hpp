@@ -228,11 +228,14 @@ struct RasterizerTest {
         uint8_t *srcFlags, uint8_t *dstFlags,
         void *info) {
         RasterizerTest& test = *((RasterizerTest *)info);
-        const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
         float ftime = test.concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
-        float scale = s * kScaleMin + t * kScaleMax;
+        float scale = s * kScaleMin + t * kScaleMax, outlineWidth = state.outlineWidth;
+        if (0 && outlineWidth) {
+            black = Ra::Colorant(0, 0, 0, 64 ), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
+        }
         if (ftime == 0.f)
             memcpy(dstCtms, srcCtms, count * sizeof(srcCtms[0]));
         else {
@@ -242,8 +245,8 @@ struct RasterizerTest {
                 dstCtms[j] = srcCtms[j].preconcat(rst, 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy));
             }
         }
-        if (state.outlineWidth)
-            memset_pattern4(dstWidths, & state.outlineWidth, count * sizeof(srcWidths[0]));
+        if (outlineWidth)
+            memset_pattern4(dstWidths, & outlineWidth, count * sizeof(srcWidths[0]));
         else if (ftime == 0.f)
             memcpy(dstWidths, srcWidths, count * sizeof(srcWidths[0]));
         else
