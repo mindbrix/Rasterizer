@@ -14,10 +14,10 @@ struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
-        if (0) {
+        if (1) {
             list.empty();
             float uw = 10, dim = 100, grdim = dim + 2 * uw, w, h, s;  size_t sz, grdsz, i;
-            Ra::Path rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0;
+            Ra::Path rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0, twoLines;
             
             rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
             closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
@@ -32,8 +32,9 @@ struct RasterizerTest {
             openCircle->addEllipse(Ra::Bounds(0, 0, dim, dim));
             closedCircle->addEllipse(Ra::Bounds(0, 0, dim, dim)), closedCircle->close();
             limiter0->moveTo(0, dim), limiter0->lineTo(0, 0), limiter0->lineTo(0.1 * dim, -0.05 * dim), limiter0->lineTo(dim, 0);
+            twoLines->moveTo(0, 0), twoLines->lineTo(0, 0.5 * dim), twoLines->lineTo(0, dim);
             
-            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0 };
+            std::vector<Ra::Path> paths = { rectPath, closedRectPath, openPath, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0, twoLines };
             
             for (i = 0; i < 10; i++) {
                 Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 0, 0);
