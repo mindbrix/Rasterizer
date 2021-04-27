@@ -214,7 +214,7 @@ vertex void p16_miter_main(
         bx = nx - x, by = ny - y, rb = nzero ? 0.0 : rsqrt(bx * bx + by * by), nnx = bx * rb, nny = by * rb;
         
         t = (((nx - nny) - (px - npy)) * by - ((ny + nnx) - (py + npx)) * bx) / (ax * by - ay * bx);
-        cosine = 0;// npx * nnx + npy * nny;
+        t = npx * nnx + npy * nny > -0.875 ? t : 1.0 - ra * ra / (t - 1.0);
         mx = pzero ? -nny : nzero ? -npy : (1.0 - t) * px + t * x - npy - x;
         my = pzero ? nnx : nzero ? npx : (1.0 - t) * py + t * y + npx - y;
         mtr->x = mx * mtrscale, mtr->y = my * mtrscale;
