@@ -277,15 +277,14 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     mx = (mt + idx)->x * mtrscale, my = (mt + idx)->y * mtrscale;
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     dx += cap * my * (float(ncap) - float(pcap)), dy += cap * mx * (float(pcap) - float(ncap));
-    last = segcount == kFastSegments && (vid >> 1) == kFastSegments;
-    ax = px - dx, ay = py - dy, flip = last && (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
+    ax = px - dx, ay = py - dy, flip = idx == kFastSegments && (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
     
     nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     nmx = (mt + nidx)->x * mtrscale, nmy = (mt + nidx)->y * mtrscale;
 
-    last = segcount == kFastSegments && (vid >> 1) == kFastSegments - 1;
+    last = segcount == kFastSegments && idx == kFastSegments - 1;
     ax = nx - dx, ay = ny - dy, nflip = last && (ax * my - ay * mx) * (ax * nmy - ay * nmx) < 0.0 ? -1.0 : 1.0;
     
     pmx *= left * dw, pmy *= left * dw;
