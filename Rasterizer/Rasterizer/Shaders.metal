@@ -215,8 +215,8 @@ vertex void p16_miter_main(
         cosine = npx * nnx + npy * nny;
         t = cosine > 0.999 ? 1.0 : (((nx - nny) - (px - npy)) * by - ((ny + nnx) - (py + npx)) * bx) / (ax * by - ay * bx);
         t = cosine > -0.875 ? t : 1.0 - ra * ra / (t - 1.0);
-        mx = mtrscale * (pzero ? -nny : nzero ? -npy : (1.0 - t) * px + t * x - npy - x);
-        my = mtrscale * (pzero ? nnx : nzero ? npx : (1.0 - t) * py + t * y + npx - y);
+        mx = mtrscale * (pzero ? -nny : nzero ? -npy : fma(ax, t, -ax - npy));
+        my = mtrscale * (pzero ? nnx : nzero ? npx : fma(ay, t, -ay + npx));
         
 //        ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
 //        ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
