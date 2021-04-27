@@ -294,18 +294,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     t0 = pcap ? 1.0 : ((px - dx) * pmy - (py - dy) * pmx) / (mx * pmy - my * pmx);
     t1 = ncap ? 1.0 : ((nx - dx) * nmy - (ny - dy) * nmx) / (mx * nmy - my * nmx);
-    /*
-    t0 = min(1.0, t0);
-    t1 = min(1.0, t1);
-//    t0 = t0 < 0.0 ? 1.0 : t0;
-//    t1 = t1 < 0.0 ? 1.0 : t1;
-    x = dx + mx, y = dy + my;
-    x = pcap || t0 >= 1.0 || t0 < 0.0 ? x : 0.5 * (x + px + pmx);
-    y = pcap || t0 >= 1.0 || t0 < 0.0 ? y : 0.5 * (y + py + pmy);
-//    x = dx + mx, y = dy + my;
-    x = ncap || t1 >= 1.0 || t1 < 0.0 ? x : 0.5 * (x + nx + nmx);
-    y = ncap || t1 >= 1.0 || t1 < 0.0 ? y : 0.5 * (y + ny + nmy);
-    */
     t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
     mx *= t, my *= t;
     x = dx + mx, y = dy + my;
