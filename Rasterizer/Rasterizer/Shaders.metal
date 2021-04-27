@@ -195,7 +195,7 @@ vertex void p16_miter_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
     device Point16 *mtr = miters + iid * kFastSegments;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, ra, rb, t, rl, npx, npy, nnx, nny, tdot, tanx, tany, cosine, miter, twist = 1.0, mx, my, pmx, pmy;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, ra, rb, det, t, rl, npx, npy, nnx, nny, tdot, tanx, tany, cosine, miter, twist = 1.0, mx, my, pmx, pmy;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
@@ -212,14 +212,12 @@ vertex void p16_miter_main(
         pzero = x == px && y == py, nzero = x == nx && y == ny;
         ax = x - px, ay = y - py, ra = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * ra, npy = ay * ra;
         bx = nx - x, by = ny - y, rb = nzero ? 0.0 : rsqrt(bx * bx + by * by), nnx = bx * rb, nny = by * rb;
-        
-        t = (((nx - nny) - (px - npy)) * by - ((ny + nnx) - (py + npx)) * bx) / (ax * by - ay * bx);
-        flip = npx * nnx + npy * nny < -0.875;
-        t = !flip ? t : 1.0 - ra * ra / (t - 1.0);
+        cosine = npx * nnx + npy * nny;
+        t = cosine > 0.99 ? 1.0 : (((nx - nny) - (px - npy)) * by - ((ny + nnx) - (py + npx)) * bx) / (ax * by - ay * bx);
+        t = cosine > -0.875 ? t : 1.0 - ra * ra / (t - 1.0);
         mx = mtrscale * (pzero ? -nny : nzero ? -npy : (1.0 - t) * px + t * x - npy - x);
         my = mtrscale * (pzero ? nnx : nzero ? npx : (1.0 - t) * py + t * y + npx - y);
         
-//        pzero = x == px && y == py, nzero = x == nx && y == ny;
 //        ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * rl, npy = ay * rl;
 //        ax = nx - x, ay = ny - y, rl = nzero ? 0.0 : rsqrt(ax * ax + ay * ay), nnx = ax * rl, nny = ay * rl;
 //
@@ -229,7 +227,6 @@ vertex void p16_miter_main(
 //        flip = cosine < kP16MiterLimit;
 //        miter = mtrscale / (flip ? abs(npx * -tany + npy * tanx) : cosine);
 //        mx = miter * (flip ? -tanx : -tany), my = miter * (flip ? -tany : tanx);
-//
         twist = j != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, my *= twist, mtr->x = mx, mtr->y = my;
     }
