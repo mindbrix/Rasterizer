@@ -187,6 +187,7 @@ vertex void p16_miter_main(
 {
     if (vid != 0)
         return;
+    const float miterLimit = 2.0 * kP16MiterLimit * kP16MiterLimit - 1.0;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j, idx;
@@ -212,7 +213,7 @@ vertex void p16_miter_main(
         ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
         bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
         t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
-        cosine = ax * bx + ay * by, flip = cosine < -0.875, t = cosine > 0.999 ? 1.0 : !flip ? t : 1.0 - 1.0 / (t - 1.0);
+        cosine = ax * bx + ay * by, flip = cosine < miterLimit, t = cosine > 0.999 ? 1.0 : !flip ? t : 1.0 - 1.0 / (t - 1.0);
         mtr->x = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
         mtr->y = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
         mtrscale *= flip ? -1.0 : 1.0;
