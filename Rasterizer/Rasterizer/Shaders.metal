@@ -195,7 +195,7 @@ vertex void p16_miter_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
     device Point16 *mtr = miters + iid * kFastSegments;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, twist = 1.0, mx, my, pmx, pmy;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, twist = 1.0;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
@@ -204,7 +204,7 @@ vertex void p16_miter_main(
     x16 = (pts + edge.prev)->x & 0x7FFF, y16 = (pts + edge.prev)->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
 
-    for (segcount -= int(skiplast), j = 0; j < kFastSegments; j++, mtr++, px = x, py = y, x = nx, y = ny, pmx = mx, pmy = my) {
+    for (segcount -= int(skiplast), j = 0; j < kFastSegments; j++, mtr++, px = x, py = y, x = nx, y = ny) {
         idx = min(j, segcount);
         pt = pts + (!skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount));
         x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
@@ -214,9 +214,8 @@ vertex void p16_miter_main(
         bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
         t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
         cosine = ax * bx + ay * by, flip = cosine < -0.875, t = cosine > 0.999 ? 1.0 : !flip ? t : 1.0 - 1.0 / (t - 1.0);
-        mx = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
-        my = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
-        mx *= twist, my *= twist, mtr->x = mx, mtr->y = my;
+        mtr->x = twist * mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
+        mtr->y = twist * mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
         twist *= flip ? -1.0 : 1.0;
     }
 }
