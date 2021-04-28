@@ -214,8 +214,8 @@ vertex void p16_miter_main(
         bx = nx - x, by = ny - y, rb = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rb, by *= rb;
         
         cosine = ax * bx + ay * by;
-        t = cosine > 0.999 ? 1.0 : (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
-        t = cosine > -0.875 ? t : 1.0 - 1.0 / (t - 1.0);
+        t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
+        t = cosine > 0.999 ? 1.0 : cosine > -0.875 ? t : 1.0 - 1.0 / (t - 1.0);
         mx = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
         my = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
         twist = j != 0 && (ax * pmy - ay * pmx) * (ax * my - ay * mx) < 0.0 ? -1.0 : 1.0;
