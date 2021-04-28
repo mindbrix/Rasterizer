@@ -187,7 +187,6 @@ vertex void p16_miter_main(
 {
     if (vid != 0)
         return;
-    const float mtrscale = kP16MiterLimit * 32767.0;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j, idx;
@@ -195,7 +194,7 @@ vertex void p16_miter_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
     device Point16 *mtr = miters + iid * kFastSegments;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, twist = 1.0;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, mtrscale = kP16MiterLimit * 32767.0;
     bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
@@ -214,9 +213,9 @@ vertex void p16_miter_main(
         bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
         t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
         cosine = ax * bx + ay * by, flip = cosine < -0.875, t = cosine > 0.999 ? 1.0 : !flip ? t : 1.0 - 1.0 / (t - 1.0);
-        mtr->x = twist * mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
-        mtr->y = twist * mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
-        twist *= flip ? -1.0 : 1.0;
+        mtr->x = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
+        mtr->y = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
+        mtrscale *= flip ? -1.0 : 1.0;
     }
 }
 
