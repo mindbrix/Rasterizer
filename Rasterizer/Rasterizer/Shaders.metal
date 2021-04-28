@@ -195,7 +195,7 @@ vertex void p16_miter_main(
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
     device Point16 *mtr = miters + iid * kFastSegments;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, ra, rb, t, cosine, twist = 1.0, mx, my, pmx, pmy;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, twist = 1.0, mx, my, pmx, pmy;
     bool pzero, nzero, skiplast = ue1 & 0x8;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
@@ -210,11 +210,10 @@ vertex void p16_miter_main(
         x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
         
         pzero = x == px && y == py, nzero = x == nx && y == ny;
-        ax = x - px, ay = y - py, ra = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= ra, ay *= ra;
-        bx = nx - x, by = ny - y, rb = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rb, by *= rb;
-        
-        cosine = ax * bx + ay * by;
+        ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
+        bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
         t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
+        cosine = ax * bx + ay * by;
         t = cosine > 0.999 ? 1.0 : cosine > -0.875 ? t : 1.0 - 1.0 / (t - 1.0);
         mx = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
         my = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
