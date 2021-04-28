@@ -196,7 +196,7 @@ vertex void p16_miter_main(
     const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
     device Point16 *mtr = miters + iid * kFastSegments;
     float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, twist = 1.0, mx, my, pmx, pmy;
-    bool pzero, nzero, skiplast = ue1 & 0x8;
+    bool pzero, nzero, skiplast = ue1 & 0x8, flip;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -213,12 +213,11 @@ vertex void p16_miter_main(
         ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
         bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
         t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
-        cosine = ax * bx + ay * by, t = cosine > 0.999 ? 1.0 : cosine > -0.875 ? t : 1.0 - 1.0 / (t - 1.0);
+        cosine = ax * bx + ay * by, flip = cosine < -0.875, t = cosine > 0.999 ? 1.0 : !flip ? t : 1.0 - 1.0 / (t - 1.0);
         mx = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
         my = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
-        
-        twist = j != 0 && (ax * pmy - ay * pmx) * (ax * my - ay * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, my *= twist, mtr->x = mx, mtr->y = my;
+        twist *= flip ? -1.0 : 1.0;
     }
 }
 
