@@ -277,7 +277,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pmx *= left * dw, pmy *= left * dw;
     mx *= flip * left * dw, my *= flip * left * dw;
     nmx *= nflip * left * dw, nmy *= nflip * left * dw;
-    limit = dw * dw / kP16MiterLimit * kP16MiterLimit;
+    limit = dw * dw / (kP16MiterLimit * kP16MiterLimit);
     t0 = pcap || limit / (ax * ax + ay * ay) < 1.0 ? 1.0 : (ax * pmy - ay * pmx) / (mx * pmy - my * pmx);
     t1 = ncap || limit / (bx * bx + by * by) < 1.0 ? 1.0 : (bx * nmy - by * nmx) / (mx * nmy - my * nmx);
     t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
