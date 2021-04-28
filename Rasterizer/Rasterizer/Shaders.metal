@@ -213,10 +213,10 @@ vertex void p16_miter_main(
         ax = x - px, ay = y - py, ra = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), npx = ax * ra, npy = ay * ra;
         bx = nx - x, by = ny - y, rb = nzero ? 0.0 : rsqrt(bx * bx + by * by), nnx = bx * rb, nny = by * rb;
         cosine = npx * nnx + npy * nny;
-        t = cosine > 0.999 ? 1.0 : (((nx - nny) - (px - npy)) * by - ((ny + nnx) - (py + npx)) * bx) / (ax * by - ay * bx);
+        t = cosine > 0.999 ? 1.0 : (((nnx - nny) - (-npx - npy)) * nny - ((nny + nnx) - (-npy + npx)) * nnx) / (npx * nny - npy * nnx);
         t = cosine > -0.875 ? t : 1.0 - ra * ra / (t - 1.0);
-        mx = mtrscale * (pzero ? -nny : nzero ? -npy : fma(ax, t, -ax - npy));
-        my = mtrscale * (pzero ? nnx : nzero ? npx : fma(ay, t, -ay + npx));
+        mx = mtrscale * (pzero ? -nny : nzero ? -npy : fma(npx, t, -npx - npy));
+        my = mtrscale * (pzero ? nnx : nzero ? npx : fma(npy, t, -npy + npx));
         twist = j != 0 && (npx * pmy - npy * pmx) * (npx * my - npy * mx) < 0.0 ? -1.0 : 1.0;
         mx *= twist, my *= twist, mtr->x = mx, mtr->y = my;
     }
