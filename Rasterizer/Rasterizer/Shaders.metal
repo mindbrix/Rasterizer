@@ -246,8 +246,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     const device Point16 *mt = miters + iid * kFastSegments;
-    bool pcap, ncap, skiplast = ue1 & 0x8, last;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, limit, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
+    bool pzero, nzero, pcap, ncap, skiplast = ue1 & 0x8, last;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, cosine, limit, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -255,18 +255,49 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     segcount -= int(skiplast), idx = min(int(vid >> 1), segcount);
     left = select(1.0, -1.0, vid & 1);
     
+    /*
+    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
+    
+    pidx = idx == 0 ? edge.prev : idx - 1;
+    x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
+    px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
+    
+    x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
+    x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
+    
+    nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
+    x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
+    nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
+    
+    pzero = x == px && y == py, nzero = x == nx && y == ny;
+    ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
+    bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
+    t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
+    cosine = ax * bx + ay * by, t = cosine > 0.999 ? 1.0 : t;
+    mx = dw * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
+    my = dw * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
+    
+//    x += cap * my * (float(ncap) - float(pcap)), y += cap * mx * (float(pcap) - float(ncap));
+    dx = x + left * mx, dy = y + left * my;
+    vert.position = {
+        dx / *width * 2.0 - 1.0,
+        dy / *height * 2.0 - 1.0,
+        ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
+        float(segcount != 0)
+    };
+    */
     pidx = idx == 0 ? edge.prev : idx - 1;
     x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     pmx = (mt + pidx)->x * mtrscale, pmy = (mt + pidx)->y * mtrscale;
-    
+
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     dx = x16 * ma + y16 * mc + tx, dy = x16 * mb + y16 * md + ty;
     mx = (mt + idx)->x * mtrscale, my = (mt + idx)->y * mtrscale;
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     dx += cap * my * (float(ncap) - float(pcap)), dy += cap * mx * (float(pcap) - float(ncap));
     ax = px - dx, ay = py - dy, flip = idx == kFastSegments && (ax * my - ay * mx) * (ax * pmy - ay * pmx) < 0.0 ? -1.0 : 1.0;
-    
+
     nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
@@ -274,7 +305,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
 
     last = segcount == kFastSegments && idx == kFastSegments - 1;
     bx = nx - dx, by = ny - dy, nflip = last && (bx * my - by * mx) * (bx * nmy - by * nmx) < 0.0 ? -1.0 : 1.0;
-    
+
     pmx *= left * dw, pmy *= left * dw;
     mx *= flip * left * dw, my *= flip * left * dw;
     nmx *= nflip * left * dw, nmy *= nflip * left * dw;
