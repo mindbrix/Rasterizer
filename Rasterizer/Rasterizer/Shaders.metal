@@ -239,7 +239,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     P16OutlinesVertex vert;
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j = i * kFastSegments, pidx, idx, nidx;
+    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = (ue1 & 0x7) - (ue1 & 0x8 ? 1 : 0), i = iid - inst.quad.biid, j = i * kFastSegments, pidx, idx, nidx;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Point16 *pts = & points[inst.quad.base + j];
@@ -252,10 +252,9 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     
-    segcount -= int(skiplast), idx = min(int(vid >> 1), segcount);
+    idx = min(int(vid >> 1), segcount);
     left = select(1.0, -1.0, vid & 1);
     
-    /*
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     
     pidx = idx == 0 ? edge.prev : idx - 1;
@@ -285,7 +284,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
-    */
+    /*
     pidx = idx == 0 ? edge.prev : idx - 1;
     x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
@@ -321,6 +320,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
+     */
     alpha = color.a * w / cw * 0.003921568627, premul = alpha * 0.003921568627;
     vert.color = { color.r * premul, color.g * premul, color.b * premul, alpha };
     vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
