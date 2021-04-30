@@ -278,8 +278,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     cosine = ax * bx + ay * by, t = cosine > 0.999 ? 1.0 : t;
     mx = pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay);
     my = pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax);
-    dx = x + left * dw * mx;// + cap * my * (float(ncap) - float(pcap));
-    dy = y + left * dw * my;// + cap * mx * (float(pcap) - float(ncap));
+    dx = x + left * dw * mx + cap * my * (float(ncap) - float(pcap));
+    dy = y + left * dw * my + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
