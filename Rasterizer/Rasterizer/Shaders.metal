@@ -273,11 +273,10 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
     t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
     cosine = ax * bx + ay * by, t = cosine > 0.999 ? 1.0 : t;
-    mx = dw * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
-    my = dw * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
-    
-//    x += cap * my * (float(ncap) - float(pcap)), y += cap * mx * (float(pcap) - float(ncap));
-    dx = x + left * mx, dy = y + left * my;
+    mx = pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay);
+    my = pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax);
+    dx = x + left * dw * mx;// + cap * my * (float(ncap) - float(pcap));
+    dy = y + left * dw * my;// + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
