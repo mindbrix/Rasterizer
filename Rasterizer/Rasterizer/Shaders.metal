@@ -238,8 +238,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     P16OutlinesVertex vert;
     
-    
-    int ic = edges[iid].ic, ue1 = (ic & Edge::ue1) >> 22, segcount = (ue1 & 0x7) - (ue1 & 0x8 ? 1 : 0);
+    const device Edge& edge = edges[iid];
+    int ic = edge.ic, ue1 = (ic & Edge::ue1) >> 22, segcount = (ue1 & 0x7) - (ue1 & 0x8 ? 1 : 0);
     const device Instance& inst = instances[ic & Edge::kMask];
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
@@ -256,8 +256,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     idx = min(int(vid >> 1), segcount);
     left = select(1.0, -1.0, vid & 1);
-    
-    const device Edge& edge = edges[iid + idx / kFastSegments];
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     
     pidx = idx == 0 ? edge.prev : idx - 1;

@@ -234,13 +234,13 @@ struct Rasterizer {
             } else {
                 g->writePoint16(x1, y1, g->bounds, 0), g->ax = FLT_MAX;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1), empty;
+                uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                --cnt, empty = int(*cnt == 0), cnt -= empty, *cnt |= 0x80 | (curve & 0x1 ? 0x8 : 0x0);
+                empty = cnt[-1] == 0, last = cnt[-1] == 1 && (curve & 0x1) != 0, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (curve & 0x1 ? 0x8 : 0x0);
                 for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
-                off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[-1] = -off0[0];
+                off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty || last ? - 3 : -1] = -off0[0];
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
