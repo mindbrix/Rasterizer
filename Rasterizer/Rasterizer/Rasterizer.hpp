@@ -228,13 +228,13 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;  float bx, by, len;
             if (x0 != FLT_MAX) {
                 bx = x1 - x0, by = y1 - y0, len = bx == 0.f && by == 0.f ? 1.f : sqrtf(bx * bx + by * by), bx /= len, by /= len;
-                if (g->ax == FLT_MAX)
+                if (g->ax0 == FLT_MAX)
                     g->ax0 = bx, g->ay0 = by;
                 else if (g->ax * bx + g->ay * by < -0.999847695156391f)
                     g->writePoint16(x0, y0, g->bounds, curve);
                 g->writePoint16(x0, y0, g->bounds, curve), g->ax = bx, g->ay = by;
             } else {
-                g->writePoint16(x1, y1, g->bounds, 0), g->ax = FLT_MAX;
+                g->writePoint16(x1, y1, g->bounds, 0), g->ax0 = FLT_MAX;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
                 uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last, skiplast;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
@@ -249,7 +249,7 @@ struct Rasterizer {
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<short> p16offs;  Row<Bounds> molecules;
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f, ax = FLT_MAX, ay, ax0, ay0;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f, ax0 = FLT_MAX, ay0, ax, ay;
         Bounds bounds;
     };
     typedef Ref<Geometry> Path;
