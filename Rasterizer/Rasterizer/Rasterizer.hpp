@@ -228,10 +228,10 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;  float bx, by, len;
             if (x0 != FLT_MAX) {
                 bx = x1 - x0, by = y1 - y0, len = bx == 0.f && by == 0.f ? 1.f : sqrtf(bx * bx + by * by), bx /= len, by /= len;
-                if (g->ax != FLT_MAX && g->ax * bx + g->ay * by < -0.999847695156391f)
-                    g->writePoint16(x0, y0, g->bounds, curve);
                 if (g->ax == FLT_MAX)
                     g->ax0 = bx, g->ay0 = by;
+                else if (g->ax * bx + g->ay * by < -0.999847695156391f)
+                    g->writePoint16(x0, y0, g->bounds, curve);
                 g->writePoint16(x0, y0, g->bounds, curve), g->ax = bx, g->ay = by;
             } else {
                 g->writePoint16(x1, y1, g->bounds, 0), g->ax = FLT_MAX;
