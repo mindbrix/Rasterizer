@@ -209,8 +209,6 @@
             case Ra::Buffer::kTransformBase:
                 transformbase = entry.begin;
                 break;
-            case Ra::Buffer::kP16Miters:
-                break;
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
                 [commandEncoder setRenderPipelineState:_opaquesPipelineState];
