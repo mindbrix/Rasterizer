@@ -225,7 +225,7 @@ struct Rasterizer {
             new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  float bx, by, len;
+            Geometry *g = (Geometry *)info;  float bx, by, len, cosine;
             bx = x1 - x0, by = y1 - y0, len = bx == 0.f && by == 0.f ? 1.f : sqrtf(bx * bx + by * by), bx /= len, by /= len;
             if ((curve & 0x80000000) == 0) {
                 if (g->ax0 == FLT_MAX)
@@ -234,7 +234,8 @@ struct Rasterizer {
                     g->writePoint16(x0, y0, g->bounds, curve);
                 g->writePoint16(x0, y0, g->bounds, curve), g->ax = bx, g->ay = by;
             } else {
-                if ((curve & 0x1) == 0 && g->ax0 * bx + g->ay0 * by <= kP16GeometryLimit)
+                cosine = x0 != x1 || y0 != y1 ? g->ax0 * bx + g->ay0 * by : g->ax0 * g->ax + g->ay0 * g->ay;
+                if ((curve & 0x1) == 0 && cosine <= kP16GeometryLimit)
                     g->writePoint16(x1, y1, g->bounds, 0);
                 g->writePoint16(x1, y1, g->bounds, 0), g->ax0 = FLT_MAX;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
