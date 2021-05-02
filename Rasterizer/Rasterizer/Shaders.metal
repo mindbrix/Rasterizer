@@ -216,9 +216,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
-    pzero = x == px && y == py, nzero = x == nx && y == ny;
-    ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
-    bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
+    pzero = x == px && y == py, ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
+    nzero = x == nx && y == ny, bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
     tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), tanx *= rl, tany *= rl;
     left = select(1.0, -1.0, vid & 1), s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * tanx + ay * tany));
     mx = -tany, my = tanx;
