@@ -197,7 +197,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     bool pzero, nzero, pcap, ncap, skiplast = ue1 & 0x8;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, tanx, tany, s, cosine, limit, dx, dy, nx, ny, nmx, nmy, left, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, tanx, tany, s, limit, dx, dy, nx, ny, nmx, nmy, left, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
