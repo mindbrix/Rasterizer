@@ -203,7 +203,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     
     idx = min(int(vid >> 1), segcount);
-    left = select(1.0, -1.0, vid & 1);
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     
     pidx = idx == 0 ? edge.prev : idx - 1;
@@ -221,7 +220,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
     bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
     tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), tanx *= rl, tany *= rl;
-    s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * tanx + ay * tany));
+    left = select(1.0, -1.0, vid & 1), s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * tanx + ay * tany));
     mx = -tany, my = tanx;
     dx = x + s * mx + cap * my * (float(ncap) - float(pcap));
     dy = y + s * my + cap * mx * (float(pcap) - float(ncap));
