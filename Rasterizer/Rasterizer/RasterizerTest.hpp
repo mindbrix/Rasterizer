@@ -14,7 +14,7 @@ struct RasterizerTest {
     void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
         Ra::Scene scene;
         Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
-        if (1) {
+        if (0) {
             list.empty();
             float uw = 10, dim = 100, grdim = dim + 2 * uw, w, h, s;  size_t sz, grdsz, i;
             Ra::Path rectPath, closedRectPath, open2Path, open3Path, open4Path, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0, twoLines, bigRect;
@@ -78,7 +78,7 @@ struct RasterizerTest {
         }
         if (0)
             scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
-        if (0)
+        if (1)
             list.empty(), writePhyllotaxisToScene(100000, scene);
         list.addScene(scene);
         
@@ -214,12 +214,12 @@ struct RasterizerTest {
     static void writePhyllotaxisToScene(size_t count, Ra::Scene& scene) {
         Ra::Colorant color(0, 0, 0, 255);
         Ra::Path line;
-        line.ref->moveTo(0, 0), line.ref->lineTo(0, 1);
+        line->addBounds(Ra::Bounds(0, 0, 1, 1)), line->close();
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s, t;
         for (int i = 0; i < count; i++) {
             s = sqrtf(i), t = float(i) / float(count);
-            scene.addPath(line, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 1.f, 0);
+            scene.addPath(line, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 0.25f, 0);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
@@ -237,7 +237,7 @@ struct RasterizerTest {
         float ftime = test.concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax, outlineWidth = state.outlineWidth;
-        if (1 && outlineWidth) {
+        if (0 && outlineWidth) {
             black = Ra::Colorant(0, 0, 0, 64), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
         }
         if (ftime == 0.f)
