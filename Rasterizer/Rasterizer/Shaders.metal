@@ -249,7 +249,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
     const device Point16 *mt = miters + iid * kFastSegments;
     bool pzero, nzero, pcap, ncap, skiplast = ue1 & 0x8, last;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, cosine, limit, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, tanx, tany, s, cosine, limit, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -272,12 +272,11 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     pzero = x == px && y == py, nzero = x == nx && y == ny;
     ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
     bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
-    t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
-    cosine = ax * bx + ay * by, t = cosine > 0.999 ? 1.0 : t;
-    mx = pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay);
-    my = pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax);
-    dx = x + left * dw * mx + cap * my * (float(ncap) - float(pcap));
-    dy = y + left * dw * my + cap * mx * (float(pcap) - float(ncap));
+    tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), tanx *= rl, tany *= rl;
+    s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * tanx + ay * tany));
+    mx = -tany, my = tanx;
+    dx = x + s * mx + cap * my * (float(ncap) - float(pcap));
+    dy = y + s * my + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
