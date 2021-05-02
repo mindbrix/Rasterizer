@@ -172,54 +172,6 @@ struct P16OutlinesVertex {
     float n, d, dw;
 };
 
-vertex void p16_miter_main(
-                                        const device Edge *edges [[buffer(1)]],
-                                        const device Transform *ctms [[buffer(4)]],
-                                        const device Instance *instances [[buffer(5)]],
-                                        const device float *widths [[buffer(6)]],
-                                        const device Bounds *bounds [[buffer(7)]],
-                                        const device Point16 *points [[buffer(8)]],
-                                        constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
-                                        constant uint *pathCount [[buffer(13)]],
-                                        constant bool *useCurves [[buffer(14)]],
-                                        device Point16 *miters [[buffer(20)]],
-                                        uint vid [[vertex_id]], uint iid [[instance_id]])
-{
-    if (vid != 0)
-        return;
-    const float miterLimit = 2.0 * kP16MiterLimit * kP16MiterLimit - 1.0;
-    const device Edge& edge = edges[iid];
-    const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i = iid - inst.quad.biid, j, idx;
-    const device Transform& m = ctms[inst.iz & kPathIndexMask];
-    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-    const device Point16 *pts = & points[inst.quad.base + i * kFastSegments], *pt;
-    device Point16 *mtr = miters + iid * kFastSegments;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, x, y, nx, ny, ax, ay, bx, by, rl, t, cosine, mtrscale = kP16MiterLimit * 32767.0;
-    bool pzero, nzero, skiplast = ue1 & 0x8, flip;
-    sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
-    sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    
-    x16 = (pts + edge.prev)->x & 0x7FFF, y16 = (pts + edge.prev)->y & 0x7FFF, px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
-    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
-
-    for (segcount -= int(skiplast), j = 0; j < kFastSegments; j++, mtr++, px = x, py = y, x = nx, y = ny) {
-        idx = min(j, segcount);
-        pt = pts + (!skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount));
-        x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
-        
-        pzero = x == px && y == py, nzero = x == nx && y == ny;
-        ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
-        bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
-        t = (((bx - by) - (-ax - ay)) * by - ((by + bx) - (-ay + ax)) * bx) / (ax * by - ay * bx);
-        cosine = ax * bx + ay * by, flip = cosine < miterLimit, t = cosine > 0.999 ? 1.0 : !flip ? t : 1.0 - 1.0 / (t - 1.0);
-        mtr->x = mtrscale * (pzero ? -by : nzero ? -ay : fma(ax, t, -ax - ay));
-        mtr->y = mtrscale * (pzero ? bx : nzero ? ax : fma(ay, t, -ay + ax));
-        mtrscale *= flip ? -1.0 : 1.0;
-    }
-}
-
 vertex P16OutlinesVertex p16_outlines_vertex_main(
                                const device Colorant *colors [[buffer(0)]],
                                 const device Edge *edges [[buffer(1)]],
@@ -231,7 +183,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
                                 constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
                                 constant uint *pathCount [[buffer(13)]],
                                 constant bool *useCurves [[buffer(14)]],
-                                const device Point16 *miters [[buffer(20)]],
                                 uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     const float mtrscale = 1.0 / 32767.0 / kP16MiterLimit;
@@ -247,7 +198,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Point16 *pts = & points[inst.quad.base + j];
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
-    const device Point16 *mt = miters + iid * kFastSegments;
     bool pzero, nzero, pcap, ncap, skiplast = ue1 & 0x8, last;
     float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, tanx, tany, s, cosine, limit, dx, dy, nx, ny, nmx, nmy, left, flip, nflip, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
