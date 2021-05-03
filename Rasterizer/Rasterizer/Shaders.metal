@@ -205,8 +205,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     p = pt + (idx == 0 ? edge.prev : -1), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
-    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
-    x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
+    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
     
     p = pt + (idx == segcount ? edge.next : 1), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
