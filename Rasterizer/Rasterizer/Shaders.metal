@@ -212,7 +212,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
     x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
     
-    nidx = !skiplast && edge.next && idx == segcount ? idx + edge.next : min(idx + 1, segcount);
+    nidx = idx == segcount ? idx + edge.next : idx + 1;
     x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
