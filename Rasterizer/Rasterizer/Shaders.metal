@@ -192,28 +192,23 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Instance& inst = instances[ic & Edge::kMask];
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-    int i = iid - inst.quad.biid, j = i * kFastSegments, pidx, idx, nidx;
-    const device Point16 *pts = & points[inst.quad.base + j];
+    int i = iid - inst.quad.biid, j = i * kFastSegments, idx = min(int(vid >> 1), segcount);
+    const device Point16 *pt = & points[inst.quad.base + j + idx], *p;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
-    bool pzero, nzero, pcap, ncap, skiplast = ue1 & 0x8;
+    bool pzero, nzero, pcap, ncap;
     float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, px, py, ax, ay, bx, by, rl, tanx, tany, s, limit, dx, dy, nx, ny, nmx, nmy, left, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     
-    idx = min(int(vid >> 1), segcount);
-    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
-    
-    pidx = idx == 0 ? edge.prev : idx - 1;
-    x16 = (pts + pidx)->x & 0x7FFF, y16 = (pts + pidx)->y & 0x7FFF;
+    p = pt + (idx == 0 ? edge.prev : -1), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
     
-    x16 = (pts + idx)->x & 0x7FFF, y16 = (pts + idx)->y & 0x7FFF;
+    x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF;
     x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
     
-    nidx = idx == segcount ? idx + edge.next : idx + 1;
-    x16 = (pts + nidx)->x & 0x7FFF, y16 = (pts + nidx)->y & 0x7FFF;
+    p = pt + (idx == segcount ? edge.next : 1), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
     
     pzero = x == px && y == py, ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
@@ -221,6 +216,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), tanx *= rl, tany *= rl;
     left = select(1.0, -1.0, vid & 1), s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * tanx + ay * tany));
     mx = -tany, my = tanx;
+    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     dx = x + s * mx + cap * my * (float(ncap) - float(pcap));
     dy = y + s * my + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
