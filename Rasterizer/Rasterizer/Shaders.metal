@@ -196,33 +196,43 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     const device Point16 *pt = & points[inst.quad.base + j + idx], *p;
     const device Colorant& color = colors[inst.iz & kPathIndexMask];
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = 0.5 * (cw + 1.0), cap = select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
-    bool pzero, nzero, pcap, ncap;
-    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, ppx, ppy, px, py, ax, ay, bx, by, rl, tanx, tany, s, limit, dx, dy, nx, ny, nnx, nny, nmx, nmy, left, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
+    bool ppzero, pzero, nzero, nnzero, pcap, ncap;
+    float sx, sy, ma, mb, mc, md, tx, ty, x16, y16, ppx, ppy, px, py, pax, pay, ax, ay, bx, by, nbx, nby, rl, tanx, tany, s, limit, dx, dy, nx, ny, nnx, nny, nmx, nmy, left, mx, my, pmx, pmy, t0, t1, t, alpha, premul, x, y;
     sx = (b.ux - b.lx) / 32767.0, ma = m.a * sx, mb = m.b * sx;
     sy = (b.uy - b.ly) / 32767.0, mc = m.c * sy, md = m.d * sy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    left = select(1.0, -1.0, vid & 1);
     
     p = pt + (idx < 2 && edge.prev ? edge.prev - 1: -min(2, idx)), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
     ppx = x16 * ma + y16 * mc + tx, ppy = x16 * mb + y16 * md + ty;
-    
     p = pt + (idx == 0 ? edge.prev : -1), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
     px = x16 * ma + y16 * mc + tx, py = x16 * mb + y16 * md + ty;
-    
     x16 = pt->x & 0x7FFF, y16 = pt->y & 0x7FFF, x = x16 * ma + y16 * mc + tx, y = x16 * mb + y16 * md + ty;
-    
     p = pt + (idx == segcount ? edge.next : 1), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;;
     nx = x16 * ma + y16 * mc + tx, ny = x16 * mb + y16 * md + ty;
-    
     p = pt + (idx > segcount - 2 && edge.next ? edge.next + 1 : min(2, segcount - idx)), x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
     nnx = x16 * ma + y16 * mc + tx, nny = x16 * mb + y16 * md + ty;
     
+    ppzero = ppx == px && ppy == py, pax = px - ppx, pay = py - ppy, rl = rsqrt(pax * pax + pay * pay), pax *= rl, pay *= rl;
     pzero = x == px && y == py, ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
     nzero = x == nx && y == ny, bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
+    nnzero = nx == nnx && ny == nny, nbx = nnx - nx, nby = nny - ny, rl = rsqrt(nbx * nbx + nby * nby), nbx *= rl, nby *= rl;
+    
+    tanx = ax + pax, tany = ay + pay, rl = rsqrt(tanx * tanx + tany * tany), pmx = -tany * rl, pmy = tanx * rl;
     tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), mx = -tany * rl, my = tanx * rl;
-    left = select(1.0, -1.0, vid & 1), s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * my - ay * mx));
+    s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * my - ay * mx));
+    tanx = bx + nbx, tany = by + nby, rl = rsqrt(tanx * tanx + tany * tany), nmx = -tany * rl, nmy = tanx * rl;
+    
+    limit = dw * dw / (kP16MiterLimit * kP16MiterLimit);
+    ax = px - x, ay = py - y;
+    t0 = ppzero || pzero || limit / (ax * ax + ay * ay) < 1.0 ? 1.0 : (ax * pmy - ay * pmx) / (s * (mx * pmy - my * pmx));
+    bx = nx - x, by = ny - y;
+    t1 = nzero || nnzero || limit / (bx * bx + by * by) < 1.0 ? 1.0 : (bx * nmy - by * nmx) / (s * (mx * nmy - my * nmx));
+    t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
+    
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
-    dx = x + s * mx + cap * my * (float(ncap) - float(pcap));
-    dy = y + s * my + cap * mx * (float(pcap) - float(ncap));
+    dx = x + s * mx * t + cap * my * (float(ncap) - float(pcap));
+    dy = y + s * my * t + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
         dx / *width * 2.0 - 1.0,
         dy / *height * 2.0 - 1.0,
@@ -233,20 +243,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     vert.color = { color.r * premul, color.g * premul, color.b * premul, alpha };
     vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
     return vert;
-    /*
-    ax = px - dx, ay = py - dy
-    bx = nx - dx, by = ny - dy
-
-    pmx *= left * dw, pmy *= left * dw;
-    mx *= flip * left * dw, my *= flip * left * dw;
-    nmx *= nflip * left * dw, nmy *= nflip * left * dw;
-    limit = dw * dw / (kP16MiterLimit * kP16MiterLimit);
-    t0 = pcap || limit / (ax * ax + ay * ay) < 1.0 ? 1.0 : (ax * pmy - ay * pmx) / (mx * pmy - my * pmx);
-    t1 = ncap || limit / (bx * bx + by * by) < 1.0 ? 1.0 : (bx * nmy - by * nmx) / (mx * nmy - my * nmx);
-    t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
-    mx *= t, my *= t;
-    x = dx + mx, y = dy + my;
-     */
 }
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
