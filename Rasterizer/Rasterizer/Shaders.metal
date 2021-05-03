@@ -212,9 +212,8 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     pzero = x == px && y == py, ax = x - px, ay = y - py, rl = pzero ? 0.0 : rsqrt(ax * ax + ay * ay), ax *= rl, ay *= rl;
     nzero = x == nx && y == ny, bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
-    tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), tanx *= rl, tany *= rl;
-    left = select(1.0, -1.0, vid & 1), s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * tanx + ay * tany));
-    mx = -tany, my = tanx;
+    tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), mx = -tany * rl, my = tanx * rl;
+    left = select(1.0, -1.0, vid & 1), s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * my - ay * mx));
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
     dx = x + s * mx + cap * my * (float(ncap) - float(pcap));
     dy = y + s * my + cap * mx * (float(pcap) - float(ncap));
