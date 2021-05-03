@@ -223,11 +223,11 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * my - ay * mx));
     nmx = -(by + nby), nmy = bx + nbx;
     
-    limit = dw * dw / (kP16MiterLimit * kP16MiterLimit);
+    limit = (kP16MiterLimit * kP16MiterLimit) / (dw * dw);
     ax = px - x, ay = py - y;
-    t0 = ppzero || pzero || limit / (ax * ax + ay * ay) < 1.0 ? 1.0 : (ax * pmy - ay * pmx) / (s * (mx * pmy - my * pmx));
+    t0 = ppzero || pzero || (ax * ax + ay * ay) * limit > 1.0 ? 1.0 : (ax * pmy - ay * pmx) / (s * (mx * pmy - my * pmx));
     bx = nx - x, by = ny - y;
-    t1 = nzero || nnzero || limit / (bx * bx + by * by) < 1.0 ? 1.0 : (bx * nmy - by * nmx) / (s * (mx * nmy - my * nmx));
+    t1 = nzero || nnzero || (bx * bx + by * by) * limit > 1.0 ? 1.0 : (bx * nmy - by * nmx) / (s * (mx * nmy - my * nmx));
     t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
     
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
