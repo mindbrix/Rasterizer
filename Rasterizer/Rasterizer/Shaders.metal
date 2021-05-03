@@ -225,6 +225,10 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
         ((inst.iz & kPathIndexMask) * 2 + 1) / float(*pathCount * 2 + 2),
         float(segcount != 0)
     };
+    alpha = color.a * w / cw * 0.003921568627, premul = alpha * 0.003921568627;
+    vert.color = { color.r * premul, color.g * premul, color.b * premul, alpha };
+    vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
+    return vert;
     /*
     ax = px - dx, ay = py - dy
     bx = nx - dx, by = ny - dy
@@ -239,10 +243,6 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     mx *= t, my *= t;
     x = dx + mx, y = dy + my;
      */
-    alpha = color.a * w / cw * 0.003921568627, premul = alpha * 0.003921568627;
-    vert.color = { color.r * premul, color.g * premul, color.b * premul, alpha };
-    vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
-    return vert;
 }
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
