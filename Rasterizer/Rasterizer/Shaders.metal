@@ -218,10 +218,10 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     nzero = x == nx && y == ny, bx = nx - x, by = ny - y, rl = nzero ? 0.0 : rsqrt(bx * bx + by * by), bx *= rl, by *= rl;
     nnzero = nx == nnx && ny == nny, nbx = nnx - nx, nby = nny - ny, rl = rsqrt(nbx * nbx + nby * nby), nbx *= rl, nby *= rl;
     
-    tanx = ax + pax, tany = ay + pay, rl = rsqrt(tanx * tanx + tany * tany), pmx = -tany * rl, pmy = tanx * rl;
+    pmx = -(ay + pay), pmy = ax + pax;
     tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), mx = -tany * rl, my = tanx * rl;
     s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * my - ay * mx));
-    tanx = bx + nbx, tany = by + nby, rl = rsqrt(tanx * tanx + tany * tany), nmx = -tany * rl, nmy = tanx * rl;
+    nmx = -(by + nby), nmy = bx + nbx;
     
     limit = dw * dw / (kP16MiterLimit * kP16MiterLimit);
     ax = px - x, ay = py - y;
