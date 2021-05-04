@@ -169,7 +169,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 
 struct P16OutlinesVertex {
     float4 position [[position]], color;
-    float n, d, dw;
+    float n, d, dw, d0, d1;
 };
 
 vertex P16OutlinesVertex p16_outlines_vertex_main(
@@ -228,6 +228,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
     
     pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
+    pcap |= pzero, ncap |= nzero;
     dx = x + s * mx * t + cap * my * (float(ncap) - float(pcap));
     dy = y + s * my * t + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
@@ -239,12 +240,14 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     alpha = color.a * w / cw * 0.003921568627, premul = alpha * 0.003921568627;
     vert.color = { color.r * premul, color.g * premul, color.b * premul, alpha };
     vert.n = j + idx, vert.dw = dw, vert.d = dw * left;
+    vert.d0 = edge.prev ? 1.0 : pcap ? 0.0 : (dx - px) * ax + (dy - py) * ay + cap;
+    vert.d1 = edge.next ? 1.0 : ncap ? 0.0 : -((dx - nx) * bx + (dy - ny) * by) + cap;
     return vert;
 }
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
 {
-    return vert.color * saturate(vert.dw - abs(vert.d));
+    return vert.color * min(saturate(vert.d0), min(saturate(vert.d1), saturate(vert.dw - abs(vert.d))));
 //    return vert.color * (vert.n - floor(vert.n));
 }
 
