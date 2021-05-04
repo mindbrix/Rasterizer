@@ -247,8 +247,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
 
 fragment float4 p16_outlines_fragment_main(P16OutlinesVertex vert [[stage_in]])
 {
-    return vert.color * min(saturate(vert.d0), min(saturate(vert.d1), saturate(vert.dw - abs(vert.d))));
-//    return vert.color * (vert.n - floor(vert.n));
+    return vert.color * saturate(vert.d0) * saturate(vert.d1) * saturate(vert.dw - abs(vert.d));
 }
 
 #pragma mark - Fast Molecules
