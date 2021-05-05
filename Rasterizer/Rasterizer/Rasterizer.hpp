@@ -228,6 +228,9 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;  float bx, by, len, cosine;
             bx = x1 - x0, by = y1 - y0, len = bx == 0.f && by == 0.f ? 1.f : sqrtf(bx * bx + by * by), bx /= len, by /= len;
             if ((curve & kMoleculesEnd) == 0) {
+                uint16_t x16 = (x1 - x0) / (g->bounds.ux - g->bounds.lx) * 32767.f, y16 = (y1 - y0) / (g->bounds.uy - g->bounds.ly) * 32767.f;
+                if (x16 * x16 + y16 * y16 < 2.f)
+                    return;
                 if (g->ax0 == FLT_MAX)
                     g->ax0 = bx, g->ay0 = by;
                 else if (g->ax * bx + g->ay * by <= kP16GeometryLimit)
