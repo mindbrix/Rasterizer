@@ -220,7 +220,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     
     pmx = -(ay + pay), pmy = ax + pax;
     tanx = ax + bx, tany = ay + by, rl = rsqrt(tanx * tanx + tany * tany), mx = -tany * rl, my = tanx * rl;
-    s = left * dw * (pzero || nzero ? 1.0 : 1.0 / abs(ax * my - ay * mx));
+    s = left * dw * (pzero || nzero ? 1.0 : 1.0 / max(kP16MiterLimit, abs(ax * my - ay * mx)));
     nmx = -(by + nby), nmy = bx + nbx;
     
     t0 = ppzero || pzero || ra * dw < kP16MiterLimit ? 1.0 : (ax * pmy - ay * pmx) / (s * -ra * (mx * pmy - my * pmx));
