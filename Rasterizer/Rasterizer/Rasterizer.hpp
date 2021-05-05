@@ -220,27 +220,27 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        inline void writePoint16(float x, float y, Bounds& b, uint32_t curve) {
-            uint16_t x16 = (x - b.lx) / (b.ux - b.lx) * 32767.f, y16 = (y - b.ly) / (b.uy - b.ly) * 32767.f;
+        inline void writePoint16(uint16_t x16, uint16_t y16, uint32_t curve) {
             new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  float bx, by, len, cosine;
-            bx = x1 - x0, by = y1 - y0, len = bx == 0.f && by == 0.f ? 1.f : sqrtf(bx * bx + by * by), bx /= len, by /= len;
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
+            float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
+            dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
             if ((curve & kMoleculesEnd) == 0) {
-                uint16_t x16 = (x1 - x0) / (g->bounds.ux - g->bounds.lx) * 32767.f, y16 = (y1 - y0) / (g->bounds.uy - g->bounds.ly) * 32767.f;
+                uint16_t x16 = dx * sx, y16 = dy * sy;
                 if (x16 * x16 + y16 * y16 < 2.f)
                     return;
                 if (g->ax0 == FLT_MAX)
                     g->ax0 = bx, g->ay0 = by;
                 else if (g->ax * bx + g->ay * by <= kP16GeometryLimit)
-                    g->writePoint16(x0, y0, g->bounds, curve);
-                g->writePoint16(x0, y0, g->bounds, curve), g->ax = bx, g->ay = by;
+                    g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve);
+                g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve), g->ax = bx, g->ay = by;
             } else {
                 cosine = x0 != x1 || y0 != y1 ? g->ax0 * bx + g->ay0 * by : g->ax0 * g->ax + g->ay0 * g->ay;
                 if ((curve & 0x1) == 0 && cosine <= kP16GeometryLimit)
-                    g->writePoint16(x1, y1, g->bounds, 0);
-                g->writePoint16(x1, y1, g->bounds, 0), g->ax0 = FLT_MAX;
+                    g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
+                g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0), g->ax0 = FLT_MAX;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
                 uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last, skiplast;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
