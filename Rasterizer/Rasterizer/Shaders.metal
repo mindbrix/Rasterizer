@@ -227,8 +227,7 @@ vertex P16OutlinesVertex p16_outlines_vertex_main(
     t1 = nzero || nnzero || rb * dw < kP16MiterLimit ? 1.0 : (bx * nmy - by * nmx) / (s * rb * (mx * nmy - my * nmx));
     t = min(1.0, min(t0 < 0.0 ? 1.0 : t0, t1 < 0.0 ? 1.0 : t1));
     
-    pcap = idx == 0 && edge.prev == 0, ncap = idx == segcount && edge.next == 0;
-    pcap |= pzero, ncap |= nzero;
+    pcap = pzero || (idx == 0 && edge.prev == 0), ncap = nzero || (idx == segcount && edge.next == 0);
     dx = x + s * mx * t + cap * my * (float(ncap) - float(pcap));
     dy = y + s * my * t + cap * mx * (float(pcap) - float(ncap));
     vert.position = {
