@@ -227,9 +227,8 @@ struct Rasterizer {
             new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
         }
         static void WriteQuadratic16(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
+            Bounds& b = ((Geometry *)info)->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
-            float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             int16_t ax = sx * (x - x0), ay = sy * (y - y0), bx = sx * (x2 - x), by = sy * (y2 - y);
             if (ax * ax + ay * ay < 2 || bx * bx + by * by < 2)
                 (*function)(x0, y0, x2, y2, 0, info);
