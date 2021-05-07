@@ -123,6 +123,9 @@ struct Rasterizer {
         size_t end = 0, idx = 0;
         T *base = nullptr;
     };
+    typedef void (*SegmentFunction)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
+    typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
+    typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     struct Geometry {
         static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
         struct Point16 {
@@ -233,8 +236,8 @@ struct Rasterizer {
                     return;
                 if (g->ax0 == FLT_MAX)
                     g->ax0 = bx, g->ay0 = by;
-                else if (g->ax * bx + g->ay * by <= kP16GeometryLimit)
-                    g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve);
+                else if ((curve & 2) == 0 && g->ax * bx + g->ay * by <= kP16GeometryLimit)
+                    g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, 0);
                 g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve), g->ax = bx, g->ay = by;
             } else {
                 cosine = x0 != x1 || y0 != y1 ? g->ax0 * bx + g->ay0 * by : g->ax0 * g->ax + g->ay0 * g->ay;
@@ -506,10 +509,6 @@ struct Rasterizer {
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
-    typedef void (*SegmentFunction)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
-    typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
-    typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
-    
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
