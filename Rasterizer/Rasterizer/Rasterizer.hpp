@@ -226,6 +226,16 @@ struct Rasterizer {
         inline void writePoint16(uint16_t x16, uint16_t y16, uint32_t curve) {
             new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
         }
+        static void WriteQuadratic16(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s) {
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
+            float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
+            float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
+            int16_t ax = sx * (x - x0), ay = sy * (y - y0), bx = sx * (x2 - x), by = sy * (y2 - y);
+            if (ax * ax + ay * ay < 2 || bx * bx + by * by < 2)
+                (*function)(x0, y0, x2, y2, 0, info);
+            else
+                (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
+        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
             float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
@@ -286,7 +296,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, Geometry::WriteQuadratic16, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base, e->p16offs = path->p16offs.base;
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
