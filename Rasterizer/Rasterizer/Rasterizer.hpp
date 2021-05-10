@@ -236,7 +236,7 @@ struct Rasterizer {
                 (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  bool end = curve & kMoleculesEnd, pcurve = curve & 2;
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  bool end = curve & kMoleculesEnd, pcurve = curve & 2, skiplast = curve & 1;
             float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
             if (!end) {
@@ -250,14 +250,14 @@ struct Rasterizer {
                 g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve), g->ax = bx, g->ay = by;
             } else {
                 cosine = x0 != x1 || y0 != y1 ? g->ax0 * bx + g->ay0 * by : g->ax0 * g->ax + g->ay0 * g->ay;
-                if ((curve & 0x1) == 0 && cosine <= kP16GeometryLimit)
+                if (!skiplast && cosine <= kP16GeometryLimit)
                     g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
                 g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0), g->ax0 = FLT_MAX;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last, skiplast;
+                uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                skiplast = curve & 0x1, empty = cnt[-1] == 0, last = cnt[-1] == 1 && skiplast, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
+                empty = cnt[-1] == 0, last = cnt[-1] == 1 && skiplast, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
                 for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
                 off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty || last ? - 3 : -1] = -off0[0];
