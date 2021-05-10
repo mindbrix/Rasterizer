@@ -236,7 +236,8 @@ struct Rasterizer {
                 (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  bool end = curve & kMoleculesEnd, pcurve = curve & 2, skiplast = curve & 1;
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
+            bool end = curve & kMoleculesEnd, pcurve = curve & 2, skiplast = curve & 1, closeSubpath = curve & 2;
             float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
             if (!end) {
@@ -260,7 +261,7 @@ struct Rasterizer {
                 empty = cnt[-1] == 0, last = cnt[-1] == 1 && skiplast, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
                 for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
                     off[0] = -1, off[1] = 1;
-                off0[0] = short((curve & 0x2) != 0) * (g->p16s.end - g->p16s.idx - 2), off[empty || last ? - 3 : -1] = -off0[0];
+                off0[0] = closeSubpath * (g->p16s.end - g->p16s.idx - 2), off[empty || last ? - 3 : -1] = -off0[0];
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
