@@ -236,16 +236,16 @@ struct Rasterizer {
                 (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  bool end = curve & kMoleculesEnd, pcurve = curve & 2;
             float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
-            if ((curve & kMoleculesEnd) == 0) {
+            if (!end) {
                 int16_t x16 = dx * sx, y16 = dy * sy;
                 if (x16 * x16 + y16 * y16 < 2)
                     return;
                 if (g->ax0 == FLT_MAX)
                     g->ax0 = bx, g->ay0 = by;
-                else if ((curve & 2) == 0 && g->ax * bx + g->ay * by <= kP16GeometryLimit)
+                else if (!pcurve && g->ax * bx + g->ay * by <= kP16GeometryLimit)
                     g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, 0);
                 g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve), g->ax = bx, g->ay = by;
             } else {
