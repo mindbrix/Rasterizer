@@ -237,10 +237,10 @@ struct Rasterizer {
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
-            bool end = curve & kMoleculesEnd, pcurve = curve & 2, skiplast = curve & 1, closeSubpath = curve & 2;
+            bool mark = curve & kMoleculesEnd, pcurve = curve & 2, skiplast = curve & 1, closeSubpath = curve & 2;
             float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
-            if (!end) {
+            if (!mark) {
                 int16_t x16 = dx * sx, y16 = dy * sy;
                 if (x16 * x16 + y16 * y16 < 2)
                     return;
