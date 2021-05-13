@@ -908,8 +908,7 @@ struct Rasterizer {
                 out->dst->iz = out->iz | out->flags[curve & ~kMoleculesEnd], o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.prev = -1, o.next = 1, out->dst++;
             } else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
-                bool closeSubpath = curve & 1, closed = curve & 2, close = (closed && !closeSubpath) || closeSubpath;
-                first->outline.prev = int(close) * int(last - first), last->outline.next = -first->outline.prev;
+                first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
         uint32_t iz;  Instance *dst0, *dst;  uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
