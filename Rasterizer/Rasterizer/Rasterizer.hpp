@@ -237,7 +237,7 @@ struct Rasterizer {
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
-            bool mark = curve & kMoleculesEnd, pcurve = curve & 2, closeSubpath = curve & 2, closed = curve & 4, skiplast = closed && !closeSubpath;
+            bool mark = curve & kMoleculesEnd, pcurve = curve & 2, closeSubpath = curve & 1, closed = curve & 2, skiplast = closed && !closeSubpath;
             float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
             if (!mark) {
@@ -527,7 +527,7 @@ struct Rasterizer {
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
-                        (*function)(x0, y0, sx, sy, kMoleculesEnd | (uint32_t(closeSubpath) << 1) | (uint32_t(closed) << 2), info);
+                        (*function)(x0, y0, sx, sy, kMoleculesEnd | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1), info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -585,7 +585,7 @@ struct Rasterizer {
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark)
-            (*function)(x0, y0, sx, sy, kMoleculesEnd | (uint32_t(closeSubpath) << 1) | (uint32_t(closed) << 2), info);
+            (*function)(x0, y0, sx, sy, kMoleculesEnd | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1), info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
         if (unclipped)
@@ -908,7 +908,7 @@ struct Rasterizer {
                 out->dst->iz = out->iz | out->flags[curve & ~kMoleculesEnd], o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.prev = -1, o.next = 1, out->dst++;
             } else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
-                bool closeSubpath = curve & 2, closed = curve & 4, close = (closed && !closeSubpath) || closeSubpath;
+                bool closeSubpath = curve & 1, closed = curve & 2, close = (closed && !closeSubpath) || closeSubpath;
                 first->outline.prev = int(close) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
