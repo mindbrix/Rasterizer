@@ -150,7 +150,7 @@ struct RasterizerState {
     }
     bool needsRedraw() {  return animating || events.size() > 0;  }
     
-    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false, fastOutlines = true, p16Outlines = true;
+    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false, fastOutlines = true, p16Outlines = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     int keyCode = 0;
