@@ -227,15 +227,13 @@ struct Rasterizer {
             new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
-            bool mark = curve & kMoleculesEnd, skiplast = bool(curve & 2) && !bool(curve & 1);
-            float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
-            if (!mark)
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
+            if ((curve & kMoleculesEnd) == 0)
                 g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve);
             else {
                 g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty;
+                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
