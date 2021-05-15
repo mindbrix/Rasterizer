@@ -228,7 +228,7 @@ struct Rasterizer {
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
-            bool mark = curve & kMoleculesEnd, closeSubpath = curve & 1, closed = curve & 2, skiplast = closed && !closeSubpath;
+            bool mark = curve & kMoleculesEnd, skiplast = bool(curve & 2) && !bool(curve & 1);
             float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             if (!mark)
                 g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve);
