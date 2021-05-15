@@ -255,19 +255,16 @@ struct Rasterizer {
                     g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
                 g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0), g->ax0 = FLT_MAX;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  short *off, *off0;  int i, segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last;
+                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, last = cnt[-1] == 1 && skiplast, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
-                for (off0 = off = g->p16offs.alloc(2 * icnt), i = 0; i < icnt; i++, off += 2)
-                    off[0] = -1, off[1] = 1;
-                off0[0] = closeSubpath * (g->p16s.end - g->p16s.idx - 2), off[empty || last ? - 3 : -1] = -off0[0];
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
-        Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<short> p16offs;  Row<Bounds> molecules;
+        Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Bounds> molecules;
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f, ax0 = FLT_MAX, ay0, ax, ay;
         Bounds bounds;
     };
@@ -275,7 +272,7 @@ struct Rasterizer {
     
     struct Scene {
         struct Cache {
-            struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  short *p16offs;  };
+            struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
             size_t refCount = 0;
             Row<uint32_t> ips;  Row<Entry> entries;
             std::unordered_map<size_t, size_t> map;
@@ -298,7 +295,7 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, Geometry::WriteQuadratic16, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
-                    Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base, e->p16offs = path->p16offs.base;
+                    Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
