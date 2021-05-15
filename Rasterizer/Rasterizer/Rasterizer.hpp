@@ -226,34 +226,14 @@ struct Rasterizer {
         inline void writePoint16(uint16_t x16, uint16_t y16, uint32_t curve) {
             new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
         }
-        static void WriteQuadratic16(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s) {
-            Bounds& b = ((Geometry *)info)->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
-            float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
-            int16_t ax = sx * (x - x0), ay = sy * (y - y0), bx = sx * (x2 - x), by = sy * (y2 - y);
-            if (ax * ax + ay * ay < 2 || bx * bx + by * by < 2)
-                (*function)(x0, y0, x2, y2, 0, info);
-            else
-                (*function)(x0, y0, x, y, 1, info), (*function)(x, y, x2, y2, 2, info);
-        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;
-            bool mark = curve & kMoleculesEnd, pcurve = curve & 2, closeSubpath = curve & 1, closed = curve & 2, skiplast = closed && !closeSubpath;
-            float dx, dy, bx, by, len, cosine, sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
-            dx = x1 - x0, dy = y1 - y0, len = dx == 0.f && dy == 0.f ? 1.f : sqrtf(dx * dx + dy * dy), bx = dx / len, by = dy / len;
-            if (!mark) {
-                int16_t x16 = dx * sx, y16 = dy * sy;
-                if (x16 * x16 + y16 * y16 < 2)
-                    return;
-                if (g->ax0 == FLT_MAX)
-                    g->ax0 = bx, g->ay0 = by;
-                else if (!pcurve && g->ax * bx + g->ay * by <= kP16GeometryLimit)
-                    g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, 0);
-                g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve), g->ax = bx, g->ay = by;
-            } else {
-                cosine = x0 != x1 || y0 != y1 ? g->ax0 * bx + g->ay0 * by : g->ax0 * g->ax + g->ay0 * g->ay;
-                if (!skiplast && cosine <= kP16GeometryLimit)
-                    g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
-                g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0), g->ax0 = FLT_MAX;
+            bool mark = curve & kMoleculesEnd, closeSubpath = curve & 1, closed = curve & 2, skiplast = closed && !closeSubpath;
+            float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
+            if (!mark)
+                g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve);
+            else {
+                g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
                 uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, last;
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
@@ -265,7 +245,7 @@ struct Rasterizer {
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         Row<uint8_t> types;  Row<float> points;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Bounds> molecules;
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f, ax0 = FLT_MAX, ay0, ax, ay;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;
         Bounds bounds;
     };
     typedef Ref<Geometry> Path;
@@ -293,7 +273,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, Geometry::WriteQuadratic16, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
