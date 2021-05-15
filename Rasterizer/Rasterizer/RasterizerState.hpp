@@ -17,7 +17,7 @@ struct RasterizerState {
         float *srcWidths, float *dstWidths,
         uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     
-    enum KeyCode { kC = 8, kF = 3, kI = 34, kJ = 38, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
+    enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
         enum Type { kNull = 0, kMouseMove, kMouseUp, kDragged, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate, kFit };
@@ -37,7 +37,7 @@ struct RasterizerState {
     };
     
     bool writeEvent(Event e) {
-        const KeyCode keyCodes[] = { kC, kF, kI, kJ, kO, kP, k0, k1, kL, kReturn };
+        const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
         bool written = e.type != Event::kKeyDown;
         if (e.type == Event::kKeyDown)
             for (int keyCode : keyCodes)
@@ -81,8 +81,6 @@ struct RasterizerState {
                         fastOutlines = !fastOutlines;
                     else if (e.keyCode == KeyCode::kI)
                         opaque = !opaque;
-                    else if (e.keyCode == KeyCode::kJ)
-                        p16Outlines = !p16Outlines;
                     else if (e.keyCode == KeyCode::kO)
                         outlineWidth = outlineWidth ? 0.f : -1.f;
                     else if (e.keyCode == KeyCode::kP)
