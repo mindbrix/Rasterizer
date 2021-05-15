@@ -402,7 +402,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;
         Row<Entry> entries;
-        bool useCurves = false, fastOutlines = false, p16Outlines = true;
+        bool useCurves = false, fastOutlines = false;
         Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, pathsCount, headerSize, size = 0;
     };
@@ -455,23 +455,6 @@ struct Rasterizer {
                     if ((flags = scene->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
                     m = ctm.concat(scene->ctms->base[is]), det = fabsf(m.det()), uw = scene->widths->base[is], b = & scene->bnds->base[is];
-                    if (buffer->p16Outlines) {
-                        if (uw) {
-                            ax = b->ux - b->lx, ay = b->uy - b->ly, cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy), diam = sqrtf((ax * ax + ay * ay) * det);
-                            if (fabsf(cx * m.a + cy * m.c + m.tx - clipx) > clipw + diam || fabsf(cx * m.b + cy * m.d + m.ty - clipy) > cliph + diam)
-                                continue;
-                            ctms[iz] = m, bounds[iz] = *b, widths[iz] = uw * (uw > 0.f ? sqrtf(det) : -1.f), clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-    
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
-                            ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
-                            if (fasts.base[lz + ip]++ == 0)
-                                p16total += size;
-                            inst->data.idx = int(lz + ip);
-                            Allocator::Pass& pass = allocator.passes.back();  pass.size++, pass.counts[Allocator::kP16Outlines] += size / kFastSegments;
-                            outlineInstances++;
-                        }
-                        continue;
-                    }
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     unit = b->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
@@ -971,17 +954,9 @@ struct Rasterizer {
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
-                    if (buffer.p16Outlines) {
-                        ic = dst - dst0, dst->iz = inst->iz, dst->quad.base = int(ctx->fasts.base[inst->data.idx]), dst->quad.biid = int(outline - outline0), dst++;
-                        Scene::Cache& cache = *list.scenes[i].cache.ref;  Scene::Cache::Entry& e = cache.entries.base[cache.ips.base[is]];
-                        uint8_t *p16cnt = e.p16cnts;  short *p16off = e.p16offs;;
-                        for (j = 0, size = e.size / kFastSegments; j < size; j++, outline++, p16cnt++, p16off += 2)
-                            outline->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), outline->prev = p16off[0], outline->next = p16off[1];
-                    } else {
-                        Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
-                        divideGeometry(list.scenes[i].paths->base[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-                        dst = out.dst;
-                    }
+                    Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
+                    divideGeometry(list.scenes[i].paths->base[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
+                    dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
@@ -1022,7 +997,7 @@ struct Rasterizer {
                     }
                 }
             }
-            if (!buffer.p16Outlines && dst > dst0) {
+            if (dst > dst0) {
                 end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, 0);
                 entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
                 begin = end = end + (dst - dst0) * sizeof(Segment);
