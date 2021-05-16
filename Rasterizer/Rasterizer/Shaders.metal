@@ -531,10 +531,9 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
-    float4 position [[position]];
-    float4 color, clip;
-    float u, v, cover, dw, d0, d1, dm, miter0, miter1;
-    uint32_t flags;
+    float4 position [[position]], clip;
+    float u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
+    uint32_t iz, flags;
 };
 
 vertex void instances_transform_main(
@@ -566,7 +565,6 @@ vertex void instances_transform_main(
     }
 }
 vertex InstancesVertex instances_vertex_main(
-            const device Colorant *colors [[buffer(0)]],
             const device Instance *instances [[buffer(1)]],
             const device Segment *segments [[buffer(20)]],
             const device Transform *clips [[buffer(5)]],
@@ -580,9 +578,8 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
-    const device Colorant& color = colors[iz];
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
-    float alpha = color.a * 0.003921568627 * select(1.0, w / cw, w != 0), dx, dy;
+    float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         const device Instance& ninst = instances[iid + inst.outline.next];
         const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = ninst.outline.s;
@@ -651,15 +648,15 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, 1.0);
-    
-    float ma = alpha * 0.003921568627;
-    vert.color = float4(color.r * ma, color.g * ma, color.b * ma, alpha);
     vert.clip = distances(clips[iz], dx, dy);
+    vert.alpha = alpha;
+    vert.iz = iz;
     return vert;
 }
 
-
-fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], texture2d<float> accumulation [[texture(0)]])
+fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
+                                        const device Colorant *colors [[buffer(0)]],
+                                        texture2d<float> accumulation [[texture(0)]])
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
@@ -698,5 +695,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]], textu
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
-    return vert.color * alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
+    const device Colorant& color = colors[vert.iz];
+    float a = color.a * 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w), ma = a * 0.003921568627;
+    return { color.r * ma, color.g * ma, color.b * ma, a };
 }
