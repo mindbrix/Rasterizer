@@ -968,10 +968,8 @@ struct Rasterizer {
                     }
                 }
             }
-            if (dst > dst0) {
-                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kInstances, begin, end);
-                begin = end = end + (dst - dst0) * sizeof(Segment);
-            }
+            if ((size = dst - dst0))
+                end = begin + size * sizeof(Instance), entries.emplace_back(Buffer::kInstances, begin, end), begin = end = end + size * sizeof(Segment);
         }
     }
 };
