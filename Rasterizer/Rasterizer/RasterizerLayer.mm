@@ -188,7 +188,7 @@
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
     
-    for (size_t segbase = 0, ptsbase = 0, instbase = 0, transformbase = 0, i = 0; i < buffer->entries.end; i++) {
+    for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
             case Ra::Buffer::kSegmentsBase:
@@ -199,9 +199,6 @@
                 break;
             case Ra::Buffer::kInstancesBase:
                 instbase = entry.begin;
-                break;
-            case Ra::Buffer::kTransformBase:
-                transformbase = entry.begin;
                 break;
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
@@ -261,12 +258,12 @@
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 }
                 break;
-            case Ra::Buffer::kInstanceTransforms:
+            case Ra::Buffer::kInstances:
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setRenderPipelineState:_instancesTransformState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:transformbase atIndex:20];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder drawPrimitives:isM1 ? MTLPrimitiveTypeTriangleStrip : MTLPrimitiveTypePoint
                                    vertexStart:0
@@ -275,12 +272,10 @@
                                   baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                break;
-            case Ra::Buffer::kInstances:
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:transformbase atIndex:20];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];

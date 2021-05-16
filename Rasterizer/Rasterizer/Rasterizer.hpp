@@ -350,7 +350,7 @@ struct Rasterizer {
         union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kInstanceTransforms, kSegmentsBase, kPointsBase, kInstancesBase, kTransformBase };
+        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -969,8 +969,7 @@ struct Rasterizer {
                 }
             }
             if (dst > dst0) {
-                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kTransformBase, end, 0);
-                entries.emplace_back(Buffer::kInstanceTransforms, begin, end), entries.emplace_back(Buffer::kInstances, begin, end);
+                end = begin + (dst - dst0) * sizeof(Instance), entries.emplace_back(Buffer::kInstances, begin, end);
                 begin = end = end + (dst - dst0) * sizeof(Segment);
             }
         }
