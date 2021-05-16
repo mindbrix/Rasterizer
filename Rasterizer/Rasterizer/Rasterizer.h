@@ -27,4 +27,3 @@
 #define kMiterLimit 1.5
 #define kUXCoverSize 4
 #define kP16MiterLimit 0.25   //   1/4
-#define kP16GeometryLimit (2.0 * kP16MiterLimit * kP16MiterLimit - 1.0)
