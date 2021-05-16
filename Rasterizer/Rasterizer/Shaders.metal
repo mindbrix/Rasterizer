@@ -630,8 +630,6 @@ vertex InstancesVertex instances_vertex_main(
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
-//        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * tpo.x + dy0 * tpo.y);
-//        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * ton.x + dy1 * ton.y);
         vert.miter0 = pcurve || pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = ncurve || ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
@@ -686,8 +684,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
 
-//        alpha *= saturate(abs(vert.d0)) * saturate(abs(vert.d1)) * saturate(abs(vert.miter0)) * saturate(abs(vert.miter1));
-//        sd0 = sd1 = 1;
         alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
         
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
