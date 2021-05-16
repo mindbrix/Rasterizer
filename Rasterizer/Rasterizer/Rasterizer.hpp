@@ -921,13 +921,12 @@ struct Rasterizer {
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
             }
-            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;
+            Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner out;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
-                    Outliner out;  out.iz = inst->iz, out.dst = out.dst0 = dst;
-                    divideGeometry(list.scenes[i].paths->base[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance);
-                    dst = out.dst;
+                    out.iz = inst->iz, out.dst = out.dst0 = dst;
+                    divideGeometry(list.scenes[i].paths->base[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance), dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
