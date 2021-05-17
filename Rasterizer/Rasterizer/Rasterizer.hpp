@@ -418,12 +418,10 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  uint8_t flags;
-            float clipx, clipy, cliph, clipw, err, e0, e1, det, width, uw;
+            float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
                 Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *b;
-                clipx = 0.5f * (clipbnds.lx + clipbnds.ux), clipy = 0.5f * (clipbnds.ly + clipbnds.uy);
-                clipw = 0.5f * (clipbnds.ux - clipbnds.lx), cliph = 0.5f * (clipbnds.uy - clipbnds.ly);
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
