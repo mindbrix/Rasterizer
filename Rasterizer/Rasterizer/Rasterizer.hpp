@@ -141,10 +141,10 @@ struct Rasterizer {
             p16s.alloc(p16sSize), p16s.empty(), p16cnts.alloc(p16sSize / kFastSegments), p16cnts.empty();
         }
         void update(Type type, size_t size, float *p) {
-            counts[type]++;
-            uint8_t *tp = types.alloc(size);
+            counts[type]++;  uint8_t *tp = types.alloc(size);
             for (int i = 0; i < size; i++, p += 2)
-                tp[i] = type, bounds.extend(p[0], p[1]), molecules.back().extend(p[0], p[1]);
+                tp[i] = type, molecules.back().extend(p[0], p[1]);
+            bounds.extend(molecules.back());
         }
         void validate() {
             Bounds *b = molecules.end ? & molecules.back() : nullptr;
