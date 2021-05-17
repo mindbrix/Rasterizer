@@ -220,15 +220,13 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        inline void writePoint16(uint16_t x16, uint16_t y16, uint32_t curve) {
-            Point16 *p = p16s.alloc(1);  p->x = x16 | ((curve & 2) << 14), p->y = y16 | ((curve & 1) << 15);
-        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
+            Point16 *p = g->p16s.alloc(1);
             if ((curve & kMoleculesEnd) == 0)
-                g->writePoint16((x0 - b.lx) * sx, (y0 - b.ly) * sy, curve);
+                p->x = uint16_t((x0 - b.lx) * sx) | ((curve & 2) << 14), p->y = uint16_t((y0 - b.ly) * sy) | ((curve & 1) << 15);
             else {
-                g->writePoint16((x1 - b.lx) * sx, (y1 - b.ly) * sy, 0);
+                p->x = (x1 - b.lx) * sx, p->y = (y1 - b.ly) * sy;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
                 uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
