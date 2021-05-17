@@ -128,10 +128,7 @@ struct Rasterizer {
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     struct Geometry {
         static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
-        struct Point16 {
-            Point16(uint16_t x, uint16_t y) : x(x), y(y) {}
-            int16_t x, y;
-        };
+        struct Point16 {  int16_t x, y;  };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         
         void prepare(size_t moveCount, size_t lineCount, size_t quadCount, size_t cubicCount, size_t closeCount) {
@@ -224,7 +221,7 @@ struct Rasterizer {
             return xxhash;
         }
         inline void writePoint16(uint16_t x16, uint16_t y16, uint32_t curve) {
-            new (p16s.alloc(1)) Point16(x16 | ((curve & 2) << 14), y16 | ((curve & 1) << 15));
+            Point16 *p = p16s.alloc(1);  p->x = x16 | ((curve & 2) << 14), p->y = y16 | ((curve & 1) << 15);
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
