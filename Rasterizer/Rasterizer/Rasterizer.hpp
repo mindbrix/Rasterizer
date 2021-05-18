@@ -102,8 +102,7 @@ struct Rasterizer {
     struct Memory {
         ~Memory() { if (addr) free(addr); }
         void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
-        size_t refCount = 0, size = 0;
-        T *addr = nullptr;
+        size_t refCount = 0, size = 0;  T *addr = nullptr;
     };
     template<typename T>
     struct Row {
@@ -118,10 +117,7 @@ struct Rasterizer {
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         Row<T>& operator+(const T *src) { if (src) { do *(alloc(1)) = *src; while (*src++);  --end; } return *this; }
         Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), sprintf(buf, "%d", n); operator+((T *)buf); return *this; }
-
-        Ref<Memory<T>> memory;
-        size_t end = 0, idx = 0;
-        T *base = nullptr;
+        T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
     typedef void (*SegmentFunction)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
     typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
