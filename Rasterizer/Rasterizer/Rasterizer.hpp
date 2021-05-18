@@ -244,9 +244,7 @@ struct Rasterizer {
     struct Scene {
         struct Cache {
             struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
-            size_t refCount = 0;
-            Row<uint32_t> ips;  Row<Entry> entries;
-            std::unordered_map<size_t, size_t> map;
+            size_t refCount = 0;  Row<uint32_t> ips;  Row<Entry> entries;  std::unordered_map<size_t, size_t> map;
         };
         template<typename T>
         struct Vector {
