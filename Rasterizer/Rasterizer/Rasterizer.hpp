@@ -224,7 +224,7 @@ struct Rasterizer {
             else {
                 p->x = (x1 - b.lx) * sx, p->y = (y1 - b.ly) * sy;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1); bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
+                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1);  bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
