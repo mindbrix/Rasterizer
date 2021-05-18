@@ -236,8 +236,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
