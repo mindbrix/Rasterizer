@@ -227,7 +227,7 @@ struct Rasterizer {
                 uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1);  bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                empty = cnt[-1] == 0, cnt[-1] |= 0x80, cnt[empty ? -2 : -1] |= (skiplast ? 0x8 : 0x0);
+                empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
                 g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
