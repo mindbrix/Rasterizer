@@ -305,7 +305,6 @@ struct Rasterizer {
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct Segment {
-        Segment(float x0, float y0, float x1, float y1, uint32_t curve) : ix0((*((uint32_t *)& x0) & ~3) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
     };
     struct Cell {
@@ -691,7 +690,7 @@ struct Rasterizer {
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (y0 != y1 || curve) {
                 CurveIndexer *idxr = (CurveIndexer *)info;
-                new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
+                idxr->dst->ix0 = (*((uint32_t *)& x0) & ~3) | curve, idxr->dst->y0 = y0, idxr->dst->x1 = x1, idxr->dst->y1 = y1, idxr->dst++;
                 if (curve == 0 || !idxr->useCurves)
                     idxr->indexLine(x0, y0, x1, y1), idxr->is++;
                 else if (curve == 1)
