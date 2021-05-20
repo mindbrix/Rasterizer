@@ -85,7 +85,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             _db->db ? RasterizerDB::WriteFunction : RasterizerTest::WriteFunction,
                 _db->db ? (void *)_db.ref : (void *)_test.ref,
             RasterizerTest::TransferFunction,
-                _test.ref);
+                & _state);
         [self.layer setNeedsDisplay];
     }
 }

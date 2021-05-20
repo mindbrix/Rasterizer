@@ -225,14 +225,15 @@ struct RasterizerTest {
         }
     }
     
-    static void TransferFunction(RasterizerState& state, size_t li, size_t ui, size_t si, Ra::Path *paths,
+    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Path *paths,
             Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
             float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info) {
+        RasterizerState& state = *((RasterizerState *)info);
         size_t count = ui - li;
-        RasterizerTest& test = *((RasterizerTest *)info);
+//        RasterizerTest& test = *((RasterizerTest *)info);
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
-        float ftime = test.concentrichron.pathsCount ? 0.f : state.clock - floor(state.clock);
+        float ftime = state.clock - floor(state.clock);
         float t = sinf(kTau * ftime), s = 1.f - t;
         float scale = s * kScaleMin + t * kScaleMax, outlineWidth = state.outlineWidth;
         if (0 && outlineWidth) {
