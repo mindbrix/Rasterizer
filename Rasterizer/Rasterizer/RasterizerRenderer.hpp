@@ -13,19 +13,18 @@ struct RasterizerRenderer {
      struct ThreadInfo {
          Ra::Context *context;
          Ra::SceneList *list;  RasterizerState *state;
-         uint32_t *idxs;  Ra::Transform *ctms;  Ra::Colorant *colors;  Ra::Transform *clips;  float *widths;  Ra::Bounds *bounds;
-         size_t begin;  std::vector<Ra::Buffer::Entry> *entries;
-         Ra::Buffer *buffer;
+         uint32_t *idxs;  Ra::Transform *ctms;  Ra::Colorant *colors;  Ra::Transform *clips;  float *widths;  Ra::Bounds *bounds;  Ra::TransferFunction transferFunction;
+         Ra::Buffer *buffer;  size_t begin;  std::vector<Ra::Buffer::Entry> *entries;
     };
     static void drawList(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->buffer);
+        ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->transferFunction, ti->buffer);
     }
     static void writeContextsToBuffer(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
         Ra::writeContextToBuffer(*ti->list, ti->context, ti->idxs, ti->begin, *ti->entries, *ti->buffer);
     }
-    void renderList(Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
+    void renderList(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction, Ra::Buffer *buffer) {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         if (list.pathsCount == 0)
             return;
@@ -38,6 +37,7 @@ struct RasterizerRenderer {
         ti->colors = (Ra::Colorant *)(buffer->base + buffer->colors);
         ti->widths = (float *)(buffer->base + buffer->widths),
         ti->bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
+        ti->transferFunction = transferFunction;
         for (size_t i = 0, iz = 0; i < list.scenes.size(); iz += list.scenes[i].count, i++)
             memcpy(ti->colors + iz, & list.scenes[i].colors->base[0].b, list.scenes[i].count * sizeof(Ra::Colorant));
         renderListOnQueues(list, state, ti);

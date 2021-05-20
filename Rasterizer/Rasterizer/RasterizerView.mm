@@ -215,7 +215,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    _renderer.renderList(_list, _state, buffer);
+    _renderer.renderList(_list, _state, RasterizerTest::TransferFunction, buffer);
 }
 
 #pragma mark - CALayerDelegate
