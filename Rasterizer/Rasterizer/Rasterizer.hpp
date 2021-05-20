@@ -231,6 +231,9 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Path *paths,
+        Transform *srcCtms, Transform *dstCtms, Colorant *srcColors, Colorant *dstColors,
+        float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     struct Scene {
         struct Cache {
             struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };

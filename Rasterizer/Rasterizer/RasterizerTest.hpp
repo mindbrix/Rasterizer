@@ -230,7 +230,6 @@ struct RasterizerTest {
             float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info) {
         RasterizerState& state = *((RasterizerState *)info);
         size_t count = ui - li;
-//        RasterizerTest& test = *((RasterizerTest *)info);
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
         float ftime = state.clock - floor(state.clock);

@@ -11,11 +11,6 @@
 struct RasterizerState {
     typedef void (*EventFunction)(Ra::SceneList& list, RasterizerState& state, void *info);
     typedef void (*WriteFunction)(Ra::SceneList& list, void *info);
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Path *paths,
-        Ra::Transform *srcCtms, Ra::Transform *dstCtms,
-        Ra::Colorant *srcColors, Ra::Colorant *dstColors,
-        float *srcWidths, float *dstWidths,
-        uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     struct Event {
@@ -52,7 +47,7 @@ struct RasterizerState {
     void readEvents(Ra::SceneList& list,
                     EventFunction eventFunction, void *eventInfo,
                     WriteFunction writeFunction, void *writeInfo,
-                    TransferFunction transferFunction, void *transferInfo) {
+                    Ra::TransferFunction transferFunction, void *transferInfo) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
