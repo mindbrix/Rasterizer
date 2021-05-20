@@ -398,7 +398,7 @@ struct Rasterizer {
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
-        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, TransferFunction transferFunction, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
