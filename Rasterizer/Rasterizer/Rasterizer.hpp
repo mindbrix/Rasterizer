@@ -402,10 +402,10 @@ struct Rasterizer {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
+                uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
                 Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *b;
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
-                uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 (*transferFunction)(clz - lz, cuz - lz, i, scene->paths->base,
                          & scene->ctms->src[0], scene->ctms->base,
                          & scene->colors->src[0], scene->colors->base,
