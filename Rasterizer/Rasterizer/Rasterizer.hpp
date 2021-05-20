@@ -413,6 +413,7 @@ struct Rasterizer {
                          & scene->flags->src[0], scene->flags->base,
                         transferInfo
                 );
+                memcpy(colors + clz, & scene->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scene->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
