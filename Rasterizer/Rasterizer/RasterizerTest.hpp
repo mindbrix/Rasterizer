@@ -225,7 +225,7 @@ struct RasterizerTest {
         }
     }
     
-    static void TransferFunction(RasterizerState& state, size_t count, size_t si, Ra::Path *paths,
+    static void TransferFunction(RasterizerState& state, size_t li, size_t ui, size_t count, size_t si, Ra::Path *paths,
         Ra::Transform *srcCtms, Ra::Transform *dstCtms,
         Ra::Colorant *srcColors, Ra::Colorant *dstColors,
         float *srcWidths, float *dstWidths,
