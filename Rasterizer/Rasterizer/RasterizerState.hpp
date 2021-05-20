@@ -11,7 +11,7 @@
 struct RasterizerState {
     typedef void (*EventFunction)(Ra::SceneList& list, RasterizerState& state, void *info);
     typedef void (*WriteFunction)(Ra::SceneList& list, void *info);
-    typedef void (*TransferFunction)(RasterizerState& state, size_t li, size_t ui, size_t count, size_t si, Ra::Path *paths,
+    typedef void (*TransferFunction)(RasterizerState& state, size_t li, size_t ui, size_t si, Ra::Path *paths,
         Ra::Transform *srcCtms, Ra::Transform *dstCtms,
         Ra::Colorant *srcColors, Ra::Colorant *dstColors,
         float *srcWidths, float *dstWidths,
@@ -134,7 +134,7 @@ struct RasterizerState {
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * mx, scale * my);
         if (transferFunction) {
             for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
-                (*transferFunction)(*this, 0, 0, ss->count, ss - sb, ss->paths->base,
+                (*transferFunction)(*this, 0, ss->count, ss - sb, ss->paths->base,
                          & ss->ctms->src[0], ss->ctms->base,
                          & ss->colors->src[0], ss->colors->base,
                          & ss->widths->src[0], ss->widths->base,

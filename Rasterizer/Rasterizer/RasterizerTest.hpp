@@ -225,12 +225,10 @@ struct RasterizerTest {
         }
     }
     
-    static void TransferFunction(RasterizerState& state, size_t li, size_t ui, size_t count, size_t si, Ra::Path *paths,
-        Ra::Transform *srcCtms, Ra::Transform *dstCtms,
-        Ra::Colorant *srcColors, Ra::Colorant *dstColors,
-        float *srcWidths, float *dstWidths,
-        uint8_t *srcFlags, uint8_t *dstFlags,
-        void *info) {
+    static void TransferFunction(RasterizerState& state, size_t li, size_t ui, size_t si, Ra::Path *paths,
+            Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
+            float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info) {
+        size_t count = ui - li;
         RasterizerTest& test = *((RasterizerTest *)info);
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
@@ -241,27 +239,27 @@ struct RasterizerTest {
             black = Ra::Colorant(0, 0, 0, 64), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
         }
         if (ftime == 0.f)
-            memcpy(dstCtms, srcCtms, count * sizeof(srcCtms[0]));
+            memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
         else {
-            for (int j = 0; j < count; j++) {
+            for (size_t j = li; j < ui; j++) {
                 Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
                 Ra::Bounds b = Ra::Bounds(paths[j]->bounds.unit(srcCtms[j]));
                 dstCtms[j] = srcCtms[j].preconcat(rst, 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy));
             }
         }
         if (outlineWidth)
-            memset_pattern4(dstWidths, & outlineWidth, count * sizeof(srcWidths[0]));
+            memset_pattern4(dstWidths + li, & outlineWidth, count * sizeof(srcWidths[0]));
         else if (ftime == 0.f)
-            memcpy(dstWidths, srcWidths, count * sizeof(srcWidths[0]));
+            memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         else
-            for (int j = 0; j < count; j++)
+            for (size_t j = li; j < ui; j++)
                 dstWidths[j] = scale * srcWidths[j];
-        for (int j = 0; j < count; j++) {
+        for (size_t j = li; j < ui; j++) {
             dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
             if (state.opaque)
                 dstColors[j].a = 255;
         }
-        for (int j = 0; j < count; j++) {
+        for (size_t j = li; j < ui; j++) {
             dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
         }
     }
