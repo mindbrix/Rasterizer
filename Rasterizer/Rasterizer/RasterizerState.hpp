@@ -46,8 +46,7 @@ struct RasterizerState {
     }
     void readEvents(Ra::SceneList& list,
                     EventFunction eventFunction, void *eventInfo,
-                    WriteFunction writeFunction, void *writeInfo,
-                    Ra::TransferFunction transferFunction, void *transferInfo) {
+                    WriteFunction writeFunction, void *writeInfo) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
@@ -127,17 +126,6 @@ struct RasterizerState {
             (*writeFunction)(list.empty(), writeInfo);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * mx, scale * my);
-        if (transferFunction) {
-            for (Ra::Scene *sb = & list.scenes[0], *ss = sb, *end = ss + list.scenes.size(); ss < end; ss++)
-                (*transferFunction)(0, ss->count, ss - sb, ss->paths->base,
-                         & ss->ctms->src[0], ss->ctms->base,
-                         & ss->colors->src[0], ss->colors->base,
-                         & ss->widths->src[0], ss->widths->base,
-                         & ss->flags->src[0], ss->flags->base,
-                        transferInfo
-                );
-            ;
-        }
         if (animating)
             clock += timeScale / 60.0;
     }

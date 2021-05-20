@@ -18,7 +18,7 @@ struct RasterizerRenderer {
     };
     static void drawList(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->transferFunction, ti->buffer);
+        ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->transferFunction, ti->state, ti->buffer);
     }
     static void writeContextsToBuffer(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;

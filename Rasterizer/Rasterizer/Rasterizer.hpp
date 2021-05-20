@@ -398,7 +398,7 @@ struct Rasterizer {
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
-        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, TransferFunction transferFunction, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
@@ -406,6 +406,13 @@ struct Rasterizer {
                 Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *b;
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
+                (*transferFunction)(clz - lz, cuz - lz, i, scene->paths->base,
+                         & scene->ctms->src[0], scene->ctms->base,
+                         & scene->colors->src[0], scene->colors->base,
+                         & scene->widths->src[0], scene->widths->base,
+                         & scene->flags->src[0], scene->flags->base,
+                        transferInfo
+                );
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scene->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
