@@ -29,9 +29,8 @@ struct RasterizerRenderer {
             return;
         ThreadInfo threadInfo, *ti = & threadInfo;
         buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
-        ti->context = contexts, ti->list = & list, ti->state = & state, ti->buffer = buffer;
+        ti->context = contexts, ti->list = & list, ti->state = & state, ti->transferFunction = transferFunction, ti->buffer = buffer;
         ti->idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
-        ti->transferFunction = transferFunction;
         renderListOnQueues(list, state, ti);
         free(ti->idxs);
     }
