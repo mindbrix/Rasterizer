@@ -20,31 +20,35 @@ struct RasterizerCG {
         return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
     }
     
-    static void drawList(Ra::SceneList& list, RasterizerState& state, CGContextRef ctx) {
+    static void drawList(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction, CGContextRef ctx) {
         for (int j = 0; j < list.scenes.size(); j++) {
-            Ra::Scene& scene = list.scenes[j];
+            Ra::Scene& scn = list.scenes[j];
+            if (transferFunction)
+                (*transferFunction)(0, scn.count, j, scn.paths->base,
+                     & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
+                     & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, & state);
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
             CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, CGRectMake(clip.tx, clip.ty, clip.a, clip.d));
-            for (size_t i = 0; i < scene.count; i++) {
-                if (scene.flags->base[i] & Ra::Scene::Flags::kInvisible)
+            for (size_t i = 0; i < scn.count; i++) {
+                if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
-                Ra::Path& path = scene.paths->base[i];
-                Ra::Transform t = ctm.concat(scene.ctms->base[i]);
-                if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scene.widths->base[i])) {
+                Ra::Path& path = scn.paths->base[i];
+                Ra::Transform t = ctm.concat(scn.ctms->base[i]);
+                if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
-                    if (state.outlineWidth || scene.widths->base[i]) {
-                        CGContextSetRGBStrokeColor(ctx, scene.colors->base[i].r / 255.0, scene.colors->base[i].g / 255.0, scene.colors->base[i].b / 255.0, scene.colors->base[i].a / 255.0);
-                        CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scene.widths->base[i]);
-                        bool square = scene.flags->base[i] & Ra::Scene::kSquareCap;
-                        bool round = scene.flags->base[i] & Ra::Scene::kRoundCap;
+                    if (state.outlineWidth || scn.widths->base[i]) {
+                        CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
+                        CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
+                        bool square = scn.flags->base[i] & Ra::Scene::kSquareCap;
+                        bool round = scn.flags->base[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
                         CGContextStrokePath(ctx);
                     } else {
-                        CGContextSetRGBFillColor(ctx, scene.colors->base[i].r / 255.0, scene.colors->base[i].g / 255.0, scene.colors->base[i].b / 255.0, scene.colors->base[i].a / 255.0);
-                        if (scene.flags->base[i] & Ra::Scene::kFillEvenOdd)
+                        CGContextSetRGBFillColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
+                        if (scn.flags->base[i] & Ra::Scene::kFillEvenOdd)
                             CGContextEOFillPath(ctx);
                         else
                             CGContextFillPath(ctx);
@@ -103,7 +107,7 @@ struct RasterizerCG {
         CGPDFContextBeginPage(ctx, NULL);
         state.update(1.0, bounds.size.width, bounds.size.height);
         CGContextConcatCTM(ctx, CGFromTransform(state.ctm));
-        drawList(list, state, ctx);
+        drawList(list, state, NULL, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
     }

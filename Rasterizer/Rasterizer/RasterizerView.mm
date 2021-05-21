@@ -223,7 +223,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
-    RaCG::drawList(_list, _state, ctx);
+    RaCG::drawList(_list, _state, RasterizerTest::TransferFunction, ctx);
 }
 
 #pragma mark - Properies
