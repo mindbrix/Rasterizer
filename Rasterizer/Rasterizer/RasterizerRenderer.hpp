@@ -11,14 +11,13 @@
 
 struct RasterizerRenderer {
      struct ThreadInfo {
-         Ra::Context *context;
-         Ra::SceneList *list;  RasterizerState *state;
-         uint32_t *idxs;  Ra::Transform *ctms;  Ra::Colorant *colors;  Ra::Transform *clips;  float *widths;  Ra::Bounds *bounds;  Ra::TransferFunction transferFunction;
+         Ra::Context *context;  Ra::SceneList *list;  RasterizerState *state;
+         uint32_t *idxs;  Ra::TransferFunction transferFunction;
          Ra::Buffer *buffer;  size_t begin;  std::vector<Ra::Buffer::Entry> *entries;
     };
     static void drawList(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
-        ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->ctms, ti->colors, ti->clips, ti->widths, ti->bounds, ti->transferFunction, ti->state, ti->buffer);
+        ti->context->drawList(*ti->list, ti->state->view, ti->idxs, ti->transferFunction, ti->state, ti->buffer);
     }
     static void writeContextsToBuffer(void *info) {
         ThreadInfo *ti = (ThreadInfo *)info;
@@ -32,11 +31,6 @@ struct RasterizerRenderer {
         buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
         ti->context = contexts, ti->list = & list, ti->state = & state, ti->buffer = buffer;
         ti->idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
-        ti->ctms = (Ra::Transform *)(buffer->base + buffer->ctms);
-        ti->clips = (Ra::Transform *)(buffer->base + buffer->clips);
-        ti->colors = (Ra::Colorant *)(buffer->base + buffer->colors);
-        ti->widths = (float *)(buffer->base + buffer->widths),
-        ti->bounds = (Ra::Bounds *)(buffer->base + buffer->bounds);
         ti->transferFunction = transferFunction;
         renderListOnQueues(list, state, ti);
         free(ti->idxs);

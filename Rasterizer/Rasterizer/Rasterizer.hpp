@@ -397,7 +397,10 @@ struct Rasterizer {
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
-        void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, uint32_t *idxs, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
+            Transform *ctms = (Transform *)(buffer->base + buffer->ctms);  Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
+            Transform *clips = (Transform *)(buffer->base + buffer->clips);
+            float *widths = (float *)(buffer->base + buffer->widths);  Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
@@ -417,7 +420,7 @@ struct Rasterizer {
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     unit = b->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
-                        ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
+                        ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scn->paths->base[is].ref;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
