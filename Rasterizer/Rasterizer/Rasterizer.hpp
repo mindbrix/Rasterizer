@@ -399,30 +399,30 @@ struct Rasterizer {
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, uint32_t *idxs, Transform *ctms, Colorant *colors, Transform *clipctms, float *widths, Bounds *bounds, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
-            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scene = & list.scenes[0];  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
-            for (lz = uz = i = 0; i < list.scenes.size(); i++, scene++, lz = uz) {
-                uz = lz + scene->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
+            for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
+                uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
                 Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *b;
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
-                (*transferFunction)(clz - lz, cuz - lz, i, scene->paths->base,
-                         & scene->ctms->src[0], scene->ctms->base,
-                         & scene->colors->src[0], scene->colors->base,
-                         & scene->widths->src[0], scene->widths->base,
-                         & scene->flags->src[0], scene->flags->base,
+                (*transferFunction)(clz - lz, cuz - lz, i, scn->paths->base,
+                         & scn->ctms->src[0], scn->ctms->base,
+                         & scn->colors->src[0], scn->colors->base,
+                         & scn->widths->src[0], scn->widths->base,
+                         & scn->flags->src[0], scn->flags->base,
                         transferInfo
                 );
-                memcpy(colors + clz, & scene->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
+                memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
-                    if ((flags = scene->flags->base[is]) & Scene::Flags::kInvisible)
+                    if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scene->ctms->base[is]), det = fabsf(m.det()), uw = scene->widths->base[is], b = & scene->bnds->base[is];
+                    m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.det()), uw = scn->widths->base[is], b = & scn->bnds->base[is];
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     unit = b->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clipctms[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                        Geometry *g = scene->paths->base[is].ref;
+                        Geometry *g = scn->paths->base[is].ref;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
@@ -435,10 +435,10 @@ struct Rasterizer {
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                            outlinePaths++, allocator.passes.back().size++;
                        } else if (useMolecules) {
-                            bounds[iz] = *b, ip = scene->cache->ips.base[is], size = scene->cache->entries.base[ip].size;
+                            bounds[iz] = *b, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
-                            bool fast = !buffer->useCurves || det * scene->cache->entries.base[ip].maxDot < 16.f;
+                            bool fast = !buffer->useCurves || det * scn->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cell.lx = clip.lx, inst->quad.cell.ly = clip.ly, inst->quad.cell.ux = clip.ux, inst->quad.cell.uy = clip.uy, inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                             allocator.alloc(clip.ux - clip.lx, clip.uy - clip.ly, blends.end - 1, & inst->quad.cell);
