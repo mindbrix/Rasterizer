@@ -406,7 +406,7 @@ struct Rasterizer {
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
-                Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *b;
+                Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *bnds;
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 (*transferFunction)(clz - lz, cuz - lz, i, scn->paths->base,
                      & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
@@ -416,9 +416,9 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.det()), uw = scn->widths->base[is], b = & scn->bnds->base[is];
+                    m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.det()), uw = scn->widths->base[is], bnds = & scn->bnds->base[is];
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    unit = b->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
+                    unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scn->paths->base[is].ref;
@@ -434,7 +434,7 @@ struct Rasterizer {
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                            outlinePaths++, allocator.passes.back().size++;
                        } else if (useMolecules) {
-                            bounds[iz] = *b, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
+                            bounds[iz] = *bnds, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
                             bool fast = !buffer->useCurves || det * scn->cache->entries.base[ip].maxDot < 16.f;
