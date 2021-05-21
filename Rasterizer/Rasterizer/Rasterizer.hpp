@@ -303,7 +303,6 @@ struct Rasterizer {
         int begin, end;
     };
     struct Index {
-        Index(uint16_t x, uint16_t i) : x(x), i(i) {}
         uint16_t x, i;
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
@@ -766,7 +765,7 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover, bool a) {
-            Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  new (row.alloc(1)) Index(lx, i);
+            Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
             int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
         }
     };
