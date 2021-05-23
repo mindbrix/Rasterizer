@@ -27,13 +27,11 @@ struct Rasterizer {
         }
         inline Transform invert() const {
             float det = a * d - b * c, recip = 1.f / det;
-            if (det == 0.f)
-                return *this;
-            return {
+            return det == 0.f ? *this : Transform(
                 d * recip,                      -b * recip,
                 -c * recip,                     a * recip,
                 (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
-            };
+            );
         }
         inline float det() const { return a * d - b * c; }
         float a, b, c, d, tx, ty;
