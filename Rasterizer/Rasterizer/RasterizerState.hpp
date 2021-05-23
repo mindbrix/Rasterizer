@@ -146,7 +146,8 @@ struct RasterizerState {
         ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), ax, ay);
     }
     void rotate(float a, float ax, float ay) {
-        ctm = ctm.preconcat(Ra::Transform::rst(a), ax, ay);
+        float sine, cosine;  __sincosf(a, & sine, & cosine);
+        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), ax, ay);
     }
     void translate(float x, float y) {
         ctm.tx += x, ctm.ty += y;
