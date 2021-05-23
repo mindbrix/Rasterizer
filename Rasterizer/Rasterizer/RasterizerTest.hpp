@@ -40,7 +40,7 @@ struct RasterizerTest {
             std::vector<Ra::Path> paths = { rectPath, closedRectPath, open2Path, open3Path, open4Path, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0, twoLines, bigRect };
             
             for (i = 0; i < 10; i++) {
-                Ra::Path quad;  quad.ref->moveTo(dim, dim), quad.ref->quadTo(-dim + i * 30, dim, 0, 0);
+                Ra::Path quad;  quad->moveTo(dim, dim), quad->quadTo(-dim + i * 30, dim, 0, 0);
                 paths.emplace_back(quad);
             }
             sz = paths.size(), grdsz = ceil(sqrt(sz));
@@ -56,8 +56,8 @@ struct RasterizerTest {
             
             if (1) {
                 float w = 10;
-                Ra::Path quadPath;  quadPath.ref->moveTo(100, 100), quadPath.ref->quadTo(-90, 100, 00, 00);
-                Ra::Path segPath;  segPath.ref->moveTo(0, 0), segPath.ref->lineTo(0, 100), segPath.ref->lineTo(0, 0);
+                Ra::Path quadPath;  quadPath->moveTo(100, 100), quadPath->quadTo(-90, 100, 00, 00);
+                Ra::Path segPath;  segPath->moveTo(0, 0), segPath->lineTo(0, 100), segPath->lineTo(0, 0);
                 scene.addPath(quadPath, Ra::Transform(), black, w, 0);
                 scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 100, 0), black, w, Ra::Scene::kSquareCap);
                 scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 200, 0), black, w, Ra::Scene::kSquareCap | Ra::Scene::kRoundCap);
@@ -69,10 +69,10 @@ struct RasterizerTest {
         if (0) {
             float w = 400, inset = 1;
             Ra::Bounds bounds(0, 0, w, w);
-            Ra::Path rectPath;  rectPath.ref->addBounds(bounds), rectPath.ref->addBounds(bounds.inset(20, 20));
+            Ra::Path rectPath;  rectPath->addBounds(bounds), rectPath->addBounds(bounds.inset(20, 20));
             Ra::Path ellipsePath;
             for (int i = 0; i < 100; i++)
-                ellipsePath.ref->addEllipse(bounds.inset(i * inset, i * inset));
+                ellipsePath->addEllipse(bounds.inset(i * inset, i * inset));
             scene.addPath(ellipsePath, Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
             
         }
@@ -192,21 +192,21 @@ struct RasterizerTest {
             float lx = size * (i % dim), ly = size * (i / dim);
             Ra::Path path;
             if (outline)
-                path.ref->moveTo(lx, ly + 0.5f * width), path.ref->lineTo(lx + width, ly + 0.5f * width);
+                path->moveTo(lx, ly + 0.5f * width), path->lineTo(lx + width, ly + 0.5f * width);
             else
-                path.ref->addBounds(Ra::Bounds(lx, ly, lx + width, ly + width));
+                path->addBounds(Ra::Bounds(lx, ly, lx + width, ly + width));
             scene.addPath(path, Ra::Transform(), color, width, 0);
         }
         return scene;
     }
     static Ra::Path createPhyllotaxisPath(size_t count) {
         Ra::Path path;
-        path.ref->moveTo(0.f, 0.f);
+        path->moveTo(0.f, 0.f);
         const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
         float vx = 1.f, vy = 0.f, x, y, s, t;
         for (int i = 0; i < count; i++) {
             s = sqrtf(i), t = float(i) / float(count);
-            path.ref->lineTo(s * vx - 0.5f, s * vy - 0.5f);
+            path->lineTo(s * vx - 0.5f, s * vy - 0.5f);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
