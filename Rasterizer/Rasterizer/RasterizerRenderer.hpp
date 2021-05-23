@@ -36,19 +36,8 @@ struct RasterizerRenderer {
     }
     
     void renderListOnQueues(Ra::SceneList& list, RasterizerState& state, ThreadInfo *info) {
-        size_t total = 0, count, base, i, iz, izeds[kQueueCount + 1], target, *izs = izeds;
-        for (int j = 0; j < list.scenes.size(); j++)
-            total += list.scenes[j].weight;
-        izeds[0] = 0, izeds[kQueueCount] = list.pathsCount;
-        auto scene = & list.scenes[0];
-        for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
-            for (target = total * i / kQueueCount; count < target; iz++) {
-                if (iz - base == scene->count)
-                    scene++, base = iz;
-                count += scene->paths->base[iz - base]->types.end;
-            }
-            izeds[i] = iz;
-        }
+        size_t i, izeds[kQueueCount + 1], *izs = izeds;
+        writeIzeds(list, izeds);
         ThreadInfo threadInfo[kQueueCount], *ti;
         for (ti = threadInfo, i = 0; i < kQueueCount; i++, ti++)
             *ti = *info, ti->context += i, ti->context->prepare(state.device, list.pathsCount, izs[i], izs[i + 1]);
@@ -64,11 +53,26 @@ struct RasterizerRenderer {
         size_t end = info->buffer->entries.end == 0 ? 0 : info->buffer->entries.back().end;
         assert(size >= end);
     }
-    
+    void writeIzeds(Ra::SceneList& list, size_t *izeds) {
+        size_t total = 0, count, base, i, iz, target;
+        for (int j = 0; j < list.scenes.size(); j++)
+            total += list.scenes[j].weight;
+        izeds[0] = 0, izeds[kQueueCount] = list.pathsCount;
+        auto scene = & list.scenes[0];
+        for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
+            for (target = total * i / kQueueCount; count < target; iz++) {
+                if (iz - base == scene->count)
+                    scene++, base = iz;
+                count += scene->paths->base[iz - base]->types.end;
+            }
+            izeds[i] = iz;
+        }
+    }
     static const int kQueueCount = 8;
     void reset() { for (auto& ctx : contexts) ctx.reset(); }
     Ra::Context contexts[kQueueCount];
     RasterizerQueue queues[kQueueCount];
  };
+
 
  typedef RasterizerRenderer RaR;
