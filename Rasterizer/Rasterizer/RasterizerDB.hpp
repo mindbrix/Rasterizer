@@ -101,7 +101,7 @@ struct RasterizerDB {
         Ra::Scene background;  background.tag = kBackgroundTag;
         for (int i = 0, x = 0, y = 0; i < indices.end; i++, x = i % N, y = i / N) {
             Ra::Bounds bounds = { frame.lx + x * dim, frame.uy - (y + 1) * dim, frame.lx + (x + 1) * dim, frame.uy - y * dim };
-            Ra::Path bPath;  bPath.ref->addBounds(bounds);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
+            Ra::Path bPath;  bPath->addBounds(bounds);  background.addPath(bPath, Ra::Transform(), Ra::Colorant(0, 0, 0, 0), 0.f, 0);
             tables.emplace_back(strings.base + indices.base[i], bounds);
             Table& table = tables.back();
             if (ts.find(table.hash) == ts.end())
@@ -163,7 +163,7 @@ struct RasterizerDB {
             for (i = 0; i < table.columns; i++)
                 *(hindices.alloc(1)) = hstrings.end, strcpy(hstrings.alloc(strlen(table.names[i].base) + 1), table.names[i].base);
             RasterizerFont::layoutColumns(font, fs, kLineGap, kBlack, Ra::Bounds(table.bounds.lx, -FLT_MAX, table.bounds.ux, table.bounds.uy), & table.lengths[0], (bool *)& table.opposites[0], table.columns, true, hindices, hstrings, chrome);
-            Ra::Path linePath; linePath.ref->moveTo(table.bounds.lx, my), linePath.ref->lineTo(table.bounds.ux, my);
+            Ra::Path linePath; linePath->moveTo(table.bounds.lx, my), linePath->lineTo(table.bounds.ux, my);
             chrome.addPath(linePath, Ra::Transform(), kRed, uh / 64.f, 0);
             table.chrome.addScene(chrome);
         }
