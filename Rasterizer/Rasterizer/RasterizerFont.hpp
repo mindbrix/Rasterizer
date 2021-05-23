@@ -58,16 +58,16 @@ struct RasterizerFont {
             for (i = 0; i < nverts; i++)
                 switch (v[i].type) {
                     case STBTT_vmove:
-                        path.ref->moveTo(v[i].x, v[i].y);
+                        path->moveTo(v[i].x, v[i].y);
                         break;
                     case STBTT_vline:
-                        path.ref->lineTo(v[i].x, v[i].y);
+                        path->lineTo(v[i].x, v[i].y);
                         break;
                     case STBTT_vcurve:
-                        path.ref->quadTo(v[i].cx, v[i].cy, v[i].x, v[i].y);
+                        path->quadTo(v[i].cx, v[i].cy, v[i].x, v[i].y);
                         break;
                     case STBTT_vcubic:
-                        path.ref->cubicTo(v[i].cx, v[i].cy, v[i].cx1, v[i].cy1, v[i].x, v[i].y);
+                        path->cubicTo(v[i].cx, v[i].cy, v[i].cx1, v[i].cy1, v[i].x, v[i].y);
                         break;
                 }
             stbtt_FreeShape(& info, v);
@@ -185,7 +185,7 @@ struct RasterizerFont {
                 if (x0 >= 0 && x1 <= width) {
                     Ra::Transform ctm(scale, 0.f, 0.f, scale, x * scale + bounds.lx, y * scale + bounds.uy);
                     scene.addPath(path, ctm, color, 0.f, 0);
-                    glyphBounds.extend(Ra::Bounds(path.ref->bounds.unit(ctm)));
+                    glyphBounds.extend(Ra::Bounds(path->bounds.unit(ctm)));
                 }
             }
     }
