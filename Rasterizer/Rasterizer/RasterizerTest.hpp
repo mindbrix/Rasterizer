@@ -241,10 +241,12 @@ struct RasterizerTest {
         if (ftime == 0.f)
             memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
         else {
-            for (size_t j = li; j < ui; j++) {
-                Ra::Transform rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
-                Ra::Bounds b = Ra::Bounds(paths[j]->bounds.unit(srcCtms[j]));
-                dstCtms[j] = srcCtms[j].preconcat(rst, 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy));
+            Ra::Transform rst, *m = srcCtms + li;
+            float cx, cy;
+            for (size_t j = li; j < ui; j++, m++) {
+                rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
+                Ra::Bounds& b = paths[j]->bounds;  cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+                dstCtms[j] = m->preconcat(rst, cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }
         if (outlineWidth)
