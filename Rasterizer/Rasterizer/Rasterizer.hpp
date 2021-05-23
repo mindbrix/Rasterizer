@@ -404,8 +404,7 @@ struct Rasterizer {
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
                 (*transferFunction)(clz - lz, cuz - lz, i, scn->bnds->base,
                      & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
-                     & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo
-                );
+                     & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo);
                 memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
