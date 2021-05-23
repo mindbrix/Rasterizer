@@ -27,8 +27,8 @@ struct RasterizerRenderer {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         if (list.pathsCount == 0)
             return;
-        size_t i, izeds[kQueueCount + 1], *izs = izeds;
-        writeIzeds(list, izeds);
+        size_t i, izs[kQueueCount + 1];
+        writeIzs(list, izs);
         buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
         uint32_t *idxs = (uint32_t *)malloc(list.pathsCount * sizeof(uint32_t));
         ThreadInfo threadInfo[kQueueCount], *ti;
@@ -50,11 +50,11 @@ struct RasterizerRenderer {
         free(idxs);
     }
     
-    void writeIzeds(Ra::SceneList& list, size_t *izeds) {
+    void writeIzs(Ra::SceneList& list, size_t *izs) {
         size_t total = 0, count, base, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
-        izeds[0] = 0, izeds[kQueueCount] = list.pathsCount;
+        izs[0] = 0, izs[kQueueCount] = list.pathsCount;
         auto scene = & list.scenes[0];
         for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
             for (target = total * i / kQueueCount; count < target; iz++) {
@@ -62,7 +62,7 @@ struct RasterizerRenderer {
                     scene++, base = iz;
                 count += scene->paths->base[iz - base]->types.end;
             }
-            izeds[i] = iz;
+            izs[i] = iz;
         }
     }
     static const int kQueueCount = 8;
