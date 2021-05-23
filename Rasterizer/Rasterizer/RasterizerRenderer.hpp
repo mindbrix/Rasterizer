@@ -49,14 +49,14 @@ struct RasterizerRenderer {
             }
             izeds[i] = iz;
         }
-        ThreadInfo threadInfo[kQueueCount];
-        for (i = 0; i < kQueueCount; i++)
-            threadInfo[i] = *info, threadInfo[i].context += i, contexts[i].prepare(state.device, list.pathsCount, izs[i], izs[i + 1]);
+        ThreadInfo threadInfo[kQueueCount], *ti;
+        for (ti = threadInfo, i = 0; i < kQueueCount; i++, ti++)
+            *ti = *info, ti->context += i, ti->context->prepare(state.device, list.pathsCount, izs[i], izs[i + 1]);
         RasterizerQueue::scheduleAndWait(queues, kQueueCount, drawList, threadInfo, sizeof(ThreadInfo), kQueueCount);
         std::vector<Ra::Buffer::Entry> entries[kQueueCount];
         size_t begins[kQueueCount], size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *info->buffer);
-        for (i = 0; i < kQueueCount; i++)
-            threadInfo[i].begin = begins[i], threadInfo[i].entries = & entries[i];
+        for (ti = threadInfo, i = 0; i < kQueueCount; i++, ti++)
+            ti->begin = begins[i], ti->entries = & entries[i];
         RasterizerQueue::scheduleAndWait(queues, kQueueCount, writeContextsToBuffer, threadInfo, sizeof(ThreadInfo), kQueueCount);
         for (int i = 0; i < kQueueCount; i++)
             for (auto entry : entries[i])
