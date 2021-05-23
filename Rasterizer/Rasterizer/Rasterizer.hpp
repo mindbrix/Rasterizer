@@ -74,19 +74,19 @@ struct Rasterizer {
     };
     template<typename T>
     struct Ref {
-        Ref()                               { ref = new T(), ref->refCount = 1; }
-        ~Ref()                              { if (--(ref->refCount) == 0) delete ref; }
+        Ref()                               { ptr = new T(), ptr->refCount = 1; }
+        ~Ref()                              { if (--(ptr->refCount) == 0) delete ptr; }
         Ref(const Ref& other)               { *this = other; }
         Ref& operator= (const Ref& other)   {
             if (this != & other) {
-                if (ref)
+                if (ptr)
                     this->~Ref();
-                ref = other.ref, ref->refCount++;
+                ptr = other.ptr, ptr->refCount++;
             }
             return *this;
         }
-        T* operator->() { return ref; }
-        T *ref = nullptr;
+        T* operator->() { return ptr; }
+        T *ptr = nullptr;
     };
     template<typename T>
     struct Memory {
@@ -239,7 +239,7 @@ struct Rasterizer {
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        divideGeometry(path.ref, Transform(), Bounds(), true, true, true, path.ref, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                     *(cache->ips.alloc(1)) = uint32_t(cache->map.size()), cache->map.emplace(path->hash(), cache->map.size());
@@ -404,7 +404,7 @@ struct Rasterizer {
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
-                        Geometry *g = scn->paths->base[is].ref;
+                        Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
@@ -896,12 +896,12 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst;
-                    divideGeometry(list.scenes[i].paths->base[is].ref, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance), dst = out.dst;
+                    divideGeometry(list.scenes[i].paths->base[is].ptr, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance), dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
-                        Scene::Cache& cache = *list.scenes[i].cache.ref;
+                        Scene::Cache& cache = *list.scenes[i].cache.ptr;
                         Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
                         if (widths[iz]) {
                             Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;

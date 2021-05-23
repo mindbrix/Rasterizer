@@ -106,8 +106,8 @@ struct RasterizerDB {
             Table& table = tables.back();
             if (ts.find(table.hash) == ts.end())
                 ts[table.hash] = 0.f;
-            writeTableMetadata(*font.ref, table);
-            writeTableLists(*font.ref, table);
+            writeTableMetadata(*font.ptr, table);
+            writeTableLists(*font.ptr, table);
         }
         backgroundList.empty().addScene(background);
     }
@@ -189,7 +189,7 @@ struct RasterizerDB {
                 if (downindices.begin != INT_MAX) {
                     float t = state.mx * mt.b + state.my * mt.d + mt.ty;
                     ts[tables[downindices.end].hash] = t < 0.f ? 0.f : t > 1.f ? 1.f : t;
-                    writeTableLists(*font.ref, tables[downindices.end]);
+                    writeTableLists(*font.ptr, tables[downindices.end]);
                 }
             } else if (e.type == RaSt::Event::kMouseUp)
                 downindices = Ra::Range(INT_MAX, INT_MAX);

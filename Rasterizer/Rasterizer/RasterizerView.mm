@@ -81,9 +81,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (_state.needsRedraw()) {
         _state.readEvents(_list,
             _db->db ? RasterizerDB::EventFunction : NULL,
-                _db->db ? (void *)_db.ref : nullptr,
+                _db->db ? (void *)_db.ptr : nullptr,
             _db->db ? RasterizerDB::WriteFunction : RasterizerTest::WriteFunction,
-                _db->db ? (void *)_db.ref : (void *)_test.ref);
+                _db->db ? (void *)_db.ptr : (void *)_test.ptr);
         [self.layer setNeedsDisplay];
     }
 }
@@ -106,12 +106,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
-            RasterizerFont::layoutGlyphs(*font.ref, float(fnt.pointSize), 0.f, Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+            RasterizerFont::layoutGlyphs(*font.ptr, float(fnt.pointSize), 0.f, Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         else
-            RasterizerFont::writeGlyphGrid(*font.ref, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
+            RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
-    _test->addTestScenes(list, _state, RaCG::BoundsFromCGRect(self.bounds), *font.ref);
+    _test->addTestScenes(list, _state, RaCG::BoundsFromCGRect(self.bounds), *font.ptr);
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
 }
 
@@ -231,7 +231,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setDbURL:(NSURL *)dbURL {
     if ((_dbURL = dbURL)) {
         _db->open(dbURL.path.UTF8String);
-        RaCG::writeFontsTable(*_db.ref);
+        RaCG::writeFontsTable(*_db.ptr);
         [self changeFont:nil];
     }
 }
