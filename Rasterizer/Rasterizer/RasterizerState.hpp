@@ -153,7 +153,8 @@ struct RasterizerState {
         ctm.tx += x, ctm.ty += y;
     }
     void fit(Ra::Bounds b) {
-        Ra::Transform fit = bounds.fit(b);
+        float sx = (bounds.ux - bounds.lx) / (b.ux - b.lx), sy = (bounds.uy - bounds.ly) / (b.uy - b.ly), s = sx < sy ? sx : sy;
+        Ra::Transform fit = { s, 0.f, 0.f, s, -s * b.lx, -s * b.ly };
         if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
             ctm = Ra::Transform();
         else
