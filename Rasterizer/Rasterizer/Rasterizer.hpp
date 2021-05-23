@@ -181,8 +181,7 @@ struct Rasterizer {
             }
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
-            float bx, ax, by, ay, dot;
-            bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, by = 3.f * (y2 - y1), ay = y3 - y0 - by, dot = ax * ax + ay * ay;
+            float bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, by = 3.f * (y2 - y1), ay = y3 - y0 - by, dot = ax * ax + ay * ay;
             if (dot < 1e-2f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
