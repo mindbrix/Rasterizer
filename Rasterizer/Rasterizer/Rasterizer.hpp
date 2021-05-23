@@ -113,9 +113,8 @@ struct Rasterizer {
     typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     struct Geometry {
-        static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
-        struct Point16 {  int16_t x, y;  };
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
+        struct Point16 {  int16_t x, y;  };
         
         void update(Type type, size_t size, float *p) {
             counts[type]++;  uint8_t *tp = types.alloc(size);
@@ -146,14 +145,6 @@ struct Rasterizer {
             cubicTo(s * b.lx + t * b.ux, b.uy, b.lx, t * b.ly + s * b.uy, b.lx, my);
             cubicTo(b.lx, s * b.ly + t * b.uy, s * b.lx + t * b.ux, b.ly, mx, b.ly);
             cubicTo(t * b.lx + s * b.ux, b.ly, b.ux, s * b.ly + t * b.uy, b.ux, my);
-        }
-        void addArc(float x, float y, float r, float a0, float a1) {
-            float da, f, ax, ay, bx, by, sx, sy, ex, ey;
-            a0 = normalizeRadians(a0), a1 = normalizeRadians(a1);
-            da = a1 > a0 ? a1 - a0 : a1 - a0 + kTau, f = 4.f * tanf(da * 0.25f) / 3.f;
-            ax = r * cosf(a0), ay = r * sinf(a0), bx = r * cosf(a1), by = r * sinf(a1);
-            sx = x + ax, sy = y + ay, ex = x + bx, ey = y + by;
-            moveTo(sx, sx), cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
         }
         void moveTo(float x, float y) {
             validate(), new (molecules.alloc(1)) Bounds(), points.idx = points.end;

@@ -123,6 +123,17 @@ struct RasterizerTest {
             } else
                 list.addScene(src.scenes[i]);
     }
+    static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
+    
+    static void addArcToPath(Ra::Path& p, float x, float y, float r, float a0, float a1) {
+        float da, f, ax, ay, bx, by, sx, sy, ex, ey;
+        a0 = normalizeRadians(a0), a1 = normalizeRadians(a1);
+        da = a1 > a0 ? a1 - a0 : a1 - a0 + kTau, f = 4.f * tanf(da * 0.25f) / 3.f;
+        ax = r * cosf(a0), ay = r * sinf(a0), bx = r * cosf(a1), by = r * sinf(a1);
+        sx = x + ax, sy = y + ay, ex = x + bx, ey = y + by;
+        p->moveTo(sx, sx), p->cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
+    }
+    
     static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
@@ -172,7 +183,7 @@ struct RasterizerTest {
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                     
                     if (0) {
-                        Ra::Path arcPath;  arcPath->addArc(cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
+                        Ra::Path arcPath;  addArcToPath(arcPath, cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
                         ring.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
                     }
                     RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
