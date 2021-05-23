@@ -212,6 +212,7 @@ struct Rasterizer {
     struct Scene {
         struct Cache {
             struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
+            Entry *entryAt(size_t i)  {  return entries.base + ips.base[i];  }
             size_t refCount = 0;  Row<uint32_t> ips;  Row<Entry> entries;  std::unordered_map<size_t, size_t> map;
         };
         template<typename T>
@@ -892,8 +893,7 @@ struct Rasterizer {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
-                        Scene::Cache& cache = *list.scenes[i].cache.ptr;
-                        Scene::Cache::Entry *entry = & cache.entries.base[cache.ips.base[is]];
+                        Scene::Cache::Entry *entry = list.scenes[i].cache->entryAt(is);
                         if (widths[iz]) {
                             Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
                             dst[-1].quad.biid = int(outline - (inst->iz & Instance::kFastEdges ? fastOutline0 : quadOutline0));
