@@ -231,7 +231,7 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Path *paths,
+    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Bounds *bounds,
         Transform *srcCtms, Transform *dstCtms, Colorant *srcColors, Colorant *dstColors,
         float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     struct Scene {
@@ -408,7 +408,7 @@ struct Rasterizer {
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
                 Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *bnds;
                 err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
-                (*transferFunction)(clz - lz, cuz - lz, i, scn->paths->base,
+                (*transferFunction)(clz - lz, cuz - lz, i, scn->bnds->base,
                      & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
                      & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo
                 );

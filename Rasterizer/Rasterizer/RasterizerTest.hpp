@@ -225,7 +225,7 @@ struct RasterizerTest {
         }
     }
     
-    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Path *paths,
+    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Bounds *bounds,
             Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
             float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info) {
         RasterizerState& state = *((RasterizerState *)info);
@@ -241,11 +241,11 @@ struct RasterizerTest {
         if (ftime == 0.f)
             memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
         else {
-            Ra::Transform rst, *m = srcCtms + li;
+            Ra::Transform rst, *m = srcCtms + li;  Ra::Bounds *b = bounds + li;
             float cx, cy;
-            for (size_t j = li; j < ui; j++, m++) {
+            for (size_t j = li; j < ui; j++, m++, b++) {
                 rst = Ra::Transform::rst(M_PI * t * (j & 1 ? -1.f : 1.f), scale, scale);
-                Ra::Bounds& b = paths[j]->bounds;  cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
+                cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy);
                 dstCtms[j] = m->preconcat(rst, cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }

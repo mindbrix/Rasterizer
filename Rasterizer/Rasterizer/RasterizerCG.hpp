@@ -24,7 +24,7 @@ struct RasterizerCG {
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
             if (transferFunction)
-                (*transferFunction)(0, scn.count, j, scn.paths->base,
+                (*transferFunction)(0, scn.count, j, scn.bnds->base,
                      & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
                      & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, & state);
             Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
