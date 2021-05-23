@@ -66,7 +66,7 @@ struct RasterizerWinding {
         }
     }
     static int pointWinding(Ra::Path& path, Ra::Bounds bounds, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w) {
-        float ws = sqrtf(fabsf(ctm.det())), uw = w < 0.f ? -w / ws : w;
+        float ws = ctm.scale(), uw = w < 0.f ? -w / ws : w;
         Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws);
         Ra::Transform unit = bounds.inset(-uw, -uw).unit(ctm), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit).intersect(device);

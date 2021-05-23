@@ -33,7 +33,7 @@ struct Rasterizer {
                 (c * ty - d * tx) * recip,      -(a * ty - b * tx) * recip
             );
         }
-        inline float det() const { return a * d - b * c; }
+        inline float scale() const { return sqrtf(fabsf(a * d - b * c)); }
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
@@ -401,7 +401,7 @@ struct Rasterizer {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
                 Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *bnds;
-                err = fminf(1e-2f, 1e-2f / sqrtf(fabsf(clipctm.det()))), e0 = -err, e1 = 1.f + err;
+                err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
                 (*transferFunction)(clz - lz, cuz - lz, i, scn->bnds->base,
                      & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
                      & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo);

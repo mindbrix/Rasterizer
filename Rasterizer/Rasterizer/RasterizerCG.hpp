@@ -13,7 +13,7 @@
 
 struct RasterizerCG {
     static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds device, float width) {
-        float uw = width < 0.f ? -width / sqrtf(fabsf(ctm.det())) : width;
+        float uw = width < 0.f ? -width / ctm.scale() : width;
         Ra::Transform unit = user.inset(-uw, -uw).unit(ctm);
         Ra::Bounds dev = Ra::Bounds(unit).intersect(device.intersect(Ra::Bounds(clip)));
         Ra::Bounds clu = Ra::Bounds(clip.invert().concat(unit));
