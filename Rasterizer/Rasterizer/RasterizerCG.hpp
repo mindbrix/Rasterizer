@@ -35,7 +35,7 @@ struct RasterizerCG {
                     continue;
                 Ra::Path& path = scn.paths->base[i];
                 Ra::Transform t = ctm.concat(scn.ctms->base[i]);
-                if (isVisible(path.ref->bounds, state.view.concat(t), state.view.concat(clip), state.device, scn.widths->base[i])) {
+                if (isVisible(path->bounds, state.view.concat(t), state.view.concat(clip), state.device, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
@@ -73,9 +73,9 @@ struct RasterizerCG {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
     static void writePathToCGContext(Ra::Path path, CGContextRef ctx) {
-        for (size_t index = 0; index < path.ref->types.end; ) {
-            float *p = path.ref->points.base + index * 2;
-            switch (*(path.ref->types.base + index)) {
+        for (size_t index = 0; index < path->types.end; ) {
+            float *p = path->points.base + index * 2;
+            switch (*(path->types.base + index)) {
                 case Ra::Geometry::kMove:
                     CGContextMoveToPoint(ctx, p[0], p[1]);
                     index++;
