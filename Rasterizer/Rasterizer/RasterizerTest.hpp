@@ -114,12 +114,13 @@ struct RasterizerTest {
         float daysthismonth = monthdays[lt->tm_mon] + (lt->tm_mon == 1 && isLeapYear ? 1.f : 0.f);
         float fmonth = (lt->tm_mon + (lt->tm_mday - 1) / daysthismonth) / 12.f;
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 10.f;
-        float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec };
+        float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec }, cosine, sine;
         
         for (int i = 0; i < src.scenes.size(); i++)
-            if (i > 0 && i < 8)
-                list.addScene(src.scenes[i], Ra::Transform().preconcat(Ra::Transform::rst(ftimes[i] * 2.f * M_PI), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
-            else
+            if (i > 0 && i < 8) {
+                __sincosf(ftimes[i] * 2.f * M_PI, & sine, & cosine);
+                list.addScene(src.scenes[i], Ra::Transform().preconcat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
+            } else
                 list.addScene(src.scenes[i]);
     }
     static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
