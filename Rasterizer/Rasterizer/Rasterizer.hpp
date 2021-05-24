@@ -316,10 +316,9 @@ struct Rasterizer {
         };
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
-            size_t szcolors = pathsCount * sizeof(Colorant), szctms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds);
-            headerSize = szcolors + 2 * szctms + szwidths + szbounds;
-            this->pathsCount = pathsCount, colors = 0, ctms = colors + szcolors, clips = ctms + szctms, widths = clips + szctms, bounds = widths + szwidths;
-            resize(headerSize), entries.empty();
+            size_t szcolors = pathsCount * sizeof(Colorant), szctms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds), szidxs = pathsCount * sizeof(uint32_t);
+            this->pathsCount = pathsCount, colors = 0, ctms = colors + szcolors, clips = ctms + szctms, widths = clips + szctms, bounds = widths + szwidths, idxs = bounds + szbounds;
+            headerSize = szcolors + 2 * szctms + szwidths + szbounds + szidxs, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
             size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
@@ -336,7 +335,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, pathsCount, headerSize, size = 0;
+        size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0;
     };
     struct Allocator {
         struct Pass {
@@ -373,9 +372,9 @@ struct Rasterizer {
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
-        void drawList(SceneList& list, Transform view, uint32_t *idxs, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
             Transform *ctms = (Transform *)(buffer->base + buffer->ctms);  Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
-            Transform *clips = (Transform *)(buffer->base + buffer->clips);
+            Transform *clips = (Transform *)(buffer->base + buffer->clips);  uint32_t *idxs = (uint32_t *)(buffer->base + buffer->idxs);
             float *widths = (float *)(buffer->base + buffer->widths);  Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
@@ -851,7 +850,7 @@ struct Rasterizer {
             new (buffer.entries.alloc(1)) Buffer::Entry(Buffer::kOpaques, begin, end);
         return size;
     }
-    static void writeContextToBuffer(SceneList& list, Context *ctx, uint32_t *idxs, size_t begin, Buffer& buffer) {
+    static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
         size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0;
         if (ctx->segments.end || ctx->p16total) {
             ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, 0), end = begin + ctx->segments.end * sizeof(Segment);
@@ -865,7 +864,7 @@ struct Rasterizer {
                         begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                     }
         }
-        Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);
+        Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);  uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             if (pass->count()) {
