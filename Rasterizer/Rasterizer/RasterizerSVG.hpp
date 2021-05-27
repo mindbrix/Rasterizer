@@ -9,11 +9,14 @@
 #import "nanosvg.h"
 
 struct RasterizerSVG {
+    static inline Ra::Colorant colorFromSVGColor(int color) {
+        return Ra::Colorant((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >> 24);
+    }
     static Ra::Colorant colorFromPaint(NSVGpaint paint) {
         if (paint.type == NSVG_PAINT_COLOR)
-            return Ra::Colorant((paint.color >> 16) & 0xFF, (paint.color >> 8) & 0xFF, paint.color & 0xFF, paint.color >> 24);
+            return colorFromSVGColor(paint.color);
         else
-            return Ra::Colorant(0, 0, 0, 64);
+            return colorFromSVGColor(paint.gradient->stops[0].color);
     }
     static inline bool isLine(float *pts) {
         float ax, bx, cx, ay, by, cy, cdot, t0, t1;
