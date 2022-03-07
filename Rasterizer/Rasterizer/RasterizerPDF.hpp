@@ -11,13 +11,21 @@
 
 
 struct RasterizerPDF {
-    static inline Ra::Colorant colorFromSVGColor(int color) {
-        return Ra::Colorant((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >> 24);
+    static inline bool isLine(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+        float ax, bx, cx, ay, by, cy, cdot, t0, t1;
+        ax = x1 - x0, bx = x2 - x0, cx = x3 - x0;
+        ay = y1 - y0, by = y2 - y0, cy = y3 - y0;
+        cdot = cx * cx + cy * cy, t0 = (ax * -cy + ay * cx) / cdot, t1 = (bx * -cy + by * cx) / cdot;
+        return fabsf(t0) < 1e-6f && fabsf(t1) < 1e-6f;
     }
+    static inline float lengthsq(float x0, float y0, float x1, float y1) {
+        return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
+    }
+    
     static void writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
         int segmentCount = FPDFPath_CountSegments(pageObject);
         if (segmentCount > 0) {
-            float x, y;
+            float x, y, px = 0.f, py = 0.f;
             std::vector<float> bezier;
             
             for (int j = 0; j < segmentCount; j++) {
@@ -29,24 +37,32 @@ struct RasterizerPDF {
                 switch (segmentType) {
                     case FPDF_SEGMENT_MOVETO:
                         p->moveTo(x, y);
+                        px = x, py = y;
                         break;
                     case FPDF_SEGMENT_LINETO:
                         p->lineTo(x, y);
+                        px = x, py = y;
                         break;
                     case FPDF_SEGMENT_BEZIERTO:
                         bezier.emplace_back(x);
                         bezier.emplace_back(y);
                         if (bezier.size() == 6) {
-                            p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
+                            if (lengthsq(px, py, x, y) > 1e-9f) {
+                                if (isLine(px, py, bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]))
+                                    p->lineTo(x, y);
+                                else
+                                    p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
+                                px = x, py = y;
+                            }
                             bezier.clear();
                         }
                         break;
                     default:
                         break;
                 }
-                FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
-                if (close)
-                    p->close();
+//                FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
+//                if (close)
+//                    p->close();
             }
         }
     }
