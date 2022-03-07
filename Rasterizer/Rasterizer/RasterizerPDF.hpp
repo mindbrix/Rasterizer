@@ -18,10 +18,14 @@ struct RasterizerPDF {
         int segmentCount = FPDFPath_CountSegments(pageObject);
         if (segmentCount > 0) {
             float x, y;
+            std::vector<float> bezier;
+            
             for (int j = 0; j < segmentCount; j++) {
                 FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
                 int segmentType = FPDFPathSegment_GetType(segment);
                 FPDF_BOOL success = FPDFPathSegment_GetPoint(segment, & x, & y);
+                if (success == 0)
+                    continue;
                 switch (segmentType) {
                     case FPDF_SEGMENT_MOVETO:
                         p->moveTo(x, y);
@@ -30,7 +34,12 @@ struct RasterizerPDF {
                         p->lineTo(x, y);
                         break;
                     case FPDF_SEGMENT_BEZIERTO:
-                        p->lineTo(x, y);
+                        bezier.emplace_back(x);
+                        bezier.emplace_back(y);
+                        if (bezier.size() == 6) {
+                            p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
+                            bezier.clear();
+                        }
                         break;
                     default:
                         break;
@@ -60,10 +69,8 @@ struct RasterizerPDF {
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     int type = FPDFPageObj_GetType(pageObject);
-                    fprintf(stderr, "FPDFPageObj_GetType() = %d\n", type);
                     if (type == FPDF_PAGEOBJ_PATH) {
                         int segmentCount = FPDFPath_CountSegments(pageObject);
-                        fprintf(stderr, "FPDFPath_CountSegments() = %d\n", segmentCount);
                         if (segmentCount > 0) {
                             Ra::Path path;
                             writePathFromObject(pageObject, path);
