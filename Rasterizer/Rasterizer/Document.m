@@ -10,6 +10,7 @@
 
 @interface Document ()
 @property(nonatomic, strong) NSURL *dbURL;
+@property(nonatomic, strong) NSData *pdfData;
 @property(nonatomic, strong) NSData *svgData;
 @end
 
@@ -29,6 +30,7 @@
 
 - (void)windowControllerDidLoadNib:(NSWindowController *)aController {
     [super windowControllerDidLoadNib:aController];
+    self.view.pdfData = self.pdfData;
     self.view.svgData = self.svgData;
     self.view.dbURL = self.dbURL;
 }
@@ -48,7 +50,9 @@
 }
 
 - (BOOL)readFromURL:(NSURL *)url ofType:(NSString *)typeName error:(NSError **)outError {
-    if ([typeName isEqualToString:@"SVG"])
+    if ([typeName isEqualToString:@"PDF"])
+        self.pdfData = [NSData dataWithContentsOfURL:url];
+    else if ([typeName isEqualToString:@"SVG"])
         self.svgData = [NSData dataWithContentsOfURL:url];
     else if ([typeName isEqualToString:@"sqlite"])
         self.dbURL = url;

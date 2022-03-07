@@ -21,8 +21,23 @@
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
+		E9CB3A1D27D6045200A02A2D /* pdfium-universal.dylib in Embed Libraries */ = {isa = PBXBuildFile; fileRef = E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		E9FA61EB22776F72006BA8A6 /* libsqlite3.0.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E9CB3A1E27D6045200A02A2D /* Embed Libraries */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E9CB3A1D27D6045200A02A2D /* pdfium-universal.dylib in Embed Libraries */,
+			);
+			name = "Embed Libraries";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		E901B3862194B00F00B1AB72 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -57,6 +72,32 @@
 		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.metal; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 		E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerRenderer.hpp; sourceTree = "<group>"; };
+		E9CB39FC27D5FF6200A02A2D /* pdfium-universal.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "pdfium-universal.dylib"; path = "../../../../Desktop/pdfium-universal.dylib"; sourceTree = "<group>"; };
+		E9CB3A0227D601FB00A02A2D /* fpdf_catalog.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_catalog.h; sourceTree = "<group>"; };
+		E9CB3A0327D601FB00A02A2D /* fpdf_structtree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_structtree.h; sourceTree = "<group>"; };
+		E9CB3A0427D601FB00A02A2D /* fpdf_text.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_text.h; sourceTree = "<group>"; };
+		E9CB3A0527D601FB00A02A2D /* fpdf_doc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_doc.h; sourceTree = "<group>"; };
+		E9CB3A0627D601FB00A02A2D /* fpdf_edit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_edit.h; sourceTree = "<group>"; };
+		E9CB3A0727D601FB00A02A2D /* fpdf_transformpage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_transformpage.h; sourceTree = "<group>"; };
+		E9CB3A0827D601FB00A02A2D /* fpdf_fwlevent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_fwlevent.h; sourceTree = "<group>"; };
+		E9CB3A0927D601FB00A02A2D /* fpdfview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdfview.h; sourceTree = "<group>"; };
+		E9CB3A0A27D601FB00A02A2D /* fpdf_annot.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_annot.h; sourceTree = "<group>"; };
+		E9CB3A0B27D601FB00A02A2D /* fpdf_ppo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_ppo.h; sourceTree = "<group>"; };
+		E9CB3A0C27D601FB00A02A2D /* fpdf_javascript.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_javascript.h; sourceTree = "<group>"; };
+		E9CB3A0D27D601FB00A02A2D /* fpdf_flatten.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_flatten.h; sourceTree = "<group>"; };
+		E9CB3A0E27D601FB00A02A2D /* fpdf_save.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_save.h; sourceTree = "<group>"; };
+		E9CB3A0F27D601FB00A02A2D /* fpdf_sysfontinfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_sysfontinfo.h; sourceTree = "<group>"; };
+		E9CB3A1027D601FB00A02A2D /* fpdf_attachment.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_attachment.h; sourceTree = "<group>"; };
+		E9CB3A1127D601FB00A02A2D /* fpdf_searchex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_searchex.h; sourceTree = "<group>"; };
+		E9CB3A1227D601FB00A02A2D /* fpdf_ext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_ext.h; sourceTree = "<group>"; };
+		E9CB3A1327D601FB00A02A2D /* fpdf_signature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_signature.h; sourceTree = "<group>"; };
+		E9CB3A1527D601FB00A02A2D /* fpdf_scopers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_scopers.h; sourceTree = "<group>"; };
+		E9CB3A1627D601FB00A02A2D /* fpdf_deleters.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_deleters.h; sourceTree = "<group>"; };
+		E9CB3A1727D601FB00A02A2D /* fpdf_formfill.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_formfill.h; sourceTree = "<group>"; };
+		E9CB3A1827D601FB00A02A2D /* fpdf_progressive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_progressive.h; sourceTree = "<group>"; };
+		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
+		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
+		E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "pdfium-universal.dylib"; path = "pdfum/pdfium-universal.dylib"; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 		E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDB.hpp; sourceTree = "<group>"; };
 		E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
@@ -80,6 +121,8 @@
 		E901B3852194B00F00B1AB72 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E9CB39FC27D5FF6200A02A2D /* pdfium-universal.dylib */,
+				E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */,
 				E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */,
 				E901B3862194B00F00B1AB72 /* Accelerate.framework */,
 			);
@@ -89,6 +132,7 @@
 		E920A59021762BCD00F52C25 = {
 			isa = PBXGroup;
 			children = (
+				E9CB3A0027D601FB00A02A2D /* pdfum */,
 				E920A59B21762BCD00F52C25 /* Rasterizer */,
 				E920A59A21762BCD00F52C25 /* Products */,
 				E901B3852194B00F00B1AB72 /* Frameworks */,
@@ -144,6 +188,53 @@
 			path = Rasterizer;
 			sourceTree = "<group>";
 		};
+		E9CB3A0027D601FB00A02A2D /* pdfum */ = {
+			isa = PBXGroup;
+			children = (
+				E9CB3A0127D601FB00A02A2D /* include */,
+			);
+			path = pdfum;
+			sourceTree = "<group>";
+		};
+		E9CB3A0127D601FB00A02A2D /* include */ = {
+			isa = PBXGroup;
+			children = (
+				E9CB3A0227D601FB00A02A2D /* fpdf_catalog.h */,
+				E9CB3A0327D601FB00A02A2D /* fpdf_structtree.h */,
+				E9CB3A0427D601FB00A02A2D /* fpdf_text.h */,
+				E9CB3A0527D601FB00A02A2D /* fpdf_doc.h */,
+				E9CB3A0627D601FB00A02A2D /* fpdf_edit.h */,
+				E9CB3A0727D601FB00A02A2D /* fpdf_transformpage.h */,
+				E9CB3A0827D601FB00A02A2D /* fpdf_fwlevent.h */,
+				E9CB3A0927D601FB00A02A2D /* fpdfview.h */,
+				E9CB3A0A27D601FB00A02A2D /* fpdf_annot.h */,
+				E9CB3A0B27D601FB00A02A2D /* fpdf_ppo.h */,
+				E9CB3A0C27D601FB00A02A2D /* fpdf_javascript.h */,
+				E9CB3A0D27D601FB00A02A2D /* fpdf_flatten.h */,
+				E9CB3A0E27D601FB00A02A2D /* fpdf_save.h */,
+				E9CB3A0F27D601FB00A02A2D /* fpdf_sysfontinfo.h */,
+				E9CB3A1027D601FB00A02A2D /* fpdf_attachment.h */,
+				E9CB3A1127D601FB00A02A2D /* fpdf_searchex.h */,
+				E9CB3A1227D601FB00A02A2D /* fpdf_ext.h */,
+				E9CB3A1327D601FB00A02A2D /* fpdf_signature.h */,
+				E9CB3A1427D601FB00A02A2D /* cpp */,
+				E9CB3A1727D601FB00A02A2D /* fpdf_formfill.h */,
+				E9CB3A1827D601FB00A02A2D /* fpdf_progressive.h */,
+				E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */,
+				E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		E9CB3A1427D601FB00A02A2D /* cpp */ = {
+			isa = PBXGroup;
+			children = (
+				E9CB3A1527D601FB00A02A2D /* fpdf_scopers.h */,
+				E9CB3A1627D601FB00A02A2D /* fpdf_deleters.h */,
+			);
+			path = cpp;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -154,6 +245,7 @@
 				E920A59521762BCD00F52C25 /* Sources */,
 				E920A59621762BCD00F52C25 /* Frameworks */,
 				E920A59721762BCD00F52C25 /* Resources */,
+				E9CB3A1E27D6045200A02A2D /* Embed Libraries */,
 			);
 			buildRules = (
 			);
@@ -372,6 +464,10 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/pdfum",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -391,6 +487,10 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/pdfum",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";

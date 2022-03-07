@@ -24,6 +24,18 @@
 			<key>NSDocumentClass</key>
 			<string>Document</string>
 		</dict>
+        <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>pdf</string>
+            </array>
+            <key>CFBundleTypeName</key>
+            <string>PDF</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>NSDocumentClass</key>
+            <string>Document</string>
+        </dict>
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>

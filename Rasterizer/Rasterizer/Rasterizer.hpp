@@ -72,6 +72,10 @@ struct Rasterizer {
         Colorant(uint8_t b, uint8_t g, uint8_t r, uint8_t a) : b(b), g(g), r(r), a(a) {}
         uint8_t b, g, r, a;
     };
+    struct Gradient {
+        Colorant stops[2];
+        float x0, y0, yx, y1;
+    };
     template<typename T>
     struct Ref {
         Ref()                               { ptr = new T(), ptr->refCount = 1; }

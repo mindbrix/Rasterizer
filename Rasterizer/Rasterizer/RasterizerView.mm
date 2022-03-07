@@ -236,6 +236,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     }
 }
 
+- (void)setPdfData:(NSData *)pdfData {
+    if ((_pdfData = pdfData))
+        [self changeFont:nil];
+}
+
 - (void)setSvgData:(NSData *)svgData {
     if ((_svgData = svgData))
         [self changeFont:nil];
