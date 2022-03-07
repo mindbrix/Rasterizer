@@ -21,23 +21,9 @@
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
-		E9CB3A1D27D6045200A02A2D /* pdfium-universal.dylib in Embed Libraries */ = {isa = PBXBuildFile; fileRef = E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		E9E9600527D645DA00E06451 /* libpdfium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E9E9600427D645CD00E06451 /* libpdfium.a */; };
 		E9FA61EB22776F72006BA8A6 /* libsqlite3.0.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		E9CB3A1E27D6045200A02A2D /* Embed Libraries */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				E9CB3A1D27D6045200A02A2D /* pdfium-universal.dylib in Embed Libraries */,
-			);
-			name = "Embed Libraries";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		E901B3862194B00F00B1AB72 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -98,7 +84,11 @@
 		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
 		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
 		E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "pdfium-universal.dylib"; path = "pdfum/pdfium-universal.dylib"; sourceTree = "<group>"; };
+		E9D169CF27D619F600989869 /* pdfium-mac-universal.tgz */ = {isa = PBXFileReference; lastKnownFileType = file; name = "pdfium-mac-universal.tgz"; path = "../../pdfium-binaries/staging_univ/pdfium-mac-universal.tgz"; sourceTree = "<group>"; };
+		E9D169D127D61A1900989869 /* libpdfium.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libpdfium.dylib; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
+		E9E9600127D63B2A00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = "../../pdfium-lib/build/macos/release/lib/libpdfium.a"; sourceTree = "<group>"; };
+		E9E9600427D645CD00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = pdfium/libpdfium.a; sourceTree = "<group>"; };
 		E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDB.hpp; sourceTree = "<group>"; };
 		E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
 		E9FB275E24FD18900093F619 /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = nanosvg.h; sourceTree = "<group>"; };
@@ -111,6 +101,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9FA61EB22776F72006BA8A6 /* libsqlite3.0.tbd in Frameworks */,
+				E9E9600527D645DA00E06451 /* libpdfium.a in Frameworks */,
 				E901B3872194B00F00B1AB72 /* Accelerate.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -121,6 +112,10 @@
 		E901B3852194B00F00B1AB72 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E9E9600127D63B2A00E06451 /* libpdfium.a */,
+				E9E9600427D645CD00E06451 /* libpdfium.a */,
+				E9D169D027D61A1900989869 /* lib */,
+				E9D169CF27D619F600989869 /* pdfium-mac-universal.tgz */,
 				E9CB39FC27D5FF6200A02A2D /* pdfium-universal.dylib */,
 				E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */,
 				E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */,
@@ -132,7 +127,7 @@
 		E920A59021762BCD00F52C25 = {
 			isa = PBXGroup;
 			children = (
-				E9CB3A0027D601FB00A02A2D /* pdfum */,
+				E9CB3A0027D601FB00A02A2D /* pdfium */,
 				E920A59B21762BCD00F52C25 /* Rasterizer */,
 				E920A59A21762BCD00F52C25 /* Products */,
 				E901B3852194B00F00B1AB72 /* Frameworks */,
@@ -188,12 +183,12 @@
 			path = Rasterizer;
 			sourceTree = "<group>";
 		};
-		E9CB3A0027D601FB00A02A2D /* pdfum */ = {
+		E9CB3A0027D601FB00A02A2D /* pdfium */ = {
 			isa = PBXGroup;
 			children = (
 				E9CB3A0127D601FB00A02A2D /* include */,
 			);
-			path = pdfum;
+			path = pdfium;
 			sourceTree = "<group>";
 		};
 		E9CB3A0127D601FB00A02A2D /* include */ = {
@@ -235,6 +230,15 @@
 			path = cpp;
 			sourceTree = "<group>";
 		};
+		E9D169D027D61A1900989869 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				E9D169D127D61A1900989869 /* libpdfium.dylib */,
+			);
+			name = lib;
+			path = "../../pdfium-binaries/staging_univ/lib";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -245,7 +249,6 @@
 				E920A59521762BCD00F52C25 /* Sources */,
 				E920A59621762BCD00F52C25 /* Frameworks */,
 				E920A59721762BCD00F52C25 /* Resources */,
-				E9CB3A1E27D6045200A02A2D /* Embed Libraries */,
 			);
 			buildRules = (
 			);
@@ -467,6 +470,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/pdfum",
+					"$(PROJECT_DIR)/pdfium",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -491,6 +495,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/pdfum",
+					"$(PROJECT_DIR)/pdfium",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
