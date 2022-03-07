@@ -8,6 +8,12 @@
 #import "Rasterizer.hpp"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
+#import "fpdf_sysfontinfo.h"
+#import "fpdf_text.h"
+
+#import <string>
+#import <locale>
+#import <codecvt>
 
 
 struct RasterizerPDF {
@@ -16,7 +22,7 @@ struct RasterizerPDF {
         ax = x1 - x0, bx = x2 - x0, cx = x3 - x0;
         ay = y1 - y0, by = y2 - y0, cy = y3 - y0;
         cdot = cx * cx + cy * cy, t0 = (ax * -cy + ay * cx) / cdot, t1 = (bx * -cy + by * cx) / cdot;
-        return fabsf(t0) < 1e-6f && fabsf(t1) < 1e-6f;
+        return fabsf(t0) < 1e-2f && fabsf(t1) < 1e-2f;
     }
     static inline float lengthsq(float x0, float y0, float x1, float y1) {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
@@ -77,15 +83,29 @@ struct RasterizerPDF {
         
         FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
         if (doc) {
+            FPDF_SYSFONTINFO *info = FPDF_GetDefaultSystemFontInfo();
+            
             int count = FPDF_GetPageCount(doc);
             if (count > 0) {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
+                FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+                
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     int type = FPDFPageObj_GetType(pageObject);
-                    if (type == FPDF_PAGEOBJ_PATH) {
+                    if (type == FPDF_PAGEOBJ_TEXT) {
+                        unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
+                        
+                        std::vector<char16_t> buffer(size);
+                        FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
+                        
+                        std::u16string source(buffer.data(), size);
+                        std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
+                        std::string dest = convert.to_bytes(source);
+                        fprintf(stderr, "%s\n", dest.c_str());
+                    } else if (type == FPDF_PAGEOBJ_PATH) {
                         if (FPDFPath_CountSegments(pageObject) > 0) {
                             Ra::Path path;
                             writePathFromObject(pageObject, path);
@@ -114,6 +134,7 @@ struct RasterizerPDF {
                     }
                 }
                 list.addScene(scene);
+                FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
             }
             FPDF_CloseDocument(doc);
