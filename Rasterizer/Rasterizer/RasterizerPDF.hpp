@@ -74,10 +74,25 @@ struct RasterizerPDF {
                         if (segmentCount > 0) {
                             Ra::Path path;
                             writePathFromObject(pageObject, path);
+                            
+                            int fillmode;
+                            FPDF_BOOL stroke;
+                            FPDF_BOOL gotMode = FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke);
+                            
+                            float width;
+                            FPDF_BOOL gotWidth = FPDFPageObj_GetStrokeWidth(pageObject, & width);
+                            
+                            unsigned int R, G, B, A;
+                            FPDF_BOOL gotColor;
+                            if (stroke)
+                                gotColor = FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
+                            else
+                                gotColor = FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                            
                             FS_MATRIX m;
                             FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
                             Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
-                            scene.addPath(path, ctm, Ra::Colorant(0, 0, 0, 255), 0.f, 0);
+                            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), stroke ? width : 0.f, fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0);
                         }
                     }
                 }
