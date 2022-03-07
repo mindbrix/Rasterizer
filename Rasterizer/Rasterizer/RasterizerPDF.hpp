@@ -60,9 +60,9 @@ struct RasterizerPDF {
                     default:
                         break;
                 }
-//                FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
-//                if (close)
-//                    p->close();
+                FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
+                if (close)
+                    p->close();
             }
         }
     }
@@ -86,8 +86,7 @@ struct RasterizerPDF {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     int type = FPDFPageObj_GetType(pageObject);
                     if (type == FPDF_PAGEOBJ_PATH) {
-                        int segmentCount = FPDFPath_CountSegments(pageObject);
-                        if (segmentCount > 0) {
+                        if (FPDFPath_CountSegments(pageObject) > 0) {
                             Ra::Path path;
                             writePathFromObject(pageObject, path);
                             
@@ -105,10 +104,12 @@ struct RasterizerPDF {
                             else
                                 gotColor = FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                             
-                            FS_MATRIX m;
-                            FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
-                            Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
-                            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), stroke ? width : 0.f, fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0);
+                            if (gotMode && gotWidth && gotColor) {
+                                FS_MATRIX m;
+                                FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
+                                Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
+                                scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), stroke ? width : 0.f, fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0);
+                            }
                         }
                     }
                 }
