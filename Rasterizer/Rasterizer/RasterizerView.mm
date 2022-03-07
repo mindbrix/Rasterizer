@@ -9,12 +9,13 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerRenderer.hpp"
 #import "RasterizerDB.hpp"
+#import "RasterizerPDF.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerFont.hpp"
 #import "RasterizerTest.hpp"
 #import "RasterizerLayer.h"
 #import "fpdfview.h"
-
+#import "fpdf_edit.h"
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
@@ -105,6 +106,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _db->writeTables(RaCG::BoundsFromCGRect(self.bounds));
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
+    else if (_pdfData != nil)
+        RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, list);
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
@@ -241,20 +244,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setPdfData:(NSData *)pdfData {
     if ((_pdfData = pdfData)) {
         [self changeFont:nil];
-        
-        FPDF_LIBRARY_CONFIG config;
-            config.version = 3;
-            config.m_pUserFontPaths = nullptr;
-            config.m_pIsolate = nullptr;
-            config.m_v8EmbedderSlot = 0;
-            config.m_pPlatform = nullptr;
-        FPDF_InitLibraryWithConfig(&config);
-        
-        FPDF_DOCUMENT doc = FPDF_LoadMemDocument(pdfData.bytes, int(pdfData.length), NULL);
-        if (!doc) {
-            unsigned long err = FPDF_GetLastError();
-            fprintf(stderr, "FPDF_GetLastError = %ld", err);
-        }
     }
 }
 

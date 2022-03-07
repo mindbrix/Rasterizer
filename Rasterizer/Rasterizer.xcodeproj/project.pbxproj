@@ -22,6 +22,7 @@
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
 		E9E9600527D645DA00E06451 /* libpdfium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E9E9600427D645CD00E06451 /* libpdfium.a */; };
+		E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */ = {isa = PBXBuildFile; fileRef = E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */; };
 		E9FA61EB22776F72006BA8A6 /* libsqlite3.0.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */; };
 /* End PBXBuildFile section */
 
@@ -89,6 +90,7 @@
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 		E9E9600127D63B2A00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = "../../pdfium-lib/build/macos/release/lib/libpdfium.a"; sourceTree = "<group>"; };
 		E9E9600427D645CD00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = pdfium/libpdfium.a; sourceTree = "<group>"; };
+		E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerPDF.hpp; sourceTree = "<group>"; };
 		E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerDB.hpp; sourceTree = "<group>"; };
 		E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
 		E9FB275E24FD18900093F619 /* nanosvg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = nanosvg.h; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
 				E9FA61E92276E8CF006BA8A6 /* RasterizerDB.hpp */,
 				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
+				E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */,
 				E97782A822BF7D78003C2D3E /* RasterizerQueue.hpp */,
 				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerState.hpp */,
@@ -311,6 +314,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */,
+				E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */,
 				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
 				E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerView.mm in Sources */,
