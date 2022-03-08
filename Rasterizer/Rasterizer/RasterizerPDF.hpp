@@ -17,6 +17,47 @@
 
 
 struct RasterizerPDF {
+    struct PathWriter {
+        float x, y, px = 0.f, py = 0.f;
+        std::vector<float> bezier;
+        
+        void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
+            int segmentType = FPDFPathSegment_GetType(segment);
+            FPDF_BOOL success = FPDFPathSegment_GetPoint(segment, & x, & y);
+            if (success == 0)
+                return;
+            switch (segmentType) {
+                case FPDF_SEGMENT_MOVETO:
+                    p->moveTo(x, y);
+                    px = x, py = y;
+                    break;
+                case FPDF_SEGMENT_LINETO:
+                    p->lineTo(x, y);
+                    px = x, py = y;
+                    break;
+                case FPDF_SEGMENT_BEZIERTO:
+                    bezier.emplace_back(x);
+                    bezier.emplace_back(y);
+                    if (bezier.size() == 6) {
+                        if (lengthsq(px, py, x, y) > 1e-9f) {
+                            if (isLine(px, py, bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]))
+                                p->lineTo(x, y);
+                            else
+                                p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
+                            px = x, py = y;
+                        }
+                        bezier.clear();
+                    }
+                    break;
+                default:
+                    break;
+            }
+            FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
+            if (close)
+                p->close();
+        }
+    };
+    
     static inline bool isLine(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
         float ax, bx, cx, ay, by, cy, cdot, t0, t1;
         ax = x1 - x0, bx = x2 - x0, cx = x3 - x0;
@@ -28,48 +69,21 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
     
+    static void writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
+        PathWriter writer;
+        int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
+        for (int j = 0; j < segmentCount; j++) {
+            FPDF_PATHSEGMENT segment = FPDFGlyphPath_GetGlyphPathSegment(path, j);
+            writer.writeSegment(segment, p);
+        }
+    }
+    
     static void writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
+        PathWriter writer;
         int segmentCount = FPDFPath_CountSegments(pageObject);
-        if (segmentCount > 0) {
-            float x, y, px = 0.f, py = 0.f;
-            std::vector<float> bezier;
-            
-            for (int j = 0; j < segmentCount; j++) {
-                FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
-                int segmentType = FPDFPathSegment_GetType(segment);
-                FPDF_BOOL success = FPDFPathSegment_GetPoint(segment, & x, & y);
-                if (success == 0)
-                    continue;
-                switch (segmentType) {
-                    case FPDF_SEGMENT_MOVETO:
-                        p->moveTo(x, y);
-                        px = x, py = y;
-                        break;
-                    case FPDF_SEGMENT_LINETO:
-                        p->lineTo(x, y);
-                        px = x, py = y;
-                        break;
-                    case FPDF_SEGMENT_BEZIERTO:
-                        bezier.emplace_back(x);
-                        bezier.emplace_back(y);
-                        if (bezier.size() == 6) {
-                            if (lengthsq(px, py, x, y) > 1e-9f) {
-                                if (isLine(px, py, bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]))
-                                    p->lineTo(x, y);
-                                else
-                                    p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
-                                px = x, py = y;
-                            }
-                            bezier.clear();
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
-                if (close)
-                    p->close();
-            }
+        for (int j = 0; j < segmentCount; j++) {
+            FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
+            writer.writeSegment(segment, p);
         }
     }
     static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
@@ -89,8 +103,18 @@ struct RasterizerPDF {
             if (count > 0) {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+                int charCount = FPDFText_CountChars(text_page);
+                char32_t unicode[charCount];
+                for (int idx = 0; idx < charCount; idx++)
+                    unicode[idx] = FPDFText_GetUnicode(text_page, idx);
                 
+                std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
+                
+                std::u32string u32(unicode, charCount);
+                std::string utf8 = conv.to_bytes(u32);
+//                fprintf(stderr, "%s\n", utf8.c_str());
                 Ra::Scene scene;
+                size_t textCount = 0;
                 int objectCount = FPDFPage_CountObjects(page);
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
@@ -100,11 +124,28 @@ struct RasterizerPDF {
                         
                         std::vector<char16_t> buffer(size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
-                        
-                        std::u16string source(buffer.data(), size);
+                        while (buffer.back() == 0 || buffer.back() == ' ')
+                            buffer.pop_back();
+                        std::u16string source(buffer.data(), buffer.size());
+
                         std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
                         std::string dest = convert.to_bytes(source);
                         fprintf(stderr, "%s\n", dest.c_str());
+                        
+                        std::wstring_convert<std::codecvt_utf8_utf16<char32_t>,char32_t> convert32;
+                        std::u32string u32 = conv.from_bytes(dest);
+                        fprintf(stderr, "%ld\n", u32.size());
+                        
+                        FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
+                        
+                        for (auto glyph : u32) {
+                            FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, 10);
+                            Ra::Path p;
+                            writePathFromGlyphPath(path, p);
+                            Ra::Transform ctm = Ra::Transform();
+                            scene.addPath(p, ctm, Ra::Colorant(0, 0, 0, 255), 0.f, 0);
+                        }
+                        
                     } else if (type == FPDF_PAGEOBJ_PATH) {
                         if (FPDFPath_CountSegments(pageObject) > 0) {
                             Ra::Path path;
