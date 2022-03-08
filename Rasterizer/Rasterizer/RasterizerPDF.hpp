@@ -81,10 +81,6 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
     
-    static inline Ra::Transform transformFromMatrix(FS_MATRIX m) {
-        return Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-    }
-    
     static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -107,16 +103,17 @@ struct RasterizerPDF {
                 
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
+                    
+                    Ra::Transform ctm;
+                    FS_MATRIX m;
+                    if (FPDFPageObj_GetMatrix(pageObject, & m))
+                        ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                        
                     int type = FPDFPageObj_GetType(pageObject);
                     if (type == FPDF_PAGEOBJ_TEXT) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
                         buffer.resize(0), buffer.resize(size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
-                        
-                        Ra::Transform ctm;
-                        FS_MATRIX m;
-                        if (FPDFPageObj_GetMatrix(pageObject, & m))
-                            ctm = transformFromMatrix(m);
                         
                         float fontSize = 1.f, tx = 0.f, width = 0.f;
                         FPDFTextObj_GetFontSize(pageObject, & fontSize);
@@ -155,11 +152,6 @@ struct RasterizerPDF {
                                     cap = FPDFPageObj_GetLineCap(pageObject);
                                 } else
                                     FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                                
-                                Ra::Transform ctm;
-                                FS_MATRIX m;
-                                if (FPDFPageObj_GetMatrix(pageObject, & m))
-                                    ctm = transformFromMatrix(m);
                                 
                                 uint8_t flags = 0;
                                 flags |= fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0;
