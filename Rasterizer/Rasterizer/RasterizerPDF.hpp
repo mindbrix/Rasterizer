@@ -115,7 +115,7 @@ struct RasterizerPDF {
                     int type = FPDFPageObj_GetType(pageObject);
                     if (type == FPDF_PAGEOBJ_TEXT) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
-                        buffer.resize(size);
+                        buffer.resize(0), buffer.resize(size);
                         bzero(buffer.data(), sizeof(buffer[0]) * size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
                         
@@ -137,8 +137,7 @@ struct RasterizerPDF {
                             Ra::Path p;
                             writePathFromGlyphPath(path, p);
                             
-                            Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
-                            m = pageCTM.concat(m);
+                            Ra::Transform m = pageCTM.concat(ctm).concat(Ra::Transform(1, 0, 0, 1, tx, 0));
                             scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
                             
                             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
