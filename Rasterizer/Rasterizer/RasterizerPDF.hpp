@@ -17,6 +17,22 @@ struct RasterizerPDF {
         float x, y, px = 0.f, py = 0.f;
         std::vector<float> bezier;
         
+        void writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
+            int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
+            for (int j = 0; j < segmentCount; j++) {
+                FPDF_PATHSEGMENT segment = FPDFGlyphPath_GetGlyphPathSegment(path, j);
+                writeSegment(segment, p);
+            }
+        }
+        
+        void writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
+            int segmentCount = FPDFPath_CountSegments(pageObject);
+            for (int j = 0; j < segmentCount; j++) {
+                FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
+                writeSegment(segment, p);
+            }
+        }
+        
         void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
             int segmentType = FPDFPathSegment_GetType(segment);
             FPDF_BOOL success = FPDFPathSegment_GetPoint(segment, & x, & y);
@@ -63,24 +79,6 @@ struct RasterizerPDF {
     }
     static inline float lengthsq(float x0, float y0, float x1, float y1) {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
-    }
-    
-    static void writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
-        PathWriter writer;
-        int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
-        for (int j = 0; j < segmentCount; j++) {
-            FPDF_PATHSEGMENT segment = FPDFGlyphPath_GetGlyphPathSegment(path, j);
-            writer.writeSegment(segment, p);
-        }
-    }
-    
-    static void writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
-        PathWriter writer;
-        int segmentCount = FPDFPath_CountSegments(pageObject);
-        for (int j = 0; j < segmentCount; j++) {
-            FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
-            writer.writeSegment(segment, p);
-        }
     }
     
     static inline Ra::Transform transformFromMatrix(FS_MATRIX m) {
@@ -130,7 +128,7 @@ struct RasterizerPDF {
                         for (auto glyph : buffer) {
                             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                             Ra::Path p;
-                            writePathFromGlyphPath(path, p);
+                            PathWriter().writePathFromGlyphPath(path, p);
                             
                             Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
                             scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
@@ -142,7 +140,7 @@ struct RasterizerPDF {
                     } else if (type == FPDF_PAGEOBJ_PATH) {
                         if (FPDFPath_CountSegments(pageObject) > 0) {
                             Ra::Path path;
-                            writePathFromObject(pageObject, path);
+                            PathWriter().writePathFromObject(pageObject, path);
                             
                             int fillmode;
                             FPDF_BOOL stroke;
@@ -194,6 +192,7 @@ struct RasterizerPDF {
                 }
                 Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
                 list.addScene(scene, pageCTM);
+                
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
             }
