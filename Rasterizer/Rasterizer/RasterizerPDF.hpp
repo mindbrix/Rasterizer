@@ -86,6 +86,7 @@ struct RasterizerPDF {
             writer.writeSegment(segment, p);
         }
     }
+    
     static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -97,24 +98,16 @@ struct RasterizerPDF {
         
         FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
         if (doc) {
-            FPDF_SYSFONTINFO *info = FPDF_GetDefaultSystemFontInfo();
-            
             int count = FPDF_GetPageCount(doc);
             if (count > 0) {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
-                int charCount = FPDFText_CountChars(text_page);
-                char32_t unicode[charCount];
-                for (int idx = 0; idx < charCount; idx++)
-                    unicode[idx] = FPDFText_GetUnicode(text_page, idx);
-                
+
                 std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
+                std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
+                std::wstring_convert<std::codecvt_utf8_utf16<char32_t>,char32_t> convert32;
                 
-                std::u32string u32(unicode, charCount);
-                std::string utf8 = conv.to_bytes(u32);
-//                fprintf(stderr, "%s\n", utf8.c_str());
                 Ra::Scene scene;
-                size_t textCount = 0;
                 int objectCount = FPDFPage_CountObjects(page);
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
@@ -128,22 +121,17 @@ struct RasterizerPDF {
                             buffer.pop_back();
                         std::u16string source(buffer.data(), buffer.size());
 
-                        std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
                         std::string dest = convert.to_bytes(source);
-//                        fprintf(stderr, "%s\n", dest.c_str());
-                        
-                        std::wstring_convert<std::codecvt_utf8_utf16<char32_t>,char32_t> convert32;
                         std::u32string u32 = conv.from_bytes(dest);
-//                        fprintf(stderr, "%ld\n", u32.size());
                         
                         FS_MATRIX m;
                         FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
                         Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
                         
-                        float fontSize;
-                        FPDF_BOOL gotSize = FPDFTextObj_GetFontSize(pageObject, & fontSize);
+                        float fontSize = 1.f, tx = 0.f, width = 0.f;
+                        FPDFTextObj_GetFontSize(pageObject, & fontSize);
                         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
-                        float tx = 0.f, width = 0.f;
+                        
                         for (auto glyph : u32) {
                             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                             Ra::Path p;
@@ -152,8 +140,8 @@ struct RasterizerPDF {
                             Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
                             scene.addPath(p, m, Ra::Colorant(0, 0, 0, 255), 0.f, 0);
                             
-                            FPDF_BOOL gotWidth = FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width);
-                            tx += gotWidth ? width : 0.f;
+                            if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
+                                tx += width;
                         }
                         
                     } else if (type == FPDF_PAGEOBJ_PATH) {
