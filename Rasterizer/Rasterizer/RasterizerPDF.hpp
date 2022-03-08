@@ -131,7 +131,6 @@ struct RasterizerPDF {
                     if (type == FPDF_PAGEOBJ_TEXT) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
                         buffer.resize(0), buffer.resize(size);
-                        bzero(buffer.data(), sizeof(buffer[0]) * size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
                         
                         Ra::Transform ctm;
