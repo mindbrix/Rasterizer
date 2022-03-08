@@ -132,13 +132,16 @@ struct RasterizerPDF {
                         FPDFTextObj_GetFontSize(pageObject, & fontSize);
                         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
                         
+                        unsigned int R = 0, G = 0, B = 0, A = 255;
+                        FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                        
                         for (auto glyph : u32) {
                             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                             Ra::Path p;
                             writePathFromGlyphPath(path, p);
                             
                             Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
-                            scene.addPath(p, m, Ra::Colorant(0, 0, 0, 255), 0.f, 0);
+                            scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
                             
                             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
                                 tx += width;
