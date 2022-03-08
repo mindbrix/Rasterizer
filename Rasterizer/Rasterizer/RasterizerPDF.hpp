@@ -103,24 +103,6 @@ struct RasterizerPDF {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
                 
-                int rotation = FPDFPage_GetRotation(page);
-                float left, bottom, right, top, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
-                if (rotation != 0 && FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top)) {
-                    __sincosf(rotation * -0.5f * M_PI, & sine, & cosine);
-                    switch (rotation) {
-                        case 1:
-                            ty = right - left;
-                            break;
-                        case 2:
-                            tx = right - left;
-                            ty = top - bottom;
-                            break;
-                        case 3:
-                            tx = top - bottom;
-                            break;
-                    }
-                }
-                Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
                 std::vector<char16_t> buffer;
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
@@ -190,6 +172,27 @@ struct RasterizerPDF {
                         }
                     }
                 }
+                
+                int rotation = FPDFPage_GetRotation(page);
+                Ra::Bounds b = scene.bounds().integral();
+                float left = 0.f, bottom = 0.f, right = ceilf(b.ux), top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
+                __sincosf(-rotation * 0.5f * M_PI, & sine, & cosine);
+                if (rotation != 0) {
+                    FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
+                    switch (rotation) {
+                        case 1:
+                            ty = right - left;
+                            break;
+                        case 2:
+                            tx = right - left;
+                            ty = top - bottom;
+                            break;
+                        case 3:
+                            tx = top - bottom;
+                            break;
+                    }
+                }
+                Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
                 list.addScene(scene, pageCTM);
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
