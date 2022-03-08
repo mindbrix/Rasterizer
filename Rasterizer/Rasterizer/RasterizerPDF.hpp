@@ -119,9 +119,10 @@ struct RasterizerPDF {
                         bzero(buffer.data(), sizeof(buffer[0]) * size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
                         
+                        Ra::Transform ctm;
                         FS_MATRIX m;
-                        FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
-                        Ra::Transform ctm = ok ? transformFromMatrix(m) : Ra::Transform();
+                        if (FPDFPageObj_GetMatrix(pageObject, & m))
+                            ctm = transformFromMatrix(m);
                         
                         float fontSize = 1.f, tx = 0.f, width = 0.f;
                         FPDFTextObj_GetFontSize(pageObject, & fontSize);
@@ -164,10 +165,11 @@ struct RasterizerPDF {
                                 gotColor = FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                             
                             if (gotMode && gotWidth && gotColor) {
+                                Ra::Transform ctm;
                                 FS_MATRIX m;
-                                FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
-                                Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
-                                ctm = pageCTM.concat(ctm);
+                                if (FPDFPageObj_GetMatrix(pageObject, & m))
+                                    ctm = pageCTM.concat(transformFromMatrix(m));
+                                
                                 scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), stroke ? width : 0.f, fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0);
                             }
                         }
