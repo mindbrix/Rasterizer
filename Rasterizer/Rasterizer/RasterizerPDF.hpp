@@ -135,30 +135,28 @@ struct RasterizerPDF {
                         }
                         
                     } else if (type == FPDF_PAGEOBJ_PATH) {
-                        if (FPDFPath_CountSegments(pageObject) > 0) {
+                        int fillmode;
+                        FPDF_BOOL stroke;
+                         
+                        if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
                             Ra::Path path;
                             PathWriter().writePathFromObject(pageObject, path);
                             
-                            int fillmode;
-                            FPDF_BOOL stroke;
-                             
-                            if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
-                                float width = 0.f;
-                                int cap = 0;
-                                unsigned int R = 0, G = 0, B = 0, A = 255;
-                                if (stroke) {
-                                    FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
-                                    FPDFPageObj_GetStrokeWidth(pageObject, & width);
-                                    cap = FPDFPageObj_GetLineCap(pageObject);
-                                } else
-                                    FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                                
-                                uint8_t flags = 0;
-                                flags |= fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0;
-                                flags |= cap == FPDF_LINECAP_ROUND ? Rasterizer::Scene::kRoundCap : 0;
-                                flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Rasterizer::Scene::kSquareCap : 0;
-                                scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
-                            }
+                            float width = 0.f;
+                            int cap = 0;
+                            unsigned int R = 0, G = 0, B = 0, A = 255;
+                            if (stroke) {
+                                FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
+                                FPDFPageObj_GetStrokeWidth(pageObject, & width);
+                                cap = FPDFPageObj_GetLineCap(pageObject);
+                            } else
+                                FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                            
+                            uint8_t flags = 0;
+                            flags |= fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0;
+                            flags |= cap == FPDF_LINECAP_ROUND ? Rasterizer::Scene::kRoundCap : 0;
+                            flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Rasterizer::Scene::kSquareCap : 0;
+                            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
                         }
                     }
                 }
