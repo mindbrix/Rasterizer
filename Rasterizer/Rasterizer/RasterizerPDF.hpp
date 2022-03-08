@@ -130,20 +130,30 @@ struct RasterizerPDF {
 
                         std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
                         std::string dest = convert.to_bytes(source);
-                        fprintf(stderr, "%s\n", dest.c_str());
+//                        fprintf(stderr, "%s\n", dest.c_str());
                         
                         std::wstring_convert<std::codecvt_utf8_utf16<char32_t>,char32_t> convert32;
                         std::u32string u32 = conv.from_bytes(dest);
-                        fprintf(stderr, "%ld\n", u32.size());
+//                        fprintf(stderr, "%ld\n", u32.size());
                         
+                        FS_MATRIX m;
+                        FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
+                        Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
+                        
+                        float fontSize;
+                        FPDF_BOOL gotSize = FPDFTextObj_GetFontSize(pageObject, & fontSize);
                         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
-                        
+                        float tx = 0.f, width = 0.f;
                         for (auto glyph : u32) {
-                            FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, 10);
+                            FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                             Ra::Path p;
                             writePathFromGlyphPath(path, p);
-                            Ra::Transform ctm = Ra::Transform();
-                            scene.addPath(p, ctm, Ra::Colorant(0, 0, 0, 255), 0.f, 0);
+                            
+                            Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                            scene.addPath(p, m, Ra::Colorant(0, 0, 0, 255), 0.f, 0);
+                            
+                            FPDF_BOOL gotWidth = FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width);
+                            tx += gotWidth ? width : 0.f;
                         }
                         
                     } else if (type == FPDF_PAGEOBJ_PATH) {
