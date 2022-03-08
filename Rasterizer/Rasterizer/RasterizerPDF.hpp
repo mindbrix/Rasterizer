@@ -8,7 +8,7 @@
 #import "Rasterizer.hpp"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
-#import "fpdf_sysfontinfo.h"
+#import "fpdf_transformpage.h"
 #import "fpdf_text.h"
 
 
@@ -102,10 +102,25 @@ struct RasterizerPDF {
             if (count > 0) {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+                
                 int rotation = FPDFPage_GetRotation(page);
-                float sine, cosine;
-                __sincosf(rotation * -0.5f * M_PI, & sine, & cosine);
-                Ra::Transform pageCTM(cosine, sine, -sine, cosine, 0, 0);
+                float left, bottom, right, top, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
+                if (rotation != 0 && FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top)) {
+                    __sincosf(rotation * -0.5f * M_PI, & sine, & cosine);
+                    switch (rotation) {
+                        case 1:
+                            ty = right - left;
+                            break;
+                        case 2:
+                            tx = right - left;
+                            ty = top - bottom;
+                            break;
+                        case 3:
+                            tx = top - bottom;
+                            break;
+                    }
+                }
+                Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
                 std::vector<char16_t> buffer;
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
