@@ -106,11 +106,10 @@ struct RasterizerPDF {
                 float sine, cosine;
                 __sincosf(rotation * -0.5f * M_PI, & sine, & cosine);
                 Ra::Transform pageCTM(cosine, sine, -sine, cosine, 0, 0);
-                
-                
                 std::vector<char16_t> buffer;
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
+                
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     int type = FPDFPageObj_GetType(pageObject);
