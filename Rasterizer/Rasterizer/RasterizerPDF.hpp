@@ -153,7 +153,7 @@ struct RasterizerPDF {
                             Ra::Path p;
                             writePathFromGlyphPath(path, p);
                             
-                            Ra::Transform m = pageCTM.concat(ctm).concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                            Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
                             scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
                             
                             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
@@ -182,7 +182,7 @@ struct RasterizerPDF {
                                 Ra::Transform ctm;
                                 FS_MATRIX m;
                                 if (FPDFPageObj_GetMatrix(pageObject, & m))
-                                    ctm = pageCTM.concat(transformFromMatrix(m));
+                                    ctm = transformFromMatrix(m);
                                 
                                 uint8_t flags = 0;
                                 flags |= fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0;
@@ -193,7 +193,7 @@ struct RasterizerPDF {
                         }
                     }
                 }
-                list.addScene(scene);
+                list.addScene(scene, pageCTM);
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
             }
