@@ -167,25 +167,28 @@ struct RasterizerPDF {
                             
                             int fillmode;
                             FPDF_BOOL stroke;
-                            FPDF_BOOL gotMode = FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke);
-                            
-                            float width;
-                            FPDF_BOOL gotWidth = FPDFPageObj_GetStrokeWidth(pageObject, & width);
-                            
-                            unsigned int R, G, B, A;
-                            FPDF_BOOL gotColor;
-                            if (stroke)
-                                gotColor = FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
-                            else
-                                gotColor = FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                            
-                            if (gotMode && gotWidth && gotColor) {
+                             
+                            if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
+                                float width = 0.f;
+                                int cap = 0;
+                                unsigned int R = 0, G = 0, B = 0, A = 255;
+                                if (stroke) {
+                                    FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
+                                    FPDFPageObj_GetStrokeWidth(pageObject, & width);
+                                    cap = FPDFPageObj_GetLineCap(pageObject);
+                                } else
+                                    FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                                
                                 Ra::Transform ctm;
                                 FS_MATRIX m;
                                 if (FPDFPageObj_GetMatrix(pageObject, & m))
                                     ctm = pageCTM.concat(transformFromMatrix(m));
                                 
-                                scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), stroke ? width : 0.f, fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0);
+                                uint8_t flags = 0;
+                                flags |= fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0;
+                                flags |= cap == FPDF_LINECAP_ROUND ? Rasterizer::Scene::kRoundCap : 0;
+                                flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Rasterizer::Scene::kSquareCap : 0;
+                                scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
                             }
                         }
                     }
