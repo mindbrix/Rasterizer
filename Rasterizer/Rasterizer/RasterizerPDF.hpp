@@ -11,10 +11,6 @@
 #import "fpdf_sysfontinfo.h"
 #import "fpdf_text.h"
 
-#import <string>
-#import <locale>
-#import <codecvt>
-
 
 struct RasterizerPDF {
     struct PathWriter {
@@ -102,11 +98,8 @@ struct RasterizerPDF {
             if (count > 0) {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
-
-                std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-                std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
-                std::wstring_convert<std::codecvt_utf8_utf16<char32_t>,char32_t> convert32;
                 
+                std::vector<char16_t> buffer;
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
                 for (int i = 0; i < objectCount; i++) {
@@ -114,15 +107,8 @@ struct RasterizerPDF {
                     int type = FPDFPageObj_GetType(pageObject);
                     if (type == FPDF_PAGEOBJ_TEXT) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
-                        
-                        std::vector<char16_t> buffer(size);
+                        buffer.resize(size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
-                        while (buffer.back() == 0 || buffer.back() == ' ')
-                            buffer.pop_back();
-                        std::u16string source(buffer.data(), buffer.size());
-
-                        std::string dest = convert.to_bytes(source);
-                        std::u32string u32 = conv.from_bytes(dest);
                         
                         FS_MATRIX m;
                         FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
@@ -135,7 +121,9 @@ struct RasterizerPDF {
                         unsigned int R = 0, G = 0, B = 0, A = 255;
                         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                         
-                        for (auto glyph : u32) {
+                        for (auto glyph : buffer) {
+                            if (glyph == 0)
+                                continue;
                             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                             Ra::Path p;
                             writePathFromGlyphPath(path, p);
