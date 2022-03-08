@@ -147,8 +147,6 @@ struct RasterizerPDF {
                         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                         
                         for (auto glyph : buffer) {
-                            if (glyph == 0)
-                                continue;
                             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                             Ra::Path p;
                             writePathFromGlyphPath(path, p);
