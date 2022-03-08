@@ -83,6 +83,10 @@ struct RasterizerPDF {
         }
     }
     
+    static inline Ra::Transform transformFromMatrix(FS_MATRIX m) {
+        return Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+    }
+    
     static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -98,6 +102,11 @@ struct RasterizerPDF {
             if (count > 0) {
                 FPDF_PAGE page = FPDF_LoadPage(doc, 0);
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+                int rotation = FPDFPage_GetRotation(page);
+                float sine, cosine;
+                __sincosf(rotation * -0.5f * M_PI, & sine, & cosine);
+                Ra::Transform pageCTM(cosine, sine, -sine, cosine, 0, 0);
+                
                 
                 std::vector<char16_t> buffer;
                 Ra::Scene scene;
@@ -108,11 +117,12 @@ struct RasterizerPDF {
                     if (type == FPDF_PAGEOBJ_TEXT) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
                         buffer.resize(size);
+                        bzero(buffer.data(), sizeof(buffer[0]) * size);
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
                         
                         FS_MATRIX m;
                         FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
-                        Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
+                        Ra::Transform ctm = ok ? transformFromMatrix(m) : Ra::Transform();
                         
                         float fontSize = 1.f, tx = 0.f, width = 0.f;
                         FPDFTextObj_GetFontSize(pageObject, & fontSize);
@@ -129,6 +139,7 @@ struct RasterizerPDF {
                             writePathFromGlyphPath(path, p);
                             
                             Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                            m = pageCTM.concat(m);
                             scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
                             
                             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
@@ -158,6 +169,7 @@ struct RasterizerPDF {
                                 FS_MATRIX m;
                                 FPDF_BOOL ok = FPDFPageObj_GetMatrix(pageObject, & m);
                                 Ra::Transform ctm = ok ? Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f) : Ra::Transform();
+                                ctm = pageCTM.concat(ctm);
                                 scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), stroke ? width : 0.f, fillmode == 1 ? Rasterizer::Scene::kFillEvenOdd : 0);
                             }
                         }
