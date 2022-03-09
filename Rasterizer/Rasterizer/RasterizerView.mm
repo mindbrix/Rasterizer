@@ -29,6 +29,7 @@
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) BOOL useCG;
 @property(nonatomic) NSString *pastedString;
+@property(nonatomic) size_t pageIndex;
 - (void)timerFired:(double)time;
 
 @end
@@ -54,6 +55,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
+    self.pageIndex = 0;
     [self initLayer:_useCG];
     self.fnt = [NSFont fontWithName:@"AppleSymbols" size:14];
     [self writeList:self.fnt];
@@ -107,7 +109,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else if (_pdfData != nil)
-        RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, 1, list);
+        RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
@@ -176,9 +178,17 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 1)
         RaCG::screenGrabToPDF(_list, _state, self.bounds);
-    else {
+    else if (keyCode == 123) {
+        if (self.pageIndex > 0) {
+            self.pageIndex--;
+            [self changeFont:nil];
+        }
+    } else if (keyCode == 124) {
+        self.pageIndex++;
+        [self changeFont:nil];
+    } else
         [super keyDown:event];
-    }
+    
 }
 - (void)keyUp:(NSEvent *)event {
     _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyUp, event.keyCode, event.characters.UTF8String));
