@@ -96,7 +96,7 @@ struct RasterizerPDF {
         int charCount = FPDFText_CountChars(text_page);
         double left = 0, bottom = 0, right = 0, top = 0;
         Ra::Transform unit;
-        Ra::Colorant black(0, 0, 0, 255);
+        Ra::Colorant black(0, 0, 0, 64);
         for (int i = 0; i < charCount; i++) {
             if (FPDFText_GetUnicode(text_page, i) > 32 &&
                 FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
@@ -132,7 +132,7 @@ struct RasterizerPDF {
              if (g == 0) {
                 Ra::Bounds b = p->bounds.unit(ctm);
                 charIndex = FPDFText_GetCharIndexAtPos(text_page, 0.5 * (b.lx + b.ux), 0.5 * (b.ly + b.uy), 0, 0);
-                 if (charIndex == -1) {
+                 if (charIndex == -1 && glyph > 32) {
                      fprintf(stderr, "Not found\n");
                  }
             }
@@ -258,7 +258,7 @@ struct RasterizerPDF {
                     }
                 }
                 
-//                writeTextBoxesT/oScene(text_page, scene);
+                writeTextBoxesToScene(text_page, scene);
                 list.addScene(scene, transformForPage(page, scene));
                 
                 FPDFText_ClosePage(text_page);
