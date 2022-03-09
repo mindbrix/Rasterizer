@@ -17,6 +17,14 @@ struct RasterizerPDF {
         float x, y, px = 0.f, py = 0.f;
         std::vector<float> bezier;
         
+        void writePathFromClipPath(FPDF_CLIPPATH clipPath, int index, Ra::Path& p) {
+            int segmentCount = FPDFClipPath_CountPathSegments(clipPath, index);
+            for (int j = 0; j < segmentCount; j++) {
+                FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, index, j);
+                writeSegment(segment, p);
+            }
+        }
+        
         void writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
             int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
             for (int j = 0; j < segmentCount; j++) {
@@ -119,7 +127,7 @@ struct RasterizerPDF {
                         float fontSize = 1.f, tx = 0.f, width = 0.f;
                         FPDFTextObj_GetFontSize(pageObject, & fontSize);
                         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
-                        
+                        assert(font);
                         unsigned int R = 0, G = 0, B = 0, A = 255;
                         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                         
@@ -150,8 +158,21 @@ struct RasterizerPDF {
                                 FPDFPageObj_GetStrokeWidth(pageObject, & width);
                                 width = width == 0.f ? -1.f : width;
                                 cap = FPDFPageObj_GetLineCap(pageObject);
-                            } else
+                            } else {
                                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                                
+                                FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
+                                if (clipPath) {
+                                    int clipCount = FPDFClipPath_CountPaths(clipPath);
+                                    for (int clipIndex = 0; clipIndex < clipCount; clipIndex++) {
+                                        Ra::Path clip;
+                                        PathWriter().writePathFromClipPath(clipPath, clipIndex, clip);
+                                        
+                                        int segmentCount = FPDFClipPath_CountPathSegments(clipPath, clipIndex);
+                                        
+                                    }
+                                }
+                            }
                             
                             uint8_t flags = 0;
                             flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
