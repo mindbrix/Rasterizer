@@ -17,28 +17,31 @@ struct RasterizerPDF {
         float x, y, px = 0.f, py = 0.f;
         std::vector<float> bezier;
         
-        void writePathFromClipPath(FPDF_CLIPPATH clipPath, int index, Ra::Path& p) {
+        int writePathFromClipPath(FPDF_CLIPPATH clipPath, int index, Ra::Path& p) {
             int segmentCount = FPDFClipPath_CountPathSegments(clipPath, index);
             for (int j = 0; j < segmentCount; j++) {
                 FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, index, j);
                 writeSegment(segment, p);
             }
+            return segmentCount;
         }
         
-        void writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
+        int writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
             int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
             for (int j = 0; j < segmentCount; j++) {
                 FPDF_PATHSEGMENT segment = FPDFGlyphPath_GetGlyphPathSegment(path, j);
                 writeSegment(segment, p);
             }
+            return segmentCount;
         }
         
-        void writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
+        int writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
             int segmentCount = FPDFPath_CountSegments(pageObject);
             for (int j = 0; j < segmentCount; j++) {
                 FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
                 writeSegment(segment, p);
             }
+            return segmentCount;
         }
         
         void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
@@ -166,10 +169,13 @@ struct RasterizerPDF {
                                     int clipCount = FPDFClipPath_CountPaths(clipPath);
                                     for (int clipIndex = 0; clipIndex < clipCount; clipIndex++) {
                                         Ra::Path clip;
-                                        PathWriter().writePathFromClipPath(clipPath, clipIndex, clip);
+                                        int segmentCount = PathWriter().writePathFromClipPath(clipPath, clipIndex, clip);
                                         
-                                        int segmentCount = FPDFClipPath_CountPathSegments(clipPath, clipIndex);
-                                        
+                                        if (segmentCount > 5) {
+                                            if (path->types.end == 6 && path->bounds.contains(clip->bounds)) {
+                                                path = clip;
+                                            }
+                                        }
                                     }
                                 }
                             }
