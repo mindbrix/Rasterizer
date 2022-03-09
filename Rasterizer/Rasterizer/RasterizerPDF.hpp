@@ -97,7 +97,30 @@ struct RasterizerPDF {
         char16_t buffer[size];
         bzero(buffer, sizeof(buffer[0]) * size);
         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
-        
+        while (buffer[size - 1] == 0 && size > 0)
+            size--;
+//        char32_t buffer32[size];
+//        for (int i = 0; i < size; i++)
+//            buffer32[i] = buffer[i];
+//        int i = 0;
+//        for (; i < charCount; i++)
+//            if (memcmp(unicodes + i, buffer32, sizeof(buffer32)) == 0)
+//                break;
+//        if (i < charCount) {
+//            bzero(unicodes + i, sizeof(buffer32));
+////            fprintf(stderr, "unicodes index = %d\n", i);
+//            
+//            FS_MATRIX m;
+//            if (FPDFText_GetMatrix(text_page, i, & m))
+//                ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+//            
+//            double left = 0, bottom = 0, right = 0, top = 0;
+//            if (FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
+//                int z = 0;
+//            }
+//        } else {
+//            fprintf(stderr, "Not found\n");
+//        }
         float fontSize = 1.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -105,13 +128,13 @@ struct RasterizerPDF {
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
         
-        for (auto glyph : buffer) {
-            if (glyph > 31) {
+       for (auto glyph : buffer) {
+            if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p;
                 PathWriter().writePathFromGlyphPath(path, p);
-                Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
-                scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
+                Ra::Transform textCTM = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
             }
             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
                 tx += width;
