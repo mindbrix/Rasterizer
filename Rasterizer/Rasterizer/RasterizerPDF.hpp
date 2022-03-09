@@ -92,6 +92,32 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
     
+    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, Ra::Transform ctm, Ra::Scene& scene) {
+        unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
+        char16_t buffer[size];
+        bzero(buffer, sizeof(buffer[0]) * size);
+        FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
+        
+        float fontSize = 1.f, tx = 0.f, width = 0.f;
+        FPDFTextObj_GetFontSize(pageObject, & fontSize);
+        FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
+        assert(font);
+        unsigned int R = 0, G = 0, B = 0, A = 255;
+        FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+        
+        for (auto glyph : buffer) {
+            if (glyph > 31) {
+                FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
+                Ra::Path p;
+                PathWriter().writePathFromGlyphPath(path, p);
+                Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
+            }
+            if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
+                tx += width;
+        }
+    }
+    
     static void writePathToScene(FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Scene& scene) {
         int fillmode;
         FPDF_BOOL stroke;
@@ -188,29 +214,7 @@ struct RasterizerPDF {
                         
                     int type = FPDFPageObj_GetType(pageObject);
                     if (type == FPDF_PAGEOBJ_TEXT) {
-                        unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
-                        char16_t buffer[size];
-                        bzero(buffer, sizeof(buffer[0]) * size);
-                        FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
-                        
-                        float fontSize = 1.f, tx = 0.f, width = 0.f;
-                        FPDFTextObj_GetFontSize(pageObject, & fontSize);
-                        FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
-                        assert(font);
-                        unsigned int R = 0, G = 0, B = 0, A = 255;
-                        FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                        
-                        for (auto glyph : buffer) {
-                            if (glyph > 31) {
-                                FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-                                Ra::Path p;
-                                PathWriter().writePathFromGlyphPath(path, p);
-                                Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
-                                scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
-                            }
-                            if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
-                                tx += width;
-                        }
+                        writeTextToScene(pageObject, text_page, ctm, scene);
                     } else if (type == FPDF_PAGEOBJ_PATH) {
                         writePathToScene(pageObject, ctm, scene);
                    }
