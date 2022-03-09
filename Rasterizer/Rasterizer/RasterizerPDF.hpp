@@ -154,9 +154,9 @@ struct RasterizerPDF {
                                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                             
                             uint8_t flags = 0;
-                            flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Rasterizer::Scene::kFillEvenOdd : 0;
-                            flags |= cap == FPDF_LINECAP_ROUND ? Rasterizer::Scene::kRoundCap : 0;
-                            flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Rasterizer::Scene::kSquareCap : 0;
+                            flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
+                            flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
+                            flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
                             scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
                         }
                     }
