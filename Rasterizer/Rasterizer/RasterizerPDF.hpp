@@ -212,12 +212,16 @@ struct RasterizerPDF {
                     if (FPDFPageObj_GetMatrix(pageObject, & m))
                         ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
                         
-                    int type = FPDFPageObj_GetType(pageObject);
-                    if (type == FPDF_PAGEOBJ_TEXT) {
-                        writeTextToScene(pageObject, text_page, ctm, scene);
-                    } else if (type == FPDF_PAGEOBJ_PATH) {
-                        writePathToScene(pageObject, ctm, scene);
-                   }
+                    switch (FPDFPageObj_GetType(pageObject)) {
+                        case FPDF_PAGEOBJ_TEXT:
+                            writeTextToScene(pageObject, text_page, ctm, scene);
+                            break;
+                        case FPDF_PAGEOBJ_PATH:
+                            writePathToScene(pageObject, ctm, scene);
+                            break;
+                        default:
+                            break;
+                    }
                 }
                 Ra::Bounds b = scene.bounds().integral();
                 Ra::Transform pageCTM = transformForPage(page, b);
