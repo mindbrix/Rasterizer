@@ -175,7 +175,6 @@ struct RasterizerPDF {
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
                 
-                std::vector<char16_t> buffer;
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
                 
@@ -190,8 +189,9 @@ struct RasterizerPDF {
                     int type = FPDFPageObj_GetType(pageObject);
                     if (type == FPDF_PAGEOBJ_TEXT) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
-                        buffer.resize(0), buffer.resize(size);
-                        FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer.data(), size);
+                        char16_t buffer[size];
+                        bzero(buffer, sizeof(buffer[0]) * size);
+                        FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
                         
                         float fontSize = 1.f, tx = 0.f, width = 0.f;
                         FPDFTextObj_GetFontSize(pageObject, & fontSize);
