@@ -91,6 +91,21 @@ struct RasterizerPDF {
     static inline float lengthsq(float x0, float y0, float x1, float y1) {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
+
+    static void writeTextBoxesToScene(FPDF_TEXTPAGE text_page, Ra::Scene& scene) {
+        int charCount = FPDFText_CountChars(text_page);
+        double left = 0, bottom = 0, right = 0, top = 0;
+        Ra::Transform unit;
+        Ra::Colorant black(0, 0, 0, 255);
+        for (int i = 0; i < charCount; i++) {
+            if (FPDFText_GetUnicode(text_page, i) > 32 &&
+                FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
+                Ra::Path path;
+                path->addBounds(Ra::Bounds(left, bottom, right, top));
+                scene.addPath(path, unit, black, -1.f, 0);
+            }
+        }
+    }
     
     static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, char32_t *unicodes, int charCount, Ra::Transform ctm, Ra::Scene& scene) {
         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
@@ -99,28 +114,19 @@ struct RasterizerPDF {
         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
         while (buffer[size - 1] == 0 && size > 0)
             size--;
-//        char32_t buffer32[size];
-//        for (int i = 0; i < size; i++)
-//            buffer32[i] = buffer[i];
-//        int i = 0;
-//        for (; i < charCount; i++)
-//            if (memcmp(unicodes + i, buffer32, sizeof(buffer32)) == 0)
-//                break;
-//        if (i < charCount) {
-//            bzero(unicodes + i, sizeof(buffer32));
-////            fprintf(stderr, "unicodes index = %d\n", i);
-//            
-//            FS_MATRIX m;
-//            if (FPDFText_GetMatrix(text_page, i, & m))
-//                ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-//            
-//            double left = 0, bottom = 0, right = 0, top = 0;
-//            if (FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
-//                int z = 0;
-//            }
-//        } else {
-//            fprintf(stderr, "Not found\n");
-//        }
+        char32_t buffer32[size];
+        for (int i = 0; i < size; i++)
+            buffer32[i] = buffer[i];
+        int i = 0;
+        for (; i < charCount; i++)
+            if (memcmp(unicodes + i, buffer32, sizeof(buffer32)) == 0)
+                break;
+        if (i < charCount) {
+            bzero(unicodes + i, sizeof(buffer32));
+//            fprintf(stderr, "unicodes index = %d\n", i);
+        } else {
+            fprintf(stderr, "Not found\n");
+        }
         float fontSize = 1.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -128,12 +134,21 @@ struct RasterizerPDF {
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
         
-       for (auto glyph : buffer) {
+        for (int g = 0; g < size; g++) {
+            auto glyph = buffer[g];
             if (glyph > 32) {
+                Ra::Transform textCTM = ctm;
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p;
                 PathWriter().writePathFromGlyphPath(path, p);
-                Ra::Transform textCTM = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                double left = 0, bottom = 0, right = 0, top = 0;
+                if (i + g < charCount && FPDFText_GetCharBox(text_page, i + g, & left, & right, & bottom, & top)) {
+                    Ra::Bounds b = p->bounds.unit(ctm);
+                    textCTM.tx += left - b.lx;
+                    textCTM.ty += bottom - b.ly;
+                } else {
+                    textCTM = textCTM.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                }
                 scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
             }
             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
@@ -251,6 +266,8 @@ struct RasterizerPDF {
                             break;
                     }
                 }
+                
+                writeTextBoxesToScene(text_page, scene);
                 list.addScene(scene, transformForPage(page, scene));
                 
                 FPDFText_ClosePage(text_page);
