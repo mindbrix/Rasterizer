@@ -124,18 +124,16 @@ struct RasterizerPDF {
                         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                         
                         for (auto glyph : buffer) {
-                            FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-                            Ra::Path p;
-                            PathWriter().writePathFromGlyphPath(path, p);
-                            
-                            Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
-                            if (glyph > 31)
+                            if (glyph > 31) {
+                                FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
+                                Ra::Path p;
+                                PathWriter().writePathFromGlyphPath(path, p);
+                                Ra::Transform m = ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
                                 scene.addPath(p, m, Ra::Colorant(B, G, R, A), 0.f, 0);
-                            
+                            }
                             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
                                 tx += width;
                         }
-                        
                     } else if (type == FPDF_PAGEOBJ_PATH) {
                         int fillmode;
                         FPDF_BOOL stroke;
