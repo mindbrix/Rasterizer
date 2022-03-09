@@ -81,7 +81,7 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
     
-    static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
+    static void writeScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
             config.m_pUserFontPaths = nullptr;
@@ -94,7 +94,8 @@ struct RasterizerPDF {
         if (doc) {
             int count = FPDF_GetPageCount(doc);
             if (count > 0) {
-                FPDF_PAGE page = FPDF_LoadPage(doc, 0);
+                pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
+                FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
                 
                 std::vector<char16_t> buffer;

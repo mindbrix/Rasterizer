@@ -107,7 +107,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else if (_pdfData != nil)
-        RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, list);
+        RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, 1, list);
     else {
         Ra::Scene glyphs;
         if (self.pastedString)
