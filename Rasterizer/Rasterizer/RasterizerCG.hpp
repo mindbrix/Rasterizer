@@ -41,7 +41,7 @@ struct RasterizerCG {
                     writePathToCGContext(path, ctx);
                     if (state.outlineWidth || scn.widths->base[i]) {
                         CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
-                        CGContextSetLineWidth(ctx, state.outlineWidth ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
+                        CGContextSetLineWidth(ctx, state.outlineWidth || scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
                         bool square = scn.flags->base[i] & Ra::Scene::kSquareCap;
                         bool round = scn.flags->base[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
