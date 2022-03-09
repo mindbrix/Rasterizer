@@ -92,6 +92,48 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
     
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Scene& scene) {
+        int fillmode;
+        FPDF_BOOL stroke;
+         
+        if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
+            Ra::Path path;
+            PathWriter().writePathFromObject(pageObject, path);
+            
+            float width = 0.f;
+            int cap = 0;
+            unsigned int R = 0, G = 0, B = 0, A = 255;
+            if (stroke) {
+                FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
+                FPDFPageObj_GetStrokeWidth(pageObject, & width);
+                width = width == 0.f ? -1.f : width;
+                cap = FPDFPageObj_GetLineCap(pageObject);
+            } else {
+                FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+                
+                FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
+                if (clipPath) {
+                    int clipCount = FPDFClipPath_CountPaths(clipPath);
+                    for (int clipIndex = 0; clipIndex < clipCount; clipIndex++) {
+                        Ra::Path clip;
+                        int segmentCount = PathWriter().writePathFromClipPath(clipPath, clipIndex, clip);
+                        
+                        if (segmentCount > 5) {
+                            if (path->types.end == 6 && path->bounds.contains(clip->bounds)) {
+                                path = clip;
+                            }
+                        }
+                    }
+                }
+            }
+            uint8_t flags = 0;
+            flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
+            flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
+            flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
+            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
+        }
+    }
+    
     static inline Ra::Transform transformForPage(FPDF_PAGE page, Ra::Bounds b) {
         int rotation = FPDFPage_GetRotation(page);
         float left = b.lx, bottom = b.ly, right = b.ux, top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
@@ -170,46 +212,8 @@ struct RasterizerPDF {
                                 tx += width;
                         }
                     } else if (type == FPDF_PAGEOBJ_PATH) {
-                        int fillmode;
-                        FPDF_BOOL stroke;
-                         
-                        if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
-                            Ra::Path path;
-                            PathWriter().writePathFromObject(pageObject, path);
-                            
-                            float width = 0.f;
-                            int cap = 0;
-                            unsigned int R = 0, G = 0, B = 0, A = 255;
-                            if (stroke) {
-                                FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
-                                FPDFPageObj_GetStrokeWidth(pageObject, & width);
-                                width = width == 0.f ? -1.f : width;
-                                cap = FPDFPageObj_GetLineCap(pageObject);
-                            } else {
-                                FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                                
-                                FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
-                                if (clipPath) {
-                                    int clipCount = FPDFClipPath_CountPaths(clipPath);
-                                    for (int clipIndex = 0; clipIndex < clipCount; clipIndex++) {
-                                        Ra::Path clip;
-                                        int segmentCount = PathWriter().writePathFromClipPath(clipPath, clipIndex, clip);
-                                        
-                                        if (segmentCount > 5) {
-                                            if (path->types.end == 6 && path->bounds.contains(clip->bounds)) {
-                                                path = clip;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            uint8_t flags = 0;
-                            flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
-                            flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
-                            flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
-                            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
-                        }
-                    }
+                        writePathToScene(pageObject, ctm, scene);
+                   }
                 }
                 Ra::Bounds b = scene.bounds().integral();
                 Ra::Transform pageCTM = transformForPage(page, b);
