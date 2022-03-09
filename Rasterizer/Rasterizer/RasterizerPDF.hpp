@@ -148,9 +148,8 @@ struct RasterizerPDF {
                             if (stroke) {
                                 FPDFPageObj_GetStrokeColor(pageObject, & R, & G, & B, & A);
                                 FPDFPageObj_GetStrokeWidth(pageObject, & width);
+                                width = width == 0.f ? -1.f : width;
                                 cap = FPDFPageObj_GetLineCap(pageObject);
-                                if (width == 0.f)
-                                    width = -1.f;
                             } else
                                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                             
