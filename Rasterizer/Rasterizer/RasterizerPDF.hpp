@@ -92,6 +92,30 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
     
+    static inline Ra::Transform transformForPage(FPDF_PAGE page, Ra::Bounds b) {
+        int rotation = FPDFPage_GetRotation(page);
+        float left = b.lx, bottom = b.ly, right = b.ux, top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
+        FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
+        __sincosf(-rotation * 0.5f * M_PI, & sine, & cosine);
+        switch (rotation) {
+            case 1:
+                ty = right - left;
+                break;
+            case 2:
+                tx = right - left;
+                ty = top - bottom;
+                break;
+            case 3:
+                tx = top - bottom;
+                break;
+            default:
+                break;
+        }
+        Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
+        Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
+        return originCTM.concat(pageCTM);
+    }
+    
     static void writeScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -179,7 +203,6 @@ struct RasterizerPDF {
                                     }
                                 }
                             }
-                            
                             uint8_t flags = 0;
                             flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
                             flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
@@ -188,29 +211,9 @@ struct RasterizerPDF {
                         }
                     }
                 }
-                
-                int rotation = FPDFPage_GetRotation(page);
                 Ra::Bounds b = scene.bounds().integral();
-                float left = b.lx, bottom = b.ly, right = b.ux, top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
-                FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
-                __sincosf(-rotation * 0.5f * M_PI, & sine, & cosine);
-                switch (rotation) {
-                    case 1:
-                        ty = right - left;
-                        break;
-                    case 2:
-                        tx = right - left;
-                        ty = top - bottom;
-                        break;
-                    case 3:
-                        tx = top - bottom;
-                        break;
-                    default:
-                        break;
-                }
-                Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
-                Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
-                list.addScene(scene, originCTM.concat(pageCTM));
+                Ra::Transform pageCTM = transformForPage(page, b);
+                list.addScene(scene, pageCTM);
                 
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
