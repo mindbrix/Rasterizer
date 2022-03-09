@@ -163,25 +163,26 @@ struct RasterizerPDF {
                 
                 int rotation = FPDFPage_GetRotation(page);
                 Ra::Bounds b = scene.bounds().integral();
-                float left = 0.f, bottom = 0.f, right = ceilf(b.ux), top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
+                float left = b.lx, bottom = b.ly, right = b.ux, top = b.uy, tx = 0.f, ty = 0.f, sine = 0.f, cosine = 1.f;
+                FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
                 __sincosf(-rotation * 0.5f * M_PI, & sine, & cosine);
-                if (rotation != 0) {
-                    FPDFPage_GetMediaBox(page, & left, & bottom, & right, & top);
-                    switch (rotation) {
-                        case 1:
-                            ty = right - left;
-                            break;
-                        case 2:
-                            tx = right - left;
-                            ty = top - bottom;
-                            break;
-                        case 3:
-                            tx = top - bottom;
-                            break;
-                    }
+                switch (rotation) {
+                    case 1:
+                        ty = right - left;
+                        break;
+                    case 2:
+                        tx = right - left;
+                        ty = top - bottom;
+                        break;
+                    case 3:
+                        tx = top - bottom;
+                        break;
+                    default:
+                        break;
                 }
+                Ra::Transform originCTM(1.f, 0.f, 0.f, 1.f, -left, -bottom);
                 Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
-                list.addScene(scene, pageCTM);
+                list.addScene(scene, originCTM.concat(pageCTM));
                 
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
