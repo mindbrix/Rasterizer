@@ -115,6 +115,10 @@ struct RasterizerPDF {
         while (buffer[size - 1] == 0 && size > 0)
             size--;
 
+        FPDF_WCHAR tfl[] = { 'e', 'f', 'f' };
+        if (size > 2 && memcmp(buffer, tfl, sizeof(tfl)) == 0) {
+            int z = 0;
+        }
         float fontSize = 1.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -126,18 +130,23 @@ struct RasterizerPDF {
         for (int g = 0; g < size; g++) {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
-            Ra::Transform textCTM = ctm;
             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
             Ra::Path p;
             PathWriter().writePathFromGlyphPath(path, p);
-             if (g == 0) {
-                Ra::Bounds b = p->bounds.unit(ctm);
+            if (charIndex == -1 && path) {
+                Ra::Bounds b = p->bounds.unit(ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0)));
                 charIndex = FPDFText_GetCharIndexAtPos(text_page, 0.5 * (b.lx + b.ux), 0.5 * (b.ly + b.uy), 0, 0);
-                 if (charIndex == -1 && glyph > 32) {
-                     fprintf(stderr, "Not found\n");
-                 }
+                if (charIndex != -1) {
+                    if (g > 0) {
+                        charIndex -= g;
+                    }
+                }
+                if (charIndex == -1 && glyph > 32) {
+                    fprintf(stderr, "Not found\n");
+                }
             }
             if (glyph > 32) {
+                Ra::Transform textCTM = ctm;
                 double left = 0, bottom = 0, right = 0, top = 0;
                 if (charIndex != -1 && FPDFText_GetCharBox(text_page, charIndex + g, & left, & right, & bottom, & top)) {
                     Ra::Bounds b = p->bounds.unit(ctm);
