@@ -125,6 +125,7 @@ struct RasterizerPDF {
         int charIndex = -1;
         for (int g = 0; g < size; g++) {
             auto glyph = buffer[g];
+            assert((glyph & ~0x7FFFF) == 0);
             Ra::Transform textCTM = ctm;
             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
             Ra::Path p;
