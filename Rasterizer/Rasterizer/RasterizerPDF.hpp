@@ -119,12 +119,14 @@ struct RasterizerPDF {
         if (size > 2 && memcmp(buffer, tfl, sizeof(tfl)) == 0) {
             int z = 0;
         }
-        float fontSize = 1.f, tx = 0.f, width = 0.f;
+        float fontSize = 1.f, ascent = 0.f, descent = 0.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
         assert(font);
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
+        FPDFFont_GetAscent(font, fontSize, & ascent);
+        FPDFFont_GetDescent(font, fontSize, & descent);
         
         int charIndex = -1;
         for (int g = 0; g < size; g++) {
@@ -134,14 +136,27 @@ struct RasterizerPDF {
             Ra::Path p;
             PathWriter().writePathFromGlyphPath(path, p);
             if (charIndex == -1 && path) {
-                Ra::Bounds b = p->bounds.unit(ctm.concat(Ra::Transform(1, 0, 0, 1, tx, 0)));
-                charIndex = FPDFText_GetCharIndexAtPos(text_page, 0.5 * (b.lx + b.ux), 0.5 * (b.ly + b.uy), 0, 0);
+                if (!FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
+                    width = 1.f;
+                Ra::Bounds b0 = Ra::Bounds(0.f, descent, width, ascent).unit(ctm);
+                float sx = 0.5f * (b0.lx + b0.ux), sy = 0.5f * (b0.ly + b0.uy);
+                float sw = 0.5f * (b0.ux - b0.lx), sh = 0.5f * (b0.uy - b0.ly);
+                float dx = width * ctm.a, dy = width * ctm.b;
+                for (int j = 0; j < 3 && charIndex == -1; j++, sx += dx, sy += dy) {
+                    charIndex = FPDFText_GetCharIndexAtPos(text_page, sx, sy, sw, sh);
+                    if (charIndex != -1) {
+                        char32_t unicode = FPDFText_GetUnicode(text_page, charIndex);
+                        if (glyph != unicode)
+                            charIndex = -1;
+                    }
+                }
                 if (charIndex != -1) {
                     if (g > 0) {
                         charIndex -= g;
                     }
                 }
                 if (charIndex == -1 && glyph > 32) {
+//                    assert(g > 0);
                     fprintf(stderr, "Not found\n");
                 }
             }
