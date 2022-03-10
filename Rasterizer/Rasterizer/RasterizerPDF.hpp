@@ -62,7 +62,7 @@ struct RasterizerPDF {
                     bezier.emplace_back(x);
                     bezier.emplace_back(y);
                     if (bezier.size() == 6) {
-                        if (lengthsq(px, py, x, y) > 1e-9f) {
+                        if (lengthsq(px, py, x, y) > 1e-4f) {
                             if (isLine(px, py, bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]))
                                 p->lineTo(x, y);
                             else
