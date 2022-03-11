@@ -107,28 +107,6 @@ struct RasterizerPDF {
         }
     }
     
-    static int indexForGlyph(char16_t glyph, FPDF_FONT font, float fontSize, FPDF_TEXTPAGE text_page, Ra::Transform ctm) {
-        int index = -1;
-        float ascent = 0.f, descent = 0.f, width = 1.f;
-        FPDFFont_GetAscent(font, fontSize, & ascent);
-        FPDFFont_GetDescent(font, fontSize, & descent);
-        FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width);
-        Ra::Bounds b0 = Ra::Bounds(0.f, descent, width, ascent).unit(ctm);
-        float x = 0.5f * (b0.lx + b0.ux), y = 0.5f * (b0.ly + b0.uy);
-        float sw = 0.5f * (b0.ux - b0.lx), sh = 0.5f * (b0.uy - b0.ly);
-        float dx = width * ctm.a, dy = width * ctm.b;
-        
-        for (int j = 0; j < 10 && index == -1; j++) {
-            index = FPDFText_GetCharIndexAtPos(text_page, x + j * dx, y + j * dy, sw, sh);
-            if (index != -1) {
-                char32_t unicode = FPDFText_GetUnicode(text_page, index);
-                if (glyph != unicode)
-                    index = -1;
-            }
-        }
-        return index;
-    }
-    
     static int indexForText(char16_t *text, unsigned long size, FPDF_FONT font, float fontSize, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, Ra::Transform ctm) {
         int index = -1;
         for (int ch = 0; size != 0 && ch < chars.size() - size & index == -1; ch++)
@@ -171,16 +149,6 @@ struct RasterizerPDF {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-            if (charIndex == -1 && path) {
-                charIndex = indexForGlyph(glyph, font, fontSize, text_page, ctm);
-                if (charIndex != -1)
-                    charIndex -= g;
-                
-                if (charIndex == -1 && glyph > 32) {
-                    indexForGlyph(glyph, font, fontSize, text_page, ctm);
-                    fprintf(stderr, "Not found\n");
-                }
-            }
             if (glyph > 32) {
                 Ra::Path p;
                 PathWriter().writePathFromGlyphPath(path, p);
