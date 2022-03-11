@@ -45,11 +45,9 @@ struct RasterizerPDF {
         }
         
         void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
-            int segmentType = FPDFPathSegment_GetType(segment);
-            FPDF_BOOL success = FPDFPathSegment_GetPoint(segment, & x, & y);
-            if (success == 0)
+            if (FPDFPathSegment_GetPoint(segment, & x, & y) == 0)
                 return;
-            switch (segmentType) {
+            switch (FPDFPathSegment_GetType(segment)) {
                 case FPDF_SEGMENT_MOVETO:
                     p->moveTo(x, y);
                     px = x, py = y;
