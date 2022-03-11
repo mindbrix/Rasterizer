@@ -114,12 +114,12 @@ struct RasterizerPDF {
         FPDFFont_GetDescent(font, fontSize, & descent);
         FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width);
         Ra::Bounds b0 = Ra::Bounds(0.f, descent, width, ascent).unit(ctm);
-        float sx = 0.5f * (b0.lx + b0.ux), sy = 0.5f * (b0.ly + b0.uy);
+        float x = 0.5f * (b0.lx + b0.ux), y = 0.5f * (b0.ly + b0.uy);
         float sw = 0.5f * (b0.ux - b0.lx), sh = 0.5f * (b0.uy - b0.ly);
         float dx = width * ctm.a, dy = width * ctm.b;
         
-        for (int j = 0; j < 3 && index == -1; j++, sx += dx, sy += dy) {
-            index = FPDFText_GetCharIndexAtPos(text_page, sx, sy, sw, sh);
+        for (int j = 0; j < 10 && index == -1; j++) {
+            index = FPDFText_GetCharIndexAtPos(text_page, x + j * dx, y + j * dy, sw, sh);
             if (index != -1) {
                 char32_t unicode = FPDFText_GetUnicode(text_page, index);
                 if (glyph != unicode)
@@ -155,12 +155,11 @@ struct RasterizerPDF {
             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
             if (charIndex == -1 && path) {
                 charIndex = indexForGlyph(glyph, font, fontSize, text_page, ctm);
-                if (charIndex != -1) {
-                    if (g > 0)
-                        charIndex -= g;
-                }
+                if (charIndex != -1)
+                    charIndex -= g;
+                
                 if (charIndex == -1 && glyph > 32) {
-//                    assert(g > 0);
+                    indexForGlyph(glyph, font, fontSize, text_page, ctm);
                     fprintf(stderr, "Not found\n");
                 }
             }
