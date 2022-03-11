@@ -129,18 +129,24 @@ struct RasterizerPDF {
         return index;
     }
     
-    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, Ra::Transform ctm, Ra::Scene& scene) {
+    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, Ra::Transform ctm, Ra::Scene& scene) {
         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
         char16_t buffer[size];
         bzero(buffer, sizeof(buffer[0]) * size);
         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
-        while (buffer[size - 1] == 0 && size > 0)
+        while (buffer[size - 1] < 33 && size > 0)
             size--;
 
-        FPDF_WCHAR tfl[] = { 't', 'f', 'l' };
-        if (size > 2 && memcmp(buffer, tfl, sizeof(tfl)) == 0) {
-            int z = 0;
+        int chIdx = -1;
+        for (int ch = 0; ch < chars.size() - size & chIdx == -1; ch++)
+            if (memcmp(buffer, & chars[ch], sizeof(buffer[0]) * size) == 0)
+                chIdx = ch;
+        if (size > 0) {
+            assert(chIdx != -1);
+//            if (chIdx != -1)
+//                bzero(& chars[chIdx], sizeof(buffer[0]) * size);
         }
+                
         float fontSize = 1.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -266,6 +272,12 @@ struct RasterizerPDF {
                 pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+                
+                int charCount = FPDFText_CountChars(text_page);
+                std::vector<char16_t> chars(charCount == 0 ? 0 : charCount + 1);
+                int textCount = FPDFText_GetText(text_page, 0, charCount, (unsigned short *)chars.data());
+                assert(textCount == chars.size());
+                
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
                 
@@ -279,7 +291,7 @@ struct RasterizerPDF {
                         
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT:
-                            writeTextToScene(pageObject, text_page, ctm, scene);
+                            writeTextToScene(pageObject, text_page, chars, ctm, scene);
                             break;
                         case FPDF_PAGEOBJ_PATH:
                             writePathToScene(pageObject, ctm, scene);
