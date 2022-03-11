@@ -107,6 +107,28 @@ struct RasterizerPDF {
         }
     }
     
+    static int indexForGlyph(char16_t glyph, FPDF_FONT font, float fontSize, FPDF_TEXTPAGE text_page, Ra::Transform ctm) {
+        int index = -1;
+        float ascent = 0.f, descent = 0.f, width = 1.f;
+        FPDFFont_GetAscent(font, fontSize, & ascent);
+        FPDFFont_GetDescent(font, fontSize, & descent);
+        FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width);
+        Ra::Bounds b0 = Ra::Bounds(0.f, descent, width, ascent).unit(ctm);
+        float sx = 0.5f * (b0.lx + b0.ux), sy = 0.5f * (b0.ly + b0.uy);
+        float sw = 0.5f * (b0.ux - b0.lx), sh = 0.5f * (b0.uy - b0.ly);
+        float dx = width * ctm.a, dy = width * ctm.b;
+        
+        for (int j = 0; j < 3 && index == -1; j++, sx += dx, sy += dy) {
+            index = FPDFText_GetCharIndexAtPos(text_page, sx, sy, sw, sh);
+            if (index != -1) {
+                char32_t unicode = FPDFText_GetUnicode(text_page, index);
+                if (glyph != unicode)
+                    index = -1;
+            }
+        }
+        return index;
+    }
+    
     static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, Ra::Transform ctm, Ra::Scene& scene) {
         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
         char16_t buffer[size];
@@ -115,45 +137,27 @@ struct RasterizerPDF {
         while (buffer[size - 1] == 0 && size > 0)
             size--;
 
-        FPDF_WCHAR tfl[] = { 'e', 'f', 'f' };
+        FPDF_WCHAR tfl[] = { 't', 'f', 'l' };
         if (size > 2 && memcmp(buffer, tfl, sizeof(tfl)) == 0) {
             int z = 0;
         }
-        float fontSize = 1.f, ascent = 0.f, descent = 0.f, tx = 0.f, width = 0.f;
+        float fontSize = 1.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
         assert(font);
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-        FPDFFont_GetAscent(font, fontSize, & ascent);
-        FPDFFont_GetDescent(font, fontSize, & descent);
         
         int charIndex = -1;
         for (int g = 0; g < size; g++) {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-            Ra::Path p;
-            PathWriter().writePathFromGlyphPath(path, p);
             if (charIndex == -1 && path) {
-                if (!FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
-                    width = 1.f;
-                Ra::Bounds b0 = Ra::Bounds(0.f, descent, width, ascent).unit(ctm);
-                float sx = 0.5f * (b0.lx + b0.ux), sy = 0.5f * (b0.ly + b0.uy);
-                float sw = 0.5f * (b0.ux - b0.lx), sh = 0.5f * (b0.uy - b0.ly);
-                float dx = width * ctm.a, dy = width * ctm.b;
-                for (int j = 0; j < 3 && charIndex == -1; j++, sx += dx, sy += dy) {
-                    charIndex = FPDFText_GetCharIndexAtPos(text_page, sx, sy, sw, sh);
-                    if (charIndex != -1) {
-                        char32_t unicode = FPDFText_GetUnicode(text_page, charIndex);
-                        if (glyph != unicode)
-                            charIndex = -1;
-                    }
-                }
+                charIndex = indexForGlyph(glyph, font, fontSize, text_page, ctm);
                 if (charIndex != -1) {
-                    if (g > 0) {
+                    if (g > 0)
                         charIndex -= g;
-                    }
                 }
                 if (charIndex == -1 && glyph > 32) {
 //                    assert(g > 0);
@@ -161,6 +165,9 @@ struct RasterizerPDF {
                 }
             }
             if (glyph > 32) {
+                Ra::Path p;
+                PathWriter().writePathFromGlyphPath(path, p);
+                
                 Ra::Transform textCTM = ctm;
                 double left = 0, bottom = 0, right = 0, top = 0;
                 if (charIndex != -1 && FPDFText_GetCharBox(text_page, charIndex + g, & left, & right, & bottom, & top)) {
