@@ -129,6 +129,19 @@ struct RasterizerPDF {
         return index;
     }
     
+    static int indexForText(char16_t *text, unsigned long size, FPDF_FONT font, float fontSize, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, Ra::Transform ctm) {
+        int index = -1;
+        for (int ch = 0; size != 0 && ch < chars.size() - size & index == -1; ch++)
+            if (memcmp(text, & chars[ch], sizeof(text[0]) * size) == 0) {
+                FS_MATRIX m;
+                FPDFText_GetMatrix(text_page, ch, & m);
+                if (ctm.tx == m.e && ctm.ty == m.f) {
+                    index = ch;
+                }
+            }
+        return index;
+    }
+    
     static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, Ra::Transform ctm, Ra::Scene& scene) {
         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
         char16_t buffer[size];
@@ -136,16 +149,6 @@ struct RasterizerPDF {
         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
         while (buffer[size - 1] < 33 && size > 0)
             size--;
-
-        int chIdx = -1;
-        for (int ch = 0; ch < chars.size() - size & chIdx == -1; ch++)
-            if (memcmp(buffer, & chars[ch], sizeof(buffer[0]) * size) == 0)
-                chIdx = ch;
-        if (size > 0) {
-            assert(chIdx != -1);
-//            if (chIdx != -1)
-//                bzero(& chars[chIdx], sizeof(buffer[0]) * size);
-        }
                 
         float fontSize = 1.f, tx = 0.f, width = 0.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
@@ -154,7 +157,16 @@ struct RasterizerPDF {
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
         
-        int charIndex = -1;
+        int chIdx = indexForText(buffer, size, font, fontSize, text_page, chars, ctm);
+        if (size > 0) {
+            if (chIdx == -1) {
+                indexForText(buffer, size, font, fontSize, text_page, chars, ctm);
+            }
+            if (chIdx != -1)
+                bzero(& chars[chIdx], sizeof(buffer[0]) * size);
+        }
+        
+        int charIndex = chIdx;// -1;
         for (int g = 0; g < size; g++) {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
@@ -276,7 +288,7 @@ struct RasterizerPDF {
                 int charCount = FPDFText_CountChars(text_page);
                 std::vector<char16_t> chars(charCount == 0 ? 0 : charCount + 1);
                 int textCount = FPDFText_GetText(text_page, 0, charCount, (unsigned short *)chars.data());
-                assert(textCount == chars.size());
+                assert(textCount <= chars.size());
                 
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
