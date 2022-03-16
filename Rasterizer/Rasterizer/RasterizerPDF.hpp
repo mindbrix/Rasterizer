@@ -106,7 +106,7 @@ struct RasterizerPDF {
     }
     
    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char16_t *buffer, unsigned long textSize, Ra::Transform ctm, Ra::Scene& scene) {
-        float fontSize = 1.f, tx = 0.f, width = 0.f;
+        float fontSize = 1.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
         assert(font);
@@ -116,26 +116,22 @@ struct RasterizerPDF {
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
-            FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
             if (glyph > 32) {
+                FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p;
                 PathWriter().writePathFromGlyphPath(path, p);
                 
                 Ra::Transform textCTM = ctm;
                 double left = 0, bottom = 0, right = 0, top = 0;
-                if (baseIndex != -1 && FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top)) {
+                if (FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top)) {
                     Ra::Bounds b = p->bounds.unit(ctm);
                     textCTM.tx += left - b.lx;
                     textCTM.ty += bottom - b.ly;
                     scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
                 } else {
-                    textCTM = textCTM.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
-                    scene.addPath(p, textCTM, Ra::Colorant(0, 0, 255, 255), 0.f, 0);
+                   assert(false);
                 }
-                
             }
-            if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
-                tx += width;
         }
     }
     
