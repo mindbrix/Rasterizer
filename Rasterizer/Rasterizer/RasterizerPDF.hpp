@@ -128,14 +128,13 @@ struct RasterizerPDF {
     }
     
     static int indexForText(char16_t *text, unsigned long size, FPDF_FONT font, float fontSize, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, Ra::Transform ctm) {
+        FS_MATRIX m;
         int index = -1;
         for (int ch = 0; size != 0 && ch < chars.size() - size & index == -1; ch++)
-            if (memcmp(text, & chars[ch], sizeof(text[0]) * size) == 0) {
-                FS_MATRIX m;
-                FPDFText_GetMatrix(text_page, ch, & m);
-                if (ctm.tx == m.e && ctm.ty == m.f) {
+            if (memcmp(text, & chars[ch], sizeof(text[0]) * size) == 0 &&
+                FPDFText_GetMatrix(text_page, ch, & m) && ctm.tx == m.e && ctm.ty == m.f) {
                     index = ch;
-                }
+                    bzero(& chars[index], sizeof(chars[0]) * size);
             }
         return index;
     }
@@ -155,16 +154,8 @@ struct RasterizerPDF {
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
         
-        int chIdx = indexForText(buffer, size, font, fontSize, text_page, chars, ctm);
-        if (size > 0) {
-            if (chIdx == -1) {
-                indexForText(buffer, size, font, fontSize, text_page, chars, ctm);
-            }
-            if (chIdx != -1)
-                bzero(& chars[chIdx], sizeof(buffer[0]) * size);
-        }
-        
-        int charIndex = chIdx;// -1;
+        int charIndex = indexForText(buffer, size, font, fontSize, text_page, chars, ctm);
+
         for (int g = 0; g < size; g++) {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
