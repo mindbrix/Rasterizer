@@ -105,33 +105,7 @@ struct RasterizerPDF {
         }
     }
     
-    static int indexForGlyph(char16_t glyph, FPDF_FONT font, float fontSize, FPDF_TEXTPAGE text_page, Ra::Transform ctm) {
-        int index = -1;
-        float ascent = 0.f, descent = 0.f, width = 1.f;
-        FPDFFont_GetAscent(font, fontSize, & ascent);
-        FPDFFont_GetDescent(font, fontSize, & descent);
-        FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width);
-        Ra::Bounds b0 = Ra::Bounds(0.f, descent, width, ascent).unit(ctm);
-        float x = 0.5f * (b0.lx + b0.ux), y = 0.5f * (b0.ly + b0.uy);
-        float sw = 0.5f * (b0.ux - b0.lx), sh = 0.5f * (b0.uy - b0.ly);
-        float dx = width * ctm.a, dy = width * ctm.b;
-        
-        for (int j = 0; j < 10 && index == -1; j++) {
-            index = FPDFText_GetCharIndexAtPos(text_page, x + j * dx, y + j * dy, sw, sh);
-            if (index != -1) {
-                char32_t unicode = FPDFText_GetUnicode(text_page, index);
-                if (glyph != unicode)
-                    index = -1;
-            }
-        }
-        return index;
-    }
-    
-    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, int charIndex, unsigned long textSize, Ra::Transform ctm, Ra::Scene& scene) {
-//        if (textSize == 0)
-//            return;
-//        char16_t *buffer = & chars[charIndex];
-//        unsigned long size = textSize;
+   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, unsigned long textSize, Ra::Transform ctm, Ra::Scene& scene) {
         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
         char16_t buffer[size];
         bzero(buffer, sizeof(buffer[0]) * size);
@@ -150,23 +124,13 @@ struct RasterizerPDF {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
             FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-            if (charIndex == -1 && path) {
-                charIndex = indexForGlyph(glyph, font, fontSize, text_page, ctm);
-                if (charIndex != -1)
-                    charIndex -= g;
-                
-                if (charIndex == -1 && glyph > 32) {
-                    indexForGlyph(glyph, font, fontSize, text_page, ctm);
-                    fprintf(stderr, "Not found\n");
-                }
-            }
             if (glyph > 32) {
                 Ra::Path p;
                 PathWriter().writePathFromGlyphPath(path, p);
                 
                 Ra::Transform textCTM = ctm;
                 double left = 0, bottom = 0, right = 0, top = 0;
-                if (charIndex != -1 && FPDFText_GetCharBox(text_page, charIndex + g, & left, & right, & bottom, & top)) {
+                if (baseIndex != -1 && FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top)) {
                     Ra::Bounds b = p->bounds.unit(ctm);
                     textCTM.tx += left - b.lx;
                     textCTM.ty += bottom - b.ly;
@@ -253,7 +217,6 @@ struct RasterizerPDF {
         for (int ch = start; index == -1 && ch < end; ch++)
             if (FPDFText_GetMatrix(text_page, ch, & m) && ctm.e == m.e && ctm.f == m.f)
                 index = ch;
-            
         return index;
     }
     
@@ -274,32 +237,34 @@ struct RasterizerPDF {
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
                 FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
                 
-                int charCount = FPDFText_CountChars(text_page);
-                std::vector<char16_t> chars(charCount == 0 ? 0 : charCount + 1);
-                int textCount = FPDFText_GetText(text_page, 0, charCount, (unsigned short *)chars.data());
-                assert(textCount <= chars.size());
-                
                 Ra::Scene scene;
+                int charCount = FPDFText_CountChars(text_page);
                 int objectCount = FPDFPage_CountObjects(page);
                 int textIndices[objectCount];
-                bool textIndexFound[charCount];
-                bzero(textIndexFound, sizeof(textIndexFound));
-                char16_t buffer[charCount + 1];
-                bzero(buffer, sizeof(buffer));
+                char16_t *textBases[objectCount];
+                int textSizes[objectCount];
+                char16_t buffer[charCount * 2], *begin = buffer, *dst = begin, *back;
                 
-                int start = 0;
                 FS_MATRIX m;
                 for (int i = 0; i < objectCount; i++) {
+                    textBases[i] = nullptr;
+                    textSizes[i] = 0;
                     textIndices[i] = -1;
-//                    for (; start < charCount && textIndexFound[start]; start++)
-//                        ;
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m)) {
-                        textIndices[i] = indexForTextCTM(m, text_page, start, charCount);
-                        if (textIndices[i] != -1) {
-                            unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
-                            for (int j = textIndices[i]; j < textIndices[i] + size && j < charCount; j++)
-                                textIndexFound[j] = true;
+                        textIndices[i] = indexForTextCTM(m, text_page, 0, charCount);
+                        
+                        unsigned long maxCount = charCount - (dst - begin);
+                        unsigned long size = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)dst, maxCount);
+                        back = dst + size - 1;
+                        while (size && *back-- < 33)
+                            size--;
+                        if (size > 0) {
+                            assert(textIndices[i] != -1);
+                            
+                            textSizes[i] = int(size);
+                            textBases[i] = dst;
+                            dst += size;
                         }
                     }
                 }
@@ -313,7 +278,7 @@ struct RasterizerPDF {
                         
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT:
-                            writeTextToScene(pageObject, text_page, chars, textIndices[i], 0, ctm, scene);
+                            writeTextToScene(pageObject, text_page, textIndices[i], 0, ctm, scene);
                             break;
                         case FPDF_PAGEOBJ_PATH:
                             writePathToScene(pageObject, ctm, scene);
