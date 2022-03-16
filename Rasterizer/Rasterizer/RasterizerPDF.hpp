@@ -134,10 +134,12 @@ struct RasterizerPDF {
                     Ra::Bounds b = p->bounds.unit(ctm);
                     textCTM.tx += left - b.lx;
                     textCTM.ty += bottom - b.ly;
+                    scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
                 } else {
                     textCTM = textCTM.concat(Ra::Transform(1, 0, 0, 1, tx, 0));
+                    scene.addPath(p, textCTM, Ra::Colorant(0, 0, 255, 255), 0.f, 0);
                 }
-                scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
+                
             }
             if (FPDFFont_GetGlyphWidth(font, glyph, fontSize, & width))
                 tx += width;
@@ -244,6 +246,7 @@ struct RasterizerPDF {
                 char16_t *textBases[objectCount];
                 int textSizes[objectCount];
                 char16_t buffer[charCount * 2], *begin = buffer, *dst = begin, *back;
+                bzero(buffer, sizeof(buffer));
                 
                 FS_MATRIX m;
                 for (int i = 0; i < objectCount; i++) {
