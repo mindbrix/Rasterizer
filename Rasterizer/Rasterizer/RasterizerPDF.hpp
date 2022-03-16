@@ -127,19 +127,11 @@ struct RasterizerPDF {
         return index;
     }
     
-    static int indexForText(char16_t *text, unsigned long size, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, FS_MATRIX ctm) {
-        FS_MATRIX m;
-        int index = -1;
-        for (int ch = 0; size != 0 && ch < chars.size() - size & index == -1; ch++)
-            if (memcmp(text, & chars[ch], sizeof(text[0]) * size) == 0 &&
-                FPDFText_GetMatrix(text_page, ch, & m) && ctm.e == m.e && ctm.f == m.f) {
-                    index = ch;
-                    bzero(& chars[index], sizeof(chars[0]) * size);
-            }
-        return index;
-    }
-    
-    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, int charIndex, Ra::Transform ctm, Ra::Scene& scene) {
+    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, int charIndex, unsigned long textSize, Ra::Transform ctm, Ra::Scene& scene) {
+        if (textSize == 0)
+            return;
+//        char16_t *buffer = & chars[charIndex];
+//        unsigned long size = textSize;
         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
         char16_t buffer[size];
         bzero(buffer, sizeof(buffer[0]) * size);
@@ -255,6 +247,23 @@ struct RasterizerPDF {
         return originCTM.concat(pageCTM);
     }
     
+    static int indexForText(char16_t *text, unsigned long size, FPDF_TEXTPAGE text_page, std::vector<char16_t>& chars, FS_MATRIX ctm) {
+        if (size == 0)
+            return -1;
+        FS_MATRIX m;
+        int index = -1;
+        for (int ch = 0; ch < chars.size() - size & index == -1; ch++)
+            if (chars[ch] & 0x8000) {
+                ch = ch;
+            }
+            else if (memcmp(text, & chars[ch], sizeof(text[0]) * size) == 0 &&
+                FPDFText_GetMatrix(text_page, ch, & m) && ctm.e == m.e && ctm.f == m.f) {
+                    index = ch;
+                    bzero(& chars[index], sizeof(chars[0]) * size);
+            }
+        return index;
+    }
+    
     static void writeScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -281,10 +290,12 @@ struct RasterizerPDF {
                 int objectCount = FPDFPage_CountObjects(page);
                 
                 int textIndices[objectCount];
+                unsigned long textSizes[objectCount];
                 Ra::Transform ctm;
                 FS_MATRIX m;
                 for (int i = 0; i < objectCount; i++) {
                     textIndices[i] = -1;
+                    textSizes[i] = 0;
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m)) {
                         unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
@@ -293,7 +304,8 @@ struct RasterizerPDF {
                         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
                         while (buffer[size - 1] < 33 && size > 0)
                             size--;
-                        textIndices[i] = indexForText(buffer, size, text_page, chars, m);
+                        textSizes[i] = size;
+                        textIndices[i] = indexForText(buffer, textSizes[i], text_page, chars, m);
                     }
                 }
                 FPDFText_GetText(text_page, 0, charCount, (unsigned short *)chars.data());
@@ -306,7 +318,7 @@ struct RasterizerPDF {
                         
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT:
-                            writeTextToScene(pageObject, text_page, chars, textIndices[i], ctm, scene);
+                            writeTextToScene(pageObject, text_page, chars, textIndices[i], textSizes[i], ctm, scene);
                             break;
                         case FPDF_PAGEOBJ_PATH:
                             writePathToScene(pageObject, ctm, scene);
