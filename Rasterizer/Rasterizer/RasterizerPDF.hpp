@@ -136,7 +136,7 @@ struct RasterizerPDF {
         char16_t buffer[size];
         bzero(buffer, sizeof(buffer[0]) * size);
         FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)buffer, size);
-        while (buffer[size - 1] < 33 && size > 0)
+        while (size > 0 && buffer[size - 1] < 33)
             size--;
         
         float fontSize = 1.f, tx = 0.f, width = 0.f;
@@ -247,10 +247,10 @@ struct RasterizerPDF {
         return originCTM.concat(pageCTM);
     }
     
-    static int indexForTextCTM(FS_MATRIX ctm, FPDF_TEXTPAGE text_page, int start, int count) {
+    static int indexForTextCTM(FS_MATRIX ctm, FPDF_TEXTPAGE text_page, int start, int end) {
         FS_MATRIX m;
         int index = -1;
-        for (int ch = start; ch < count & index == -1; ch++)
+        for (int ch = start; index == -1 && ch < end; ch++)
             if (FPDFText_GetMatrix(text_page, ch, & m) && ctm.e == m.e && ctm.f == m.f)
                 index = ch;
             
@@ -282,12 +282,26 @@ struct RasterizerPDF {
                 Ra::Scene scene;
                 int objectCount = FPDFPage_CountObjects(page);
                 int textIndices[objectCount];
+                bool textIndexFound[charCount];
+                bzero(textIndexFound, sizeof(textIndexFound));
+                char16_t buffer[charCount + 1];
+                bzero(buffer, sizeof(buffer));
+                
+                int start = 0;
                 FS_MATRIX m;
                 for (int i = 0; i < objectCount; i++) {
                     textIndices[i] = -1;
+//                    for (; start < charCount && textIndexFound[start]; start++)
+//                        ;
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
-                    if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m))
-                        textIndices[i] = indexForTextCTM(m, text_page, 0, charCount);
+                    if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m)) {
+                        textIndices[i] = indexForTextCTM(m, text_page, start, charCount);
+                        if (textIndices[i] != -1) {
+                            unsigned long size = FPDFTextObj_GetText(pageObject, text_page, nullptr, 0);
+                            for (int j = textIndices[i]; j < textIndices[i] + size && j < charCount; j++)
+                                textIndexFound[j] = true;
+                        }
+                    }
                 }
                 
                 Ra::Transform ctm;
