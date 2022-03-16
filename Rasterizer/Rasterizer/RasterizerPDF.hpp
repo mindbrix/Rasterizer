@@ -250,7 +250,6 @@ struct RasterizerPDF {
                         
                         unsigned long size0 = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)text, 4096);
                         unsigned long maxCount = charCount - (dst - begin);
-                        size = size0 > maxCount ? maxCount : size0;
                         
                         back = text, size = 0;
                         while (size < size0 && *back > 0)
@@ -259,12 +258,11 @@ struct RasterizerPDF {
                         while (size && *back < 33)
                             *back-- = 0, size--;
                         
-                        memcpy(dst, text, size * sizeof(*dst));
-                        
                         if (size > 0) {
                             assert(size <= maxCount);
                             assert(textIndices[i] != -1);
                             
+                            memcpy(dst, text, size * sizeof(*dst));
                             textSizes[i] = int(size);
                             textBases[i] = dst;
                             dst += size;
