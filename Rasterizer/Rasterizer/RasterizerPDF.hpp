@@ -202,11 +202,12 @@ struct RasterizerPDF {
         return originCTM.concat(pageCTM);
     }
     
-    static int indexForTextCTM(FS_MATRIX ctm, FPDF_TEXTPAGE text_page, int start, int end) {
-        FS_MATRIX m;
+    static int indexForTextCTM(FS_MATRIX ctm, FPDF_TEXTPAGE text_page, int start, int end, uint8_t *skipList, float *xs, float *ys) {
         int index = -1;
         for (int ch = start; index == -1 && ch < end; ch++)
-            if (FPDFText_GetMatrix(text_page, ch, & m) && ctm.e == m.e && ctm.f == m.f)
+            if (skipList[ch])
+                ch += skipList[ch] - 1;
+            else if (ctm.e == xs[ch] && ctm.f == ys[ch])
                 index = ch;
         return index;
     }
@@ -234,19 +235,27 @@ struct RasterizerPDF {
                 char16_t text[4096];
                 char16_t buffer[charCount], *begin = buffer, *dst = begin, *back;
                 bzero(buffer, sizeof(buffer));
+                uint8_t skipList[charCount];
+                bzero(skipList, sizeof(skipList));
+                float xs[charCount], ys[charCount];
+                bzero(xs, sizeof(xs)), bzero(ys, sizeof(xs));
                 
+                FS_MATRIX m;
+                for (int i = 0; i < charCount; i++)
+                    if (FPDFText_GetMatrix(text_page, i, & m))
+                        xs[i] = m.e, ys[i] = m.f;
+                    
                 char16_t **textBases = (char16_t **)malloc(objectCount * sizeof(*textBases));
                 int *textIndices = (int *)malloc(objectCount * sizeof(*textIndices));
                 int *textSizes = (int *)malloc(objectCount * sizeof(*textSizes));
                 
-                FS_MATRIX m;
                 for (int i = 0; i < objectCount; i++) {
                     textBases[i] = nullptr;
                     textSizes[i] = 0;
                     textIndices[i] = -1;
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m)) {
-                        textIndices[i] = indexForTextCTM(m, text_page, 0, charCount);
+                        textIndices[i] = indexForTextCTM(m, text_page, 0, charCount, skipList, xs, ys);
                         
                         unsigned long size0 = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)text, 4096);
                         unsigned long maxCount = charCount - (dst - begin);
@@ -262,6 +271,7 @@ struct RasterizerPDF {
                             assert(size <= maxCount);
                             assert(textIndices[i] != -1);
                             
+                            skipList[textIndices[i]] = size > 255 ? 255 : uint8_t(size);
                             memcpy(dst, text, size * sizeof(*dst));
                             textSizes[i] = int(size);
                             textBases[i] = dst;
