@@ -244,18 +244,13 @@ struct RasterizerPDF {
                 char16_t **textBases = (char16_t **)malloc(objectCount * sizeof(*textBases));
                 int *textIndices = (int *)malloc(objectCount * sizeof(*textIndices));
                 int *textSizes = (int *)malloc(objectCount * sizeof(*textSizes));
-                std::vector<uint64_t> sortedIndices;
-         
+                
                 for (int i = 0; i < objectCount; i++) {
                     textIndices[i] = -1;
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
-                    if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m)) {
+                    if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT && FPDFPageObj_GetMatrix(pageObject, & m))
                         textIndices[i] = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
-                        if (textIndices[i] != -1)
-                            sortedIndices.emplace_back(textIndices[i]);
-                    }
                 }
-                std::sort(sortedIndices.begin(), sortedIndices.end());
                 
                 for (int i = 0; i < objectCount; i++) {
                     textBases[i] = nullptr;
@@ -280,13 +275,6 @@ struct RasterizerPDF {
                             textSizes[i] = int(size);
                             textBases[i] = dst;
                             dst += size;
-                            
-                            uint64_t idx = textIndices[i], space = 0;
-                            auto it = std::find(sortedIndices.begin(), sortedIndices.end(), idx);
-                            if (it < sortedIndices.end()) {
-                                space = (it + 1 < sortedIndices.end() ? it[1] : charCount) - idx;
-                                assert(space >= size);
-                            }
                         }
                     }
                 }
