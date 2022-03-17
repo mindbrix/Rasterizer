@@ -92,15 +92,13 @@ struct RasterizerPDF {
 
     static bool isRect(Ra::Path p) {
         float *pts = p->points.base, ax, ay, bx, by, t0, t1;
-        bool is = p->types.end == 6 && p->counts[Ra::Geometry::kLine] == 4 && pts[0] == pts[10] && pts[1] == pts[11];
-        if (is) {
-            ax = pts[2] - pts[0], ay = pts[3] - pts[1], bx = pts[4] - pts[2], by = pts[5] - pts[3];
-            t0 = (ax * bx + ay * by) / (ax * ax + ay * ay);
-            ax = pts[6] - pts[4], ay = pts[7] - pts[5], bx = pts[8] - pts[6], by = pts[9] - pts[7];
-            t1 = (ax * bx + ay * by) / (ax * ax + ay * ay);
-            is = fabsf(t0) < 1e-3f && fabsf(t1) < 1e-3f;
-        }
-        return is;
+        if (p->types.end != 6 || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[10] || pts[1] != pts[11])
+            return false;
+        ax = pts[2] - pts[0], ay = pts[3] - pts[1], bx = pts[4] - pts[2], by = pts[5] - pts[3];
+        t0 = (ax * bx + ay * by) / (ax * ax + ay * ay);
+        ax = pts[6] - pts[4], ay = pts[7] - pts[5], bx = pts[8] - pts[6], by = pts[9] - pts[7];
+        t1 = (ax * bx + ay * by) / (ax * ax + ay * ay);
+        return fabsf(t0) < 1e-3f && fabsf(t1) < 1e-3f;
     }
     
     static void writeTextBoxesToScene(FPDF_TEXTPAGE text_page, Ra::Scene& scene) {
