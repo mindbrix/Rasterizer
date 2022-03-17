@@ -116,7 +116,7 @@ struct RasterizerPDF {
         }
     }
     
-   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char16_t *buffer, unsigned long textSize, Ra::Transform ctm, Ra::Scene& scene) {
+   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char16_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Scene& scene) {
         float fontSize = 1.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -132,10 +132,10 @@ struct RasterizerPDF {
                 Ra::Path p;
                 PathWriter().writePathFromGlyphPath(path, p);
                 
-                Ra::Transform textCTM = ctm;
+                Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
                 double left = 0, bottom = 0, right = 0, top = 0;
                 if (FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top)) {
-                    Ra::Bounds b = p->bounds.unit(ctm);
+                    Ra::Bounds b = p->bounds.unit(textCTM);
                     textCTM.tx += left - b.lx;
                     textCTM.ty += bottom - b.ly;
                     scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
@@ -146,7 +146,7 @@ struct RasterizerPDF {
         }
     }
     
-    static void writePathToScene(FPDF_PAGEOBJECT pageObject, Ra::Transform ctm, Ra::Scene& scene) {
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Scene& scene) {
         int fillmode;
         FPDF_BOOL stroke;
          
@@ -177,6 +177,7 @@ struct RasterizerPDF {
                     }
                 }
             }
+            Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             uint8_t flags = 0;
             flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
@@ -210,11 +211,11 @@ struct RasterizerPDF {
         return originCTM.concat(pageCTM);
     }
     
-    static int indexForTextCTM(FS_MATRIX ctm, FPDF_TEXTPAGE text_page, int start, int end, float *xs, float *ys) {
+    static int indexForTextCTM(FS_MATRIX m, FPDF_TEXTPAGE text_page, int start, int end, float *xs, float *ys) {
         int index = -1;
-        for (int ch = start; index == -1 && ch < end; ch++)
-            if (ctm.e == xs[ch] && ctm.f == ys[ch])
-                index = ch;
+        for (int i = start; index == -1 && i < end; i++)
+            if (m.e == xs[i] && m.f == ys[i])
+                index = i;
         return index;
     }
     
@@ -247,12 +248,9 @@ struct RasterizerPDF {
                     if (FPDFText_GetMatrix(text_page, i, & m))
                         xs[i] = m.e, ys[i] = m.f;
                 
-                Ra::Transform ctm;
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
-                    
-                    if (FPDFPageObj_GetMatrix(pageObject, & m))
-                        ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                    FPDFPageObj_GetMatrix(pageObject, & m);
                         
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
@@ -269,12 +267,12 @@ struct RasterizerPDF {
                                 int index = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
                                 assert(index != -1);
                                 
-                                writeTextToScene(pageObject, text_page, index, text, size, ctm, scene);
+                                writeTextToScene(pageObject, text_page, index, text, size, m, scene);
                             }
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
-                            writePathToScene(pageObject, ctm, scene);
+                            writePathToScene(pageObject, m, scene);
                             break;
                         default:
                             break;
