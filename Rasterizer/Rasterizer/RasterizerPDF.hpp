@@ -197,11 +197,10 @@ struct RasterizerPDF {
     }
     
     static int indexForTextCTM(FS_MATRIX m, FPDF_TEXTPAGE text_page, int start, int end, float *xs, float *ys) {
-        int index = -1;
-        for (int i = start; index == -1 && i < end; i++)
+        for (int i = start; i < end; i++)
             if (m.e == xs[i] && m.f == ys[i])
-                index = i;
-        return index;
+                return i;
+        return -1;
     }
     
     static void writeScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneList& list) {
@@ -227,8 +226,8 @@ struct RasterizerPDF {
                 char16_t text[4096], *back;
                 float xs[charCount], ys[charCount];
                 bzero(xs, sizeof(xs)), bzero(ys, sizeof(xs));
-                
                 FS_MATRIX m;
+                
                 for (int i = 0; i < charCount; i++)
                     if (FPDFText_GetMatrix(text_page, i, & m))
                         xs[i] = m.e, ys[i] = m.f;
