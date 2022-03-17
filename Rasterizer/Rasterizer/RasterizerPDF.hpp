@@ -238,9 +238,7 @@ struct RasterizerPDF {
                 Ra::Scene scene;
                 int charCount = FPDFText_CountChars(text_page);
                 int objectCount = FPDFPage_CountObjects(page);
-                char16_t text[4096];
-                char16_t buffer[charCount], *begin = buffer, *dst = begin, *back;
-                bzero(buffer, sizeof(buffer));
+                char16_t text[4096], *back;
                 float xs[charCount], ys[charCount];
                 bzero(xs, sizeof(xs)), bzero(ys, sizeof(xs));
                 
@@ -259,7 +257,6 @@ struct RasterizerPDF {
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
                             unsigned long size0 = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)text, 4096);
-                            unsigned long maxCount = charCount - (dst - begin);
                             
                             back = text, size = 0;
                             while (size < size0 && *back > 0)
@@ -270,7 +267,6 @@ struct RasterizerPDF {
                             
                             if (size > 0) {
                                 int index = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
-                                assert(size <= maxCount);
                                 assert(index != -1);
                                 
                                 writeTextToScene(pageObject, text_page, index, text, size, ctm, scene);
