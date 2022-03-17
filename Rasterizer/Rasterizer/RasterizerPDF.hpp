@@ -39,8 +39,7 @@ struct RasterizerPDF {
         }
         
         void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
-            if (FPDFPathSegment_GetPoint(segment, & x, & y) == 0)
-                return;
+            FPDFPathSegment_GetPoint(segment, & x, & y);
             switch (FPDFPathSegment_GetType(segment)) {
                 case FPDF_SEGMENT_MOVETO:
                     p->moveTo(x, y);
@@ -67,8 +66,7 @@ struct RasterizerPDF {
                 default:
                     break;
             }
-            FPDF_BOOL close = FPDFPathSegment_GetClose(segment);
-            if (close)
+            if (FPDFPathSegment_GetClose(segment))
                 p->close();
         }
     };
