@@ -17,31 +17,25 @@ struct RasterizerPDF {
         float x, y, px = 0.f, py = 0.f;
         std::vector<float> bezier;
         
-        int writePathFromClipPath(FPDF_CLIPPATH clipPath, int index, Ra::Path& p) {
-            int segmentCount = FPDFClipPath_CountPathSegments(clipPath, index);
-            for (int j = 0; j < segmentCount; j++) {
-                FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, index, j);
-                writeSegment(segment, p);
-            }
-            return segmentCount;
+        Ra::Path createPathFromClipPath(FPDF_CLIPPATH clipPath, int index) {
+            Ra::Path p;  int segmentCount = FPDFClipPath_CountPathSegments(clipPath, index);
+            for (int i = 0; i < segmentCount; i++)
+                writeSegment(FPDFClipPath_GetPathSegment(clipPath, index, i), p);
+            return p;
         }
         
-        int writePathFromGlyphPath(FPDF_GLYPHPATH path, Ra::Path& p) {
-            int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
-            for (int j = 0; j < segmentCount; j++) {
-                FPDF_PATHSEGMENT segment = FPDFGlyphPath_GetGlyphPathSegment(path, j);
-                writeSegment(segment, p);
-            }
-            return segmentCount;
+        Ra::Path createPathFromGlyphPath(FPDF_GLYPHPATH path) {
+            Ra::Path p;  int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
+            for (int i = 0; i < segmentCount; i++)
+                writeSegment(FPDFGlyphPath_GetGlyphPathSegment(path, i), p);
+            return p;
         }
         
-        int writePathFromObject(FPDF_PAGEOBJECT pageObject, Ra::Path& p) {
-            int segmentCount = FPDFPath_CountSegments(pageObject);
-            for (int j = 0; j < segmentCount; j++) {
-                FPDF_PATHSEGMENT segment = FPDFPath_GetPathSegment(pageObject, j);
-                writeSegment(segment, p);
-            }
-            return segmentCount;
+        Ra::Path createPathFromObject(FPDF_PAGEOBJECT pageObject) {
+            Ra::Path p;  int segmentCount = FPDFPath_CountSegments(pageObject);
+            for (int i = 0; i < segmentCount; i++)
+                writeSegment(FPDFPath_GetPathSegment(pageObject, i), p);
+            return p;
         }
         
         void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
@@ -129,9 +123,7 @@ struct RasterizerPDF {
             assert((glyph & ~0x7FFFF) == 0);
             if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
-                Ra::Path p;
-                PathWriter().writePathFromGlyphPath(path, p);
-                
+                Ra::Path p = PathWriter().createPathFromGlyphPath(path);
                 Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
                 double left = 0, bottom = 0, right = 0, top = 0;
                 FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
@@ -148,9 +140,7 @@ struct RasterizerPDF {
         FPDF_BOOL stroke;
          
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
-            Ra::Path path;
-            PathWriter().writePathFromObject(pageObject, path);
-            
+            Ra::Path path = PathWriter().createPathFromObject(pageObject);
             float width = 0.f;
             int cap = 0;
             unsigned int R = 0, G = 0, B = 0, A = 255;
@@ -166,11 +156,9 @@ struct RasterizerPDF {
                 if (clipPath) {
                     int clipCount = FPDFClipPath_CountPaths(clipPath);
                     for (int clipIndex = 0; clipIndex < clipCount; clipIndex++) {
-                        Ra::Path clip;
-                        PathWriter().writePathFromClipPath(clipPath, clipIndex, clip);
-                        if (isRect(path) && (path->bounds.contains(clip->bounds))) {
+                        Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, clipIndex);
+                        if (isRect(path) && (path->bounds.contains(clip->bounds)))
                             path = clip;
-                        }
                     }
                 }
             }
