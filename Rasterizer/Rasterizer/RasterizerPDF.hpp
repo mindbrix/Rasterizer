@@ -82,7 +82,7 @@ struct RasterizerPDF {
         return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     }
 
-    static bool isRect(Ra::Path p) {
+    static bool pathIsRect(Ra::Path p) {
         float *pts = p->points.base, ax, ay, bx, by, t0, t1;
         if (p->types.end != 6 || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[10] || pts[1] != pts[11])
             return false;
@@ -148,13 +148,12 @@ struct RasterizerPDF {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 
                 FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
-                if (clipPath) {
-                    int clipCount = FPDFClipPath_CountPaths(clipPath);
-                    for (int clipIndex = 0; clipIndex < clipCount; clipIndex++) {
-                        Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, clipIndex);
-                        if (isRect(path) && (path->bounds.contains(clip->bounds)))
-                            path = clip;
-                    }
+                int clipCount = FPDFClipPath_CountPaths(clipPath);
+                bool isRect = clipCount > 0 && pathIsRect(path);
+                for (int i = 0; isRect && i < clipCount; i++) {
+                    Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, i);
+                    if (path->bounds.contains(clip->bounds))
+                        path = clip;
                 }
             }
             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
