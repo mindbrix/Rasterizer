@@ -134,14 +134,11 @@ struct RasterizerPDF {
                 
                 Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
                 double left = 0, bottom = 0, right = 0, top = 0;
-                if (FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top)) {
-                    Ra::Bounds b = p->bounds.unit(textCTM);
-                    textCTM.tx += left - b.lx;
-                    textCTM.ty += bottom - b.ly;
-                    scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
-                } else {
-                   assert(false);
-                }
+                FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
+                Ra::Bounds b = p->bounds.unit(textCTM);
+                textCTM.tx += left - b.lx;
+                textCTM.ty += bottom - b.ly;
+                scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
             }
         }
     }
