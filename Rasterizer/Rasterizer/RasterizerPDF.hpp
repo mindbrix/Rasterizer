@@ -115,7 +115,6 @@ struct RasterizerPDF {
         double pleft = DBL_MAX;
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
-//            assert((glyph & ~0x7FFF) == 0);
             if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p = PathWriter().createPathFromGlyphPath(path);
@@ -244,7 +243,6 @@ struct RasterizerPDF {
                                         unsigned int unicode = FPDFText_GetUnicode(text_page, it[0] + j);
                                         text[j] = (char16_t)unicode;
                                     }
-
                                     back = text, len = 0;
                                     while (len < length && *back > 31)
                                         back++, len++;
@@ -255,25 +253,6 @@ struct RasterizerPDF {
                                         writeTextToScene(pageObject, text_page, indices[i], text, len, m, scene);
                                 }
                             }
-//                            unsigned long size0 = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)text, 4096);
-//
-//                            back = text, size = 0;
-//                            while (size < size0 && *back > 0)
-//                                back++, size++;
-//                            back = text + size - 1;
-//                            while (size && *back < 33)
-//                                *back-- = 0, size--;
-                            
-                            /*
-                            if (size > 0) {
-                                int index = indices[i];
-//                                int index = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
-                                assert(index != -1);
-                                assert(length >= size);
-                                assert(len == size);
-                                writeTextToScene(pageObject, text_page, index, text, size, m, scene);
-                            }
-                             */
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
