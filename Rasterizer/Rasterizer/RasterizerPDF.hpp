@@ -115,7 +115,7 @@ struct RasterizerPDF {
         double pleft = DBL_MAX;
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
-            assert((glyph & ~0x7FFFF) == 0);
+//            assert((glyph & ~0x7FFF) == 0);
             if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p = PathWriter().createPathFromGlyphPath(path);
@@ -211,9 +211,23 @@ struct RasterizerPDF {
                 bzero(xs, sizeof(xs)), bzero(ys, sizeof(xs));
                 FS_MATRIX m;
                 
+                int *indices = (int *)malloc(objectCount * sizeof(*indices));
+                std::vector<int> sortedIndices;
+                
                 for (int i = 0; i < charCount; i++)
                     if (FPDFText_GetMatrix(text_page, i, & m))
                         xs[i] = m.e, ys[i] = m.f;
+                
+                for (int i = 0; i < objectCount; i++) {
+                    FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
+                    if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT) {
+                        FPDFPageObj_GetMatrix(pageObject, & m);
+                        indices[i] = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
+                        if (indices[i] != -1)
+                            sortedIndices.emplace_back(indices[i]);
+                    }
+                }
+                std::sort(sortedIndices.begin(), sortedIndices.end());
                 
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
@@ -221,21 +235,45 @@ struct RasterizerPDF {
                         
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
-                            unsigned long size0 = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)text, 4096);
+                            int length = 0, len;
+                            if (indices[i] != -1) {
+                                auto it = std::find(sortedIndices.begin(), sortedIndices.end(), indices[i]);
+                                if (it != sortedIndices.end()) {
+                                    length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
+                                    for (int j = 0; j < length; j++) {
+                                        unsigned int unicode = FPDFText_GetUnicode(text_page, it[0] + j);
+                                        text[j] = (char16_t)unicode;
+                                    }
+
+                                    back = text, len = 0;
+                                    while (len < length && *back > 31)
+                                        back++, len++;
+                                    back = text + len - 1;
+                                    while (len && *back < 33)
+                                        *back-- = 0, len--;
+                                    if (len)
+                                        writeTextToScene(pageObject, text_page, indices[i], text, len, m, scene);
+                                }
+                            }
+//                            unsigned long size0 = FPDFTextObj_GetText(pageObject, text_page, (FPDF_WCHAR *)text, 4096);
+//
+//                            back = text, size = 0;
+//                            while (size < size0 && *back > 0)
+//                                back++, size++;
+//                            back = text + size - 1;
+//                            while (size && *back < 33)
+//                                *back-- = 0, size--;
                             
-                            back = text, size = 0;
-                            while (size < size0 && *back > 0)
-                                back++, size++;
-                            back = text + size - 1;
-                            while (size && *back < 33)
-                                *back-- = 0, size--;
-                            
+                            /*
                             if (size > 0) {
-                                int index = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
+                                int index = indices[i];
+//                                int index = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
                                 assert(index != -1);
-                                
+                                assert(length >= size);
+                                assert(len == size);
                                 writeTextToScene(pageObject, text_page, index, text, size, m, scene);
                             }
+                             */
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
@@ -246,11 +284,12 @@ struct RasterizerPDF {
                     }
                 }
                 
-                writeTextBoxesToScene(text_page, scene);
+//                writeTextBoxesToScene(text_page, scene);
                 list.addScene(scene, transformForPage(page, scene));
                 
                 FPDFText_ClosePage(text_page);
                 FPDF_ClosePage(page);
+                free(indices);
             }
             FPDF_CloseDocument(doc);
         }
