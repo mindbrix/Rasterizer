@@ -112,7 +112,7 @@ struct RasterizerPDF {
         assert(font);
         unsigned int R = 0, G = 0, B = 0, A = 255;
         FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-
+        double pleft = DBL_MAX;
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
             assert((glyph & ~0x7FFFF) == 0);
@@ -120,12 +120,13 @@ struct RasterizerPDF {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p = PathWriter().createPathFromGlyphPath(path);
                 Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                Ra::Bounds b = p->bounds.unit(textCTM);
                 double left = 0, bottom = 0, right = 0, top = 0;
                 FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
-                Ra::Bounds b = p->bounds.unit(textCTM);
-                textCTM.tx += left - b.lx;
+                textCTM.tx += pleft == left ? right - b.ux : left - b.lx;
                 textCTM.ty += bottom - b.ly;
                 scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
+                pleft = left;
             }
         }
     }
