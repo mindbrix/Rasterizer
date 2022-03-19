@@ -242,18 +242,13 @@ struct RasterizerPDF {
                                 auto it = std::lower_bound(sortedIndices.begin(), sortedIndices.end(), indices[i]);
                                 if (it != sortedIndices.end() && *it == indices[i]) {
                                     length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
-                                    for (int j = 0; j < length; j++) {
-                                        unsigned int unicode = FPDFText_GetUnicode(text_page, it[0] + j);
-                                        text[j] = (char16_t)unicode;
-                                    }
-                                    back = text, len = 0;
-                                    while (len < length && *back > 31)
+                                    for (int j = 0; j < length; j++)
+                                        text[j] = (char16_t)FPDFText_GetUnicode(text_page, it[0] + j);
+                                    for (back = text, len = 0; len < length && *back > 31; )
                                         back++, len++;
-                                    back = text + len - 1;
-                                    while (len && *back < 33)
+                                    for (back = text + len - 1; len && *back < 33; )
                                         *back-- = 0, len--;
-                                    if (len)
-                                        writeTextToScene(pageObject, text_page, indices[i], text, len, m, scene);
+                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, scene);
                                 }
                             }
                             break;
