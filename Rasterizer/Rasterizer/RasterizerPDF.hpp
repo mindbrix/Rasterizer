@@ -101,11 +101,11 @@ struct RasterizerPDF {
         int charCount = FPDFText_CountChars(text_page);
         double left = 0, bottom = 0, right = 0, top = 0;
         Ra::Colorant black(0, 0, 0, 64);
+        Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
         for (int i = 0; i < charCount; i++)
             if (FPDFText_GetUnicode(text_page, i) > 32 &&
                 FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
-                Ra::Path path;  path->addBounds(Ra::Bounds(left, bottom, right, top));
-                scene.addPath(path, Ra::Transform(), black, -1.f, 0);
+                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), black, -1.f, 0);
             }
     }
     
