@@ -182,13 +182,6 @@ struct RasterizerPDF {
         return originCTM.concat(pageCTM);
     }
     
-    static int indexForTextCTM(FS_MATRIX m, FPDF_TEXTPAGE text_page, int start, int end, float *xs, float *ys) {
-        for (int i = start; i < end; i++)
-            if (m.e == xs[i] && m.f == ys[i])
-                return i;
-        return -1;
-    }
-    
     static void writeScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneList& list) {
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
@@ -211,10 +204,7 @@ struct RasterizerPDF {
                 int objectCount = FPDFPage_CountObjects(page);
                 char16_t text[4096], *back;
                 std::vector<PointIndex> sortedPointIndices;
-                float xs[charCount], ys[charCount];
-                bzero(xs, sizeof(xs)), bzero(ys, sizeof(xs));
                 FS_MATRIX m, lastm;  lastm.e = FLT_MAX, lastm.f = FLT_MAX;
-                
                 int *indices = (int *)malloc(objectCount * sizeof(*indices));
                 std::vector<int> sortedIndices;
                 
@@ -225,7 +215,6 @@ struct RasterizerPDF {
                             sortedPointIndices.emplace_back(pi);
                         }
                         lastm = m;
-                        xs[i] = m.e, ys[i] = m.f;
                     }
                 std::sort(sortedPointIndices.begin(), sortedPointIndices.end());
                 
@@ -233,34 +222,10 @@ struct RasterizerPDF {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT) {
                         FPDFPageObj_GetMatrix(pageObject, & m);
-//                        indices[i] = indexForTextCTM(m, text_page, 0, charCount, xs, ys);
-                        
                         PointIndex pi;  pi.x = m.e, pi.y = m.f, pi.index = 0;
                         auto it = std::lower_bound(sortedPointIndices.begin(), sortedPointIndices.end(), pi);
-                        
-                        while (it > sortedPointIndices.begin() && it->x == (it - 1)->x && it->y == (it - 1)->y)
-                            it--;
-                        
-//                        char16_t unicode = 0;
-                        if (it != sortedPointIndices.end()) {
-//                            unicode = (char16_t)FPDFText_GetUnicode(text_page, it->index);
-                            if (it->x == m.e && it->y == m.f) {
-//                                assert(it->index == indices[i]);
-                                indices[i] = it->index, sortedIndices.emplace_back(it->index);
-                            }
-                        }
-                        
-//                        if (indices[i] != -1) {
-//                            assert(it != sortedPointIndices.end());
-//                            assert(it->index == indices[i]);
-//
-//                            indices[i] = it->index, sortedIndices.emplace_back(it->index);
-//                        }
-                        
-//                        if (it != sortedPointIndices.end())
-//                            indices[i] = it->index, sortedIndices.emplace_back(it->index);
-//                        if (indices[i] != -1)
-//                            sortedIndices.emplace_back(indices[i]);
+                        if (it != sortedPointIndices.end() && it->x == m.e && it->y == m.f)
+                            indices[i] = it->index, sortedIndices.emplace_back(it->index);
                     }
                 }
                 std::sort(sortedIndices.begin(), sortedIndices.end());
