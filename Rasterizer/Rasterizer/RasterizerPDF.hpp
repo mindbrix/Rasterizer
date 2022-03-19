@@ -109,7 +109,7 @@ struct RasterizerPDF {
             }
     }
     
-   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char16_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Scene& scene) {
+   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Scene& scene) {
         float fontSize = 1.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -202,7 +202,7 @@ struct RasterizerPDF {
                 Ra::Scene scene;
                 int charCount = FPDFText_CountChars(text_page);
                 int objectCount = FPDFPage_CountObjects(page);
-                char16_t text[4096], *back;
+                char32_t text[4096], *back;
                 std::vector<PointIndex> sortedPointIndices;
                 FS_MATRIX m, lastm;  lastm.e = FLT_MAX, lastm.f = FLT_MAX;
                 int *indices = (int *)malloc(objectCount * sizeof(*indices));
@@ -243,7 +243,7 @@ struct RasterizerPDF {
                                 if (it != sortedIndices.end() && *it == indices[i]) {
                                     length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
                                     for (int j = 0; j < length; j++)
-                                        text[j] = (char16_t)FPDFText_GetUnicode(text_page, it[0] + j);
+                                        text[j] = FPDFText_GetUnicode(text_page, it[0] + j);
                                     for (back = text, len = 0; len < length && *back > 31; )
                                         back++, len++;
                                     for (back = text + len - 1; len && *back < 33; )
