@@ -100,13 +100,11 @@ struct RasterizerPDF {
     static void writeTextBoxesToScene(FPDF_TEXTPAGE text_page, Ra::Scene& scene) {
         int charCount = FPDFText_CountChars(text_page);
         double left = 0, bottom = 0, right = 0, top = 0;
-        Ra::Colorant black(0, 0, 0, 64);
+        Ra::Colorant color(0, 0, 0, 64);
         Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
         for (int i = 0; i < charCount; i++)
-            if (FPDFText_GetUnicode(text_page, i) > 32 &&
-                FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top)) {
-                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), black, -1.f, 0);
-            }
+            if (FPDFText_GetUnicode(text_page, i) > 32 && FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top))
+                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), color, -1.f, 0);
     }
     
    static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Scene& scene) {
