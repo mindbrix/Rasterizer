@@ -219,6 +219,7 @@ struct RasterizerPDF {
                 std::sort(sortedPointIndices.begin(), sortedPointIndices.end());
                 
                 for (int i = 0; i < objectCount; i++) {
+                    indices[i] = -1;
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     if (FPDFPageObj_GetType(pageObject) == FPDF_PAGEOBJ_TEXT) {
                         FPDFPageObj_GetMatrix(pageObject, & m);
