@@ -242,9 +242,9 @@ struct RasterizerPDF {
                                     length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
                                     for (int j = 0; j < length; j++)
                                         text[j] = FPDFText_GetUnicode(text_page, it[0] + j);
-                                    for (back = text, len = 0; len < length && *back > 31 && *back < 0xFFF0; )
+                                    for (back = text, len = 0; len < length && *back >= 32 && *back < 0xFFF0; )
                                         back++, len++;
-                                    for (back = text + len - 1; len && (*back < 33 || *back >= 0xFFF0); )
+                                    for (back = text + len - 1; len && *back == 32; )
                                         *back-- = 0, len--;
                                     writeTextToScene(pageObject, text_page, indices[i], text, len, m, scene);
                                 }
