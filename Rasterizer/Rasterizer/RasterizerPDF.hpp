@@ -117,13 +117,16 @@ struct RasterizerPDF {
         double pleft = DBL_MAX;
         for (int g = 0; g < textSize; g++) {
             auto glyph = buffer[g];
-            if (glyph > 32) {
+            double left = 0, bottom = 0, right = 0, top = 0;
+            FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
+            if (glyph >= 0xFFF0) {
+                Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
+                scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), Ra::Colorant(0, 0, 255, 255), -1.f, 0);
+            } else if (glyph > 32) {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p = PathWriter().createPathFromGlyphPath(path);
                 Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
                 Ra::Bounds b = p->bounds.unit(textCTM);
-                double left = 0, bottom = 0, right = 0, top = 0;
-                FPDFText_GetCharBox(text_page, baseIndex + g, & left, & right, & bottom, & top);
                 textCTM.tx += pleft == left ? right - b.ux : left - b.lx;
                 textCTM.ty += bottom - b.ly;
                 scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
@@ -242,7 +245,7 @@ struct RasterizerPDF {
                                     length = (it + 1 == sortedIndices.end() ? charCount : it[1]) - it[0];
                                     for (int j = 0; j < length; j++)
                                         text[j] = FPDFText_GetUnicode(text_page, it[0] + j);
-                                    for (back = text, len = 0; len < length && *back >= 32 && *back < 0xFFF0; )
+                                    for (back = text, len = 0; len < length && *back >= 32; )
                                         back++, len++;
                                     for (back = text + len - 1; len && *back == 32; )
                                         *back-- = 0, len--;
