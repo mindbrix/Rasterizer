@@ -37,7 +37,7 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
-        static inline Bounds max() { return Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);  }
+        static inline Bounds max() { return Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         Bounds(Transform t) :
