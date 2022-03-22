@@ -136,7 +136,7 @@ struct RasterizerPDF {
         }
     }
     
-    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, std::vector<Ra::Path>& clipPaths, Ra::Scene& scene) {
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds clipBounds, std::vector<Ra::Path>& clipPaths, Ra::Scene& scene) {
         int fillmode;
         FPDF_BOOL stroke;
          
@@ -291,7 +291,7 @@ struct RasterizerPDF {
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
-                            writePathToScene(pageObject, m, clipPaths, scene);
+                            writePathToScene(pageObject, m, clipBounds, clipPaths, scene);
                             break;
                         default:
                             break;
