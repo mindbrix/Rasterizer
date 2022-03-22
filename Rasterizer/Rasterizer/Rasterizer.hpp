@@ -218,6 +218,15 @@ struct Rasterizer {
         struct Cache {
             struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
             Entry *entryAt(size_t i)  {  return entries.base + ips.base[i];  }
+            Entry *addEntry(size_t hash)  {
+                Entry *e = nullptr;  uint32_t ip;
+                auto it = map.find(hash);
+                if (it != map.end())
+                    *(ips.alloc(1)) = it->second;
+                else
+                    ip = uint32_t(map.size()), *(ips.alloc(1)) = ip, map.emplace(hash, ip), e = entries.alloc(1);
+                return e;
+            }
             size_t refCount = 0;  Row<uint32_t> ips;  Row<Entry> entries;  std::unordered_map<size_t, uint32_t> map;
         };
         template<typename T>
@@ -230,17 +239,14 @@ struct Rasterizer {
             path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->types.end;
-                auto it = cache->map.find(path->hash());
-                if (it != cache->map.end())
-                    *(cache->ips.alloc(1)) = it->second;
-                else {
+                Cache::Entry *e = cache->addEntry(path->hash());
+                if (e) {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                     }
-                    Cache::Entry *e = cache->entries.alloc(1);  e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
-                    auto ip = uint32_t(cache->map.size());  *(cache->ips.alloc(1)) = ip, cache->map.emplace(path->hash(), ip);
+                    e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
                 paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
