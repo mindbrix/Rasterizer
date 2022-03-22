@@ -218,7 +218,7 @@ struct Rasterizer {
         struct Cache {
             struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
             Entry *entryAt(size_t i)  {  return entries.base + ips.base[i];  }
-            size_t refCount = 0;  Row<uint32_t> ips;  Row<Entry> entries;  std::unordered_map<size_t, size_t> map;
+            size_t refCount = 0;  Row<uint32_t> ips;  Row<Entry> entries;  std::unordered_map<size_t, uint32_t> map;
         };
         template<typename T>
         struct Vector {
@@ -232,7 +232,7 @@ struct Rasterizer {
                 count++, weight += path->types.end;
                 auto it = cache->map.find(path->hash());
                 if (it != cache->map.end())
-                    *(cache->ips.alloc(1)) = uint32_t(it->second);
+                    *(cache->ips.alloc(1)) = it->second;
                 else {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
