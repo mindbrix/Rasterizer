@@ -6,6 +6,7 @@
 //  Copyright © 2022 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.hpp"
+#import "xxhash.h"
 #import "fpdfview.h"
 #import "fpdf_edit.h"
 #import "fpdf_transformpage.h"
@@ -232,10 +233,33 @@ struct RasterizerPDF {
                 }
                 std::sort(sortedIndices.begin(), sortedIndices.end());
                 
+                size_t lastHash = ~0;
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     FPDFPageObj_GetMatrix(pageObject, & m);
                         
+                    size_t hash = 0;
+                    FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
+                    int clipCount = FPDFClipPath_CountPaths(clipPath);
+                    if (clipCount != -1) {
+                        hash = XXH64(& clipCount, sizeof(clipCount), hash);
+                        for (int j = 0; j < clipCount; j++) {
+                            int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
+                            hash = XXH64(& j, sizeof(j), hash);
+                            hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
+                        }
+                    }
+                    if (hash != lastHash) {
+                        fprintf(stderr, "hash = %ld\n", hash);
+                        lastHash = hash;
+                        if (clipCount != -1) {
+                            fprintf(stderr, "i = %d, clipCount = %d\n", i, clipCount);
+                            for (int j = 0; j < clipCount; j++) {
+                                int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
+                                fprintf(stderr, "\tj = %d, segmentCount = %d\n", j, segmentCount);
+                            }
+                        }
+                    }
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
                             int length = 0, len;
