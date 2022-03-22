@@ -136,7 +136,7 @@ struct RasterizerPDF {
         }
     }
     
-    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Scene& scene) {
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, std::vector<Ra::Path>& clipPaths, Ra::Scene& scene) {
         int fillmode;
         FPDF_BOOL stroke;
          
@@ -153,14 +153,10 @@ struct RasterizerPDF {
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 
-                FPDF_CLIPPATH clipPath = FPDFPageObj_GetClipPath(pageObject);
-                int clipCount = FPDFClipPath_CountPaths(clipPath);
-                bool isRect = clipCount > 0 && pathIsRect(path);
-                for (int i = 0; isRect && i < clipCount; i++) {
-                    Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, i);
-                    if (path->bounds.contains(clip->bounds))
-                        path = clip;
-                }
+                if (pathIsRect(path))
+                    for (auto clip : clipPaths)
+                        if (path->bounds.contains(clip->bounds))
+                            path = clip;
             }
             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             uint8_t flags = 0;
@@ -234,6 +230,8 @@ struct RasterizerPDF {
                 std::sort(sortedIndices.begin(), sortedIndices.end());
                 
                 Ra::Bounds clipBounds;
+                std::vector<Ra::Path> clipPaths;
+                
                 size_t lastHash = ~0;
                 float x, y;
                 for (int i = 0; i < objectCount; i++) {
@@ -258,6 +256,7 @@ struct RasterizerPDF {
                     
                     if (hash != lastHash) {
                         clipBounds = Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
+                        clipPaths.resize(0);
                         
                         fprintf(stderr, "i = %d, hash = %ld\n", i, hash);
                         lastHash = hash;
@@ -265,6 +264,7 @@ struct RasterizerPDF {
                             for (int j = 0; j < clipCount; j++) {
                                 int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
                                 Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
+                                clipPaths.emplace_back(clip);
                                 clipBounds = clipBounds.intersect(clip->bounds);
                                 bool isRect = pathIsRect(clip);
                                 fprintf(stderr, "\tj = %d, segmentCount = %d, isRect = %d\n", j, segmentCount, isRect);
@@ -291,7 +291,7 @@ struct RasterizerPDF {
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
-                            writePathToScene(pageObject, m, scene);
+                            writePathToScene(pageObject, m, clipPaths, scene);
                             break;
                         default:
                             break;
