@@ -130,7 +130,7 @@ struct RasterizerPDF {
                 Ra::Bounds b = p->bounds.unit(textCTM);
                 textCTM.tx += pleft == left ? right - b.ux : left - b.lx;
                 textCTM.ty += bottom - b.ly;
-                scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0);
+                scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0, clipBounds);
                 pleft = left;
             }
         }
@@ -163,7 +163,7 @@ struct RasterizerPDF {
             flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
             flags |= cap == FPDF_LINECAP_PROJECTING_SQUARE ? Ra::Scene::kSquareCap : 0;
-            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags);
+            scene.addPath(path, ctm, Ra::Colorant(B, G, R, A), width, flags, clipBounds);
         }
     }
     
