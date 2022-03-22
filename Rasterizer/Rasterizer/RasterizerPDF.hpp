@@ -270,7 +270,7 @@ struct RasterizerPDF {
                                 fprintf(stderr, "\tj = %d, segmentCount = %d, isRect = %d\n", j, segmentCount, isRect);
                             }
                         }
-                        fprintf(stderr, "\tBounds = %f, %f, %f, %f\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
+                        fprintf(stderr, "\tBounds = %g, %g, %g, %g\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
