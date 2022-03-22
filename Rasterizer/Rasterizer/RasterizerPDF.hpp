@@ -234,6 +234,7 @@ struct RasterizerPDF {
                 std::sort(sortedIndices.begin(), sortedIndices.end());
                 
                 size_t lastHash = ~0;
+                float x, y;
                 for (int i = 0; i < objectCount; i++) {
                     FPDF_PAGEOBJECT pageObject = FPDFPage_GetObject(page, i);
                     FPDFPageObj_GetMatrix(pageObject, & m);
@@ -245,19 +246,29 @@ struct RasterizerPDF {
                         hash = XXH64(& clipCount, sizeof(clipCount), hash);
                         for (int j = 0; j < clipCount; j++) {
                             int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
-                            hash = XXH64(& j, sizeof(j), hash);
+                            assert(segmentCount);
+                            FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, j, 0);
+                            FPDFPathSegment_GetPoint(segment, & x, & y);
+                            
                             hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
+                            hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
                         }
                     }
+                    
                     if (hash != lastHash) {
-                        fprintf(stderr, "hash = %ld\n", hash);
+                        Ra::Bounds bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
+                        
+                        fprintf(stderr, "i = %d, hash = %ld\n", i, hash);
                         lastHash = hash;
                         if (clipCount != -1) {
-                            fprintf(stderr, "i = %d, clipCount = %d\n", i, clipCount);
                             for (int j = 0; j < clipCount; j++) {
                                 int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
-                                fprintf(stderr, "\tj = %d, segmentCount = %d\n", j, segmentCount);
+                                Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
+                                bounds = bounds.intersect(clip->bounds);
+                                bool isRect = pathIsRect(clip);
+                                fprintf(stderr, "\tj = %d, segmentCount = %d, isRect = %d\n", j, segmentCount, isRect);
                             }
+                            fprintf(stderr, "\tBounds = %f, %f, %f, %f\n", bounds.lx, bounds.ly, bounds.ux, bounds.uy);
                         }
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
