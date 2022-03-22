@@ -108,7 +108,7 @@ struct RasterizerPDF {
                 scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), color, -1.f, 0);
     }
     
-   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Scene& scene) {
+   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Bounds clipBounds, Ra::Scene& scene) {
         float fontSize = 1.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -285,7 +285,7 @@ struct RasterizerPDF {
                                         back++, len++;
                                     for (back = text + len - 1; len && *back == 32; )
                                         *back-- = 0, len--;
-                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, scene);
+                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, clipBounds, scene);
                                 }
                             }
                             break;
