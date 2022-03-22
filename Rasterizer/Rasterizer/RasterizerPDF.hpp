@@ -233,6 +233,7 @@ struct RasterizerPDF {
                 }
                 std::sort(sortedIndices.begin(), sortedIndices.end());
                 
+                Ra::Bounds clipBounds;
                 size_t lastHash = ~0;
                 float x, y;
                 for (int i = 0; i < objectCount; i++) {
@@ -256,7 +257,7 @@ struct RasterizerPDF {
                     }
                     
                     if (hash != lastHash) {
-                        Ra::Bounds bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
+                        clipBounds = Ra::Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
                         
                         fprintf(stderr, "i = %d, hash = %ld\n", i, hash);
                         lastHash = hash;
@@ -264,12 +265,12 @@ struct RasterizerPDF {
                             for (int j = 0; j < clipCount; j++) {
                                 int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
                                 Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
-                                bounds = bounds.intersect(clip->bounds);
+                                clipBounds = clipBounds.intersect(clip->bounds);
                                 bool isRect = pathIsRect(clip);
                                 fprintf(stderr, "\tj = %d, segmentCount = %d, isRect = %d\n", j, segmentCount, isRect);
                             }
-                            fprintf(stderr, "\tBounds = %f, %f, %f, %f\n", bounds.lx, bounds.ly, bounds.ux, bounds.uy);
                         }
+                        fprintf(stderr, "\tBounds = %f, %f, %f, %f\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
