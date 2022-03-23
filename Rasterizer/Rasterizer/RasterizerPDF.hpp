@@ -142,6 +142,7 @@ struct RasterizerPDF {
          
         if (FPDFPath_GetDrawMode(pageObject, & fillmode, & stroke)) {
             Ra::Path path = PathWriter().createPathFromObject(pageObject);
+            Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             float width = 0.f;
             int cap = 0;
             unsigned int R = 0, G = 0, B = 0, A = 255;
@@ -153,10 +154,11 @@ struct RasterizerPDF {
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 
-                if (pathIsRect(path) && clipPaths.size())
-                    path = clipPaths[0], clipBounds = path->bounds;
+                if (pathIsRect(path))
+                    for (auto clip : clipPaths)
+                        if (!pathIsRect(clip))
+                            path = clip;
             }
-            Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             uint8_t flags = 0;
             flags |= fillmode == FPDF_FILLMODE_ALTERNATE ? Ra::Scene::kFillEvenOdd : 0;
             flags |= cap == FPDF_LINECAP_ROUND ? Ra::Scene::kRoundCap : 0;
