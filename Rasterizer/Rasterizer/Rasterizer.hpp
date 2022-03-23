@@ -412,9 +412,9 @@ struct Rasterizer {
                     m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.a * m.d - m.b * m.c), uw = scn->widths->base[is], bnds = & scn->bnds->base[is];
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     ip = scn->clipCache->ips.base[is];
-                    if (0 && ip != lastip) {
+                    if (ip != lastip) {
                         lastip = ip, pclip = scn->clipCache->entryAt(is);
-                        clipctm = pclip->lx != -FLT_MAX ? pclip->unit(ctm) : clipctm;
+                        clipctm = pclip->lx != -FLT_MAX ? pclip->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         inv = clipctm.invert(), err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
