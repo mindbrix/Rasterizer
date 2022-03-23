@@ -153,10 +153,8 @@ struct RasterizerPDF {
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
                 
-                if (pathIsRect(path))
-                    for (auto clip : clipPaths)
-                        if (path->bounds.contains(clip->bounds))
-                            path = clip;
+                if (pathIsRect(path) && clipPaths.size())
+                    path = clipPaths[0], clipBounds = path->bounds;
             }
             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
             uint8_t flags = 0;
