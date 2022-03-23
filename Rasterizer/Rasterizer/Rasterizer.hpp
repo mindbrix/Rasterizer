@@ -394,13 +394,14 @@ struct Rasterizer {
             Transform *ctms = (Transform *)(buffer->base + buffer->ctms);  Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
             Transform *clips = (Transform *)(buffer->base + buffer->clips);  uint32_t *idxs = (uint32_t *)(buffer->base + buffer->idxs);
             float *widths = (float *)(buffer->base + buffer->widths);  Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
-            size_t lz, uz, i, clz, cuz, iz, is, ip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
+            size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm = view.concat(list.clips[i]), inv = clipctm.invert(), m, unit;
-                Bounds clipbnds = Bounds(clipctm).integral().intersect(device), dev, clip, *bnds;
                 err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
+                Bounds dev, clip, *bnds, *pclip, clipBounds = Bounds(clipctm).integral().intersect(device);
+                lastip = ~0;
                 (*transferFunction)(clz - lz, cuz - lz, i, scn->bnds->base,
                      & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
                      & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo);
@@ -410,7 +411,15 @@ struct Rasterizer {
                         continue;
                     m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.a * m.d - m.b * m.c), uw = scn->widths->base[is], bnds = & scn->bnds->base[is];
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
-                    unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipbnds);
+                    ip = scn->clipCache->ips.base[is];
+                    if (0 && ip != lastip) {
+                        lastip = ip, pclip = scn->clipCache->entryAt(is);
+                        clipctm = pclip->lx != -FLT_MAX ? pclip->unit(ctm) : clipctm;
+                        inv = clipctm.invert(), err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
+                        clipBounds = Bounds(clipctm).integral().intersect(device);
+                    }
+                    assert(device.contains(clipBounds));
+                    unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx != clip.ux && clip.ly != clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scn->paths->base[is].ptr;
@@ -437,6 +446,7 @@ struct Rasterizer {
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
+                            sx = sy = 0.9999999f;
                             m = { m.a * sx, m.b * sy, m.c * sx, m.d * sy, m.tx * sx + clip.lx * (1.f - sx) + kClipMargin, m.ty * sy + clip.ly * (1.f - sy) + kClipMargin };
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
