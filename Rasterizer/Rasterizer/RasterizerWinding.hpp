@@ -31,7 +31,7 @@ struct RasterizerWinding {
                     }
                     float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        int winding = pointWinding(scene.paths->base[si], scene.bnds->base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si]);
+                        int winding = pointWinding(scene.paths->base[si], scene.bnds->base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si], scene.flags->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
                             return Ra::Range(li, si);
@@ -41,7 +41,7 @@ struct RasterizerWinding {
         return Ra::Range(INT_MAX, INT_MAX);
     }
     struct Counter {
-        float dx, dy, dw;  int winding = 0;
+        float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
     };
     static void divideQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Ra::SegmentFunction function, void *info, float s) {
         float ax, ay, a, count, dt, f2x, f1x, f2y, f1y;
@@ -68,19 +68,25 @@ struct RasterizerWinding {
     static void countOutline(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
         if (x0 != x1 || y0 != y1) {
             Counter *cntr = (Counter *)info;
-            float ax, ay, bx, by, cx, cy, t, s;
-            ax = x1 - x0, ay = y1 - y0, bx = cntr->dx - x0, by = cntr->dy - y0;
-            t = (ax * bx + ay * by) / (ax * ax + ay * ay), t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+            float ax, ay, adot, len, bx, by, cx, cy, t, s, sx, sy, cap;
+            bool square = cntr->flags & Ra::Scene::kSquareCap;
+            bool round = cntr->flags & Ra::Scene::kRoundCap;
+            cap = square ? 0.5f * cntr->dw : 0.f;
+            ax = x1 - x0, ay = y1 - y0, adot = ax * ax + ay * ay, len = sqrtf(adot), bx = cntr->dx - x0, by = cntr->dy - y0;
+            sx = (ax * bx + ay * by) / len, sy = (ax * by - ay * bx) / len;
+            t = (ax * bx + ay * by) / adot, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
             cx = s * x0 + t * x1 - cntr->dx, cy = s * y0 + t * y1 - cntr->dy;
-            if (sqrtf(cx * cx + cy * cy) < 0.5f * cntr->dw)
+            if (round && sqrtf(cx * cx + cy * cy) < 0.5f * cntr->dw)
+                cntr->winding = 1;
+            else if (sx > -cap && sx < len + cap && fabsf(sy) < 0.5f * cntr->dw)
                 cntr->winding = 1;
         }
     }
-    static int pointWinding(Ra::Path& path, Ra::Bounds bounds, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w) {
+    static int pointWinding(Ra::Path& path, Ra::Bounds bounds, Ra::Transform ctm, Ra::Bounds device, float dx, float dy, float w, uint8_t flags) {
         float ws = ctm.scale(), uw = w < 0.f ? -w / ws : w;
-        Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws);
+        Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         Ra::Transform unit = bounds.inset(-uw, -uw).unit(ctm), inv = unit.invert();
-        Ra::Bounds clip = Ra::Bounds(unit).intersect(device);
+        Ra::Bounds clip = Ra::Bounds(unit);
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
         if (clip.lx != clip.ux && clip.ly != clip.uy && ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
             if (w)
