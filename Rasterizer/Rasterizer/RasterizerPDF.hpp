@@ -246,11 +246,12 @@ struct RasterizerPDF {
                         for (int j = 0; j < clipCount; j++) {
                             int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
                             assert(segmentCount);
-                            FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, j, 0);
-                            FPDFPathSegment_GetPoint(segment, & x, & y);
-                            
                             hash = XXH64(& segmentCount, sizeof(segmentCount), hash);
-                            hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
+                            for (int k = 0; k < 1; k++) {
+                                FPDF_PATHSEGMENT segment = FPDFClipPath_GetPathSegment(clipPath, j, k);
+                                FPDFPathSegment_GetPoint(segment, & x, & y);
+                                hash = XXH64(& x, sizeof(x), hash), hash = XXH64(& y, sizeof(y), hash);
+                            }
                         }
                     }
                     
