@@ -11,15 +11,26 @@ struct RasterizerWinding {
     static Ra::Range indicesForPoint(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float dx, float dy, uint64_t tag = ~0) {
         if (dx >= device.lx && dx < device.ux && dy >= device.ly && dy < device.uy)
             for (int li = int(list.scenes.size()) - 1; li >= 0; li--) {
+                uint32_t ip, lastip = ~0;
                 Ra::Scene& scene = list.scenes[li];
                 if ((scene.tag & tag) == 0)
                     continue;
-                Ra::Transform inv = view.concat(list.clips[li]).invert(), ctm = view.concat(list.ctms[li]);
-                float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-                if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                    for (int si = int(scene.count) - 1; si >= 0; si--) {
-                        if (scene.flags->base[si] & Ra::Scene::kInvisible)
-                            continue;
+                Ra::Transform ctm = view.concat(list.ctms[li]), nullinv = Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f).invert(), inv = nullinv;
+                
+                for (int si = int(scene.count) - 1; si >= 0; si--) {
+                    if (scene.flags->base[si] & Ra::Scene::kInvisible)
+                        continue;
+                    ip = scene.clipCache->ips.base[si];
+                    if (ip != lastip) {
+                        lastip = ip;
+                        Ra::Bounds *pclip = scene.clipCache->entryAt(si);
+                        if (pclip->lx != -FLT_MAX)
+                            inv = pclip->unit(ctm).invert();
+                        else
+                            inv = nullinv;
+                    }
+                    float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
+                    if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
                         int winding = pointWinding(scene.paths->base[si], scene.bnds->base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
