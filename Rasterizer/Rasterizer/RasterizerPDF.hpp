@@ -301,11 +301,8 @@ struct RasterizerPDF {
                             FPDF_BOOL ok = FPDFImageObj_GetImageMetadata(pageObject, page, & metadata);
                             ok = FPDFPageObj_GetBounds(pageObject, & left, & bottom, & right, & top);
                             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-                            Ra::Bounds b = Ra::Bounds(unitBounds.unit(ctm));
-                            
-
                             Ra::Path rect;  rect->addBounds(unitBounds);
-                            scene.addPath(rect, ctm, Ra::Colorant(0, 255, 0, 255), 0, 0, clipBounds);
+                            scene.addPath(rect, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipBounds);
                             break;
                         }
                         default:
