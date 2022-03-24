@@ -294,6 +294,20 @@ struct RasterizerPDF {
                         case FPDF_PAGEOBJ_PATH:
                             writePathToScene(pageObject, m, clipBounds, clipPaths, scene);
                             break;
+                        case FPDF_PAGEOBJ_IMAGE: {
+                            Ra::Bounds unitBounds(0, 0, 1, 1);
+                            FPDF_IMAGEOBJ_METADATA metadata;
+                            float left = 0, bottom = 0, right = 0,  top = 0;
+                            FPDF_BOOL ok = FPDFImageObj_GetImageMetadata(pageObject, page, & metadata);
+                            ok = FPDFPageObj_GetBounds(pageObject, & left, & bottom, & right, & top);
+                            Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
+                            Ra::Bounds b = Ra::Bounds(unitBounds.unit(ctm));
+                            
+
+                            Ra::Path rect;  rect->addBounds(unitBounds);
+                            scene.addPath(rect, ctm, Ra::Colorant(0, 255, 0, 255), 0, 0, clipBounds);
+                            break;
+                        }
                         default:
                             break;
                     }
