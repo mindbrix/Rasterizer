@@ -304,6 +304,11 @@ struct RasterizerPDF {
                             scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipBounds);
                             break;
                         }
+                        case FPDF_PAGEOBJ_SHADING: {
+                            if (clipPaths.size())
+                                scene.addPath(clipPaths[0], Ra::Transform(), Ra::Colorant(0, 0, 255, 64), 0, 0, clipBounds);
+                            break;
+                        }
                         default:
                             break;
                     }
