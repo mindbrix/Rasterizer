@@ -26,7 +26,7 @@ struct RasterizerRenderer {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         if (list.pathsCount == 0)
             return;
-        buffer->prepare(list.pathsCount), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
+        buffer->prepare(list), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
         size_t i, izs[kQueueCount + 1];  writeIzs(list, izs);
         ThreadInfo threadInfo[kQueueCount], *ti;
         for (ti = threadInfo, i = 0; i < kQueueCount; i++, ti++) {

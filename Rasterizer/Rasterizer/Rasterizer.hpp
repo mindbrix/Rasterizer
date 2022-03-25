@@ -346,13 +346,14 @@ struct Rasterizer {
             Type type;  size_t begin, end;
         };
         ~Buffer() { if (base) free(base); }
-        void prepare(size_t pathsCount) {
+        void prepare(SceneList& list) {
+            pathsCount = list.pathsCount;
             size_t sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint8_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
-            this->pathsCount = pathsCount, headerSize = (base + 3) & ~0x3, resize(headerSize), entries.empty();
+            headerSize = (base + 3) & ~0x3, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
             size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
