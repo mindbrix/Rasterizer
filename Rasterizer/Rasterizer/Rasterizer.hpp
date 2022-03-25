@@ -264,8 +264,9 @@ struct Rasterizer {
                 }
                 if ((be = clipCache->addEntry(clipBounds.hash())))
                     *be = clipBounds;
-                if (image && image->hash && (ie = imageCache->addEntry(image->hash)))
-                    *ie = *image;
+                Image img = image ? *image : Image();
+                if ((ie = imageCache->addEntry(img.hash)))
+                    *ie = img;
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
                 paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
