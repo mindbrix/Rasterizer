@@ -301,7 +301,15 @@ struct RasterizerPDF {
                             FPDF_IMAGEOBJ_METADATA metadata;
                             FPDFImageObj_GetImageMetadata(pageObject, page, & metadata);
                             Ra::Transform ctm = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-                            scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipBounds);
+                            Ra::Image image;
+                            unsigned long size = FPDFImageObj_GetImageDataRaw(pageObject, NULL, INT_MAX);
+                            if (size) {
+                                void *bytes = malloc(size);
+                                FPDFImageObj_GetImageDataRaw(pageObject, bytes, size);
+                                image.init(bytes, size, metadata.width, metadata.height);
+                                free(bytes);
+                                scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipBounds, & image);
+                            }
                             break;
                         }
                         case FPDF_PAGEOBJ_SHADING: {

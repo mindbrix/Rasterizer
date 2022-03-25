@@ -238,7 +238,7 @@ struct Rasterizer {
                 if (it != map.end())
                     *(ips.alloc(1)) = it->second;
                 else
-                    ip = uint32_t(map.size()), *(ips.alloc(1)) = ip, map.emplace(hash, ip), e = entries.alloc(1);
+                    ip = uint32_t(map.size()), *(ips.alloc(1)) = ip, map.emplace(hash, ip), e = entries.alloc(1), bzero(e, sizeof(T));
                 return e;
             }
             size_t refCount = 0;  Row<uint32_t> ips;  Row<T> entries;  std::unordered_map<size_t, uint32_t> map;
@@ -265,7 +265,7 @@ struct Rasterizer {
                 Bounds *be = clipCache->addEntry(clipBounds.hash());
                 if (be)
                     *be = clipBounds;
-                if (image) {
+                if (image && image->hash) {
                     Image *ie = imageCache->addEntry(image->hash);
                     if (ie)
                         *ie = *image;
