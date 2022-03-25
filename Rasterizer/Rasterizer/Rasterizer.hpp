@@ -347,11 +347,11 @@ struct Rasterizer {
         };
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
-            size_t sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t) };
+            size_t sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint8_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
             this->pathsCount = pathsCount, headerSize = base, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -369,7 +369,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0;
+        size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0;
     };
     struct Allocator {
         struct Pass {
