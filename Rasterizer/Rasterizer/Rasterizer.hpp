@@ -212,6 +212,17 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    struct Image {
+        void init(void *bytes, size_t size, size_t width, size_t height) {
+            if (bytes && size && width && height) {
+                memory = Ref<Memory<uint8_t>>(), memory->resize(size), memcpy(memory->addr, bytes, size);
+                this->width = width, this->height = height, this->hash = XXH64(bytes, size, 0);
+            }
+        }
+        size_t width = 0, height = 0, hash = 0;
+        Ref<Memory<uint8_t>> memory;
+    };
+    
     typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Bounds *bounds,
         Transform *srcCtms, Transform *dstCtms, Colorant *srcColors, Colorant *dstColors,
         float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
@@ -238,7 +249,7 @@ struct Rasterizer {
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj), base = & dst[0]; }
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
-        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds clipBounds = Bounds::max()) {
+        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds clipBounds = Bounds::max(), Image *image = nullptr) {
             path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->types.end;
@@ -254,6 +265,11 @@ struct Rasterizer {
                 Bounds *be = clipCache->addEntry(clipBounds.hash());
                 if (be)
                     *be = clipBounds;
+                if (image) {
+                    Image *ie = imageCache->addEntry(image->hash);
+                    if (ie)
+                        *ie = *image;
+                }
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
                 paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
@@ -266,7 +282,7 @@ struct Rasterizer {
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
-        Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Vector<Path>> paths;
+        Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;  Ref<Vector<Path>> paths;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     struct SceneList {
