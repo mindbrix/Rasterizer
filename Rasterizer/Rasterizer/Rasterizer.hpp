@@ -356,7 +356,9 @@ struct Rasterizer {
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
-            size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
+            if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
+                allocation = size = 0, free(base), base = nullptr;
+            allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
             if (size < allocation) {
                 size = allocation;
                 uint8_t *resized;  posix_memalign((void **)& resized, kPageSize, size);
@@ -370,7 +372,7 @@ struct Rasterizer {
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0;
+        size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
         struct Pass {
