@@ -253,8 +253,8 @@ struct Rasterizer {
             path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->types.end;
-                Entry *e = cache->addEntry(path->hash());
-                if (e) {
+                Entry *e;  Bounds *be;  Image *ie;
+                if ((e = cache->addEntry(path->hash()))) {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
@@ -262,14 +262,10 @@ struct Rasterizer {
                     }
                     e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
-                Bounds *be = clipCache->addEntry(clipBounds.hash());
-                if (be)
+                if ((be = clipCache->addEntry(clipBounds.hash())))
                     *be = clipBounds;
-                if (image && image->hash) {
-                    Image *ie = imageCache->addEntry(image->hash);
-                    if (ie)
-                        *ie = *image;
-                }
+                if (image && image->hash && (ie = imageCache->addEntry(image->hash)))
+                    *ie = *image;
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
                 paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
