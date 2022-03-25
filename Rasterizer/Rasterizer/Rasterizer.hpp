@@ -347,9 +347,11 @@ struct Rasterizer {
         };
         ~Buffer() { if (base) free(base); }
         void prepare(size_t pathsCount) {
-            size_t szcolors = pathsCount * sizeof(Colorant), szctms = pathsCount * sizeof(Transform), szwidths = pathsCount * sizeof(float), szbounds = pathsCount * sizeof(Bounds), szidxs = pathsCount * sizeof(uint32_t);
-            this->pathsCount = pathsCount, colors = 0, ctms = colors + szcolors, clips = ctms + szctms, widths = clips + szctms, bounds = widths + szwidths, idxs = bounds + szbounds;
-            headerSize = szcolors + 2 * szctms + szwidths + szbounds + szidxs, resize(headerSize), entries.empty();
+            size_t base = 0, bases[6], sizes[6] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t) };
+            for (int i = 0; i < 6; i++)
+                bases[i] = base, base += pathsCount * sizes[i];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5];
+            this->pathsCount = pathsCount, headerSize = base, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
             size_t allocation = (n + kPageSize - 1) / kPageSize * kPageSize;
