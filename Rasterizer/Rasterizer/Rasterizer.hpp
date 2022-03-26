@@ -227,11 +227,11 @@ struct Rasterizer {
         Transform *srcCtms, Transform *dstCtms, Colorant *srcColors, Colorant *dstColors,
         float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     struct Scene {
+        Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base)), bzero(imageCache->entries.alloc(1), sizeof(*imageCache->entries.base));;  }
         struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
         
         template<typename T>
         struct Cache {
-            Cache() {  bzero(entries.alloc(1), sizeof(T));  }
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
             T *addEntry(size_t hash) {
                 T *e = nullptr;  auto ip = ips.alloc(1);  *ip = 0;
@@ -252,7 +252,7 @@ struct Rasterizer {
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj), base = & dst[0]; }
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
-        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds clipBounds = Bounds::max(), Image *image = nullptr) {
+        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Image *image = nullptr) {
             path->validate();
             if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
                 count++, weight += path->types.end;
@@ -265,8 +265,8 @@ struct Rasterizer {
                     }
                     e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
-                if ((be = clipCache->addEntry(clipBounds.lx != -FLT_MAX ? clipBounds.hash() : 0)))
-                    *be = clipBounds;
+                if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
+                    *be = *clipBounds;
                 if ((ie = imageCache->addEntry(image ? image->hash : 0)))
                     *ie = *image;
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);

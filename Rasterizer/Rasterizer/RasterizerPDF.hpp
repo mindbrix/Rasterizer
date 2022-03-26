@@ -108,7 +108,7 @@ struct RasterizerPDF {
                 scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), color, -1.f, 0);
     }
     
-   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Bounds clipBounds, Ra::Scene& scene) {
+   static void writeTextToScene(FPDF_PAGEOBJECT pageObject, FPDF_TEXTPAGE text_page, int baseIndex, char32_t *buffer, unsigned long textSize, FS_MATRIX m, Ra::Bounds *clipBounds, Ra::Scene& scene) {
         float fontSize = 1.f;
         FPDFTextObj_GetFontSize(pageObject, & fontSize);
         FPDF_FONT font = FPDFTextObj_GetFont(pageObject);
@@ -136,7 +136,7 @@ struct RasterizerPDF {
         }
     }
     
-    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds clipBounds, std::vector<Ra::Path>& clipPaths, Ra::Scene& scene) {
+    static void writePathToScene(FPDF_PAGEOBJECT pageObject, FS_MATRIX m, Ra::Bounds* clipBounds, std::vector<Ra::Path>& clipPaths, Ra::Scene& scene) {
         int fillmode;
         FPDF_BOOL stroke;
          
@@ -232,7 +232,7 @@ struct RasterizerPDF {
                 }
                 std::sort(sortedIndices.begin(), sortedIndices.end());
                 
-                Ra::Bounds clipBounds;
+                Ra::Bounds clipBounds, *clipPtr = nullptr;
                 std::vector<Ra::Path> clipPaths;
                 
                 size_t lastHash = ~0;
@@ -259,6 +259,7 @@ struct RasterizerPDF {
                     }
                     
                     if (hash != lastHash) {
+                        clipPtr = nullptr;
                         clipBounds = Ra::Bounds::max();
                         clipPaths.resize(0);
                         
@@ -270,6 +271,7 @@ struct RasterizerPDF {
                                 clipPaths.emplace_back(clip);
                                 clipBounds = clipBounds.intersect(clip->bounds);
                             }
+                            clipPtr = & clipBounds;
                             fprintf(stderr, "\tBounds = %g, %g, %g, %g\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
                         }
                     }
@@ -286,13 +288,13 @@ struct RasterizerPDF {
                                         back++, len++;
                                     for (back = text + len - 1; len && *back == 32; )
                                         *back-- = 0, len--;
-                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, clipBounds, scene);
+                                    writeTextToScene(pageObject, text_page, indices[i], text, len, m, clipPtr, scene);
                                 }
                             }
                             break;
                         }
                         case FPDF_PAGEOBJ_PATH:
-                            writePathToScene(pageObject, m, clipBounds, clipPaths, scene);
+                            writePathToScene(pageObject, m, clipPtr, clipPaths, scene);
                             break;
                         case FPDF_PAGEOBJ_IMAGE: {
                             FPDF_IMAGEOBJ_METADATA metadata;
@@ -305,13 +307,13 @@ struct RasterizerPDF {
                                 FPDFImageObj_GetImageDataRaw(pageObject, bytes, size);
                                 image.init(bytes, size, metadata.width, metadata.height);
                                 free(bytes);
-                                scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipBounds, & image);
+                                scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipPtr, & image);
                             }
                             break;
                         }
                         case FPDF_PAGEOBJ_SHADING: {
                             if (clipPaths.size())
-                                scene.addPath(clipPaths[0], Ra::Transform(), Ra::Colorant(0, 0, 255, 64), 0, 0, clipBounds);
+                                scene.addPath(clipPaths[0], Ra::Transform(), Ra::Colorant(0, 0, 255, 64), 0, 0, clipPtr);
                             break;
                         }
                         default:
