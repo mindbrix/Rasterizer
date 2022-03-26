@@ -354,6 +354,15 @@ struct Rasterizer {
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
+            Image *img, *ie;
+            imageCache = Ref<Scene::Cache<Image>>();
+            for (auto & scene : list.scenes) {
+                for (int i = 0; i < scene.imageCache->entries.end; i++) {
+                    img = scene.imageCache->entries.base + i;
+                    if (img->hash && (ie = imageCache->addEntry(img->hash)))
+                        *ie = *img;
+                }
+            }
         }
         void resize(size_t n, size_t copySize = 0) {
             if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
@@ -370,7 +379,7 @@ struct Rasterizer {
                 base = resized;
             }
         }
-        uint8_t *base = nullptr;  Row<Entry> entries;
+        uint8_t *base = nullptr;  Row<Entry> entries;  Ref<Scene::Cache<Image>> imageCache;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0, allocation = 0;
     };
