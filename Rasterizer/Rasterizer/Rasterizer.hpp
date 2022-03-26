@@ -356,15 +356,25 @@ struct Rasterizer {
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
-            Image *img, *ie;
+            Image *img, *ie;  uint32_t ip, iz = 0;
             imageCache = Ref<Scene::Cache<Image>>();
+            uint8_t *slotses = (uint8_t *)(this->base + slots);  bzero(slotses, pathsCount * sizes[6]);
             for (auto & scene : list.scenes) {
-                for (int i = 1; i < scene.imageCache->entries.end; i++) {
-                    img = scene.imageCache->entries.base + i;
-                    assert(img->hash);
-                    if ((ie = imageCache->addEntry(img->hash)))
-                        *ie = *img;
+                auto& cache = *scene.imageCache.ptr;
+                for (int i = 0; i < cache.ips.end; i++, iz++) {
+                    assert(imageCache->ips.end == iz);
+                    ip = cache.ips.base[i];
+                    if (ip == 0)
+                        imageCache->addEntry(0);
+                    else {
+                        img = cache.entries.base + ip;
+                        assert(img && img->hash);
+                        if ((ie = imageCache->addEntry(img->hash)))
+                            *ie = *img;
+                        slotses[iz] = uint8_t(imageCache->ips.back());
+                    }
                 }
+                assert(iz == this->pathsCount);
             }
         }
         void resize(size_t n, size_t copySize = 0) {
