@@ -23,8 +23,8 @@ struct RasterizerWinding {
                     ip = scene.clipCache->ips.base[si];
                     if (ip != lastip) {
                         lastip = ip;
-                        Ra::Bounds *pclip = scene.clipCache->entryAt(si);
-                        if (pclip->lx != -FLT_MAX)
+                        Ra::Bounds *pclip = ip ? scene.clipCache->entryAt(si) : nullptr;
+                        if (pclip)
                             inv = pclip->unit(ctm).invert();
                         else
                             inv = nullinv;

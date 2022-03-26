@@ -42,8 +42,8 @@ struct RasterizerCG {
                     lastip = ip;
                     CGContextRestoreGState(ctx);
                     CGContextSaveGState(ctx);
-                    Ra::Bounds *pclip = scn.clipCache->entryAt(i);
-                    if (pclip->lx != -FLT_MAX)
+                    Ra::Bounds *pclip = ip ? scn.clipCache->entryAt(i) : nullptr;
+                    if (pclip)
                         CGContextClipToRect(ctx, CGRectFromBounds(*pclip));
                 }
                 

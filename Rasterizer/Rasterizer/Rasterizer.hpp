@@ -265,7 +265,7 @@ struct Rasterizer {
                     }
                     e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
-                if ((be = clipCache->addEntry(clipBounds.hash())))
+                if ((be = clipCache->addEntry(clipBounds.lx != -FLT_MAX ? clipBounds.hash() : 0)))
                     *be = clipBounds;
                 if ((ie = imageCache->addEntry(image ? image->hash : 0)))
                     *ie = *image;
@@ -444,8 +444,8 @@ struct Rasterizer {
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
-                        lastip = ip, pclip = scn->clipCache->entryAt(is);
-                        clipctm = pclip->lx != -FLT_MAX ? pclip->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        lastip = ip, pclip = ip ? scn->clipCache->entryAt(is) : nullptr;
+                        clipctm = pclip ? pclip->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         inv = clipctm.invert(), err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
