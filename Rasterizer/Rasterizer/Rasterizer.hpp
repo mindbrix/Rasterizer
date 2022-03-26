@@ -234,6 +234,10 @@ struct Rasterizer {
             Cache() {  bzero(entries.alloc(1), sizeof(T));  }
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
             T *addEntry(size_t hash) {
+                if (hash == 0) {
+                    *(ips.alloc(1)) = 0;
+                    return nullptr;
+                }
                 T *e = nullptr;  uint32_t ip;
                 auto it = map.find(hash);
                 if (it != map.end())
@@ -360,7 +364,8 @@ struct Rasterizer {
             for (auto & scene : list.scenes) {
                 for (int i = 1; i < scene.imageCache->entries.end; i++) {
                     img = scene.imageCache->entries.base + i;
-                    if (img->hash && (ie = imageCache->addEntry(img->hash)))
+                    assert(img->hash);
+                    if ((ie = imageCache->addEntry(img->hash)))
                         *ie = *img;
                 }
             }
