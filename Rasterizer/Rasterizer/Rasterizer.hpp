@@ -234,16 +234,14 @@ struct Rasterizer {
             Cache() {  bzero(entries.alloc(1), sizeof(T));  }
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
             T *addEntry(size_t hash) {
-                if (hash == 0) {
-                    *(ips.alloc(1)) = 0;
-                    return nullptr;
+                T *e = nullptr;  auto ip = ips.alloc(1);  *ip = 0;
+                if (hash != 0) {
+                    auto it = map.find(hash);
+                    if (it != map.end())
+                        *ip = it->second;
+                    else
+                        *ip = uint32_t(entries.end), map.emplace(hash, *ip), e = entries.alloc(1), bzero(e, sizeof(T));
                 }
-                T *e = nullptr;  uint32_t ip;
-                auto it = map.find(hash);
-                if (it != map.end())
-                    *(ips.alloc(1)) = it->second;
-                else
-                    ip = uint32_t(entries.end), *(ips.alloc(1)) = ip, map.emplace(hash, ip), e = entries.alloc(1), bzero(e, sizeof(T));
                 return e;
             }
             size_t refCount = 0;  Row<uint32_t> ips;  Row<T> entries;  std::unordered_map<size_t, uint32_t> map;
