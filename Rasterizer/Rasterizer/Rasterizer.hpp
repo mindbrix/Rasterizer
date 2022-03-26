@@ -231,6 +231,7 @@ struct Rasterizer {
         
         template<typename T>
         struct Cache {
+            Cache() {  bzero(entries.alloc(1), sizeof(T));  }
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
             T *addEntry(size_t hash) {
                 T *e = nullptr;  uint32_t ip;
@@ -238,7 +239,7 @@ struct Rasterizer {
                 if (it != map.end())
                     *(ips.alloc(1)) = it->second;
                 else
-                    ip = uint32_t(map.size()), *(ips.alloc(1)) = ip, map.emplace(hash, ip), e = entries.alloc(1), bzero(e, sizeof(T));
+                    ip = uint32_t(entries.end), *(ips.alloc(1)) = ip, map.emplace(hash, ip), e = entries.alloc(1), bzero(e, sizeof(T));
                 return e;
             }
             size_t refCount = 0;  Row<uint32_t> ips;  Row<T> entries;  std::unordered_map<size_t, uint32_t> map;
@@ -357,7 +358,7 @@ struct Rasterizer {
             Image *img, *ie;
             imageCache = Ref<Scene::Cache<Image>>();
             for (auto & scene : list.scenes) {
-                for (int i = 0; i < scene.imageCache->entries.end; i++) {
+                for (int i = 1; i < scene.imageCache->entries.end; i++) {
                     img = scene.imageCache->entries.base + i;
                     if (img->hash && (ie = imageCache->addEntry(img->hash)))
                         *ie = *img;
