@@ -266,15 +266,12 @@ struct RasterizerPDF {
                         lastHash = hash;
                         if (clipCount != -1) {
                             for (int j = 0; j < clipCount; j++) {
-                                int segmentCount = FPDFClipPath_CountPathSegments(clipPath, j);
                                 Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
                                 clipPaths.emplace_back(clip);
                                 clipBounds = clipBounds.intersect(clip->bounds);
-                                bool isRect = pathIsRect(clip);
-                                fprintf(stderr, "\tj = %d, segmentCount = %d, isRect = %d\n", j, segmentCount, isRect);
                             }
+                            fprintf(stderr, "\tBounds = %g, %g, %g, %g\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
                         }
-                        fprintf(stderr, "\tBounds = %g, %g, %g, %g\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
                         case FPDF_PAGEOBJ_TEXT: {
