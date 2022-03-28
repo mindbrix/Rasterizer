@@ -20,9 +20,7 @@ struct RasterizerCG {
         Ra::Bounds clipBounds = Ra::Bounds(clip), unitBounds = Ra::Bounds(unit);
         Ra::Bounds dev = unitBounds.intersect(device).intersect(clipBounds);
         Ra::Bounds clu = Ra::Bounds(inv.concat(unit));
-        bool visible0 = clu.lx < 1.f && clu.ux > 0.f && clu.ly < 1.f && clu.uy > 0.f;
-        bool visible1 = dev.lx != dev.ux && dev.ly != dev.uy;
-        return visible0 && visible1;
+        return dev.lx < dev.ux && dev.ly < dev.uy && clu.lx < 1.f && clu.ux > 0.f && clu.ly < 1.f && clu.uy > 0.f;
     }
     
     static void drawList(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction, CGContextRef ctx) {
