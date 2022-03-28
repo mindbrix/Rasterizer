@@ -13,11 +13,16 @@
 
 struct RasterizerCG {
     static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds device, float width) {
+        if (clip.scale() == 0)
+            return false;
         float uw = width < 0.f ? -width / ctm.scale() : width;
-        Ra::Transform unit = user.inset(-uw, -uw).unit(ctm);
-        Ra::Bounds dev = Ra::Bounds(unit).intersect(device.intersect(Ra::Bounds(clip)));
-        Ra::Bounds clu = Ra::Bounds(clip.invert().concat(unit));
-        return dev.lx != dev.ux && dev.ly != dev.uy && clu.ux >= 0.f && clu.lx < 1.f && clu.uy >= 0.f && clu.ly < 1.f;
+        Ra::Transform unit = user.inset(-uw, -uw).unit(ctm), inv = clip.invert();
+        Ra::Bounds clipBounds = Ra::Bounds(clip), unitBounds = Ra::Bounds(unit);
+        Ra::Bounds dev = unitBounds.intersect(device).intersect(clipBounds);
+        Ra::Bounds clu = Ra::Bounds(inv.concat(unit));
+        bool visible0 = clu.lx < 1.f && clu.ux > 0.f && clu.ly < 1.f && clu.uy > 0.f;
+        bool visible1 = dev.lx != dev.ux && dev.ly != dev.uy;
+        return visible0 && visible1;
     }
     
     static void drawList(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction, CGContextRef ctx) {
@@ -28,15 +33,20 @@ struct RasterizerCG {
                 (*transferFunction)(0, scn.count, j, scn.bnds->base,
                      & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
                      & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, & state);
-            Ra::Transform ctm = list.ctms[j], clip = list.clips[j], om;
+            Ra::Transform ctm = list.ctms[j], clip = list.clips[j], m;
             CGContextSaveGState(ctx);
             CGContextConcatCTM(ctx, CGFromTransform(ctm));
             CGContextSaveGState(ctx);
+            
+            clip = state.view.concat(Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f));
             
             for (size_t i = 0; i < scn.count; i++) {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
+                Ra::Path& path = scn.paths->base[i];
+                Ra::Transform t = scn.ctms->base[i];
+                m = state.view.concat(ctm).concat(t);
                 ip = scn.clipCache->ips.base[i];
                 if (ip != lastip) {
                     lastip = ip;
@@ -45,11 +55,10 @@ struct RasterizerCG {
                     Ra::Bounds *pclip = ip ? scn.clipCache->entryAt(i) : nullptr;
                     if (pclip)
                         CGContextClipToRect(ctx, CGRectFromBounds(*pclip));
+                    clip = ip && pclip ? pclip->unit(state.view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                 }
                 
-                Ra::Path& path = scn.paths->base[i];
-                Ra::Transform t = scn.ctms->base[i];
-                if (isVisible(path->bounds, state.view.concat(t), state.view.concat(clip), state.device, scn.widths->base[i])) {
+                if (isVisible(path->bounds, m, clip, state.device, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
