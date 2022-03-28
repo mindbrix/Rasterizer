@@ -88,7 +88,7 @@ struct RasterizerWinding {
         Ra::Transform unit = bounds.inset(-uw, -uw).unit(ctm), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit);
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
-        if (clip.lx != clip.ux && clip.ly != clip.uy && ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
+        if (clip.lx < clip.ux && clip.ly < clip.uy && ux >= 0.f && ux <= 1.f && uy >= 0.f && uy <= 1.f) {
             if (w)
                 Ra::divideGeometry(path.ptr, ctm, clip, false, false, false, & cntr, countOutline, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
             else

@@ -464,7 +464,7 @@ struct Rasterizer {
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
-                    if (clip.lx != clip.ux && clip.ly != clip.uy) {
+                    if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
