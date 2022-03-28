@@ -355,9 +355,9 @@ struct Rasterizer {
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
-            Image *img, *ie;  uint32_t ip;  size_t iz = 0;
-            imageCache = Ref<Scene::Cache<Image>>();
+            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.reset();
+            
+            Image *img;  uint32_t ip;  size_t iz = 0, imgCount = 0;
             uint8_t *slotses = (uint8_t *)(this->base + slots);  bzero(slotses, pathsCount * sizes[6]);
             for (auto & scene : list.scenes) {
                 auto& cache = *scene.imageCache.ptr;
@@ -365,21 +365,13 @@ struct Rasterizer {
                     iz += scene.count;
                     continue;
                 }
-                for (int i = 0; i < cache.ips.end; i++, iz++) {
-                    assert(imageCache->ips.end == iz);
-                    ip = cache.ips.base[i];
-                    if (ip == 0)
-                        imageCache->addEntry(0);
-                    else {
-                        img = cache.entries.base + ip;
-                        assert(img && img->hash);
-                        if ((ie = imageCache->addEntry(img->hash)))
-                            *ie = *img;
-                        slotses[iz] = uint8_t(imageCache->ips.back());
-                    }
-                }
-                assert(iz == this->pathsCount);
+                for (int i = 0; i < cache.ips.end; i++, iz++)
+                    if ((ip = cache.ips.base[i]))
+                        slotses[iz] = imgCount + ip;
+                for (int i = 1; i < cache.entries.end; i++)
+                    img = images.alloc(1), bzero(img, sizeof(*img)), *img = cache.entries.base[i], imgCount++;
             }
+            assert(iz == this->pathsCount);
         }
         void resize(size_t n, size_t copySize = 0) {
             if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
@@ -396,7 +388,7 @@ struct Rasterizer {
                 base = resized;
             }
         }
-        uint8_t *base = nullptr;  Row<Entry> entries;  Ref<Scene::Cache<Image>> imageCache;
+        uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0, allocation = 0;
     };
