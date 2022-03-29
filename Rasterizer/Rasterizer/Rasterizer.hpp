@@ -288,24 +288,24 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
-                b.extend(Bounds(clips[i]).intersect(Bounds(scenes[i].bounds().unit(ctms[i]))));
+                b.extend(Bounds(scenes[i].bounds().unit(ctms[i])));
             return b;
         }
         SceneList& empty() {
-            pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
+            pathsCount = 0, scenes.resize(0), ctms.resize(0);
             return *this;
         }
         SceneList& addList(SceneList& list) {
             for (int i = 0; i < list.scenes.size(); i++)
-                addScene(list.scenes[i], list.ctms[i], list.clips[i]);
+                addScene(list.scenes[i], list.ctms[i]);
             return *this;
         }
         SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
             if (scene.weight)
-                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
+                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm);
             return *this;
         }
-        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms, clips;
+        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;
     };
     struct Range {
         Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
