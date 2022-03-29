@@ -8,7 +8,6 @@
 #import "RasterizerView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerRenderer.hpp"
-#import "RasterizerDB.hpp"
 #import "RasterizerPDF.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerFont.hpp"
@@ -23,7 +22,6 @@
 @property(nonatomic) NSFont *fnt;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerRenderer renderer;
-@property(nonatomic) Ra::Ref<RasterizerDB> db;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
@@ -85,10 +83,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)timerFired:(double)time {
     if (_state.needsRedraw()) {
         _state.readEvents(_list,
-            _db->db ? RasterizerDB::EventFunction : NULL,
-                _db->db ? (void *)_db.ptr : nullptr,
-            _db->db ? RasterizerDB::WriteFunction : RasterizerTest::WriteFunction,
-                _db->db ? (void *)_db.ptr : (void *)_test.ptr);
+            NULL,
+            nullptr,
+            RasterizerTest::WriteFunction,
+            (void *)_test.ptr);
         [self.layer setNeedsDisplay];
     }
 }
@@ -103,10 +101,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSURL *url = RaCG::fontURL(fnt.fontName);
     Ra::Ref<RasterizerFont> font;  font->load(url.path.UTF8String, fnt.fontName.UTF8String);
     Ra::SceneList list;
-    if ([_dbURL isFileURL]) {
-        _db->font = font;
-        _db->writeTables(RaCG::BoundsFromCGRect(self.bounds));
-    } else if (_svgData != nil)
+    if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else if (_pdfData != nil)
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
@@ -242,13 +237,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 #pragma mark - Properies
-
-- (void)setDbURL:(NSURL *)dbURL {
-    if ((_dbURL = dbURL)) {
-        _db->open(dbURL.path.UTF8String);
-        [self changeFont:nil];
-    }
-}
 
 - (void)setPdfData:(NSData *)pdfData {
     if ((_pdfData = pdfData)) {

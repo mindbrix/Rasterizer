@@ -10,7 +10,6 @@
 
 @interface RasterizerView : NSView
 
-@property(nonatomic, strong) NSURL *dbURL;
 @property(nonatomic, strong) NSData *pdfData;
 @property(nonatomic, strong) NSData *svgData;
 @property(nonatomic) IBOutlet NSTextField *rasterizerLabel;
