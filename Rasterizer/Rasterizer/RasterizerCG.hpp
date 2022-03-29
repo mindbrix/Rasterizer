@@ -140,6 +140,48 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
+    
+    static std::vector<Ra::Image> makeBGRATextures(Ra::Image *images, size_t count) {
+        std::vector<Ra::Image> textures;
+        for (Ra::Image *img = images, *end = img + count; img < end; img++) {
+            NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
+            vImage_Buffer srcBuffer, dstBuffer;
+            vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
+            vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
+            
+            CGImageSourceRef src = CGImageSourceCreateWithData((CFDataRef)data, NULL);
+            if (CGImageSourceGetCount(src)) {
+                CGImageRef cgImage = CGImageSourceCreateImageAtIndex(src, 0, NULL);
+                srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
+                srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
+                srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
+                srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
+                srcFormat.version = 0;
+                srcFormat.decode = NULL;
+                srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
+                
+                dstFormat.bitsPerComponent = 8;
+                dstFormat.bitsPerPixel = 32;
+                dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
+                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst |  kCGBitmapByteOrder32Little;
+                dstFormat.renderingIntent = kCGRenderingIntentDefault;
+                
+                vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
+                vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
+                vImage_Error error = kvImageNoError;
+                
+                vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
+                
+                vImage_Error tempBufferSize = vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, 0);
+                
+                CFRelease(cgImage);
+                free(dstBuffer.data), free(srcBuffer.data);
+                vImageConverter_Release(converter);
+            }
+            CFRelease(src);
+        }
+        return textures;
+    }
 };
 
 typedef RasterizerCG RaCG;

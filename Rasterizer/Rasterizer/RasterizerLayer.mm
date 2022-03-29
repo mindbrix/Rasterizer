@@ -145,7 +145,9 @@
         else
             _mtlBuffer0 = mtlBuffer;
     }
-    
+    if (buffer->images.end) {
+        auto textures = RaCG::makeBGRATextures(buffer->images.base, buffer->images.end);
+    }
     id <CAMetalDrawable> drawable = [self nextDrawable];
     if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
