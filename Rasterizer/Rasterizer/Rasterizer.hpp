@@ -213,14 +213,14 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Image {
-        void init(void *bytes, size_t size, size_t width, size_t height) {
-            if (bytes && size && width && height) {
-                memory = Ref<Memory<uint8_t>>(), memory->resize(size), memcpy(memory->addr, bytes, size);
-                this->width = width, this->height = height, this->hash = XXH64(bytes, size, 0);
+        void init(void *bytes, size_t size, size_t w, size_t h) {
+            if (size && w && h) {
+                width = w, height = h, hash = 0, memory->resize(size);
+                if (bytes)
+                    memcpy(memory->addr, bytes, size), hash = XXH64(bytes, size, 0);
             }
         }
-        size_t width = 0, height = 0, hash = 0;
-        Ref<Memory<uint8_t>> memory;
+        size_t width = 0, height = 0, hash = 0;  Ref<Memory<uint8_t>> memory;
     };
     
     typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Bounds *bounds,
