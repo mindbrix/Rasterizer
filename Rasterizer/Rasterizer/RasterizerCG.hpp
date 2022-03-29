@@ -131,6 +131,7 @@ struct RasterizerCG {
         drawList(list, state, NULL, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
+        CGContextRelease(ctx);
     }
     static void writeFontsTable(RasterizerDB& db) {
         const char *values[5], *kFontsTable = "fonts";
