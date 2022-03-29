@@ -133,24 +133,6 @@ struct RasterizerCG {
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);
     }
-    static void writeFontsTable(RasterizerDB& db) {
-        const char *values[5], *kFontsTable = "fonts";
-        NSArray *names = (__bridge_transfer NSArray *)CTFontManagerCopyAvailablePostScriptNames();
-        const char *columnNames[] = { "name", "_url", "_family", "_style" };
-        db.beginImport(kFontsTable, columnNames, 4);
-        for (NSString *fontName in names) {
-            if (![fontName hasPrefix:@"."]) {
-                CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
-                NSURL *fontURL = (__bridge_transfer NSURL *)CTFontDescriptorCopyAttribute(fontRef, kCTFontURLAttribute);
-                NSString *fontFamily = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontFamilyNameAttribute);
-                NSString *fontStyle = (__bridge_transfer NSString *)CTFontDescriptorCopyAttribute(fontRef, kCTFontStyleNameAttribute);
-                CFRelease(fontRef);
-                values[0] = fontName.UTF8String, values[1] = [fontURL.absoluteString stringByRemovingPercentEncoding].UTF8String, values[2] = fontFamily.UTF8String, values[3] = fontStyle.UTF8String;
-                db.insert(kFontsTable, 4, (char **)values);
-            }
-        }
-        db.endImport(kFontsTable, columnNames, 4);
-    }
     
     static NSURL *fontURL(NSString *fontName) {
         CTFontDescriptorRef fontRef = CTFontDescriptorCreateWithNameAndSize((__bridge CFStringRef)fontName, 1);
