@@ -277,7 +277,7 @@ struct Rasterizer {
             Bounds b;
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0)
-                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])));
+                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::max()));
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
