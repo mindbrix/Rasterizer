@@ -355,10 +355,8 @@ struct Rasterizer {
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty();
-            
-            Image *img;  uint32_t ip;  size_t iz = 0, imgCount = 0;
-            uint8_t *slotses = (uint8_t *)(this->base + slots);  bzero(slotses, pathsCount * sizes[6]);
+            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), bzero(_slots, pathsCount * sizes[6]);
+            Image *img;  uint32_t ip;  size_t iz = 0, imgCount = 0;  ;
             for (auto & scene : list.scenes) {
                 auto& cache = *scene.imageCache.ptr;
                 if (cache.entries.end == 1) {
@@ -367,7 +365,7 @@ struct Rasterizer {
                 }
                 for (int i = 0; i < cache.ips.end; i++, iz++)
                     if ((ip = cache.ips.base[i]))
-                        slotses[iz] = imgCount + ip;
+                        _slots[iz] = imgCount + ip;
                 for (int i = 1; i < cache.entries.end; i++)
                     img = images.alloc(1), bzero(img, sizeof(*img)), *img = cache.entries.base[i], imgCount++;
             }
@@ -387,10 +385,12 @@ struct Rasterizer {
                 }
                 base = resized;
             }
+            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint8_t *)(base + slots);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0, allocation = 0;
+        Transform *_ctms, *_clips;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint8_t *_slots;
     };
     struct Allocator {
         struct Pass {
@@ -428,9 +428,6 @@ struct Rasterizer {
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
-            Transform *ctms = (Transform *)(buffer->base + buffer->ctms);  Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
-            Transform *clips = (Transform *)(buffer->base + buffer->clips);  uint32_t *idxs = (uint32_t *)(buffer->base + buffer->idxs);
-            float *widths = (float *)(buffer->base + buffer->widths);  Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
@@ -441,7 +438,7 @@ struct Rasterizer {
                 (*transferFunction)(clz - lz, cuz - lz, i, scn->bnds->base,
                      & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
                      & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo);
-                memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
+                memcpy(buffer->_colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
@@ -456,7 +453,7 @@ struct Rasterizer {
                     }
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
-                        ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm, idxs[iz] = uint32_t((i << 20) | is);
+                        buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
@@ -470,7 +467,7 @@ struct Rasterizer {
                                outlineInstances += det < kMinUpperDet ? g->minUpper : g->upperBound(det);
                            outlinePaths++, allocator.passes.back().size++;
                        } else if (useMolecules) {
-                            bounds[iz] = *bnds, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
+                            buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
                             bool fast = !buffer->useCurves || det * scn->cache->entries.base[ip].maxDot < 16.f;
@@ -485,7 +482,7 @@ struct Rasterizer {
                             m = { m.a * sx, m.b * sy, m.c * sx, m.d * sy, m.tx * sx + clip.lx * (1.f - sx) + kClipMargin, m.ty * sy + clip.ly * (1.f - sy) + kClipMargin };
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
-                            bool opaque = colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
+                            bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
