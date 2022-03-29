@@ -355,7 +355,7 @@ struct Rasterizer {
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.reset();
+            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty();
             
             Image *img;  uint32_t ip;  size_t iz = 0, imgCount = 0;
             uint8_t *slotses = (uint8_t *)(this->base + slots);  bzero(slotses, pathsCount * sizes[6]);
