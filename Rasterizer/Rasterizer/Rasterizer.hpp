@@ -37,7 +37,7 @@ struct Rasterizer {
         float a, b, c, d, tx, ty;
     };
     struct Bounds {
-        static inline Bounds max() { return Bounds(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX); }
+        static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         Bounds(Transform t) :
@@ -277,7 +277,7 @@ struct Rasterizer {
             Bounds b;
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0)
-                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::max()));
+                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::huge()));
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
@@ -458,7 +458,7 @@ struct Rasterizer {
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
-                           inst->clip = clip.contains(dev) ? Bounds::max() : clip.inset(-width, -width);
+                           inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                size_t count = 0;
                                divideGeometry(g, m, inst->clip, false, false, false, & count, Outliner::CountSegment);

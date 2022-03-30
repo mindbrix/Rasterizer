@@ -260,7 +260,7 @@ struct RasterizerPDF {
                     
                     if (hash != lastHash) {
                         clipPtr = nullptr;
-                        clipBounds = Ra::Bounds::max();
+                        clipBounds = Ra::Bounds::huge();
                         clipPaths.resize(0);
                         
                         fprintf(stderr, "i = %d, hash = %ld\n", i, hash);
