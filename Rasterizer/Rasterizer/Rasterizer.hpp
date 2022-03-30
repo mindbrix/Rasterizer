@@ -362,20 +362,19 @@ struct Rasterizer {
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), indices.empty(), bzero(_slots, pathsCount * sizes[6]);
             Image *img;  Image::Index *idx;  uint32_t ip;  size_t iz = 0;
             for (auto & scene : list.scenes) {
-                auto& cache = *scene.imageCache.ptr;
-                if (cache.entries.end == 1) {
+                auto& cache = *scene.imageCache.ptr;  count = cache.entries.end - 1, base = images.end;
+                if (count == 0)
                     iz += scene.count;
-                    continue;
+                else {
+                    for (int i = 0; i < cache.ips.end; i++, iz++)
+                        if ((ip = cache.ips.base[i]))
+                            _slots[iz] = base + ip;
+                    img = images.alloc(count), idx = indices.alloc(count);
+                    for (int i = 0; i < count; i++, idx++, img++)
+                        bzero(img, sizeof(*img)), *img = cache.entries.base[i + 1], idx->hash = img->hash, idx->i = base + i;
                 }
-                for (int i = 0; i < cache.ips.end; i++, iz++)
-                    if ((ip = cache.ips.base[i]))
-                        _slots[iz] = images.end + ip;
-                idx = indices.alloc(cache.entries.end - 1);
-                for (int i = 1; i < cache.entries.end; i++, idx++)
-                    idx->i = images.end, img = images.alloc(1), bzero(img, sizeof(*img)), *img = cache.entries.base[i], idx->hash = img->hash;
             }
             std::sort(indices.base, indices.base + indices.end);
-            
             assert(iz == this->pathsCount);
         }
         void resize(size_t n, size_t copySize = 0) {
