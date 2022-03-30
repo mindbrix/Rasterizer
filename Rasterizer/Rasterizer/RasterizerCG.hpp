@@ -5,7 +5,6 @@
 //  Created by Nigel Barber on 23/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import <Cocoa/Cocoa.h>
 #import "RasterizerState.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -150,8 +149,6 @@ struct RasterizerCG {
         CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
         if (CGImageSourceGetCount(cgImageSrc)) {
             CGImageRef cgImage = CGImageSourceCreateImageAtIndex(cgImageSrc, 0, NULL);
-            NSImage *nsImage = [[NSImage alloc] initWithCGImage:cgImage size:CGSizeMake(img->width, img->height)];
-                            
             srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
             srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
             srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
@@ -167,14 +164,12 @@ struct RasterizerCG {
             vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
             vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
             vImage_Error error = kvImageNoError;
-            
             vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
             vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
             
             auto src = (uint8_t *)dstBuffer.data, dst = tex->memory->addr;
             for (int row = 0; row < tex->height; row++, src += dstBuffer.rowBytes, dst += 4 * tex->width)
                 memcpy(dst, src, 4 * tex->width);
-            
             CFRelease(cgImage), free(dstBuffer.data), free(srcBuffer.data), vImageConverter_Release(converter);
         }
         CFRelease(cgImageSrc);
