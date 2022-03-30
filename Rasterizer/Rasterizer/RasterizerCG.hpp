@@ -141,13 +141,13 @@ struct RasterizerCG {
     }
     
     static std::vector<Ra::Image> makeBGRATextures(Ra::Image *images, size_t count) {
-        std::vector<Ra::Image> textures;
-        for (Ra::Image *img = images, *end = img + count; img < end; img++) {
-            Ra::Image texture;
-            texture.init(nullptr, 4 * img->width * img->height, img->width, img->height);
-            textures.emplace_back(texture);
-        }
-        for (Ra::Image *img = images, *end = img + count, *tex = textures.data(); img < end; img++, tex++) {
+        std::vector<Ra::Image> textures(count);
+        Ra::Image *img = images, *tex = textures.data();
+        for (int i = 0; i < count; i++, img++, tex++)
+            tex->init(nullptr, 4 * img->width * img->height, img->width, img->height);
+        
+        img = images, tex = textures.data();
+        for (int i = 0; i < count; i++, img++, tex++) {
             NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
             vImage_Buffer srcBuffer, dstBuffer;
             vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
