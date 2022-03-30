@@ -214,8 +214,8 @@ struct Rasterizer {
     
     struct Image {
         struct Index {
-            size_t hash;  uint32_t idx;
-            inline bool operator< (const Index& other) const { return hash < other.hash || (hash == other.hash && idx < other.idx); }
+            size_t hash, i;
+            inline bool operator< (const Index& other) const { return hash < other.hash || (hash == other.hash && i < other.i); }
         };
         void init(void *bytes, size_t size, size_t w, size_t h) {
             if (size && w && h) {
@@ -359,8 +359,8 @@ struct Rasterizer {
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), bzero(_slots, pathsCount * sizes[6]);
-            Image *img;  uint32_t ip;  size_t iz = 0, imgCount = 0;  ;
+            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), indices.empty(), bzero(_slots, pathsCount * sizes[6]);
+            Image *img;  Image::Index *idx;  uint32_t ip;  size_t iz = 0;
             for (auto & scene : list.scenes) {
                 auto& cache = *scene.imageCache.ptr;
                 if (cache.entries.end == 1) {
@@ -369,10 +369,13 @@ struct Rasterizer {
                 }
                 for (int i = 0; i < cache.ips.end; i++, iz++)
                     if ((ip = cache.ips.base[i]))
-                        _slots[iz] = imgCount + ip;
-                for (int i = 1; i < cache.entries.end; i++)
-                    img = images.alloc(1), bzero(img, sizeof(*img)), *img = cache.entries.base[i], imgCount++;
+                        _slots[iz] = images.end + ip;
+                idx = indices.alloc(cache.entries.end - 1);
+                for (int i = 1; i < cache.entries.end; i++, idx++)
+                    idx->i = images.end, img = images.alloc(1), bzero(img, sizeof(*img)), *img = cache.entries.base[i], idx->hash = img->hash;
             }
+            std::sort(indices.base, indices.base + indices.end);
+            
             assert(iz == this->pathsCount);
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -391,7 +394,7 @@ struct Rasterizer {
             }
             _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint8_t *)(base + slots);
         }
-        uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;
+        uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;  Row<Image::Index> indices;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0, allocation = 0;
         Transform *_ctms, *_clips;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint8_t *_slots;
