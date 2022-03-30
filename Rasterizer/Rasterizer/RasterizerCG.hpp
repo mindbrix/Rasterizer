@@ -140,51 +140,52 @@ struct RasterizerCG {
         return URL;
     }
     
+    static void writeBGRATexture(Ra::Image *img, Ra::Image *tex) {
+        NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
+        vImage_Buffer srcBuffer, dstBuffer;
+        vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
+        vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
+        
+        CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
+        if (CGImageSourceGetCount(cgImageSrc)) {
+            CGImageRef cgImage = CGImageSourceCreateImageAtIndex(cgImageSrc, 0, NULL);
+            NSImage *nsImage = [[NSImage alloc] initWithCGImage:cgImage size:CGSizeMake(img->width, img->height)];
+                            
+            srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
+            srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
+            srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
+            srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
+            srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
+            
+            dstFormat.bitsPerComponent = 8;
+            dstFormat.bitsPerPixel = 32;
+            dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
+            dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
+            dstFormat.renderingIntent = kCGRenderingIntentDefault;
+            
+            vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
+            vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
+            vImage_Error error = kvImageNoError;
+            
+            vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
+            vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
+            
+            auto src = (uint8_t *)dstBuffer.data, dst = tex->memory->addr;
+            for (int row = 0; row < tex->height; row++, src += dstBuffer.rowBytes, dst += 4 * tex->width)
+                memcpy(dst, src, 4 * tex->width);
+            
+            CFRelease(cgImage), free(dstBuffer.data), free(srcBuffer.data), vImageConverter_Release(converter);
+        }
+        CFRelease(cgImageSrc);
+    }
     static std::vector<Ra::Image> makeBGRATextures(Ra::Image *images, size_t count) {
         std::vector<Ra::Image> textures(count);
         Ra::Image *img = images, *tex = textures.data();
         for (int i = 0; i < count; i++, img++, tex++)
             tex->init(nullptr, 4 * img->width * img->height, img->width, img->height);
-        
         img = images, tex = textures.data();
-        for (int i = 0; i < count; i++, img++, tex++) {
-            NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
-            vImage_Buffer srcBuffer, dstBuffer;
-            vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
-            vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
-            
-            CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
-            if (CGImageSourceGetCount(cgImageSrc)) {
-                CGImageRef cgImage = CGImageSourceCreateImageAtIndex(cgImageSrc, 0, NULL);
-                NSImage *nsImage = [[NSImage alloc] initWithCGImage:cgImage size:CGSizeMake(img->width, img->height)];
-                                
-                srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
-                srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
-                srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
-                srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
-                srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
-                
-                dstFormat.bitsPerComponent = 8;
-                dstFormat.bitsPerPixel = 32;
-                dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
-                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
-                dstFormat.renderingIntent = kCGRenderingIntentDefault;
-                
-                vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
-                vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
-                vImage_Error error = kvImageNoError;
-                
-                vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
-                vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-                
-                auto src = (uint8_t *)dstBuffer.data, dst = tex->memory->addr;
-                for (int row = 0; row < tex->height; row++, src += dstBuffer.rowBytes, dst += 4 * tex->width)
-                    memcpy(dst, src, 4 * tex->width);
-                
-                CFRelease(cgImage), free(dstBuffer.data), free(srcBuffer.data), vImageConverter_Release(converter);
-            }
-            CFRelease(cgImageSrc);
-        }
+        for (int i = 0; i < count; i++, img++, tex++)
+            writeBGRATexture(img, tex);
         return textures;
     }
 };
