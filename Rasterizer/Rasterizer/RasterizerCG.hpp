@@ -140,7 +140,7 @@ struct RasterizerCG {
     }
     
     static void createBGRATexture(Ra::Image *img, Ra::Image *tex) {
-        tex->init(nullptr, 4 * img->width * img->height, img->width, img->height);
+        tex->init(nullptr, 4 * img->width * img->height, img->width, img->height), tex->hash = img->hash;
         NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
         vImage_Buffer srcBuffer, dstBuffer;
         vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
