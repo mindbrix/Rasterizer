@@ -213,6 +213,10 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct Image {
+        struct Index {
+            size_t hash;  uint32_t idx;
+            inline bool operator< (const Index& other) const { return hash < other.hash || (hash == other.hash && idx < other.idx); }
+        };
         void init(void *bytes, size_t size, size_t w, size_t h) {
             if (size && w && h) {
                 width = w, height = h, hash = 0, memory->resize(size);
