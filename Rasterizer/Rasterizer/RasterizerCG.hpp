@@ -22,7 +22,8 @@ struct RasterizerCG {
                 srcFormat.bitsPerPixel = dstFormat.bitsPerPixel = 32;
                 srcFormat.renderingIntent = dstFormat.renderingIntent = kCGRenderingIntentDefault;
                 srcFormat.colorSpace = CGColorSpaceCreateDeviceRGB(), dstFormat.colorSpace = dstSpace;
-                srcFormat.bitmapInfo = dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
+                srcFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
+                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
                 vImage_Error error = kvImageNoError;
                 converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
             }
@@ -201,7 +202,7 @@ struct RasterizerCG {
                 dstFormat.bitsPerComponent = 8;
                 dstFormat.bitsPerPixel = 32;
                 dstFormat.colorSpace = dstSpace;
-                dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
+                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
                 dstFormat.renderingIntent = kCGRenderingIntentDefault;
             vImage_Error error = kvImageNoError;
             vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);

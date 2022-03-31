@@ -692,6 +692,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     const device Colorant& color = colors[vert.iz];
-    float a = color.a * 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w), ma = a * 0.003921568627;
-    return { color.r * ma, color.g * ma, color.b * ma, a };
+    float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
+    return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }
