@@ -138,6 +138,24 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
+    static void matchColors(Ra::Colorant *colors, size_t count, CGColorSpaceRef dstSpace) {
+        vImage_Buffer srcBuffer, dstBuffer;
+        vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
+        vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
+        srcFormat.bitsPerComponent = dstFormat.bitsPerComponent = 8;
+        srcFormat.bitsPerPixel = dstFormat.bitsPerPixel = 32;
+        srcFormat.renderingIntent = dstFormat.renderingIntent = kCGRenderingIntentDefault;
+        srcFormat.colorSpace = CGColorSpaceCreateDeviceRGB(), dstFormat.colorSpace = dstSpace;
+        srcFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
+        dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
+        vImageBuffer_Init(& srcBuffer, 1, count, srcFormat.bitsPerPixel, 0);
+        memcpy(srcBuffer.data, colors, count * sizeof(*colors));
+        vImageBuffer_Init(& dstBuffer, 1, count, dstFormat.bitsPerPixel, 0);
+        vImage_Error error = kvImageNoError;
+        vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
+        vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
+        memcpy(colors, dstBuffer.data, count * sizeof(*colors));
+    }
     
     static void createBGRATexture(Ra::Image *img, Ra::Image *tex) {
         tex->init(nullptr, 4 * img->width * img->height, img->width, img->height), tex->hash = img->hash;

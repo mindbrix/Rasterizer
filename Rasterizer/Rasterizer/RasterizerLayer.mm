@@ -46,10 +46,7 @@
     self.device = MTLCreateSystemDefaultDevice();
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
-    CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    self.colorspace = nil;;// srcSpace;
-    CGColorSpaceRelease(srcSpace);
-    
+    self.colorspace = nil;
     self.commandQueue = [self.device newCommandQueue];
     self.defaultLibrary = [self.device newDefaultLibrary];
     self.inflight_semaphore = dispatch_semaphore_create(2);
@@ -134,6 +131,9 @@
     CGColorSpaceRef colorSpace = nil;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
+    
+    if (colorSpace)
+        RaCG::matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
     
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
