@@ -185,7 +185,7 @@ struct RasterizerCG {
         return URL;
     }
     
-    static void createBGRATexture(Ra::Image *img, Ra::Image *tex) {
+    static void createBGRATexture(Ra::Image *img, Ra::Image *tex, CGColorSpaceRef dstSpace) {
         tex->init(nullptr, 4 * img->width * img->height, img->width, img->height), tex->hash = img->hash;
         NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
         CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
@@ -200,8 +200,8 @@ struct RasterizerCG {
             vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
                 dstFormat.bitsPerComponent = 8;
                 dstFormat.bitsPerPixel = 32;
-                dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
-                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
+                dstFormat.colorSpace = dstSpace;
+                dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
                 dstFormat.renderingIntent = kCGRenderingIntentDefault;
             vImage_Error error = kvImageNoError;
             vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
@@ -215,11 +215,11 @@ struct RasterizerCG {
         }
         CFRelease(cgImageSrc);
     }
-    static std::vector<Ra::Image> makeBGRATextures(Ra::Image *images, size_t count) {
+    static std::vector<Ra::Image> makeBGRATextures(Ra::Image *images, size_t count, CGColorSpaceRef dstSpace) {
         std::vector<Ra::Image> textures(count);
         Ra::Image *img = images, *tex = textures.data();
         for (int i = 0; i < count; i++, img++, tex++)
-            createBGRATexture(img, tex);
+            createBGRATexture(img, tex, dstSpace);
         return textures;
     }
 };

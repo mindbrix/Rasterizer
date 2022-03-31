@@ -148,7 +148,7 @@
             _mtlBuffer0 = mtlBuffer;
     }
     if (buffer->images.end) {
-        auto textures = RaCG::makeBGRATextures(buffer->images.base, buffer->images.end);
+        auto textures = RaCG::makeBGRATextures(buffer->images.base, buffer->images.end, colorSpace);
     }
     id <CAMetalDrawable> drawable = [self nextDrawable];
     if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
