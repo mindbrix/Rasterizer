@@ -192,17 +192,17 @@ struct RasterizerCG {
         if (CGImageSourceGetCount(cgImageSrc)) {
             CGImageRef cgImage = CGImageSourceCreateImageAtIndex(cgImageSrc, 0, NULL);
             vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
-            srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
-            srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
-            srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
-            srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
-            srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
+                srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
+                srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
+                srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
+                srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
+                srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
             vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
-            dstFormat.bitsPerComponent = 8;
-            dstFormat.bitsPerPixel = 32;
-            dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
-            dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
-            dstFormat.renderingIntent = kCGRenderingIntentDefault;
+                dstFormat.bitsPerComponent = 8;
+                dstFormat.bitsPerPixel = 32;
+                dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
+                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
+                dstFormat.renderingIntent = kCGRenderingIntentDefault;
             vImage_Error error = kvImageNoError;
             vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
             vImage_Buffer srcBuffer;  vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
