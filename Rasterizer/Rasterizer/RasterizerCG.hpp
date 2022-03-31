@@ -188,31 +188,26 @@ struct RasterizerCG {
     static void createBGRATexture(Ra::Image *img, Ra::Image *tex) {
         tex->init(nullptr, 4 * img->width * img->height, img->width, img->height), tex->hash = img->hash;
         NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
-        vImage_Buffer srcBuffer, dstBuffer;
-        vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
-        vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
-        
         CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
         if (CGImageSourceGetCount(cgImageSrc)) {
             CGImageRef cgImage = CGImageSourceCreateImageAtIndex(cgImageSrc, 0, NULL);
+            vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
             srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
             srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
             srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
             srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
             srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
-            
+            vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
             dstFormat.bitsPerComponent = 8;
             dstFormat.bitsPerPixel = 32;
             dstFormat.colorSpace = CGColorSpaceCreateDeviceRGB();
             dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
             dstFormat.renderingIntent = kCGRenderingIntentDefault;
-            
-            vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
-            vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
             vImage_Error error = kvImageNoError;
             vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
+            vImage_Buffer srcBuffer;  vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
+            vImage_Buffer dstBuffer;  vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
             vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-            
             auto src = (uint8_t *)dstBuffer.data, dst = tex->memory->addr;
             for (int row = 0; row < tex->height; row++, src += dstBuffer.rowBytes, dst += 4 * tex->width)
                 memcpy(dst, src, 4 * tex->width);
