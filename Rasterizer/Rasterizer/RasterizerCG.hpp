@@ -39,11 +39,9 @@ struct RasterizerCG {
                 *cnt++ = count;
             
             size_t total = cnt - counts;
-            vImage_Buffer srcBuffer, dstBuffer;
-            vImageBuffer_Init(& srcBuffer, 1, total, 32, 0);
-            vImageBuffer_Init(& dstBuffer, 1, total, 32, 0);
+            vImage_Buffer srcBuffer;  vImageBuffer_Init(& srcBuffer, 1, total, 32, 0);
+            vImage_Buffer dstBuffer;  vImageBuffer_Init(& dstBuffer, 1, total, 32, 0);
             memcpy(srcBuffer.data, cols, total * sizeof(*colors));
-            
             vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
             cnt = counts, src = (uint32_t *)dstBuffer.data, dst = (uint32_t *)colors;
             for (int i = 0; i < total; i++, src++, dst += *cnt, cnt++)
