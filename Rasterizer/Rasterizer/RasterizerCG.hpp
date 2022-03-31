@@ -138,8 +138,7 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
-    static void matchColors(Ra::Colorant *colors, size_t count, CGColorSpaceRef dstSpace) {
-        vImage_Buffer srcBuffer, dstBuffer;
+    static void matchColors(Ra::Colorant *colors, size_t size, CGColorSpaceRef dstSpace) {
         vImage_CGImageFormat srcFormat, dstFormat;
         bzero(& srcFormat, sizeof(srcFormat)), bzero(& dstFormat, sizeof(dstFormat));
         srcFormat.bitsPerComponent = dstFormat.bitsPerComponent = 8;
@@ -147,13 +146,33 @@ struct RasterizerCG {
         srcFormat.renderingIntent = dstFormat.renderingIntent = kCGRenderingIntentDefault;
         srcFormat.colorSpace = CGColorSpaceCreateDeviceRGB(), dstFormat.colorSpace = dstSpace;
         srcFormat.bitmapInfo = dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
-        vImageBuffer_Init(& srcBuffer, 1, count, srcFormat.bitsPerPixel, 0);
-        memcpy(srcBuffer.data, colors, count * sizeof(*colors));
-        vImageBuffer_Init(& dstBuffer, 1, count, dstFormat.bitsPerPixel, 0);
         vImage_Error error = kvImageNoError;
         vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
+        uint32_t last = 0, count = 0, cols[size], counts[size], *cnt = counts, *src = (uint32_t *)colors, *dst = cols;
+        for (int i = 0; i < size; i++, src++) {
+            if (*src != last) {
+                if (count)
+                    *cnt++ = count;
+                count = 1, last = *dst++ = *src;
+            } else
+                count++;
+        }
+        if (count)
+            *cnt++ = count;
+        
+        size_t total = cnt - counts;
+        vImage_Buffer srcBuffer, dstBuffer;
+        vImageBuffer_Init(& srcBuffer, 1, total, srcFormat.bitsPerPixel, 0);
+        vImageBuffer_Init(& dstBuffer, 1, total, dstFormat.bitsPerPixel, 0);
+        memcpy(srcBuffer.data, cols, total * sizeof(*colors));
+        
         vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-        memcpy(colors, dstBuffer.data, count * sizeof(*colors));
+        cnt = counts, src = (uint32_t *)dstBuffer.data, dst = (uint32_t *)colors;
+        for (int i = 0; i < total; i++, src++, dst += *cnt, cnt++)
+            memset_pattern4(dst, src, *cnt * sizeof(*dst));
+        
+//        memcpy(colors, dstBuffer.data, size * sizeof(*colors));
+        free(dstBuffer.data), free(srcBuffer.data), vImageConverter_Release(converter);
     }
     
     static void createBGRATexture(Ra::Image *img, Ra::Image *tex) {
