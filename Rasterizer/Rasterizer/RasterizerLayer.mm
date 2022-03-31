@@ -12,6 +12,7 @@
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
+    RaCG::Converter _converter;
 }
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
@@ -133,7 +134,7 @@
         colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     if (colorSpace)
-        RaCG::matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
+        _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
     
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
