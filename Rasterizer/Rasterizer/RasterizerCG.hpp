@@ -140,14 +140,13 @@ struct RasterizerCG {
     }
     static void matchColors(Ra::Colorant *colors, size_t count, CGColorSpaceRef dstSpace) {
         vImage_Buffer srcBuffer, dstBuffer;
-        vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
-        vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
+        vImage_CGImageFormat srcFormat, dstFormat;
+        bzero(& srcFormat, sizeof(srcFormat)), bzero(& dstFormat, sizeof(dstFormat));
         srcFormat.bitsPerComponent = dstFormat.bitsPerComponent = 8;
         srcFormat.bitsPerPixel = dstFormat.bitsPerPixel = 32;
         srcFormat.renderingIntent = dstFormat.renderingIntent = kCGRenderingIntentDefault;
         srcFormat.colorSpace = CGColorSpaceCreateDeviceRGB(), dstFormat.colorSpace = dstSpace;
-        srcFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
-        dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
+        srcFormat.bitmapInfo = dstFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
         vImageBuffer_Init(& srcBuffer, 1, count, srcFormat.bitsPerPixel, 0);
         memcpy(srcBuffer.data, colors, count * sizeof(*colors));
         vImageBuffer_Init(& dstBuffer, 1, count, dstFormat.bitsPerPixel, 0);
