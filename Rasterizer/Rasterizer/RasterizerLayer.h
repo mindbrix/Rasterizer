@@ -10,7 +10,7 @@
 #import "RasterizerCG.hpp"
 
 @protocol LayerDelegate <NSObject>
-- (void)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer;
+- (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer;
 @end
 
 

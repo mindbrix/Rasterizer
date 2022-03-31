@@ -47,7 +47,7 @@
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.magnificationFilter = kCAFilterNearest;
     CGColorSpaceRef srcSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    self.colorspace = srcSpace;
+    self.colorspace = nil;;// srcSpace;
     CGColorSpaceRelease(srcSpace);
     
     self.commandQueue = [self.device newCommandQueue];
@@ -131,8 +131,9 @@
 - (void)draw {
     BOOL odd = ++_tick & 1, isM1 = [self.device.name hasPrefix:@"Apple M1"];
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
+    CGColorSpaceRef colorSpace = nil;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
-        [self.layerDelegate writeBuffer:buffer forLayer:self];
+        colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
     
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
