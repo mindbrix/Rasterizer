@@ -12,6 +12,8 @@
 struct RasterizerCG {
     struct Converter {
         void matchColors(Ra::Colorant *colorants, size_t size, CGColorSpaceRef destSpace) {
+            if (colorants == nullptr || size == 0 || destSpace == nil)
+                return;
             if (dstSpace != destSpace) {
                 vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace), dstSpace = CGColorSpaceRetain(destSpace);
                 vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
@@ -26,17 +28,12 @@ struct RasterizerCG {
             }
             size_t colorSize = sizeof(uint32_t);
             auto colors = (uint32_t *)malloc(size * colorSize), counts = (uint32_t *)malloc(size * colorSize);
-            uint32_t last = 0, count = 0, *cnt = counts, *src = (uint32_t *)colorants, *dst = colors;
-            for (int i = 0; i < size; i++, src++) {
-                if (*src != last) {
-                    if (count)
-                        *cnt++ = count;
-                    count = 1, last = *dst++ = *src;
-                } else
-                    count++;
-            }
-            if (count)
-                *cnt++ = count;
+            uint32_t *cnt = counts, *src0 = (uint32_t *)colorants, *src = src0 + 1, *dst = colors, *end = src0 + size, last = *src0;
+            do {
+                while (*src == last && src < end)
+                    src++;
+                *dst++ = last, *cnt++ = uint32_t(src - src0), src0 = src, last = *src++;
+            } while (src < end);
             
             size_t total = cnt - counts;
             vImage_Buffer srcBuffer;  vImageBuffer_Init(& srcBuffer, 1, total, 32, 0);
