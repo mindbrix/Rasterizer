@@ -11,21 +11,18 @@
 
 struct RasterizerCG {
     struct Converter {
-        void matchColors(Ra::Colorant *colors, size_t size, CGColorSpaceRef dstSpace) {
-            if (this->dstSpace != dstSpace) {
-                this->dstSpace = dstSpace;
-                if (converter)
-                    vImageConverter_Release(converter);
-                vImage_CGImageFormat srcFormat, dstFormat;
-                bzero(& srcFormat, sizeof(srcFormat)), bzero(& dstFormat, sizeof(dstFormat));
+        void matchColors(Ra::Colorant *colors, size_t size, CGColorSpaceRef destSpace) {
+            if (dstSpace != destSpace) {
+                vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace), dstSpace = CGColorSpaceRetain(destSpace);
+                vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
+                vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
                 srcFormat.bitsPerComponent = dstFormat.bitsPerComponent = 8;
                 srcFormat.bitsPerPixel = dstFormat.bitsPerPixel = 32;
                 srcFormat.renderingIntent = dstFormat.renderingIntent = kCGRenderingIntentDefault;
                 srcFormat.colorSpace = CGColorSpaceCreateDeviceRGB(), dstFormat.colorSpace = dstSpace;
                 srcFormat.bitmapInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Little;
                 dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
-                vImage_Error error = kvImageNoError;
-                converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
+                converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, NULL);
             }
             uint32_t last = 0, count = 0, cols[size], counts[size], *cnt = counts, *src = (uint32_t *)colors, *dst = cols;
             for (int i = 0; i < size; i++, src++) {
@@ -50,8 +47,7 @@ struct RasterizerCG {
             free(dstBuffer.data), free(srcBuffer.data);
         }
         ~Converter() {
-            if (converter)
-                vImageConverter_Release(converter);
+            vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace);
         }
         vImageConverterRef converter = nil;
         CGColorSpaceRef dstSpace = nil;
