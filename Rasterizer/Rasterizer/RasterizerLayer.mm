@@ -9,11 +9,28 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 
+struct TextureCache {
+    struct Entry {
+        size_t hash = 0;
+        id <MTLTexture> texture = nil;
+    };
+
+    void update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace) {
+        if (buffer->images.end) {
+            auto textures = RaCG::makeBGRATextures(buffer->images.base, buffer->images.end, colorSpace);
+        }
+    }
+    Ra::Row<Entry> textures;
+};
+
+
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
     RaCG::Converter _converter;
+    TextureCache _textureCache;
 }
+
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
 @property (nonatomic) id <MTLLibrary> defaultLibrary;
@@ -147,9 +164,8 @@
         else
             _mtlBuffer0 = mtlBuffer;
     }
-    if (buffer->images.end) {
-        auto textures = RaCG::makeBGRATextures(buffer->images.base, buffer->images.end, colorSpace);
-    }
+    _textureCache.update(buffer, colorSpace);
+    
     id <CAMetalDrawable> drawable = [self nextDrawable];
     if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
         MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
