@@ -13,6 +13,7 @@ struct TextureCache {
     struct Entry {
         size_t hash = 0;
         id <MTLTexture> texture = nil;
+        inline bool operator< (const Entry& other) const { return hash < other.hash; }
     };
 
     void update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace) {
