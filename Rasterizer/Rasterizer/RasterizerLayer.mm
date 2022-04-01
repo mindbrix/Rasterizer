@@ -150,9 +150,6 @@ struct TextureCache {
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
     
-    if (colorSpace)
-        _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
-    
     id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
     if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
         mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
@@ -164,6 +161,7 @@ struct TextureCache {
         else
             _mtlBuffer0 = mtlBuffer;
     }
+    _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
     _textureCache.update(buffer, colorSpace);
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
