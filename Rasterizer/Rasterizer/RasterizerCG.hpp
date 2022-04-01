@@ -11,7 +11,7 @@
 
 struct RasterizerCG {
     struct Converter {
-        void matchColors(Ra::Colorant *colors, size_t size, CGColorSpaceRef destSpace) {
+        void matchColors(Ra::Colorant *colorants, size_t size, CGColorSpaceRef destSpace) {
             if (dstSpace != destSpace) {
                 vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace), dstSpace = CGColorSpaceRetain(destSpace);
                 vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
@@ -24,7 +24,9 @@ struct RasterizerCG {
                 dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
                 converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, NULL);
             }
-            uint32_t last = 0, count = 0, cols[size], counts[size], *cnt = counts, *src = (uint32_t *)colors, *dst = cols;
+            size_t colorSize = sizeof(uint32_t);
+            auto colors = (uint32_t *)malloc(size * colorSize), counts = (uint32_t *)malloc(size * colorSize);
+            uint32_t last = 0, count = 0, *cnt = counts, *src = (uint32_t *)colorants, *dst = colors;
             for (int i = 0; i < size; i++, src++) {
                 if (*src != last) {
                     if (count)
@@ -39,12 +41,12 @@ struct RasterizerCG {
             size_t total = cnt - counts;
             vImage_Buffer srcBuffer;  vImageBuffer_Init(& srcBuffer, 1, total, 32, 0);
             vImage_Buffer dstBuffer;  vImageBuffer_Init(& dstBuffer, 1, total, 32, 0);
-            memcpy(srcBuffer.data, cols, total * sizeof(*colors));
+            memcpy(srcBuffer.data, colors, total * colorSize);
             vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-            cnt = counts, src = (uint32_t *)dstBuffer.data, dst = (uint32_t *)colors;
+            cnt = counts, src = (uint32_t *)dstBuffer.data, dst = (uint32_t *)colorants;
             for (int i = 0; i < total; i++, src++, dst += *cnt, cnt++)
-                memset_pattern4(dst, src, *cnt * sizeof(*dst));
-            free(dstBuffer.data), free(srcBuffer.data);
+                memset_pattern4(dst, src, *cnt * colorSize);
+            free(dstBuffer.data), free(srcBuffer.data), free(colors), free(counts);
         }
         ~Converter() {
             vImageConverter_Release(converter), CGColorSpaceRelease(dstSpace);
