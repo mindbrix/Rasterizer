@@ -405,25 +405,24 @@ struct Rasterizer {
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
-            full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), passes.empty(), new (passes.alloc(1)) Pass(0);
+            full = device, sheet = strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
         inline void alloc(float w, float h, size_t idx, Cell *cell) {
             Bounds *b;  float hght;
-            if (h <= kfh)
-                b = & strip, hght = kfh;
-            else if (h <= kFastHeight)
-                b = & fast, hght = kFastHeight;
-            else
+            if (h <= kFastHeight) {
+                hght = ceilf(h / 4) * 4;
+                b = strips + size_t(hght / 4 - 1);
+            } else
                 b = & molecules, hght = kMoleculesHeight;
             if (b->ux - b->lx < w) {
                 if (sheet.uy - sheet.ly < hght)
-                    sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), new (passes.alloc(1)) Pass(idx);
+                    sheet = full, strip = fast = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             cell->ox = b->lx, cell->oy = b->ly, b->lx += w;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
-        Bounds full, sheet, strip, fast, molecules;
+        Bounds full, sheet, strip, fast, molecules, strips[8];
     };
     struct Context {
         void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
