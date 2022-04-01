@@ -24,25 +24,13 @@
 			<key>NSDocumentClass</key>
 			<string>Document</string>
 		</dict>
-        <dict>
-            <key>CFBundleTypeExtensions</key>
-            <array>
-                <string>pdf</string>
-            </array>
-            <key>CFBundleTypeName</key>
-            <string>PDF</string>
-            <key>CFBundleTypeRole</key>
-            <string>Viewer</string>
-            <key>NSDocumentClass</key>
-            <string>Document</string>
-        </dict>
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
-				<string>svg</string>
+				<string>pdf</string>
 			</array>
 			<key>CFBundleTypeName</key>
-			<string>SVG</string>
+			<string>PDF</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>NSDocumentClass</key>
@@ -51,10 +39,10 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
-				<string>db</string>
+				<string>svg</string>
 			</array>
 			<key>CFBundleTypeName</key>
-			<string>sqlite</string>
+			<string>SVG</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>NSDocumentClass</key>
