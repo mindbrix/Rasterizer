@@ -11,15 +11,31 @@
 
 struct TextureCache {
     struct Entry {
+        ~Entry() {  texture = nil;  }
         size_t hash = 0;
         id <MTLTexture> texture = nil;
         inline bool operator< (const Entry& other) const { return hash < other.hash; }
     };
 
-    void update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace) {
-        if (buffer->images.end) {
-            auto textures = RaCG::makeBGRATextures(buffer->images.base, buffer->images.end, colorSpace);
+    std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device) {
+        std::vector<Entry> entries;
+        if (buffer->images.end && textures.end == 0) {
+            Entry *entry;  Ra::Image *tex;
+            auto texture = RaCG::makeBGRATextures(buffer->images.base, 1, colorSpace);
+            tex = texture.data();
+            MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
+                                                                                            width: tex->width
+                                                                                           height: tex->height
+                                                                                        mipmapped: YES];
+            entry = new (textures.alloc(1)) Entry();
+            entry->hash = tex->hash, entry->texture = [device newTextureWithDescriptor:desc];
+            [entry->texture replaceRegion: MTLRegionMake2D(0, 0, tex->width, tex->height)
+                           mipmapLevel: 0
+                             withBytes: tex->memory->addr
+                           bytesPerRow: tex->memory->size / tex->height];
+            entries.emplace_back(*entry);
         }
+        return entries;
     }
     Ra::Row<Entry> textures;
 };
@@ -163,7 +179,7 @@ struct TextureCache {
             _mtlBuffer0 = mtlBuffer;
     }
     _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
-    _textureCache.update(buffer, colorSpace);
+    auto entries = _textureCache.update(buffer, colorSpace, self.device);
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
     if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
@@ -185,6 +201,12 @@ struct TextureCache {
     }
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
+    if (entries.size()) {
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+        for (auto& entry: entries)
+            [blitEncoder generateMipmapsForTexture: entry.texture];
+        [blitEncoder endEncoding];
+    }
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     drawableDescriptor.colorAttachments[0].texture = drawable.texture;
     drawableDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
