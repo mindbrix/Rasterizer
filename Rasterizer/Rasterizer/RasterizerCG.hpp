@@ -181,8 +181,9 @@ struct RasterizerCG {
         return URL;
     }
     
-    static void createBGRATexture(Ra::Image *img, Ra::Image *tex, CGColorSpaceRef dstSpace) {
-        tex->init(nullptr, 4 * img->width * img->height, img->width, img->height), tex->hash = img->hash;
+    static Ra::Image createBGRATexture(Ra::Image *img, CGColorSpaceRef dstSpace) {
+        Ra::Image tex;
+        tex.init(nullptr, 4 * img->width * img->height, img->width, img->height), tex.hash = img->hash;
         NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
         CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
         if (CGImageSourceGetCount(cgImageSrc)) {
@@ -204,19 +205,13 @@ struct RasterizerCG {
             vImage_Buffer srcBuffer;  vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
             vImage_Buffer dstBuffer;  vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
             vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-            auto src = (uint8_t *)dstBuffer.data, dst = tex->memory->addr;
-            for (int row = 0; row < tex->height; row++, src += dstBuffer.rowBytes, dst += 4 * tex->width)
-                memcpy(dst, src, 4 * tex->width);
+            auto src = (uint8_t *)dstBuffer.data, dst = tex.memory->addr;
+            for (int row = 0; row < tex.height; row++, src += dstBuffer.rowBytes, dst += 4 * tex.width)
+                memcpy(dst, src, 4 * tex.width);
             CFRelease(cgImage), free(dstBuffer.data), free(srcBuffer.data), vImageConverter_Release(converter);
         }
         CFRelease(cgImageSrc);
-    }
-    static std::vector<Ra::Image> makeBGRATextures(Ra::Image *images, size_t count, CGColorSpaceRef dstSpace) {
-        std::vector<Ra::Image> textures(count);
-        Ra::Image *img = images, *tex = textures.data();
-        for (int i = 0; i < count; i++, img++, tex++)
-            createBGRATexture(img, tex, dstSpace);
-        return textures;
+        return tex;
     }
 };
 

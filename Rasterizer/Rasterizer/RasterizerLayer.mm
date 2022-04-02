@@ -21,18 +21,17 @@ struct TextureCache {
     std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device) {
         std::vector<Entry> entries;
         if (buffer->images.end && textures.size() == 0) {
-            auto texture = RaCG::makeBGRATextures(buffer->images.base, 1, colorSpace);
-            Ra::Image *tex = texture.data();
+            Ra::Image tex = RaCG::createBGRATexture(buffer->images.base, colorSpace);
             MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
-                                                                                            width: tex->width
-                                                                                           height: tex->height
+                                                                                            width: tex.width
+                                                                                           height: tex.height
                                                                                         mipmapped: YES];
-            textures.emplace_back(Entry(tex->hash, [device newTextureWithDescriptor:desc]));
+            textures.emplace_back(Entry(tex.hash, [device newTextureWithDescriptor:desc]));
             auto& entry = textures.back();
-            [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex->width, tex->height)
+            [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex.width, tex.height)
                            mipmapLevel: 0
-                             withBytes: tex->memory->addr
-                           bytesPerRow: tex->memory->size / tex->height];
+                             withBytes: tex.memory->addr
+                           bytesPerRow: tex.memory->size / tex.height];
             entries.emplace_back(entry);
         }
         return entries;
