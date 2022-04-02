@@ -324,6 +324,9 @@ struct TextureCache {
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
+                if (_textureCache.textures.end) {
+                    [commandEncoder setFragmentTexture:_textureCache.textures.base[0].texture atIndex:1];
+                }
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
                                    vertexCount:4

@@ -10,6 +10,7 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
+constexpr sampler sample = sampler(filter::linear);
 
 struct Transform {
     Transform() : a(1), b(0), c(0), d(1), tx(0), ty(0) {}
@@ -532,7 +533,7 @@ struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]], clip;
-    float u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
+    float u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha, s, t;
     uint32_t iz, flags;
 };
 
@@ -649,12 +650,16 @@ vertex InstancesVertex instances_vertex_main(
     vert.clip = distances(clips[iz], dx, dy);
     vert.alpha = alpha;
     vert.iz = iz;
+    vert.s = select(0.0, 1.0, vid & 1);
+    vert.t = select(0.0, 1.0, vid >> 1);
     return vert;
 }
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
-                                        texture2d<float> accumulation [[texture(0)]])
+                                        texture2d<float> accumulation [[texture(0)]],
+                                        texture2d<float> image [[texture(1)]]
+)
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
@@ -691,7 +696,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
-    const device Colorant& color = colors[vert.iz];
+    Colorant color = colors[vert.iz];
+    float4 tex = image.sample(sample, float2(vert.s, vert.t));
+    color.b = tex.x * 255.0, color.g = tex.y * 255.0, color.r = tex.z * 255.0, color.a = tex.w * 255.0;
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
     return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }
