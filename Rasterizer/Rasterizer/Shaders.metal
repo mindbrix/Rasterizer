@@ -10,7 +10,7 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
-constexpr sampler sample = sampler(filter::linear);
+constexpr sampler sample = sampler(filter::linear, mip_filter::linear);
 
 struct Transform {
     Transform() : a(1), b(0), c(0), d(1), tx(0), ty(0) {}
