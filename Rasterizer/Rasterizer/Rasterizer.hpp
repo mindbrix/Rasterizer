@@ -853,9 +853,6 @@ struct Rasterizer {
                         if (lx != ux) {
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell);
-                            
-//                            ctx.allocator.alloc(ux - lx, h, ctx.blends.end - 1, & inst->quad.cell);
-                            
                             inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);
                             Allocator::Pass& pass = ctx.allocator.passes.back();  pass.size++, pass.counts[type] += (i - begin + 1) / 2;
                         }
