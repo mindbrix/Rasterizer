@@ -651,7 +651,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.alpha = alpha;
     vert.iz = iz;
     vert.s = select(0.0, 1.0, vid & 1);
-    vert.t = select(0.0, 1.0, vid >> 1);
+    vert.t = select(1.0, 0.0, vid >> 1);
     return vert;
 }
 
@@ -698,7 +698,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     }
     Colorant color = colors[vert.iz];
     float4 tex = image.sample(sample, float2(vert.s, vert.t));
-    color.b = tex.x * 255.0, color.g = tex.y * 255.0, color.r = tex.z * 255.0, color.a = tex.w * 255.0;
+    color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
     return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }
