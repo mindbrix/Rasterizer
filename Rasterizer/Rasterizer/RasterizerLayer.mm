@@ -11,6 +11,7 @@
 
 struct TextureCache {
     struct Entry {
+        Entry(size_t hash, id <MTLTexture> texture) : hash(hash), texture(texture) {}
         ~Entry() {  texture = nil;  }
         size_t hash = 0;
         id <MTLTexture> texture = nil;
@@ -19,24 +20,24 @@ struct TextureCache {
 
     std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device) {
         std::vector<Entry> entries;
-        if (buffer->images.end && textures.end == 0) {
+        if (buffer->images.end && textures.size() == 0) {
             auto texture = RaCG::makeBGRATextures(buffer->images.base, 1, colorSpace);
             Ra::Image *tex = texture.data();
             MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
                                                                                             width: tex->width
                                                                                            height: tex->height
                                                                                         mipmapped: YES];
-            Entry *entry = new (textures.alloc(1)) Entry();
-            entry->hash = tex->hash, entry->texture = [device newTextureWithDescriptor:desc];
-            [entry->texture replaceRegion: MTLRegionMake2D(0, 0, tex->width, tex->height)
+            textures.emplace_back(Entry(tex->hash, [device newTextureWithDescriptor:desc]));
+            auto& entry = textures.back();
+            [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex->width, tex->height)
                            mipmapLevel: 0
                              withBytes: tex->memory->addr
                            bytesPerRow: tex->memory->size / tex->height];
-            entries.emplace_back(*entry);
+            entries.emplace_back(entry);
         }
         return entries;
     }
-    Ra::Row<Entry> textures;
+    std::vector<Entry> textures;
 };
 
 
@@ -326,8 +327,8 @@ struct TextureCache {
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                if (_textureCache.textures.end) {
-                    [commandEncoder setFragmentTexture:_textureCache.textures.base[0].texture atIndex:1];
+                if (_textureCache.textures.size()) {
+                    [commandEncoder setFragmentTexture:_textureCache.textures[0].texture atIndex:1];
                 }
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
