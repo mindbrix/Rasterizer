@@ -570,6 +570,8 @@ vertex InstancesVertex instances_vertex_main(
             const device Segment *segments [[buffer(20)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
+            const device uint16_t *slots [[buffer(8)]],
+            const device Transform *texctms [[buffer(9)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant bool *useCurves [[buffer(14)]],
@@ -644,14 +646,15 @@ vertex InstancesVertex instances_vertex_main(
         vert.cover = inst.quad.cover;
         vert.flags = inst.iz & ~kPathIndexMask;
     }
+    bool noImage = slots[iz] == 0;
+    const device Transform& tm = texctms[iz];
+    vert.s = noImage ? FLT_MAX : dx * tm.a + dy * tm.c + tm.tx, vert.t = noImage ? FLT_MAX : 1.0 - (dx * tm.b + dy * tm.d + tm.ty);
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, 1.0);
     vert.clip = distances(clips[iz], dx, dy);
     vert.alpha = alpha;
     vert.iz = iz;
-    vert.s = select(0.0, 1.0, vid & 1);
-    vert.t = select(1.0, 0.0, vid >> 1);
     return vert;
 }
 
@@ -697,8 +700,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     Colorant color = colors[vert.iz];
-    float4 tex = image.sample(sample, float2(vert.s, vert.t));
-    color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
+    if (vert.s != FLT_MAX) {
+        float4 tex = image.sample(sample, float2(vert.s, vert.t));
+        color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
+    }
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
     return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }

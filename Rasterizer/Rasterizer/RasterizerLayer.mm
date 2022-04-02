@@ -318,6 +318,8 @@ struct TextureCache {
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->slots atIndex:8];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texctms atIndex:9];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];

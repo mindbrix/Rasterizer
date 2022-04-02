@@ -354,11 +354,11 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint8_t) };
+            size_t sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint16_t), sizeof(Transform) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (int i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6], texctms = bases[7];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), indices.empty(), bzero(_slots, pathsCount * sizes[6]);
             Image *img;  Image::Index *idx;  uint32_t ip;  size_t iz = 0;
             for (auto & scene : list.scenes) {
@@ -391,12 +391,12 @@ struct Rasterizer {
                 }
                 base = resized;
             }
-            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint8_t *)(base + slots);
+            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint8_t *)(base + slots), _texctms = (Transform *)(base + texctms);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;  Row<Image::Index> indices;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, idxs, slots, pathsCount, headerSize, size = 0, allocation = 0;
-        Transform *_ctms, *_clips;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint8_t *_slots;
+        size_t colors, ctms, clips, widths, bounds, idxs, slots, texctms, pathsCount, headerSize, size = 0, allocation = 0;
+        Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint8_t *_slots;
     };
     struct Allocator {
         struct Pass {
@@ -459,6 +459,8 @@ struct Rasterizer {
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
+                        if (buffer->_slots[iz]) 
+                            buffer->_texctms[iz] = unit.invert();
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
