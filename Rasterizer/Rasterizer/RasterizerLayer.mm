@@ -20,19 +20,34 @@ struct TextureCache {
 
     std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device) {
         std::vector<Entry> entries;
-        if (buffer->images.end && textures.size() == 0) {
-            Ra::Image tex = RaCG::createBGRATexture(buffer->images.base, colorSpace);
-            MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
-                                                                                            width: tex.width
-                                                                                           height: tex.height
-                                                                                        mipmapped: YES];
-            textures.emplace_back(Entry(tex.hash, [device newTextureWithDescriptor:desc]));
-            auto& entry = textures.back();
-            [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex.width, tex.height)
-                           mipmapLevel: 0
-                             withBytes: tex.memory->addr
-                           bytesPerRow: tex.memory->size / tex.height];
-            entries.emplace_back(entry);
+        if (buffer->images.end) {
+            size_t textureSize = textures.size(), hash, i = 0, j = 0;
+            Ra::Image *images = buffer->images.base;
+            Ra::Image::Index *indices = buffer->indices.base;
+            do {
+                hash = indices[i].hash;
+                while (j < textureSize && textures[j].hash < hash)
+                    j++;
+                if (j == textureSize || textures[j].hash != hash) {
+                    Ra::Image tex = RaCG::createBGRATexture(images + indices[i].i, colorSpace);
+                    MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
+                                                                                                    width: tex.width
+                                                                                                   height: tex.height
+                                                                                                mipmapped: YES];
+                    textures.emplace_back(Entry(tex.hash, [device newTextureWithDescriptor:desc]));
+                    auto& entry = textures.back();
+                    [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex.width, tex.height)
+                                   mipmapLevel: 0
+                                     withBytes: tex.memory->addr
+                                   bytesPerRow: tex.memory->size / tex.height];
+                    if (entry.texture.mipmapLevelCount > 1)
+                        entries.emplace_back(entry);
+                }
+                while (i < buffer->indices.end && hash == indices[i].hash)
+                    i++;
+            } while (i < buffer->indices.end);
+            
+            std::sort(textures.begin(), textures.end());
         }
         return entries;
     }
