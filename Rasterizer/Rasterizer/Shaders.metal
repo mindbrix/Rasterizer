@@ -6,7 +6,7 @@
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.h"
-#include <metal_stdlib>
+#import <metal_stdlib>
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
@@ -661,7 +661,7 @@ vertex InstancesVertex instances_vertex_main(
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
                                         texture2d<float> accumulation [[texture(0)]],
-                                        texture2d<float> image [[texture(1)]]
+                                        const array<texture2d<float>, 16> images [[texture(2)]]
 )
 {
     float alpha = 1.0;
@@ -701,7 +701,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     }
     Colorant color = colors[vert.iz];
     if (vert.s != FLT_MAX) {
-        float4 tex = image.sample(sample, float2(vert.s, vert.t));
+        float4 tex = images[15].sample(sample, float2(vert.s, vert.t));
         color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
     }
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);

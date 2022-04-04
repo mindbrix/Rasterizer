@@ -474,6 +474,7 @@
 					"$(PROJECT_DIR)/pdfum",
 					"$(PROJECT_DIR)/pdfium",
 				);
+				MTL_LANGUAGE_REVISION = Metal20;
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -499,6 +500,7 @@
 					"$(PROJECT_DIR)/pdfum",
 					"$(PROJECT_DIR)/pdfium",
 				);
+				MTL_LANGUAGE_REVISION = Metal20;
 				PRODUCT_BUNDLE_IDENTIFIER = uk.co.mindbrix.Rasterizer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
