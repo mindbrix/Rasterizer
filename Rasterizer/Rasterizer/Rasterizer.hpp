@@ -354,24 +354,25 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint16_t), sizeof(Transform) };
+            size_t i, si, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint16_t), sizeof(Transform) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
-            for (int i = 0; i < count; i++)
+            for (i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6], texctms = bases[7];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), indices.empty(), bzero(_slots, pathsCount * sizes[6]);
             Image *img;  Image::Index *idx;  uint32_t ip;  size_t iz = 0;
-            for (auto & scene : list.scenes) {
-                auto& cache = *scene.imageCache.ptr;  count = cache.entries.end - 1, base = images.end;
+            for (base = 0, si = 0; si < list.scenes.size(); si++, base += images.end) {
+                auto& cache = *list.scenes[si].imageCache.ptr;
+                count = cache.entries.end - 1;
                 if (count == 0)
-                    iz += scene.count;
+                    iz += list.scenes[si].count;
                 else {
-                    for (int i = 0; i < cache.ips.end; i++, iz++)
+                    for (i = 0; i < cache.ips.end; i++, iz++)
                         if ((ip = cache.ips.base[i]))
                             _slots[iz] = base + ip;
-                    img = images.alloc(count), idx = indices.alloc(count);
-                    for (int i = 0; i < count; i++, idx++, img++)
-                        bzero(img, sizeof(*img)), *img = cache.entries.base[i + 1], idx->hash = img->hash, idx->i = base + i;
+                    img = images.alloc(count), bzero(img, count * sizeof(*img)), idx = indices.alloc(count);
+                    for (i = 0; i < count; i++, idx++, img++)
+                        *img = cache.entries.base[i + 1], idx->hash = img->hash, idx->i = base + i;
                 }
             }
             std::sort(indices.base, indices.base + indices.end);
@@ -907,13 +908,13 @@ struct Rasterizer {
         uint32_t iz;  Instance *dst0, *dst;  uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
+        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances, images;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Instance);
         Context *ctx = contexts;   Allocator::Pass *pass;
-        for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+        for (ctx = contexts, images = 0, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
-                instances += pass->count();
+                instances += pass->count(), images += pass->imgCount;
             begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
