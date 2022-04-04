@@ -509,18 +509,21 @@ struct Rasterizer {
                 if (pass->size == 0)
                     continue;
                 lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + pass->size - 1)->iz & kPathIndexMask;
+                Image::Index *index;
                 for (size = 0, iz = lz; iz <= uz; iz++)
-                    if (buffer->_slots[iz])
-                        size++;
+                    if ((ip = buffer->_slots[iz]))
+                        index = imgIndices.alloc(1), index->hash = buffer->images.base[ip].hash, index->i = size++;
+                std::sort(imgIndices.base + imgIndices.idx, imgIndices.base + imgIndices.end), imgIndices.idx = imgIndices.end;
+                assert(size <= kTextureSlotsSize);
                 if (size > pass->imgCount)
                     pass->imgCount = size;
             }
         }
-        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>();  }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
+        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>();  }
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
         size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
-        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
+        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
@@ -922,10 +925,10 @@ struct Rasterizer {
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Instance);
         Context *ctx = contexts;   Allocator::Pass *pass;
-        for (ctx = contexts, images = 0, i = 0; i < count; i++, ctx++) {
-            for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
+        for (ctx = contexts, i = 0; i < count; i++, ctx++) {
+            for (instances = 0, images = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count(), images += pass->imgCount;
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + images * sizeof(Image::Index) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -936,7 +939,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0;
+        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, instbegin;
         if (ctx->segments.end || ctx->p16total) {
             ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, 0), end = begin + ctx->segments.end * sizeof(Segment);
             memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, ctx->entries.emplace_back(Buffer::kPointsBase, begin, 0);
@@ -951,9 +954,12 @@ struct Rasterizer {
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);  uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
+        Image::Index *indices = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
+            instbegin = begin + pass->count() * sizeof(Edge) + pass->imgCount * sizeof(Image::Index);
             if (pass->count()) {
-                ctx->entries.emplace_back(Buffer::kInstancesBase, begin + pass->count() * sizeof(Edge), 0);
+                indices = (Image::Index *)(buffer.base + begin), end = begin + pass->imgCount * sizeof(Image::Index), begin = end;
+                ctx->entries.emplace_back(Buffer::kInstancesBase, instbegin, 0);
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 ctx->entries.emplace_back(Buffer::kQuadEdges, begin, end), begin = end;
                 fastEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kFastEdges] * sizeof(Edge);
@@ -967,6 +973,7 @@ struct Rasterizer {
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 ctx->entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
             }
+            assert(begin == instbegin);
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner out;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + pass->size; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
