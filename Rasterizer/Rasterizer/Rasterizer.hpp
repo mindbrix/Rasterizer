@@ -363,8 +363,7 @@ struct Rasterizer {
             Image *img;  Image::Index *idx;  uint32_t ip;  size_t iz = 0;
             for (base = 0, si = 0; si < list.scenes.size(); si++, base += images.end) {
                 auto& cache = *list.scenes[si].imageCache.ptr;
-                count = cache.entries.end - 1;
-                if (count == 0)
+                if ((count = cache.entries.end - 1) == 0)
                     iz += list.scenes[si].count;
                 else {
                     for (i = 0; i < cache.ips.end; i++, iz++)
