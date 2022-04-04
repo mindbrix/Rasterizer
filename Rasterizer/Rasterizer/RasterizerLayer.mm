@@ -348,10 +348,10 @@ struct TextureCache {
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 if (_textureCache.textures.size()) {
-                    id <MTLTexture> textures[16];
-                    for (int i = 0; i < 16; i++)
+                    id <MTLTexture> textures[kTextureSlotsSize];
+                    for (int i = 0; i < kTextureSlotsSize; i++)
                         textures[i] = _textureCache.textures[i % _textureCache.textures.size()].texture;
-                    [commandEncoder setFragmentTextures:textures withRange:NSMakeRange(2, 16)];
+                    [commandEncoder setFragmentTextures:textures withRange:NSMakeRange(2, kTextureSlotsSize)];
                 }
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0

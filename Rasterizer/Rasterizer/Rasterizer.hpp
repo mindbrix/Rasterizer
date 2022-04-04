@@ -422,7 +422,7 @@ struct Rasterizer {
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
         }
         inline void allocImage(size_t idx) {
-            if (passes.back().imgCount == 64)
+            if (passes.back().imgCount == kTextureSlotsSize - 1)
                 new (passes.alloc(1)) Pass(idx);
             passes.back().imgCount++;
         }

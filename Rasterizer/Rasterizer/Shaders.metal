@@ -661,7 +661,7 @@ vertex InstancesVertex instances_vertex_main(
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
                                         texture2d<float> accumulation [[texture(0)]],
-                                        const array<texture2d<float>, 16> images [[texture(2)]]
+                                        const array<texture2d<float>, kTextureSlotsSize> images [[texture(2)]]
 )
 {
     float alpha = 1.0;
