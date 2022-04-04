@@ -405,7 +405,10 @@ struct Rasterizer {
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
-            full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+            imgCount = 0, full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+        }
+        void refill(size_t idx) {
+            imgCount = kTextureSlotsSize - 1, sheet = full, molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell) {
             float w = ux - lx, h = uy - ly;  Bounds *b;  float hght;
@@ -416,15 +419,15 @@ struct Rasterizer {
                 b = & molecules, hght = kMoleculesHeight;
             if (b->ux - b->lx < w) {
                 if (sheet.uy - sheet.ly < hght)
-                    sheet = full, molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
+                    refill(idx);
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
         }
         inline void allocImage(size_t idx) {
-            if (passes.back().imgCount == kTextureSlotsSize - 1)
-                new (passes.alloc(1)) Pass(idx);
-            passes.back().imgCount++;
+            if (imgCount == 0)
+                refill(idx);
+            imgCount--, passes.back().imgCount++;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, molecules, strips[8];  size_t imgCount;
@@ -464,10 +467,8 @@ struct Rasterizer {
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
-                        if (buffer->_slots[iz]) {
-                            buffer->_texctms[iz] = unit.invert();
-                            allocator.allocImage(blends.end);
-                        }
+                        if (buffer->_slots[iz])
+                            buffer->_texctms[iz] = unit.invert(), allocator.allocImage(blends.end);
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
@@ -504,6 +505,15 @@ struct Rasterizer {
                     }
                 }
             }
+            for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++)
+                if (pass->size) {
+                    lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + pass->size - 1)->iz & kPathIndexMask;
+                    for (size = 0, iz = lz; iz <= uz; iz++)
+                        if (buffer->_slots[iz])
+                            size++;
+                    if (size > pass->imgCount)
+                        pass->imgCount = size;
+                }
         }
         void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>();  }
         void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
