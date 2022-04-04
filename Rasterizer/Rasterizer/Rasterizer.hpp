@@ -505,15 +505,16 @@ struct Rasterizer {
                     }
                 }
             }
-            for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++)
-                if (pass->size) {
-                    lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + pass->size - 1)->iz & kPathIndexMask;
-                    for (size = 0, iz = lz; iz <= uz; iz++)
-                        if (buffer->_slots[iz])
-                            size++;
-                    if (size > pass->imgCount)
-                        pass->imgCount = size;
-                }
+            for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++) {
+                if (pass->size == 0)
+                    continue;
+                lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + pass->size - 1)->iz & kPathIndexMask;
+                for (size = 0, iz = lz; iz <= uz; iz++)
+                    if (buffer->_slots[iz])
+                        size++;
+                if (size > pass->imgCount)
+                    pass->imgCount = size;
+            }
         }
         void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>();  }
         void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
