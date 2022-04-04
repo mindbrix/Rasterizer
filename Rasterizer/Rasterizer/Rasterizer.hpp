@@ -405,7 +405,7 @@ struct Rasterizer {
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
-            full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+            imgCount = 0, full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell) {
             float w = ux - lx, h = uy - ly;  Bounds *b;  float hght;
@@ -421,8 +421,13 @@ struct Rasterizer {
             }
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
         }
+        inline void allocImage(size_t idx) {
+            if (imgCount == 64)
+                new (passes.alloc(1)) Pass(idx), imgCount = 0;
+            imgCount++;
+        }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
-        Bounds full, sheet, molecules, strips[8];
+        Bounds full, sheet, molecules, strips[8];  size_t imgCount;
     };
     struct Context {
         void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
@@ -459,8 +464,10 @@ struct Rasterizer {
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
-                        if (buffer->_slots[iz]) 
+                        if (buffer->_slots[iz]) {
                             buffer->_texctms[iz] = unit.invert();
+                            allocator.allocImage(blends.end);
+                        }
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
