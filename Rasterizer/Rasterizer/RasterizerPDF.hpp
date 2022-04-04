@@ -101,8 +101,7 @@ struct RasterizerPDF {
     static void writeTextBoxesToScene(FPDF_TEXTPAGE text_page, Ra::Scene& scene) {
         int charCount = FPDFText_CountChars(text_page);
         double left = 0, bottom = 0, right = 0, top = 0;
-        Ra::Colorant color(0, 0, 0, 64);
-        Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
+        Ra::Colorant color(0, 0, 0, 64);  Ra::Path rect;  rect->addBounds(Ra::Bounds(0, 0, 1, 1));
         for (int i = 0; i < charCount; i++)
             if (FPDFText_GetUnicode(text_page, i) > 32 && FPDFText_GetCharBox(text_page, i, & left, & right, & bottom, & top))
                 scene.addPath(rect, Ra::Transform(right - left, 0, 0, top - bottom, left, bottom), color, -1.f, 0);
@@ -153,7 +152,6 @@ struct RasterizerPDF {
                 cap = FPDFPageObj_GetLineCap(pageObject);
             } else {
                 FPDFPageObj_GetFillColor(pageObject, & R, & G, & B, & A);
-                
                 if (pathIsRect(path))
                     for (auto clip : clipPaths)
                         if (!pathIsRect(clip))
@@ -257,14 +255,8 @@ struct RasterizerPDF {
                             }
                         }
                     }
-                    
-                    if (hash != lastHash) {
-                        clipPtr = nullptr;
-                        clipBounds = Ra::Bounds::huge();
-                        clipPaths.resize(0);
-                        
-                        fprintf(stderr, "i = %d, hash = %ld\n", i, hash);
-                        lastHash = hash;
+                    if (lastHash != hash) {
+                        lastHash = hash, clipPtr = nullptr, clipBounds = Ra::Bounds::huge(), clipPaths.resize(0);
                         if (clipCount != -1) {
                             for (int j = 0; j < clipCount; j++) {
                                 Ra::Path clip = PathWriter().createPathFromClipPath(clipPath, j);
@@ -272,7 +264,6 @@ struct RasterizerPDF {
                                 clipBounds = clipBounds.intersect(clip->bounds);
                             }
                             clipPtr = & clipBounds;
-                            fprintf(stderr, "\tBounds = %g, %g, %g, %g\n", clipBounds.lx, clipBounds.ly, clipBounds.ux, clipBounds.uy);
                         }
                     }
                     switch (FPDFPageObj_GetType(pageObject)) {
@@ -320,7 +311,6 @@ struct RasterizerPDF {
                             break;
                     }
                 }
-                
 //                writeTextBoxesToScene(text_page, scene);
                 list.addScene(scene, transformForPage(page, scene));
                 
