@@ -27,7 +27,7 @@ struct TextureCache {
             do {
                 hash = indices[i].hash;
                 while (j < textureSize && textures[j].hash < hash)
-                    j++;
+                    textures[j].hash = ~0, j++;
                 if (j == textureSize || textures[j].hash != hash) {
                     Ra::Image tex = RaCG::createBGRATexture(images + indices[i].i, colorSpace);
                     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
@@ -42,12 +42,18 @@ struct TextureCache {
                                    bytesPerRow: tex.memory->size / tex.height];
                     if (entry.texture.mipmapLevelCount > 1)
                         mipmaps.emplace_back(entry);
-                }
+                } else
+                    j++;
                 while (i < buffer->indices.end && hash == indices[i].hash)
                     i++;
             } while (i < buffer->indices.end);
             
+            while (j < textureSize)
+                textures[j].hash = ~0, j++;
+            
             std::sort(textures.begin(), textures.end());
+            while (textures.size() && textures.back().hash == ~0)
+                textures.pop_back();
         }
         return mipmaps;
     }
