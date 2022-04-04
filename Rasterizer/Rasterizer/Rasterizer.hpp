@@ -401,11 +401,11 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, size = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
+            size_t idx, size = 0, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
-            imgCount = 0, full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+            full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell) {
             float w = ux - lx, h = uy - ly;  Bounds *b;  float hght;
@@ -422,9 +422,9 @@ struct Rasterizer {
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
         }
         inline void allocImage(size_t idx) {
-            if (imgCount == 64)
-                new (passes.alloc(1)) Pass(idx), imgCount = 0;
-            imgCount++;
+            if (passes.back().imgCount == 64)
+                new (passes.alloc(1)) Pass(idx);
+            passes.back().imgCount++;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, molecules, strips[8];  size_t imgCount;
