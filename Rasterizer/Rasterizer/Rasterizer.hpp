@@ -442,7 +442,7 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size;  Scene *scn = & list.scenes[0];  uint8_t flags;
-            float err, e0, e1, det, width, uw;
+            float err, e0, e1, det, width, uw;  Image::Index *index;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm, inv, m, unit;
@@ -503,18 +503,19 @@ struct Rasterizer {
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
+                    else
+                        buffer->_slots[iz] = 0;
                 }
             }
             for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++) {
                 if (pass->size == 0)
                     continue;
                 lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + pass->size - 1)->iz & kPathIndexMask;
-                Image::Index *index;
                 for (size = 0, iz = lz; iz <= uz; iz++)
                     if ((ip = buffer->_slots[iz]))
                         index = imgIndices.alloc(1), index->hash = buffer->images.base[ip].hash, index->i = size++;
                 std::sort(imgIndices.base + imgIndices.idx, imgIndices.base + imgIndices.end), imgIndices.idx = imgIndices.end;
-                assert(size <= kTextureSlotsSize);
+                assert(size < kTextureSlotsSize);
                 if (size > pass->imgCount)
                     pass->imgCount = size;
             }
