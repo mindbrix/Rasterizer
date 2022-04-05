@@ -404,11 +404,11 @@ struct Rasterizer {
             size_t idx, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
-        void empty(Bounds device) {
-            imgCount = 0, full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
+        void reset(Bounds dev) {
+            device = dev, refill(0);
         }
         void refill(size_t idx) {
-            imgCount = kTextureSlotsSize - 1, sheet = full, molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
+            imgCount = kTextureSlotsSize - 1, sheet = device, molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell) {
             float w = ux - lx, h = uy - ly;  Bounds *b;  float hght;
@@ -430,11 +430,11 @@ struct Rasterizer {
             imgCount--, passes.back().imgCount++;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
-        Bounds full, sheet, molecules, strips[8];  size_t imgCount;
+        Bounds device, sheet, molecules, strips[8];  size_t imgCount;
     };
     struct Context {
         void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
-            device = dev, empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
+            device = dev, empty(), allocator.reset(device), this->slz = slz, this->suz = suz;
             size_t fatlines = 1.f + ceilf((dev.uy - dev.ly) * krfh);
             if (indices.size() != fatlines)
                 indices.resize(fatlines), uxcovers.resize(fatlines);
