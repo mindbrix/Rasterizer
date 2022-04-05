@@ -189,7 +189,7 @@ struct RasterizerPDF {
         
         FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
         if (doc) {
-            int count = FPDF_GetPageCount(doc);
+            int count = FPDF_GetPageCount(doc), imgSize = 0;
             if (count > 0) {
                 pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
@@ -298,8 +298,10 @@ struct RasterizerPDF {
                                 FPDFImageObj_GetImageDataRaw(pageObject, bytes, size);
                                 image.init(bytes, size, metadata.width, metadata.height);
                                 free(bytes);
-                                scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipPtr, & image);
+                                scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipPtr, imgSize ? & image : nullptr);
                             }
+                            if (imgSize > 0)
+                                imgSize--;
                             break;
                         }
                         case FPDF_PAGEOBJ_SHADING: {
