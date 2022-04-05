@@ -73,8 +73,6 @@ struct TextureCache {
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
 @property (nonatomic) id <MTLLibrary> defaultLibrary;
 @property (nonatomic) size_t tick;
-@property (nonatomic) id <MTLBuffer> mtlBuffer0;
-@property (nonatomic) id <MTLBuffer> mtlBuffer1;
 @property (nonatomic) id <MTLRenderPipelineState> quadEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastOutlinesPipelineState;
@@ -188,38 +186,35 @@ struct TextureCache {
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
         colorSpace = [self.layerDelegate writeBuffer:buffer forLayer:self];
     
-    id <MTLBuffer> mtlBuffer = odd ? _mtlBuffer1 : _mtlBuffer0;
-    if (mtlBuffer.contents != buffer->base || mtlBuffer.length != buffer->size) {
-        mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
-                                                   length:buffer->size
-                                                  options:MTLResourceStorageModeShared
-                                              deallocator:nil];
-        if (odd)
-            _mtlBuffer1 = mtlBuffer;
-        else
-            _mtlBuffer0 = mtlBuffer;
+    if (buffer->size == 0) {
+        dispatch_semaphore_signal(_inflight_semaphore);
+        return;
     }
+    id <MTLBuffer> mtlBuffer = [self.device newBufferWithBytesNoCopy:buffer->base
+                                               length:buffer->size
+                                              options:MTLResourceStorageModeShared
+                                          deallocator:nil];
+
     _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
-    auto mipmaps = _textureCache.update(buffer, colorSpace, self.device);
+    auto mipmaps = _textureCache.update(buffer, colorSpace, self.device, _converter);
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
-    if (self.drawableSize.width != self.depthTexture.width || self.drawableSize.height != self.depthTexture.height) {
-        MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
-                                                                                        width:self.drawableSize.width
-                                                                                       height:self.drawableSize.height
-                                                                                    mipmapped:NO];
-        desc.storageMode = MTLStorageModePrivate;
-        desc.usage = MTLTextureUsageRenderTarget;
-        self.depthTexture = [self.device newTextureWithDescriptor:desc];
-        [self.depthTexture setLabel:@"depthTexture"];
-        
-        desc.width = self.drawableSize.width;
-        desc.height = self.drawableSize.height;
-        desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
-        desc.pixelFormat = MTLPixelFormatR32Float;
-        self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
-        [self.accumulationTexture setLabel:@"accumulationTexture"];
-    }
+    MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+                                                                                    width:self.drawableSize.width
+                                                                                   height:self.drawableSize.height
+                                                                                mipmapped:NO];
+    desc.storageMode = MTLStorageModePrivate;
+    desc.usage = MTLTextureUsageRenderTarget;
+    self.depthTexture = [self.device newTextureWithDescriptor:desc];
+    [self.depthTexture setLabel:@"depthTexture"];
+    
+    desc.width = self.drawableSize.width;
+    desc.height = self.drawableSize.height;
+    desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+    desc.pixelFormat = MTLPixelFormatR32Float;
+    self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
+    [self.accumulationTexture setLabel:@"accumulationTexture"];
+    
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
     if (mipmaps.size()) {
@@ -369,5 +364,6 @@ struct TextureCache {
     }];
     [commandBuffer presentDrawable:drawable];
     [commandBuffer commit];
+    self.accumulationTexture = nil, self.depthTexture = nil;
 }
 @end
