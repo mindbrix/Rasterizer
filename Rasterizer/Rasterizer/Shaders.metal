@@ -701,7 +701,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     }
     Colorant color = colors[vert.iz];
     if (vert.s != FLT_MAX) {
-        float4 tex = images[15].sample(sample, float2(vert.s, vert.t));
+        float4 tex = images[0].sample(sample, float2(vert.s, vert.t));
         color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
     }
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
