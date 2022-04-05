@@ -34,6 +34,7 @@ struct TextureCache {
                                                                                                     width: tex.width
                                                                                                    height: tex.height
                                                                                                 mipmapped: YES];
+                    desc.storageMode = MTLStorageModeShared;
                     textures.emplace_back(tex.hash, [device newTextureWithDescriptor:desc]);
                     auto& entry = textures.back();
                     [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex.width, tex.height)
