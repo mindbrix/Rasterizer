@@ -515,7 +515,7 @@ struct Rasterizer {
                     if ((ip = buffer->_slots[iz]))
                         index = imgIndices.alloc(1), index->hash = buffer->images.base[ip].hash, index->i = size++;
                 std::sort(imgIndices.base + imgIndices.idx, imgIndices.base + imgIndices.end), imgIndices.idx = imgIndices.end;
-                assert(size < kTextureSlotsSize);
+                assert(size <= pass->imgCount + 1);
                 if (size > pass->imgCount)
                     pass->imgCount = size;
             }
