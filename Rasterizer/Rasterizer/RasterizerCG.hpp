@@ -182,7 +182,7 @@ struct RasterizerCG {
     }
     
     static Ra::Image createBGRATexture(Ra::Image *img, CGColorSpaceRef dstSpace) {
-        Ra::Image tex;  tex.init(nullptr, 4 * img->width * img->height, img->width, img->height), tex.hash = img->hash;
+        Ra::Image tex;  tex.init(nullptr, 4 * img->width * img->height, img->width, img->height, img->width), tex.hash = img->hash;
         NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
         CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
         if (CGImageSourceGetCount(cgImageSrc)) {
