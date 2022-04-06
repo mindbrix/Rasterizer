@@ -222,14 +222,14 @@ struct Rasterizer {
                 width = w, height = h, hash = 0, memory->resize(4 * w * h);
                 Colorant red(0, 0, 255, 255);  memset_pattern4(memory->addr, & red, memory->size);
                 
-//                uint8_t *src = (uint8_t *)bytes, *dst = memory->addr;
-//                for (int i = 0; i < h; i++, src += stride, dst += 4 * w)
-//                    if (bpp == 32)
-//                        memcpy(dst, src, 4 * w);
-//                    else if (bpp == 24){
-//                        for (int j = 0; j < w; j++)
-//                            dst[j * 4 + 0] = src[j * 4 + 3], dst[j * 4 + 1] = src[j * 4 + 2], dst[j * 4 + 2] = src[j * 4 + 1], dst[j * 4 + 3] = 255;
-//                    }
+                uint8_t *src = (uint8_t *)bytes, *dst = memory->addr;
+                for (int i = 0; i < h; i++, src += stride, dst += 4 * w)
+                    if (bpp == 32)
+                        memcpy(dst, src, 4 * w);
+                    else if (bpp == 24){
+                        for (int j = 0; j < w; j++)
+                            dst[j * 4 + 0] = src[j * 4 + 3], dst[j * 4 + 1] = src[j * 4 + 2], dst[j * 4 + 2] = src[j * 4 + 1], dst[j * 4 + 3] = 255;
+                    }
                 hash = XXH64(memory->addr, memory->size, 0);
             }
         }
@@ -366,7 +366,7 @@ struct Rasterizer {
         ~Buffer() { if (base) free(base); }
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, si, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint16_t), sizeof(Transform) };
+            size_t i, si, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint32_t), sizeof(Transform) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
@@ -380,7 +380,7 @@ struct Rasterizer {
                 else {
                     for (i = 0; i < cache.ips.end; i++, iz++)
                         if ((ip = cache.ips.base[i]))
-                            _slots[iz] = base + ip;
+                            _slots[iz] = uint32_t(base + ip);
                     img = images.alloc(count), bzero(img, count * sizeof(*img)), idx = indices.alloc(count);
                     for (i = 0; i < count; i++, idx++, img++)
                         *img = cache.entries.base[i + 1], idx->hash = img->hash, idx->i = base + i;
@@ -403,12 +403,12 @@ struct Rasterizer {
                 }
                 base = resized;
             }
-            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint8_t *)(base + slots), _texctms = (Transform *)(base + texctms);
+            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint32_t *)(base + slots), _texctms = (Transform *)(base + texctms);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;  Row<Image::Index> indices;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, slots, texctms, pathsCount, headerSize, size = 0, allocation = 0;
-        Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint8_t *_slots;
+        Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint32_t *_slots;
     };
     struct Allocator {
         struct Pass {
