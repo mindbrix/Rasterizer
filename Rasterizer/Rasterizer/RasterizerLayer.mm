@@ -18,18 +18,22 @@ struct TextureCache {
         inline bool operator< (const Entry& other) const { return hash < other.hash; }
     };
 
-    std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device) {
+    std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device, RaCG::Converter& converter) {
         std::vector<Entry> mipmaps;
         if (buffer->images.end) {
             size_t textureSize = textures.size(), hash, i = 0, j = 0;
-            Ra::Image *images = buffer->images.base;
+            Ra::Image *images = buffer->images.base, *img;
             Ra::Image::Index *indices = buffer->indices.base;
             do {
                 hash = indices[i].hash;
                 while (j < textureSize && textures[j].hash < hash)
                     textures[j].hash = ~0, j++;
                 if (j == textureSize || textures[j].hash != hash) {
-                    Ra::Image tex = RaCG::createBGRATexture(images + indices[i].i, colorSpace);
+                    img = images + indices[i].i;
+                    Ra::Image tex;  tex.init(img->memory->addr, img->memory->size, img->width, img->height, img->width, 32);
+//                    converter.matchColors((Ra::Colorant *)tex.memory->addr, img->width * img->hash, colorSpace);
+//                    Ra::Image tex = RaCG::createBGRATexture(images + indices[i].i, colorSpace);
+                    
                     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
                                                                                                     width: tex.width
                                                                                                    height: tex.height
