@@ -570,7 +570,7 @@ vertex InstancesVertex instances_vertex_main(
             const device Segment *segments [[buffer(20)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
-            const device uint16_t *slots [[buffer(8)]],
+            const device uint32_t *slots [[buffer(8)]],
             const device Transform *texctms [[buffer(9)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
