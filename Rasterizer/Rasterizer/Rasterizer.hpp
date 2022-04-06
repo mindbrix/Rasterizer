@@ -217,12 +217,24 @@ struct Rasterizer {
             size_t hash, i;
             inline bool operator< (const Index& other) const { return hash < other.hash || (hash == other.hash && i < other.i); }
         };
-        void init(void *bytes, size_t size, size_t w, size_t h) {
-            if (size && w && h) {
-                width = w, height = h, hash = 0, memory->resize(size);
-                if (bytes)
-                    memcpy(memory->addr, bytes, size), hash = XXH64(bytes, size, 0);
+        void init(void *bytes, size_t size, size_t w, size_t h, size_t stride, size_t bpp) {
+            if (bytes && w && h && stride && bpp) {
+                width = w, height = h, hash = 0, memory->resize(4 * w * h);
+                Colorant red(0, 0, 255, 255);  memset_pattern4(memory->addr, & red, memory->size);
+                
+//                uint8_t *src = (uint8_t *)bytes, *dst = memory->addr;
+//                for (int i = 0; i < h; i++, src += stride, dst += 4 * w)
+//                    if (bpp == 32)
+//                        memcpy(dst, src, 4 * w);
+//                    else if (bpp == 24){
+//                        for (int j = 0; j < w; j++)
+//                            dst[j * 4 + 0] = src[j * 4 + 3], dst[j * 4 + 1] = src[j * 4 + 2], dst[j * 4 + 2] = src[j * 4 + 1], dst[j * 4 + 3] = 255;
+//                    }
+                hash = XXH64(memory->addr, memory->size, 0);
             }
+        }
+        bool isValid() {
+            return width && height && hash && memory->size == 4 * width * height;
         }
         size_t width = 0, height = 0, hash = 0;  Ref<Memory<uint8_t>> memory;
     };
@@ -271,7 +283,7 @@ struct Rasterizer {
                 }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
-                if ((ie = imageCache->addEntry(image ? image->hash : 0)))
+                if ((ie = imageCache->addEntry(image && image->isValid() ? image->hash : 0)))
                     *ie = *image;
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
                 paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
@@ -502,15 +514,15 @@ struct Rasterizer {
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
-                    }
-                    else
+                    } else
                         buffer->_slots[iz] = 0;
                 }
             }
             for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++) {
-//                if (pass->size == 0)
-//                    continue;
-//                lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + pass->size - 1)->iz & kPathIndexMask;
+                size_t passsize = (pass + 1 < endpass ? (pass + 1)->idx : blends.end) - pass->idx;
+                if (passsize == 0)
+                    continue;
+                lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + passsize - 1)->iz & kPathIndexMask;
                 for (size = 0, iz = lz; iz <= uz; iz++)
                     if ((ip = buffer->_slots[iz]))
                         index = imgIndices.alloc(1), index->hash = buffer->images.base[ip].hash, index->i = size++;
@@ -971,8 +983,9 @@ struct Rasterizer {
                 ctx->entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
                 ctx->entries.emplace_back(Buffer::kQuadMolecules, begin, end), begin = end;
+                assert(begin == instbegin);
             }
-            assert(begin == instbegin);
+            
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner out;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
