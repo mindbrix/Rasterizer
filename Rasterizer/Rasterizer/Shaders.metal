@@ -533,7 +533,7 @@ struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]], clip;
-    float u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha, s, t;
+    float s, t, u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
     uint32_t iz, flags;
 };
 
@@ -701,7 +701,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     }
     Colorant color = colors[vert.iz];
     if (vert.s != FLT_MAX) {
-        float4 tex = images[0].sample(sample, float2(vert.s, vert.t));
+        float4 tex = float4(vert.s, vert.t, 0, 1.0);
+//        float4 tex = images[0].sample(sample, float2(vert.s, vert.t));
         color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
     }
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
