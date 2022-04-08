@@ -10,7 +10,7 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
-constexpr sampler sample = sampler(filter::linear, mip_filter::linear);
+constexpr sampler imgSampler = sampler(filter::linear, mip_filter::linear);
 
 struct Transform {
     Transform() : a(1), b(0), c(0), d(1), tx(0), ty(0) {}
@@ -534,7 +534,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]], clip;
     float s, t, u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
-    uint32_t iz, flags;
+    uint32_t iz, flags, slot;
 };
 
 vertex void instances_transform_main(
@@ -649,6 +649,7 @@ vertex InstancesVertex instances_vertex_main(
     bool noImage = slots[iz] == 0;
     const device Transform& tm = texctms[iz];
     vert.s = noImage ? FLT_MAX : dx * tm.a + dy * tm.c + tm.tx, vert.t = noImage ? FLT_MAX : 1.0 - (dx * tm.b + dy * tm.d + tm.ty);
+    vert.slot = slots[iz];
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, 1.0);
@@ -701,8 +702,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     }
     Colorant color = colors[vert.iz];
     if (vert.s != FLT_MAX) {
-        float4 tex = float4(vert.s, vert.t, 0, 1.0);
-//        float4 tex = images[0].sample(sample, float2(vert.s, vert.t));
+        float4 tex = images[vert.slot].sample(imgSampler, float2(vert.s, vert.t));
         color.b = tex.z * 255.0, color.g = tex.y * 255.0, color.r = tex.x * 255.0, color.a = tex.w * 255.0;
     }
     float ma = 0.003921568627 * alpha * vert.alpha * saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
