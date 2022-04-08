@@ -30,7 +30,7 @@ struct TextureCache {
                     textures[j].hash = ~0, j++;
                 if (j == textureSize || textures[j].hash != hash) {
                     img = images + indices[i].i;
-                    Ra::Image tex;  tex.init(img->memory->addr, img->memory->size, img->width, img->height, img->width, 32);
+                    Ra::Image tex;  tex.init(img->memory->addr, img->width, img->height, img->width);
 //                    converter.matchColors((Ra::Colorant *)tex.memory->addr, img->width * img->hash, colorSpace);
 //                    Ra::Image tex = RaCG::createBGRATexture(images + indices[i].i, colorSpace);
                     

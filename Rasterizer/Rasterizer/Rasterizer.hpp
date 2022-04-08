@@ -217,19 +217,12 @@ struct Rasterizer {
             size_t hash, i;
             inline bool operator< (const Index& other) const { return hash < other.hash || (hash == other.hash && i < other.i); }
         };
-        void init(void *bytes, size_t size, size_t w, size_t h, size_t stride, size_t bpp) {
-            if (bytes && w && h && stride && bpp) {
+        void init(void *bytes, size_t w, size_t h, size_t stride) {
+            if (bytes && w && h && stride) {
                 width = w, height = h, hash = 0, memory->resize(4 * w * h);
-                Colorant red(0, 0, 255, 255);  memset_pattern4(memory->addr, & red, memory->size);
-                
                 uint8_t *src = (uint8_t *)bytes, *dst = memory->addr;
-                for (int i = 0; i < h; i++, src += stride, dst += 4 * w)
-                    if (bpp == 32)
-                        memcpy(dst, src, 4 * w);
-                    else if (bpp == 24){
-                        for (int j = 0; j < w; j++)
-                            dst[j * 4 + 0] = src[j * 4 + 3], dst[j * 4 + 1] = src[j * 4 + 2], dst[j * 4 + 2] = src[j * 4 + 1], dst[j * 4 + 3] = 255;
-                    }
+                for (int i = 0; i < h; i++, src += 4 * w, dst += 4 * w)
+                    memcpy(dst, src, 4 * w);
                 hash = XXH64(memory->addr, memory->size, 0);
             }
         }

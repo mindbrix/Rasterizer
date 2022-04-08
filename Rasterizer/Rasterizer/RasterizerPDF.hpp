@@ -189,7 +189,7 @@ struct RasterizerPDF {
         
         FPDF_DOCUMENT doc = FPDF_LoadMemDocument(bytes, int(size), NULL);
         if (doc) {
-            int count = FPDF_GetPageCount(doc), imgSize = 0;
+            int count = FPDF_GetPageCount(doc), imgSize = 200;
             if (count > 0) {
                 pageIndex = pageIndex > count - 1 ? count - 1 : pageIndex;
                 FPDF_PAGE page = FPDF_LoadPage(doc, int(pageIndex));
@@ -294,11 +294,22 @@ struct RasterizerPDF {
                             Ra::Image image;
                             unsigned long size = FPDFImageObj_GetImageDataRaw(pageObject, NULL, INT_MAX);
                             if (size) {
-                                void *bytes = malloc(size);
-                                FPDFImageObj_GetImageDataRaw(pageObject, bytes, size);
-                                image.init(bytes, size, metadata.width, metadata.height);
-                                free(bytes);
-                                scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipPtr, imgSize ? & image : nullptr);
+//                                FPDF_BITMAP bitmap = FPDFImageObj_GetBitmap(pageObject);
+                                FPDF_BITMAP bitmap = FPDFImageObj_GetRenderedBitmap(doc, page, pageObject);
+                                int format = FPDFBitmap_GetFormat(bitmap);
+                                void *buffer = FPDFBitmap_GetBuffer(bitmap);
+                                int width = FPDFBitmap_GetWidth(bitmap);
+                                int height = FPDFBitmap_GetHeight(bitmap);
+                                int stride = FPDFBitmap_GetStride(bitmap);
+//                                void *bytes = malloc(size);  FPDFImageObj_GetImageDataRaw(pageObject, bytes, size);
+                                
+                                if (imgSize && format) {
+                                    image.init(buffer, width, height, stride);
+                                    scene.addPath(unitRectPath, ctm, Ra::Colorant(0, 0, 0, 64), 0, 0, clipPtr, & image);
+                                    
+                                }
+//                                free(bytes);
+                                FPDFBitmap_Destroy(bitmap);
                             }
                             if (imgSize > 0)
                                 imgSize--;
