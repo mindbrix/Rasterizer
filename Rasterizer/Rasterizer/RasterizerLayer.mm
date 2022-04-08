@@ -31,9 +31,7 @@ struct TextureCache {
                 if (j == textureSize || textures[j].hash != hash) {
                     img = images + indices[i].i;
                     Ra::Image tex;  tex.init(img->memory->addr, img->width, img->height, img->width);
-//                    converter.matchColors((Ra::Colorant *)tex.memory->addr, img->width * img->hash, colorSpace);
-//                    Ra::Image tex = RaCG::createBGRATexture(images + indices[i].i, colorSpace);
-                    
+                    converter.matchColors((Ra::Colorant *)tex.memory->addr, img->width * img->height, colorSpace);
                     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
                                                                                                     width: tex.width
                                                                                                    height: tex.height
