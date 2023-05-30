@@ -112,7 +112,7 @@ struct Rasterizer {
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
         Row<T>& operator+(const T *src) { if (src) { do *(alloc(1)) = *src; while (*src++);  --end; } return *this; }
-        Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), sprintf(buf, "%d", n); operator+((T *)buf); return *this; }
+        Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), snprintf(buf, 32, "%d", n); operator+((T *)buf); return *this; }
         T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
     typedef void (*SegmentFunction)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
