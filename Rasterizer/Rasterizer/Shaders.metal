@@ -713,18 +713,13 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
-        float a, b, c, d, x2, y2, dist, sd0, sd1, cap, cap0, cap1; // , t, s, tx0, tx1, vx, ty0, ty1, vy
+        float a, b, c, d, x2, y2, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             float invdet = 1.0 / (a * d - b * c);
             a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;  // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-            
+            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2), float2(0, 0));
-//            t = saturate(closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2)), s = 1.0 - t;
-//            tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
-//            ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
-//            dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
         } else
             dist = vert.dm;
     
