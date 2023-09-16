@@ -52,9 +52,7 @@ struct Edge {
     union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
 };
 
-float det(float2 a, float2 b) {
-    return a.x * b.y - a.y * b.x;
-}
+
 float4 distances(Transform ctm, float dx, float dy) {
     float det, rlab, rlcd, d0, d1;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
