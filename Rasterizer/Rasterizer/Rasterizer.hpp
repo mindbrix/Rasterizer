@@ -436,7 +436,7 @@ struct Rasterizer {
             imgCount--, passes.back().imgCount++;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
-        Bounds full, sheet, molecules, strips[8];  size_t imgCount;
+        Bounds full, sheet, molecules, strips[kFastHeight / 4];  size_t imgCount;
     };
     struct Context {
         void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
