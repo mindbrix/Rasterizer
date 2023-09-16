@@ -52,6 +52,9 @@ struct Edge {
     union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
 };
 
+float det(float2 a, float2 b) {
+    return a.x * b.y - a.y * b.x;
+}
 float4 distances(Transform ctm, float dx, float dy) {
     float det, rlab, rlcd, d0, d1;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
@@ -86,6 +89,68 @@ float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2
         return roundedDistance(x0, y0, x2, y2);
     float t = saturate(closestT(x0, y0, x1, y1, x2, y2)), s = 1.0 - t;
     return roundedDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
+}
+
+// https://www.shadertoy.com/view/4dsfRS
+
+float4 solveCubic(float a, float b, float c)
+{
+    float p = b - a*a / 3.0, p3 = p*p*p;
+    float q = a * (2.0*a*a - 9.0*b) / 27.0 + c;
+    float d = q*q + 4.0*p3 / 27.0;
+    float offset = -a / 3.0;
+    if(d >= 0.0) {
+        float z = sqrt(d);
+        float2 x = (float2(z, -z) - q) / 2.0;
+        float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
+        return float4(offset + uv.x + uv.y, 0.0, 0.0, 1.0);
+    }
+    float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
+    float m = cos(v), n = sin(v)*1.732050808;
+    return float4( float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0 );
+}
+
+float3 sdBezier(float2 A, float2 B, float2 C, float2 p)
+{
+    // This is to prevent 3 colinear points, but there should be better solution to it.
+    B = mix(B + float2(1e-4), B, abs(sign(B * 2.0 - A - C)));
+    
+    float h = sign( det(B-C,A-C) ); // no need to compute this per pixel
+    
+    // Calculate roots.
+    float2 a = B - A, b = A - B * 2.0 + C, c = a * 2.0, d = A - p;
+    float3 k = float3(3.*dot(a,b),2.*dot(a,a)+dot(d,b),dot(d,a)) / dot(b,b);
+    float4 t = solveCubic(k.x, k.y, k.z);
+
+    if( t.w<2.0 )
+    {
+        float2 dp1 = d + (c + b*t.x)*t.x;
+        float d1 = dot(dp1, dp1);
+        float2 g = 2.*b*t.x + c;
+        float s =  sign(g.x*dp1.y - g.y*dp1.x) * h;
+        
+        return float3(s*sqrt(d1), t.x, 3.0);
+    }
+    else
+    {
+        float2 dp1 = d + (c + b*t.x)*t.x;
+        float d1 = dot(dp1, dp1);
+        float2 dp2 = d + (c + b*t.y)*t.y;
+        float d2 = dot(dp2, dp2);
+        float2 dp3 = d + (c + b*t.z)*t.z;
+        float d3 = dot(dp3, dp3);
+
+        // Find closest distance and t
+        float id = 0.0; float4 r = float4(d1, t.x, dp1);
+        if( d2<r.x ) { id = 1.0;  r = float4(d2, t.y, dp2); }
+        if( d3<r.x ) { id = 2.0; r = float4(d3, t.z, dp3); }
+
+        // Sign is just cross product with gradient
+        float2 g = 2.*b*r.y + c;
+        float s =  sign(g.x*r.w - g.y*r.z) * h;
+
+        return float3(s*sqrt(r.x), r.y, id);
+    }
 }
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
@@ -670,11 +735,16 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         float t, s, a, b, c, d, x2, y2, tx0, tx1, vx, ty0, ty1, vy, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+            float invdet = 1.0 / (a * d - b * c);
+            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;  // x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-            t = saturate(closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2)), s = 1.0 - t;
-            tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
-            ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
-            dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
+            
+            dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2), float2(0, 0)).x;
+//            dist = smoothstep(-1, 1, dist);
+//            t = saturate(closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2)), s = 1.0 - t;
+//            tx0 = x2 + s * d + t * -b, tx1 = x2 + s * -b, vx = tx1 - tx0;
+//            ty0 = y2 + s * -c + t * a, ty1 = y2 + s * a, vy = ty1 - ty0;
+//            dist = (tx1 * ty0 - ty1 * tx0) * rsqrt(vx * vx + vy * vy) / (a * d - b * c);
         } else
             dist = vert.dm;
     
