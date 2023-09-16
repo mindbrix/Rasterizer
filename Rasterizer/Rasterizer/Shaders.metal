@@ -103,11 +103,11 @@ float4 solveCubic(float a, float b, float c)
         float z = sqrt(d);
         float2 x = (float2(z, -z) - q) / 2.0;
         float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
-        return float4(offset + uv.x + uv.y, 0.0, 0.0, 1.0);
+        return float4(saturate(offset + uv.x + uv.y), 0.0, 0.0, 1.0);
     }
     float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
     float m = cos(v), n = sin(v)*1.732050808;
-    return float4( float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0 );
+    return float4(saturate(float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset), 3.0 );
 }
 
 float sdBezier(float2 A, float2 B, float2 C, float2 p) {
@@ -115,22 +115,27 @@ float sdBezier(float2 A, float2 B, float2 C, float2 p) {
     B = mix(B + float2(1e-4), B, abs(sign(B * 2.0 - A - C)));
     
     // Calculate roots.
-    float2 a = B - A, b = A - B * 2.0 + C, c = a * 2.0, d = A - p;
+    float2 a = B - A, b = A - B * 2.0 + C, d = A - p;
     float3 k = float3(3.*dot(a,b),2.*dot(a,a)+dot(d,b),dot(d,a)) / dot(b,b);
-    float4 t = solveCubic(k.x, k.y, k.z);
+    float4 ts = solveCubic(k.x, k.y, k.z);
 
-    if(t.w < 2.0) {
-        float2 dp1 = d + (c + b*t.x)*t.x;
-        float d1 = dot(dp1, dp1);
-        return sqrt(d1);
+    float t = ts.x, s = 1.0 - t;
+    float x0 = s * A.x + t * B.x, x1 = s * B.x + t * C.x, dx = x1 - x0;
+    float y0 = s * A.y + t * B.y, y1 = s * B.y + t * C.y, dy = y1 - y0;
+    float d1 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
+    
+    if (ts.w < 2.0) {
+        return d1;
     } else {
-        float2 dp1 = d + (c + b*t.x)*t.x;
-        float d1 = dot(dp1, dp1);
-        float2 dp2 = d + (c + b*t.y)*t.y;
-        float d2 = dot(dp2, dp2);
-        float2 dp3 = d + (c + b*t.z)*t.z;
-        float d3 = dot(dp3, dp3);
-        return sqrt(min(d1, min(d2, d3)));
+        t = ts.y, s = 1.0 - t;
+        x0 = s * A.x + t * B.x, x1 = s * B.x + t * C.x, dx = x1 - x0;
+        y0 = s * A.y + t * B.y, y1 = s * B.y + t * C.y, dy = y1 - y0;
+        float d2 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
+        t = ts.z, s = 1.0 - t;
+        x0 = s * A.x + t * B.x, x1 = s * B.x + t * C.x, dx = x1 - x0;
+        y0 = s * A.y + t * B.y, y1 = s * B.y + t * C.y, dy = y1 - y0;
+        float d3 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
+        return min(d1, min(d2, d3));
     }
 }
 
@@ -655,8 +660,8 @@ vertex InstancesVertex instances_vertex_main(
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-        pcap |= dot(np, _pno) < -0.94 || rp * dw > 5e2;
-        ncap |= dot(_nno, nn) < -0.94 || rn * dw > 5e2;
+        pcap |= dot(np, _pno) < -0.94;// || rp * dw > 5e0;
+        ncap |= dot(_nno, nn) < -0.94;// || rn * dw > 5e2;
         np = pcap ? _pno : np, nn = ncap ? _nno : nn;
         tpo = normalize(np + _pno), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(_nno + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
