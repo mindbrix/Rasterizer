@@ -108,31 +108,31 @@ float4 solveCubic(float a, float b, float c)
     return float4(float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0);
 }
 
-float sdBezier(float2 A, float2 B, float2 C, float2 p) {
+float sdBezier(float2 p0, float2 p1, float2 p2, float2 p) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
-    B = mix(B + float2(1e-4), B, abs(sign(B * 2.0 - A - C)));
+    p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
     
     // Calculate roots.
-    float2 a = B - A, b = A - B * 2.0 + C, d = A - p;
-    float3 k = float3(3.0 * dot(a, b), 2.0 * dot(a, a) + dot(d, b), dot(d, a)) / dot(b, b);
+    float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0 - p;
+    float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
     float4 ts = solveCubic(k.x, k.y, k.z);
 
     float t, s, x0, y0, x1, y1, dx, dy, d1, d2, d3;
     t = saturate(ts.x), s = 1.0 - t;
-    x0 = s * A.x + t * B.x, x1 = s * B.x + t * C.x, dx = x1 - x0;
-    y0 = s * A.y + t * B.y, y1 = s * B.y + t * C.y, dy = y1 - y0;
+    x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
+    y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
     d1 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
     
     if (ts.w < 2.0) {
         return d1;
     } else {
         t = saturate(ts.y), s = 1.0 - t;
-        x0 = s * A.x + t * B.x, x1 = s * B.x + t * C.x, dx = x1 - x0;
-        y0 = s * A.y + t * B.y, y1 = s * B.y + t * C.y, dy = y1 - y0;
+        x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
+        y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
         d2 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
         t = saturate(ts.z), s = 1.0 - t;
-        x0 = s * A.x + t * B.x, x1 = s * B.x + t * C.x, dx = x1 - x0;
-        y0 = s * A.y + t * B.y, y1 = s * B.y + t * C.y, dy = y1 - y0;
+        x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
+        y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
         d3 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
         return min(d1, min(d2, d3));
     }
