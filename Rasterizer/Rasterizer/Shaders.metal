@@ -108,6 +108,14 @@ float4 solveCubic(float a, float b, float c)
     return float4(float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0);
 }
 
+float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
+    float s, x0, y0, x1, y1, dx, dy;
+    s = 1.0 - t;
+    x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
+    y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
+    return (x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
+}
+
 float sdBezier(float2 p0, float2 p1, float2 p2, float2 p) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
     p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
@@ -117,23 +125,14 @@ float sdBezier(float2 p0, float2 p1, float2 p2, float2 p) {
     float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
     float4 ts = solveCubic(k.x, k.y, k.z);
 
-    float t, s, x0, y0, x1, y1, dx, dy, d1, d2, d3;
-    t = saturate(ts.x), s = 1.0 - t;
-    x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
-    y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
-    d1 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
-    
+    float d1, d2, d3;
+    d1 = abs(tangentDistance(p0, p1, p2, saturate(ts.x)));
+        
     if (ts.w < 2.0) {
         return d1;
     } else {
-        t = saturate(ts.y), s = 1.0 - t;
-        x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
-        y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
-        d2 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
-        t = saturate(ts.z), s = 1.0 - t;
-        x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
-        y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
-        d3 = abs(x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
+        d2 = abs(tangentDistance(p0, p1, p2, saturate(ts.y)));
+        d3 = abs(tangentDistance(p0, p1, p2, saturate(ts.z)));
         return min(d1, min(d2, d3));
     }
 }
