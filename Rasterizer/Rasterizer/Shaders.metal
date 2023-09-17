@@ -116,12 +116,12 @@ float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
     return (x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
 }
 
-float sdBezier(float2 p0, float2 p1, float2 p2, float2 p) {
+float sdBezier(float2 p0, float2 p1, float2 p2) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
     p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
     
     // Calculate roots.
-    float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0 - p;
+    float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
     float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
     float4 ts = solveCubic(k.x, k.y, k.z);
 
@@ -722,7 +722,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float invdet = 1.0 / (a * d - b * c);
             a *= invdet, b *= invdet, c *= invdet, d *= invdet;
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-            dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2), float2(0, 0));
+            dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2));
         } else
             dist = vert.dm;
     
