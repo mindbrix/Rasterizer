@@ -109,8 +109,7 @@ float4 solveCubic(float a, float b, float c)
 }
 
 float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
-    float s, x0, y0, x1, y1, dx, dy;
-    s = 1.0 - t;
+    float s = 1.0 - t, x0, y0, x1, y1, dx, dy;
     x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
     y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
     return (x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
