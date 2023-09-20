@@ -940,7 +940,7 @@ struct Rasterizer {
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, images = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count(), images += pass->imgCount;
-            begins[i] = size, size += instances * sizeof(Edge) + images * sizeof(Image::Index) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * (sizeof(Instance) + sizeof(Segment)) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + images * sizeof(Image::Index) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -1034,7 +1034,7 @@ struct Rasterizer {
                 }
             }
             if ((size = dst - dst0))
-                end = begin + size * sizeof(Instance), ctx->entries.emplace_back(Buffer::kInstances, begin, end), begin = end = end + size * sizeof(Segment);
+                end = begin + size * sizeof(Instance), ctx->entries.emplace_back(Buffer::kInstances, begin, end), begin = end = end;
         }
     }
 };
