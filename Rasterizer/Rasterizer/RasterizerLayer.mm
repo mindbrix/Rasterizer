@@ -135,12 +135,12 @@ struct TextureCache {
     descriptor.label = @"instances";
     self.instancesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
     
-    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_transform_main"];
-    descriptor.fragmentFunction = nil;
-    descriptor.rasterizationEnabled = NO;
-    descriptor.label = @"instances transform";
-    self.instancesTransformState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
-    descriptor.rasterizationEnabled = YES;
+//    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"instances_transform_main"];
+//    descriptor.fragmentFunction = nil;
+//    descriptor.rasterizationEnabled = NO;
+//    descriptor.label = @"instances transform";
+//    self.instancesTransformState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+//    descriptor.rasterizationEnabled = YES;
     
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatR32Float;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
@@ -182,7 +182,7 @@ struct TextureCache {
 }
 
 - (void)draw {
-    BOOL odd = ++_tick & 1, isM1 = [self.device.name hasPrefix:@"Apple M1"];
+    BOOL odd = ++_tick & 1;//, isM1 = [self.device.name hasPrefix:@"Apple M1"];
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
     CGColorSpaceRef colorSpace = nil;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
@@ -318,17 +318,17 @@ struct TextureCache {
                 }
                 break;
             case Ra::Buffer::kInstances:
-                [commandEncoder endEncoding];
-                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                [commandEncoder setRenderPipelineState:_instancesTransformState];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
-                [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
-                [commandEncoder drawPrimitives:isM1 ? MTLPrimitiveTypeTriangleStrip : MTLPrimitiveTypePoint
-                                   vertexStart:0
-                                   vertexCount:isM1 ? 4 : 1
-                                  instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
-                                  baseInstance:0];
+//                [commandEncoder endEncoding];
+//                commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
+//                [commandEncoder setRenderPipelineState:_instancesTransformState];
+//                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
+//                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
+//                [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+//                [commandEncoder drawPrimitives:isM1 ? MTLPrimitiveTypeTriangleStrip : MTLPrimitiveTypePoint
+//                                   vertexStart:0
+//                                   vertexCount:isM1 ? 4 : 1
+//                                  instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
+//                                  baseInstance:0];
                 [commandEncoder endEncoding];
                 commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
                 [commandEncoder setDepthStencilState:_instancesDepthState];

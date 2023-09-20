@@ -42,6 +42,7 @@ struct Quad {
 struct Outline {
     Segment s;
     short prev, next;
+    float cx, cy;
 };
 struct Instance {
     enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
@@ -108,6 +109,12 @@ float4 solveCubic(float a, float b, float c)
     return float4(float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0);
 }
 
+float tangentDistance0(float2 p0, float2 p1, float2 p2, float t) {
+    float s = 1.0 - t;
+    float2 p = s * s * p0 + 2.0 * s * t * p1 + t * t * p2;
+    return sqrt(dot(p, p));
+}
+
 float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
     float s = 1.0 - t, x0, y0, x1, y1, dx, dy;
     x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
@@ -116,6 +123,10 @@ float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
 }
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
+//    float2 v = p2 - p0;
+//    float t = dot(v, -p0) / dot(v, v);
+//    return abs(tangentDistance(p0, p1, p2, saturate(t)));
+    
     // This is to prevent 3 colinear points, but there should be better solution to it.
     p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
     
@@ -125,13 +136,12 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float4 ts = solveCubic(k.x, k.y, k.z);
 
     float d1, d2, d3;
-    d1 = abs(tangentDistance(p0, p1, p2, saturate(ts.x)));
-        
     if (ts.w < 2.0) {
-        return d1;
+        return abs(tangentDistance(p0, p1, p2, saturate(ts.x)));
     } else {
+        d1 = abs(tangentDistance(p0, p1, p2, saturate(ts.x)));
         d2 = abs(tangentDistance(p0, p1, p2, saturate(ts.y)));
-        d3 = abs(tangentDistance(p0, p1, p2, saturate(ts.z)));
+        d3 = d2;// abs(tangentDistance(p0, p1, p2, saturate(ts.z)));
         return min(d1, min(d2, d3));
     }
 }
@@ -632,28 +642,38 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const device Instance& ninst = instances[iid + inst.outline.next];
-        const device Segment& p = instances[iid + inst.outline.prev].outline.s, & o = inst.outline.s, & n = ninst.outline.s;
-        const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next];
+        const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
+        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+     //   const device Segment& sp = segments[iid + inst.outline.prev], & so = segments[iid], & sn = segments[iid + inst.outline.next];
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
-        bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
+        bool isCurve = inst.outline.cx != FLT_MAX;
+//        bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
    
         const device float *pt;
-        pt = !pcurve && sp.x1 != FLT_MAX ? & sp.x1 : & p.x0, px = pt[0], py = pt[1];
-        pt = !ncurve && sn.x1 != FLT_MAX ? & sn.x1 : & n.x1, nx = pt[0], ny = pt[1];
-        pt = pcurve ? & so.x0 : & o.x0, x0 = pt[0], y0 = pt[1];
-        pt = ncurve ? & so.x0 : & o.x1, x1 = pt[0], y1 = pt[1];
-        cpx = so.x1, cpy = so.y1;
+        pt = 0 && pinst.outline.cx != FLT_MAX ? & pinst.outline.cx : & p.x0, px = pt[0], py = pt[1];
+        pt = 0 && ninst.outline.cx != FLT_MAX ? & ninst.outline.cx : & n.x1, nx = pt[0], ny = pt[1];
+        pt = & o.x0, x0 = pt[0], y0 = pt[1];
+        pt = & o.x1, x1 = pt[0], y1 = pt[1];
+        cpx = inst.outline.cx, cpy = inst.outline.cy;
+        
+//        pt = !pcurve && sp.x1 != FLT_MAX ? & sp.x1 : & p.x0, px = pt[0], py = pt[1];
+//        pt = !ncurve && sn.x1 != FLT_MAX ? & sn.x1 : & n.x1, nx = pt[0], ny = pt[1];
+//        pt = pcurve ? & so.x0 : & o.x0, x0 = pt[0], y0 = pt[1];
+//        pt = ncurve ? & so.x0 : & o.x1, x1 = pt[0], y1 = pt[1];
+//        cpx = so.x1, cpy = so.y1;
         
         vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-        _pno = select(no, normalize(float2(bx, by)), ncurve);
-        _nno = select(no, normalize(float2(-ax, -ay)), pcurve);
+        _pno = _nno = no;
+//        _pno = select(no, normalize(float2(bx, by)), isCurve);
+//        _nno = select(no, normalize(float2(-ax, -ay)), isCurve);
+//        _pno = select(no, normalize(float2(bx, by)), ncurve);
+//        _nno = select(no, normalize(float2(-ax, -ay)), pcurve);
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
@@ -681,8 +701,8 @@ vertex InstancesVertex instances_vertex_main(
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
-        vert.miter0 = pcurve || pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = ncurve || ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve;
     } else {
@@ -721,6 +741,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float invdet = 1.0 / (a * d - b * c);
             a *= invdet, b *= invdet, c *= invdet, d *= invdet;
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+//            float t = closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2);
+//            dist = abs(tangentDistance(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2), t));
             dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2));
         } else
             dist = vert.dm;
