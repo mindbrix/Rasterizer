@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 973 714" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:bevel;stroke-miterlimit:10;">
+    <g transform="matrix(1,0,0,-1,67,164.727)">
+        <path d="M0.309,106.32C151.004,220.254 224.309,73.848 224.309,73.848L370.145,72.418L245.227,-70.527" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:30px;"/>
+    </g>
+    <g transform="matrix(1,0,0,-1,39,390.727)">
+        <path d="M0.309,106.32C151.004,220.254 224.309,73.848 224.309,73.848L370.145,72.418L245.227,-70.527" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:30px;stroke-linecap:round;stroke-dasharray:60,60;"/>
+    </g>
+    <g transform="matrix(1,0,0,-1,15,628.727)">
+        <path d="M9.355,94.355C64.029,135.691 107.144,140.468 139.593,129.853C187.436,114.201 210.896,67.132 210.896,67.132L224.162,58.848L337.396,57.738L224.061,-71.952L246.651,-91.693L381.439,62.548L370.292,87.417L232.981,88.763C222.502,105.531 194.609,143.419 148.921,158.366C109.818,171.158 57.149,168.099 -8.738,118.285L-20.703,109.239L-2.61,85.309L9.355,94.355Z"/>
+    </g>
+    <g transform="matrix(1,0,0,-1,588,164.727)">
+        <path d="M0.309,106.32C151.004,220.254 224.309,73.848 224.309,73.848L370.145,72.418L245.227,-70.527" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:30px;stroke-linejoin:miter;stroke-dasharray:80,40;"/>
+    </g>
+    <g transform="matrix(1,0,0,-1,588,384.727)">
+        <path d="M0.309,106.32C151.004,220.254 224.309,73.848 224.309,73.848L370.145,72.418L245.227,-70.527" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:30px;stroke-linecap:round;stroke-linejoin:round;"/>
+    </g>
+    <g transform="matrix(1,0,0,-1,588,628.727)">
+        <path d="M0.309,106.32C151.004,220.254 224.309,73.848 224.309,73.848L370.145,72.418L245.227,-70.527" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:30px;stroke-linecap:square;"/>
+    </g>
+</svg>
