@@ -109,7 +109,7 @@ float4 solveCubic(float a, float b, float c)
     return float4(float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0);
 }
 
-float tangentDistance0(float2 p0, float2 p1, float2 p2, float t) {
+float pointDistance(float2 p0, float2 p1, float2 p2, float t) {
     float s = 1.0 - t;
     float2 p = s * s * p0 + 2.0 * s * t * p1 + t * t * p2;
     return sqrt(dot(p, p));
@@ -120,6 +120,21 @@ float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
     x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
     y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
     return (x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
+}
+
+float linearT(float x0, float y0, float x1, float y1) {
+    float dx = x1 - x0, dy = y1 - y0;
+    return -(dx * x0 + dy * y0) / (dx * dx + dy * dy);
+}
+
+float4 cubicT(float2 p0, float2 p1, float2 p2) {
+    // This is to prevent 3 colinear points, but there should be better solution to it.
+    p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
+    
+    // Calculate roots.
+    float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
+    float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
+    return solveCubic(k.x, k.y, k.z);
 }
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
@@ -592,6 +607,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]], clip;
     float s, t, u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
+    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags, slot;
 };
 
@@ -687,6 +703,7 @@ vertex InstancesVertex instances_vertex_main(
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
         t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
+//        dt = select(1.0, -1.0, vid & 1);  // Even is left
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0), dx0 = dx - x0, dx1 = dx - x1;
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0), dy0 = dy - y0, dy1 = dy - y1;
@@ -698,6 +715,10 @@ vertex InstancesVertex instances_vertex_main(
             vert.v = (cx * dy0 - cy * dx0) / area;
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bx * bx + by * by);
             vert.d1 = (ax * dx1 + ay * dy1) * rsqrt(ax * ax + ay * ay);
+            
+            vert.x0 = x0 - dx, vert.y0 = y0 - dy;
+            vert.x1 = cpx - dx, vert.y1 = cpy - dy;
+            vert.x2 = x1 - dx, vert.y2 = y1 - dy;
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
@@ -743,7 +764,35 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
 //            float t = closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2);
 //            dist = abs(tangentDistance(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2), t));
-            dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2));
+//            dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2));
+            
+//            dist = sdBezier(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
+            
+//            float tc = closestT(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
+//            float tl = linearT(vert.x0, vert.y0, vert.x2, vert.y2);
+//            float tcp = linearT(0.5 * (vert.x0 + vert.x2), 0.5 * (vert.y0 + vert.y2), vert.x2, vert.y2);
+            float4 ts = cubicT(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
+//            float tcub = sdBezier(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
+            
+//            float t = ts.w == 1 ? (ts.x) : min(ts.x, ts.y);
+//            dist = abs(tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t));
+            
+//            float d0 = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), ts.x);
+//            float d1 = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), ts.y);
+//            dist = ts.w == 1 ? abs(d0) : min(abs(d0), abs(d1));
+            
+            float d0 = pointDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), saturate(ts.x));
+            float d1 = pointDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), saturate(ts.y));
+//            dist = ts.w == 1 ? (d0) : min((d0), (d1));
+            
+            float t = saturate(ts.w == 1 || d0 < d1 ? ts.x : ts.y);
+            
+            dist = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t);
+            
+//            float t = ts.w == 1 ? (ts.x) : min(ts.x, ts.y);
+//            dist = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t);
+//            alpha = t;
+            
         } else
             dist = vert.dm;
     
