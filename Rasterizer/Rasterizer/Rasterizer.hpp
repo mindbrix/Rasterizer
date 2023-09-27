@@ -946,13 +946,13 @@ struct Rasterizer {
             }
         }
         void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, bx, ay, by, area, s, t, l0, l1, mtx, mty, cosine;
+            float ax, bx, ay, by, area, s, t, l0, l1, cosine;
             bx = x1 - x0, ax = x2 - x1;
             by = y1 - y0, ay = y2 - y1;
             area = fabsf(bx * ay - by * ax);
             l0 = sqrtf(bx * bx + by * by);
             l1 = sqrtf(ax * ax + ay * ay);
-            cosine = (bx * ax + by * ay) / (l0 * l1);
+            cosine = fabsf(bx * ax + by * ay) / (l0 * l1);
             
             if (!useCurves) {
                 Outline& o = dst->outline;
@@ -962,10 +962,10 @@ struct Rasterizer {
                 dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
             } else {
                 float tx0, ty0, tx1, ty1, x, y;
-                mtx = bx / l0 + ax / l1;
-                mty = by / l0 + ay / l1;
-                t = (by * mtx - bx * mty) / ((ax - bx) * mty - (ay - by) * mtx);
-                s = 1.f - t;
+//                mtx = bx / l0 + ax / l1;
+//                mty = by / l0 + ay / l1;
+//                t = (by * mtx - bx * mty) / ((ax - bx) * mty - (ay - by) * mtx);
+                t = 0.5f, s = 1.f - t;
                 tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1;
                 tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
                 x = s * tx0 + t * tx1, y = s * ty0 + t * ty1;
