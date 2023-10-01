@@ -661,34 +661,26 @@ vertex InstancesVertex instances_vertex_main(
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        float px, py, nx, ny, ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
-        float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
+        float ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
+        float2 vp, vn, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
-        bool isCurve = inst.outline.cx != FLT_MAX;
-        bool useTangents = false;
-        const device float *pt;
-        pt = useTangents && isCurve && pinst.outline.cx != FLT_MAX ? & pinst.outline.cx : & p.x0, px = pt[0], py = pt[1];
-        pt = useTangents && isCurve && ninst.outline.cx != FLT_MAX ? & ninst.outline.cx : & n.x1, nx = pt[0], ny = pt[1];
-        pt = & o.x0, x0 = pt[0], y0 = pt[1];
-        pt = & o.x1, x1 = pt[0], y1 = pt[1];
+        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
         cpx = inst.outline.cx, cpy = inst.outline.cy;
-                
-        vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
+        bool isCurve = cpx != FLT_MAX;
+        
+        vp = float2(x0 - p.x0, y0 - p.y0), vn = float2(n.x1 - x1, n.y1 - y1);
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-
-        _pno = select(no, normalize(float2(bx, by)), useTangents &&  isCurve && pinst.outline.cx != FLT_MAX);
-        _nno = select(no, normalize(float2(-ax, -ay)), useTangents && isCurve && ninst.outline.cx != FLT_MAX);
-
+        
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-        pcap |= dot(np, _pno) < -0.94;// || rp * dw > 5e0;
-        ncap |= dot(_nno, nn) < -0.94;// || rn * dw > 5e2;
-        np = pcap ? _pno : np, nn = ncap ? _nno : nn;
-        tpo = normalize(np + _pno), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(_nno + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        pcap |= dot(np, no) < -0.94;// || rp * dw > 5e0;
+        ncap |= dot(no, nn) < -0.94;// || rn * dw > 5e2;
+        np = pcap ? no : np, nn = ncap ? no : nn;
+        tpo = normalize(np + no), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(no + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
