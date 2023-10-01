@@ -648,8 +648,8 @@ vertex InstancesVertex instances_vertex_main(
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-        pcap |= dot(np, no) < -0.94;// || rp * dw > 5e0;
-        ncap |= dot(no, nn) < -0.94;// || rn * dw > 5e2;
+        pcap |= dot(np, no) < -0.94;
+        ncap |= dot(no, nn) < -0.94;
         np = pcap ? no : np, nn = ncap ? no : nn;
         tpo = normalize(np + no), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(no + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
