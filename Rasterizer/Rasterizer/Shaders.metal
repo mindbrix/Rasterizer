@@ -694,7 +694,6 @@ vertex InstancesVertex instances_vertex_main(
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
         t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
-//        dt = select(1.0, -1.0, vid & 1);  // Even is left
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0), dx0 = dx - x0, dx1 = dx - x1;
         dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0), dy0 = dy - y0, dy1 = dy - y1;
@@ -753,43 +752,19 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float invdet = 1.0 / (a * d - b * c);
             a *= invdet, b *= invdet, c *= invdet, d *= invdet;
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-//            float t = closestT(x2 + d, y2 - c, x2 - b, y2 + a, x2, y2);
-//            dist = abs(tangentDistance(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2), t));
-//            dist = sdBezier(float2(x2 + d, y2 - c), float2(x2 - b, y2 + a), float2(x2, y2));
+            float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+            float4 ts = cubicT(float2(x0, y0), float2(x1, y1), float2(x2, y2));
+            float d0 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), (ts.x));
+            float d1 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), (ts.y));
+            dist = ts.w == 1 ? d0 : min(d0, d1);
             
-//            dist = sdBezier(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
-            
-//            float tc = closestT(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-//            float tl = linearT(vert.x0, vert.y0, vert.x2, vert.y2);
-//            float tcp = linearT(0.5 * (vert.x0 + vert.x2), 0.5 * (vert.y0 + vert.y2), vert.x2, vert.y2);
-            float4 ts = cubicT(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
-//            float tcub = sdBezier(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
-            
-//            float t = ts.w == 1 ? (ts.x) : min(ts.x, ts.y);
-//            dist = abs(tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t));
-            
-//            float d0 = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), ts.x);
-//            float d1 = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), ts.y);
-//            dist = ts.w == 1 ? abs(d0) : min(abs(d0), abs(d1));
-            
-            float d0 = pointDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), (ts.x));
-            float d1 = pointDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), (ts.y));
-            dist = ts.w == 1 ? (d0) : min((d0), (d1));
-            
-//            float t = (ts.w == 1 || d0 < d1 ? ts.x : ts.y);
-//            
-//            dist = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t);
-            
-//            float t = ts.w == 1 ? (ts.x) : min(ts.x, ts.y);
-//            dist = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t);
-//            alpha = abs(t - 0.5);
-            
+//            float4 ts = cubicT(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2));
+//            float d0 = pointDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), (ts.x));
+//            float d1 = pointDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), (ts.y));
+//            dist = ts.w == 1 ? d0 : min(d0, d1);
         } else
             dist = vert.dm;
-    
-//        alpha = 1.0 - saturate(1.0 - abs(vert.dm));
-//        alpha = 1.0 - 0.75 * saturate(vert.d0);
-        
+            
         alpha = saturate(vert.dw - abs(dist));
 
         cap = vert.flags & Instance::kSquareCap ? vert.dw : 0.5;
