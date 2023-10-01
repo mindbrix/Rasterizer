@@ -666,30 +666,22 @@ vertex InstancesVertex instances_vertex_main(
         float2 vp, vn, _pno, _nno, no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
         bool isCurve = inst.outline.cx != FLT_MAX;
-//        bool isCurve = so.x1 != FLT_MAX, pcurve = isCurve && (inst.iz & Instance::kPCurve) != 0, ncurve = isCurve && (inst.iz & Instance::kNCurve) != 0;
    
         const device float *pt;
-        pt = 0 && pinst.outline.cx != FLT_MAX ? & pinst.outline.cx : & p.x0, px = pt[0], py = pt[1];
-        pt = 0 && ninst.outline.cx != FLT_MAX ? & ninst.outline.cx : & n.x1, nx = pt[0], ny = pt[1];
+        pt = isCurve && pinst.outline.cx != FLT_MAX ? & pinst.outline.cx : & p.x0, px = pt[0], py = pt[1];
+        pt = isCurve && ninst.outline.cx != FLT_MAX ? & ninst.outline.cx : & n.x1, nx = pt[0], ny = pt[1];
         pt = & o.x0, x0 = pt[0], y0 = pt[1];
         pt = & o.x1, x1 = pt[0], y1 = pt[1];
         cpx = inst.outline.cx, cpy = inst.outline.cy;
-        
-//        pt = !pcurve && sp.x1 != FLT_MAX ? & sp.x1 : & p.x0, px = pt[0], py = pt[1];
-//        pt = !ncurve && sn.x1 != FLT_MAX ? & sn.x1 : & n.x1, nx = pt[0], ny = pt[1];
-//        pt = pcurve ? & so.x0 : & o.x0, x0 = pt[0], y0 = pt[1];
-//        pt = ncurve ? & so.x0 : & o.x1, x1 = pt[0], y1 = pt[1];
-//        cpx = so.x1, cpy = so.y1;
-        
+                
         vp = float2(x0 - px, y0 - py), vn = float2(nx - x1, ny - y1);
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
-        _pno = _nno = no;
-//        _pno = select(no, normalize(float2(bx, by)), isCurve);
-//        _nno = select(no, normalize(float2(-ax, -ay)), isCurve);
-//        _pno = select(no, normalize(float2(bx, by)), ncurve);
-//        _nno = select(no, normalize(float2(-ax, -ay)), pcurve);
+//        _pno = _nno = no;
+        _pno = select(no, normalize(float2(bx, by)), isCurve && pinst.outline.cx != FLT_MAX);
+        _nno = select(no, normalize(float2(-ax, -ay)), isCurve && ninst.outline.cx != FLT_MAX);
+
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
@@ -791,13 +783,16 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             
 //            float t = ts.w == 1 ? (ts.x) : min(ts.x, ts.y);
 //            dist = tangentDistance(float2(vert.x0, vert.y0), float2(vert.x1, vert.y1), float2(vert.x2, vert.y2), t);
-//            alpha = t;
+//            alpha = abs(t - 0.5);
             
         } else
             dist = vert.dm;
     
-        alpha = saturate(vert.dw - abs(dist));
+//        alpha = 1.0 - saturate(1.0 - abs(vert.dm));
+//        alpha = 1.0 - 0.75 * saturate(vert.d0);
         
+        alpha = saturate(vert.dw - abs(dist));
+
         cap = vert.flags & Instance::kSquareCap ? vert.dw : 0.5;
         cap0 = select(
                       saturate(cap + vert.d0) * alpha,
@@ -807,12 +802,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                       saturate(cap + vert.d1) * alpha,
                       saturate(vert.dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
                       vert.flags & Instance::kRoundCap);
-        
+
         sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
         sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
 
         alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
-        
+
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
     } else if (vert.u != FLT_MAX) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
