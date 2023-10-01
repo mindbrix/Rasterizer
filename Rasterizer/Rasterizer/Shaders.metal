@@ -651,8 +651,8 @@ vertex InstancesVertex instances_vertex_main(
         pcap |= dot(np, no) < -0.94;
         ncap |= dot(no, nn) < -0.94;
         np = pcap ? no : np, nn = ncap ? no : nn;
-        tpo = normalize(np + no), rcospo = 1.0 / abs(tpo.y * no.y + tpo.x * no.x), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(no + nn), rcoson = 1.0 / abs(ton.y * no.y + ton.x * no.x), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        tpo = normalize(np + no), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(no + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
