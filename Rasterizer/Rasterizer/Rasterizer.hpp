@@ -922,24 +922,7 @@ struct Rasterizer {
                 else {
                     float cpx = 2.f * x0 - 0.5f * (out->px0 + x1), cpy = 2.f * y0 - 0.5f * (out->py0 + y1);
                     out->writeQuadratic(out->px0, out->py0, cpx, cpy, x1, y1);
-
-                    /*
-                    out->dst->iz = out->iz, o.s.x0 = out->px0, o.s.y0 = out->py0, o.s.x1 = x1, o.s.y1 = y1;
-                    o.cx = !out->useCurves ? FLT_MAX : 2.f * x0 - 0.5f * (out->px0 + x1), o.cy = !out->useCurves ? FLT_MAX : 2.f * y0 - 0.5f * (out->py0 + y1);
-                    if (out->useCurves) {
-                        float dx, dy, tx, ty, tmp, ax, bx, ay, by, t, fx, fy, l0, l1, mtx, mty, cosine;
-                        bx = o.cx - out->px0, ax = x1 - o.cx, ax -= bx;
-                        by = o.cy - out->py0, ay = y1 - o.cy, ay -= by;
-                        dx = x1 - out->px0, dy = y1 - out->py0;
-                        tx = (bx * dx + by * dy) / (dx * dx + dy * dy);
-                        tmp = dx, dx = -dy, dy = tmp;
-                        ty = (bx * dx + by * dy) / (dx * dx + dy * dy);
-                    }
-                    
-                    o.prev = -1, o.next = 1, out->dst++;
-                     */
                 }
-//                out->dst->iz = out->iz | out->flags[curve & ~kMoleculesEnd], o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.prev = -1, o.next = 1, out->dst++;
             } else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
                 first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
@@ -954,10 +937,15 @@ struct Rasterizer {
             l1 = sqrtf(ax * ax + ay * ay);
             cosine = fabsf(bx * ax + by * ay) / (l0 * l1);
             
+            float dx, dy, dot, tx, ty;
+            dx = x2 - x0, dy = y2 - y0, dot = dx * dx + dy * dy;
+            tx = (bx * dx + by * dy) / dot;
+            ty = (bx * -dy + by * dx) / dot;
+            
             if (!useCurves) {
                 Outline& o = dst->outline;
                 dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = FLT_MAX, o.cy = FLT_MAX, o.prev = -1, o.next = 1, dst++;
-            } else if (cosine > 0.99f || area < 1.f) {
+            } else if (/*fabsf(tx - 0.5f) < 0.05f ||*/ cosine > 0.99f || area < 1.f) {
                 Outline& o = dst->outline;
                 dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
             } else {
