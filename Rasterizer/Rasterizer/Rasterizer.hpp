@@ -914,60 +914,32 @@ struct Rasterizer {
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Outliner *out = (Outliner *)info;
             if ((curve & kMoleculesEnd) == 0) {
-                Outline& o = out->dst->outline;
-                if (curve == 0) {
-                    out->dst->iz = out->iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x1, o.s.y1 = y1, o.cx = FLT_MAX, o.cy = FLT_MAX, o.prev = -1, o.next = 1, out->dst++;
-                } else if (curve == 1)
+                if (curve == 0)
+                    out->writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
+                else if (curve == 1)
                     out->px0 = x0, out->py0 = y0;
                 else {
-                    float cpx = 2.f * x0 - 0.5f * (out->px0 + x1), cpy = 2.f * y0 - 0.5f * (out->py0 + y1);
-                    out->writeQuadratic(out->px0, out->py0, cpx, cpy, x1, y1);
+                    if (!out->useCurves)
+                        out->writeQuadratic(out->px0, out->py0, FLT_MAX, FLT_MAX, x1, y1);
+                    else {
+                        float cpx, cpy, tx0, ty0, tx1, ty1, x, y;
+                        cpx = 2.f * x0 - 0.5f * (out->px0 + x1), cpy = 2.f * y0 - 0.5f * (out->py0 + y1);
+                        tx0 = 0.5f * (out->px0 + cpx), ty0 = 0.5f * (out->py0 + cpy);
+                        tx1 = 0.5f * (cpx + x1), ty1 = 0.5f * (cpy + y1);
+                        x = 0.5f * (tx0 + tx1), y = 0.5f * (ty0 + ty1);
+                        
+                        out->writeQuadratic(out->px0, out->py0, tx0, ty0, x, y);
+                        out->writeQuadratic(x, y, tx1, ty1, x1, y1);
+                    }
                 }
             } else if (out->dst - out->dst0 > 0) {
                 Instance *first = out->dst0, *last = out->dst - 1;  out->dst0 = out->dst;
                 first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
-        void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, bx, ay, by, area, s, t, l0, l1, cosine, mtx, mty;
-            bx = x1 - x0, ax = x2 - x1;
-            by = y1 - y0, ay = y2 - y1;
-            area = fabsf(bx * ay - by * ax);
-            l0 = sqrtf(bx * bx + by * by);
-            l1 = sqrtf(ax * ax + ay * ay);
-            cosine = fabsf(bx * ax + by * ay) / (l0 * l1);
-            mtx = bx / l0 + ax / l1;
-            mty = by / l0 + ay / l1;
-            t = (by * mtx - bx * mty) / ((ax - bx) * mty - (ay - by) * mtx);
-            
-            float dx, dy, dot, h;
-            dx = x2 - x0, dy = y2 - y0, dot = dx * dx + dy * dy, h = fabsf(bx * -dy + by * dx) / sqrtf(dot);
-            float tx = (bx * dx + by * dy) / dot, ty = fabsf(bx * -dy + by * dx) / dot;
-            
-            if (!useCurves) {
-                Outline& o = dst->outline;
-                dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = FLT_MAX, o.cy = FLT_MAX, o.prev = -1, o.next = 1, dst++;
-            } else if (0 && h < 10.f && ty < 0.125f /* && cosine > 0.965925826289068f   fabsf(t - 0.5f) < 0.1666f   && ty < 0.1f fabsf(tx - 0.5f) < 0.05f  || area < 1.f    */) {
-                Outline& o = dst->outline;
-                dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
-            } else {
-                float tx0, ty0, tx1, ty1, x, y;
-                t = 0.5f, s = 1.f - t;
-                tx0 = s * x0 + t * x1, ty0 = s * y0 + t * y1;
-                tx1 = s * x1 + t * x2, ty1 = s * y1 + t * y2;
-                x = s * tx0 + t * tx1, y = s * ty0 + t * ty1;
-                {
-                    Outline& o = dst->outline;
-                    dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x, o.s.y1 = y, o.cx = tx0, o.cy = ty0, o.prev = -1, o.next = 1, dst++;
-                }
-                {
-                    Outline& o = dst->outline;
-                    dst->iz = iz, o.s.x0 = x, o.s.y0 = y, o.s.x1 = x2, o.s.y1 = y2, o.cx = tx1, o.cy = ty1, o.prev = -1, o.next = 1, dst++;
-                }
-                
-//                writeQuadratic(x0, y0, tx0, ty0, x, y);
-//                writeQuadratic(x, y, tx1, ty1, x2, y2);
-            }
+        inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            Outline& o = dst->outline;
+            dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
         }
         uint32_t iz;  Instance *dst0, *dst; float px0, py0;  bool useCurves = false; // uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
     };
