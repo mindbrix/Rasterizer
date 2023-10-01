@@ -929,23 +929,22 @@ struct Rasterizer {
             }
         }
         void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, bx, ay, by, area, s, t, l0, l1, cosine;
+            float ax, bx, ay, by, area, s, t;//, l0, l1, cosine;
             bx = x1 - x0, ax = x2 - x1;
             by = y1 - y0, ay = y2 - y1;
             area = fabsf(bx * ay - by * ax);
-            l0 = sqrtf(bx * bx + by * by);
-            l1 = sqrtf(ax * ax + ay * ay);
-            cosine = fabsf(bx * ax + by * ay) / (l0 * l1);
+//            l0 = sqrtf(bx * bx + by * by);
+//            l1 = sqrtf(ax * ax + ay * ay);
+//            cosine = fabsf(bx * ax + by * ay) / (l0 * l1);
             
-            float dx, dy, dot, tx, ty;
-            dx = x2 - x0, dy = y2 - y0, dot = dx * dx + dy * dy;
-            tx = (bx * dx + by * dy) / dot;
-            ty = (bx * -dy + by * dx) / dot;
+            float dx, dy, dot, h;
+            dx = x2 - x0, dy = y2 - y0, dot = dx * dx + dy * dy, h = fabsf(bx * -dy + by * dx) / sqrtf(dot);
+//            float tx = (bx * dx + by * dy) / dot, ty = (bx * -dy + by * dx) / dot;
             
             if (!useCurves) {
                 Outline& o = dst->outline;
                 dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = FLT_MAX, o.cy = FLT_MAX, o.prev = -1, o.next = 1, dst++;
-            } else if (/*fabsf(tx - 0.5f) < 0.05f ||*/ cosine > 0.99f || area < 1.f) {
+            } else if (h < 10.f /*fabsf(tx - 0.5f) < 0.05f || cosine > 0.99f || area < 1.f*/) {
                 Outline& o = dst->outline;
                 dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
             } else {
