@@ -138,10 +138,6 @@ float4 cubicT(float2 p0, float2 p1, float2 p2) {
 }
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
-//    float2 v = p2 - p0;
-//    float t = dot(v, -p0) / dot(v, v);
-//    return abs(tangentDistance(p0, p1, p2, saturate(t)));
-    
     // This is to prevent 3 colinear points, but there should be better solution to it.
     p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
     
