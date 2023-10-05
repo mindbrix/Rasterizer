@@ -637,7 +637,12 @@ vertex InstancesVertex instances_vertex_main(
         cpx = inst.outline.cx, cpy = inst.outline.cy;
         bool isCurve = cpx != FLT_MAX;
         
-        vp = float2(x0 - p.x0, y0 - p.y0), vn = float2(n.x1 - x1, n.y1 - y1);
+        bool useTangents = false, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
+        float px, py, nx, ny;
+        px = pcurve ? pinst.outline.cx : p.x0, py = pcurve ? pinst.outline.cy : p.y0, vp = float2(x0 - px, y0 - py);
+        nx = ncurve ? ninst.outline.cx : n.x1, ny = ncurve ? ninst.outline.cy : n.y1, vn = float2(nx - x1, ny - y1);
+//        vp = float2(x0 - p.x0, y0 - p.y0), vn = float2(n.x1 - x1, n.y1 - y1);
+        
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
         no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
@@ -648,8 +653,13 @@ vertex InstancesVertex instances_vertex_main(
         pcap |= dot(np, no) < -0.94;
         ncap |= dot(no, nn) < -0.94;
         np = pcap ? no : np, nn = ncap ? no : nn;
-        tpo = normalize(np + no), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(no + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        
+        float2 pno, nno;
+        pno = useTangents && isCurve ? normalize(float2(bx, by)) : no;
+        nno = useTangents && isCurve ? normalize(-float2(ax, ay)) : no;
+        
+        tpo = normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
@@ -707,25 +717,18 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     if (vert.flags & InstancesVertex::kIsShape) {
         float a, b, c, d, x2, y2, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
-            float x0, y0, x1, y1;
-            x0 = vert.x0, y0 = vert.y0, x1 = vert.x1, y1 = vert.y1, x2 = vert.x2, y2 = vert.y2;
+//            float x0, y0, x1, y1;
+//            x0 = vert.x0, y0 = vert.y0, x1 = vert.x1, y1 = vert.y1, x2 = vert.x2, y2 = vert.y2;
+            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+            float invdet = 1.0 / (a * d - b * c);
+            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+            float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             
-//            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-//            float invdet = 1.0 / (a * d - b * c);
-//            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-//            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-//            float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             float4 ts = cubicT(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             float d0 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(ts.x));
             float d1 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(ts.y));
             dist = ts.w == 1 ? d0 : min(d0, d1);
-//            alpha = ts.x;
-//
-//            alpha = ts.w == 1 || d0 < d1 ? ts.x : ts.y;
-//            alpha = ts.w != 1 && d1 > d0 ? ts.y : 0.0;
-//            alpha = 1|| ts.w == 1 ? ts.x : max(ts.x, ts.y);
-//            dist = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), alpha);
-//            dist = tangentDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(alpha));
        } else
             dist = vert.dm;
             
