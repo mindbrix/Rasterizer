@@ -603,6 +603,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]], clip;
     float s, t, u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
+    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags, slot;
 };
 
@@ -665,6 +666,8 @@ vertex InstancesVertex instances_vertex_main(
             vert.v = (cx * dy0 - cy * dx0) / area;
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bx * bx + by * by);
             vert.d1 = (ax * dx1 + ay * dy1) * rsqrt(ax * ax + ay * ay);
+            
+            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
@@ -704,15 +707,25 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     if (vert.flags & InstancesVertex::kIsShape) {
         float a, b, c, d, x2, y2, dist, sd0, sd1, cap, cap0, cap1;
         if (vert.flags & InstancesVertex::kIsCurve) {
-            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-            float invdet = 1.0 / (a * d - b * c);
-            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-            float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+            float x0, y0, x1, y1;
+            x0 = vert.x0, y0 = vert.y0, x1 = vert.x1, y1 = vert.y1, x2 = vert.x2, y2 = vert.y2;
+            
+//            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+//            float invdet = 1.0 / (a * d - b * c);
+//            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+//            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+//            float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             float4 ts = cubicT(float2(x0, y0), float2(x1, y1), float2(x2, y2));
-            float d0 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), (ts.x));
-            float d1 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), (ts.y));
+            float d0 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(ts.x));
+            float d1 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(ts.y));
             dist = ts.w == 1 ? d0 : min(d0, d1);
+//            alpha = ts.x;
+//
+//            alpha = ts.w == 1 || d0 < d1 ? ts.x : ts.y;
+//            alpha = ts.w != 1 && d1 > d0 ? ts.y : 0.0;
+//            alpha = 1|| ts.w == 1 ? ts.x : max(ts.x, ts.y);
+//            dist = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), alpha);
+//            dist = tangentDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(alpha));
        } else
             dist = vert.dm;
             
