@@ -144,17 +144,27 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     // Calculate roots.
     float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
     float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
-    float4 ts = solveCubic(k.x, k.y, k.z);
-
-    float d1, d2, d3;
-    if (ts.w < 2.0) {
-        return abs(tangentDistance(p0, p1, p2, saturate(ts.x)));
-    } else {
-        d1 = abs(tangentDistance(p0, p1, p2, saturate(ts.x)));
-        d2 = abs(tangentDistance(p0, p1, p2, saturate(ts.y)));
-        d3 = d2;// abs(tangentDistance(p0, p1, p2, saturate(ts.z)));
-        return min(d1, min(d2, d3));
+    
+    float a = k.x, b = k.y, c = k.z;
+    float p = b - a*a / 3.0, p3 = p*p*p;
+    float q = a * (2.0*a*a - 9.0*b) / 27.0 + c;
+    float d = q*q + 4.0*p3 / 27.0;
+    float offset = -a / 3.0;
+    if (d >= 0.0) {
+        float z = sqrt(d);
+        float2 x = (float2(z, -z) - q) / 2.0;
+        float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
+        float t = saturate(offset + uv.x + uv.y);
+        return pointDistance(p0, p1, p2, t);
     }
+    float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
+    float m = cos(v), n = sin(v)*1.732050808;
+    float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) + offset);
+    
+    float d0, d1;
+    d0 = pointDistance(p0, p1, p2, ts.x);
+    d1 = pointDistance(p0, p1, p2, ts.y);
+    return min(d0, d1);
 }
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
@@ -725,10 +735,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             
-            float4 ts = cubicT(float2(x0, y0), float2(x1, y1), float2(x2, y2));
-            float d0 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(ts.x));
-            float d1 = pointDistance(float2(x0, y0), float2(x1, y1), float2(x2, y2), saturate(ts.y));
-            dist = ts.w == 1 ? d0 : min(d0, d1);
+            dist = sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
        } else
             dist = vert.dm;
             
