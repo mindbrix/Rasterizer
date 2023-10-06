@@ -90,24 +90,6 @@ float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2
     return roundedDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
 }
 
-// https://www.shadertoy.com/view/4dsfRS
-
-float4 solveCubic(float a, float b, float c)
-{
-    float p = b - a*a / 3.0, p3 = p*p*p;
-    float q = a * (2.0*a*a - 9.0*b) / 27.0 + c;
-    float d = q*q + 4.0*p3 / 27.0;
-    float offset = -a / 3.0;
-    if(d >= 0.0) {
-        float z = sqrt(d);
-        float2 x = (float2(z, -z) - q) / 2.0;
-        float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
-        return float4(offset + uv.x + uv.y, 0.0, 0.0, 1.0);
-    }
-    float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
-    float m = cos(v), n = sin(v)*1.732050808;
-    return float4(float3(m + m, -n - m, n - m) * sqrt(-p / 3.0) + offset, 3.0);
-}
 
 float pointDistance(float2 p0, float2 p1, float2 p2, float t) {
     float s = 1.0 - t;
@@ -115,27 +97,7 @@ float pointDistance(float2 p0, float2 p1, float2 p2, float t) {
     return sqrt(dot(p, p));
 }
 
-float tangentDistance(float2 p0, float2 p1, float2 p2, float t) {
-    float s = 1.0 - t, x0, y0, x1, y1, dx, dy;
-    x0 = s * p0.x + t * p1.x, x1 = s * p1.x + t * p2.x, dx = x1 - x0;
-    y0 = s * p0.y + t * p1.y, y1 = s * p1.y + t * p2.y, dy = y1 - y0;
-    return (x0 * y1 - x1 * y0) * rsqrt(dx * dx + dy * dy);
-}
-
-float linearT(float x0, float y0, float x1, float y1) {
-    float dx = x1 - x0, dy = y1 - y0;
-    return -(dx * x0 + dy * y0) / (dx * dx + dy * dy);
-}
-
-float4 cubicT(float2 p0, float2 p1, float2 p2) {
-    // This is to prevent 3 colinear points, but there should be better solution to it.
-    p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
-    
-    // Calculate roots.
-    float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
-    float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
-    return solveCubic(k.x, k.y, k.z);
-}
+// https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
