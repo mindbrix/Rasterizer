@@ -63,41 +63,14 @@ float4 distances(Transform ctm, float dx, float dy) {
     d1 = ((ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c) * rlcd;
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
-float closestT(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float ax, bx, ay, by, t0, t1, t, d2, d4, d8, d, d0, d1, x, y, tx, ty;
-    ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
-    d2 = -((x0 + x2 + 2.0 * x1) * (x2 - x0) + (y0 + y2 + 2.0 * y1) * (y2 - y0));
-    t0 = select(0.5, 0.0, d2 < 0.0), t1 = select(1.0, 0.5, d2 < 0.0), t = 0.5 * (t0 + t1);
-    tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
-    d4 = -(x * tx + y * ty);
-    t0 = select(t, t0, d4 < 0.0), t1 = select(t1, t, d4 < 0.0), t = 0.5 * (t0 + t1);
-    tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
-    d8 = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
-    t0 = select(t, t0, d8 < 0.0), t1 = select(t1, t, d8 < 0.0), t = 0.5 * (t0 + t1);
-    tx = fma(2.0 * ax, t, bx), x = fma(fma(ax, t, bx), t, x0), ty = fma(2.0 * ay, t, by), y = fma(fma(ay, t, by), t, y0);
-    d = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
-    d0 = select(d8, d, d8 < 0.0), d1 = select(d, d8, d8 < 0.0), t = d0 / (d0 - d1);
-    return (1.0 - t) * t0 + t * t1;
-}
-float roundedDistance(float x0, float y0, float x1, float y1) {
-    float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
-    return x * x + y * y;
-}
-float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
-    if (x1 == FLT_MAX)
-        return roundedDistance(x0, y0, x2, y2);
-    float t = saturate(closestT(x0, y0, x1, y1, x2, y2)), s = 1.0 - t;
-    return roundedDistance(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2);
-}
 
+// https://www.shadertoy.com/view/4dsfRS
 
 float pointDistance(float2 p0, float2 p1, float2 p2, float t) {
     float s = 1.0 - t;
     float2 p = s * s * p0 + 2.0 * s * t * p1 + t * t * p2;
-    return sqrt(dot(p, p));
+    return dot(p, p);
 }
-
-// https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
@@ -128,6 +101,17 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     d1 = pointDistance(p0, p1, p2, ts.y);
     return min(d0, d1);
 }
+
+float roundedDistance(float x0, float y0, float x1, float y1) {
+    float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
+    return x * x + y * y;
+}
+float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
+    if (x1 == FLT_MAX)
+        return roundedDistance(x0, y0, x2, y2);
+    return sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
+}
+
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1, float cover) {
     float dx, dy, a0, t, b, f;
@@ -697,7 +681,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             
-            dist = sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
+            dist = sqrt(sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2)));
        } else
             dist = vert.dm;
             
