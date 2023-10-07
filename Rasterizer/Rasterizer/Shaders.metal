@@ -559,7 +559,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3 };
     float4 position [[position]], clip;
     float s, t, u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
-    float x0, y0, x1, y1, x2, y2;
+//    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags, slot;
 };
 
@@ -593,11 +593,10 @@ vertex InstancesVertex instances_vertex_main(
         cpx = inst.outline.cx, cpy = inst.outline.cy;
         bool isCurve = cpx != FLT_MAX;
         
-        bool useTangents = false, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
-        float px, py, nx, ny;
-        px = pcurve ? pinst.outline.cx : p.x0, py = pcurve ? pinst.outline.cy : p.y0, vp = float2(x0 - px, y0 - py);
-        nx = ncurve ? ninst.outline.cx : n.x1, ny = ncurve ? ninst.outline.cy : n.y1, vn = float2(nx - x1, ny - y1);
-//        vp = float2(x0 - p.x0, y0 - p.y0), vn = float2(n.x1 - x1, n.y1 - y1);
+//       float px, py, nx, ny;
+//        px = p.x0, py = p.y0, vp = float2(x0 - px, y0 - py);
+//        nx = n.x1, ny = n.y1, vn = float2(nx - x1, ny - y1);
+        vp = float2(x0 - p.x0, y0 - p.y0), vn = float2(n.x1 - x1, n.y1 - y1);
         
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
@@ -610,12 +609,12 @@ vertex InstancesVertex instances_vertex_main(
         ncap |= dot(no, nn) < -0.94;
         np = pcap ? no : np, nn = ncap ? no : nn;
         
-        float2 pno, nno;
-        pno = useTangents && isCurve ? normalize(float2(bx, by)) : no;
-        nno = useTangents && isCurve ? normalize(-float2(ax, ay)) : no;
+//        float2 pno, nno;
+//        pno = useTangents && isCurve ? normalize(float2(bx, by)) : no;
+//        nno = useTangents && isCurve ? normalize(-float2(ax, ay)) : no;
         
-        tpo = normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        tpo = normalize(np + no), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = normalize(no + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
@@ -633,7 +632,7 @@ vertex InstancesVertex instances_vertex_main(
             vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bx * bx + by * by);
             vert.d1 = (ax * dx1 + ay * dy1) * rsqrt(ax * ax + ay * ay);
             
-            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
+//            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
         
