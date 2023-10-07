@@ -199,21 +199,20 @@ struct Rasterizer {
             mc = m.c * (bounds.uy - bounds.ly) / 32767.0, md = m.d * (bounds.uy - bounds.ly) / 32767.0;
             
             uint8_t *cnt = p16cnts.base, *ecnt = cnt + p16cnts.end;
-            Geometry::Point16 *p16base = p16s.base;
+            Geometry::Point16 *p16 = p16s.base;
             size_t count = 0, i;
-            bool last = false;
+            bool last, skiplast;
             uint32_t curve0, curve1;
             do {
-                count += *cnt & 0x7;
-                last = *cnt & 0x80;
-                cnt++;
-                if (last || cnt == ecnt) {
-                    curve0 = ((p16base->x & 0x8000) >> 14) | ((p16base->y & 0x8000) >> 15);
-                    x = p16base->x & 0x7FFF, y = p16base->y & 0x7FFF;
+                count += *cnt & 0x7, last = *cnt & 0x80, skiplast = *cnt & 0x8;
+                if (++cnt == ecnt || last) {
+                    curve0 = ((p16->x & 0x8000) >> 14) | ((p16->y & 0x8000) >> 15);
+                    x = p16->x & 0x7FFF, y = p16->y & 0x7FFF;
                     x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
+                    count -= skiplast;
                     for (count++, i = 1; i < count; i++, x0 = x1, y0 = y1, curve0 = curve1) {
-                        curve1 = ((p16base[i].x & 0x8000) >> 14) | ((p16base[i].y & 0x8000) >> 15);
-                        x = p16base[i].x & 0x7FFF, y = p16base[i].y & 0x7FFF;
+                        curve1 = ((p16[i].x & 0x8000) >> 14) | ((p16[i].y & 0x8000) >> 15);
+                        x = p16[i].x & 0x7FFF, y = p16[i].y & 0x7FFF;
                         x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
                         
                         (*function)(x0, y0, x1, y1, curve0, info);
@@ -222,7 +221,7 @@ struct Rasterizer {
                     }
                     while (cnt < ecnt && *cnt == 0)
                         cnt++;
-                    count = 0, p16base = p16s.base + (cnt - p16cnts.base) * kFastSegments;
+                    count = 0, p16 = p16s.base + (cnt - p16cnts.base) * kFastSegments;
                 }
             } while (cnt < ecnt);
         }
