@@ -82,7 +82,7 @@ struct RasterizerCG {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
-                Ra::Path& path = scn.paths->base[i];
+                Ra::Path& path = scn.cache->entryAt(i)->path;
                 Ra::Transform t = scn.ctms->base[i];
                 m = state.view.concat(ctm).concat(t);
                 ip = scn.clipCache->ips.base[i];

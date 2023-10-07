@@ -64,6 +64,7 @@ struct Rasterizer {
                 ux < b.lx ? b.lx : ux > b.ux ? b.ux : ux, uy < b.ly ? b.ly : uy > b.uy ? b.uy : uy
             };
         }
+        inline bool isHuge() { return lx == -5e11f; }
         inline Transform unit(Transform t) const {
             return { t.a * (ux - lx), t.b * (ux - lx), t.c * (uy - ly), t.d * (uy - ly), lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty };
         }
@@ -191,6 +192,40 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
+        void iterateP16(Transform m, void *info, SegmentFunction function) {
+            float tx, ty, ma, mb, mc, md, x, y, x0, y0, x1, y1;
+            tx = bounds.lx * m.a + bounds.ly * m.c + m.tx, ty = bounds.lx * m.b + bounds.ly * m.d + m.ty;
+            ma = m.a * (bounds.ux - bounds.lx) / 32767.0, mb = m.b * (bounds.ux - bounds.lx) / 32767.0;
+            mc = m.c * (bounds.uy - bounds.ly) / 32767.0, md = m.d * (bounds.uy - bounds.ly) / 32767.0;
+            
+            uint8_t *cnt = p16cnts.base, *ecnt = cnt + p16cnts.end;
+            Geometry::Point16 *p16base = p16s.base;
+            size_t count = 0, i;
+            bool last = false;
+            uint32_t curve0, curve1;
+            do {
+                count += *cnt & 0x7;
+                last = *cnt & 0x80;
+                cnt++;
+                if (last || cnt == ecnt) {
+                    curve0 = ((p16base->x & 0x8000) >> 14) | ((p16base->y & 0x8000) >> 15);
+                    x = p16base->x & 0x7FFF, y = p16base->y & 0x7FFF;
+                    x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
+                    for (count++, i = 1; i < count; i++, x0 = x1, y0 = y1, curve0 = curve1) {
+                        curve1 = ((p16base[i].x & 0x8000) >> 14) | ((p16base[i].y & 0x8000) >> 15);
+                        x = p16base[i].x & 0x7FFF, y = p16base[i].y & 0x7FFF;
+                        x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
+                        
+                        (*function)(x0, y0, x1, y1, curve0, info);
+                        if (i == count - 1)
+                            (*function)(x0, y0, x1, y1, kMoleculesEnd, info);
+                    }
+                    while (cnt < ecnt && *cnt == 0)
+                        cnt++;
+                    count = 0, p16base = p16s.base + (cnt - p16cnts.base) * kFastSegments;
+                }
+            } while (cnt < ecnt);
+        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             Point16 *p = g->p16s.alloc(1);
@@ -237,7 +272,7 @@ struct Rasterizer {
         float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     struct Scene {
         Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base)), bzero(imageCache->entries.alloc(1), sizeof(*imageCache->entries.base));  }
-        struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  };
+        struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  Path path; };
         
         template<typename T>
         struct Cache {
@@ -272,14 +307,14 @@ struct Rasterizer {
                         divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                     }
-                    e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
+                    e->path = path, e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
                 if ((ie = imageCache->addEntry(image && image->isValid() ? image->hash : 0)))
                     *ie = *image;
                 path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
-                paths->dst.emplace_back(path), paths->base = & paths->dst[0], bnds->add(path->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
+                bnds->add(path->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
             }
         }
         Bounds bounds() {
@@ -290,7 +325,7 @@ struct Rasterizer {
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
-        Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;  Ref<Vector<Path>> paths;
+        Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     struct SceneList {
@@ -475,7 +510,7 @@ struct Rasterizer {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
                         if (buffer->_slots[iz])
                             buffer->_texctms[iz] = unit.invert(), allocator.allocImage(blends.end);
-                        Geometry *g = scn->paths->base[is].ptr;
+                        Geometry *g = scn->cache->entryAt(is)->path.ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
@@ -1013,7 +1048,11 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
-                    divideGeometry(list.scenes[i].paths->base[is].ptr, ctms[iz], inst->clip, inst->clip.lx == -FLT_MAX, false, true, & out, Outliner::WriteInstance), dst = out.dst;
+                    Geometry *g = list.scenes[i].cache->entryAt(is)->path.ptr;
+                    if (inst->clip.isHuge()) {
+                        g->iterateP16(ctms[iz], & out, Outliner::WriteInstance), dst = out.dst;
+                    } else
+                        divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance), dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
