@@ -205,7 +205,7 @@ struct Rasterizer {
             uint32_t curve0, curve1;
             do {
                 count += *cnt & 0x7, last = *cnt & 0x80, skiplast = *cnt & 0x8;
-                if (++cnt == ecnt || last) {
+                if (++cnt == ecnt || last || skiplast) {
                     curve0 = ((p16->x & 0x8000) >> 14) | ((p16->y & 0x8000) >> 15);
                     x = p16->x & 0x7FFF, y = p16->y & 0x7FFF;
                     x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
@@ -217,7 +217,7 @@ struct Rasterizer {
                         (*function)(x0, y0, x1, y1, curve0, info);
                         
                         if (i == count - 1)
-                            (*function)(x0, y0, x1, y1, kMoleculesEnd | (skiplast ? 0 : 1), info);
+                            (*function)(x1, y1, x0, y0, kMoleculesEnd | (skiplast ? 0 : 1), info);
                     }
                     while (cnt < ecnt && *cnt == 0)
                         cnt++;
