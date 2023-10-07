@@ -210,12 +210,12 @@ struct Rasterizer {
                     x = p16->x & 0x7FFF, y = p16->y & 0x7FFF;
                     x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
                     count -= skiplast;
-                    for (count++, i = 1; i < count; i++, x0 = x1, y0 = y1, curve0 = curve1) {
-                        curve1 = ((p16[i].x & 0x8000) >> 14) | ((p16[i].y & 0x8000) >> 15);
-                        x = p16[i].x & 0x7FFF, y = p16[i].y & 0x7FFF;
+                    for (++p16, i = 0; i < count; i++, p16++, x0 = x1, y0 = y1, curve0 = curve1) {
+                        curve1 = ((p16->x & 0x8000) >> 14) | ((p16->y & 0x8000) >> 15);
+                        x = p16->x & 0x7FFF, y = p16->y & 0x7FFF;
                         x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
-                        
                         (*function)(x0, y0, x1, y1, curve0, info);
+                        
                         if (i == count - 1)
                             (*function)(x0, y0, x1, y1, kMoleculesEnd | (skiplast ? 0 : 1), info);
                     }
