@@ -217,7 +217,7 @@ struct Rasterizer {
                         
                         (*function)(x0, y0, x1, y1, curve0, info);
                         if (i == count - 1)
-                            (*function)(x0, y0, x1, y1, kMoleculesEnd, info);
+                            (*function)(x0, y0, x1, y1, kMoleculesEnd | (skiplast ? 0 : 1), info);
                     }
                     while (cnt < ecnt && *cnt == 0)
                         cnt++;
