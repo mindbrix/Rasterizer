@@ -593,11 +593,10 @@ vertex InstancesVertex instances_vertex_main(
         cpx = inst.outline.cx, cpy = inst.outline.cy;
         bool isCurve = cpx != FLT_MAX;
         
-        bool useTangents = true, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
+        bool useTangents = true & isCurve, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
         float px, py, nx, ny;
         px = pcurve ? pinst.outline.cx : p.x0, py = pcurve ? pinst.outline.cy : p.y0, vp = float2(x0 - px, y0 - py);
         nx = ncurve ? ninst.outline.cx : n.x1, ny = ncurve ? ninst.outline.cy : n.y1, vn = float2(nx - x1, ny - y1);
-//        vp = float2(x0 - p.x0, y0 - p.y0), vn = float2(n.x1 - x1, n.y1 - y1);
         
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
@@ -611,8 +610,8 @@ vertex InstancesVertex instances_vertex_main(
         np = pcap ? no : np, nn = ncap ? no : nn;
         
         float2 pno, nno;
-        pno = useTangents && isCurve ? normalize(float2(bx, by)) : no;
-        nno = useTangents && isCurve ? normalize(-float2(ax, ay)) : no;
+        pno = pcurve ? normalize(float2(bx, by)) : no;
+        nno = ncurve ? normalize(-float2(ax, ay)) : no;
         
         tpo = normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
