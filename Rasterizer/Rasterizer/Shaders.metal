@@ -66,12 +66,6 @@ float4 distances(Transform ctm, float dx, float dy) {
 
 // https://www.shadertoy.com/view/4dsfRS
 
-float pointDistance(float2 p0, float2 p1, float2 p2, float t) {
-    float s = 1.0 - t;
-    float2 p = s * s * p0 + 2.0 * s * t * p1 + t * t * p2;
-    return dot(p, p);
-}
-
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
     p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
@@ -90,16 +84,16 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
         float2 x = (float2(z, -z) - q) / 2.0;
         float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
         float t = saturate(offset + uv.x + uv.y);
-        return pointDistance(p0, p1, p2, t);
+        float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
+        return dot(pt, pt);
     }
     float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
     float m = cos(v), n = sin(v)*1.732050808;
     float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) + offset);
     
-    float d0, d1;
-    d0 = pointDistance(p0, p1, p2, ts.x);
-    d1 = pointDistance(p0, p1, p2, ts.y);
-    return min(d0, d1);
+    float2 pt0 = fma(fma(vb, ts.x, 2.0 * va), ts.x, vd);
+    float2 pt1 = fma(fma(vb, ts.y, 2.0 * va), ts.y, vd);
+    return min(dot(pt0, pt0), dot(pt1, pt1));
 }
 
 float roundedDistance(float x0, float y0, float x1, float y1) {
