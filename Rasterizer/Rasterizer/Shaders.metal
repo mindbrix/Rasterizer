@@ -580,25 +580,24 @@ vertex InstancesVertex instances_vertex_main(
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        float ax, bx, ay, by, cx, cy, ro, rp, rn, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
-        float2 vp, vn, no, np, nn, tpo, ton;
+        float ax, bx, ay, by, cx, cy, ro, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
+        float2 no, np, nn, tpo, ton;
         float x0, y0, x1, y1, cpx, cpy;
         x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
         cpx = inst.outline.cx, cpy = inst.outline.cy;
         bool isCurve = cpx != FLT_MAX;
-        
-        bool useTangents = true & isCurve, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
-        float px, py, nx, ny;
-        px = pcurve ? pinst.outline.cx : p.x0, py = pcurve ? pinst.outline.cy : p.y0, vp = float2(x0 - px, y0 - py);
-        nx = ncurve ? ninst.outline.cx : n.x1, ny = ncurve ? ninst.outline.cy : n.y1, vn = float2(nx - x1, ny - y1);
-        
+
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
-        ro = rsqrt(cx * cx + cy * cy), rp = rsqrt(dot(vp, vp)), rn = rsqrt(dot(vn, vn));
-        no = float2(cx, cy) * ro, np = vp * rp, nn = vn * rn;
+        ro = rsqrt(cx * cx + cy * cy), no = float2(cx, cy) * ro;
         
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
+        
+        bool useTangents = true & isCurve, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
+        np = normalize({ x0 - (pcurve ? pinst.outline.cx : p.x0), y0 - (pcurve ? pinst.outline.cy : p.y0) });
+        nn = normalize({ (ncurve ? ninst.outline.cx : n.x1) - x1, (ncurve ? ninst.outline.cy : n.y1) - y1 });
+                
         pcap |= dot(np, no) < -0.94;
         ncap |= dot(no, nn) < -0.94;
         np = pcap ? no : np, nn = ncap ? no : nn;
