@@ -192,39 +192,6 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        void iterateP16(Transform m, void *info, SegmentFunction function) {
-            float tx, ty, ma, mb, mc, md, x, y, x0, y0, x1, y1;
-            tx = bounds.lx * m.a + bounds.ly * m.c + m.tx, ty = bounds.lx * m.b + bounds.ly * m.d + m.ty;
-            ma = m.a * (bounds.ux - bounds.lx) / 32767.0, mb = m.b * (bounds.ux - bounds.lx) / 32767.0;
-            mc = m.c * (bounds.uy - bounds.ly) / 32767.0, md = m.d * (bounds.uy - bounds.ly) / 32767.0;
-            
-            uint8_t *cnt = p16cnts.base, *ecnt = cnt + p16cnts.end;
-            Geometry::Point16 *p16 = p16s.base;
-            size_t count = 0, i;
-            bool last, skiplast;
-            uint32_t curve0, curve1;
-            do {
-                count += *cnt & 0x7, last = *cnt & 0x80, skiplast = *cnt & 0x8;
-                if (++cnt == ecnt || last || skiplast) {
-                    curve0 = ((p16->x & 0x8000) >> 14) | ((p16->y & 0x8000) >> 15);
-                    x = p16->x & 0x7FFF, y = p16->y & 0x7FFF;
-                    x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
-                    count -= skiplast;
-                    for (++p16, i = 0; i < count; i++, p16++, x0 = x1, y0 = y1, curve0 = curve1) {
-                        curve1 = ((p16->x & 0x8000) >> 14) | ((p16->y & 0x8000) >> 15);
-                        x = p16->x & 0x7FFF, y = p16->y & 0x7FFF;
-                        x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
-                        (*function)(x0, y0, x1, y1, curve0, info);
-                        
-                        if (i == count - 1)
-                            (*function)(x1, y1, x0, y0, kMoleculesEnd | (skiplast ? 0 : 1), info);
-                    }
-                    while (cnt < ecnt && *cnt == 0)
-                        cnt++;
-                    count = 0, p16 = p16s.base + (cnt - p16cnts.base) * kFastSegments;
-                }
-            } while (cnt < ecnt);
-        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             Point16 *p = g->p16s.alloc(1);
@@ -1054,11 +1021,8 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
-                    Geometry *g = list.scenes[i].cache->entryAt(is)->path.ptr;
-                    if (0&&inst->clip.isHuge()) {
-                        g->iterateP16(ctms[iz], & out, Outliner::WriteInstance), dst = out.dst;
-                    } else
-                        divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance), dst = out.dst;
+                    divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
+                    dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
