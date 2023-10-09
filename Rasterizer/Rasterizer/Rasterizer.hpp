@@ -923,7 +923,7 @@ struct Rasterizer {
                     if (!out->useCurves)
                         out->writeQuadratic(out->px0, out->py0, FLT_MAX, FLT_MAX, x1, y1);
                     else {
-                        float cpx, ax, bx, cpy, ay, by, dx, dy, dot, tx, ty, rla, rlb, mtx, mty, t, s, tx0, tx1, x, ty0, ty1, y;
+                        float cpx, ax, bx, cpy, ay, by, dx, dy, dot, tx, ty, t, s, tx0, tx1, x, ty0, ty1, y;
                         cpx = 2.f * x0 - 0.5f * (out->px0 + x1), ax = x1 - cpx, bx = cpx - out->px0;
                         cpy = 2.f * y0 - 0.5f * (out->py0 + y1), ay = y1 - cpy, by = cpy - out->py0;
                         dx = x1 - out->px0, dy = y1 - out->py0, dot = dx * dx + dy * dy;
@@ -933,11 +933,8 @@ struct Rasterizer {
                         if (fabsf(tx - 0.5f) < 0.333f && fabsf(ty) < 0.333f)
                             out->writeQuadratic(out->px0, out->py0, cpx, cpy, x1, y1);
                         else {
-                            rla = 1.f / sqrtf(ax * ax + ay * ay);
-                            rlb = 1.f / sqrtf(bx * bx + by * by);
-                            mtx = ax * rla + bx * rlb;
-                            mty = ay * rla + by * rlb;
-                            t = (by * mtx - bx * mty) / ((ax - bx) * mty - (ay - by) * mtx);
+                            float b = sqrtf(bx * bx + by * by), a = sqrtf(ax * ax + ay * ay);
+                            t = b / (a + b);
                             t = fabsf(t - 0.5f) > 0.4f ? 0.5f : t;
                             s = 1.0f - t;
 
