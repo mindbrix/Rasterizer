@@ -943,6 +943,58 @@ struct Rasterizer {
                 first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
+        void writeGeometry(Geometry *g, Transform m) {
+            bool closeSubpath = false;  float *p = g->points.base, *p0 = p, x0, y0, x1, y1, x2, y2, x3, y3;
+            for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
+                switch (*type) {
+                    case Geometry::kMove:
+                        dst0 = dst;
+                        if (p != p0)
+                            ;
+                        p0 = p, p += 2, type++, closeSubpath = false;
+                        break;
+                    case Geometry::kLine:
+                        x0 = p[-2], y0 = p[-1];
+                        x1 = p[0], y1 = p[1];
+                        writeSegment(x0, y0, x1, y1, m);
+                        p += 2, type++;
+                        break;
+                    case Geometry::kQuadratic:
+                        x0 = p[-2], y0 = p[-1];
+                        x1 = p[0], y1 = p[1];
+                        x2 = p[2], y2 = p[3];
+                        writeSegment(x0, y0, x1, y1, m);
+                        writeSegment(x1, y1, x2, y2, m);
+                        p += 4, type += 2;
+                        break;
+                    case Geometry::kCubic:
+                        x0 = p[-2], y0 = p[-1];
+                        x1 = p[0], y1 = p[1];
+                        x2 = p[2], y2 = p[3];
+                        x3 = p[4], y3 = p[5];
+                        writeSegment(x0, y0, x1, y1, m);
+                        writeSegment(x1, y1, x2, y2, m);
+                        writeSegment(x2, y2, x3, y3, m);
+                        p += 6, type += 3;
+                        break;
+                    case Geometry::kClose:
+                        x0 = p[-2], y0 = p[-1];
+                        x1 = p[0], y1 = p[1];
+                        writeSegment(x0, y0, x1, y1, m);
+                        p += 2, type++, closeSubpath = true;
+                        break;
+                }
+            dst0 = dst;
+            if (p != p0)
+                ;
+        }
+        inline void writeSegment(float x0, float y0, float x1, float y1, Transform m) {
+            Outline& o = dst->outline;
+            dst->iz = iz,
+            o.s.x0 = x0 * m.a + y0 * m.c + m.tx, o.s.y0 = x0 * m.b + y0 * m.d + m.ty,
+            o.s.x1 = x1 * m.a + y1 * m.c + m.tx, o.s.y1 = x1 * m.b + y1 * m.d + m.ty;
+            o.cx = FLT_MAX, o.cy = FLT_MAX, o.prev = 0, o.next = 0, dst++;
+        }
         inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             Outline& o = dst->outline;
             dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
@@ -1010,7 +1062,10 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
-                    divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
+                    if (inst->clip.isHuge()) {
+                        out.writeGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz]);
+                    } else
+                        divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
                     dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
