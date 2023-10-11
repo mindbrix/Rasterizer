@@ -484,9 +484,9 @@ struct Rasterizer {
                            if (det > 1e2f) {
                                size_t count = 0;
                                divideGeometry(g, m, inst->clip, false, false, false, & count, Outliner::CountSegment);
-                               outlineInstances += 4 * count;
+                               outlineInstances += count;
                            } else
-                               outlineInstances += 4 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                               outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
                             buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
