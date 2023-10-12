@@ -562,6 +562,52 @@ struct InstancesVertex
     uint32_t iz, flags, slot;
 };
 
+void writeAtom(Atom atom, const device Transform& m, const device float *floats, thread float *out) {
+    const device float *pts = floats + atom.i;
+    float t0, t1, t, s, xt0, yt0, xt1, yt1, xm, ym, mcx, mcy;
+    if (atom.type == 2) {
+        t0 = float(atom.t0) / float(atom.tm);
+        t1 = (float(atom.t0) + 1.0) / float(atom.tm);
+        t = t0, s = 1.0 - t;
+        xt0 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
+        yt0 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
+        t = t1, s = 1.0 - t;
+        xt1 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
+        yt1 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
+        t = 0.5 * (t0 + t1), s = 1.f - t;
+        xm = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
+        ym = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
+        mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
+        mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
+        
+        out[0] =  m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
+        out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
+        out[4] =  m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
+    } else if (atom.type == 3) {
+        t0 = float(atom.t0) / float(atom.tm);
+        t1 = (float(atom.t0) + 1.0) / float(atom.tm);
+        t = t0, s = 1.0 - t;
+        xt0 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+        yt0 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+        t = t1, s = 1.0 - t;
+        xt1 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+        yt1 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+        t = 0.5 * (t0 + t1), s = 1.f - t;
+        xm = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+        ym = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+        mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
+        mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
+        
+        out[0] =  m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
+        out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
+        out[4] =  m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
+     } else {
+         out[0] =  m.a * pts[0] + m.c * pts[1] + m.tx, out[1] = m.b * pts[0] + m.d * pts[1] + m.ty;
+         out[2] = out[3] = FLT_MAX;
+         out[4] = m.a * pts[2] + m.c * pts[3] + m.tx, out[5] = m.b * pts[2] + m.d * pts[3] + m.ty;
+         
+    }
+}
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
@@ -588,53 +634,13 @@ vertex InstancesVertex instances_vertex_main(
         bool pcap, ncap;
         
         if (inst.iz & Instance::kPCurve) {
-            float t0, t1, t, s, xt0, yt0, xt1, yt1, xm, ym, mcx, mcy;
+            const device Instance & pinst = instances[iid + inst.atom.prev], & ninst = instances[iid + inst.atom.next];
+            const device Atom& p = pinst.atom, & atom = inst.atom, & n = ninst.atom;
             const device Transform& m = ctms[inst.iz & kPathIndexMask];
-            const device float *pts = floats + inst.atom.i;
+            float points[6];
+            writeAtom(atom, m, floats, points);
+            x0 = points[0], y0 = points[1], cpx = *useCurves ? points[2] : FLT_MAX, cpy = *useCurves ? points[3] : FLT_MAX, x1 = points[4], y1 = points[5];
             
-            if (inst.atom.type == 2) {
-                t0 = float(inst.atom.t0) / float(inst.atom.tm);
-                t1 = (float(inst.atom.t0) + 1.0) / float(inst.atom.tm);
-                t = t0, s = 1.0 - t;
-                xt0 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
-                yt0 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
-                t = t1, s = 1.0 - t;
-                xt1 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
-                yt1 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
-                t = 0.5 * (t0 + t1), s = 1.f - t;
-                xm = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
-                ym = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
-                mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
-                mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
-                
-                x0 =  m.a * xt0 + m.c * yt0 + m.tx, y0 = m.b * xt0 + m.d * yt0 + m.ty;
-                x1 =  m.a * xt1 + m.c * yt1 + m.tx, y1 = m.b * xt1 + m.d * yt1 + m.ty;
-                cpx = m.a * mcx + m.c * mcy + m.tx, cpy = m.b * mcx + m.d * mcy + m.ty;
-            } else if (inst.atom.type == 3) {
-                t0 = float(inst.atom.t0) / float(inst.atom.tm);
-                t1 = (float(inst.atom.t0) + 1.0) / float(inst.atom.tm);
-                t = t0, s = 1.0 - t;
-                xt0 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
-                yt0 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
-                t = t1, s = 1.0 - t;
-                xt1 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
-                yt1 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
-                t = 0.5 * (t0 + t1), s = 1.f - t;
-                xm = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
-                ym = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
-                mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
-                mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
-                
-                x0 =  m.a * xt0 + m.c * yt0 + m.tx, y0 = m.b * xt0 + m.d * yt0 + m.ty;
-                x1 =  m.a * xt1 + m.c * yt1 + m.tx, y1 = m.b * xt1 + m.d * yt1 + m.ty;
-                cpx = m.a * mcx + m.c * mcy + m.tx, cpy = m.b * mcx + m.d * mcy + m.ty;
-             } else {
-                x0 =  m.a * pts[0] + m.c * pts[1] + m.tx, y0 = m.b * pts[0] + m.d * pts[1] + m.ty;
-                x1 = m.a * pts[2] + m.c * pts[3] + m.tx, y1 = m.b * pts[2] + m.d * pts[3] + m.ty;
-                cpx = cpy = FLT_MAX;
-            }
-            cpx = *useCurves ? cpx : FLT_MAX;
-            cpy = *useCurves ? cpy : FLT_MAX;
             px = x0, py = y0, nx = x1, ny = y1;
             pcap = ncap = true;
         } else {

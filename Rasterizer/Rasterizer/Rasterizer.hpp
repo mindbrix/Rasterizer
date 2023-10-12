@@ -963,11 +963,13 @@ struct Rasterizer {
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
-                        writeAtom(i, 2, 0, 2), writeAtom(i, 2, 1, 2);
+                        writeAtom(i, 2, 0, 1);
+//                        writeAtom(i, 2, 0, 2), writeAtom(i, 2, 1, 2);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        writeAtom(i, 3, 0, 4), writeAtom(i, 3, 1, 4), writeAtom(i, 3, 2, 4), writeAtom(i, 3, 3, 4);
+                        writeAtom(i, 3, 0, 2), writeAtom(i, 3, 1, 2);
+//                        writeAtom(i, 3, 0, 4), writeAtom(i, 3, 1, 4), writeAtom(i, 3, 2, 4), writeAtom(i, 3, 3, 4);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
