@@ -177,7 +177,7 @@ struct Rasterizer {
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
             float bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, by = 3.f * (y2 - y1), ay = y3 - y0 - by, dot = ax * ax + ay * ay;
-            if (1||dot < 1e-4f)
+            if (dot < 1e-4f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
                 float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
@@ -950,43 +950,39 @@ struct Rasterizer {
             }
         }
         void writeGeometry(Geometry *g, Transform m, size_t fbase) {
-            bool closeSubpath = false;  float *p = g->points.base, *pm0 = p, *p0 = p;  size_t i;
+            bool closed = false;  float *p = g->points.base, *p0 = p;  size_t i;
             for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; ) {
                 i = fbase + p - p0 - 2;
                 switch (*type) {
                     case Geometry::kMove:
-                        dst0 = dst;
-                        if (p != pm0)
-                            ;
-                        pm0 = p, p += 2, type++, closeSubpath = false;
+                        closeSubpath(closed), closed = false;
+                        p += 2, type++;
                         break;
                     case Geometry::kLine:
                         writeAtom(i, 1);
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
-                        if (useCurves)
-                            writeAtom(i, 2, 0, 1);//, writeAtom(i, 2, 1, 2);
-                        else
-                            writeAtom(i, 1), writeAtom(i + 2, 1);
+                        writeAtom(i, 2, 0, 2), writeAtom(i, 2, 1, 2);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        if (useCurves)
-                            writeAtom(i, 3);
-                        else
-                            writeAtom(i, 1), writeAtom(i + 2, 1), writeAtom(i + 4, 1);
+                        writeAtom(i, 3, 0, 4), writeAtom(i, 3, 1, 4), writeAtom(i, 3, 2, 4), writeAtom(i, 3, 3, 4);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
-                        writeAtom(i, 1);
-                        p += 2, type++, closeSubpath = true;
+                        writeAtom(i, 1), closed = true;
+                        p += 2, type++;
                         break;
                 }
             }
-            dst0 = dst;
-            if (p != pm0)
-                ;
+            closeSubpath(closed);
+        }
+        inline void closeSubpath(bool closed) {
+            if (dst - dst0 > 0) {
+                Instance *first = dst0, *last = dst - 1;  dst0 = dst;
+                first->atom.prev = int(closed) * int(last - first), last->atom.next = -first->atom.prev;
+            }
         }
         inline void writeAtom(size_t i, uint8_t type, uint8_t t0 = 0, uint8_t tm = 1) {
             dst->iz = iz | Instance::kPCurve;

@@ -588,14 +588,13 @@ vertex InstancesVertex instances_vertex_main(
         bool pcap, ncap;
         
         if (inst.iz & Instance::kPCurve) {
-            float t0, t1, t, s, xt0, yt0, xt1, yt1, xm, ym, mcx, mcy, ucx, ucy;
+            float t0, t1, t, s, xt0, yt0, xt1, yt1, xm, ym, mcx, mcy;
             const device Transform& m = ctms[inst.iz & kPathIndexMask];
             const device float *pts = floats + inst.atom.i;
-            x0 =  m.a * pts[0] + m.c * pts[1] + m.tx, y0 = m.b * pts[0] + m.d * pts[1] + m.ty;
             
             if (inst.atom.type == 2) {
                 t0 = float(inst.atom.t0) / float(inst.atom.tm);
-                t1 = (float(inst.atom.t0) + 1.f) / float(inst.atom.tm);
+                t1 = (float(inst.atom.t0) + 1.0) / float(inst.atom.tm);
                 t = t0, s = 1.0 - t;
                 xt0 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
                 yt0 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
@@ -612,13 +611,30 @@ vertex InstancesVertex instances_vertex_main(
                 x1 =  m.a * xt1 + m.c * yt1 + m.tx, y1 = m.b * xt1 + m.d * yt1 + m.ty;
                 cpx = m.a * mcx + m.c * mcy + m.tx, cpy = m.b * mcx + m.d * mcy + m.ty;
             } else if (inst.atom.type == 3) {
-                ucx = (3.f * (pts[2] + pts[4]) - pts[0] - pts[6]) * 0.25f, ucy = (3.f * (pts[3] + pts[5]) - pts[1] - pts[7]) * 0.25f;
-                cpx = m.a * ucx + m.c * ucy + m.tx, cpy = m.b * ucx + m.d * ucy + m.ty;
-                x1 = m.a * pts[6] + m.c * pts[7] + m.tx, y1 = m.b * pts[6] + m.d * pts[7] + m.ty;
-            } else {
+                t0 = float(inst.atom.t0) / float(inst.atom.tm);
+                t1 = (float(inst.atom.t0) + 1.0) / float(inst.atom.tm);
+                t = t0, s = 1.0 - t;
+                xt0 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+                yt0 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+                t = t1, s = 1.0 - t;
+                xt1 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+                yt1 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+                t = 0.5 * (t0 + t1), s = 1.f - t;
+                xm = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+                ym = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+                mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
+                mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
+                
+                x0 =  m.a * xt0 + m.c * yt0 + m.tx, y0 = m.b * xt0 + m.d * yt0 + m.ty;
+                x1 =  m.a * xt1 + m.c * yt1 + m.tx, y1 = m.b * xt1 + m.d * yt1 + m.ty;
+                cpx = m.a * mcx + m.c * mcy + m.tx, cpy = m.b * mcx + m.d * mcy + m.ty;
+             } else {
+                x0 =  m.a * pts[0] + m.c * pts[1] + m.tx, y0 = m.b * pts[0] + m.d * pts[1] + m.ty;
                 x1 = m.a * pts[2] + m.c * pts[3] + m.tx, y1 = m.b * pts[2] + m.d * pts[3] + m.ty;
                 cpx = cpy = FLT_MAX;
             }
+            cpx = *useCurves ? cpx : FLT_MAX;
+            cpy = *useCurves ? cpy : FLT_MAX;
             px = x0, py = y0, nx = x1, ny = y1;
             pcap = ncap = true;
         } else {
