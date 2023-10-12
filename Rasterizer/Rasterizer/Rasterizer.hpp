@@ -950,8 +950,9 @@ struct Rasterizer {
             }
         }
         void writeGeometry(Geometry *g, Transform m, size_t fbase) {
-            bool closeSubpath = false;  float *p = g->points.base, *pm0 = p, *p0 = p;
-            for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
+            bool closeSubpath = false;  float *p = g->points.base, *pm0 = p, *p0 = p;  size_t i;
+            for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; ) {
+                i = fbase + p - p0 - 2;
                 switch (*type) {
                     case Geometry::kMove:
                         dst0 = dst;
@@ -960,31 +961,32 @@ struct Rasterizer {
                         pm0 = p, p += 2, type++, closeSubpath = false;
                         break;
                     case Geometry::kLine:
-                        writeAtom(fbase + p - p0 - 2);
+                        writeAtom(i, 1);
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
-                        writeAtom(fbase + p - p0 - 2), writeAtom(fbase + p - p0 - 0);
+                        writeAtom(i, 1), writeAtom(i + 2, 1);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        writeAtom(fbase + p - p0 - 2), writeAtom(fbase + p - p0 - 0), writeAtom(fbase + p - p0 + 2);
+                        writeAtom(i, 1), writeAtom(i + 2, 1), writeAtom(i + 4, 1);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
-                        writeAtom(fbase + p - p0 - 2);
+                        writeAtom(i, 1);
                         p += 2, type++, closeSubpath = true;
                         break;
                 }
+            }
             dst0 = dst;
             if (p != pm0)
                 ;
         }
-        inline void writeAtom(size_t i) {
+        inline void writeAtom(size_t i, uint8_t type) {
             dst->iz = iz | Instance::kPCurve;
             dst->atom.i = int(i);
             dst->atom.prev = -1, dst->atom.next = 1;
-            dst->atom.type = 1, dst->atom.t0 = 0, dst->atom.tm = 1, dst++;
+            dst->atom.type = type, dst->atom.t0 = 0, dst->atom.tm = 1, dst++;
         }
         inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             Outline& o = dst->outline;
