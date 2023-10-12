@@ -44,6 +44,11 @@ struct Outline {
     short prev, next;
     float cx, cy;
 };
+struct Atom {
+    int i;
+    short prev, next;
+    uint8_t type, t0, tm;
+};
 struct Instance {
     enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
     uint32_t iz;  union { Quad quad;  Outline outline; };
@@ -560,7 +565,7 @@ struct InstancesVertex
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
-            const device Segment *segments [[buffer(20)]],
+            const device float *floats [[buffer(20)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             const device uint32_t *slots [[buffer(8)]],

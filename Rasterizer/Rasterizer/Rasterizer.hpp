@@ -352,7 +352,7 @@ struct Rasterizer {
         union { uint16_t i0;  short prev; };  union { uint16_t ux;  short next; };
     };
     struct Buffer {
-        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
+        enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase, kFloatsBase };
         struct Entry {
             Entry(Type type, size_t begin, size_t end) : type(type), begin(begin), end(end) {}
             Type type;  size_t begin, end;
@@ -487,6 +487,7 @@ struct Rasterizer {
                                outlineInstances += count;
                            } else
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                            outlineFloats += g->points.end;
                        } else if (useMolecules) {
                             buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is], size = scn->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
@@ -526,9 +527,9 @@ struct Rasterizer {
                     pass->imgCount = size;
             }
         }
-        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>();  }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
-        size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
+        void empty() { outlinePaths = outlineInstances = outlineFloats = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>();  }
+        void reset() { outlinePaths = outlineInstances = outlineFloats = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
+        size_t slz, suz, outlinePaths = 0, outlineInstances = 0, outlineFloats = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
@@ -995,7 +996,7 @@ struct Rasterizer {
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, images = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count(), images += pass->imgCount;
-            begins[i] = size, size += instances * sizeof(Edge) + images * sizeof(Image::Index) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + images * sizeof(Image::Index) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16) + ctx->outlineFloats * sizeof(float);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -1006,7 +1007,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, instbegin, passsize;
+        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, fbase, instbegin, passsize;
         if (ctx->segments.end || ctx->p16total) {
             ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, 0), end = begin + ctx->segments.end * sizeof(Segment);
             memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, ctx->entries.emplace_back(Buffer::kPointsBase, begin, 0);
@@ -1019,6 +1020,8 @@ struct Rasterizer {
                         begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                     }
         }
+        ctx->entries.emplace_back(Buffer::kFloatsBase, begin, 0), fbase = begin, end = begin + ctx->outlineFloats * sizeof(float), begin = end;
+        
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);  uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         Image::Index *indices = nullptr;
@@ -1048,7 +1051,7 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
-                    if (inst->clip.isHuge()) {
+                    if (0&&inst->clip.isHuge()) {
                         out.writeGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz]);
                     } else
                         divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
