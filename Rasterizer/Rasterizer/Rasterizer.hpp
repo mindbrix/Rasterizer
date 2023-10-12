@@ -338,10 +338,15 @@ struct Rasterizer {
     struct Outline {
         Segment s;  short prev, next;  float cx, cy;
     };
+    struct Atom {
+        int i;
+        short prev, next;
+        uint8_t type, t0, tm;
+    };
     struct Instance {
         enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
         Instance(size_t iz) : iz(uint32_t(iz)) {}
-        uint32_t iz;  union { Quad quad;  Outline outline; };
+        uint32_t iz;  union { Quad quad;  Outline outline;  Atom atom; };
     };
     struct Blend : Instance {
         Blend(size_t iz) : Instance(iz) {}
@@ -944,36 +949,46 @@ struct Rasterizer {
                 first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
-        void writeGeometry(Geometry *g, Transform m) {
-            bool closeSubpath = false;  float *p = g->points.base, *p0 = p;
+        void writeGeometry(Geometry *g, Transform m, size_t fbase) {
+            bool closeSubpath = false;  float *p = g->points.base, *pm0 = p, *p0 = p;
             for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
                 switch (*type) {
                     case Geometry::kMove:
                         dst0 = dst;
-                        if (p != p0)
+                        if (p != pm0)
                             ;
-                        p0 = p, p += 2, type++, closeSubpath = false;
+                        pm0 = p, p += 2, type++, closeSubpath = false;
                         break;
                     case Geometry::kLine:
-                        writeSegment(p - 2, m);
+                        writeAtom(fbase + p - p0 - 2);
+//                        writeSegment(p - 2, m);
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
-                        writeSegment(p - 2, m), writeSegment(p, m);
+                        writeAtom(fbase + p - p0 - 2), writeAtom(fbase + p - p0 - 0);
+//                        writeSegment(p - 2, m), writeSegment(p, m);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        writeSegment(p - 2, m), writeSegment(p, m), writeSegment(p + 2, m);
+                        writeAtom(fbase + p - p0 - 2), writeAtom(fbase + p - p0 - 0), writeAtom(fbase + p - p0 + 2);
+//                        writeSegment(p - 2, m), writeSegment(p, m), writeSegment(p + 2, m);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
-                        writeSegment(p - 2, m);
+                        writeAtom(fbase + p - p0 - 2);
+//                        writeSegment(p - 2, m);
                         p += 2, type++, closeSubpath = true;
                         break;
                 }
             dst0 = dst;
-            if (p != p0)
+            if (p != pm0)
                 ;
+        }
+        inline void writeAtom(size_t i) {
+            dst->iz = iz | Instance::kPCurve;
+            dst->atom.i = int(i);
+            dst->atom.prev = -1, dst->atom.next = 1;
+            dst->atom.type = 1, dst->atom.t0 = 0, dst->atom.tm = 1, dst++;
         }
         inline void writeSegment(float *p, Transform m) {
             Outline& o = dst->outline;
@@ -1007,7 +1022,7 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, fbase, instbegin, passsize;
+        size_t i, j, size, iz, ip, is, lz, ic, end, pbase = 0, f0, fbase, instbegin, passsize;
         if (ctx->segments.end || ctx->p16total) {
             ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, 0), end = begin + ctx->segments.end * sizeof(Segment);
             memcpy(buffer.base + begin, ctx->segments.base, end - begin), begin = end, ctx->entries.emplace_back(Buffer::kPointsBase, begin, 0);
@@ -1020,7 +1035,7 @@ struct Rasterizer {
                         begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                     }
         }
-        ctx->entries.emplace_back(Buffer::kFloatsBase, begin, 0), fbase = begin, end = begin + ctx->outlineFloats * sizeof(float), begin = end;
+        ctx->entries.emplace_back(Buffer::kFloatsBase, begin, 0), f0 = fbase = begin, end = begin + ctx->outlineFloats * sizeof(float), begin = end;
         
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);  uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
@@ -1053,9 +1068,9 @@ struct Rasterizer {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
                     if (inst->clip.isHuge()) {
                         Geometry *g = list.scenes[i].cache->entryAt(is)->path.ptr;
+                        out.writeGeometry(g, ctms[iz], fbase - f0);
                         size_t size = g->points.end * sizeof(float);
                         memcpy(buffer.base + fbase, g->points.base, size), fbase += size;
-                        out.writeGeometry(g, ctms[iz]);
                     } else
                         divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
                     dst = out.dst;
