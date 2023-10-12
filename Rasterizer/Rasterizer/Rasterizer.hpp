@@ -341,7 +341,7 @@ struct Rasterizer {
     struct Atom {
         int i;
         short prev, next;
-        uint8_t type, t0, tm;
+        uint8_t type, t0, t1;
     };
     struct Instance {
         enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
@@ -959,19 +959,18 @@ struct Rasterizer {
                         p += 2, type++;
                         break;
                     case Geometry::kLine:
-                        writeAtom(i, 1);
+                        writeAtoms(i, 1);
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
-                        writeAtom(i, 2, 0, 2), writeAtom(i, 2, 1, 2);
+                        writeAtoms(i, 2, 2);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        writeAtom(i, 3, 0, 3), writeAtom(i, 3, 1, 3), writeAtom(i, 3, 2, 3);
+                        writeAtoms(i, 3, 3);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
-//                        writeAtom(i, 1);//,
                         closed = true;
                         p += 2, type++;
                         break;
@@ -985,11 +984,16 @@ struct Rasterizer {
                 first->atom.prev = int(closed) * int(last - first), last->atom.next = -first->atom.prev;
             }
         }
-        inline void writeAtom(size_t i, uint8_t type, uint8_t t0 = 0, uint8_t tm = 1) {
-            dst->iz = iz | Instance::kPCurve;
-            dst->atom.i = int(i);
-            dst->atom.prev = -1, dst->atom.next = 1;
-            dst->atom.type = type, dst->atom.t0 = t0, dst->atom.tm = tm, dst++;
+        inline void writeAtoms(size_t i, uint8_t type, size_t count = 1) {
+            float t = 0.f, dt = 1.f / float(count);
+            while (count--) {
+                dst->iz = iz | Instance::kPCurve;
+                dst->atom.i = int(i);
+                dst->atom.prev = -1, dst->atom.next = 1;
+                dst->atom.type = type, dst->atom.t0 = t * 255.f, dst->atom.t1 = (t + dt) * 255.f;
+                t += dt,  dst++;
+            }
+            
         }
         inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             Outline& o = dst->outline;
