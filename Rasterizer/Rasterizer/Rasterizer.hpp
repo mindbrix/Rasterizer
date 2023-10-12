@@ -1051,8 +1051,11 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
-                    if (0&&inst->clip.isHuge()) {
-                        out.writeGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz]);
+                    if (inst->clip.isHuge()) {
+                        Geometry *g = list.scenes[i].cache->entryAt(is)->path.ptr;
+                        size_t size = g->points.end * sizeof(float);
+                        memcpy(buffer.base + fbase, g->points.base, size), fbase += size;
+                        out.writeGeometry(g, ctms[iz]);
                     } else
                         divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
                     dst = out.dst;
