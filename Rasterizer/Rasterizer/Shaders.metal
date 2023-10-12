@@ -598,14 +598,13 @@ void writeAtom(Atom atom, const device Transform& m, const device float *floats,
         mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
         mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
         
-        out[0] =  m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
+        out[0] = m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
         out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
-        out[4] =  m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
+        out[4] = m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
      } else {
-         out[0] =  m.a * pts[0] + m.c * pts[1] + m.tx, out[1] = m.b * pts[0] + m.d * pts[1] + m.ty;
+         out[0] = m.a * pts[0] + m.c * pts[1] + m.tx, out[1] = m.b * pts[0] + m.d * pts[1] + m.ty;
          out[2] = out[3] = FLT_MAX;
          out[4] = m.a * pts[2] + m.c * pts[3] + m.tx, out[5] = m.b * pts[2] + m.d * pts[3] + m.ty;
-         
     }
 }
 
@@ -638,11 +637,16 @@ vertex InstancesVertex instances_vertex_main(
             const device Atom& p = pinst.atom, & atom = inst.atom, & n = ninst.atom;
             const device Transform& m = ctms[inst.iz & kPathIndexMask];
             float points[6];
+            pcap = atom.prev == 0, ncap = atom.next == 0;
+            writeAtom(p, m, floats, points);
+            px = points[0], py = points[1], pcpx = *useCurves ? points[2] : FLT_MAX, pcpy = *useCurves ? points[3] : FLT_MAX;
+            
             writeAtom(atom, m, floats, points);
             x0 = points[0], y0 = points[1], cpx = *useCurves ? points[2] : FLT_MAX, cpy = *useCurves ? points[3] : FLT_MAX, x1 = points[4], y1 = points[5];
             
-            px = x0, py = y0, nx = x1, ny = y1;
-            pcap = ncap = true;
+            writeAtom(n, m, floats, points);
+            nx = points[4], ny = points[5], ncpx = *useCurves ? points[2] : FLT_MAX, ncpy = *useCurves ? points[3] : FLT_MAX;
+
         } else {
             const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
             const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;

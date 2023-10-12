@@ -950,12 +950,12 @@ struct Rasterizer {
             }
         }
         void writeGeometry(Geometry *g, Transform m, size_t fbase) {
-            bool closed = false;  float *p = g->points.base, *p0 = p;  size_t i;
+            bool closed = false;  float *p = g->points.base, *p0 = p, *subp = p;  size_t i;
             for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; ) {
                 i = fbase + p - p0 - 2;
                 switch (*type) {
                     case Geometry::kMove:
-                        closeSubpath(closed), closed = false;
+                        closeSubpath(closed), closed = false, subp = p;
                         p += 2, type++;
                         break;
                     case Geometry::kLine:
@@ -963,17 +963,16 @@ struct Rasterizer {
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
-                        writeAtom(i, 2, 0, 1);
-//                        writeAtom(i, 2, 0, 2), writeAtom(i, 2, 1, 2);
+                        writeAtom(i, 2, 0, 2), writeAtom(i, 2, 1, 2);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        writeAtom(i, 3, 0, 2), writeAtom(i, 3, 1, 2);
-//                        writeAtom(i, 3, 0, 4), writeAtom(i, 3, 1, 4), writeAtom(i, 3, 2, 4), writeAtom(i, 3, 3, 4);
+                        writeAtom(i, 3, 0, 3), writeAtom(i, 3, 1, 3), writeAtom(i, 3, 2, 3);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
-                        writeAtom(i, 1), closed = true;
+//                        writeAtom(i, 1);//,
+                        closed = true;
                         p += 2, type++;
                         break;
                 }
