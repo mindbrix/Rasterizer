@@ -318,6 +318,7 @@ struct TextureCache {
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
+                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->slots atIndex:8];

@@ -51,7 +51,7 @@ struct Atom {
 };
 struct Instance {
     enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
-    uint32_t iz;  union { Quad quad;  Outline outline; };
+    uint32_t iz;  union { Quad quad;  Outline outline;  Atom atom; };
 };
 struct Edge {
     uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a0 | a1 | ue0 | ue1) };
@@ -566,6 +566,7 @@ struct InstancesVertex
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
             const device float *floats [[buffer(20)]],
+            const device Transform *ctms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
             const device uint32_t *slots [[buffer(8)]],
@@ -582,26 +583,41 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
-        const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
-        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
-        bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        float ax, bx, ay, by, cx, cy, ro, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
-        float2 no, np, nn, tpo, ton;
-        float x0, y0, x1, y1, cpx, cpy;
-        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
-        cpx = inst.outline.cx, cpy = inst.outline.cy;
+        float x0, y0, x1, y1, cpx, cpy, px, py, nx, ny, pcpx, pcpy, ncpx, ncpy;
+        float2 no, np, nn;
+        bool pcap, ncap;
+        
+        if (inst.iz & Instance::kPCurve) {
+            const device Transform& m = ctms[inst.iz & kPathIndexMask];
+            const device float *pts = floats + inst.atom.i;
+            x0 =  m.a * pts[0] + m.c * pts[1] + m.tx, y0 = m.b * pts[0] + m.d * pts[1] + m.ty;
+            x1 = m.a * pts[2] + m.c * pts[3] + m.tx, y1 = m.b * pts[2] + m.d * pts[3] + m.ty;
+            cpx = cpy = FLT_MAX;
+            px = x0, py = y0, nx = x1, ny = y1;
+            pcap = ncap = true;
+        } else {
+            const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
+            const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+            pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
+            x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
+            cpx = inst.outline.cx, cpy = inst.outline.cy;
+            px = p.x0, py = p.y0, pcpx = pinst.outline.cx, pcpy = pinst.outline.cy;
+            nx = n.x1, ny = n.y1, ncpx = ninst.outline.cx, ncpy = ninst.outline.cy;
+        }
+        
         bool isCurve = cpx != FLT_MAX;
-
+        bool useTangents = true & isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
+        np = normalize({ x0 - (pcurve ? pcpx : px), y0 - (pcurve ? pcpy : py) });
+        nn = normalize({ (ncurve ? ncpx : nx) - x1, (ncurve ? ncpy : ny) - y1 });
+        
+        float ax, bx, ay, by, cx, cy, ro, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
+        float2 tpo, ton;
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), no = float2(cx, cy) * ro;
         
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-        
-        bool useTangents = true & isCurve, pcurve = useTangents && pinst.outline.cx != FLT_MAX, ncurve = useTangents && ninst.outline.cx != FLT_MAX;
-        np = normalize({ x0 - (pcurve ? pinst.outline.cx : p.x0), y0 - (pcurve ? pinst.outline.cy : p.y0) });
-        nn = normalize({ (ncurve ? ninst.outline.cx : n.x1) - x1, (ncurve ? ninst.outline.cy : n.y1) - y1 });
                 
         pcap |= dot(np, no) < -0.94;
         ncap |= dot(no, nn) < -0.94;

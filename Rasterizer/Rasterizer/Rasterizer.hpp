@@ -961,22 +961,18 @@ struct Rasterizer {
                         break;
                     case Geometry::kLine:
                         writeAtom(fbase + p - p0 - 2);
-//                        writeSegment(p - 2, m);
                         p += 2, type++;
                         break;
                     case Geometry::kQuadratic:
                         writeAtom(fbase + p - p0 - 2), writeAtom(fbase + p - p0 - 0);
-//                        writeSegment(p - 2, m), writeSegment(p, m);
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
                         writeAtom(fbase + p - p0 - 2), writeAtom(fbase + p - p0 - 0), writeAtom(fbase + p - p0 + 2);
-//                        writeSegment(p - 2, m), writeSegment(p, m), writeSegment(p + 2, m);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
                         writeAtom(fbase + p - p0 - 2);
-//                        writeSegment(p - 2, m);
                         p += 2, type++, closeSubpath = true;
                         break;
                 }
@@ -989,13 +985,6 @@ struct Rasterizer {
             dst->atom.i = int(i);
             dst->atom.prev = -1, dst->atom.next = 1;
             dst->atom.type = 1, dst->atom.t0 = 0, dst->atom.tm = 1, dst++;
-        }
-        inline void writeSegment(float *p, Transform m) {
-            Outline& o = dst->outline;
-            dst->iz = iz,
-            o.s.x0 = p[0] * m.a + p[1] * m.c + m.tx, o.s.y0 = p[0] * m.b + p[1] * m.d + m.ty,
-            o.s.x1 = p[2] * m.a + p[3] * m.c + m.tx, o.s.y1 = p[2] * m.b + p[3] * m.d + m.ty;
-            o.cx = FLT_MAX, o.cy = FLT_MAX, o.prev = 0, o.next = 0, dst++;
         }
         inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             Outline& o = dst->outline;
@@ -1068,7 +1057,7 @@ struct Rasterizer {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
                     if (inst->clip.isHuge()) {
                         Geometry *g = list.scenes[i].cache->entryAt(is)->path.ptr;
-                        out.writeGeometry(g, ctms[iz], fbase - f0);
+                        out.writeGeometry(g, ctms[iz], (fbase - f0) / sizeof(float));
                         size_t size = g->points.end * sizeof(float);
                         memcpy(buffer.base + fbase, g->points.base, size), fbase += size;
                     } else
