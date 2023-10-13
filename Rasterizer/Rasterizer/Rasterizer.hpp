@@ -123,10 +123,13 @@ struct Rasterizer {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         struct Point16 {  int16_t x, y;  };
         
-        void update(Type type, size_t size, float *p) {
+        void update(Type type, size_t size, float *p, uint8_t *div = nullptr) {
             counts[type]++;  uint8_t *tp = types.alloc(size);
             for (int i = 0; i < size; i++, p += 2)
                 tp[i] = type, molecules.back().extend(p[0], p[1]);
+            uint8_t *d = divs.alloc(size);
+            if (div != nullptr)
+                memcpy(d, div, size * sizeof(*div));
             bounds.extend(molecules.back());
         }
         void validate() {
@@ -180,7 +183,24 @@ struct Rasterizer {
             if (dot < 1e-4f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
-                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
+                float fx, fy, gx, gy, hx, hy, lf, lh, lg, t0, t1;
+                uint8_t div[3];
+                
+                if (1) {
+                    fx = x1 - x0, gx = x2 - x1, hx = x3 - x2;
+                    fy = y1 - y0, gy = y2 - y1, hy = y3 - y2;
+                    lf = sqrtf(fx * fx + fy * fy);
+                    lg = sqrtf(gx * gx + gy * gy);
+                    lh = sqrtf(hx * hx + hy * hy);
+                    t0 = lf / (lf + lg + lh);
+                    t1 = (lf + lg) / (lf + lg + lh);
+                    div[0] = t0 * 255.f;
+                    div[1] = t1 * 255.f;
+                }
+                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts, div);
+                
+                int cnt = ceilf(cbrtf(sqrtf(dot + 1e-12f) / (kCubicPrecision * 10.3923048454f)));
+                
                 bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
                 cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
@@ -208,7 +228,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<uint8_t> divs;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
@@ -1064,7 +1084,7 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
-                    if (inst->clip.isHuge()) {
+                    if (0 && inst->clip.isHuge()) {
                         Geometry *g = list.scenes[i].cache->entryAt(is)->path.ptr;
                         out.writeGeometry(g, ctms[iz], (fbase - f0) / sizeof(float));
                         size_t size = g->points.end * sizeof(float);
