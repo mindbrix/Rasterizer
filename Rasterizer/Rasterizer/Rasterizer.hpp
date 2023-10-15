@@ -953,7 +953,7 @@ struct Rasterizer {
                     if (cosine > 0.7071f)
                         out->writeQuadratic(out->px0, out->py0, cpx, cpy, x1, y1);
                     else {
-                        b = sqrtf(bdot), a = sqrtf(adot), t = b / (a + b), s = 1.0f - t;
+                        a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
                         tx0 = s * out->px0 + t * cpx, tx1 = s * cpx + t * x1, x = s * tx0 + t * tx1;
                         ty0 = s * out->py0 + t * cpy, ty1 = s * cpy + t * y1, y = s * ty0 + t * ty1;
                         out->writeQuadratic(out->px0, out->py0, tx0, ty0, x, y);
