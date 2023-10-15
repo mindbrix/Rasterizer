@@ -644,6 +644,7 @@ vertex InstancesVertex instances_vertex_main(
             
             writeAtom(n, m, floats, points);
             nx = points[4], ny = points[5], ncpx = *useCurves ? points[2] : FLT_MAX, ncpy = *useCurves ? points[3] : FLT_MAX;
+            pcap = ncap = true;
 
         } else {
             const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
@@ -655,7 +656,7 @@ vertex InstancesVertex instances_vertex_main(
             nx = n.x1, ny = n.y1, ncpx = ninst.outline.cx, ncpy = ninst.outline.cy;
         }
         
-        bool isCurve = cpx != FLT_MAX;
+        bool isCurve = *useCurves && cpx != FLT_MAX;
         bool useTangents = true & isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
         np = normalize({ x0 - (pcurve ? pcpx : px), y0 - (pcurve ? pcpy : py) });
         nn = normalize({ (ncurve ? ncpx : nx) - x1, (ncurve ? ncpy : ny) - y1 });

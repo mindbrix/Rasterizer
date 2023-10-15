@@ -941,7 +941,7 @@ struct Rasterizer {
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Outliner *out = (Outliner *)info;
             if ((curve & kMoleculesEnd) == 0) {
-                if (curve == 0 || !out->useCurves)
+                if (curve == 0)
                     out->writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
                 else if (curve == 1)
                     out->px0 = x0, out->py0 = y0;
