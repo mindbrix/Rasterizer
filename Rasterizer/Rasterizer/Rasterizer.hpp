@@ -946,18 +946,16 @@ struct Rasterizer {
                 else if (curve == 1)
                     out->px0 = x0, out->py0 = y0;
                 else {
-                    float cpx, ax, bx, cpy, ay, by, dx, dy, dot, tx, ty, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
+                    float cpx, ax, bx, cpy, ay, by, adot, bdot, cosine, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
                     cpx = 2.f * x0 - 0.5f * (out->px0 + x1), ax = x1 - cpx, bx = cpx - out->px0;
                     cpy = 2.f * y0 - 0.5f * (out->py0 + y1), ay = y1 - cpy, by = cpy - out->py0;
-                    dx = x1 - out->px0, dy = y1 - out->py0, dot = dx * dx + dy * dy;
-                    tx = (bx * dx + by * dy) / dot;
-                    ty = (bx * -dy + by * dx) / dot;
-                    
-                    if (fabsf(tx - 0.5f) < 0.333f && fabsf(ty) < 0.333f)
+                    adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot);
+//                    float angle = acosf(cosine) * 180.f / M_PI;
+                    if (cosine > 0.7071f)
                         out->writeQuadratic(out->px0, out->py0, cpx, cpy, x1, y1);
                     else {
-                        b = sqrtf(bx * bx + by * by), a = sqrtf(ax * ax + ay * ay);
-                        t = b / (a + b), t = fabsf(t - 0.5f) > 0.4f ? 0.5f : t, s = 1.0f - t;
+                        b = sqrtf(bdot), a = sqrtf(adot);
+                        t = b / (a + b), s = 1.0f - t;
                         tx0 = s * out->px0 + t * cpx, tx1 = s * cpx + t * x1, x = s * tx0 + t * tx1;
                         ty0 = s * out->py0 + t * cpy, ty1 = s * cpy + t * y1, y = s * ty0 + t * ty1;
                         out->writeQuadratic(out->px0, out->py0, tx0, ty0, x, y);
@@ -971,8 +969,9 @@ struct Rasterizer {
         }
         void writeGeometry(Geometry *g, Transform m, size_t fbase) {
             bool closed = false;  float *p = g->points.base, *p0 = p, *subp = p;  size_t i;
-            for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; ) {
+            for (uint8_t *type = g->types.base, *end = type + g->types.end, *div; type < end; ) {
                 i = fbase + p - p0 - 2;
+                div = g->divs.base + (type - g->types.base);
                 switch (*type) {
                     case Geometry::kMove:
                         closeSubpath(closed), closed = false, subp = p;
@@ -987,7 +986,7 @@ struct Rasterizer {
                         p += 4, type += 2;
                         break;
                     case Geometry::kCubic:
-                        writeAtoms(i, 3, 3);
+                        writeAtoms(i, 3, 3, div);
                         p += 6, type += 3;
                         break;
                     case Geometry::kClose:
@@ -1004,13 +1003,36 @@ struct Rasterizer {
                 first->atom.prev = int(closed) * int(last - first), last->atom.next = -first->atom.prev;
             }
         }
-        inline void writeAtoms(size_t i, uint8_t type, size_t count = 1) {
-            float t = 0.f, dt = 1.f / float(count);
-            while (count--) {
+        inline void writeAtoms(size_t i, uint8_t type, size_t count = 1, uint8_t *div = nullptr) {
+            float s, t = 0.f, dt = 1.f / float(count), dt0 = 0.f, dt1 = 0.f, t0, t1, a, b, c;
+            
+            a = b = c = 0.f;
+            if (div) {
+                dt0 = div[0] / 255.f, dt1 = div[1] / 255.f;
+                c = 3.f * dt0, b = 3.f * (dt1 - dt0), a = 1.f - b, b -= c;
+            }
+//            dt1 = 0.5f * (0.666f + dt1);
+            for (int j = 0; j < count; j++) {
                 dst->iz = iz | Instance::kPCurve;
                 dst->atom.i = int(i);
                 dst->atom.prev = -1, dst->atom.next = 1;
-                dst->atom.type = type, dst->atom.t0 = t * 255.f, dst->atom.t1 = (t + dt) * 255.f;
+//                dst->atom.type = type, dst->atom.t0 = t * 255.f, dst->atom.t1 = (t + dt) * 255.f;
+                dst->atom.type = type, dst->atom.t0 = j * dt * 255.f, dst->atom.t1 = ((j + 1) * dt) * 255.f;
+                if (div) {
+                    float roots[3];
+                    
+                    t = j * dt, s = 1.f - t;
+                    solveCubic(b, c, -t, a, roots);
+                    t0 = roots[0];
+//                    t0 = 3.f * s * s * t * dt0 + 3.f * s * t * t * dt1 + t * t * t;
+                    
+                    t = (j + 1) * dt, s = 1.f - t;
+                    solveCubic(b, c, -t, a, roots);
+                    t1 = roots[0];
+//                    t1 = 3.f * s * s * t * dt0 + 3.f * s * t * t * dt1 + t * t * t;
+                    
+                    dst->atom.t0 = t0 * 255.f, dst->atom.t1 = t1 * 255.f;
+                }
                 t += dt,  dst++;
             }
             
