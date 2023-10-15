@@ -1008,38 +1008,20 @@ struct Rasterizer {
             }
         }
         inline void writeAtoms(size_t i, uint8_t type, size_t count = 1, uint8_t *div = nullptr) {
-            float s, t = 0.f, dt = 1.f / float(count), dt0 = 0.f, dt1 = 0.f, t0, t1, a, b, c;
+            float s, t = 0.f, dt = 1.f / float(count), dt0 = 0.f, dt1 = 0.f, t0, t1;
             
-            a = b = c = 0.f;
             if (div) {
                 dt0 = div[0] / 255.f, dt1 = div[1] / 255.f;
-                c = 3.f * dt0, b = 3.f * (dt1 - dt0), a = 1.f - b, b -= c;
             }
-//            dt1 = 0.5f * (0.666f + dt1);
-            for (int j = 0; j < count; j++) {
+
+            for (int j = 0; j < count; j++, dst++) {
                 dst->iz = iz | Instance::kPCurve;
                 dst->atom.i = int(i);
                 dst->atom.prev = -1, dst->atom.next = 1;
-//                dst->atom.type = type, dst->atom.t0 = t * 255.f, dst->atom.t1 = (t + dt) * 255.f;
                 dst->atom.type = type, dst->atom.t0 = j * dt * 255.f, dst->atom.t1 = ((j + 1) * dt) * 255.f;
                 if (div) {
-                    float roots[3];
-                    
-                    t = j * dt, s = 1.f - t;
-                    solveCubic(b, c, -t, a, roots);
-                    t0 = roots[0];
-//                    t0 = 3.f * s * s * t * dt0 + 3.f * s * t * t * dt1 + t * t * t;
-                    
-                    t = (j + 1) * dt, s = 1.f - t;
-                    solveCubic(b, c, -t, a, roots);
-                    t1 = roots[0];
-//                    t1 = 3.f * s * s * t * dt0 + 3.f * s * t * t * dt1 + t * t * t;
-                    
-                    dst->atom.t0 = t0 * 255.f, dst->atom.t1 = t1 * 255.f;
                 }
-                t += dt,  dst++;
             }
-            
         }
         uint32_t iz;  Instance *dst0, *dst; float px0, py0;  bool useCurves = false; // uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
     };
