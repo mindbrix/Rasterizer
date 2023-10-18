@@ -183,24 +183,7 @@ struct Rasterizer {
             if (dot < 1e-4f)
                 quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
             else {
-                float fx, fy, gx, gy, hx, hy, lf, lh, lg, t0, t1;
-                uint8_t div[3];
-                
-                if (1) {
-                    fx = x1 - x0, gx = x2 - x1, hx = x3 - x2;
-                    fy = y1 - y0, gy = y2 - y1, hy = y3 - y2;
-                    lf = sqrtf(fx * fx + fy * fy);
-                    lg = sqrtf(gx * gx + gy * gy);
-                    lh = sqrtf(hx * hx + hy * hy);
-                    t0 = lf / (lf + lg + lh);
-                    t1 = (lf + lg) / (lf + lg + lh);
-                    div[0] = t0 * 255.f;
-                    div[1] = t1 * 255.f;
-                }
-                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts, div);
-                
-                int cnt = ceilf(cbrtf(sqrtf(dot + 1e-12f) / (kCubicPrecision * 10.3923048454f)));
-                
+                float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
                 bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
                 cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
             }
