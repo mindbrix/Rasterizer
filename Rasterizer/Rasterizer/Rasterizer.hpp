@@ -805,8 +805,8 @@ struct Rasterizer {
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
-                    idxr->indexQuadratic(idxr->px0, idxr->py0, 0.25f * (idxr->px0 - x1) + x0, 0.25f * (idxr->py0 - y1) + y0, x0, y0), idxr->is++;
-                    idxr->indexQuadratic(x0, y0, 0.25f * (x1 - idxr->px0) + x0, 0.25f * (y1 - idxr->py0) + y0, x1, y1), idxr->is++;
+                    float cpx = 2.f * x0 - 0.5f * (idxr->px0 + x1), cpy = 2.f * y0 - 0.5f * (idxr->py0 + y1);
+                    idxr->indexQuadratic(idxr->px0, idxr->py0, cpx, cpy, x1, y1), idxr->is += 2;
                 }
             }
         }

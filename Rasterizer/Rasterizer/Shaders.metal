@@ -489,14 +489,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         float x0, y0, x1, y1, x2, y2;
         if (idxes[i] != 0xFFFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
-            x0 = dst[0] = s.x0, y0 = dst[1] = s.y0, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
-            bool pcurve = *useCurves && as_type<uint>(x0) & 2, ncurve = *useCurves && as_type<uint>(x0) & 1;
-            if (pcurve) {
-                const device Segment& p = segments[inst.quad.base + idxes[i] - 1];
-                x1 = x0 + 0.25 * (x2 - p.x0), y1 = y0 + 0.25 * (y2 - p.y0);
-            } else if (ncurve) {
+            bool pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
+            x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
+            if (ncurve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
-                x1 = x2 + 0.25 * (x0 - n.x1), y1 = y2 + 0.25 * (y0 - n.y1);
+                x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
+                x1 = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = 2.f * s.y1 - 0.5f * (y0 + y2);
+            } else {
+                x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
             }
             if (!pcurve && !ncurve)
                 dst[2] = FLT_MAX;
