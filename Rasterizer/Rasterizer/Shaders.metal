@@ -484,19 +484,15 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         float x0, y0, x1, y1, x2, y2;
         if (idxes[i] != 0xFFFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
-            bool pcurve = *useCurves && as_type<uint>(s.x0) & 2, ncurve = *useCurves && as_type<uint>(s.x0) & 1;
             x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
+            bool ncurve = *useCurves && as_type<uint>(x0) & 1;
             if (ncurve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
                 x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
-                x1 = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = 2.f * s.y1 - 0.5f * (y0 + y2);
+                x1 = dst[2] = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = dst[3] = 2.f * s.y1 - 0.5f * (y0 + y2);
             } else {
-                x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+                dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
             }
-            if (!pcurve && !ncurve)
-                dst[2] = FLT_MAX;
-            else
-                dst[2] = x1, dst[3] = y1;
             sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
             if (dst[2] == FLT_MAX) {
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
