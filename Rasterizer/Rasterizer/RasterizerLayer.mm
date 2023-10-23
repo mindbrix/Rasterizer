@@ -238,7 +238,7 @@ struct TextureCache {
     uint32_t reverse, pathsCount = uint32_t(buffer->pathsCount);
     float width = drawable.texture.width, height = drawable.texture.height;
     
-    for (size_t segbase = 0, ptsbase = 0, instbase = 0, fbase = 0, i = 0; i < buffer->entries.end; i++) {
+    for (size_t segbase = 0, ptsbase = 0, instbase = 0, i = 0; i < buffer->entries.end; i++) {
         Ra::Buffer::Entry& entry = buffer->entries.base[i];
         switch (entry.type) {
             case Ra::Buffer::kSegmentsBase:
@@ -249,9 +249,6 @@ struct TextureCache {
                 break;
             case Ra::Buffer::kInstancesBase:
                 instbase = entry.begin;
-                break;
-            case Ra::Buffer::kFloatsBase:
-                fbase = entry.begin;
                 break;
             case Ra::Buffer::kOpaques:
                 [commandEncoder setDepthStencilState:_opaquesDepthState];
@@ -317,13 +314,11 @@ struct TextureCache {
                 [commandEncoder setDepthStencilState:_instancesDepthState];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:entry.end atIndex:20];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->slots atIndex:8];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texctms atIndex:9];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:fbase atIndex:20];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];

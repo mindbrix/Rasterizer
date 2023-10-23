@@ -44,14 +44,9 @@ struct Outline {
     short prev, next;
     float cx, cy;
 };
-struct Atom {
-    int i;
-    short prev, next;
-    uint8_t type, t0, t1;
-};
 struct Instance {
     enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
-    uint32_t iz;  union { Quad quad;  Outline outline;  Atom atom; };
+    uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
     uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a0 | a1 | ue0 | ue1) };
@@ -562,53 +557,53 @@ struct InstancesVertex
     uint32_t iz, flags, slot;
 };
 
-void writeAtom(Atom atom, const device Transform& m, const device float *floats, thread float *out) {
-    const device float *pts = floats + atom.i;
-    float t0, t1, t, s, xt0, yt0, xt1, yt1, xm, ym, mcx, mcy;
-    if (atom.type == 2) {
-        t0 = float(atom.t0) / 255.0, t1 = float(atom.t1) / 255.0;
-        t = t0, s = 1.0 - t;
-        xt0 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
-        yt0 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
-        t = t1, s = 1.0 - t;
-        xt1 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
-        yt1 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
-        t = 0.5 * (t0 + t1), s = 1.f - t;
-        xm = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
-        ym = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
-        mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
-        mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
-        
-        out[0] =  m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
-        out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
-        out[4] =  m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
-    } else if (atom.type == 3) {
-        t0 = float(atom.t0) / 255.0, t1 = float(atom.t1) / 255.0;
-        t = t0, s = 1.0 - t;
-        xt0 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
-        yt0 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
-        t = t1, s = 1.0 - t;
-        xt1 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
-        yt1 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
-        t = 0.5 * (t0 + t1), s = 1.f - t;
-        xm = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
-        ym = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
-        mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
-        mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
-        
-        out[0] = m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
-        out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
-        out[4] = m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
-     } else {
-         out[0] = m.a * pts[0] + m.c * pts[1] + m.tx, out[1] = m.b * pts[0] + m.d * pts[1] + m.ty;
-         out[2] = out[3] = FLT_MAX;
-         out[4] = m.a * pts[2] + m.c * pts[3] + m.tx, out[5] = m.b * pts[2] + m.d * pts[3] + m.ty;
-    }
-}
+//void writeAtom(Atom atom, const device Transform& m, const device float *floats, thread float *out) {
+//    const device float *pts = floats + atom.i;
+//    float t0, t1, t, s, xt0, yt0, xt1, yt1, xm, ym, mcx, mcy;
+//    if (atom.type == 2) {
+//        t0 = float(atom.t0) / 255.0, t1 = float(atom.t1) / 255.0;
+//        t = t0, s = 1.0 - t;
+//        xt0 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
+//        yt0 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
+//        t = t1, s = 1.0 - t;
+//        xt1 = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
+//        yt1 = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
+//        t = 0.5 * (t0 + t1), s = 1.f - t;
+//        xm = s * s * pts[0] + 2.0 * s * t * pts[2] + t * t * pts[4];
+//        ym = s * s * pts[1] + 2.0 * s * t * pts[3] + t * t * pts[5];
+//        mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
+//        mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
+//        
+//        out[0] =  m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
+//        out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
+//        out[4] =  m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
+//    } else if (atom.type == 3) {
+//        t0 = float(atom.t0) / 255.0, t1 = float(atom.t1) / 255.0;
+//        t = t0, s = 1.0 - t;
+//        xt0 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+//        yt0 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+//        t = t1, s = 1.0 - t;
+//        xt1 = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+//        yt1 = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+//        t = 0.5 * (t0 + t1), s = 1.f - t;
+//        xm = s * s * (s * pts[0] + 3.0 * t * pts[2]) + t * t * (3.0 * s * pts[4] + t * pts[6]);
+//        ym = s * s * (s * pts[1] + 3.0 * t * pts[3]) + t * t * (3.0 * s * pts[5] + t * pts[7]);
+//        mcx = 2.0 * xm - 0.5 * (xt0 + xt1);
+//        mcy = 2.0 * ym - 0.5 * (yt0 + yt1);
+//        
+//        out[0] = m.a * xt0 + m.c * yt0 + m.tx, out[1] = m.b * xt0 + m.d * yt0 + m.ty;
+//        out[2] = m.a * mcx + m.c * mcy + m.tx, out[3] = m.b * mcx + m.d * mcy + m.ty;
+//        out[4] = m.a * xt1 + m.c * yt1 + m.tx, out[5] = m.b * xt1 + m.d * yt1 + m.ty;
+//     } else {
+//         out[0] = m.a * pts[0] + m.c * pts[1] + m.tx, out[1] = m.b * pts[0] + m.d * pts[1] + m.ty;
+//         out[2] = out[3] = FLT_MAX;
+//         out[4] = m.a * pts[2] + m.c * pts[3] + m.tx, out[5] = m.b * pts[2] + m.d * pts[3] + m.ty;
+//    }
+//}
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
-            const device float *floats [[buffer(20)]],
+//            const device float *floats [[buffer(20)]],
             const device Transform *ctms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
@@ -630,23 +625,23 @@ vertex InstancesVertex instances_vertex_main(
         float2 no, np, nn;
         bool pcap, ncap;
         
-        if (inst.iz & Instance::kPCurve) {
-            const device Instance & pinst = instances[iid + inst.atom.prev], & ninst = instances[iid + inst.atom.next];
-            const device Atom& p = pinst.atom, & atom = inst.atom, & n = ninst.atom;
-            const device Transform& m = ctms[inst.iz & kPathIndexMask];
-            float points[6];
-            pcap = atom.prev == 0, ncap = atom.next == 0;
-            writeAtom(p, m, floats, points);
-            px = points[0], py = points[1], pcpx = *useCurves ? points[2] : FLT_MAX, pcpy = *useCurves ? points[3] : FLT_MAX;
-            
-            writeAtom(atom, m, floats, points);
-            x0 = points[0], y0 = points[1], cpx = *useCurves ? points[2] : FLT_MAX, cpy = *useCurves ? points[3] : FLT_MAX, x1 = points[4], y1 = points[5];
-            
-            writeAtom(n, m, floats, points);
-            nx = points[4], ny = points[5], ncpx = *useCurves ? points[2] : FLT_MAX, ncpy = *useCurves ? points[3] : FLT_MAX;
-            pcap = ncap = true;
-
-        } else {
+//        if (inst.iz & Instance::kPCurve) {
+//            const device Instance & pinst = instances[iid + inst.atom.prev], & ninst = instances[iid + inst.atom.next];
+//            const device Atom& p = pinst.atom, & atom = inst.atom, & n = ninst.atom;
+//            const device Transform& m = ctms[inst.iz & kPathIndexMask];
+//            float points[6];
+//            pcap = atom.prev == 0, ncap = atom.next == 0;
+//            writeAtom(p, m, floats, points);
+//            px = points[0], py = points[1], pcpx = *useCurves ? points[2] : FLT_MAX, pcpy = *useCurves ? points[3] : FLT_MAX;
+//
+//            writeAtom(atom, m, floats, points);
+//            x0 = points[0], y0 = points[1], cpx = *useCurves ? points[2] : FLT_MAX, cpy = *useCurves ? points[3] : FLT_MAX, x1 = points[4], y1 = points[5];
+//
+//            writeAtom(n, m, floats, points);
+//            nx = points[4], ny = points[5], ncpx = *useCurves ? points[2] : FLT_MAX, ncpy = *useCurves ? points[3] : FLT_MAX;
+//            pcap = ncap = true;
+//
+//        } else {
             const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
             const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
             pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
@@ -654,7 +649,7 @@ vertex InstancesVertex instances_vertex_main(
             cpx = inst.outline.cx, cpy = inst.outline.cy;
             px = p.x0, py = p.y0, pcpx = pinst.outline.cx, pcpy = pinst.outline.cy;
             nx = n.x1, ny = n.y1, ncpx = ninst.outline.cx, ncpy = ninst.outline.cy;
-        }
+//        }
         
         bool isCurve = *useCurves && cpx != FLT_MAX;
         bool useTangents = true & isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
