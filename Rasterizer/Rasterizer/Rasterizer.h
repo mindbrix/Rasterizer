@@ -26,5 +26,4 @@
 #define kPageSize 4096
 #define kMiterLimit 1.5
 #define kUXCoverSize 4
-#define kP16MiterLimit 0.25   //   1/4
 #define kTextureSlotsSize 64
