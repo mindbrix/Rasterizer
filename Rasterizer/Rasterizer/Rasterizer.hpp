@@ -946,7 +946,7 @@ struct Rasterizer {
             Outline& o = dst->outline;
             dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
         }
-        uint32_t iz;  Instance *dst0, *dst; float px0, py0;  bool useCurves = false; // uint32_t flags[3] = { 0, Instance::kNCurve, Instance::kPCurve };
+        uint32_t iz;  Instance *dst0, *dst; float px0, py0;
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances, images;
@@ -1009,7 +1009,7 @@ struct Rasterizer {
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 if (inst->iz & Instance::kOutlines) {
-                    out.iz = inst->iz, out.dst = out.dst0 = dst, out.useCurves = buffer.useCurves;
+                    out.iz = inst->iz, out.dst = out.dst0 = dst;
                     divideGeometry(list.scenes[i].cache->entryAt(is)->path.ptr, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
                     dst = out.dst;
                 } else {
