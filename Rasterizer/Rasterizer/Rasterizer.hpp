@@ -123,13 +123,10 @@ struct Rasterizer {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
         struct Point16 {  int16_t x, y;  };
         
-        void update(Type type, size_t size, float *p, uint8_t *div = nullptr) {
+        void update(Type type, size_t size, float *p) {
             counts[type]++;  uint8_t *tp = types.alloc(size);
             for (int i = 0; i < size; i++, p += 2)
                 tp[i] = type, molecules.back().extend(p[0], p[1]);
-            uint8_t *d = divs.alloc(size);
-            if (div != nullptr)
-                memcpy(d, div, size * sizeof(*div));
             bounds.extend(molecules.back());
         }
         void validate() {
@@ -211,7 +208,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<uint8_t> divs;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
