@@ -752,18 +752,6 @@ struct Rasterizer {
             }
         }
     }
-    static float cubicTurnAngle(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
-        float cx, bx, ax, cy, by, ay, adot, bdot, cdot, cbdot, badot, cos0, cos1, a0, a1;
-        ax = x3 - x2, ay = y3 - y2, adot = ax * ax + ay * ay;
-        bx = x2 - x1, by = y2 - y1, bdot = bx * bx + by * by;
-        cx = x1 - x0, cy = y1 - y0, cdot = cx * cx + cy * cy;
-        cbdot = cx * bx + cy * by, badot = bx * ax + by * ay;
-        cos0 = cbdot / sqrtf(cdot * bdot), cos1 = badot / sqrtf(bdot * adot);
-        a0 = cdot > 1e-3f && bdot > 1e-3f ? acosf(fminf(fmaxf(cos0, -1.f), 1.f)) : 0.f;
-        a1 = bdot > 1e-3f && adot > 1e-3f ? acosf(fminf(fmaxf(cos1, -1.f), 1.f)) : 0.f;
-        assert(!isnan(a0) && !isnan(a1));
-        return (fabsf(a0) + fabsf(a1)) * 180.f / M_PI;
-    }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float prec) {
         constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
         float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
@@ -773,15 +761,7 @@ struct Rasterizer {
         if (prec > 0.f && adot + bdot < 1.f)
             (*function)(x0, y0, x3, y3, 0, info);
         else {
-            float angle, acount, dcount;
-            {
-                angle = cubicTurnAngle(x0, y0, x1, y1, x2, y2, x3, y3);
-                acount = ceilf(angle / 33.f);
-                dcount = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(prec) * multiplier)));
-                count = dcount > acount ? dcount : acount;
-                count = dcount;
-            }
-            count = 2.f * count, dt = 1.f / count, dt2 = dt * dt;
+            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(prec) * multiplier))), dt = 1.f / count, dt2 = dt * dt;
             x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
             y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
             while (--count) {
