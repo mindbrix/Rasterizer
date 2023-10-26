@@ -579,10 +579,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
-        float a, b, c, d, x2, y2, dist, sd0, sd1, cap, cap0, cap1;
+        float a, b, c, d, x2, y2, sqdist, sd0, sd1, cap, cap0, cap1;
+        cap = vert.flags & Instance::kSquareCap ? vert.dw : 0.5;
+        
         if (vert.flags & InstancesVertex::kIsCurve) {
-//            float w = 1.0 - vert.u - vert.v, u = 0.5 * vert.v + w, f = u * u - w;
-            
 //            float x0, y0, x1, y1;
 //            x0 = vert.x0, y0 = vert.y0, x1 = vert.x1, y1 = vert.y1, x2 = vert.x2, y2 = vert.y2;
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
@@ -591,28 +591,26 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             
-            dist = sqrt(sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2)));
+            sqdist = sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             
-//            alpha = -f / fwidth(f);
-//            alpha = 0.25 + 0.25 * saturate(alpha);
-//            alpha = 1.0 - abs( -f / fwidth(f));
-       } else
-            dist = vert.dm;
+            float bx = x1 - x0, by = y1 - y0, ax = x2 - x1, ay = y2 - y1;
+            float edge0 = saturate(vert.dw - abs(-x0 * -by + -y0 * bx) * rsqrt(bx * bx + by * by));
+            float edge1 = saturate(vert.dw - abs(-x2 * -ay + -y2 * ax) * rsqrt(ax * ax + ay * ay));
+            cap0 = saturate(cap + vert.d0) * edge0;
+            cap1 = saturate(cap + vert.d1) * edge1;
+        } else {
+            float dx = vert.d0 - clamp(vert.d0, 0.0, vert.d0 + vert.d1);
+            sqdist = dx * dx + vert.dm * vert.dm;
             
-        alpha = saturate(vert.dw - abs(dist));
+            float edge = saturate(vert.dw - abs(vert.dm));
+            cap0 = saturate(cap + vert.d0) * edge;
+            cap1 = saturate(cap + vert.d1) * edge;
+        }
+            
+        alpha = saturate(vert.dw - sqrt(sqdist));
 
-        cap = vert.flags & Instance::kSquareCap ? vert.dw : 0.5;
-        cap0 = select(
-                      saturate(cap + vert.d0) * alpha,
-                      saturate(vert.dw - sqrt(vert.d0 * vert.d0 + dist * dist)),
-                      vert.flags & Instance::kRoundCap);
-        cap1 = select(
-                      saturate(cap + vert.d1) * alpha,
-                      saturate(vert.dw - sqrt(vert.d1 * vert.d1 + dist * dist)),
-                      vert.flags & Instance::kRoundCap);
-
-        sd0 = vert.flags & InstancesVertex::kPCap ? saturate(vert.d0) : 1.0;
-        sd1 = vert.flags & InstancesVertex::kNCap ? saturate(vert.d1) : 1.0;
+        sd0 = vert.flags & InstancesVertex::kPCap && !(vert.flags & Instance::kRoundCap) ? saturate(vert.d0) : 1.0;
+        sd1 = vert.flags & InstancesVertex::kNCap && !(vert.flags & Instance::kRoundCap) ? saturate(vert.d1) : 1.0;
 
         alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
 
