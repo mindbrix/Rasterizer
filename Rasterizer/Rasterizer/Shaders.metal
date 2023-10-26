@@ -464,7 +464,7 @@ struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
     float4 position [[position]], clip;
-    float s, t, u, v, cover, dw, d0, d1, dm, miter0, miter1, alpha;
+    float s, t, u, v, cover, dw, d0, d1, dm0, dm1, miter0, miter1, alpha;
 //    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags, slot;
 };
@@ -536,15 +536,18 @@ vertex InstancesVertex instances_vertex_main(
         
         vert.dw = dw;
         if (isCurve) {
-            float area = cx * by - cy * bx;
+            float area = cx * by - cy * bx, rlb = rsqrt(bx * bx + by * by), rla = rsqrt(ax * ax + ay * ay);
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
-            vert.d0 = (bx * dx0 + by * dy0) * rsqrt(bx * bx + by * by);
-            vert.d1 = (ax * dx1 + ay * dy1) * rsqrt(ax * ax + ay * ay);
+            vert.d0 = (bx * dx0 + by * dy0) * rlb;
+            vert.dm0 = (-by * dx0 + bx * dy0) * rlb;
+            
+            vert.d1 = (ax * dx1 + ay * dy1) * rla;
+            vert.dm1 = (-ay * dx1 + ax * dy1) * rla;
             
 //            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
         } else
-            vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm = -no.y * dx0 + no.x * dy0;
+            vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm0 = -no.y * dx0 + no.x * dy0;
         
         vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
@@ -580,7 +583,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
-        float a, b, c, d, x2, y2, sqdist, sd0, sd1, cap, cap0, cap1;
+        float a, b, c, d, x2, y2, sqdist, edge0, edge1, sd0, sd1, cap, cap0, cap1;
         bool isCurve = vert.flags & InstancesVertex::kIsCurve;
         bool squareCap = vert.flags & Instance::kSquareCap, roundCap = vert.flags & Instance::kRoundCap;
         bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
@@ -596,25 +599,20 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             a *= invdet, b *= invdet, c *= invdet, d *= invdet;
             x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
             float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-            
             sqdist = sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
             
-            float bx = x1 - x0, by = y1 - y0, ax = x2 - x1, ay = y2 - y1;
-            float edge0 = saturate(vert.dw - abs(-x0 * -by + -y0 * bx) * rsqrt(bx * bx + by * by));
-            float edge1 = saturate(vert.dw - abs(-x2 * -ay + -y2 * ax) * rsqrt(ax * ax + ay * ay));
-            cap0 = (pcap ? saturate(cap + vert.d0) : 1.0) * edge0;
-            cap1 = (ncap ? saturate(cap + vert.d1) : 1.0) * edge1;
+            edge0 = vert.dm0, edge1 = vert.dm1;
         } else {
             float dx = vert.d0 - clamp(vert.d0, 0.0, vert.d0 + vert.d1);
-            sqdist = dx * dx + vert.dm * vert.dm;
+            sqdist = dx * dx + vert.dm0 * vert.dm0;
             
-            float edge = saturate(vert.dw - abs(vert.dm));
-            cap0 = (pcap ? saturate(cap + vert.d0) : 1.0) * edge;
-            cap1 = (ncap ? saturate(cap + vert.d1) : 1.0) * edge;
+            edge0 = edge1 = vert.dm0;
         }
             
         alpha = saturate(vert.dw - sqrt(sqdist));
-
+        cap0 = (pcap ? saturate(cap + vert.d0) : 1.0) * saturate(vert.dw - abs(edge0));
+        cap1 = (ncap ? saturate(cap + vert.d1) : 1.0) * saturate(vert.dw - abs(edge1));
+        
         bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         sd0 = f0 ? saturate(vert.d0) : 1.0;
