@@ -615,8 +615,10 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             
         alpha = saturate(vert.dw - sqrt(sqdist));
 
-        sd0 = (pcap && !roundCap) || (!pcap && (!isCurve || !pcurve)) ? saturate(vert.d0) : 1.0;
-        sd1 = (ncap && !roundCap) || (!ncap && (!isCurve || !ncurve)) ? saturate(vert.d1) : 1.0;
+        bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
+        bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
+        sd0 = f0 ? saturate(vert.d0) : 1.0;
+        sd1 = f1 ? saturate(vert.d1) : 1.0;
 
         alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
 
