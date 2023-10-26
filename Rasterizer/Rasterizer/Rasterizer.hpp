@@ -920,12 +920,12 @@ struct Rasterizer {
                 else if (curve == 1)
                     out->px0 = x0, out->py0 = y0;
                 else {
-                    float cpx, ax, bx, cpy, ay, by, adot, bdot, cosine, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
+                    float cpx, ax, bx, cpy, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
                     cpx = 2.f * x0 - 0.5f * (out->px0 + x1), ax = x1 - cpx, bx = cpx - out->px0;
                     cpy = 2.f * y0 - 0.5f * (out->py0 + y1), ay = y1 - cpy, by = cpy - out->py0;
-                    adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f);
+                    adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
                     if (cosine > 0.7071f)
-                        out->writeQuadratic(out->px0, out->py0, cpx, cpy, x1, y1);
+                        out->writeQuadratic(out->px0, out->py0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : cpx, cpy, x1, y1);
                     else {
                         a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
                         tx0 = s * out->px0 + t * cpx, tx1 = s * cpx + t * x1, x = s * tx0 + t * tx1;
