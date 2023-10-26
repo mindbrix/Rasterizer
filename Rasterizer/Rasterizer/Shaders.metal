@@ -500,8 +500,9 @@ vertex InstancesVertex instances_vertex_main(
         px = p.x0, py = p.y0, pcpx = pinst.outline.cx, pcpy = pinst.outline.cy;
         nx = n.x1, ny = n.y1, ncpx = ninst.outline.cx, ncpy = ninst.outline.cy;
 
+        bool greedy = true;
         bool isCurve = *useCurves && cpx != FLT_MAX;
-        bool useTangents = true & isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
+        bool useTangents = greedy ? *useCurves : isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
         np = normalize({ x0 - (pcurve ? pcpx : px), y0 - (pcurve ? pcpy : py) });
         nn = normalize({ (ncurve ? ncpx : nx) - x1, (ncurve ? ncpy : ny) - y1 });
         
@@ -519,8 +520,8 @@ vertex InstancesVertex instances_vertex_main(
         np = pcap ? no : np, nn = ncap ? no : nn;
         
         float2 pno, nno;
-        pno = pcurve ? normalize(float2(bx, by)) : no;
-        nno = ncurve ? normalize(-float2(ax, ay)) : no;
+        pno = (greedy ? isCurve : pcurve) ? normalize(float2(bx, by)) : no;
+        nno = (greedy ? isCurve : ncurve) ? normalize(-float2(ax, ay)) : no;
         
         tpo = normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
         ton = normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
@@ -580,13 +581,14 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
         float a, b, c, d, x2, y2, sqdist, sd0, sd1, cap, cap0, cap1;
+        bool isCurve = vert.flags & InstancesVertex::kIsCurve;
         bool squareCap = vert.flags & Instance::kSquareCap, roundCap = vert.flags & Instance::kRoundCap;
         bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
         bool pcurve = vert.flags & InstancesVertex::kPCurve, ncurve = vert.flags & InstancesVertex::kNCurve;
         
         cap = squareCap ? vert.dw : 0.5;
         
-        if (vert.flags & InstancesVertex::kIsCurve) {
+        if (isCurve) {
 //            float x0, y0, x1, y1;
 //            x0 = vert.x0, y0 = vert.y0, x1 = vert.x1, y1 = vert.y1, x2 = vert.x2, y2 = vert.y2;
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
@@ -613,8 +615,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             
         alpha = saturate(vert.dw - sqrt(sqdist));
 
-        sd0 = (pcap && !roundCap) || (!pcap && !pcurve) ? saturate(vert.d0) : 1.0;
-        sd1 = (ncap && !roundCap) || (!ncap && !ncurve) ? saturate(vert.d1) : 1.0;
+        sd0 = (pcap && !roundCap) || (!pcap && (!isCurve || !pcurve)) ? saturate(vert.d0) : 1.0;
+        sd1 = (ncap && !roundCap) || (!ncap && (!isCurve || !ncurve)) ? saturate(vert.d1) : 1.0;
 
         alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
 
