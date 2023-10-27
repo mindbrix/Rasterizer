@@ -1057,19 +1057,24 @@ struct Rasterizer {
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
                             dst[-1].quad.biid = int(molecule - (inst->iz & Instance::kFastEdges ? fastMolecule0 : quadMolecule0));
                             
-//                            uint16_t *ends = entry->path->q16ends.base;
-//                            for (j = 0, size = entry->size / (2 * kFastSegments); j < size; j++, update = entry->hasMolecules && *ends == j) {
-//                                if (update)
-//                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4, ends++;
-//                                molecule->ic = uint32_t(ic), molecule->ux = ux, molecule++;
-//                            }
-                            
                             for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
                             }
                             *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
+                            
+                            if (0) {
+                                Path &p = entry->path;
+                                uint16_t *ends = p->q16ends.base;
+                                molx = entry->mols + (ctm.a > 0.f ? 2 : 0), moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
+                                ux = entry->hasMolecules ? ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx) : inst->quad.cell.ux;
+                                for (j = 0, size = p->q16s.end / (2 * kFastSegments); j < size; j++) {
+                                    if (entry->hasMolecules && *ends == j)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4, ends++;
+    //                                molecule->ic = uint32_t(ic), molecule->ux = ux, molecule++;
+                                }
+                            }
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
