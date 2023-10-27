@@ -26,7 +26,7 @@ struct Colorant {
 };
 
 struct Point16 {
-    int16_t x, y;
+    uint16_t x, y;
 };
 struct Segment {
     float x0, y0, x1, y1;

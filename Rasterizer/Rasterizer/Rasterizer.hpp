@@ -121,7 +121,7 @@ struct Rasterizer {
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        struct Point16 {  int16_t x, y;  };
+        struct Point16 {  uint16_t x, y;  };
         
         void update(Type type, size_t size, float *p) {
             counts[type]++;  uint8_t *tp = types.alloc(size);
@@ -192,6 +192,30 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
+        
+        static void WriteQuad16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 65535.f / (b.ux - b.lx), sy = 65535.f / (b.uy - b.ly);
+            if ((curve & kMoleculesEnd) == 0) {
+                if (curve == 0) {
+                    Point16 *p = g->q16s.alloc(2);
+                    p[0].x = p[1].x = uint16_t((x0 - b.lx) * sx), p[0].y = p[1].y = uint16_t((y0 - b.ly) * sy);
+                } else if (curve == 1)
+                    g->x0 = x0, g->y0 = y0;
+                else {
+                    Point16 *p = g->q16s.alloc(2);
+                    float cpx = 2.f * x0 - 0.5f * (g->x0 + x1), cpy = 2.f * y0 - 0.5f * (g->y0 + y1);
+                    p[0].x = uint16_t((x0 - b.lx) * sx), p[0].y = uint16_t((y0 - b.ly) * sy);
+                    p[1].x = uint16_t((cpx - b.lx) * sx), p[1].y = uint16_t((cpy - b.ly) * sy);
+                }
+            } else {
+                size_t cnt = 2 * kFastSegments - g->q16s.end % (2 * kFastSegments);
+                Point16 *p = g->q16s.alloc(cnt);
+                uint16_t ux = (x1 - b.lx) * sx, uy = (y1 - b.ly) * sy;
+                while (cnt--)
+                    p->x = ux, p->y = uy, p++;
+                *(g->q16ends.alloc(1)) = g->q16s.end / (2 * kFastSegments);
+            }
+        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 32767.f / (b.ux - b.lx), sy = 32767.f / (b.uy - b.ly);
             Point16 *p = g->p16s.alloc(1);
@@ -209,7 +233,7 @@ struct Rasterizer {
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
-        Row<Point16> p16s;  Row<uint8_t> p16cnts;
+        Row<Point16> p16s, q16s;  Row<uint16_t> q16ends;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
     
@@ -272,6 +296,8 @@ struct Rasterizer {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                         divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
+                        
+                        divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                     }
                     e->path = path, e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
