@@ -294,10 +294,12 @@ struct Rasterizer {
                 if ((e = cache->addEntry(path->hash()))) {
                     if (path->p16s.end == 0) {
                         float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
-                        divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
-                        uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
-                        
-                        divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        if (kUseQuad16s) {
+                            divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        } else {
+                            divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                            uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
+                        }
                     }
                     e->path = path, e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
@@ -515,7 +517,7 @@ struct Rasterizer {
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
                            buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is];
-                           if (0)
+                           if (kUseQuad16s)
                                size = scn->cache->entries.base[ip].path->q16s.end, cnt = size / (2 * kFastSegments);
                            else
                                size = scn->cache->entries.base[ip].size, cnt = size / kFastSegments;
@@ -1002,7 +1004,7 @@ struct Rasterizer {
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
                     if (ctx->fasts.base[lz + ip]) {
-                        if (0) {
+                        if (kUseQuad16s) {
                             Path &p = entries->base[ip].path;
                             end = begin + p->q16s.end * sizeof(Geometry::Point16);
                             memcpy(buffer.base + begin, p->q16s.base, end - begin);
@@ -1064,7 +1066,7 @@ struct Rasterizer {
                             Edge *molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
                             dst[-1].quad.biid = int(molecule - (inst->iz & Instance::kFastEdges ? fastMolecule0 : quadMolecule0));
                             
-                            if (0) {
+                            if (kUseQuad16s) {
                                 Path &p = entry->path;
                                 uint16_t *ends = p->q16ends.base;
                                 molx = entry->mols + (ctm.a > 0.f ? 2 : 0), moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
