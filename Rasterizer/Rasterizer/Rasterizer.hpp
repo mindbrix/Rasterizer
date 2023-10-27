@@ -1008,7 +1008,7 @@ struct Rasterizer {
                             Path &p = entries->base[ip].path;
                             end = begin + p->q16s.end * sizeof(Geometry::Point16);
                             memcpy(buffer.base + begin, p->q16s.base, end - begin);
-                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
+                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += p->q16s.end;
                         } else {
                             end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
                             memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);

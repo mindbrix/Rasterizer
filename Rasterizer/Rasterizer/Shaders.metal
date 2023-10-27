@@ -212,25 +212,45 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    bool skip = false;
-    segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
     float tx, ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
-    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
-    mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
-    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-    *dst++ = slx = sux = x16 * ma + y16 * mc + tx,
-    *dst++ = sly = suy = x16 * mb + y16 * md + ty;
-    for (i = 0; i < kFastSegments; i++, dst += 2) {
-        skip |= i >= segcount;
-        
+    bool skip = false;
+    
+    if (kUseQuad16s) {
+        float x0, y0, x1, y1;
+        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * 2 * kFastSegments];
+        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+        ma = m.a * (b.ux - b.lx) / 65535.0, mb = m.b * (b.ux - b.lx) / 65535.0;
+        mc = m.c * (b.uy - b.ly) / 65535.0, md = m.d * (b.uy - b.ly) / 65535.0;
+        x16 = pts->x, y16 = pts->y, pts += 2;
+        *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
+        *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
+        for (i = 0; i < kFastSegments; i++, x0 = x1, y0 = y1) {
+            x16 = pts->x, y16 = pts->y, pts += 2;
+            x1 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x1, slx = min(slx, x1), sux = max(sux, x1);
+            y1 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y1, sly = min(sly, y1), suy = max(suy, y1);
+            
+            skip |= (x0 == x1 && y0 == y1);
+        }
+    } else {
+        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
+        segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
+        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+        ma = m.a * (b.ux - b.lx) / 32767.0, mb = m.b * (b.ux - b.lx) / 32767.0;
+        mc = m.c * (b.uy - b.ly) / 32767.0, md = m.d * (b.uy - b.ly) / 32767.0;
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-        dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
-        dst[1] = select(x16 * mb + y16 * md + ty, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+        *dst++ = slx = sux = x16 * ma + y16 * mc + tx,
+        *dst++ = sly = suy = x16 * mb + y16 * md + ty;
+        for (i = 0; i < kFastSegments; i++, dst += 2) {
+            skip |= i >= segcount;
+            
+            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+            dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
+            dst[1] = select(x16 * mb + y16 * md + ty, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+        }
     }
+    
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
