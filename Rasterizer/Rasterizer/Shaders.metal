@@ -215,7 +215,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, sx, sy, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
-    bool skip = false;
+    bool skip = false, end;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     if (kUseQuad16s)
         sx = sy = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
@@ -225,17 +225,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     mc = m.c * sy, md = m.d * sy;
     
     if (kUseQuad16s) {
-        float x0, y0, x1, y1;
+        float x, y;
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-        x16 = pts->x, y16 = pts->y, pts += 2;
-        *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
-        *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
-        for (i = 0; i < kFastSegments; i++, x0 = x1, y0 = y1) {
-            x16 = pts->x, y16 = pts->y, pts += 2;
-            x1 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x1, slx = min(slx, x1), sux = max(sux, x1);
-            y1 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y1, sly = min(sly, y1), suy = max(suy, y1);
-            
-            skip |= (x0 == x1 && y0 == y1);
+        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+        *dst++ = slx = sux = x = x16 * ma + y16 * mc + tx,
+        *dst++ = sly = suy = y = x16 * mb + y16 * md + ty;
+        for (i = 0; i < kFastSegments; i++, skip |= end) {
+            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+            x = skip ? x : x16 * ma + y16 * mc + tx, *dst++ = x, slx = min(slx, x), sux = max(sux, x);
+            y = skip ? y : x16 * mb + y16 * md + ty, *dst++ = y, sly = min(sly, y), suy = max(suy, y);
         }
     } else {
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];

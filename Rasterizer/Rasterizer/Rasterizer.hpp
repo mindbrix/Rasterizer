@@ -195,7 +195,6 @@ struct Rasterizer {
         
         static void WriteQuad16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
-            assert(x0 >= 0.f && x0 <= kMoleculesRange);
             if ((curve & kMoleculesEnd) == 0) {
                 if (curve == 0) {
                     Point16 *p = g->q16s.alloc(2);
@@ -209,11 +208,11 @@ struct Rasterizer {
                     p[1].x = uint16_t(cpx), p[1].y = uint16_t(cpy);
                 }
             } else {
-                size_t end = (g->q16s.end + 3 + kQuadPoints - 1) / kQuadPoints * kQuadPoints;
+                size_t end = (g->q16s.end + 1 + kQuadPoints - 1) / kQuadPoints * kQuadPoints;
                 size_t cnt = end - g->q16s.end;
 
                 Point16 *p = g->q16s.alloc(cnt), *p0 = g->q16s.base + g->q16s.idx;
-                uint16_t ux = x0, uy = y0;
+                uint16_t ux = uint16_t(x0) | 0x8000, uy = y0;
 //                assert(ux == p0->x && uy == p0->y);
 //                ux = p0->x, uy == p0->y;
                 while (cnt--)
