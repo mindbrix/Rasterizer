@@ -1077,11 +1077,11 @@ struct Rasterizer {
                             if (kUseQuad16s) {
                                 Path &p = entry->path;
                                 uint16_t *ends = p->q16ends.base;
-                                molx = entry->mols + (ctm.a > 0.f ? 2 : 0), moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
-                                ux = 0 && entry->hasMolecules ? ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx) : inst->quad.cell.ux;
+                                ux = entry->hasMolecules ? ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx) : ux;
+                                molx += 4, moly += 4;
                                 for (j = 0, size = p->q16s.end / kQuadPoints; j < size; j++) {
-//                                    if (entry->hasMolecules && *ends == j)
-//                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4, ends++;
+                                    if (entry->hasMolecules && *ends == j)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4, ends++;
                                     molecule->ic = uint32_t(ic), molecule->ux = ux, molecule++;
                                 }
                             } else {
