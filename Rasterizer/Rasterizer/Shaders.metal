@@ -214,11 +214,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    float tx, ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
+    float tx, ty, sx, sy, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
     bool skip = false;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-    ma = m.a * (b.ux - b.lx) / kMoleculesRange, mb = m.b * (b.ux - b.lx) / kMoleculesRange;
-    mc = m.c * (b.uy - b.ly) / kMoleculesRange, md = m.d * (b.uy - b.ly) / kMoleculesRange;
+    if (kUseQuad16s)
+        sx = sy = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
+    else
+        sx = (b.ux - b.lx) / kMoleculesRange, sy = (b.uy - b.ly) / kMoleculesRange;
+    ma = m.a * sx, mb = m.b * sx;
+    mc = m.c * sy, md = m.d * sy;
     
     if (kUseQuad16s) {
         float x0, y0, x1, y1;

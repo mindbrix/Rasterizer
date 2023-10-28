@@ -194,25 +194,26 @@ struct Rasterizer {
         }
         
         static void WriteQuad16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = kMoleculesRange / (b.ux - b.lx), sy = kMoleculesRange / (b.uy - b.ly);
+            Geometry *g = (Geometry *)info; 
+            assert(x0 >= 0.f && x0 <= kMoleculesRange);
             if ((curve & kMoleculesEnd) == 0) {
                 if (curve == 0) {
                     Point16 *p = g->q16s.alloc(2);
-                    p[0].x = p[1].x = uint16_t((x0 - b.lx) * sx), p[0].y = p[1].y = uint16_t((y0 - b.ly) * sy);
+                    p[0].x = p[1].x = uint16_t(x0), p[0].y = p[1].y = uint16_t(y0);
                 } else if (curve == 1)
                     g->x0 = x0, g->y0 = y0;
                 else {
                     Point16 *p = g->q16s.alloc(2);
                     float cpx = 2.f * x0 - 0.5f * (g->x0 + x1), cpy = 2.f * y0 - 0.5f * (g->y0 + y1);
-                    p[0].x = uint16_t((x0 - b.lx) * sx), p[0].y = uint16_t((y0 - b.ly) * sy);
-                    p[1].x = uint16_t((cpx - b.lx) * sx), p[1].y = uint16_t((cpy - b.ly) * sy);
+                    p[0].x = uint16_t(x0), p[0].y = uint16_t(y0);
+                    p[1].x = uint16_t(cpx), p[1].y = uint16_t(cpy);
                 }
             } else {
                 size_t end = (g->q16s.end + 3 + kQuadPoints - 1) / kQuadPoints * kQuadPoints;
                 size_t cnt = end - g->q16s.end;
 
                 Point16 *p = g->q16s.alloc(cnt), *p0 = g->q16s.base + g->q16s.idx;
-                uint16_t ux = (x0 - b.lx) * sx, uy = (y0 - b.ly) * sy;
+                uint16_t ux = x0, uy = y0;
 //                assert(ux == p0->x && uy == p0->y);
 //                ux = p0->x, uy == p0->y;
                 while (cnt--)
@@ -299,7 +300,10 @@ struct Rasterizer {
                 if ((e = cache->addEntry(path->hash()))) {
                     float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
                     if (kUseQuad16s && path->q16s.end == 0) {
-                        divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim;
+                        Transform m1 = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
+                        Transform m = Transform();
+                        divideGeometry(path.ptr, m1, Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (kMoleculesHeight / kMoleculesRange));
                     } else if (path->p16s.end == 0) {
                         divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
