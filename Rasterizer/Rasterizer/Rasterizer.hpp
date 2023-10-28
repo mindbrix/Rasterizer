@@ -194,7 +194,7 @@ struct Rasterizer {
         }
         
         static void WriteQuad16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info; 
+            Geometry *g = (Geometry *)info;
             assert(x0 >= 0.f && x0 <= kMoleculesRange);
             if ((curve & kMoleculesEnd) == 0) {
                 if (curve == 0) {
@@ -298,12 +298,11 @@ struct Rasterizer {
                 count++, weight += path->types.end;
                 Entry *e;  Bounds *be;  Image *ie;
                 if ((e = cache->addEntry(path->hash()))) {
-                    float w = path->bounds.ux - path->bounds.lx, h = path->bounds.uy - path->bounds.ly, dim = w > h ? w : h;
+                    float dim = fmaxf(path->bounds.ux - path->bounds.lx, path->bounds.uy - path->bounds.ly);
                     if (kUseQuad16s && path->q16s.end == 0) {
                         float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim;
-                        Transform m1 = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
-                        Transform m = Transform();
-                        divideGeometry(path.ptr, m1, Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (kMoleculesHeight / kMoleculesRange));
+                        Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
+                        divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
                     } else if (path->p16s.end == 0) {
                         divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
