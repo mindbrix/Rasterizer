@@ -204,20 +204,16 @@ struct Rasterizer {
                 else {
                     Point16 *p = g->q16s.alloc(2);
                     float cpx = 2.f * x0 - 0.5f * (g->x0 + x1), cpy = 2.f * y0 - 0.5f * (g->y0 + y1);
-                    p[0].x = uint16_t(x0), p[0].y = uint16_t(y0);
+                    p[0].x = uint16_t(g->x0), p[0].y = uint16_t(g->y0);
                     p[1].x = uint16_t(cpx), p[1].y = uint16_t(cpy);
                 }
             } else {
                 size_t end = (g->q16s.end + 1 + kQuadPoints - 1) / kQuadPoints * kQuadPoints;
                 size_t cnt = end - g->q16s.end;
-
-                Point16 *p = g->q16s.alloc(cnt), *p0 = g->q16s.base + g->q16s.idx;
+                Point16 *p = g->q16s.alloc(cnt);
                 uint16_t ux = uint16_t(x0) | 0x8000, uy = y0;
-//                assert(ux == p0->x && uy == p0->y);
-//                ux = p0->x, uy == p0->y;
                 while (cnt--)
                     p->x = ux, p->y = uy, p++;
-                g->q16s.idx = g->q16s.end;
                 *(g->q16ends.alloc(1)) = g->q16s.end / kQuadPoints;
             }
         }
