@@ -194,7 +194,7 @@ struct Rasterizer {
         }
         
         static void WriteQuad16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = 65535.f / (b.ux - b.lx), sy = 65535.f / (b.uy - b.ly);
+            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = kMoleculesRange / (b.ux - b.lx), sy = kMoleculesRange / (b.uy - b.ly);
             if ((curve & kMoleculesEnd) == 0) {
                 if (curve == 0) {
                     Point16 *p = g->q16s.alloc(2);

@@ -216,13 +216,13 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
     bool skip = false;
+    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    ma = m.a * (b.ux - b.lx) / kMoleculesRange, mb = m.b * (b.ux - b.lx) / kMoleculesRange;
+    mc = m.c * (b.uy - b.ly) / kMoleculesRange, md = m.d * (b.uy - b.ly) / kMoleculesRange;
     
     if (kUseQuad16s) {
         float x0, y0, x1, y1;
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-        ma = m.a * (b.ux - b.lx) / 65535.0, mb = m.b * (b.ux - b.lx) / 65535.0;
-        mc = m.c * (b.uy - b.ly) / 65535.0, md = m.d * (b.uy - b.ly) / 65535.0;
         x16 = pts->x, y16 = pts->y, pts += 2;
         *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
         *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
@@ -236,9 +236,6 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     } else {
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
         segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-        ma = m.a * (b.ux - b.lx) / kMoleculesRange, mb = m.b * (b.ux - b.lx) / kMoleculesRange;
-        mc = m.c * (b.uy - b.ly) / kMoleculesRange, md = m.d * (b.uy - b.ly) / kMoleculesRange;
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         *dst++ = slx = sux = x16 * ma + y16 * mc + tx,
         *dst++ = sly = suy = x16 * mb + y16 * md + ty;
