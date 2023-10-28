@@ -321,18 +321,23 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     mc = m.c * sy, md = m.d * sy;
     
     if (kUseQuad16s) {
-        float x0, y0, x1, y1, x16, y16;
-        bool skip, end;
+        float x0, y0, cpx, cpy, x16, y16;
+        bool skip, end, isCurve;
 
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
         *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
         *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
         for (i = 0; i < kFastSegments; i++, skip |= end) {
+            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
+            cpx = x16 * ma + y16 * mc + tx, cpy = x16 * mb + y16 * md + ty;
+            isCurve = !skip && (cpx != x0 || cpy != y0);
+            *dst++ = isCurve ? cpx : FLT_MAX, *dst++ = isCurve ? cpy : FLT_MAX;
             
-            *dst++ = FLT_MAX, *dst++ = FLT_MAX;
+            slx = !isCurve ? slx : min(slx, cpx), sux = !isCurve ? sux : max(sux, cpx);
+            sly = !isCurve ? sly : min(sly, cpy), suy = !isCurve ? suy : max(suy, cpy);
             
-            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
             
             x0 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x0, slx = min(slx, x0), sux = max(sux, x0);
             y0 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y0, sly = min(sly, y0), suy = max(suy, y0);
