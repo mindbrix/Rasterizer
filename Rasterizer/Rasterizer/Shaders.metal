@@ -219,7 +219,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     
     if (kUseQuad16s) {
         float x0, y0, x1, y1;
-        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * 2 * kFastSegments];
+        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
         tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
         ma = m.a * (b.ux - b.lx) / 65535.0, mb = m.b * (b.ux - b.lx) / 65535.0;
         mc = m.c * (b.uy - b.ly) / 65535.0, md = m.d * (b.uy - b.ly) / 65535.0;
