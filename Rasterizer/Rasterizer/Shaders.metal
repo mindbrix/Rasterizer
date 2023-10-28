@@ -306,63 +306,90 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
+    float tx, ty, sx, sy, ma, mb, mc, md, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
     segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = segcount == 0 ? 0.0 : 1.0;
-    if (visible) {
-        float tx, ty, ma, mb, mc, md, x, y, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
-        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-        ma = m.a * (b.ux - b.lx) / kMoleculesRange, mb = m.b * (b.ux - b.lx) / kMoleculesRange;
-        mc = m.c * (b.uy - b.ly) / kMoleculesRange, md = m.d * (b.uy - b.ly) / kMoleculesRange;
-        
-        curve0 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
-        curve1 = (((pts + 1)->x & 0x8000) >> 14) | (((pts + 1)->y & 0x8000) >> 15);
-        x = curve0 == 2 ? (pts - 1)->x & 0x7FFF : 0, y = curve0 == 2 ? (pts - 1)->y & 0x7FFF : 0;
-        px = x * ma + y * mc + tx, py = x * mb + y * md + ty;
-        x = pts->x & 0x7FFF, y = pts->y & 0x7FFF, pts++;
-        x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
-        x = pts->x & 0x7FFF, y = pts->y & 0x7FFF, pts++;
-        x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
-        
-        dst[0] = slx = sux = x0, dst[1] = sly = suy = y0, dst += 2;
-        
-        for (i = 0; i < kFastSegments; i++, dst += 4, px = x0, x0 = x1, x1 = nx, py = y0, y0 = y1, y1 = ny, curve0 = curve1, curve1 = curve2, pts++) {
-            if (i >= segcount)
-                dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
-            else {
-                curve2 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
-                x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
-                nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
-                slx = min(slx, x1), sux = max(sux, x1), sly = min(sly, y1), suy = max(suy, y1);
-                if (curve0 == 0)
-                    dst[0] = FLT_MAX;
+    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = kUseQuad16s ? 1.0 : (segcount == 0 ? 0.0 : 1.0);
+    
+    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    if (kUseQuad16s)
+        sx = sy = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
+    else
+        sx = (b.ux - b.lx) / kMoleculesRange, sy = (b.uy - b.ly) / kMoleculesRange;
+    ma = m.a * sx, mb = m.b * sx;
+    mc = m.c * sy, md = m.d * sy;
+    
+    if (kUseQuad16s) {
+        float x0, y0, x1, y1, x16, y16;
+        bool skip, end;
+
+        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
+        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+        *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
+        *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
+        for (i = 0; i < kFastSegments; i++, skip |= end) {
+            
+            *dst++ = FLT_MAX, *dst++ = FLT_MAX;
+            
+            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+            
+            x0 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x0, slx = min(slx, x0), sux = max(sux, x0);
+            y0 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y0, sly = min(sly, y0), suy = max(suy, y0);
+        }
+    } else {
+        if (visible) {
+            const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
+            float x, y;
+            curve0 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
+            curve1 = (((pts + 1)->x & 0x8000) >> 14) | (((pts + 1)->y & 0x8000) >> 15);
+            x = curve0 == 2 ? (pts - 1)->x & 0x7FFF : 0, y = curve0 == 2 ? (pts - 1)->y & 0x7FFF : 0;
+            px = x * ma + y * mc + tx, py = x * mb + y * md + ty;
+            x = pts->x & 0x7FFF, y = pts->y & 0x7FFF, pts++;
+            x0 = x * ma + y * mc + tx, y0 = x * mb + y * md + ty;
+            x = pts->x & 0x7FFF, y = pts->y & 0x7FFF, pts++;
+            x1 = x * ma + y * mc + tx, y1 = x * mb + y * md + ty;
+            
+            dst[0] = slx = sux = x0, dst[1] = sly = suy = y0, dst += 2;
+            
+            for (i = 0; i < kFastSegments; i++, dst += 4, px = x0, x0 = x1, x1 = nx, py = y0, y0 = y1, y1 = ny, curve0 = curve1, curve1 = curve2, pts++) {
+                if (i >= segcount)
+                    dst[0] = FLT_MAX, dst[2] = dst[-2], dst[3] = dst[-1];
                 else {
-                    cpx = curve0 == 1 ? 0.25f * (x0 - nx) + x1 : 0.25f * (x1 - px) + x0;
-                    cpy = curve0 == 1 ? 0.25f * (y0 - ny) + y1 : 0.25f * (y1 - py) + y0;
-                    slx = min(slx, cpx), sux = max(sux, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
-                    if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+                    curve2 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
+                    x = pts->x & 0x7FFF, y = pts->y & 0x7FFF;
+                    nx = x * ma + y * mc + tx, ny = x * mb + y * md + ty;
+                    slx = min(slx, x1), sux = max(sux, x1), sly = min(sly, y1), suy = max(suy, y1);
+                    if (curve0 == 0)
                         dst[0] = FLT_MAX;
-                    else
-                        dst[0] = cpx, dst[1] = cpy;
+                    else {
+                        cpx = curve0 == 1 ? 0.25f * (x0 - nx) + x1 : 0.25f * (x1 - px) + x0;
+                        cpy = curve0 == 1 ? 0.25f * (y0 - ny) + y1 : 0.25f * (y1 - py) + y0;
+                        slx = min(slx, cpx), sux = max(sux, cpx), sly = min(sly, cpy), suy = max(suy, cpy);
+                        if (abs((cpx - x0) * (y1 - cpy) - (cpy - y0) * (x1 - cpx)) < 1.0)
+                            dst[0] = FLT_MAX;
+                        else
+                            dst[0] = cpx, dst[1] = cpy;
+                    }
+                    dst[2] = x1, dst[3] = y1;
                 }
-                dst[2] = x1, dst[3] = y1;
             }
         }
     }
+    
+    
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
-    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = offset - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = offset - dy;
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
     vert.position = float4(x, y, 1.0, visible);
     vert.dw = dw;
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
-        dst[0] += tx, dst[1] += ty;
+        dst[0] += offx, dst[1] += offy;
     for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
         if (dst[0] != FLT_MAX)
-            dst[0] += tx, dst[1] += ty;
+            dst[0] += offx, dst[1] += offy;
     return vert;
 }
 
