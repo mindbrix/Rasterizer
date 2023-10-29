@@ -115,17 +115,12 @@ float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
     return saturate((t - 0.5) * f + 0.5) * cover;
 }
 float fastWinding(float x0, float y0, float x1, float y1) {
-    float w0 = saturate(y0), w1 = saturate(y1), cover = w1 - w0;
-    if ((x0 <= 0.0 && x1 <= 0.0) || cover == 0.0)
-        return cover;
-    return winding(x0, y0, x1, y1, w0, w1);
+    return winding(x0, y0, x1, y1, saturate(y0), saturate(y1));
 }
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2, bool a, float iy) {
     if (x1 == FLT_MAX)
         return fastWinding(x0, y0, x2, y2);
     float w0 = saturate(a ? y0 : iy), w1 = saturate(a ? iy : y2), cover = w1 - w0, ay, by, cy, t, s;
-    if (cover == 0.0 || (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0))
-        return cover;
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), cy = y0 - 0.5 * (w0 + w1);
     t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), cover)) / ay * 0.5, s = 1.0 - t;
     return winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
