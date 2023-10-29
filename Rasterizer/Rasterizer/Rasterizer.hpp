@@ -218,12 +218,12 @@ struct Rasterizer {
             }
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;  Bounds& b = g->bounds;  float sx = kMoleculesRange / (b.ux - b.lx), sy = kMoleculesRange / (b.uy - b.ly);
+            Geometry *g = (Geometry *)info;
             Point16 *p = g->p16s.alloc(1);
             if ((curve & kMoleculesEnd) == 0)
-                p->x = uint16_t((x0 - b.lx) * sx) | ((curve & 2) << 14), p->y = uint16_t((y0 - b.ly) * sy) | ((curve & 1) << 15);
+                p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
             else {
-                p->x = (x1 - b.lx) * sx, p->y = (y1 - b.ly) * sy;
+                p->x = x1, p->y = y1;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
                 uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1);  bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
@@ -294,12 +294,12 @@ struct Rasterizer {
                 Entry *e;  Bounds *be;  Image *ie;
                 if ((e = cache->addEntry(path->hash()))) {
                     float dim = fmaxf(path->bounds.ux - path->bounds.lx, path->bounds.uy - path->bounds.ly);
+                    float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim;
+                    Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
                     if (kUseQuad16s && path->q16s.end == 0) {
-                        float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim;
-                        Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
                         divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
                     } else if (path->p16s.end == 0) {
-                        divideGeometry(path.ptr, Transform(), Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision / (dim > kMoleculesHeight ? 1.f : kMoleculesHeight / dim));
+                        divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                     }
                     e->path = path, e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
@@ -524,7 +524,8 @@ struct Rasterizer {
                                size = scn->cache->entries.base[ip].size, cnt = size / kFastSegments;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
-                            bool fast = !buffer->useCurves || det * scn->cache->entries.base[ip].maxDot < 16.f;
+                           bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
+//                            bool fast = !buffer->useCurves || det * scn->cache->entries.base[ip].maxDot < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                             int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);

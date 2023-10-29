@@ -29,4 +29,4 @@
 #define kMiterLimit 1.5
 #define kUXCoverSize 4
 #define kTextureSlotsSize 64
-#define kUseQuad16s 1
+#define kUseQuad16s 0
