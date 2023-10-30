@@ -109,6 +109,9 @@ struct Rasterizer {
                 memory->resize(end * 1.5), base = memory->addr;
             return base + end - n;
         }
+        inline T *zalloc(size_t n) {
+            return (T*)memset(alloc(n), 0, n * sizeof(T));
+        }
         inline T& back() { return base[end - 1]; }
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
@@ -229,7 +232,7 @@ struct Rasterizer {
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
-                g->p16s.alloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
+                g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, quadCount = 0;
