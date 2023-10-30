@@ -310,11 +310,34 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
     x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         
-    dx = vid == 0 ? x0 : (vid == 1 ? x1 : x2);
-    dy = vid == 0 ? y0 : (vid == 1 ? y1 : y2);
+    x1 = 2.0 * x1 - 0.5 * (x0 + x2), y1 = 2.0 * y1 - 0.5 * (y0 + y2);
+    
+    float area = abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
+    float offset = sqrt(0.5);
+    float ax, ay, su, sv, sw;
+    ax = x2 - x1, ay = y2 - y1;
+    su = offset / (area * rsqrt(ax * ax + ay * ay));
+    ax = x0 - x2, ay = y0 - y2;
+    sv = offset / (area * rsqrt(ax * ax + ay * ay));
+    ax = x1 - x0, ay = y1 - y0;
+    sw = offset / (area * rsqrt(ax * ax + ay * ay));
+    
+    float u = float(vid == 0), v = float(vid == 1), w = 1.0 - u - v;
+    
+    float du = (vid == 0 ? 0 : -su) + (vid == 1 ? 0 : 0.5 * sv) + (vid == 2 ? 0 : 0.5 * sw);
+    float dv = (vid == 0 ? 0 : 0.5 * su) + (vid == 1 ? 0 : -sv) + (vid == 2 ? 0 : 0.5 * sw);
+    u += du, v += dv, w = 1.0 - u - v;
+    
+//    dx = vid == 0 ? x0 : (vid == 1 ? x1 : x2);
+//    dy = vid == 0 ? y0 : (vid == 1 ? y1 : y2);
+    x1 = area < 1.0 ? 0.5 * (x0 + x2) : x1;
+    y1 = area < 1.0 ? 0.5 * (y0 + y2) : y1;
+    
+    dx = u * x0 + v * x1 + w * x2;
+    dy = u * y0 + v * y1 + w * y2;
     
     vert.position = float4((dx + offx) / *width * 2.0 - 1.0, (dy + offy) / *height * 2.0 - 1.0, 1.0, visible);
-    vert.u = vert.v = 1.0;
+    vert.u = u, vert.v = v;
     return vert;
 }
 
@@ -326,7 +349,7 @@ fragment float4 quad_curves_fragment_main(QuadCurvesVertex vert [[stage_in]])
     a *= invdet, b *= invdet, c *= invdet, d *= invdet;
     x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
     x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-    
+//    return 1;
     return quadraticWinding(x0, y0, x1, y1, x2, y2) + fastWinding(x2, y2, x0, y0);
 }
 
