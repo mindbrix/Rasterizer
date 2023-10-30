@@ -271,6 +271,71 @@ fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in
         + fastWinding(vert.x3, vert.y3, vert.x4, vert.y4);
 }
 
+#pragma mark - Quad Curves
+
+struct QuadCurvesVertex
+{
+    float4 position [[position]];
+    float u, v;
+};
+
+vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffer(1)]],
+                                const device Transform *ctms [[buffer(4)]],
+                                const device Instance *instances [[buffer(5)]],
+                                const device Bounds *bounds [[buffer(7)]],
+                                const device Point16 *points [[buffer(8)]],
+                                constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
+                                uint vid [[vertex_id]], uint iid [[instance_id]])
+{
+    QuadCurvesVertex vert;
+    
+    const device Edge& edge = edges[iid];
+    const device Instance& inst = instances[edge.ic & Edge::kMask];
+    const device Transform& m = ctms[inst.iz & kPathIndexMask];
+    const device Bounds& b = bounds[inst.iz & kPathIndexMask];
+    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid)];
+    
+    
+    float dx = 0, dy = 0, visible = 0.0;
+    
+    int curve = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
+    if (curve == 1 || curve == 2) {
+//        thread float *triangle = & vert.x0;
+
+        float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2;
+        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+        scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
+        ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
+
+        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF;
+
+        
+//        visible = 1.0;
+//
+//        dx = triangle[vid * 2], dy = triangle[vid * 2 + 1];
+//        float offx = 0.5 - dx, offy = 0.5 - dy;
+//        for (int i = 0; i < 3; i++)
+//            triangle[i * 2] += offx, triangle[i * 2 + 1] += offy;
+    }
+    
+    vert.position = float4(dx / *width * 2.0 - 1.0, dy / *height * 2.0 - 1.0, 1.0, visible);
+    vert.u = vert.v = 1.0;
+    return vert;
+}
+
+fragment float4 quad_curves_fragment_main(QuadCurvesVertex vert [[stage_in]])
+{
+    float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2;
+    a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+    invdet = 1.0 / (a * d - b * c);
+    a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+    x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+    x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+    
+//    return 0.2;
+    return quadraticWinding(x0, y0, x1, y1, x2, y2) + fastWinding(x2, y2, x0, y0);
+}
+
 #pragma mark - Quad Molecules
 
 struct QuadMoleculesVertex

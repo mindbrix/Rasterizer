@@ -75,6 +75,7 @@ struct TextureCache {
 @property (nonatomic) id <MTLCommandQueue> commandQueue;
 @property (nonatomic) id <MTLLibrary> defaultLibrary;
 @property (nonatomic) size_t tick;
+@property (nonatomic) id <MTLRenderPipelineState> quadCurvesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> quadEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastEdgesPipelineState;
 @property (nonatomic) id <MTLRenderPipelineState> fastOutlinesPipelineState;
@@ -137,6 +138,12 @@ struct TextureCache {
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
     descriptor.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
+    
+    descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"quad_curves_vertex_main"];
+    descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_curves_fragment_main"];
+    descriptor.label = @"quad curves";
+    self.quadCurvesPipelineState = [self.device newRenderPipelineStateWithDescriptor:descriptor error:nil];
+    
     descriptor.vertexFunction = [self.defaultLibrary newFunctionWithName:@"edges_vertex_main"];
     descriptor.fragmentFunction = [self.defaultLibrary newFunctionWithName:@"quad_edges_fragment_main"];
     descriptor.label = @"quad edges";
@@ -272,6 +279,7 @@ struct TextureCache {
             case Ra::Buffer::kQuadOutlines:
             case Ra::Buffer::kFastMolecules:
             case Ra::Buffer::kQuadMolecules:
+            case Ra::Buffer::kQuadCurves:
                 if (entry.type == Ra::Buffer::kQuadEdges) {
                     [commandEncoder endEncoding];
                     commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:edgesDescriptor];
@@ -284,6 +292,8 @@ struct TextureCache {
                     [commandEncoder setRenderPipelineState:_quadOutlinesPipelineState];
                 else if (entry.type == Ra::Buffer::kFastMolecules)
                     [commandEncoder setRenderPipelineState:_fastMoleculesPipelineState];
+                else if (entry.type == Ra::Buffer::kQuadCurves)
+                    [commandEncoder setRenderPipelineState:_quadCurvesPipelineState];
                 else
                     [commandEncoder setRenderPipelineState:_quadMoleculesPipelineState];
                 if (entry.end - entry.begin) {
@@ -297,9 +307,9 @@ struct TextureCache {
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                    [commandEncoder drawPrimitives:entry.type == Ra::Buffer::kQuadCurves ? MTLPrimitiveTypeTriangle : MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
-                                       vertexCount:4
+                                       vertexCount:entry.type == Ra::Buffer::kQuadCurves ?  3 : 4
                                      instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge)
                                       baseInstance:0];
                 }
