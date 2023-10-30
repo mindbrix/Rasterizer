@@ -1121,9 +1121,14 @@ struct Rasterizer {
                             
                             if (kUseQuadCurves && !(inst->iz & Instance::kFastEdges)) {
                                 molecule = quadCurve;
-                                for (j = 0, size = entry->path->quadCount; j < size; j++) {
-                                    molecule->ic = uint32_t(ic), molecule++;
+                                Geometry::Point16 *p = entry->path->p16s.base;
+                                for (j = 0, size = entry->size - 1; j < size; ) {
+                                    if (p[j].y & 0x8000)
+                                        molecule->ic = uint32_t(ic), molecule->i0 = j, molecule++, j += 2;
+                                    else
+                                        j++;
                                 }
+                                assert(molecule - quadCurve == entry->path->quadCount);
                                 quadCurve = molecule;
                             }
                         }

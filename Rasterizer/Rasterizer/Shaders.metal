@@ -293,32 +293,27 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
-    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid)];
+    const device Point16 *pts = & points[inst.quad.base + edge.i0];
+    const device Cell& cell = inst.quad.cell;
+    float offx = cell.ox - cell.lx, offy = cell.oy - cell.ly;
+    float dx = 0, dy = 0, visible = 1.0;
     
-    
-    float dx = 0, dy = 0, visible = 0.0;
-    
-    int curve = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
-    if (curve == 1 || curve == 2) {
-//        thread float *triangle = & vert.x0;
+    float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2;
+    tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
+    scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
+    ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
 
-        float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2;
-        tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
-        scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
-        ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
-
-        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF;
-
+    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
+    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         
-//        visible = 1.0;
-//
-//        dx = triangle[vid * 2], dy = triangle[vid * 2 + 1];
-//        float offx = 0.5 - dx, offy = 0.5 - dy;
-//        for (int i = 0; i < 3; i++)
-//            triangle[i * 2] += offx, triangle[i * 2 + 1] += offy;
-    }
+    dx = vid == 0 ? x0 : (vid == 1 ? x1 : x2);
+    dy = vid == 0 ? y0 : (vid == 1 ? y1 : y2);
     
-    vert.position = float4(dx / *width * 2.0 - 1.0, dy / *height * 2.0 - 1.0, 1.0, visible);
+    vert.position = float4((dx + offx) / *width * 2.0 - 1.0, (dy + offy) / *height * 2.0 - 1.0, 1.0, visible);
     vert.u = vert.v = 1.0;
     return vert;
 }
@@ -332,7 +327,6 @@ fragment float4 quad_curves_fragment_main(QuadCurvesVertex vert [[stage_in]])
     x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
     x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
     
-//    return 0.2;
     return quadraticWinding(x0, y0, x1, y1, x2, y2) + fastWinding(x2, y2, x0, y0);
 }
 
