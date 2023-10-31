@@ -224,7 +224,7 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;
             Point16 *p = g->p16s.alloc(1);
             if ((curve & kMoleculesEnd) == 0)
-                p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15), g->quadCount += bool(p->x & 0x8000);
+                p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15), g->quadCount += bool(p->x & 0x8000) * 2;
             else {
                 p->x = x1, p->y = y1;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
@@ -1122,11 +1122,10 @@ struct Rasterizer {
                             if (kUseQuadCurves && !(inst->iz & Instance::kFastEdges)) {
                                 molecule = quadCurve;
                                 Geometry::Point16 *p = entry->path->p16s.base;
-                                for (j = 0, size = entry->size - 1; j < size; ) {
-                                    if (p[j].y & 0x8000)
-                                        molecule->ic = uint32_t(ic), molecule->i0 = j, molecule++, j += 2;
-                                    else
-                                        j++;
+                                for (j = 0, size = entry->size - 1; j < size; j++) {
+                                    if ((p[j].x & 0x8000) || (p[j].y & 0x8000)) {
+                                        molecule->ic = uint32_t(ic), molecule->i0 = j, molecule++;
+                                    }
                                 }
                                 assert(molecule - quadCurve == entry->path->quadCount);
                                 quadCurve = molecule;
