@@ -215,18 +215,18 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    if (kUseQuad16s) {
-        float x, y;
-        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
-        *dst++ = slx = sux = x = x16 * ma + y16 * mc + tx,
-        *dst++ = sly = suy = y = x16 * mb + y16 * md + ty;
-        for (i = 0; i < kFastSegments; i++, skip |= end) {
-            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
-            x = skip ? x : x16 * ma + y16 * mc + tx, *dst++ = x, slx = min(slx, x), sux = max(sux, x);
-            y = skip ? y : x16 * mb + y16 * md + ty, *dst++ = y, sly = min(sly, y), suy = max(suy, y);
-        }
-    } else {
+//    if (kUseQuad16s) {
+//        float x, y;
+//        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
+//        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+//        *dst++ = slx = sux = x = x16 * ma + y16 * mc + tx,
+//        *dst++ = sly = suy = y = x16 * mb + y16 * md + ty;
+//        for (i = 0; i < kFastSegments; i++, skip |= end) {
+//            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
+//            x = skip ? x : x16 * ma + y16 * mc + tx, *dst++ = x, slx = min(slx, x), sux = max(sux, x);
+//            y = skip ? y : x16 * mb + y16 * md + ty, *dst++ = y, sly = min(sly, y), suy = max(suy, y);
+//        }
+//    } else {
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
         segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
         x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
@@ -239,7 +239,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
             dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
             dst[1] = select(x16 * mb + y16 * md + ty, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
         }
-    }
+//    }
     
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
@@ -402,35 +402,35 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, scale, ma, mb, mc, md, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
     segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = kUseQuad16s ? 1.0 : (segcount == 0 ? 0.0 : 1.0);
+    float slx = 0.0, sux = 0.0, sly = 0.0, suy = 0.0, visible = segcount == 0 ? 0.0 : 1.0;
     
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    if (kUseQuad16s) {
-        float x0, y0, cpx, cpy, x16, y16;
-        bool skip, end, isCurve;
-
-        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
-        *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
-        *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
-        for (i = 0; i < kFastSegments; i++, skip |= end) {
-            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
-            cpx = x16 * ma + y16 * mc + tx, cpy = x16 * mb + y16 * md + ty;
-            isCurve = !skip && (cpx != x0 || cpy != y0);
-            *dst++ = isCurve ? cpx : FLT_MAX, *dst++ = isCurve ? cpy : FLT_MAX;
-            
-            slx = !isCurve ? slx : min(slx, cpx), sux = !isCurve ? sux : max(sux, cpx);
-            sly = !isCurve ? sly : min(sly, cpy), suy = !isCurve ? suy : max(suy, cpy);
-            
-            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
-            
-            x0 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x0, slx = min(slx, x0), sux = max(sux, x0);
-            y0 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y0, sly = min(sly, y0), suy = max(suy, y0);
-        }
-    } else {
+//    if (kUseQuad16s) {
+//        float x0, y0, cpx, cpy, x16, y16;
+//        bool skip, end, isCurve;
+//
+//        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
+//        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
+//        *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
+//        *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
+//        for (i = 0; i < kFastSegments; i++, skip |= end) {
+//            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
+//            cpx = x16 * ma + y16 * mc + tx, cpy = x16 * mb + y16 * md + ty;
+//            isCurve = !skip && (cpx != x0 || cpy != y0);
+//            *dst++ = isCurve ? cpx : FLT_MAX, *dst++ = isCurve ? cpy : FLT_MAX;
+//
+//            slx = !isCurve ? slx : min(slx, cpx), sux = !isCurve ? sux : max(sux, cpx);
+//            sly = !isCurve ? sly : min(sly, cpy), suy = !isCurve ? suy : max(suy, cpy);
+//
+//            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
+//
+//            x0 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x0, slx = min(slx, x0), sux = max(sux, x0);
+//            y0 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y0, sly = min(sly, y0), suy = max(suy, y0);
+//        }
+//    } else {
         if (visible) {
             const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
             float x, y;
@@ -468,7 +468,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 }
             }
         }
-    }
+//    }
     
     
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);

@@ -195,31 +195,6 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        
-        static void WriteQuad16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Geometry *g = (Geometry *)info;
-            if ((curve & kMoleculesEnd) == 0) {
-                if (curve == 0) {
-                    Point16 *p = g->q16s.alloc(2);
-                    p[0].x = p[1].x = uint16_t(x0), p[0].y = p[1].y = uint16_t(y0);
-                } else if (curve == 1)
-                    g->x0 = x0, g->y0 = y0;
-                else {
-                    Point16 *p = g->q16s.alloc(2);
-                    float cpx = 2.f * x0 - 0.5f * (g->x0 + x1), cpy = 2.f * y0 - 0.5f * (g->y0 + y1);
-                    p[0].x = uint16_t(g->x0), p[0].y = uint16_t(g->y0);
-                    p[1].x = uint16_t(cpx), p[1].y = uint16_t(cpy);
-                }
-            } else {
-                size_t end = (g->q16s.end + 1 + kQuadPoints - 1) / kQuadPoints * kQuadPoints;
-                size_t cnt = end - g->q16s.end;
-                Point16 *p = g->q16s.alloc(cnt);
-                uint16_t ux = uint16_t(x0) | 0x8000, uy = y0;
-                while (cnt--)
-                    p->x = ux, p->y = uy, p++;
-                *(g->q16ends.alloc(1)) = g->q16s.end / kQuadPoints;
-            }
-        }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
             Point16 *p = g->p16s.alloc(1);
@@ -237,7 +212,7 @@ struct Rasterizer {
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, quadCount = 0;
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
-        Row<Point16> p16s, q16s;  Row<uint16_t> q16ends;  Row<uint8_t> p16cnts;
+        Row<Point16> p16s;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
     
@@ -300,9 +275,7 @@ struct Rasterizer {
                     float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
                     size_t upper = 4 * path->molecules.end + path->upperBound(fmaxf(kMinUpperDet, det));
                     Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
-                    if (kUseQuad16s && path->q16s.end == 0) {
-                        divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteQuad16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
-                    } else if (path->p16s.end == 0) {
+                    if (path->p16s.end == 0) {
                         path->p16s.alloc(upper), path->p16s.empty();
                         divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
@@ -524,10 +497,7 @@ struct Rasterizer {
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
                            buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is];
-                           if (kUseQuad16s)
-                               size = scn->cache->entries.base[ip].path->q16s.end, cnt = size / kQuadPoints;
-                           else
-                               size = scn->cache->entries.base[ip].size, cnt = size / kFastSegments;
+                           size = scn->cache->entries.base[ip].size, cnt = size / kFastSegments;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
                            bool isFlat = g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0;
@@ -1018,16 +988,9 @@ struct Rasterizer {
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (entries = & list.scenes[i].cache->entries, ip = 0; ip < entries->end; ip++)
                     if (ctx->fasts.base[lz + ip]) {
-                        if (kUseQuad16s) {
-                            Path &p = entries->base[ip].path;
-                            end = begin + p->q16s.end * sizeof(Geometry::Point16);
-                            memcpy(buffer.base + begin, p->q16s.base, end - begin);
-                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += p->q16s.end;
-                        } else {
-                            end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
-                            memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);
-                            begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
-                        }
+                        end = begin + entries->base[ip].size * sizeof(Geometry::Point16);
+                        memcpy(buffer.base + begin, entries->base[ip].p16s, end - begin);
+                        begin = end, ctx->fasts.base[lz + ip] = uint32_t(pbase), pbase += entries->base[ip].size;
                     }
         }
         
@@ -1076,13 +1039,8 @@ struct Rasterizer {
                         if (widths[iz]) {
                             Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
                             dst[-1].quad.biid = int(outline - (inst->iz & Instance::kFastEdges ? fastOutline0 : quadOutline0));
-                            if (kUseQuad16s) {
-                                for (j = 0, size = entry->path->q16s.end / kQuadPoints; j < size; j++, outline++)
-                                    outline->ic = uint32_t(ic);
-                            } else {
-                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
-                                    outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
-                            }
+                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
+                                outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
                             *(inst->iz & Instance::kFastEdges ? & fastOutline : & quadOutline) = outline;
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
@@ -1097,22 +1055,10 @@ struct Rasterizer {
                                 dst[-1].quad.biid = int(molecule - (inst->iz & Instance::kFastEdges ? fastMolecule0 : quadMolecule0));
                             }
 
-                            if (kUseQuad16s) {
-                                Path &p = entry->path;
-                                uint16_t *ends = p->q16ends.base;
-                                ux = entry->hasMolecules ? ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx) : ux;
-                                molx += 4, moly += 4;
-                                for (j = 0, size = p->q16s.end / kQuadPoints; j < size; j++) {
-                                    if (entry->hasMolecules && *ends == j)
-                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4, ends++;
-                                    molecule->ic = uint32_t(ic), molecule->ux = ux, molecule++;
-                                }
-                            } else {
-                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
-                                    if (update)
-                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                    molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
-                                }
+                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
+                                if (update)
+                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
                             }
                             if (kUseQuadCurves)
                                 fastMolecule = molecule;
