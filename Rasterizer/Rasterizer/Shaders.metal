@@ -276,7 +276,7 @@ fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in
 struct QuadCurvesVertex
 {
     float4 position [[position]];
-    float u, v, bx, by;
+    float bx, by, u, v;
 };
 
 vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -329,7 +329,7 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     x1 = 2.0 * x1 - 0.5 * (x0 + x2), y1 = 2.0 * y1 - 0.5 * (y0 + y2);
     
     float area = abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
-    float offset = 2;
+    float offset = 2.0 * sqrt(2.0);
     float ax, ay, su, sv, sw;
     ax = x2 - x1, ay = y2 - y1;
     su = offset / (area * rsqrt(ax * ax + ay * ay));
@@ -351,27 +351,25 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     dx = u * x0 + v * x1 + w * x2;
     dy = u * y0 + v * y1 + w * y2;
     
-    float t;
-    t = (dx - float(cell.lx)) / float(cell.ux - cell.lx);
-    vert.bx = 2.0 * t - 1.0;
-    t = (dy - float(cell.ly)) / float(cell.uy - cell.ly);
-    vert.by = 2.0 * t - 1.0;
-    
     vert.position = float4((dx + offx) / *width * 2.0 - 1.0, (dy + offy) / *height * 2.0 - 1.0, 1.0, visible);
+    float t, e = 0.5;
+    t = (dx - float(cell.lx - e)) / float(2.0 * e + cell.ux - cell.lx);
+    vert.bx = 2.0 * t - 1.0;
+    t = (dy - float(cell.ly - e)) / float(2.0 * e + cell.uy - cell.ly);
+    vert.by = 2.0 * t - 1.0;
     vert.u = u, vert.v = v;
     return vert;
 }
 
 fragment float4 quad_curves_fragment_main(QuadCurvesVertex vert [[stage_in]])
 {
-    if (abs(vert.bx) > 1.0 || abs(vert.by) > 1.0)
-        return 0.0;
-    float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2;
+    float fx, fy, a, b, c, d, invdet, x0, y0, x1, y1, x2, y2;
+    fx = 1.0 - abs(vert.bx), fy = 1.0 - abs(vert.by);
     a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
     invdet = 1.0 / (a * d - b * c), a *= invdet, b *= invdet, c *= invdet, d *= invdet;
     x2 = 0.5 + b * vert.v - d * vert.u, y2 = 0.5 + vert.u * c - vert.v * a;
     x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-    return fastWinding(x0, y0, x2, y2) + quadraticWinding(x2, y2, x1, y1, x0, y0);
+    return saturate(fx / fwidth(fx)) * saturate(fy / fwidth(fy)) * (fastWinding(x0, y0, x2, y2) + quadraticWinding(x2, y2, x1, y1, x0, y0));
 }
 
 #pragma mark - Quad Molecules
