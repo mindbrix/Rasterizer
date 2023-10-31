@@ -312,7 +312,7 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
         
     x1 = 2.0 * x1 - 0.5 * (x0 + x2), y1 = 2.0 * y1 - 0.5 * (y0 + y2);
     
-    float area = 0.5 * abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
+    float area = abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
     float offset = sqrt(0.5);
     float ax, ay, su, sv, sw;
     ax = x2 - x1, ay = y2 - y1;
@@ -330,8 +330,7 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     
 //    dx = vid == 0 ? x0 : (vid == 1 ? x1 : x2);
 //    dy = vid == 0 ? y0 : (vid == 1 ? y1 : y2);
-    x1 = area < 1.0 ? 0.5 * (x0 + x2) : x1;
-    y1 = area < 1.0 ? 0.5 * (y0 + y2) : y1;
+    visible = area > 1.0;
     
     dx = u * x0 + v * x1 + w * x2;
     dy = u * y0 + v * y1 + w * y2;
