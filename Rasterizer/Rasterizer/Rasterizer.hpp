@@ -207,12 +207,16 @@ struct Rasterizer {
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
+                
+                for (Point16 *p0 = g->p16s.base, *p = p0 + g->p16s.idx, *end = p0 + g->p16s.end - 1; p < end; p++)
+                    if ((p->x & 0x8000) || (p->y & 0x8000))
+                        *(g->quadIdxs.alloc(1)) = uint16_t(p - p0);
                 g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, quadCount = 0;
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
-        Row<Point16> p16s;  Row<uint8_t> p16cnts;
+        Row<Point16> p16s;  Row<uint16_t> quadIdxs;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
     
@@ -1067,12 +1071,9 @@ struct Rasterizer {
                             
                             if (kUseQuadCurves && !(inst->iz & Instance::kFastEdges)) {
                                 molecule = quadCurve;
-                                Geometry::Point16 *p = entry->path->p16s.base;
-                                for (j = 0, size = entry->size - 1; j < size; j++) {
-                                    if ((p[j].x & 0x8000) || (p[j].y & 0x8000)) {
-                                        molecule->ic = uint32_t(ic), molecule->i0 = j, molecule++;
-                                    }
-                                }
+                                assert(entry->path->quadIdxs.end == entry->path->quadCount);
+                                for (uint16_t *pi0 = entry->path->quadIdxs.base, *end = pi0 + entry->path->quadIdxs.end; pi0 < end; pi0++, molecule++)
+                                    molecule->ic = uint32_t(ic), molecule->i0 = *pi0;
                                 assert(molecule - quadCurve == entry->path->quadCount);
                                 quadCurve = molecule;
                             }
