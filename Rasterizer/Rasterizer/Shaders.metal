@@ -360,13 +360,10 @@ fragment float4 quad_curves_fragment_main(QuadCurvesVertex vert [[stage_in]])
 {
     float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2;
     a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-    invdet = 1.0 / (a * d - b * c);
-    a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-    x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-    x2 += 0.5, y2 += 0.5;
+    invdet = 1.0 / (a * d - b * c), a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+    x2 = 0.5 + b * vert.v - d * vert.u, y2 = 0.5 + vert.u * c - vert.v * a;
     x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
-//    return 1;
-    return -quadraticWinding(x0, y0, x1, y1, x2, y2) + -fastWinding(x2, y2, x0, y0);
+    return fastWinding(x0, y0, x2, y2) + quadraticWinding(x2, y2, x1, y1, x0, y0);
 }
 
 #pragma mark - Quad Molecules
