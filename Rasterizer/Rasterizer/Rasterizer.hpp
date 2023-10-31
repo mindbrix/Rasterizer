@@ -442,8 +442,8 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, curveCount = 0, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
-            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + curveCount; }
+            size_t idx, quadCount = 0, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
+            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + quadCount; }
         };
         void empty(Bounds device) {
             imgCount = 0, full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -451,7 +451,7 @@ struct Rasterizer {
         void refill(size_t idx) {
             imgCount = kTextureSlotsSize - 1, sheet = full, molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
         }
-        inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count, size_t curveCount = 0) {
+        inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count, size_t quadCount = 0) {
             float w = ux - lx, h = uy - ly;  Bounds *b;  float hght;
             if (h <= kFastHeight) {
                 hght = ceilf(h / 4) * 4;
@@ -464,7 +464,7 @@ struct Rasterizer {
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
-            passes.back().counts[type] += count, passes.back().curveCount += curveCount;
+            passes.back().counts[type] += count, passes.back().quadCount += quadCount;
         }
         inline void allocImage(size_t idx) {
             if (imgCount == 0)
@@ -1052,7 +1052,7 @@ struct Rasterizer {
                 ctx->entries.emplace_back(Buffer::kFastMolecules, begin, end), begin = end;
                 
                 if (kUseQuadCurves) {
-                    quadCurve0 = quadCurve = (Edge *)(buffer.base + begin), end = begin + pass->curveCount * sizeof(Edge);
+                    quadCurve0 = quadCurve = (Edge *)(buffer.base + begin), end = begin + pass->quadCount * sizeof(Edge);
                     ctx->entries.emplace_back(Buffer::kQuadCurves, begin, end), begin = end;
                 }
                 
