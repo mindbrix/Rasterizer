@@ -216,7 +216,7 @@ struct Rasterizer {
                         x0 = p->x & 0x7FFF, y0 = p->y & 0x7FFF;
                         x1 = (p + 1)->x & 0x7FFF, y1 = (p + 1)->y & 0x7FFF;
                         x2 = (p + 2)->x & 0x7FFF, y2 = (p + 2)->y & 0x7FFF;
-                        area = 0.125f * fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
+                        area = fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
                         maxArea = fmaxf(area, maxArea);
                     }
                 g->maxArea = fmaxf(maxArea, g->maxArea);
@@ -513,9 +513,11 @@ struct Rasterizer {
                            size = scn->cache->entries.base[ip].size, cnt = size / kFastSegments;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
-                           bool isFlat = g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0;
+
+                           float scale = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
+                           bool isFlat = (kUseQuadCurves ? 1.f : 0.125f) * g->maxArea * scale * scale * det < 1.f;
                            bool fast = !buffer->useCurves || isFlat;
-//                            bool fast = !buffer->useCurves || det * scn->cache->entries.base[ip].maxDot < 16.f;
+
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                            int type;
