@@ -207,6 +207,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
+    bool fast = inst.iz & Instance::kFastEdges;
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
@@ -232,7 +233,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     
-    if (kUseQuadCurves && pcurve) {
+    if (!fast && pcurve) {
         x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
         x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     }
@@ -243,7 +244,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
             
             pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
             x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-            if (kUseQuadCurves && pcurve) {
+            if (!fast && pcurve) {
                 x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
                 x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
             }

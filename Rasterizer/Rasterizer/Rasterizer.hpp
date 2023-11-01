@@ -515,7 +515,7 @@ struct Rasterizer {
                                 p16total += size;
 
                            float scale = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
-                           bool isFlat = (kUseQuadCurves ? 1.f : 0.125f) * g->maxArea * scale * scale * det < 1.f;
+                           bool isFlat = 0.125f * g->maxArea * scale * scale * det < 1.f;
                            bool fast = !buffer->useCurves || isFlat;
 
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
