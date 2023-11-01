@@ -208,14 +208,23 @@ struct Rasterizer {
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
                 
+                float x2, y2, area, maxArea = 0.f;
                 for (Point16 *p0 = g->p16s.base, *p = p0 + g->p16s.idx, *end = p0 + g->p16s.end - 1; p < end; p++)
-                    if (p->y & 0x8000)
+                    if (p->y & 0x8000) {
                         *(g->quadI0s.alloc(1)) = uint16_t(p - p0);
+                        
+                        x0 = p->x & 0x7FFF, y0 = p->y & 0x7FFF;
+                        x1 = (p + 1)->x & 0x7FFF, y1 = (p + 1)->y & 0x7FFF;
+                        x2 = (p + 2)->x & 0x7FFF, y2 = (p + 2)->y & 0x7FFF;
+                        area = 0.125f * fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
+                        maxArea = fmaxf(area, maxArea);
+                    }
+                g->maxArea = fmaxf(maxArea, g->maxArea);
                 g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
+        float x0 = 0.f, y0 = 0.f, maxDot = 0.f, maxArea = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
         Row<Point16> p16s;  Row<uint16_t> quadI0s;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
