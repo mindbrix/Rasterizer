@@ -369,12 +369,14 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 {
     QuadMoleculesVertex vert;
     
-    const device Edge& edge = edges[iid];
+    uint divisor = kOneQuadPerCurve ? 4 : 1, idx = iid % divisor;
+    const device Edge& edge = edges[iid / divisor];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
+    const device Point16 *pts = & points[inst.quad.base + (iid / divisor - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, scale, ma, mb, mc, md, px, py, x0, y0, x1, y1, nx, ny, cpx, cpy;
@@ -385,31 +387,44 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-//    if (kUseQuad16s) {
-//        float x0, y0, cpx, cpy, x16, y16;
-//        bool skip, end, isCurve;
-//
-//        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-//        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
-//        *dst++ = slx = sux = x0 = x16 * ma + y16 * mc + tx,
-//        *dst++ = sly = suy = y0 = x16 * mb + y16 * md + ty;
-//        for (i = 0; i < kFastSegments; i++, skip |= end) {
-//            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
-//            cpx = x16 * ma + y16 * mc + tx, cpy = x16 * mb + y16 * md + ty;
-//            isCurve = !skip && (cpx != x0 || cpy != y0);
-//            *dst++ = isCurve ? cpx : FLT_MAX, *dst++ = isCurve ? cpy : FLT_MAX;
-//
-//            slx = !isCurve ? slx : min(slx, cpx), sux = !isCurve ? sux : max(sux, cpx);
-//            sly = !isCurve ? sly : min(sly, cpy), suy = !isCurve ? suy : max(suy, cpy);
-//
-//            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 1;
-//
-//            x0 = skip ? x0 : x16 * ma + y16 * mc + tx, *dst++ = x0, slx = min(slx, x0), sux = max(sux, x0);
-//            y0 = skip ? y0 : x16 * mb + y16 * md + ty, *dst++ = y0, sly = min(sly, y0), suy = max(suy, y0);
-//        }
-//    } else {
+    if (kOneQuadPerCurve) {
+        float x16, y16, x0, y0, x1, y1, x2, y2, cpx, cpy;
+        const device Point16 *p = pts + idx;
+        if (p->y & 0x8000) {
+            x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
+            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+            x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
+            x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
+            x16 = (p + 2)->x & 0x7FFF, y16 = (p + 2)->y & 0x7FFF;
+            x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
+            cpx = 0.25 * (x0 - x2) + x1, cpy = 0.25 * (y0 - y2) + y1;
+        } else if (p->x & 0x8000) {
+            x16 = (p - 1)->x & 0x7FFF, y16 = (p - 1)->y & 0x7FFF;
+            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+            x16 = (p + 0)->x & 0x7FFF, y16 = (p + 0)->y & 0x7FFF;
+            x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
+            x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
+            x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
+            cpx = 0.25 * (x2 - x0) + x1, cpy = 0.25 * (y2 - y0) + y1;
+            x0 = x1, y0 = y1;
+            x1 = x2, y1 = y2;
+        } else {
+            x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
+            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+            x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
+            x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
+            cpx = FLT_MAX, cpy = FLT_MAX;
+        }
+        slx = min(x0, x1), slx = cpx == FLT_MAX ? slx : min(cpx, slx);
+        sly = min(y0, y1), sly = cpy == FLT_MAX ? sly : min(cpy, sly);
+        sux = max(x0, x1), sux = cpx == FLT_MAX ? sux : max(cpx, sux);
+        suy = max(y0, y1), suy = cpy == FLT_MAX ? suy : max(cpy, suy);
+        
+        visible = idx < segcount;
+         
+        dst[0] = x0, dst[1] = y0, dst[2] = cpx, dst[3] = cpy, dst[4] = x1, dst[5] = y1;
+    } else {
         if (visible) {
-            const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
             float x, y;
             curve0 = ((pts->x & 0x8000) >> 14) | ((pts->y & 0x8000) >> 15);
             curve1 = (((pts + 1)->x & 0x8000) >> 14) | (((pts + 1)->y & 0x8000) >> 15);
@@ -445,8 +460,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
                 }
             }
         }
-//    }
-    
+    }
     
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
@@ -465,22 +479,31 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 
 fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vt [[stage_in]])
 {
-    float d = min(
-                  min(roundedDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2),
-                      roundedDistance(vt.x2, vt.y2, vt.x3, vt.y3, vt.x4, vt.y4)),
-                  min(roundedDistance(vt.x4, vt.y4, vt.x5, vt.y5, vt.x6, vt.y6),
-                      roundedDistance(vt.x6, vt.y6, vt.x7, vt.y7, vt.x8, vt.y8))
-                  );
+    float d = 0;
+    if (kOneQuadPerCurve) {
+        d = roundedDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2);
+    } else {
+        d = min(
+                     min(roundedDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2),
+                         roundedDistance(vt.x2, vt.y2, vt.x3, vt.y3, vt.x4, vt.y4)),
+                     min(roundedDistance(vt.x4, vt.y4, vt.x5, vt.y5, vt.x6, vt.y6),
+                         roundedDistance(vt.x6, vt.y6, vt.x7, vt.y7, vt.x8, vt.y8))
+                     );
+    }
     return saturate(vt.dw - sqrt(d));
 }
 
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
 {
+    if (kOneQuadPerCurve) {
+        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
+    } else {
+        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+        + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
+        + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
+        + quadraticWinding(vert.x6, vert.y6, vert.x7, vert.y7, vert.x8, vert.y8);
+    }
 //    return 0.2;
-    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
-    + quadraticWinding(vert.x2, vert.y2, vert.x3, vert.y3, vert.x4, vert.y4)
-    + quadraticWinding(vert.x4, vert.y4, vert.x5, vert.y5, vert.x6, vert.y6)
-    + quadraticWinding(vert.x6, vert.y6, vert.x7, vert.y7, vert.x8, vert.y8);
 }
 
 #pragma mark - Fast & Quad Edges

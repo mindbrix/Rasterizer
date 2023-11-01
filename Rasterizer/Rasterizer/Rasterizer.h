@@ -30,3 +30,4 @@
 #define kUXCoverSize 4
 #define kTextureSlotsSize 64
 #define kUseQuadCurves 1
+#define kOneQuadPerCurve 1

@@ -310,7 +310,7 @@ struct TextureCache {
                     [commandEncoder drawPrimitives:entry.type == Ra::Buffer::kQuadCurves ? MTLPrimitiveTypeTriangle : MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:entry.type == Ra::Buffer::kQuadCurves ?  3 : 4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge)
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge) * (kOneQuadPerCurve && entry.type == Ra::Buffer::kQuadMolecules ? 4 : 1)
                                       baseInstance:0];
                 }
                 if (entry.type == Ra::Buffer::kQuadMolecules) {

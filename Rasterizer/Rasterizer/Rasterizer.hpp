@@ -514,6 +514,7 @@ struct Rasterizer {
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
 
+//                           bool isFlat = g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0;
                            float scale = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
                            bool isFlat = 0.125f * g->maxArea * scale * scale * det < 1.f;
                            bool fast = !buffer->useCurves || isFlat;
