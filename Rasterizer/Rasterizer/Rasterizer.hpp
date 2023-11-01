@@ -199,7 +199,7 @@ struct Rasterizer {
             Geometry *g = (Geometry *)info;
             Point16 *p = g->p16s.alloc(1);
             if ((curve & kMoleculesEnd) == 0)
-                p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15), g->quadCount += bool(p->x & 0x8000) * 2;
+                p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
             else {
                 p->x = x1, p->y = y1;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
@@ -210,13 +210,13 @@ struct Rasterizer {
                 
                 for (Point16 *p0 = g->p16s.base, *p = p0 + g->p16s.idx, *end = p0 + g->p16s.end - 1; p < end; p++)
                     if ((p->x & 0x8000) || (p->y & 0x8000))
-                        *(g->quadIdxs.alloc(1)) = uint16_t(p - p0);
+                        *(g->quadI0s.alloc(1)) = uint16_t(p - p0);
                 g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
-        size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 }, quadCount = 0;
+        size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
-        Row<Point16> p16s;  Row<uint16_t> quadIdxs;  Row<uint8_t> p16cnts;
+        Row<Point16> p16s;  Row<uint16_t> quadI0s;  Row<uint8_t> p16cnts;
     };
     typedef Ref<Geometry> Path;
     
@@ -515,7 +515,7 @@ struct Rasterizer {
                            else
                                type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            
-                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, kUseQuadCurves && !fast && width == 0.f ? g->quadCount : 0);
+                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, kUseQuadCurves && !fast && width == 0.f ? g->quadI0s.end : 0);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
@@ -1071,10 +1071,9 @@ struct Rasterizer {
                             
                             if (kUseQuadCurves && !(inst->iz & Instance::kFastEdges)) {
                                 molecule = quadCurve;
-                                assert(entry->path->quadIdxs.end == entry->path->quadCount);
-                                for (uint16_t *pi0 = entry->path->quadIdxs.base, *end = pi0 + entry->path->quadIdxs.end; pi0 < end; pi0++, molecule++)
+                                for (uint16_t *pi0 = entry->path->quadI0s.base, *end = pi0 + entry->path->quadI0s.end; pi0 < end; pi0++, molecule++)
                                     molecule->ic = uint32_t(ic), molecule->i0 = *pi0;
-                                assert(molecule - quadCurve == entry->path->quadCount);
+                                assert(molecule - quadCurve == entry->path->quadI0s.end);
                                 quadCurve = molecule;
                             }
                         }
