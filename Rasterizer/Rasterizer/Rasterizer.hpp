@@ -209,7 +209,7 @@ struct Rasterizer {
                 empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
                 
                 for (Point16 *p0 = g->p16s.base, *p = p0 + g->p16s.idx, *end = p0 + g->p16s.end - 1; p < end; p++)
-                    if ((p->x & 0x8000) || (p->y & 0x8000))
+                    if (p->y & 0x8000)
                         *(g->quadI0s.alloc(1)) = uint16_t(p - p0);
                 g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }

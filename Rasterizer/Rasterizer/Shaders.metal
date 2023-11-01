@@ -209,8 +209,8 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy;
-    bool skip = false, end;
+    float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
+    bool skip = false, pcurve;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
@@ -229,15 +229,26 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
 //    } else {
         const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
         segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-        *dst++ = slx = sux = x16 * ma + y16 * mc + tx,
-        *dst++ = sly = suy = x16 * mb + y16 * md + ty;
+        pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+        x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    
+    if (kUseQuadCurves && pcurve) {
+        x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
+        x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    }
+        *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
+    
         for (i = 0; i < kFastSegments; i++, dst += 2) {
             skip |= i >= segcount;
             
-            x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-            dst[0] = select(x16 * ma + y16 * mc + tx, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
-            dst[1] = select(x16 * mb + y16 * md + ty, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+            pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+            if (kUseQuadCurves && pcurve) {
+                x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
+                x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+            }
+            dst[0] = select(x0, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
+            dst[1] = select(y0, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
         }
 //    }
     
@@ -297,8 +308,8 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     const device Cell& cell = inst.quad.cell;
     float offx = cell.ox - cell.lx, offy = cell.oy - cell.ly;
     float dx = 0, dy = 0, visible = 1.0;
-    bool pcurve = pts->x & 0x8000;
-    pts -= int(pcurve);
+//    bool pcurve = pts->x & 0x8000;
+//    pts -= int(pcurve);
     
     float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -313,45 +324,40 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         
     
-    float mx, my;
-    float cpx = 2.0 * x1 - 0.5 * (x0 + x2), cpy = 2.0 * y1 - 0.5 * (y0 + y2);
-    if (pcurve) {
-        mx = x0 * 0.0625 + cpx * 0.375 + x2 * 0.5625;
-        my = y0 * 0.0625 + cpy * 0.375 + y2 * 0.5625;
-        x0 = x1, x1 = mx;
-        y0 = y1, y1 = my;
-    } else {
-        mx = x0 * 0.5625 + cpx * 0.375 + x2 * 0.0625;
-        my = y0 * 0.5625 + cpy * 0.375 + y2 * 0.0625;
-        x2 = x1, x1 = mx;
-        y2 = y1, y1 = my;
-    }
+//    float mx, my;
+//    float cpx = 2.0 * x1 - 0.5 * (x0 + x2), cpy = 2.0 * y1 - 0.5 * (y0 + y2);
+//    if (pcurve) {
+//        mx = x0 * 0.0625 + cpx * 0.375 + x2 * 0.5625;
+//        my = y0 * 0.0625 + cpy * 0.375 + y2 * 0.5625;
+//        x0 = x1, x1 = mx;
+//        y0 = y1, y1 = my;
+//    } else {
+//        mx = x0 * 0.5625 + cpx * 0.375 + x2 * 0.0625;
+//        my = y0 * 0.5625 + cpy * 0.375 + y2 * 0.0625;
+//        x2 = x1, x1 = mx;
+//        y2 = y1, y1 = my;
+//    }
+    
     x1 = 2.0 * x1 - 0.5 * (x0 + x2), y1 = 2.0 * y1 - 0.5 * (y0 + y2);
     
     float area = abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
-    float offset = 2.0 * sqrt(2.0);
+    visible = area > 1.0;
+    float offset = sqrt(2.0);
     float ax, ay, su, sv, sw;
     ax = x2 - x1, ay = y2 - y1;
-    su = offset / (area * rsqrt(ax * ax + ay * ay));
+    su = 2.0 * offset / (area * rsqrt(ax * ax + ay * ay));
     ax = x0 - x2, ay = y0 - y2;
     sv = offset / (area * rsqrt(ax * ax + ay * ay));
     ax = x1 - x0, ay = y1 - y0;
-    sw = offset / (area * rsqrt(ax * ax + ay * ay));
-    
-    float u = float(vid == 0), v = float(vid == 1), w = 1.0 - u - v;
+    sw = 2.0 * offset / (area * rsqrt(ax * ax + ay * ay));
     
     float du = (vid == 0 ? 0 : -su) + (vid == 1 ? 0 : 0.5 * sv) + (vid == 2 ? 0 : 0.5 * sw);
     float dv = (vid == 0 ? 0 : 0.5 * su) + (vid == 1 ? 0 : -sv) + (vid == 2 ? 0 : 0.5 * sw);
-    u += du, v += dv, w = 1.0 - u - v;
-    
-//    dx = vid == 0 ? x0 : (vid == 1 ? x1 : x2);
-//    dy = vid == 0 ? y0 : (vid == 1 ? y1 : y2);
-    visible = area > 1.0;
-    
-    dx = u * x0 + v * x1 + w * x2;
-    dy = u * y0 + v * y1 + w * y2;
+    float u = float(vid == 0) + du, v = float(vid == 1) + dv, w = 1.0 - u - v;
+    dx = u * x0 + v * x1 + w * x2, dy = u * y0 + v * y1 + w * y2;
     
     vert.position = float4((dx + offx) / *width * 2.0 - 1.0, (dy + offy) / *height * 2.0 - 1.0, 1.0, visible);
+    
     float t, e = 0.5;
     t = (dx - float(cell.lx - e)) / float(2.0 * e + cell.ux - cell.lx);
     vert.bx = 2.0 * t - 1.0;
