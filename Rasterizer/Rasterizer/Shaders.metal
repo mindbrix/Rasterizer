@@ -216,42 +216,29 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-//    if (kUseQuad16s) {
-//        float x, y;
-//        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kQuadPoints];
-//        skip = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
-//        *dst++ = slx = sux = x = x16 * ma + y16 * mc + tx,
-//        *dst++ = sly = suy = y = x16 * mb + y16 * md + ty;
-//        for (i = 0; i < kFastSegments; i++, skip |= end) {
-//            end = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts += 2;
-//            x = skip ? x : x16 * ma + y16 * mc + tx, *dst++ = x, slx = min(slx, x), sux = max(sux, x);
-//            y = skip ? y : x16 * mb + y16 * md + ty, *dst++ = y, sly = min(sly, y), suy = max(suy, y);
-//        }
-//    } else {
-        const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
-        segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-        pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
-        x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
+    segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
+    pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     
     if (!fast && pcurve) {
         x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
         x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     }
-        *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
-    
-        for (i = 0; i < kFastSegments; i++, dst += 2) {
-            skip |= i >= segcount;
-            
-            pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
+
+    for (i = 0; i < kFastSegments; i++, dst += 2) {
+        skip |= i >= segcount;
+        
+        pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+        x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+        if (!fast && pcurve) {
+            x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
             x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-            if (!fast && pcurve) {
-                x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
-                x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-            }
-            dst[0] = select(x0, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
-            dst[1] = select(y0, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
         }
-//    }
+        dst[0] = select(x0, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
+        dst[1] = select(y0, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
+    }
     
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
