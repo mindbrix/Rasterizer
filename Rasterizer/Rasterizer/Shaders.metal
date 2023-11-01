@@ -296,8 +296,6 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     const device Cell& cell = inst.quad.cell;
     float offx = cell.ox - cell.lx, offy = cell.oy - cell.ly;
     float dx = 0, dy = 0, visible = 1.0;
-//    bool pcurve = pts->x & 0x8000;
-//    pts -= int(pcurve);
     
     float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -311,21 +309,6 @@ vertex QuadCurvesVertex quad_curves_vertex_main(const device Edge *edges [[buffe
     x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
     x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         
-    
-//    float mx, my;
-//    float cpx = 2.0 * x1 - 0.5 * (x0 + x2), cpy = 2.0 * y1 - 0.5 * (y0 + y2);
-//    if (pcurve) {
-//        mx = x0 * 0.0625 + cpx * 0.375 + x2 * 0.5625;
-//        my = y0 * 0.0625 + cpy * 0.375 + y2 * 0.5625;
-//        x0 = x1, x1 = mx;
-//        y0 = y1, y1 = my;
-//    } else {
-//        mx = x0 * 0.5625 + cpx * 0.375 + x2 * 0.0625;
-//        my = y0 * 0.5625 + cpy * 0.375 + y2 * 0.0625;
-//        x2 = x1, x1 = mx;
-//        y2 = y1, y1 = my;
-//    }
-    
     x1 = 2.0 * x1 - 0.5 * (x0 + x2), y1 = 2.0 * y1 - 0.5 * (y0 + y2);
     
     float area = abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
