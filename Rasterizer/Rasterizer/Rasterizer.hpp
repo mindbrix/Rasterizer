@@ -379,6 +379,13 @@ struct Rasterizer {
             Type type;  size_t begin, end;
         };
         ~Buffer() { if (base) free(base); }
+        
+        template<typename T>
+        inline T *pointer(size_t i) { return (T *)(base + i); }
+        
+        template<typename T>
+        inline size_t index(T *ptr) { return (uint8_t *)ptr - base; }
+        
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
             size_t i, si, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint32_t), sizeof(Transform) };
@@ -1032,7 +1039,14 @@ struct Rasterizer {
                 
                 if (kUseQuadCurves) {
                     quadCurve0 = quadCurve = (Edge *)(buffer.base + begin), end = begin + pass->quadCount * sizeof(Edge);
+                    
+                    Edge *ptr = buffer.pointer<Edge>(end);
+                    size_t i = buffer.index(ptr);
+                    assert(i == end);
+                    
                     ctx->entries.emplace_back(Buffer::kQuadCurves, begin, end), begin = end;
+                    
+                    
                 }
                 
                 quadMolecule0 = quadMolecule = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadMolecules] * sizeof(Edge);
