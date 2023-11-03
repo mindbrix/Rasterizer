@@ -874,7 +874,7 @@ struct Rasterizer {
                 float ay, by, cy, ax, bx, cx;
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, cx = x0;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f, cy = y0;
-                float y, uy, d2a, ity, d, t0, t1, ny, sign = y2 < y0 ? -1.f : 1.f, lx, ux;
+                float y, uy, d2a, ity, d, t0, t1, ny, sign = copysignf(1.f, y2 - y0);
                 y = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
                 if (fabsf(ay) < kQuadraticFlatness)
                     t0 = -(cy - y) / by;
@@ -888,8 +888,7 @@ struct Rasterizer {
                     else
                         d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
                     t1 = fmaxf(0.f, fminf(1.f, t1)), x1 = (ax * t1 + bx) * t1 + cx;
-                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                    writeIndex(ir, lx, ux, sign * (ny - y));
+                    writeIndex(ir, fminf(x0, x1), fmaxf(x0, x1), sign * (ny - y));
                 }
             }
         }
