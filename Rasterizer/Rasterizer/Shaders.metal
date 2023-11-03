@@ -530,7 +530,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Edge& edge = edges[iid / divisor];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
-    vert.a0 = edge.ic & Edge::a0, vert.a1 = edge.ic & Edge::a1;
     thread float *dst = & vert.x0;
     thread float *iys = & vert.iy0;
     thread bool *as = & vert.a0;
@@ -543,7 +542,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     if (kOneQuadPerCurve) {
         visible = idxes[idx] != 0xFFFFF;
         uint si = visible ? ids[idx] : 0;
-        as[0] = as[idx];
+        
         const device Segment& s = segments[inst.quad.base + si];
         x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
         dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
@@ -560,23 +559,20 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
             slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
         } else {
-            float ay, by, cy, iy, ax, bx, tx, x, y, d, r, t0, t1, sign;  bool mono;
-            ay = y2 - y1, by = y1 - y0, mono = abs(ay) < kMonotoneFlatness || abs(by) < kMonotoneFlatness || (ay > 0.0) == (by > 0.0);
-            iy = mono ? y2 : y0 - by * by / (ay - by);
-            iys[0] = iy, sly = min(sly, iy), suy = max(suy, iy);
+            float ay, by, cy, ax, bx, d, r, t0, t1;
+            ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
+            ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
             
-            sign = as[0] ? iy - y0 : y2 - iy;
-            ay -= by, by *= 2.0, ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
             cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-            t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+            t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
             cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-            t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+            t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
             if (t0 != t1)
                 slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
-            x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
-            slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
         }
     } else {
+        vert.a0 = edge.ic & Edge::a0, vert.a1 = edge.ic & Edge::a1;
+        
         for (int i = 0; i < 2; i++, dst += 6) {
             if (idxes[i] != 0xFFFFF) {
                 const device Segment& s = segments[inst.quad.base + idxes[i]];
@@ -643,7 +639,7 @@ fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     if (kOneQuadPerCurve) {
-        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2, vert.a0, vert.iy0);
+        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
     } else {
         return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2, vert.a0, vert.iy0)
             + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5, vert.a1, vert.iy1);
