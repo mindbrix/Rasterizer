@@ -307,10 +307,11 @@ struct TextureCache {
                     [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                     [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                     [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+                    size_t divisor = !kOneQuadPerCurve ? 1 : entry.type == Ra::Buffer::kQuadMolecules ? 4 : entry.type == Ra::Buffer::kQuadEdges || entry.type == Ra::Buffer::kFastEdges ? 2 : 1;
                     [commandEncoder drawPrimitives:entry.type == Ra::Buffer::kQuadCurves ? MTLPrimitiveTypeTriangle : MTLPrimitiveTypeTriangleStrip
                                        vertexStart:0
                                        vertexCount:entry.type == Ra::Buffer::kQuadCurves ?  3 : 4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge) * (kOneQuadPerCurve && entry.type == Ra::Buffer::kQuadMolecules ? 4 : 1)
+                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge) * divisor
                                       baseInstance:0];
                 }
                 if (entry.type == Ra::Buffer::kQuadMolecules) {
