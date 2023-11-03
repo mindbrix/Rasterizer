@@ -512,8 +512,6 @@ struct EdgesVertex
 {
     float4 position [[position]];
     float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5;
-    float iy0, iy1;
-    bool a0, a1;
 };
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -531,8 +529,6 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
     thread float *dst = & vert.x0;
-    thread float *iys = & vert.iy0;
-    thread bool *as = & vert.a0;
     uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 10) + edge.i0, ((edge.ic & Edge::ue1) >> 6) + edge.ux };
     const thread uint32_t *idxes = & ids[0];
     float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
@@ -551,17 +547,10 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             const device Segment& n = segments[inst.quad.base + si + 1];
             x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
             x1 = dst[2] = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = dst[3] = 2.f * s.y1 - 0.5f * (y0 + y2);
-        } else {
-            dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
-        }
-        sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
-        if (dst[2] == FLT_MAX) {
-            float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
-            slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
-        } else {
+            
             float ay, by, cy, ax, bx, d, r, t0, t1;
-            ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
             ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
+            ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
             
             cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
             t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
@@ -569,10 +558,15 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
             if (t0 != t1)
                 slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
+        } else {
+            dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+            
+            float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
+            slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
         }
-    } else {
-        vert.a0 = edge.ic & Edge::a0, vert.a1 = edge.ic & Edge::a1;
+        sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
         
+    } else {
         for (int i = 0; i < 2; i++, dst += 6) {
             if (idxes[i] != 0xFFFFF) {
                 const device Segment& s = segments[inst.quad.base + idxes[i]];
@@ -590,21 +584,15 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                     float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                     slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
                 } else {
-                    float ay, by, cy, iy, ax, bx, tx, x, y, d, r, t0, t1, sign;  bool mono;
-                    ay = y2 - y1, by = y1 - y0, mono = abs(ay) < kMonotoneFlatness || abs(by) < kMonotoneFlatness || (ay > 0.0) == (by > 0.0);
-                    iy = mono ? y2 : y0 - by * by / (ay - by);
-                    iys[i] = iy, sly = min(sly, iy), suy = max(suy, iy);
-                    
-                    sign = as[i] ? iy - y0 : y2 - iy;
-                    ay -= by, by *= 2.0, ax = x0 + x2 - x1 - x1, bx = 2.0 * (x1 - x0), tx = -bx / ax * 0.5;
+                    float ay, by, cy, ax, bx, d, r, t0, t1;
+                    ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
+                    ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
                     cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-                    t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+                    t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
                     cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-                    t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, sign)) / ay * 0.5);
+                    t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
                     if (t0 != t1)
                         slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
-                    x = fma(fma(ax, tx, bx), tx, x0), y = fma(fma(ay, tx, by), tx, y0);
-                    slx = min(slx, tx > 0.0 && tx < 1.0 && y > cell.ly && y < cell.uy ? x : x0);
                 }
             } else
                 dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
@@ -618,11 +606,11 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     vert.position = float4(x, y, 1.0, visible);
     vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
     if (vert.x1 != FLT_MAX)
-        vert.x1 += tx, vert.y1 += ty, vert.iy0 += ty;
+        vert.x1 += tx, vert.y1 += ty;
     if (!kOneQuadPerCurve) {
         vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
         if (vert.x4 != FLT_MAX)
-            vert.x4 += tx, vert.y4 += ty, vert.iy1 += ty;
+            vert.x4 += tx, vert.y4 += ty;
     }
     return vert;
 }
@@ -641,8 +629,8 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
     if (kOneQuadPerCurve) {
         return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
     } else {
-        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2, vert.a0, vert.iy0)
-            + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5, vert.a1, vert.iy1);
+        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+            + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
     }
 }
 
