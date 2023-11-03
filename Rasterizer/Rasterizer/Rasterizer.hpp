@@ -810,7 +810,7 @@ struct Rasterizer {
             if (y0 != y1 || curve) {
                 CurveIndexer *idxr = (CurveIndexer *)info;
                 
-                if (curve == 0 || !idxr->useCurves)
+                if (curve == 0)
                     new (idxr->dst++) Segment(x0, y0, x1, y1, curve), idxr->indexLine(x0, y0, x1, y1), idxr->is++;
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
@@ -818,7 +818,9 @@ struct Rasterizer {
                     float x2, y2, ax, ay, bx, by, itx, ity, s, t, u, v, w, cx0, cy0, cx1, cy1, cx2, cy2;
                     x2 = x1, x1 = x0, x0 = idxr->px0, y2 = y1, y1 = y0, y0 = idxr->py0;
                     
-                    if ( ((y2 > y1) == (y1 > y0)) && ((x2 > x1) == (x1 > x0)) ) {
+                    if (!idxr->useCurves) {
+                        new (idxr->dst++) Segment(x0, y0, x2, y2, 0), idxr->indexLine(x0, y0, x2, y2), idxr->is++;
+                    } else if ( ((y2 > y1) == (y1 > y0)) && ((x2 > x1) == (x1 > x0)) ) {
                         new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
                         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
                         idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
