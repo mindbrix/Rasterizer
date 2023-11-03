@@ -290,7 +290,7 @@ struct Rasterizer {
                     Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
                     if (path->p16s.end == 0) {
                         path->p16s.alloc(upper), path->p16s.empty();
-                        divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
+                        divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / (kMoleculesHeight + 1e-3f)));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                         assert(path->p16s.end <= upper);
                     }
@@ -878,14 +878,14 @@ struct Rasterizer {
                     t0 = -(cy - y) / by;
                 else
                     d = by * by - 4.f * ay * (cy - y), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-                x0 = (ax * t0 + bx) * t0 + cx;
+                t0 = fmaxf(0.f, fminf(1.f, t0)), x0 = (ax * t0 + bx) * t0 + cx;
                 for (int ir = y * krfh; y < uy; y = ny, ir++, x0 = x1, t0 = t1) {
                     ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
                     if (fabsf(ay) < kQuadraticFlatness)
                         t1 = -(cy - ny) / by;
                     else
                         d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-                    x1 = (ax * t1 + bx) * t1 + cx;
+                    t1 = fmaxf(0.f, fminf(1.f, t1)), x1 = (ax * t1 + bx) * t1 + cx;
                     lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
                     writeIndex(ir, lx, ux, sign * (ny - y));
                 }
