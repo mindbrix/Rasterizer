@@ -818,7 +818,7 @@ struct Rasterizer {
                     float x2, y2, ax, ay, bx, by, itx, ity, s, t, u, v, w, cx0, cy0, cx1, cy1, cx2, cy2;
                     x2 = x1, x1 = x0, x0 = idxr->px0, y2 = y1, y1 = y0, y0 = idxr->py0;
                     
-                    if (!kOneQuadPerCurve) {
+                    if ( ((y2 > y1) == (y1 > y0)) && ((x2 > x1) == (x1 > x0)) ) {
                         new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
                         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
                         idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
@@ -851,7 +851,7 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1) {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, (y1 - y0) * kCoverScale, false);
+                writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, (y1 - y0) * kCoverScale);
             else {
                 float lx, ux, ly, uy, m, c, y, ny, minx, maxx, scale;  int ir;
                 lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
@@ -861,49 +861,39 @@ struct Rasterizer {
                 maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                 for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
                     ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
-                    writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, (ny - y) * scale, false);
+                    writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, (ny - y) * scale);
                 }
             }
         }
         __attribute__((always_inline)) void indexQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ay = y2 - y1, by = y1 - y0, ax, bx, iy;
-            if ((ay > 0.f) == (by > 0.f) || fabsf(ay) < kMonotoneFlatness || fabsf(by) < kMonotoneFlatness) {
-                if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                    writeIndex(y0 * krfh, fminf(x0, fminf(x1, x2)), fmaxf(x0, fmaxf(x1, x2)), (y2 - y0) * kCoverScale, true);
-                else
-                    ax = x2 - x1, bx = x1 - x0, indexCurve(y0, y2, ay - by, 2.f * by, y0, ax - bx, 2.f * bx, x0, true);
-            } else {
-                iy = y0 - by * by / (ay - by), iy = iy < clip.ly ? clip.ly : iy > clip.uy ? clip.uy : iy;
-                ay -= by, by *= 2.f, ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
-                indexCurve(y0, iy, ay, by, y0, ax, bx, x0, true);
-                indexCurve(iy, y2, ay, by, y0, ax, bx, x0, false);
-            }
-        }
-        __attribute__((always_inline)) void indexCurve(float w0, float w1, float ay, float by, float cy, float ax, float bx, float cx, bool a) {
-            float y, uy, d2a, ity, d, t0, t1, itx, x0, x1, ny, sign = w1 < w0 ? -1.f : 1.f, lx, ux, ix;
-            y = w0 < w1 ? w0 : w1, uy = w0 > w1 ? w0 : w1, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-            itx = fabsf(ax) < kQuadraticFlatness ? FLT_MAX : -bx / ax * 0.5f;
-            if (fabsf(ay) < kQuadraticFlatness)
-                t0 = -(cy - y) / by;
-            else
-                d = by * by - 4.f * ay * (cy - y), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-            x0 = (ax * t0 + bx) * t0 + cx;
-            for (int ir = y * krfh; y < uy; y = ny, ir++, x0 = x1, t0 = t1) {
-                ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
+            if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
+                writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
+            else {
+                float ay, by, cy, ax, bx, cx;
+                ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, cx = x0;
+                ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f, cy = y0;
+                float y, uy, d2a, ity, d, t0, t1, ny, sign = y2 < y0 ? -1.f : 1.f, lx, ux;
+                y = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
                 if (fabsf(ay) < kQuadraticFlatness)
-                    t1 = -(cy - ny) / by;
+                    t0 = -(cy - y) / by;
                 else
-                    d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-                x1 = (ax * t1 + bx) * t1 + cx;
-                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                if ((t0 <= itx) == (itx <= t1))
-                    ix = (ax * itx + bx) * itx + cx, lx = lx < ix ? lx : ix, ux = ux > ix ? ux : ix;
-                writeIndex(ir, lx, ux, sign * (ny - y), a);
+                    d = by * by - 4.f * ay * (cy - y), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                x0 = (ax * t0 + bx) * t0 + cx;
+                for (int ir = y * krfh; y < uy; y = ny, ir++, x0 = x1, t0 = t1) {
+                    ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
+                    if (fabsf(ay) < kQuadraticFlatness)
+                        t1 = -(cy - ny) / by;
+                    else
+                        d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                    x1 = (ax * t1 + bx) * t1 + cx;
+                    lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
+                    writeIndex(ir, lx, ux, sign * (ny - y));
+                }
             }
         }
-        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover, bool a) {
+        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover) {
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
-            int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = int16_t(ceilf(ux)) | (a * Flags::a), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
+            int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = int16_t(ceilf(ux)), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
