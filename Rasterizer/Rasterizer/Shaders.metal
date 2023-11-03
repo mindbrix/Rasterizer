@@ -117,10 +117,10 @@ float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
 float fastWinding(float x0, float y0, float x1, float y1) {
     return winding(x0, y0, x1, y1, saturate(y0), saturate(y1));
 }
-float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2, bool a, float iy) {
+float monoQuadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     if (x1 == FLT_MAX)
         return fastWinding(x0, y0, x2, y2);
-    float w0 = saturate(a ? y0 : iy), w1 = saturate(a ? iy : y2), cover = w1 - w0, ay, by, cy, t, s;
+    float w0 = saturate(y0), w1 = saturate(y2), cover = w1 - w0, ay, by, cy, t, s;
     ay = y0 + y2 - y1 - y1, by = 2.0 * (y1 - y0), cy = y0 - 0.5 * (w0 + w1);
     t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), cover)) / ay * 0.5, s = 1.0 - t;
     return winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
@@ -540,18 +540,16 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         uint si = visible ? ids[idx] : 0;
         
         const device Segment& s = segments[inst.quad.base + si];
-        x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
-        dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+        x0 = s.x0, y0 = s.y0;
         bool ncurve = *useCurves && as_type<uint>(x0) & 1;
         if (ncurve) {
             const device Segment& n = segments[inst.quad.base + si + 1];
-            x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
-            x1 = dst[2] = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = dst[3] = 2.f * s.y1 - 0.5f * (y0 + y2);
+            x2 = n.x1, y2 = n.y1;
+            x1 = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = 2.f * s.y1 - 0.5f * (y0 + y2);
             
             float ay, by, cy, ax, bx, d, r, t0, t1;
             ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
             ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
-            
             cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
             t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
             cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
@@ -559,12 +557,22 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             if (t0 != t1)
                 slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
         } else {
-            dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+            x1 = y1 = FLT_MAX, x2 = s.x1, y2 = s.y1;
             
             float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
             slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
         }
         sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
+        
+        float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
+        float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1), ty = 0.5 - dy;
+        float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
+        float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
+        vert.position = float4(x, y, 1.0, visible);
+        
+        dst[0] = x0 + tx, dst[1] = y0 + ty;
+        dst[2] = x1 == FLT_MAX ? x1 : x1 + tx, dst[3] = y1 == FLT_MAX ? y1 : y1 + ty;
+        dst[4] = x2 + tx, dst[5] = y2 + ty;
         
     } else {
         for (int i = 0; i < 2; i++, dst += 6) {
@@ -597,17 +605,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             } else
                 dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
         }
-    }
-    
-    float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1);
-    float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1);
-    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, tx = 0.5 - dx;
-    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, ty = 0.5 - dy;
-    vert.position = float4(x, y, 1.0, visible);
-    vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
-    if (vert.x1 != FLT_MAX)
-        vert.x1 += tx, vert.y1 += ty;
-    if (!kOneQuadPerCurve) {
+        float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
+        float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1), ty = 0.5 - dy;
+        float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
+        float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
+        vert.position = float4(x, y, 1.0, visible);
+        vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
+        if (vert.x1 != FLT_MAX)
+            vert.x1 += tx, vert.y1 += ty;
         vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
         if (vert.x4 != FLT_MAX)
             vert.x4 += tx, vert.y4 += ty;
@@ -627,7 +632,7 @@ fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
     if (kOneQuadPerCurve) {
-        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
+        return monoQuadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
     } else {
         return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
             + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
