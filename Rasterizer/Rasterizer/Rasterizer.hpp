@@ -238,11 +238,11 @@ struct Rasterizer {
         enum Flags { isCurve = 1 << 31, kMask = ~(isCurve) };
         uint32_t i;
     };
-    struct CurvesWriter {
+    struct CurveWriter {
         Row<Point> *points;  Row<Atom> *atoms;  float x0, y0, x1 = FLT_MAX, y1;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            CurvesWriter *c = (CurvesWriter *)info;
+            CurveWriter *c = (CurveWriter *)info;
             if ((curve & kEndSubpath) == 0) {
                 if (c->x1 != FLT_MAX && (x0 != c->x1 || y0 != c->y1))
                     new (c->points->alloc(1)) Point(c->x1, c->y1), c->x1 = FLT_MAX;
@@ -587,8 +587,8 @@ struct Rasterizer {
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                             
-                            CurvesWriter writer;  writer.points = & points, writer.atoms = & atoms;
-                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurvesWriter::WriteSegment);
+                            CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
+                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
                             points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
