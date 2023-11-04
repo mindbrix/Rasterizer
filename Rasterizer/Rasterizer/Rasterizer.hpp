@@ -198,7 +198,7 @@ struct Rasterizer {
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
             Point16 *p = g->p16s.alloc(1);
-            if ((curve & kMoleculesEnd) == 0)
+            if ((curve & kEndSubpath) == 0)
                 p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
             else {
                 p->x = x1, p->y = y1;
@@ -243,7 +243,7 @@ struct Rasterizer {
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             CurvesWriter *c = (CurvesWriter *)info;
-            if ((curve & kMoleculesEnd) == 0) {
+            if ((curve & kEndSubpath) == 0) {
                 if (c->x1 != FLT_MAX && (x0 != c->x1 || y0 != c->y1))
                     new (c->points->alloc(1)) Point(c->x1, c->y1), c->x1 = FLT_MAX;
                 else
@@ -625,7 +625,7 @@ struct Rasterizer {
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
                     if (mark && sx != FLT_MAX)
-                        (*function)(x0, y0, sx, sy, kMoleculesEnd | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1), info);
+                        (*function)(x0, y0, sx, sy, kEndSubpath | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1), info);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -683,7 +683,7 @@ struct Rasterizer {
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, info, function);
         if (mark)
-            (*function)(x0, y0, sx, sy, kMoleculesEnd | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1), info);
+            (*function)(x0, y0, sx, sy, kEndSubpath | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1), info);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, void *info, SegmentFunction function) {
         if (unclipped)
@@ -1018,7 +1018,7 @@ struct Rasterizer {
         }
         static void WriteInstance(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Outliner *out = (Outliner *)info;
-            if ((curve & kMoleculesEnd) == 0) {
+            if ((curve & kEndSubpath) == 0) {
                 if (curve == 0)
                     out->writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
                 else if (curve == 1)
