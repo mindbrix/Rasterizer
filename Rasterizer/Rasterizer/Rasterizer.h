@@ -13,14 +13,12 @@
 #define kQuadraticFlatness 1e-2f
 #define kMonotoneFlatness 1e-2f
 #define kFatMask 0xFFFFFFF0
-#define kFatHeight 16
 #define kfh 16.f
 #define krfh 0.0625f
 #define kFastHeight 32
-#define kMoleculesHeight 512
+#define kMoleculesHeight 0
 #define kMoleculesRange 32767.f
 #define kFastSegments 4
-#define kQuadPoints 8
 #define kNullIndex 0xFFFF
 #define kMoleculesEnd 0x80000000
 #define kPathIndexMask 0xFFFFFF
@@ -30,4 +28,4 @@
 #define kUXCoverSize 4
 #define kTextureSlotsSize 64
 #define kUseQuadCurves 1
-#define kOneQuadPerCurve 1
+#define kOneQuadPerCurve 0
