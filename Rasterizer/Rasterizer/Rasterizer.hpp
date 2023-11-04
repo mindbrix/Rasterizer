@@ -229,6 +229,45 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
+    struct Point {
+        Point(float x, float y): x(x), y(y) {}
+        float x, y;
+    };
+    struct Atom {
+        Atom(size_t i, bool isCurve): i(uint32_t(i) | isCurve * Flags::isCurve) {}
+        enum Flags { isCurve = 1 << 31, kMask = ~(isCurve) };
+        uint32_t i;
+    };
+    struct CurvesWriter {
+        Row<Point> *points;  Row<Atom> *atoms;  float x0, y0, x1 = FLT_MAX, y1;
+        
+        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
+            CurvesWriter *c = (CurvesWriter *)info;
+            if ((curve & kMoleculesEnd) == 0) {
+                if (c->x1 != FLT_MAX && (x0 != c->x1 || y0 != c->y1))
+                    new (c->points->alloc(1)) Point(c->x1, c->y1), c->x1 = FLT_MAX;
+                else
+                    c->x1 = x1, c->y1 = y1;
+                
+                if (curve == 0) {
+                    new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, false);
+                    new (c->points->alloc(1)) Point(x0, y0);
+                } else if (curve == 1)
+                    c->x0 = x0, c->y0 = y0;
+                else {
+                    float x2, y2;
+                    x2 = x1, x1 = x0, x0 = c->x0, x1 = 2.f * x1 - 0.5f * (x0 + x2);
+                    y2 = y1, y1 = y0, y0 = c->y0, y1 = 2.f * y1 - 0.5f * (y0 + y2);
+                    new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, true);
+                    new (c->points->alloc(1)) Point(x0, y0);
+                    new (c->points->alloc(1)) Point(x1, y1);
+                }
+            } else {
+                new (c->points->alloc(1)) Point(x1, y1), c->x1 = FLT_MAX;
+            }
+        }
+    };
+    
     struct Image {
         struct Index {
             size_t hash, i;
