@@ -29,3 +29,4 @@
 #define kTextureSlotsSize 64
 #define kUseQuadCurves 1
 #define kOneQuadPerCurve 0
+#define kUseMaxArea 1
