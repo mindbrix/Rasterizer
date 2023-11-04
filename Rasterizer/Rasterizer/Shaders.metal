@@ -523,9 +523,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                                      uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     EdgesVertex vert;
-    uint divisor = kOneQuadPerCurve ? 2 : 1, idx = iid % divisor;
-    
-    const device Edge& edge = edges[iid / divisor];
+    const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
     thread float *dst = & vert.x0;
@@ -535,107 +533,58 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     float visible = 1.0;
     float x0, y0, x1, y1, x2, y2;
     
-    if (kOneQuadPerCurve) {
-        visible = idxes[idx] != 0xFFFFF;
-        uint si = visible ? ids[idx] : 0;
-        
-        const device Segment& s = segments[inst.quad.base + si];
-        x0 = s.x0, y0 = s.y0;
-        bool ncurve = *useCurves && as_type<uint>(x0) & 1;
-        if (ncurve) {
-            const device Segment& n = segments[inst.quad.base + si + 1];
-            x2 = n.x1, y2 = n.y1;
-            x1 = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = 2.f * s.y1 - 0.5f * (y0 + y2);
-            
-            float ay, by, cy, ax, bx, d, r, t0, t1;
-            ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
-            ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
-            cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-            t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
-            cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-            t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
-            if (t0 != t1)
-                slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
-        } else {
-            x1 = y1 = FLT_MAX, x2 = s.x1, y2 = s.y1;
-            
-            float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
-            slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
-        }
-        sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
-        
-        float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
-        float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1), ty = 0.5 - dy;
-        float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
-        float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
-        vert.position = float4(x, y, 1.0, visible);
-        
-        dst[0] = x0 + tx, dst[1] = y0 + ty;
-        dst[2] = x1 == FLT_MAX ? x1 : x1 + tx, dst[3] = y1 == FLT_MAX ? y1 : y1 + ty;
-        dst[4] = x2 + tx, dst[5] = y2 + ty;
-        
-    } else {
-        for (int i = 0; i < 2; i++, dst += 6) {
-            if (idxes[i] != 0xFFFFF) {
-                const device Segment& s = segments[inst.quad.base + idxes[i]];
-                x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
-                bool ncurve = *useCurves && as_type<uint>(x0) & 1;
-                if (ncurve) {
-                    const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
-                    x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
-                    x1 = dst[2] = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = dst[3] = 2.f * s.y1 - 0.5f * (y0 + y2);
-                    
-                    float ay, by, cy, ax, bx, d, r, t0, t1;
-                    ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
-                    ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
-                    cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-                    t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
-                    cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
-                    t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
-                    if (t0 != t1)
-                        slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
-                } else {
-                    dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
-                    
-                    float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
-                    slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
-                }
-                sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
-            } else
-                dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
-        }
-        float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
-        float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1), ty = 0.5 - dy;
-        float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
-        float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
-        vert.position = float4(x, y, 1.0, visible);
-        vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
-        if (vert.x1 != FLT_MAX)
-            vert.x1 += tx, vert.y1 += ty;
-        vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
-        if (vert.x4 != FLT_MAX)
-            vert.x4 += tx, vert.y4 += ty;
+    for (int i = 0; i < 2; i++, dst += 6) {
+        if (idxes[i] != 0xFFFFF) {
+            const device Segment& s = segments[inst.quad.base + idxes[i]];
+            x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
+            bool ncurve = *useCurves && as_type<uint>(x0) & 1;
+            if (ncurve) {
+                const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
+                x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
+                x1 = dst[2] = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = dst[3] = 2.f * s.y1 - 0.5f * (y0 + y2);
+                
+                float ay, by, cy, ax, bx, d, r, t0, t1;
+                ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
+                ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
+                cy = y0 - float(cell.ly), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
+                t0 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
+                cy = y0 - float(cell.uy), d = by * by - 4.0 * ay * cy, r = sqrt(max(0.0, d));
+                t1 = saturate(abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(r, y2 - y0)) / ay * 0.5);
+                if (t0 != t1)
+                    slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
+            } else {
+                dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+                
+                float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
+                slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
+            }
+            sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
+        } else
+            dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
     }
+    float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
+    float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1), ty = 0.5 - dy;
+    float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
+    float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
+    vert.position = float4(x, y, 1.0, visible);
+    vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
+    if (vert.x1 != FLT_MAX)
+        vert.x1 += tx, vert.y1 += ty;
+    vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
+    if (vert.x4 != FLT_MAX)
+        vert.x4 += tx, vert.y4 += ty;
     return vert;
 }
 
 fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    if (kOneQuadPerCurve) {
-        return fastWinding(vert.x0, vert.y0, vert.x2, vert.y2);
-    } else {
-        return fastWinding(vert.x0, vert.y0, vert.x2, vert.y2) + fastWinding(vert.x3, vert.y3, vert.x5, vert.y5);
-    }
+    return fastWinding(vert.x0, vert.y0, vert.x2, vert.y2) + fastWinding(vert.x3, vert.y3, vert.x5, vert.y5);
 }
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    if (kOneQuadPerCurve) {
-        return monoQuadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-    } else {
-        return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
             + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
-    }
 }
 
 #pragma mark - Instances
