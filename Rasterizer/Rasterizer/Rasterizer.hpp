@@ -119,6 +119,14 @@ struct Rasterizer {
         Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), snprintf(buf, 32, "%d", n); operator+((T *)buf); return *this; }
         T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
+    struct Range {
+        Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
+        int begin, end;
+    };
+    struct Index {
+        uint16_t x, i;
+        inline bool operator< (const Index& other) const { return x < other.x; }
+    };
     typedef void (*SegmentFunction)(float x0, float y0, float x1, float y1, uint32_t curve, void *info);
     typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, SegmentFunction function, void *info, float s);
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
@@ -267,7 +275,26 @@ struct Rasterizer {
             }
         }
     };
-    
+    struct CurveSegmenter {
+        Row<Index> x, y;
+        
+        typedef void (*SegmentFunction)(float lx, float ly, float ux, float uy, bool opaque, Index *i0, Index *i1, void *info);
+        
+        void run(Bounds clip, Atom *a0, Atom *aend, Point *points, SegmentFunction function, void *info) {
+            x.empty(), y.empty();
+            Point *p0, *p1;
+            for (Atom *a = a0; a < aend; a++) {
+                p0 = points + (a->i & Atom::kMask);
+                p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
+                Index *idx = y.alloc(1);
+                idx->x = fminf(p0->y, p1->y) * krfh;
+                idx->i = a - a0;
+            }
+            std::sort(y.base, y.base + y.end);
+        }
+        
+        static void NullFunction(float lx, float ly, float ux, float uy, bool opaque, Index *i0, Index *i1, void *info) {}
+    };
     struct Image {
         struct Index {
             size_t hash, i;
@@ -376,14 +403,6 @@ struct Rasterizer {
             return *this;
         }
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;
-    };
-    struct Range {
-        Range(size_t begin, size_t end) : begin(int(begin)), end(int(end)) {}
-        int begin, end;
-    };
-    struct Index {
-        uint16_t x, i;
-        inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct Segment {
         Segment(float x0, float y0, float x1, float y1, uint32_t curve) : ix0((*((uint32_t *)& x0) & ~3) | curve), y0(y0), x1(x1), y1(y1) {}
@@ -505,26 +524,6 @@ struct Rasterizer {
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, molecules, strips[kFastHeight / 4];  size_t imgCount;
-    };
-    struct CurveSegmenter {
-        Row<Index> x, y;
-        
-        typedef void (*SegmentFunction)(float lx, float ly, float ux, float uy, bool opaque, void *info);
-        
-        void run(Bounds clip, Atom *a0, Atom *aend, Point *points, SegmentFunction function, void *info) {
-            x.empty(), y.empty();
-            Point *p0, *p1;
-            for (Atom *a = a0; a < aend; a++) {
-                p0 = points + (a->i & Atom::kMask);
-                p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
-                Index *idx = y.alloc(1);
-                idx->x = fminf(p0->y, p1->y) * krfh;
-                idx->i = a - a0;
-            }
-            std::sort(y.base, y.base + y.end);
-        }
-        
-        static void NullFunction(float lx, float ly, float ux, float uy, bool opaque, void *info) {}
     };
     
     struct Context {
