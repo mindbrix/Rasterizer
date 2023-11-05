@@ -132,7 +132,7 @@ struct Rasterizer {
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     struct Atom {
         Atom(size_t i, bool isCurve): i(uint32_t(i) | isCurve * Flags::isCurve) {}
-        enum Flags { isCurve = 1 << 31, kMask = ~(isCurve) };
+        enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, kMask = ~(isCurve | isEnd) };
         uint32_t i;
     };
     struct Geometry {
@@ -222,6 +222,10 @@ struct Rasterizer {
                     g->maxArea = fmaxf(g->maxArea, fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)));
                 }
             } else {
+                if (g->atoms.idx < g->atoms.end)
+                    g->atoms.back().i |= Atom::isEnd;
+                g->atoms.idx = g->atoms.end;
+                
                 p->x = x1, p->y = y1;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
                 uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1);  bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
