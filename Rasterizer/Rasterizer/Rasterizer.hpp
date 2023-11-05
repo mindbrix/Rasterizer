@@ -258,17 +258,40 @@ struct Rasterizer {
                     c->x1 = x1, c->y1 = y1;
                 
                 if (curve == 0) {
-                    new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, false);
+                    if (y0 != y1)
+                        new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, false);
                     new (c->points->alloc(1)) Point(x0, y0);
                 } else if (curve == 1)
                     c->x0 = x0, c->y0 = y0;
                 else {
-                    float x2, y2;
-                    x2 = x1, x1 = x0, x0 = c->x0, x1 = 2.f * x1 - 0.5f * (x0 + x2);
-                    y2 = y1, y1 = y0, y0 = c->y0, y1 = 2.f * y1 - 0.5f * (y0 + y2);
-                    new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, true);
-                    new (c->points->alloc(1)) Point(x0, y0);
-                    new (c->points->alloc(1)) Point(x1, y1);
+                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, u, v, w, cx0, cy0, cx1, cy1, cx2, cy2;
+                    x2 = x1, x1 = x0, x0 = c->x0, x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
+                    y2 = y1, y1 = y0, y0 = c->y0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
+                    if (ay * by >= 0.f && ax * bx >= 0.f) {
+                        if (y0 != y2)
+                            new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, true);
+                        new (c->points->alloc(1)) Point(x0, y0);
+                        new (c->points->alloc(1)) Point(x1, y1);
+                    } else {
+                        float err = 1e-4f;
+                        itx = -bx / (ax - bx), itx = itx < err ? 0.f : itx > 1.f - err ? 1.f : itx;
+                        ity = -by / (ay - by), ity = ity < err ? 0.f : ity > 1.f - err ? 1.f : ity;
+                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f };
+                        cx0 = cx2 = x0, cy0 = cy2 = y0;
+                        for (int i = 0; i < 3; i++, cx0 = cx2, cy0 = cy2) {
+                            if (roots[i] != roots[i + 1]) {
+                                t = 0.5f * (roots[i] + roots[i + 1]), s = 1.f - t, u = s * s, v = 2.f * s * t, w = t * t;
+                                cx1 = u * x0 + v * x1 + w * x2, cy1 = u * y0 + v * y1 + w * y2;
+                                t = roots[i + 1], s = 1.f - t, u = s * s, v = 2.f * s * t, w = t * t;
+                                cx2 = u * x0 + v * x1 + w * x2, cy2 = u * y0 + v * y1 + w * y2;
+                                
+                                if (cy0 != cy2)
+                                    new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, true);
+                                new (c->points->alloc(1)) Point(cx0, cy0);
+                                new (c->points->alloc(1)) Point(cx1, cy1);
+                            }
+                        }
+                    }
                 }
             } else {
                 new (c->points->alloc(1)) Point(x1, y1), c->x1 = FLT_MAX;
@@ -862,22 +885,21 @@ struct Rasterizer {
                 else {
                     float x2, y2, ax, ay, bx, by, itx, ity, s, t, u, v, w, cx0, cy0, cx1, cy1, cx2, cy2;
                     x2 = x1, x1 = x0, x0 = idxr->px0, y2 = y1, y1 = y0, y0 = idxr->py0;
+                    cx1 = x1, cy1 = y1;
+                    x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
+                    y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                     
                     if (!idxr->useCurves) {
                         new (idxr->dst++) Segment(x0, y0, x2, y2, 0), idxr->indexLine(x0, y0, x2, y2), idxr->is++;
-                    } else if ( ((y2 > y1) == (y1 > y0)) && ((x2 > x1) == (x1 > x0)) ) {
+                    } else if (ax * bx >= 0.f && ay * by >= 0.f) {
                         if (y0 != y2) {
-                            new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
-                            x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
+                            new (idxr->dst++) Segment(x0, y0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, x2, y2, 2);
                             idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
                         }
                     } else {
-                        x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
                         float err = 1e-4f;
-                        ax = x2 - x1, bx = x1 - x0, itx = -bx / (ax - bx);
-                        itx = itx < err ? 0.f : itx > 1.f - err ? 1.f : itx;
-                        ay = y2 - y1, by = y1 - y0, ity = -by / (ay - by);
-                        ity = ity < err ? 0.f : ity > 1.f - err ? 1.f : ity;
+                        itx = -bx / (ax - bx), itx = itx < err ? 0.f : itx > 1.f - err ? 1.f : itx;
+                        ity = -by / (ay - by), ity = ity < err ? 0.f : ity > 1.f - err ? 1.f : ity;
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f };
                         cx0 = cx2 = x0, cy0 = cy2 = y0;
                         for (int i = 0; i < 3; i++, cx0 = cx2, cy0 = cy2) {
