@@ -210,13 +210,17 @@ struct Rasterizer {
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
-            size_t i = g->p16s.end;  Point16 *p = g->p16s.alloc(1);
+            size_t i = g->p16s.end;  Point16 *p = g->p16s.alloc(1);  float x2, y2;
             if ((curve & kEndSubpath) == 0) {
                 p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
                 if (curve == 0)
                     new (g->atoms.alloc(1)) Atom(i, false);
                 else if (curve == 1)
-                    new (g->atoms.alloc(1)) Atom(i, true);
+                    g->x0 = x0, g->y0 = y0, new (g->atoms.alloc(1)) Atom(i, true), *(g->quadI0s.alloc(1)) = uint16_t(i);
+                else {
+                    x2 = x1, x1 = x0, x0 = g->x0, y2 = y1, y1 = y0, y0 = g->y0;
+                    g->maxArea = fmaxf(g->maxArea, fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)));
+                }
             } else {
                 p->x = x1, p->y = y1;
                 size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
@@ -224,19 +228,6 @@ struct Rasterizer {
                 for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
                     *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
                 empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
-                
-                float x2, y2, area, maxArea = 0.f;
-                for (Point16 *p0 = g->p16s.base, *p = p0 + g->p16s.idx, *end = p0 + g->p16s.end - 1; p < end; p++)
-                    if (p->y & 0x8000) {
-                        *(g->quadI0s.alloc(1)) = uint16_t(p - p0);
-                        
-                        x0 = p->x & 0x7FFF, y0 = p->y & 0x7FFF;
-                        x1 = (p + 1)->x & 0x7FFF, y1 = (p + 1)->y & 0x7FFF;
-                        x2 = (p + 2)->x & 0x7FFF, y2 = (p + 2)->y & 0x7FFF;
-                        area = fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1));
-                        maxArea = fmaxf(area, maxArea);
-                    }
-                g->maxArea = fmaxf(maxArea, g->maxArea);
                 g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
