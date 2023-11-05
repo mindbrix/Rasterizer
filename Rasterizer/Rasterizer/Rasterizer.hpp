@@ -888,9 +888,11 @@ struct Rasterizer {
                     if (!idxr->useCurves) {
                         new (idxr->dst++) Segment(x0, y0, x2, y2, 0), idxr->indexLine(x0, y0, x2, y2), idxr->is++;
                     } else if ( ((y2 > y1) == (y1 > y0)) && ((x2 > x1) == (x1 > x0)) ) {
-                        new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
-                        x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
-                        idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
+                        if (y0 != y2) {
+                            new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
+                            x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
+                            idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
+                        }
                     } else {
                         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
                         float err = 1e-4f;
@@ -909,9 +911,11 @@ struct Rasterizer {
                                 cx2 = u * x0 + v * x1 + w * x2;
                                 cy2 = u * y0 + v * y1 + w * y2;
                                 
-                                new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
-                                cx1 = 2.f * cx1 - 0.5f * (cx0 + cx2), cy1 = 2.f * cy1 - 0.5f * (cy0 + cy2);
-                                idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2), idxr->is += 2;
+                                if (cy0 != cy2) {
+                                    new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
+                                    cx1 = 2.f * cx1 - 0.5f * (cx0 + cx2), cy1 = 2.f * cy1 - 0.5f * (cy0 + cy2);
+                                    idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2), idxr->is += 2;
+                                }
                             }
                         }
                     }
@@ -943,14 +947,14 @@ struct Rasterizer {
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f, cy = y0;
                 float y, uy, d2a, ity, d, t0, t1, ny, sign = copysignf(1.f, y2 - y0);
                 y = y0 < y2 ? y0 : y2, uy = y0 > y2 ? y0 : y2, d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-                if (fabsf(ay) < kQuadraticFlatness)
+                if (ay == 0)
                     t0 = -(cy - y) / by;
                 else
                     d = by * by - 4.f * ay * (cy - y), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
                 t0 = fmaxf(0.f, fminf(1.f, t0)), x0 = (ax * t0 + bx) * t0 + cx;
                 for (int ir = y * krfh; y < uy; y = ny, ir++, x0 = x1, t0 = t1) {
                     ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
-                    if (fabsf(ay) < kQuadraticFlatness)
+                    if (ay == 0)
                         t1 = -(cy - ny) / by;
                     else
                         d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
