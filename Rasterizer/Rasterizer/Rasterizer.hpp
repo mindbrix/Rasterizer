@@ -1176,7 +1176,7 @@ struct Rasterizer {
 
                             if (kTwoQuadsPerCurve && !fast) {
                                 Atom *atom = entry->path->atoms.base;
-                                for (j = 0, size = entry->path->atoms.end; j < size; j++, atom++, update = entry->hasMolecules && (atom->i & Atom::isEnd)) {
+                                for (j = 0, size = entry->path->atoms.end; j < size; j++, update = entry->hasMolecules && (atom->i & Atom::isEnd), atom++) {
                                     if (update)
                                         ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                     molecule->ic = uint32_t(ic), molecule->i0 = atom->i & Atom::kMask, molecule->ux = ux, molecule++;

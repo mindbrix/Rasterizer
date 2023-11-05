@@ -389,7 +389,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     if (kTwoQuadsPerCurve) {
         float x16, y16, x0, y0, x1, y1, x2, y2;
         const device Point16 *p = & points[inst.quad.base + edge.i0];
-//        const device Point16 *p = pts + idx;
         x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
         x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
         x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
