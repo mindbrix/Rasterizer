@@ -275,38 +275,6 @@ struct Rasterizer {
             }
         }
     };
-    struct CurveSegmenter {
-        Row<Index> x, y;
-        
-        typedef void (*SegmentFunction)(float lx, float ly, float ux, float uy, bool opaque, Index *i0, size_t size, void *info);
-        
-        void run(Bounds clip, Atom *a0, size_t size, Point *points, SegmentFunction function, void *info) {
-            Index *indices, *idx;  Atom *a;  Point *p0, *p1;  size_t i;
-            x.empty(), y.empty();
-            float ly = floorf(clip.ly * krfh) * kfh, uy = ceilf(clip.uy * krfh) * kfh;
-            if (uy - ly == kfh) {
-                if (clip.ux - clip.lx <= kfh) {
-                    for (indices = idx = x.alloc(size), i = 0; i < size; i++, idx++)
-                        idx->x = 0, idx->i = i;
-                    function(clip.lx, clip.ly, clip.ux, clip.uy, true, indices, size, info);
-                } else {
-                    for (idx = x.alloc(size), a = a0, i = 0; i < size; i++, a++, idx++) {
-                        p0 = points + (a->i & Atom::kMask), p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
-                        idx->x = fminf(p0->x, p1->x), idx->i = i;
-                    }
-                    std::sort(x.base, x.base + x.end);
-                }
-            } else {
-                for (idx = y.alloc(size), a = a0, i = 0; i < size; i++, a++, idx++) {
-                    p0 = points + (a->i & Atom::kMask), p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
-                    idx->x = fminf(p0->y, p1->y), idx->i = i;
-                }
-                std::sort(y.base, y.base + y.end);
-            }
-        }
-        
-        static void NullFunction(float lx, float ly, float ux, float uy, bool opaque, Index *i0, size_t size, void *info) {}
-    };
     struct Image {
         struct Index {
             size_t hash, i;
@@ -621,7 +589,6 @@ struct Rasterizer {
                             
                             CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
                             divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
-                            segmenter.run(clip, atoms.base + atoms.idx, atoms.end - atoms.idx, points.base, CurveSegmenter::NullFunction, nullptr);
                             points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
@@ -648,7 +615,7 @@ struct Rasterizer {
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
-        Row<Point> points;  Row<Atom> atoms;  CurveSegmenter segmenter;
+        Row<Point> points;  Row<Atom> atoms;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
