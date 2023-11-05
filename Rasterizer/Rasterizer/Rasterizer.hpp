@@ -884,16 +884,14 @@ struct Rasterizer {
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
                     float x2, y2, ax, ay, bx, by, itx, ity, s, t, u, v, w, cx0, cy0, cx1, cy1, cx2, cy2;
-                    x2 = x1, x1 = x0, x0 = idxr->px0, y2 = y1, y1 = y0, y0 = idxr->py0;
-                    cx1 = x1, cy1 = y1;
-                    x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
-                    y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
+                    x2 = x1, x1 = x0, x0 = idxr->px0, x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
+                    y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                     
                     if (!idxr->useCurves) {
                         new (idxr->dst++) Segment(x0, y0, x2, y2, 0), idxr->indexLine(x0, y0, x2, y2), idxr->is++;
                     } else if (ax * bx >= 0.f && ay * by >= 0.f) {
                         if (y0 != y2) {
-                            new (idxr->dst++) Segment(x0, y0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, x2, y2, 2);
+                            new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
                             idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
                         }
                     } else {
@@ -912,8 +910,8 @@ struct Rasterizer {
                                 cy2 = u * y0 + v * y1 + w * y2;
                                 
                                 if (cy0 != cy2) {
-                                    new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
                                     cx1 = 2.f * cx1 - 0.5f * (cx0 + cx2), cy1 = 2.f * cy1 - 0.5f * (cy0 + cy2);
+                                    new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
                                     idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2), idxr->is += 2;
                                 }
                             }

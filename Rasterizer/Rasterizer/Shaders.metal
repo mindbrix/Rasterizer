@@ -541,7 +541,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
             if (ncurve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
                 x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
-                x1 = dst[2] = 2.f * s.x1 - 0.5f * (x0 + x2), y1 = dst[3] = 2.f * s.y1 - 0.5f * (y0 + y2);
+                x1 = dst[2] = s.x1, y1 = dst[3] = s.y1;
                 
                 float ay, by, cy, ax, bx, d, r, t0, t1;
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
