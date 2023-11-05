@@ -388,41 +388,29 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
     if (kTwoQuadsPerCurve) {
-        float x16, y16, x0, y0, x1, y1, x2, y2, cpx, cpy;
+        float x16, y16, x0, y0, x1, y1, x2, y2;
+//        const device Point16 *p = & points[inst.quad.base + edge.i0];
         const device Point16 *p = pts + idx;
-        if (p->y & 0x8000) {
-            x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
-            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-            x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
-            x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
+        x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
+        x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
+        x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
+        x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
+        if (0 && p->y & 0x8000) {
             x16 = (p + 2)->x & 0x7FFF, y16 = (p + 2)->y & 0x7FFF;
             x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
-            cpx = 0.25 * (x0 - x2) + x1, cpy = 0.25 * (y0 - y2) + y1;
-        } else if (p->x & 0x8000) {
-            x16 = (p - 1)->x & 0x7FFF, y16 = (p - 1)->y & 0x7FFF;
-            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-            x16 = (p + 0)->x & 0x7FFF, y16 = (p + 0)->y & 0x7FFF;
-            x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
-            x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
-            x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
-            cpx = 0.25 * (x2 - x0) + x1, cpy = 0.25 * (y2 - y0) + y1;
-            x0 = x1, y0 = y1;
-            x1 = x2, y1 = y2;
+            x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
         } else {
-            x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
-            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-            x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
-            x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
-            cpx = FLT_MAX, cpy = FLT_MAX;
+            x2 = x1, x1 = FLT_MAX;
+            y2 = y1, y1 = FLT_MAX;
         }
-        slx = min(x0, x1), slx = cpx == FLT_MAX ? slx : min(cpx, slx);
-        sly = min(y0, y1), sly = cpy == FLT_MAX ? sly : min(cpy, sly);
-        sux = max(x0, x1), sux = cpx == FLT_MAX ? sux : max(cpx, sux);
-        suy = max(y0, y1), suy = cpy == FLT_MAX ? suy : max(cpy, suy);
+        slx = min(x0, x2), slx = x1 == FLT_MAX ? slx : min(x1, slx);
+        sly = min(y0, y2), sly = y1 == FLT_MAX ? sly : min(y1, sly);
+        sux = max(x0, x2), sux = x1 == FLT_MAX ? sux : max(x1, sux);
+        suy = max(y0, y2), suy = y1 == FLT_MAX ? suy : max(y1, suy);
         
         visible = idx < segcount;
          
-        dst[0] = x0, dst[1] = y0, dst[2] = cpx, dst[3] = cpy, dst[4] = x1, dst[5] = y1;
+        dst[0] = x0, dst[1] = y0, dst[2] = x1, dst[3] = y1, dst[4] = x2, dst[5] = y2;
     } else {
         if (visible) {
             float x, y;
@@ -469,11 +457,17 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
     vert.position = float4(x, y, 1.0, visible);
     vert.dw = dw;
-    for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
-        dst[0] += offx, dst[1] += offy;
-    for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
-        if (dst[0] != FLT_MAX)
-            dst[0] += offx, dst[1] += offy;
+    
+    dst[0] += offx, dst[1] += offy;
+    if (dst[2] != FLT_MAX)
+        dst[2] += offx, dst[3] += offy;
+    dst[4] += offx, dst[5] += offy;
+    
+//    for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 4)
+//        dst[0] += offx, dst[1] += offy;
+//    for (dst = & vert.x1, i = 0; i < kFastSegments; i++, dst += 4)
+//        if (dst[0] != FLT_MAX)
+//            dst[0] += offx, dst[1] += offy;
     return vert;
 }
 
