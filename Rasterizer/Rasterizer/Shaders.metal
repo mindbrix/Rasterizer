@@ -369,7 +369,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 {
     QuadMoleculesVertex vert;
     
-    uint divisor = kOneQuadPerCurve ? 4 : 1, idx = iid % divisor;
+    uint divisor = kTwoQuadsPerCurve ? 4 : 1, idx = iid % divisor;
     const device Edge& edge = edges[iid / divisor];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     int curve0, curve1, curve2, ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i;
@@ -387,7 +387,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    if (kOneQuadPerCurve) {
+    if (kTwoQuadsPerCurve) {
         float x16, y16, x0, y0, x1, y1, x2, y2, cpx, cpy;
         const device Point16 *p = pts + idx;
         if (p->y & 0x8000) {
@@ -480,7 +480,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vt [[stage_in]])
 {
     float d = 0;
-    if (kOneQuadPerCurve) {
+    if (kTwoQuadsPerCurve) {
         d = roundedDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2);
     } else {
         d = min(
@@ -495,7 +495,7 @@ fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vt [[stage_in]])
 
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
 {
-    if (kOneQuadPerCurve) {
+    if (kTwoQuadsPerCurve) {
         return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
     } else {
         return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
