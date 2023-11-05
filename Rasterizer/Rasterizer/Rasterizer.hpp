@@ -578,7 +578,7 @@ struct Rasterizer {
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
                            buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is];
-                           size = scn->cache->entries.base[ip].size, cnt = size / kFastSegments;
+                           size = scn->cache->entries.base[ip].size;
                             if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
 
@@ -596,6 +596,7 @@ struct Rasterizer {
                            else
                                type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            
+                            cnt = kTwoQuadsPerCurve && !fast ? g->atoms.end : size / kFastSegments;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, kUseQuadCurves && !fast && width == 0.f ? g->quadI0s.end : 0);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
@@ -1163,27 +1164,37 @@ struct Rasterizer {
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
-                            bool update = entry->hasMolecules;  uint8_t *p16cnt = entry->p16cnts;
+                            bool update = entry->hasMolecules, fast = inst->iz & Instance::kFastEdges;  uint8_t *p16cnt = entry->p16cnts;
                             Edge *molecule;
                             if (kUseQuadCurves) {
                                 molecule = fastMolecule;
                                 dst[-1].quad.biid = int(molecule - fastMolecule0);
                             } else {
-                                molecule = inst->iz & Instance::kFastEdges ? fastMolecule : quadMolecule;
-                                dst[-1].quad.biid = int(molecule - (inst->iz & Instance::kFastEdges ? fastMolecule0 : quadMolecule0));
+                                molecule = fast ? fastMolecule : quadMolecule;
+                                dst[-1].quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
                             }
 
-                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
-                                if (update)
-                                    ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
+                            if (kTwoQuadsPerCurve && !fast) {
+                                Atom *atom = entry->path->atoms.base;
+                                for (j = 0, size = entry->path->atoms.end; j < size; j++, atom++, update = entry->hasMolecules && (atom->i & Atom::isEnd)) {
+                                    if (update)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                    molecule->ic = uint32_t(ic), molecule->i0 = atom->i & Atom::kMask, molecule->ux = ux, molecule++;
+                                }
+                            } else {
+                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
+                                    if (update)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                    molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
+                                }
                             }
+                            
                             if (kUseQuadCurves)
                                 fastMolecule = molecule;
                             else
-                                *(inst->iz & Instance::kFastEdges ? & fastMolecule : & quadMolecule) = molecule;
+                                *(fast ? & fastMolecule : & quadMolecule) = molecule;
                             
-                            if (kUseQuadCurves && !(inst->iz & Instance::kFastEdges)) {
+                            if (kUseQuadCurves && !fast) {
                                 molecule = quadCurve;
                                 for (uint16_t *pi0 = entry->path->quadI0s.base, *end = pi0 + entry->path->quadI0s.end; pi0 < end; pi0++, molecule++)
                                     molecule->ic = uint32_t(ic), molecule->i0 = *pi0;
