@@ -1156,11 +1156,19 @@ struct Rasterizer {
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
                         Scene::Entry *entry = list.scenes[i].cache->entryAt(is);
                         if (widths[iz]) {
-                            Edge *outline = inst->iz & Instance::kFastEdges ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
-                            dst[-1].quad.biid = int(outline - (inst->iz & Instance::kFastEdges ? fastOutline0 : quadOutline0));
-                            for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
-                                outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
-                            *(inst->iz & Instance::kFastEdges ? & fastOutline : & quadOutline) = outline;
+                            bool fast = inst->iz & Instance::kFastEdges;
+                            Edge *outline = fast ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
+                            dst[-1].quad.biid = int(outline - (fast ? fastOutline0 : quadOutline0));
+                            if (kTwoQuadsPerCurve && !fast) {
+                                Atom *atom = entry->path->atoms.base;
+                                for (j = 0, size = entry->path->atoms.end; j < size; j++, atom++) {
+                                    outline->ic = uint32_t(ic), outline->i0 = atom->i & Atom::kMask, outline++;
+                                }
+                            } else {
+                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
+                                    outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
+                            }
+                            *(fast ? & fastOutline : & quadOutline) = outline;
                         } else {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = entry->mols + (ctm.a > 0.f ? 2 : 0), *moly = entry->mols + (ctm.c > 0.f ? 3 : 1);
