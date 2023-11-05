@@ -278,22 +278,34 @@ struct Rasterizer {
     struct CurveSegmenter {
         Row<Index> x, y;
         
-        typedef void (*SegmentFunction)(float lx, float ly, float ux, float uy, bool opaque, Index *i0, Index *i1, void *info);
+        typedef void (*SegmentFunction)(float lx, float ly, float ux, float uy, bool opaque, Index *i0, size_t size, void *info);
         
-        void run(Bounds clip, Atom *a0, Atom *aend, Point *points, SegmentFunction function, void *info) {
+        void run(Bounds clip, Atom *a0, size_t size, Point *points, SegmentFunction function, void *info) {
+            Index *indices, *idx;  Atom *a;  Point *p0, *p1;  size_t i;
             x.empty(), y.empty();
-            Point *p0, *p1;
-            for (Atom *a = a0; a < aend; a++) {
-                p0 = points + (a->i & Atom::kMask);
-                p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
-                Index *idx = y.alloc(1);
-                idx->x = fminf(p0->y, p1->y) * krfh;
-                idx->i = a - a0;
+            float ly = floorf(clip.ly * krfh) * kfh, uy = ceilf(clip.uy * krfh) * kfh;
+            if (uy - ly == kfh) {
+                if (clip.ux - clip.lx <= kfh) {
+                    for (indices = idx = x.alloc(size), i = 0; i < size; i++, idx++)
+                        idx->x = 0, idx->i = i;
+                    function(clip.lx, clip.ly, clip.ux, clip.uy, true, indices, size, info);
+                } else {
+                    for (idx = x.alloc(size), a = a0, i = 0; i < size; i++, a++, idx++) {
+                        p0 = points + (a->i & Atom::kMask), p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
+                        idx->x = fminf(p0->x, p1->x), idx->i = i;
+                    }
+                    std::sort(x.base, x.base + x.end);
+                }
+            } else {
+                for (idx = y.alloc(size), a = a0, i = 0; i < size; i++, a++, idx++) {
+                    p0 = points + (a->i & Atom::kMask), p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
+                    idx->x = fminf(p0->y, p1->y), idx->i = i;
+                }
+                std::sort(y.base, y.base + y.end);
             }
-            std::sort(y.base, y.base + y.end);
         }
         
-        static void NullFunction(float lx, float ly, float ux, float uy, bool opaque, Index *i0, Index *i1, void *info) {}
+        static void NullFunction(float lx, float ly, float ux, float uy, bool opaque, Index *i0, size_t size, void *info) {}
     };
     struct Image {
         struct Index {
@@ -609,7 +621,7 @@ struct Rasterizer {
                             
                             CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
                             divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
-                            segmenter.run(clip, atoms.base + atoms.idx, atoms.base + atoms.end, points.base, CurveSegmenter::NullFunction, nullptr);
+                            segmenter.run(clip, atoms.base + atoms.idx, atoms.end - atoms.idx, points.base, CurveSegmenter::NullFunction, nullptr);
                             points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
