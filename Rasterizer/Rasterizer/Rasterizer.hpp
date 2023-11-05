@@ -506,6 +506,27 @@ struct Rasterizer {
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, molecules, strips[kFastHeight / 4];  size_t imgCount;
     };
+    struct CurveSegmenter {
+        Row<Index> x, y;
+        
+        typedef void (*SegmentFunction)(float lx, float ly, float ux, float uy, bool opaque, void *info);
+        
+        void run(Bounds clip, Atom *a0, Atom *aend, Point *points, SegmentFunction function, void *info) {
+            x.empty(), y.empty();
+            Point *p0, *p1;
+            for (Atom *a = a0; a < aend; a++) {
+                p0 = points + (a->i & Atom::kMask);
+                p1 = p0 + (a->i & Atom::isCurve ? 2 : 1);
+                Index *idx = y.alloc(1);
+                idx->x = fminf(p0->y, p1->y) * krfh;
+                idx->i = a - a0;
+            }
+            std::sort(y.base, y.base + y.end);
+        }
+        
+        static void NullFunction(float lx, float ly, float ux, float uy, bool opaque, void *info) {}
+    };
+    
     struct Context {
         void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
             device = dev, empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
@@ -589,6 +610,7 @@ struct Rasterizer {
                             
                             CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
                             divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
+                            segmenter.run(clip, atoms.base + atoms.idx, atoms.base + atoms.end, points.base, CurveSegmenter::NullFunction, nullptr);
                             points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
@@ -615,7 +637,7 @@ struct Rasterizer {
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
-        Row<Point> points;  Row<Atom> atoms;
+        Row<Point> points;  Row<Atom> atoms;  CurveSegmenter segmenter;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
