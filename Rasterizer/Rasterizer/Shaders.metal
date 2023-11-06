@@ -402,8 +402,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     sux = max(x0, x2), sux = x1 == FLT_MAX ? sux : max(x1, sux);
     suy = max(y0, y2), suy = y1 == FLT_MAX ? suy : max(y1, suy);
     
-    dst[0] = x0, dst[1] = y0, dst[2] = x1, dst[3] = y1, dst[4] = x2, dst[5] = y2;
-    
     float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
@@ -412,10 +410,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     vert.position = float4(x, y, 1.0, 1.0);
     vert.dw = dw;
     
-    dst[0] += offx, dst[1] += offy;
-    if (dst[2] != FLT_MAX)
-        dst[2] += offx, dst[3] += offy;
-    dst[4] += offx, dst[5] += offy;
+    dst[0] = x0 + offx, dst[1] = y0 + offy, dst[2] = x1 == FLT_MAX ? FLT_MAX : x1 + offx, dst[3] = y1 == FLT_MAX ? FLT_MAX : y1 + offy, dst[4] = x2 + offx, dst[5] = y2 + offy;
     
     return vert;
 }
