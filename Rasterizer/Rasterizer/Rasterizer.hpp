@@ -607,14 +607,16 @@ struct Rasterizer {
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                             
-                            CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
-                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
-                            points.idx = points.end, atoms.idx = atoms.end;
+//                            CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
+//                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
+//                            points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
                         buffer->_slots[iz] = 0;
                 }
             }
+            return;
+            
             for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++) {
                 size_t passsize = (pass + 1 < endpass ? (pass + 1)->idx : blends.end) - pass->idx;
                 if (passsize == 0)
@@ -879,10 +881,10 @@ struct Rasterizer {
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
-                    float x2, y2, ax, ay, bx, by, itx, ity, t, cx0, cy0, cx1, cy1, cx2, cy2;
-                    x2 = x1, x1 = x0, x0 = idxr->px0, x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
-                    y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
-                    
+                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, cx0, cy0, cx1, cy1, cx2, cy2;
+                    x2 = x1, x1 = x0, x0 = idxr->px0; x1 = fmaxf(idxr->clip.lx, fminf(idxr->clip.ux, 2.f * x1 - 0.5f * (x0 + x2))), ax = x2 - x1, bx = x1 - x0;
+                    y2 = y1, y1 = y0, y0 = idxr->py0, y1 = fmaxf(idxr->clip.ly, fminf(idxr->clip.uy, 2.f * y1 - 0.5f * (y0 + y2))), ay = y2 - y1, by = y1 - y0;
+                                        
                     if (!idxr->useCurves) {
                         new (idxr->dst++) Segment(x0, y0, x2, y2, 0), idxr->indexLine(x0, y0, x2, y2), idxr->is++;
                     } else if (ax * bx >= 0.f && ay * by >= 0.f) {
@@ -891,24 +893,23 @@ struct Rasterizer {
                             idxr->indexQuadratic(x0, y0, x1, y1, x2, y2), idxr->is += 2;
                         }
                     } else {
-                        float err = 1e-4f;
-                        itx = -bx / (ax - bx), itx = itx < err ? 0.f : itx > 1.f - err ? 1.f : itx;
-                        ity = -by / (ay - by), ity = ity < err ? 0.f : ity > 1.f - err ? 1.f : ity;
+                        itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax)));
+                        ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f };
                         cx0 = cx2 = x0, cy0 = cy2 = y0;
-                        ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
                         for (int i = 0; i < 3; i++, cx0 = cx2, cy0 = cy2) {
                             if (roots[i] != roots[i + 1]) {
-                                t = 0.5f * (roots[i] + roots[i + 1]);
-                                cx1 = fmaf(fmaf(ax, t, bx), t, x0);
-                                cy1 = fmaf(fmaf(ay, t, by), t, y0);
-                            
-                                t = roots[i + 1];
-                                cx2 = fmaf(fmaf(ax, t, bx), t, x0);
-                                cy2 = fmaf(fmaf(ay, t, by), t, y0);
+                                t = 0.5f * (roots[i] + roots[i + 1]), s = 1.f - t;
+                                cx1 = s * (s * x0 + t * x1) + t * (s * x1 + t * x2);
+                                cy1 = s * (s * y0 + t * y1) + t * (s * y1 + t * y2);
+
+                                t = roots[i + 1], s = 1.f - t;
+                                cx2 = s * (s * x0 + t * x1) + t * (s * x1 + t * x2);
+                                cy2 = s * (s * y0 + t * y1) + t * (s * y1 + t * y2);
                                 
                                 if (cy0 != cy2) {
-                                    cx1 = 2.f * cx1 - 0.5f * (cx0 + cx2), cy1 = 2.f * cy1 - 0.5f * (cy0 + cy2);
+                                    cx1 = fmaxf(idxr->clip.lx, fminf(idxr->clip.ux, 2.f * cx1 - 0.5f * (cx0 + cx2)));
+                                    cy1 = fmaxf(idxr->clip.ly, fminf(idxr->clip.uy, 2.f * cy1 - 0.5f * (cy0 + cy2)));
                                     new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
                                     idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2), idxr->is += 2;
                                 }
