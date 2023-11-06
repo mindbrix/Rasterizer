@@ -246,7 +246,7 @@ struct Rasterizer {
         float x, y;
     };
     struct CurveWriter {
-        Row<Point> *points;  Row<Atom> *atoms;  float x0, y0, x1 = FLT_MAX, y1;
+        Row<Point> *points;  Row<Atom> *atoms;  float x0, y0, x1 = FLT_MAX, y1;  Bounds clip;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             CurveWriter *c = (CurveWriter *)info;
@@ -263,29 +263,28 @@ struct Rasterizer {
                 } else if (curve == 1)
                     c->x0 = x0, c->y0 = y0;
                 else {
-                    float x2, y2, ax, ay, bx, by, itx, ity, t, cx0, cy0, cx1, cy1, cx2, cy2;
-                    x2 = x1, x1 = x0, x0 = c->x0, x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
-                    y2 = y1, y1 = y0, y0 = c->y0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
+                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, cx0, cy0, cx1, cy1, cx2, cy2;
+                    x2 = x1, x1 = x0, x0 = c->x0, x1 = fmaxf(c->clip.lx, fminf(c->clip.ux, 2.f * x1 - 0.5f * (x0 + x2))), ax = x2 - x1, bx = x1 - x0;
+                    y2 = y1, y1 = y0, y0 = c->y0, y1 = fmaxf(c->clip.ly, fminf(c->clip.uy, 2.f * y1 - 0.5f * (y0 + y2))), ay = y2 - y1, by = y1 - y0;
                     if (ay * by >= 0.f && ax * bx >= 0.f) {
                         if (y0 != y2)
                             new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, true);
                         new (c->points->alloc(1)) Point(x0, y0);
                         new (c->points->alloc(1)) Point(x1, y1);
                     } else {
-                        float err = 1e-4f;
-                        itx = -bx / (ax - bx), itx = itx < err ? 0.f : itx > 1.f - err ? 1.f : itx;
-                        ity = -by / (ay - by), ity = ity < err ? 0.f : ity > 1.f - err ? 1.f : ity;
-                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f };
-                        bx -= ax, bx *= 2.f, ay -= by, by *= 2.f;
+                        itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
+                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
                         cx0 = cx2 = x0, cy0 = cy2 = y0;
-                        for (int i = 0; i < 3; i++, cx0 = cx2, cy0 = cy2) {
-                            if (roots[i] != roots[i + 1]) {
-                                t = 0.5f * (roots[i] + roots[i + 1]);
-                                cx1 = fmaf(fmaf(ax, t, bx), t, x0), cy1 = fmaf(fmaf(ay, t, by), t, y0);
-                                t = roots[i + 1];
-                                cx2 = fmaf(fmaf(ax, t, bx), t, x0), cy2 = fmaf(fmaf(ay, t, by), t, y0);
-                                cx1 = 2.f * cx1 - 0.5f * (cx0 + cx2), cy1 = 2.f * cy1 - 0.5f * (cy0 + cy2);
-                                                            
+                        for (int i = 0; i < 3; i++, r++, cx0 = cx2, cy0 = cy2) {
+                            if (r[0] != r[1]) {
+                                t = r[1], s = 1.f - t;
+                                cpx = (s * x0 + t * x1), cx2 = s * cpx + t * (s * x1 + t * x2);
+                                cpy = (s * y0 + t * y1), cy2 = s * cpy + t * (s * y1 + t * y2);
+                                
+                                t = r[0] / r[1], s = 1.f - t;
+                                cx1 = fmaxf(c->clip.lx, fminf(c->clip.ux, s * cpx + t * cx2));
+                                cy1 = fmaxf(c->clip.ly, fminf(c->clip.uy, s * cpy + t * cy2));
+                                
                                 if (cy0 != cy2)
                                     new (c->atoms->alloc(1)) Atom(c->points->end - c->points->idx, true);
                                 new (c->points->alloc(1)) Point(cx0, cy0);
@@ -607,9 +606,9 @@ struct Rasterizer {
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                             
-//                            CurveWriter writer;  writer.points = & points, writer.atoms = & atoms;
-//                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
-//                            points.idx = points.end, atoms.idx = atoms.end;
+                            CurveWriter writer;  writer.points = & points, writer.atoms = & atoms, writer.clip = clip;
+                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
+                            points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
                         buffer->_slots[iz] = 0;
