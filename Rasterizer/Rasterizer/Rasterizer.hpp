@@ -216,7 +216,7 @@ struct Rasterizer {
                 if (curve == 0)
                     new (g->atoms.alloc(1)) Atom(i, false);
                 else if (curve == 1)
-                    g->x0 = x0, g->y0 = y0, new (g->atoms.alloc(1)) Atom(i, true), *(g->quadI0s.alloc(1)) = uint16_t(i);
+                    g->x0 = x0, g->y0 = y0, new (g->atoms.alloc(1)) Atom(i, true);
                 else {
                     x2 = x1, x1 = x0, x0 = g->x0, y2 = y1, y1 = y0, y0 = g->y0;
                     g->maxArea = fmaxf(g->maxArea, fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)));
@@ -237,7 +237,7 @@ struct Rasterizer {
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxDot = 0.f, maxArea = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
-        Row<Point16> p16s;  Row<uint16_t> quadI0s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
+        Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
     };
     typedef Ref<Geometry> Path;
     
