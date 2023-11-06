@@ -377,6 +377,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Point16 *p = & points[inst.quad.base + edge.i0];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
+    float offset = select(0.5, 0.0, dw != 0.0);
     float tx, ty, scale, ma, mb, mc, md;
     float slx, sux, sly, suy;
     float x16, y16, x0, y0, x1, y1, x2, y2;
@@ -402,8 +403,8 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     sux = max(x0, x2), sux = x1 == FLT_MAX ? sux : max(x1, sux);
     suy = max(y0, y2), suy = y1 == FLT_MAX ? suy : max(y1, suy);
     
-    float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
-    float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
+    sux = select(float(edge.ux), sux, dw != 0.0);
+    float dx = clamp(select(floor(slx - dw), ceil(sux + dw), vid & 1), float(cell.lx), float(cell.ux));
     float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
