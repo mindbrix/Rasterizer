@@ -132,7 +132,7 @@ struct Rasterizer {
     typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float s);
     struct Atom {
         Atom(size_t i, bool isCurve): i(uint32_t(i) | isCurve * Flags::isCurve) {}
-        enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, kMask = ~(isCurve | isEnd) };
+        enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, isClose = 1 << 29, kMask = ~(isCurve | isEnd | isClose) };
         uint32_t i;
     };
     struct Geometry {
@@ -223,7 +223,7 @@ struct Rasterizer {
                 }
             } else {
                 if (g->atoms.idx < g->atoms.end)
-                    g->atoms.back().i |= Atom::isEnd;
+                    g->atoms.back().i |= Atom::isEnd | (bool(curve & 2) && !bool(curve & 1)) * Atom::isClose;
                 g->atoms.idx = g->atoms.end;
                 
                 p->x = x1, p->y = y1;
