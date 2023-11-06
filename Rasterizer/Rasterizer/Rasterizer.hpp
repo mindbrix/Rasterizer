@@ -895,21 +895,23 @@ struct Rasterizer {
                     } else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax)));
                         ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
-                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f };
+                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, cpx, cpy;
                         cx0 = cx2 = x0, cy0 = cy2 = y0;
                         for (int i = 0; i < 3; i++, cx0 = cx2, cy0 = cy2) {
                             if (roots[i] != roots[i + 1]) {
-                                t = 0.5f * (roots[i] + roots[i + 1]), s = 1.f - t;
-                                cx1 = s * (s * x0 + t * x1) + t * (s * x1 + t * x2);
-                                cy1 = s * (s * y0 + t * y1) + t * (s * y1 + t * y2);
-
                                 t = roots[i + 1], s = 1.f - t;
-                                cx2 = s * (s * x0 + t * x1) + t * (s * x1 + t * x2);
-                                cy2 = s * (s * y0 + t * y1) + t * (s * y1 + t * y2);
+                                cpx = (s * x0 + t * x1), cx2 = s * cpx + t * (s * x1 + t * x2);
+                                cpy = (s * y0 + t * y1), cy2 = s * cpy + t * (s * y1 + t * y2);
+                                t = roots[i] / roots[i + 1], s = 1.f - t;
+                                cx1 = s * cpx + t * cx2;
+                                cy1 = s * cpy + t * cy2;
+                                
+//                                assert(cx1 >= idxr->clip.lx && cx1 <= idxr->clip.ux);
+//                                assert(cy1 >= idxr->clip.ly && cy1 <= idxr->clip.uy);
                                 
                                 if (cy0 != cy2) {
-                                    cx1 = fmaxf(idxr->clip.lx, fminf(idxr->clip.ux, 2.f * cx1 - 0.5f * (cx0 + cx2)));
-                                    cy1 = fmaxf(idxr->clip.ly, fminf(idxr->clip.uy, 2.f * cy1 - 0.5f * (cy0 + cy2)));
+//                                    cx1 = fmaxf(idxr->clip.lx, fminf(idxr->clip.ux, 2.f * cx1 - 0.5f * (cx0 + cx2)));
+//                                    cy1 = fmaxf(idxr->clip.ly, fminf(idxr->clip.uy, 2.f * cy1 - 0.5f * (cy0 + cy2)));
                                     new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
                                     idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2), idxr->is += 2;
                                 }
