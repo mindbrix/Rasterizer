@@ -28,5 +28,4 @@
 #define kUXCoverSize 4
 #define kTextureSlotsSize 64
 #define kUseQuadCurves 0
-#define kTwoQuadsPerCurve 1
-#define kUseMaxArea 1
+#define kUseMaxArea 0

@@ -596,7 +596,7 @@ struct Rasterizer {
                            else
                                type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            
-                            cnt = kTwoQuadsPerCurve && !fast ? g->atoms.end : size / kFastSegments;
+                            cnt = fast ? size / kFastSegments : g->atoms.end;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, kUseQuadCurves && !fast && width == 0.f ? g->quadI0s.end : 0);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
@@ -1159,14 +1159,14 @@ struct Rasterizer {
                             bool fast = inst->iz & Instance::kFastEdges;
                             Edge *outline = fast ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
                             dst[-1].quad.biid = int(outline - (fast ? fastOutline0 : quadOutline0));
-                            if (kTwoQuadsPerCurve && !fast) {
+                            if (fast) {
+                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
+                                    outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
+                            } else {
                                 Atom *atom = entry->path->atoms.base;
                                 for (j = 0, size = entry->path->atoms.end; j < size; j++, atom++) {
                                     outline->ic = uint32_t(ic), outline->i0 = atom->i & Atom::kMask, outline++;
                                 }
-                            } else {
-                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
-                                    outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
                             }
                             *(fast ? & fastOutline : & quadOutline) = outline;
                         } else {
@@ -1182,18 +1182,18 @@ struct Rasterizer {
                                 dst[-1].quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
                             }
 
-                            if (kTwoQuadsPerCurve && !fast) {
+                            if (fast) {
+                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
+                                    if (update)
+                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
+                                    molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
+                                }
+                            } else {
                                 Atom *atom = entry->path->atoms.base;
                                 for (j = 0, size = entry->path->atoms.end; j < size; j++, update = entry->hasMolecules && (atom->i & Atom::isEnd), atom++) {
                                     if (update)
                                         ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                     molecule->ic = uint32_t(ic), molecule->i0 = atom->i & Atom::kMask, molecule->ux = ux, molecule++;
-                                }
-                            } else {
-                                for (j = 0, size = entry->size / kFastSegments; j < size; j++, update = entry->hasMolecules && (*p16cnt & 0x80), p16cnt++) {
-                                    if (update)
-                                        ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                    molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
                                 }
                             }
                             
