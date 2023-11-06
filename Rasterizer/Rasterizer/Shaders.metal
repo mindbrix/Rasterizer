@@ -410,7 +410,12 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     vert.position = float4(x, y, 1.0, 1.0);
     vert.dw = dw;
     
-    dst[0] = x0 + offx, dst[1] = y0 + offy, dst[2] = x1 == FLT_MAX ? FLT_MAX : x1 + offx, dst[3] = y1 == FLT_MAX ? FLT_MAX : y1 + offy, dst[4] = x2 + offx, dst[5] = y2 + offy;
+    dst[0] = x0 + offx,
+    dst[1] = y0 + offy,
+    dst[2] = x1 == FLT_MAX ? FLT_MAX : x1 + offx,
+    dst[3] = y1 == FLT_MAX ? FLT_MAX : y1 + offy,
+    dst[4] = x2 + offx,
+    dst[5] = y2 + offy;
     
     return vert;
 }
