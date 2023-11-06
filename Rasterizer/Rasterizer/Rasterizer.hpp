@@ -865,7 +865,6 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        enum Flags { a = 1 << 15, c = 1 << 14, kMask = ~(a | c) };
         Segment *dst;  bool useCurves = false;  float px0, py0;  int is = 0;  Bounds clip;
         Row<Index> *indices;  Row<int16_t> *uxcovers;
         
@@ -1021,7 +1020,7 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x;
                     }
-                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * kUXCoverSize, iux = (uint16_t)uxcover[0] & CurveIndexer::Flags::kMask;
+                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * kUXCoverSize, iux = (uint16_t)uxcover[0];
                     ux = iux > ux ? iux : ux, winding += uxcover[1] * wscale;
                 }
                 if (lx != ux) {
@@ -1183,9 +1182,9 @@ struct Rasterizer {
                         int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + kUXCoverSize * inst->data.idx, *uxc;
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
-                            uxc = uxcovers + is->i * kUXCoverSize, edge->ic = uint32_t(ic) | ((uxc[3] << 26) & Edge::ue0) | Edge::a0 * bool(uxc[0] & CurveIndexer::Flags::a), edge->i0 = uint16_t(uxc[2]);
+                            uxc = uxcovers + is->i * kUXCoverSize, edge->ic = uint32_t(ic) | ((uxc[3] << 26) & Edge::ue0), edge->i0 = uint16_t(uxc[2]);
                             if (++is < eis)
-                                uxc = uxcovers + is->i * kUXCoverSize, edge->ic |= ((uxc[3] << 22) & Edge::ue1) | Edge::a1 * bool(uxc[0] & CurveIndexer::Flags::a), edge->ux = uint16_t(uxc[2]);
+                                uxc = uxcovers + is->i * kUXCoverSize, edge->ic |= ((uxc[3] << 22) & Edge::ue1), edge->ux = uint16_t(uxc[2]);
                             else
                                 edge->ux = kNullIndex, edge->ic |= Edge::ue1;
                         }
