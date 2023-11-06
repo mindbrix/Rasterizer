@@ -207,35 +207,26 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    bool fast = inst.iz & Instance::kFastEdges;
+    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
-    bool skip = false, pcurve;
+    bool skip = false;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-    pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
     x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     
-    if (!fast && pcurve) {
-        x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
-        x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-    }
     *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
 
     for (i = 0; i < kFastSegments; i++, dst += 2) {
         skip |= i >= segcount;
         
-        pcurve = pts->x & 0x8000, x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
         x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-        if (!fast && pcurve) {
-            x16 = 0.5 * (float(pts[-2].x & 0x7FFF) + float(pts->x & 0x7FFF)), y16 = 0.5 * (float(pts[-2].y & 0x7FFF) + float(pts->y & 0x7FFF));
-            x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-        }
         dst[0] = select(x0, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
         dst[1] = select(y0, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
     }
