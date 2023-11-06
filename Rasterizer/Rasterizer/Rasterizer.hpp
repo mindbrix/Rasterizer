@@ -877,7 +877,7 @@ struct Rasterizer {
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
-                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, u, v, w, cx0, cy0, cx1, cy1, cx2, cy2;
+                    float x2, y2, ax, ay, bx, by, itx, ity, t, cx0, cy0, cx1, cy1, cx2, cy2;
                     x2 = x1, x1 = x0, x0 = idxr->px0, x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
                     y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                     
@@ -894,14 +894,16 @@ struct Rasterizer {
                         ity = -by / (ay - by), ity = ity < err ? 0.f : ity > 1.f - err ? 1.f : ity;
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f };
                         cx0 = cx2 = x0, cy0 = cy2 = y0;
+                        ax -= bx, bx *= 2.f, ay -= by, by *= 2.f;
                         for (int i = 0; i < 3; i++, cx0 = cx2, cy0 = cy2) {
                             if (roots[i] != roots[i + 1]) {
-                                t = 0.5f * (roots[i] + roots[i + 1]), s = 1.f - t, u = s * s, v = 2.f * s * t, w = t * t;
-                                cx1 = u * x0 + v * x1 + w * x2;
-                                cy1 = u * y0 + v * y1 + w * y2;
-                                t = roots[i + 1], s = 1.f - t, u = s * s, v = 2.f * s * t, w = t * t;
-                                cx2 = u * x0 + v * x1 + w * x2;
-                                cy2 = u * y0 + v * y1 + w * y2;
+                                t = 0.5f * (roots[i] + roots[i + 1]);
+                                cx1 = fmaf(fmaf(ax, t, bx), t, x0);
+                                cy1 = fmaf(fmaf(ay, t, by), t, y0);
+                            
+                                t = roots[i + 1];
+                                cx2 = fmaf(fmaf(ax, t, bx), t, x0);
+                                cy2 = fmaf(fmaf(ay, t, by), t, y0);
                                 
                                 if (cy0 != cy2) {
                                     cx1 = 2.f * cx1 - 0.5f * (cx0 + cx2), cy1 = 2.f * cy1 - 0.5f * (cy0 + cy2);
