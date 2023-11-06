@@ -430,7 +430,7 @@ struct Rasterizer {
         union { struct { int count, iy, begin, idx; } data;  Bounds clip; };
     };
     struct Edge {
-        uint32_t ic;  enum Flags { a0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a0 | a1 | ue0 | ue1) };
+        uint32_t ic;  enum Flags { isClose = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose | a1 | ue0 | ue1) };
         uint16_t i0, ux;
     };
     struct Buffer {
@@ -1148,7 +1148,7 @@ struct Rasterizer {
                             } else {
                                 Atom *atom = entry->path->atoms.base;
                                 for (j = 0, size = entry->path->atoms.end; j < size; j++, atom++) {
-                                    outline->ic = uint32_t(ic), outline->i0 = atom->i & Atom::kMask, outline++;
+                                    outline->ic = uint32_t(ic) | bool(atom->i & Atom::isClose) * Edge::isClose, outline->i0 = atom->i & Atom::kMask, outline++;
                                 }
                             }
                             *(fast ? & fastOutline : & quadOutline) = outline;
