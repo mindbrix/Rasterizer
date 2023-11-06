@@ -775,9 +775,10 @@ struct Rasterizer {
             x2t = w0 * x0 + w1 * x1 + w2 * x2, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
             y2t = w0 * y0 + w1 * y1 + w2 * y2, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
             mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
+            mx = 2.f * mx - 0.5f * (x0t + x2t), my = 2.f * my - 0.5f * (y0t + y2t);
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux)
-                    (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, prec);
+                    (*quadFunction)(x0t, y0t, mx, my, x2t, y2t, function, info, prec);
                 else if (polygon)
                     vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y2t, 0, info);
             }
