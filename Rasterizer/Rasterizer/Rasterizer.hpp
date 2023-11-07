@@ -357,10 +357,11 @@ struct Rasterizer {
                     size_t upper = 4 * path->molecules.end + path->upperBound(fmaxf(kMinUpperDet, det));
                     Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
                     if (path->p16s.end == 0) {
-                        path->p16s.alloc(upper), path->p16s.empty();
+                        path->p16s.alloc(upper), path->p16s.empty(), path->atoms.alloc(upper), path->atoms.empty();
                         divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / (kMoleculesHeight + 1e-3f)));
                         uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                         assert(path->p16s.end <= upper);
+                        assert(path->atoms.end < upper);
                     }
                     e->path = path, e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
                 }
