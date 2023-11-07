@@ -274,7 +274,7 @@ struct Rasterizer {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
                         cx0 = cx2 = x0, cy0 = cy2 = y0;
-                        for (int i = 0; i < 3; i++, r++, idx += 2, cx0 = cx2, cy0 = cy2) {
+                        for (int i = 0; i < 3; i++, r++, cx0 = cx2, cy0 = cy2) {
                             if (r[0] != r[1]) {
                                 t = r[1], s = 1.f - t;
                                 cpx = (s * x0 + t * x1), cx2 = s * cpx + t * (s * x1 + t * x2);
@@ -285,7 +285,7 @@ struct Rasterizer {
                                     cx1 = fmaxf(c->clip.lx, fminf(c->clip.ux, s * cpx + t * cx2));
                                     cy1 = fmaxf(c->clip.ly, fminf(c->clip.uy, s * cpy + t * cy2));
                                     
-                                    new (c->atoms->alloc(1)) Atom(idx, true);
+                                    new (c->atoms->alloc(1)) Atom(idx, true), idx += 2;
                                     new (c->points->alloc(1)) Point(cx0, cy0), new (c->points->alloc(1)) Point(cx1, cy1);
                                 }
                             }
