@@ -162,7 +162,7 @@ struct RasterizerCG {
     }
     static void screenGrabToPDF(Ra::SceneList& list, RasterizerState& state, CGRect bounds) {
         NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
-        NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"test.pdf"];
+        NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"screenGrab.pdf"];
         CGRect mediaBox = bounds;
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
