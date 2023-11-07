@@ -174,7 +174,7 @@ struct TextureCache {
 }
 
 - (void)draw {
-    BOOL odd = ++_tick & 1;//, isM1 = [self.device.name hasPrefix:@"Apple M1"];
+    BOOL odd = ++_tick & 1;
     Ra::Buffer *buffer = odd ? & _buffer1 : & _buffer0;
     CGColorSpaceRef colorSpace = nil;
     if ([self.layerDelegate respondsToSelector:@selector(writeBuffer:forLayer:)])
@@ -202,8 +202,6 @@ struct TextureCache {
     self.depthTexture = [self.device newTextureWithDescriptor:desc];
     [self.depthTexture setLabel:@"depthTexture"];
     
-    desc.width = self.drawableSize.width;
-    desc.height = self.drawableSize.height;
     desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
     desc.pixelFormat = MTLPixelFormatR32Float;
     self.accumulationTexture = [self.device newTextureWithDescriptor:desc];
