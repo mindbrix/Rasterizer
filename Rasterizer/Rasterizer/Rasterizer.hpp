@@ -545,9 +545,6 @@ struct Rasterizer {
                 Transform ctm = view.concat(list.ctms[i]), clipctm, inv, m, unit;
                 Bounds dev, clip, *bnds, *pclip, clipBounds;
                 lastip = ~0, e0 = 0.f, e1 = 1.f;
-                (*transferFunction)(clz - lz, cuz - lz, i, scn->bnds->base,
-                     & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
-                     & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, transferInfo);
                 memcpy(buffer->_colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
