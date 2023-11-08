@@ -237,7 +237,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
-    RaCG::drawList(_list, _state, RasterizerTest::TransferFunction, ctx);
+    _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
+    RaCG::drawList(_list, _state.view, _state.device, _state.outlineWidth, ctx);
 }
 
 #pragma mark - Properies

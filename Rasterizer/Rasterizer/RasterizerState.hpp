@@ -129,6 +129,15 @@ struct RasterizerState {
         if (animating)
             clock += timeScale / 60.0;
     }
+    void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
+        for (int j = 0; j < list.scenes.size(); j++) {
+            Ra::Scene& scn = list.scenes[j];
+            if (transferFunction)
+                (*transferFunction)(0, scn.count, j, scn.bnds->base,
+                                    & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
+                                    & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, this);
+        }
+    }
     bool needsRedraw() {  return animating || events.size() > 0;  }
     
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false, fastOutlines = true;

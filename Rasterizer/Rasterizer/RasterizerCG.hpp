@@ -63,20 +63,6 @@ struct RasterizerCG {
         return dev.lx < dev.ux && dev.ly < dev.uy && clu.lx < 1.f && clu.ux > 0.f && clu.ly < 1.f && clu.uy > 0.f;
     }
     
-    static void drawList(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction, CGContextRef ctx) {
-        runTransferFunction(list, state, transferFunction);
-        drawList(list, state.view, state.device, state.outlineWidth, ctx);
-        
-    }
-    static void runTransferFunction(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction) {
-        for (int j = 0; j < list.scenes.size(); j++) {
-            Ra::Scene& scn = list.scenes[j];
-            if (transferFunction)
-                (*transferFunction)(0, scn.count, j, scn.bnds->base,
-                                    & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
-                                    & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, & state);
-        }
-    }
     static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
         uint32_t ip, lastip = ~0;
         for (int j = 0; j < list.scenes.size(); j++) {
@@ -178,7 +164,7 @@ struct RasterizerCG {
         CGPDFContextBeginPage(ctx, NULL);
         CGContextConcatCTM(ctx, CGFromTransform(state.ctm));
         state.update(1.0, bounds.size.width, bounds.size.height);
-        drawList(list, state, NULL, ctx);
+        drawList(list, state.view, state.device, state.outlineWidth, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);
