@@ -537,7 +537,7 @@ struct Rasterizer {
                 indices.resize(fatlines), uxcovers.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
-        void drawList(SceneList& list, Transform view, TransferFunction transferFunction, void *transferInfo, Buffer *buffer) {
+        void drawList(SceneList& list, Transform view, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;  Image::Index *index;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {

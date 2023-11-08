@@ -227,7 +227,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
-    _renderer.renderList(_list, _state, RasterizerTest::TransferFunction, buffer);
+    _renderer.renderList(_list, _state, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
 
