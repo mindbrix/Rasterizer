@@ -129,13 +129,41 @@ struct RasterizerState {
         if (animating)
             clock += timeScale / 60.0;
     }
+    struct TransferContext {
+        static void callback(void *info, size_t i) {
+            TransferContext *ctx = (TransferContext *)info;
+            
+            (*ctx->transferFunction)(ctx->divisions[i], ctx->divisions[i + 1], ctx->si, ctx->scn->bnds->base,
+                                & ctx->scn->ctms->src[0], ctx->scn->ctms->base, & ctx->scn->colors->src[0], ctx->scn->colors->base,
+                                & ctx->scn->widths->src[0], ctx->scn->widths->base, & ctx->scn->flags->src[0], ctx->scn->flags->base, ctx->state);
+        }
+        int si;
+        RasterizerState *state;
+        Ra::Scene* scn;
+        Ra::TransferFunction transferFunction;
+        std::vector<size_t> divisions;
+    };
+    
     void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
+        if (transferFunction == nullptr)
+            return;
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
-            if (transferFunction)
-                (*transferFunction)(0, scn.count, j, scn.bnds->base,
-                                    & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
-                                    & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, this);
+            if (scn.count == 0)
+                continue;
+            std::vector<size_t> divisions;
+            int threads = 8;
+            divisions.emplace_back(0);
+            for (int i = 0; i < threads; i++)
+                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn.count)));
+            
+            TransferContext ctx;
+            ctx.divisions = divisions;
+            ctx.si = j;
+            ctx.scn = & scn;
+            ctx.state = this;
+            ctx.transferFunction = transferFunction;
+            dispatch_apply_f(threads, DISPATCH_APPLY_AUTO, & ctx, TransferContext::callback);
         }
     }
     bool needsRedraw() {  return animating || events.size() > 0;  }
