@@ -137,7 +137,8 @@ struct RasterizerState {
                                 & ctx->scn->ctms->src[0], ctx->scn->ctms->base, & ctx->scn->colors->src[0], ctx->scn->colors->base,
                                 & ctx->scn->widths->src[0], ctx->scn->widths->base, & ctx->scn->flags->src[0], ctx->scn->flags->base, ctx->state);
         }
-        TransferContext(int threads, int si, RasterizerState *state, Ra::Scene* scn, Ra::TransferFunction transferFunction): si(si), state(state), scn(scn), transferFunction(transferFunction)  {
+        TransferContext(int threads, int si, RasterizerState *state, Ra::Scene* scn, Ra::TransferFunction transferFunction)
+         : si(si), state(state), scn(scn), transferFunction(transferFunction)  {
             divisions.emplace_back(0);
             for (int i = 0; i < threads; i++)
                 divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
