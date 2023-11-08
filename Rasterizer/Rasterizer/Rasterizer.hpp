@@ -543,7 +543,7 @@ struct Rasterizer {
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm, inv, m, unit;
-                Bounds dev, clip, *bnds, *pclip, clipBounds;
+                Bounds dev, clip, *bnds, clipBounds;
                 lastip = ~0, e0 = 0.f, e1 = 1.f;
                 memcpy(buffer->_colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
@@ -553,8 +553,8 @@ struct Rasterizer {
                     width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
-                        lastip = ip, pclip = ip ? scn->clipCache->entryAt(is) : nullptr;
-                        clipctm = pclip ? pclip->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        lastip = ip;
+                        clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         inv = clipctm.invert(), err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
