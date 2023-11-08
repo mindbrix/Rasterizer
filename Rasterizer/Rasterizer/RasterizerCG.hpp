@@ -64,19 +64,29 @@ struct RasterizerCG {
     }
     
     static void drawList(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction, CGContextRef ctx) {
-        uint32_t ip, lastip = ~0;
+        runTransferFunction(list, state, transferFunction);
+        drawList(list, state.view, state.device, state.outlineWidth, ctx);
+        
+    }
+    static void runTransferFunction(Ra::SceneList& list, RasterizerState& state, Ra::TransferFunction transferFunction) {
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
             if (transferFunction)
                 (*transferFunction)(0, scn.count, j, scn.bnds->base,
-                     & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
-                     & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, & state);
+                                    & scn.ctms->src[0], scn.ctms->base, & scn.colors->src[0], scn.colors->base,
+                                    & scn.widths->src[0], scn.widths->base, & scn.flags->src[0], scn.flags->base, & state);
+        }
+    }
+    static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
+        uint32_t ip, lastip = ~0;
+        for (int j = 0; j < list.scenes.size(); j++) {
+            Ra::Scene& scn = list.scenes[j];
             Ra::Transform ctm = list.ctms[j], clip, m;
             CGContextSaveGState(ctx);
             CGContextConcatCTM(ctx, CGFromTransform(ctm));
             CGContextSaveGState(ctx);
             
-            clip = state.view.concat(Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f));
+            clip = view.concat(Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f));
             
             for (size_t i = 0; i < scn.count; i++) {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
@@ -84,7 +94,7 @@ struct RasterizerCG {
                 
                 Ra::Path& path = scn.cache->entryAt(i)->path;
                 Ra::Transform t = scn.ctms->base[i];
-                m = state.view.concat(ctm).concat(t);
+                m = view.concat(ctm).concat(t);
                 ip = scn.clipCache->ips.base[i];
                 if (ip != lastip) {
                     lastip = ip;
@@ -93,16 +103,16 @@ struct RasterizerCG {
                     Ra::Bounds *pclip = ip ? scn.clipCache->entryAt(i) : nullptr;
                     if (pclip)
                         CGContextClipToRect(ctx, CGRectFromBounds(*pclip));
-                    clip = ip && pclip ? pclip->unit(state.view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                    clip = ip && pclip ? pclip->unit(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                 }
                 
-                if (isVisible(path->bounds, m, clip, state.device, scn.widths->base[i])) {
+                if (isVisible(path->bounds, m, clip, device, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(path, ctx);
-                    if (state.outlineWidth || scn.widths->base[i]) {
+                    if (outlineWidth || scn.widths->base[i]) {
                         CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
-                        CGContextSetLineWidth(ctx, state.outlineWidth || scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
+                        CGContextSetLineWidth(ctx, outlineWidth || scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
                         bool square = scn.flags->base[i] & Ra::Scene::kSquareCap;
                         bool round = scn.flags->base[i] & Ra::Scene::kRoundCap;
                         CGContextSetLineCap(ctx, round ? kCGLineCapRound : square ? kCGLineCapSquare : kCGLineCapButt);
