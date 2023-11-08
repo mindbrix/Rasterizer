@@ -176,8 +176,8 @@ struct RasterizerCG {
         CGRect mediaBox = bounds;
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
-        state.update(1.0, bounds.size.width, bounds.size.height);
         CGContextConcatCTM(ctx, CGFromTransform(state.ctm));
+        state.update(1.0, bounds.size.width, bounds.size.height);
         drawList(list, state, NULL, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);

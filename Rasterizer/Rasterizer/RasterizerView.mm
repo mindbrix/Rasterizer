@@ -224,8 +224,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - LayerDelegate
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     _renderer.renderList(_list, _state, RasterizerTest::TransferFunction, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
@@ -233,10 +233,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - CALayerDelegate
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
+    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
     RaCG::drawList(_list, _state, RasterizerTest::TransferFunction, ctx);
 }
 
