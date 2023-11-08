@@ -137,6 +137,12 @@ struct RasterizerState {
                                 & ctx->scn->ctms->src[0], ctx->scn->ctms->base, & ctx->scn->colors->src[0], ctx->scn->colors->base,
                                 & ctx->scn->widths->src[0], ctx->scn->widths->base, & ctx->scn->flags->src[0], ctx->scn->flags->base, ctx->state);
         }
+        TransferContext(int threads, int si, RasterizerState *state, Ra::Scene* scn, Ra::TransferFunction transferFunction): si(si), state(state), scn(scn), transferFunction(transferFunction)  {
+            divisions.emplace_back(0);
+            for (int i = 0; i < threads; i++)
+                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
+        }
+        
         int si;
         RasterizerState *state;
         Ra::Scene* scn;
@@ -147,22 +153,9 @@ struct RasterizerState {
     void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
         if (transferFunction == nullptr)
             return;
-        for (int j = 0; j < list.scenes.size(); j++) {
-            Ra::Scene& scn = list.scenes[j];
-            if (scn.count == 0)
-                continue;
-            std::vector<size_t> divisions;
+        for (int si = 0; si < list.scenes.size(); si++) {
             int threads = 8;
-            divisions.emplace_back(0);
-            for (int i = 0; i < threads; i++)
-                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn.count)));
-            
-            TransferContext ctx;
-            ctx.divisions = divisions;
-            ctx.si = j;
-            ctx.scn = & scn;
-            ctx.state = this;
-            ctx.transferFunction = transferFunction;
+            TransferContext ctx(threads, si, this, & list.scenes[si], transferFunction);
             dispatch_apply_f(threads, DISPATCH_APPLY_AUTO, & ctx, TransferContext::callback);
         }
     }
