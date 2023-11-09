@@ -289,7 +289,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + edge.i0];
     float visible = edge.ic & Edge::isClose ? 0.0 : 1.0;
-    thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float offset = select(0.5, 0.0, dw != 0.0);
     float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
@@ -320,15 +319,13 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
+    
     vert.position = float4(x, y, 1.0, visible);
     vert.dw = dw;
-    
-    dst[0] = x0 + offx,
-    dst[1] = y0 + offy,
-    dst[2] = x1 == FLT_MAX ? FLT_MAX : x1 + offx,
-    dst[3] = y1 == FLT_MAX ? FLT_MAX : y1 + offy,
-    dst[4] = x2 + offx,
-    dst[5] = y2 + offy;
+    vert.x0 = x0 + offx, vert.y0 = y0 + offy;
+    vert.x1 = x1 == FLT_MAX ? FLT_MAX : x1 + offx;
+    vert.y1 = y1 == FLT_MAX ? FLT_MAX : y1 + offy;
+    vert.x2 = x2 + offx, vert.y2 = y2 + offy;
     
     return vert;
 }
