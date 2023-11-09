@@ -6,7 +6,6 @@
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.hpp"
-#import "Rasterizer3D.hpp"
 #import "RasterizerState.hpp"
 #import <time.h>
 
@@ -91,12 +90,6 @@ struct RasterizerTest {
             createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
             bounds = b;
             state.animating = true;
-        }
-        if (0 && list.scenes.size()) {
-            Ra::SceneList list3D;
-            for (int i = 0; i < list.scenes.size(); i++)
-                list3D.addScene(create3DScene(list.scenes[i]));
-            list.empty().addList(list3D);
         }
         if (list.scenes.size())
             copy.empty().addList(list);
