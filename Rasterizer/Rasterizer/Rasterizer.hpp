@@ -577,7 +577,7 @@ struct Rasterizer {
                        } else if (useMolecules) {
                            buffer->_bounds[iz] = *bnds, ip = scn->cache->ips.base[is];
                            size = scn->cache->entries.base[ip].size;
-                            if (fasts.base[lz + ip]++ == 0)
+                           if (fasts.base[lz + ip]++ == 0)
                                 p16total += size;
 
                            float scale = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
@@ -586,12 +586,12 @@ struct Rasterizer {
                                 : (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
                            bool fast = !buffer->useCurves || isFlat;
 
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                            inst->quad.cover = 0, inst->data.idx = int(lz + ip);
+                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                           inst->quad.cover = 0, inst->data.idx = int(lz + ip);
                            int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            
-                            cnt = fast ? size / kFastSegments : g->atoms.end;
-                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, 0);
+                           cnt = fast ? size / kFastSegments : g->atoms.end;
+                           allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, 0);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
