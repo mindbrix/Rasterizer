@@ -292,9 +292,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     thread float *dst = & vert.x0;
     float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float offset = select(0.5, 0.0, dw != 0.0);
-    float tx, ty, scale, ma, mb, mc, md;
-    float slx, sux, sly, suy;
-    float x16, y16, x0, y0, x1, y1, x2, y2;
+    float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
 
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
