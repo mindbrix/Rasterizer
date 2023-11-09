@@ -129,35 +129,22 @@ struct RasterizerState {
         if (animating)
             clock += timeScale / 60.0;
     }
-    struct TransferContext {
-        static void callback(void *info, size_t i) {
-            TransferContext *ctx = (TransferContext *)info;
-            
-            (*ctx->transferFunction)(ctx->divisions[i], ctx->divisions[i + 1], ctx->si, ctx->scn->bnds->base,
-                                & ctx->scn->ctms->src[0], ctx->scn->ctms->base, & ctx->scn->colors->src[0], ctx->scn->colors->base,
-                                & ctx->scn->widths->src[0], ctx->scn->widths->base, & ctx->scn->flags->src[0], ctx->scn->flags->base, ctx->state);
-        }
-        TransferContext(int threads, int si, RasterizerState *state, Ra::Scene* scn, Ra::TransferFunction transferFunction)
-         : si(si), state(state), scn(scn), transferFunction(transferFunction)  {
-            divisions.emplace_back(0);
-            for (int i = 0; i < threads; i++)
-                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
-        }
-        
-        int si;
-        RasterizerState *state;
-        Ra::Scene* scn;
-        Ra::TransferFunction transferFunction;
-        std::vector<size_t> divisions;
-    };
     
     void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
         if (transferFunction == nullptr)
             return;
         for (int si = 0; si < list.scenes.size(); si++) {
             int threads = 8;
-            TransferContext ctx(threads, si, this, & list.scenes[si], transferFunction);
-            dispatch_apply_f(threads, DISPATCH_APPLY_AUTO, & ctx, TransferContext::callback);
+            Ra::Scene *scn = & list.scenes[si];
+            std::vector<size_t> divisions;
+            divisions.emplace_back(0);
+            for (int i = 0; i < threads; i++)
+                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
+            dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
+                (*transferFunction)(divisions[i], divisions[i + 1], si, scn->bnds->base,
+                                    & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
+                                    & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, this);
+            });
         }
     }
     bool needsRedraw() {  return animating || events.size() > 0;  }
