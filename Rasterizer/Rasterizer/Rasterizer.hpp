@@ -311,13 +311,13 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 Entry *e;  Bounds *be;  Image *ie;
                 if ((e = cache->addEntry(g->hash()))) {
-                    if (g->p16s.end == 0) {
+                    if (kMoleculesHeight && g->p16s.end == 0) {
                         float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
                         float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
                         size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
                         Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
                         g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
-                        divideGeometry(g, m, Bounds(), true, true, true, g, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / (kMoleculesHeight + 1e-3f)));
+                        divideGeometry(g, m, Bounds(), true, true, true, g, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
                         uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                         assert(g->p16s.end <= upper);
                         assert(g->atoms.end <= upper);
