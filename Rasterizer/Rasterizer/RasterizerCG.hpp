@@ -78,7 +78,7 @@ struct RasterizerCG {
                 if (scn.flags->base[i] & Ra::Scene::Flags::kInvisible)
                     continue;
                 
-                Ra::Path& path = scn.cache->entryAt(i)->path;
+                Ra::Geometry *g = scn.cache->entryAt(i)->path.ptr;
                 Ra::Transform t = scn.ctms->base[i];
                 m = view.concat(ctm).concat(t);
                 ip = scn.clipCache->ips.base[i];
@@ -92,10 +92,10 @@ struct RasterizerCG {
                     clip = ip && pclip ? pclip->unit(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                 }
                 
-                if (isVisible(path->bounds, m, clip, device, scn.widths->base[i])) {
+                if (isVisible(g->bounds, m, clip, device, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
-                    writePathToCGContext(path, ctx);
+                    writePathToCGContext(g, ctx);
                     if (outlineWidth || scn.widths->base[i]) {
                         CGContextSetRGBStrokeColor(ctx, scn.colors->base[i].r / 255.0, scn.colors->base[i].g / 255.0, scn.colors->base[i].b / 255.0, scn.colors->base[i].a / 255.0);
                         CGContextSetLineWidth(ctx, outlineWidth || scn.widths->base[i] < 0.f ? (CGFloat)-109.05473e+14 : scn.widths->base[i]);
@@ -130,9 +130,12 @@ struct RasterizerCG {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
     static void writePathToCGContext(Ra::Path path, CGContextRef ctx) {
-        for (size_t index = 0; index < path->types.end; ) {
-            float *p = path->points.base + index * 2;
-            switch (*(path->types.base + index)) {
+        writePathToCGContext(path.ptr, ctx);
+    }
+    static void writePathToCGContext(Ra::Geometry *g, CGContextRef ctx) {
+        for (size_t index = 0; index < g->types.end; ) {
+            float *p = g->points.base + index * 2;
+            switch (*(g->types.base + index)) {
                 case Ra::Geometry::kMove:
                     CGContextMoveToPoint(ctx, p[0], p[1]);
                     index++;
