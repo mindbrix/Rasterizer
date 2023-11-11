@@ -11,7 +11,6 @@
 #define kCubicPrecision 0.25f
 #define kCoverScale 2047.9375f
 #define kQuadraticFlatness 1e-2f
-#define kMonotoneFlatness 1e-2f
 #define kFatMask 0xFFFFFFF0
 #define kfh 16.f
 #define krfh 0.0625f

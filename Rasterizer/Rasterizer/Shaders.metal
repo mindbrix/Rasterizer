@@ -132,8 +132,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
         return w2 - w0;
     float w = 0.0, ay = y2 - y1, by = y1 - y0, cy, t, s, w1;
-    bool mono = abs(ay) < kMonotoneFlatness || abs(by) < kMonotoneFlatness || (ay > 0.0) == (by > 0.0);
-    w1 = saturate(mono ? y2 : y0 - by * by / (ay - by)), ay -= by, by *= 2.0;
+    w1 = saturate(ay * by >= 0.0 ? y2 : y0 - by * by / (ay - by)), ay -= by, by *= 2.0;
     if (w0 != w1) {
         cy = y0 - 0.5 * (w0 + w1);
         t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w1 - w0)) / ay * 0.5;
