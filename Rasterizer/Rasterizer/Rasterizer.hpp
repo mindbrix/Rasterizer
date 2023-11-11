@@ -337,6 +337,10 @@ struct Rasterizer {
         
         template<typename T>
         struct Cache {
+            ~Cache() {
+                for (T *e = entries.base, *end = e + entries.end; e < end; e++)
+                    ;//e->~T();
+            }
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
             T *addEntry(size_t hash) {
                 T *e = nullptr;  auto ip = ips.alloc(1);  *ip = 0;
@@ -381,7 +385,7 @@ struct Rasterizer {
                 if ((ie = imageCache->addEntry(image && image->isValid() ? image->hash : 0)))
                     *ie = *image;
                 g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet), xxhash = XXH64(& g->xxhash, sizeof(g->xxhash), xxhash);
-                bnds->add(g->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
+                paths->add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
             }
         }
         Bounds bounds() {
@@ -393,7 +397,7 @@ struct Rasterizer {
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;
-        Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
+        Ref<Vector<Path>> paths;  Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     struct SceneList {
         Bounds bounds() {
@@ -1145,6 +1149,7 @@ struct Rasterizer {
                     if (inst->iz & Instance::kMolecule) {
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
                         Scene::Entry *entry = list.scenes[i].cache->entryAt(is);
+                        Geometry *g = entry->path.ptr;
                         if (widths[iz]) {
                             bool fast = inst->iz & Instance::kFastEdges;
                             Edge *outline = fast ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
@@ -1153,8 +1158,8 @@ struct Rasterizer {
                                 for (j = 0, size = entry->size / kFastSegments; j < size; j++, outline++)
                                     outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
                             } else {
-                                Atom *atom = entry->path->atoms.base;
-                                for (j = 0, size = entry->path->atoms.end; j < size; j++, atom++) {
+                                Atom *atom = g->atoms.base;
+                                for (j = 0, size = g->atoms.end; j < size; j++, atom++) {
                                     outline->ic = uint32_t(ic) | bool(atom->i & Atom::isClose) * Edge::isClose, outline->i0 = atom->i & Atom::kMask, outline++;
                                 }
                             }
@@ -1174,8 +1179,8 @@ struct Rasterizer {
                                     molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
                                 }
                             } else {
-                                Atom *atom = entry->path->atoms.base;
-                                for (j = 0, size = entry->path->atoms.end; j < size; j++, update = entry->hasMolecules && (atom->i & Atom::isEnd), atom++) {
+                                Atom *atom = g->atoms.base;
+                                for (j = 0, size = g->atoms.end; j < size; j++, update = entry->hasMolecules && (atom->i & Atom::isEnd), atom++) {
                                     if (update)
                                         ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                     molecule->ic = uint32_t(ic), molecule->i0 = atom->i & Atom::kMask, molecule->ux = ux, molecule++;
