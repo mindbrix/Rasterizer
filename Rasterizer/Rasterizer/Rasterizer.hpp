@@ -211,6 +211,10 @@ struct Rasterizer {
         void close() {
             float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1, pts);
         }
+        bool isValid() {
+            validate();
+            return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
+        }
         size_t hash() {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
@@ -354,8 +358,7 @@ struct Rasterizer {
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Image *image = nullptr) {
-            path->validate();
-            if (path->types.end > 1 && *path->types.base == Geometry::kMove && (path->bounds.lx != path->bounds.ux || path->bounds.ly != path->bounds.uy)) {
+            if (path->isValid()) {
                 count++, weight += path->types.end;
                 Entry *e;  Bounds *be;  Image *ie;
                 if ((e = cache->addEntry(path->hash()))) {
