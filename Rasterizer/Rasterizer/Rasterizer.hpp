@@ -242,12 +242,10 @@ struct Rasterizer {
                 g->atoms.idx = g->atoms.end;
                 
                 size_t segcnt = g->p16s.end - g->p16s.idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
-                uint8_t *c = g->p16cnts.alloc(icount);
+                uint8_t *cnt = g->p16cnts.alloc(icount), flags = 0x80 | (isClose * 0x8);
                 for (int i = 0; i < icount; i++) {
                     rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
-                    c[i] = sz;
-                    if (sz && sz == rem)
-                        c[i] |= 0x80 | (isClose * 0x8);
+                    cnt[i] = sz | ((sz && sz == rem) * flags);
                 }
                 g->p16s.zalloc(g->p16cnts.end * kFastSegments - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
