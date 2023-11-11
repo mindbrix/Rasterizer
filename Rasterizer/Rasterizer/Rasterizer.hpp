@@ -233,17 +233,23 @@ struct Rasterizer {
                     g->maxArea = fmaxf(g->maxArea, fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)));
                 }
             } else {
+                p->x = x1, p->y = y1;
+                
+                bool isClose = bool(curve & 2) && !bool(curve & 1);
+                
                 if (g->atoms.idx < g->atoms.end)
-                    g->atoms.back().i |= Atom::isEnd | (bool(curve & 2) && !bool(curve & 1)) * Atom::isClose;
+                    g->atoms.back().i |= Atom::isEnd | isClose * Atom::isClose;
                 g->atoms.idx = g->atoms.end;
                 
-                p->x = x1, p->y = y1;
-                size_t end = (g->p16s.end + kFastSegments - 1) / kFastSegments * kFastSegments, icnt = (end - g->p16s.idx) / kFastSegments;
-                uint8_t *cnt, *cend;  int segcount = int(g->p16s.end - g->p16s.idx - 1);  bool empty, skiplast = bool(curve & 2) && !bool(curve & 1);
-                for (cnt = g->p16cnts.alloc(icnt), cend = cnt + icnt; cnt < cend; cnt++, segcount -= kFastSegments)
-                    *cnt = segcount < 0 ? 0 : segcount > 4 ? 4 : segcount;
-                empty = cnt[-1] == 0, cnt[empty ? -2 : -1] |= 0x80 | (skiplast ? 0x8 : 0x0);
-                g->p16s.zalloc(end - g->p16s.end), g->p16s.idx = g->p16s.end;
+                size_t segcnt = g->p16s.end - g->p16s.idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
+                uint8_t *c = g->p16cnts.alloc(icount);
+                for (int i = 0; i < icount; i++) {
+                    rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
+                    c[i] = sz;
+                    if (sz && sz == rem)
+                        c[i] |= 0x80 | (isClose * 0x8);
+                }
+                g->p16s.zalloc(g->p16cnts.end * kFastSegments - g->p16s.end), g->p16s.idx = g->p16s.end;
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
