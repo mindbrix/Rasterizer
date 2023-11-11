@@ -1136,16 +1136,16 @@ struct Rasterizer {
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner out;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
+                Scene::Entry *entry = list.scenes[i].cache->entryAt(is);
+                Geometry *g = entry->g;
                 if (inst->iz & Instance::kOutlines) {
                     out.iz = inst->iz, out.dst = out.dst0 = dst;
-                    divideGeometry(list.scenes[i].cache->entryAt(is)->g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
+                    divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & out, Outliner::WriteInstance);
                     dst = out.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
-                        Scene::Entry *entry = list.scenes[i].cache->entryAt(is);
-                        Geometry *g = entry->g;
                         if (widths[iz]) {
                             bool fast = inst->iz & Instance::kFastEdges;
                             Edge *outline = fast ? fastOutline : quadOutline;  uint8_t *p16cnt = entry->p16cnts;
