@@ -507,8 +507,8 @@ struct Rasterizer {
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, quadCount = 0, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
-            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5] + quadCount; }
+            size_t idx, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
+            size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
             imgCount = 0, full = device, sheet = molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -516,7 +516,7 @@ struct Rasterizer {
         void refill(size_t idx) {
             imgCount = kTextureSlotsSize - 1, sheet = full, molecules = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
         }
-        inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count, size_t quadCount = 0) {
+        inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count) {
             float w = ux - lx, h = uy - ly;  Bounds *b;  float hght;
             if (h <= kFastHeight) {
                 hght = ceilf(h / 4) * 4;
@@ -529,7 +529,7 @@ struct Rasterizer {
                 b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
             }
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
-            passes.back().counts[type] += count, passes.back().quadCount += quadCount;
+            passes.back().counts[type] += count;
         }
         inline void allocImage(size_t idx) {
             if (imgCount == 0)
@@ -602,7 +602,7 @@ struct Rasterizer {
                            int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            
                            cnt = fast ? size / kFastSegments : g->atoms.end;
-                           allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt, 0);
+                           allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             CurveIndexer idxr;  idxr.clip = clip, idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = buffer->useCurves, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
