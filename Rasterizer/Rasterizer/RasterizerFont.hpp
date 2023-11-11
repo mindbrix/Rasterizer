@@ -55,19 +55,23 @@ struct RasterizerFont {
         stbtt_vertex *v;
         int i, nverts = stbtt_GetGlyphShape(& info, glyph, & v);
         if (nverts) {
+            Ra::Geometry *g = path.ptr;
+            g->points.prealloc(nverts * 3 * 2);
+            g->types.prealloc(nverts * 3);
+            g->molecules.prealloc(16);
             for (i = 0; i < nverts; i++)
                 switch (v[i].type) {
                     case STBTT_vmove:
-                        path->moveTo(v[i].x, v[i].y);
+                        g->moveTo(v[i].x, v[i].y);
                         break;
                     case STBTT_vline:
-                        path->lineTo(v[i].x, v[i].y);
+                        g->lineTo(v[i].x, v[i].y);
                         break;
                     case STBTT_vcurve:
-                        path->quadTo(v[i].cx, v[i].cy, v[i].x, v[i].y);
+                        g->quadTo(v[i].cx, v[i].cy, v[i].x, v[i].y);
                         break;
                     case STBTT_vcubic:
-                        path->cubicTo(v[i].cx, v[i].cy, v[i].cx1, v[i].cy1, v[i].x, v[i].y);
+                        g->cubicTo(v[i].cx, v[i].cy, v[i].cx1, v[i].cy1, v[i].x, v[i].y);
                         break;
                 }
             stbtt_FreeShape(& info, v);

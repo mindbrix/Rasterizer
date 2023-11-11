@@ -109,6 +109,7 @@ struct Rasterizer {
                 memory->resize(end * 1.5), base = memory->addr;
             return base + end - n;
         }
+        inline void prealloc(size_t n) {  alloc(n), end -= n;  }
         inline T *zalloc(size_t n) {
             return (T*)memset(alloc(n), 0, n * sizeof(T));
         }
