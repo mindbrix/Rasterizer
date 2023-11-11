@@ -359,28 +359,29 @@ struct Rasterizer {
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Image *image = nullptr) {
             if (path->isValid()) {
-                count++, weight += path->types.end;
+                Geometry *g = path.ptr;
+                count++, weight += g->types.end;
                 Entry *e;  Bounds *be;  Image *ie;
-                if ((e = cache->addEntry(path->hash()))) {
-                    if (path->p16s.end == 0) {
-                        float dim = fmaxf(path->bounds.ux - path->bounds.lx, path->bounds.uy - path->bounds.ly);
+                if ((e = cache->addEntry(g->hash()))) {
+                    if (g->p16s.end == 0) {
+                        float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
                         float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
-                        size_t upper = 4 * path->molecules.end + path->upperBound(fmaxf(kMinUpperDet, det));
-                        Transform m = Transform(s, 0.f, 0.f, s, err + s * -path->bounds.lx, err + s * -path->bounds.ly);
-                        path->p16s.alloc(upper), path->p16s.empty(), path->atoms.alloc(upper), path->atoms.empty();
-                        divideGeometry(path.ptr, m, Bounds(), true, true, true, path.ptr, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / (kMoleculesHeight + 1e-3f)));
-                        uint8_t *cnt = & path->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
-                        assert(path->p16s.end <= upper);
-                        assert(path->atoms.end < upper);
+                        size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
+                        Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
+                        g->p16s.prealloc(upper), g->atoms.prealloc(upper);
+                        divideGeometry(g, m, Bounds(), true, true, true, g, Geometry::WriteSegment16, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / (kMoleculesHeight + 1e-3f)));
+                        uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
+                        assert(g->p16s.end <= upper);
+                        assert(g->atoms.end <= upper);
                     }
-                    e->path = path, e->size = path->p16s.end, e->hasMolecules = path->molecules.end > 1, e->maxDot = path->maxDot, e->mols = (float *)path->molecules.base, e->p16s = (uint16_t *)path->p16s.base, e->p16cnts = path->p16cnts.base;
+                    e->path = path, e->size = g->p16s.end, e->hasMolecules = g->molecules.end > 1, e->maxDot = g->maxDot, e->mols = (float *)g->molecules.base, e->p16s = (uint16_t *)g->p16s.base, e->p16cnts = g->p16cnts.base;
                 }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
                 if ((ie = imageCache->addEntry(image && image->isValid() ? image->hash : 0)))
                     *ie = *image;
-                path->minUpper = path->minUpper ?: path->upperBound(kMinUpperDet), xxhash = XXH64(& path->xxhash, sizeof(path->xxhash), xxhash);
-                bnds->add(path->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
+                g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet), xxhash = XXH64(& g->xxhash, sizeof(g->xxhash), xxhash);
+                bnds->add(g->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
             }
         }
         Bounds bounds() {
