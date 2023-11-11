@@ -55,7 +55,7 @@ struct RasterizerRenderer {
             for (target = total * i / kQueueCount; count < target; iz++) {
                 if (iz - base == scene->count)
                     scene++, base = iz;
-                count += scene->cache->entryAt(iz - base)->path->types.end;
+                count += scene->cache->entryAt(iz - base)->g->types.end;
             }
             izs[i] = iz;
         }
