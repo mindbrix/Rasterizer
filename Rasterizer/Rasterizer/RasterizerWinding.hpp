@@ -31,7 +31,7 @@ struct RasterizerWinding {
                     }
                     float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        int winding = pointWinding(scene.cache->entryAt(si)->path, scene.bnds->base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si], scene.flags->base[si]);
+                        int winding = pointWinding(scene.cache->entryAt(si)->path.ptr, scene.bnds->base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si], scene.flags->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
                             return Ra::Range(li, si);
@@ -82,7 +82,7 @@ struct RasterizerWinding {
                 cntr->winding = 1;
         }
     }
-    static int pointWinding(Ra::Path& path, Ra::Bounds bounds, Ra::Transform m, Ra::Bounds device, float dx, float dy, float w, uint8_t flags) {
+    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, Ra::Bounds device, float dx, float dy, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
         Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         Ra::Transform unit = bounds.inset(-uw, -uw).unit(m), inv = unit.invert();
@@ -90,9 +90,9 @@ struct RasterizerWinding {
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
         if (clip.lx < clip.ux && clip.ly < clip.uy && ux >= 0.f && ux <= 1.f && uy >= 0.f && uy <= 1.f) {
             if (w)
-                Ra::divideGeometry(path.ptr, m, clip, false, false, false, & cntr, countOutline, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
+                Ra::divideGeometry(g, m, clip, false, false, false, & cntr, countOutline, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
             else
-                Ra::divideGeometry(path.ptr, m, clip, false, true, false, & cntr, count, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
+                Ra::divideGeometry(g, m, clip, false, true, false, & cntr, count, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
         }
         return cntr.winding;
     }
