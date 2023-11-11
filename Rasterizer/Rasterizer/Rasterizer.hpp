@@ -180,11 +180,14 @@ struct Rasterizer {
             }
         }
         void quadTo(float x1, float y1, float x2, float y2) {
-            float ax = x2 - x1, ay = y2 - y1, bx = x1 - x0, by = y1 - y0, adot = ax * ax + ay * ay, bdot = bx * bx + by * by, det = bx * ay - by * ax, dot = ax * bx + ay * by;
-            if (det == 0.f || dot * dot / (adot * bdot) > 0.999695413509548f)
+            float ax, bx, ay, by, dot, t, err = 1e-2f;
+            ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0;
+            dot = bx * bx + by * by + 1e-12f, t = fabsf(ax * -by + ay * bx) / dot;
+            if (t < err) {
                 lineTo(x2, y2);
-            else {
+            } else {
                 float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, update(kQuadratic, 2, pts);
+                ax = x2 - x1, ay = y2 - y1, bx = x1 - x0, by = y1 - y0;
                 ax -= bx, ay -= by, dot = ax * ax + ay * ay, maxDot = maxDot > dot ? maxDot : dot;
             }
         }
