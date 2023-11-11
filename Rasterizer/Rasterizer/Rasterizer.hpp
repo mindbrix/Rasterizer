@@ -256,62 +256,6 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct Point {
-        Point(float x, float y): x(x), y(y) {}
-        float x, y;
-    };
-    struct CurveWriter {
-        Row<Point> *points;  Row<Atom> *atoms;  float x0, y0, x1 = FLT_MAX, y1;  Bounds clip;
-        
-        static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            CurveWriter *c = (CurveWriter *)info;  size_t idx = c->points->end - c->points->idx;
-            if ((curve & kEndSubpath) == 0) {
-                if (c->x1 != FLT_MAX && (x0 != c->x1 || y0 != c->y1))
-                    new (c->points->alloc(1)) Point(c->x1, c->y1), c->x1 = FLT_MAX;
-                else
-                    c->x1 = x1, c->y1 = y1;
-                
-                if (curve == 0) {
-                    if (y0 != y1)
-                        new (c->atoms->alloc(1)) Atom(idx, false), new (c->points->alloc(1)) Point(x0, y0);
-                } else if (curve == 1)
-                    c->x0 = x0, c->y0 = y0;
-                else {
-                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, cx0, cy0, cx1, cy1, cx2, cy2;
-                    x2 = x1, x1 = x0, x0 = c->x0, x1 = fmaxf(c->clip.lx, fminf(c->clip.ux, 2.f * x1 - 0.5f * (x0 + x2))), ax = x2 - x1, bx = x1 - x0;
-                    y2 = y1, y1 = y0, y0 = c->y0, y1 = fmaxf(c->clip.ly, fminf(c->clip.uy, 2.f * y1 - 0.5f * (y0 + y2))), ay = y2 - y1, by = y1 - y0;
-                    if (ay * by >= 0.f && ax * bx >= 0.f) {
-                        if (y0 != y2) {
-                            new (c->atoms->alloc(1)) Atom(idx, true);
-                            new (c->points->alloc(1)) Point(x0, y0), new (c->points->alloc(1)) Point(x1, y1);
-                        }
-                    } else {
-                        itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
-                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
-                        cx0 = cx2 = x0, cy0 = cy2 = y0;
-                        for (int i = 0; i < 3; i++, r++, cx0 = cx2, cy0 = cy2) {
-                            if (r[0] != r[1]) {
-                                t = r[1], s = 1.f - t;
-                                cpx = (s * x0 + t * x1), cx2 = s * cpx + t * (s * x1 + t * x2);
-                                cpy = (s * y0 + t * y1), cy2 = s * cpy + t * (s * y1 + t * y2);
-                                
-                                if (cy0 != cy2) {
-                                    t = r[0] / r[1], s = 1.f - t;
-                                    cx1 = fmaxf(c->clip.lx, fminf(c->clip.ux, s * cpx + t * cx2));
-                                    cy1 = fmaxf(c->clip.ly, fminf(c->clip.uy, s * cpy + t * cy2));
-                                    
-                                    new (c->atoms->alloc(1)) Atom(idx, true), idx += 2;
-                                    new (c->points->alloc(1)) Point(cx0, cy0), new (c->points->alloc(1)) Point(cx1, cy1);
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                new (c->points->alloc(1)) Point(x1, y1), c->x1 = FLT_MAX;
-            }
-        }
-    };
     struct Image {
         struct Index {
             size_t hash, i;
@@ -617,10 +561,6 @@ struct Rasterizer {
                             bool fast = !buffer->useCurves || (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
-                            
-                            CurveWriter writer;  writer.points = & points, writer.atoms = & atoms, writer.clip = clip;
-                            divideGeometry(g, m, clip, clip.contains(dev), true, true, & writer, CurveWriter::WriteSegment);
-                            points.idx = points.end, atoms.idx = atoms.end;
                         }
                     } else
                         buffer->_slots[iz] = 0;
@@ -642,13 +582,12 @@ struct Rasterizer {
                     pass->imgCount = size;
             }
         }
-        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>(), points.empty(), atoms.empty(); }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(), points.reset(), atoms.reset(); }
+        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>(); }
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
         size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
-        Row<Point> points;  Row<Atom> atoms;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
