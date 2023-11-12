@@ -1082,8 +1082,6 @@ struct Rasterizer {
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 Geometry *g = list.scenes[i].cache->entryAt(is)->g;
-                size_t p16size = g->p16s.end;
-                bool hasMolecules = g->molecules.end > 1;
                 if (inst->iz & Instance::kOutlines) {
                     outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst;
                     divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, & outliner, Outliner::WriteInstance);
@@ -1092,13 +1090,14 @@ struct Rasterizer {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
                         Atom *atom = g->atoms.base;  uint32_t ia;
+                        bool hasMolecules = g->molecules.end > 1;
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
                         if (widths[iz]) {
                             bool fast = inst->iz & Instance::kFastEdges;
                             Edge *outline = fast ? fastOutline : quadOutline;  uint8_t *p16cnt = g->p16cnts.base;
                             dst[-1].quad.biid = int(outline - (fast ? fastOutline0 : quadOutline0));
                             if (fast) {
-                                for (j = 0, size = p16size / kFastSegments; j < size; j++, outline++)
+                                for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, outline++)
                                     outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
                             } else {
                                 for (j = 0, size = g->atoms.end; j < size; j++, atom++) {
@@ -1114,7 +1113,7 @@ struct Rasterizer {
                             dst[-1].quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
 
                             if (fast) {
-                                for (j = 0, size = p16size / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & 0x80), p16cnt++) {
+                                for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & 0x80), p16cnt++) {
                                     if (update)
                                         ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                     molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
