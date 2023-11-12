@@ -181,8 +181,10 @@ struct Rasterizer {
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
-            ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0;
-            dot = bx * bx + by * by + 1e-12f, t = fabsf(ax * -by + ay * bx) / dot;
+            ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0, dot = bx * bx + by * by + 1e-12f;
+            t = fabsf(ax * -by + ay * bx) / dot;
+//            if (dot < 1e-4f)
+//                return;
             if (t < err) {
                 lineTo(x2, y2);
             } else {
@@ -191,8 +193,8 @@ struct Rasterizer {
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f;
-            ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0;
-            dot = cx * cx + cy * cy + 1e-12f, t0 = fabsf(ax * -cy + ay * cx) / dot, t1 = fabsf(bx * -cy + by * cx) / dot;
+            ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy + 1e-12f;
+            t0 = fabsf(ax * -cy + ay * cx) / dot, t1 = fabsf(bx * -cy + by * cx) / dot;
             if (t0 < err && t1 < err) {
                 lineTo(x3, y3);
             } else {
