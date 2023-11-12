@@ -50,33 +50,6 @@ struct RasterizerTest {
                 scene.addPath(p, fit, black, uw, 0);
             }
         }
-        if (0) {
-            list.empty();
-            
-            if (1) {
-                float w = 10;
-                Ra::Path quadPath;  quadPath->moveTo(100, 100), quadPath->quadTo(-90, 100, 00, 00);
-                Ra::Path segPath;  segPath->moveTo(0, 0), segPath->lineTo(0, 100), segPath->lineTo(0, 0);
-                scene.addPath(quadPath, Ra::Transform(), black, w, 0);
-                scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 100, 0), black, w, Ra::Scene::kSquareCap);
-                scene.addPath(quadPath, Ra::Transform(1, 0, 0, 1, 200, 0), black, w, Ra::Scene::kSquareCap | Ra::Scene::kRoundCap);
-                scene.addPath(segPath, Ra::Transform(1, 0, 0, 1, 0 * w, 200), black, w, Ra::Scene::kSquareCap);
-                scene.addPath(segPath, Ra::Transform(1, 0, 0, 1, 4 * w, 200), black, w, Ra::Scene::kRoundCap);
-                scene.addPath(segPath, Ra::Transform(1, 0, 0, 1, 8 * w, 200), black, w, 0);
-            }
-        }
-        if (0) {
-            float w = 400, inset = 1;
-            Ra::Bounds bounds(0, 0, w, w);
-            Ra::Path rectPath;  rectPath->addBounds(bounds), rectPath->addBounds(bounds.inset(20, 20));
-            Ra::Path ellipsePath;
-            for (int i = 0; i < 100; i++)
-                ellipsePath->addEllipse(bounds.inset(i * inset, i * inset));
-            scene.addPath(ellipsePath, Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
-            
-        }
-        if (0)
-            scene.addPath(createPhyllotaxisPath(100), Ra::Transform(), black, 0.f, Ra::Scene::kFillEvenOdd);
         if (0)
             list.empty(), writePhyllotaxisToScene(100000, scene);
         list.addScene(scene);
@@ -202,19 +175,6 @@ struct RasterizerTest {
             scene.addPath(path, Ra::Transform(), color, width, 0);
         }
         return scene;
-    }
-    static Ra::Path createPhyllotaxisPath(size_t count) {
-        Ra::Path path;
-        path->moveTo(0.f, 0.f);
-        const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
-        float vx = 1.f, vy = 0.f, x, y, s, t;
-        for (int i = 0; i < count; i++) {
-            s = sqrtf(i), t = float(i) / float(count);
-            path->lineTo(s * vx - 0.5f, s * vy - 0.5f);
-            x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
-            vx = x, vy = y;
-        }
-        return path;
     }
     static void writePhyllotaxisToScene(size_t count, Ra::Scene& scene) {
         Ra::Colorant color(0, 0, 0, 255);
