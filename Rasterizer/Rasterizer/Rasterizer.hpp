@@ -187,8 +187,6 @@ struct Rasterizer {
                 lineTo(x2, y2);
             } else {
                 float *pts = points.alloc(4);  pts[0] = x1, pts[1] = y1, x0 = pts[2] = x2, y0 = pts[3] = y2, update(kQuadratic, 2, pts);
-                ax = x2 - x1, ay = y2 - y1, bx = x1 - x0, by = y1 - y0;
-                ax -= bx, ay -= by, dot = ax * ax + ay * ay, maxDot = maxDot > dot ? maxDot : dot;
             }
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
@@ -204,7 +202,7 @@ struct Rasterizer {
                 else {
                     float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
-                    cubicSums += ceilf(sqrtf(sqrtf(dot))), maxDot = maxDot > dot ? maxDot : dot;
+                    cubicSums += ceilf(sqrtf(sqrtf(dot)));
                 }
             }
         }
@@ -251,7 +249,8 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxDot = 0.f, maxArea = 0.f;  Row<uint8_t> types;  Row<float> points;  Row<Bounds> molecules;  Bounds bounds;
+        float x0 = 0.f, y0 = 0.f, maxArea = 0.f;  Row<uint8_t> types;  Row<float> points;
+        Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
     };
     typedef Ref<Geometry> Path;
