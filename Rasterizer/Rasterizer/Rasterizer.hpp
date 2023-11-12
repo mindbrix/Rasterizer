@@ -175,16 +175,17 @@ struct Rasterizer {
             float *pts = points.alloc(2);  x0 = pts[0] = x, y0 = pts[1] = y, update(kMove, 1, pts);
         }
         void lineTo(float x1, float y1) {
-            if (x0 != x1 || y0 != y1) {
-                float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1, pts);
-            }
+            float ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay;
+            if (dot < sizeFilter)
+                return;
+            float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1, pts);
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
             ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0, dot = bx * bx + by * by + 1e-12f;
             t = fabsf(ax * -by + ay * bx) / dot;
-//            if (dot < 1e-4f)
-//                return;
+            if (dot < sizeFilter)
+                return;
             if (t < err) {
                 lineTo(x2, y2);
             } else {
@@ -195,6 +196,8 @@ struct Rasterizer {
             float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f;
             ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy + 1e-12f;
             t0 = fabsf(ax * -cy + ay * cx) / dot, t1 = fabsf(bx * -cy + by * cx) / dot;
+            if (dot < sizeFilter)
+                return;
             if (t0 < err && t1 < err) {
                 lineTo(x3, y3);
             } else {
@@ -251,7 +254,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxArea = 0.f;  Row<uint8_t> types;  Row<float> points;
+        float x0 = 0.f, y0 = 0.f, maxArea = 0.f, sizeFilter = FLT_EPSILON;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
     };

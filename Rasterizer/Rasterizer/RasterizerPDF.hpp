@@ -40,6 +40,7 @@ struct RasterizerPDF {
         }
         
         void writeSegment(FPDF_PATHSEGMENT segment, Ra::Path& p) {
+            p->sizeFilter = 1e-4f;
             FPDFPathSegment_GetPoint(segment, & x, & y);
             switch (FPDFPathSegment_GetType(segment)) {
                 case FPDF_SEGMENT_MOVETO:
@@ -54,10 +55,8 @@ struct RasterizerPDF {
                     bezier.emplace_back(x);
                     bezier.emplace_back(y);
                     if (bezier.size() == 6) {
-                        if (lengthsq(px, py, x, y) > 1e-4f) {
-                            p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
-                            px = x, py = y;
-                        }
+                        p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
+                        px = x, py = y;
                         bezier.clear();
                     }
                     break;
@@ -73,10 +72,6 @@ struct RasterizerPDF {
         inline bool operator< (const PointIndex& other) const { return x < other.x || (x == other.x && y < other.y) || (x == other.x && y == other.y && index < other.index); }
     };
     
-    static inline float lengthsq(float x0, float y0, float x1, float y1) {
-        return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
-    }
-
     static bool pathIsRect(Ra::Path p) {
         float *pts = p->points.base, ax, ay, bx, by, t0, t1;
         if (p->types.end != 6 || p->counts[Ra::Geometry::kLine] != 4 || pts[0] != pts[10] || pts[1] != pts[11])
