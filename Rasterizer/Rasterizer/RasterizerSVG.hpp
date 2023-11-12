@@ -18,16 +18,10 @@ struct RasterizerSVG {
         else
             return colorFromSVGColor(paint.gradient->stops[0].color);
     }
-    static inline float lengthsq(float x0, float y0, float x1, float y1) {
-        return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
-    }
     static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
-        constexpr float tolerance = 1e-2f;  float *pts, dot;  int i;
+        constexpr float tolerance = 1e-2f;  float *pts;  int i;
         p->sizeFilter = tolerance;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
-            for (dot = 0.f, i = path->npts - 1; i > 0 && dot < tolerance; i--)
-                if ((dot = lengthsq(path->pts[0], path->pts[1], path->pts[i * 2], path->pts[i * 2 + 1])) < tolerance)
-                    path->pts[i * 2] = path->pts[0], path->pts[i * 2 + 1] = path->pts[1];
             for (pts = path->pts, p->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
                 p->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);
             if (path->closed)
