@@ -1091,6 +1091,7 @@ struct Rasterizer {
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
                     if (inst->iz & Instance::kMolecule) {
+                        Atom *atom = g->atoms.base;  uint32_t ia;
                         dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
                         if (widths[iz]) {
                             bool fast = inst->iz & Instance::kFastEdges;
@@ -1100,9 +1101,8 @@ struct Rasterizer {
                                 for (j = 0, size = p16size / kFastSegments; j < size; j++, outline++)
                                     outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
                             } else {
-                                Atom *atom = g->atoms.base;
                                 for (j = 0, size = g->atoms.end; j < size; j++, atom++) {
-                                    outline->ic = uint32_t(ic) | bool(atom->i & Atom::isClose) * Edge::isClose, outline->i0 = atom->i & Atom::kMask, outline++;
+                                    ia = atom->i & Atom::kMask, outline->ic = uint32_t(ic) | bool(atom->i & Atom::isClose) * Edge::isClose | ((ia & 0x000F0000) << 10), outline->i0 = ia & 0xFFFF, outline++;
                                 }
                             }
                             *(fast ? & fastOutline : & quadOutline) = outline;
@@ -1120,11 +1120,10 @@ struct Rasterizer {
                                     molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
                                 }
                             } else {
-                                Atom *atom = g->atoms.base;
                                 for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd), atom++) {
                                     if (update)
                                         ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                    molecule->ic = uint32_t(ic), molecule->i0 = atom->i & Atom::kMask, molecule->ux = ux, molecule++;
+                                    ia = atom->i & Atom::kMask, molecule->ic = uint32_t(ic) | ((ia & 0x000F0000) << 10), molecule->i0 = ia & 0xFFFF, molecule->ux = ux, molecule++;
                                 }
                             }
                             *(fast ? & fastMolecule : & quadMolecule) = molecule;
