@@ -1129,14 +1129,14 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                        int16_t *uxcovers = ctx->uxcovers[inst->data.iy].base + kUXCoverSize * inst->data.idx, *uxc;
+                        uint16_t *uxcovers = (uint16_t *)ctx->uxcovers[inst->data.iy].base + kUXCoverSize * inst->data.idx;
+                        uint16_t *uxc0, *uxc1, nulluxc[kUXCoverSize] = { 0, 0, kNullIndex, 0xF };
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
-                            uxc = uxcovers + is->i * kUXCoverSize, edge->ic = uint32_t(ic) | ((uxc[3] << 26) & Edge::ue0), edge->i0 = uint16_t(uxc[2]);
-                            if (++is < eis)
-                                uxc = uxcovers + is->i * kUXCoverSize, edge->ic |= ((uxc[3] << 22) & Edge::ue1), edge->ux = uint16_t(uxc[2]);
-                            else
-                                edge->ux = kNullIndex, edge->ic |= Edge::ue1;
+                            uxc0 = uxcovers + is->i * kUXCoverSize;
+                            uxc1 = ++is < eis ? uxcovers + is->i * kUXCoverSize : nulluxc;
+                            edge->ic = uint32_t(ic) | ((uxc0[3] << 26) & Edge::ue0) | ((uxc1[3] << 22) & Edge::ue1);
+                            edge->i0 = uxc0[2], edge->ux = uxc1[2];
                         }
                         *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
                     }
