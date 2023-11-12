@@ -9,6 +9,11 @@
 #import "RasterizerWinding.hpp"
 
 struct RasterizerState {
+    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Bounds *bounds,
+                                     Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
+        float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
+    
+    
     typedef void (*EventFunction)(Ra::SceneList& list, RasterizerState& state, void *info);
     typedef void (*WriteFunction)(Ra::SceneList& list, void *info);
     
@@ -130,7 +135,7 @@ struct RasterizerState {
             clock += timeScale / 60.0;
     }
     
-    void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
+    void runTransferFunction(Ra::SceneList& list, TransferFunction transferFunction) {
         if (transferFunction == nullptr)
             return;
         for (int si = 0; si < list.scenes.size(); si++) {

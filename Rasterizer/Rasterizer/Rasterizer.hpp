@@ -276,9 +276,6 @@ struct Rasterizer {
         size_t width = 0, height = 0, hash = 0;  Ref<Memory<uint8_t>> memory;
     };
     
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Bounds *bounds,
-        Transform *srcCtms, Transform *dstCtms, Colorant *srcColors, Colorant *dstColors,
-        float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     struct Scene {
         Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base)), bzero(imageCache->entries.alloc(1), sizeof(*imageCache->entries.base));  }
         struct Entry {  size_t size;  bool hasMolecules;  float maxDot, *mols;  uint16_t *p16s;  uint8_t *p16cnts;  Geometry *g; };
