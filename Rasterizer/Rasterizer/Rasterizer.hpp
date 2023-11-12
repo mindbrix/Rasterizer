@@ -1106,8 +1106,7 @@ struct Rasterizer {
                             uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                             float *molx = (float *)g->molecules.base + (ctm.a > 0.f ? 2 : 0), *moly = (float *)g->molecules.base + (ctm.c > 0.f ? 3 : 1);
                             bool update = hasMolecules, fast = inst->iz & Instance::kFastEdges;  uint8_t *p16cnt = g->p16cnts.base;
-                            Edge *molecule;
-                            molecule = fast ? fastMolecule : quadMolecule;
+                            Edge *molecule = fast ? fastMolecule : quadMolecule;
                             dst[-1].quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
 
                             if (fast) {
@@ -1124,7 +1123,6 @@ struct Rasterizer {
                                     molecule->ic = uint32_t(ic), molecule->i0 = atom->i & Atom::kMask, molecule->ux = ux, molecule++;
                                 }
                             }
-                            
                             *(fast ? & fastMolecule : & quadMolecule) = molecule;
                         }
                     } else if (inst->iz & Instance::kEdge) {
