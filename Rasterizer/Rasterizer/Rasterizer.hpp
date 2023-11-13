@@ -777,35 +777,44 @@ struct Rasterizer {
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
         *root++ = 0.f;
-        if (clip.ly >= ly && clip.ly < uy)
+        if (clip.ly > ly && clip.ly < uy)
             root = solveCubic(by, cy, y0 - clip.ly, ay, root);
-        if (clip.uy >= ly && clip.uy < uy)
+        if (clip.uy > ly && clip.uy < uy)
             root = solveCubic(by, cy, y0 - clip.uy, ay, root);
-        if (clip.lx >= lx && clip.lx < ux)
+        if (clip.lx > lx && clip.lx < ux)
             root = solveCubic(bx, cx, x0 - clip.lx, ax, root);
-        if (clip.ux >= lx && clip.ux < ux)
+        if (clip.ux > lx && clip.ux < ux)
             root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
-        std::sort(roots + 1, root), *root = 1.f;
-        for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
-            s = 1.f - t[1], w0 = s * s * s, w1 = 3.f * s * s * t[1], w2 = 3.f * s * t[1] * t[1], w3 = t[1] * t[1] * t[1];
-            x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3, x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
-            y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3, y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
-            mt = 0.5f * (t[0] + t[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
-            if (my >= clip.ly && my < clip.uy) {
-                if (mx >= clip.lx && mx < clip.ux) {
-                    const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
-                    mt = v * t[0] + u * t[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
-                    mt = u * t[0] + v * t[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
-                    fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
-                    fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
-                    (*cubicFunction)(
-                        x0t, y0t,
-                        3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
-                        3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
-                        x3t, y3t, function, info, prec
-                    );
-                } else if (polygon)
-                    vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y3t, 0, info);
+        if (root - roots == 1) {
+            if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
+                if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
+                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, prec);
+                else if (polygon)
+                    vx = lx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0, vx, y3, 0, info);
+            }
+        } else {
+            std::sort(roots + 1, root), *root = 1.f;
+            for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
+                s = 1.f - t[1], w0 = s * s * s, w1 = 3.f * s * s * t[1], w2 = 3.f * s * t[1] * t[1], w3 = t[1] * t[1] * t[1];
+                x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3, x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
+                y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3, y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
+                mt = 0.5f * (t[0] + t[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
+                if (my >= clip.ly && my < clip.uy) {
+                    if (mx >= clip.lx && mx < clip.ux) {
+                        const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
+                        mt = v * t[0] + u * t[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
+                        mt = u * t[0] + v * t[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
+                        fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
+                        fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
+                        (*cubicFunction)(
+                            x0t, y0t,
+                            3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
+                            3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
+                            x3t, y3t, function, info, prec
+                        );
+                    } else if (polygon)
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y3t, 0, info);
+                }
             }
         }
     }
