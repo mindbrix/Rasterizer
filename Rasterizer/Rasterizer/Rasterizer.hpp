@@ -141,9 +141,9 @@ struct Rasterizer {
         struct Point16 {  uint16_t x, y;  };
         
         void update(Type type, size_t size, float *p) {
-            counts[type]++;  uint8_t *tp = types.alloc(size);
-            for (int i = 0; i < size; i++, p += 2)
-                tp[i] = type, molecules.back().extend(p[0], p[1]);
+            counts[type]++;  memset(types.alloc(size), type, size);
+            for (int i = 0; i < size; i++)
+                molecules.back().extend(p[i * 2], p[i * 2 + 1]);
             bounds.extend(molecules.back());
         }
         void validate() {
