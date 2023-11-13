@@ -731,8 +731,8 @@ struct Rasterizer {
             std::sort(roots + 1, root), *root = 1.f;
             for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x2t, y0t = y2t) {
                 s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
-                x2t = w0 * x0 + w1 * x1 + w2 * x2, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
-                y2t = w0 * y0 + w1 * y1 + w2 * y2, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
+                x2t = fmaxf(clip.lx, fminf(clip.ux, w0 * x0 + w1 * x1 + w2 * x2));
+                y2t = fmaxf(clip.ly, fminf(clip.uy, w0 * y0 + w1 * y1 + w2 * y2));
                 mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux)
