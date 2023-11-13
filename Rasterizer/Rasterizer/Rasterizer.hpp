@@ -712,25 +712,34 @@ struct Rasterizer {
         float ax, bx, ay, by, roots[10], *root = roots, *t, s, w0, w1, w2, mt, mx, my, vx, x0t, y0t, x2t, y2t;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
         *root++ = 0.f;
-        if (clip.ly >= ly && clip.ly < uy)
+        if (clip.ly > ly && clip.ly < uy)
             root = solveQuadratic(ay, by, y0 - clip.ly, root);
-        if (clip.uy >= ly && clip.uy < uy)
+        if (clip.uy > ly && clip.uy < uy)
             root = solveQuadratic(ay, by, y0 - clip.uy, root);
-        if (clip.lx >= lx && clip.lx < ux)
+        if (clip.lx > lx && clip.lx < ux)
             root = solveQuadratic(ax, bx, x0 - clip.lx, root);
-        if (clip.ux >= lx && clip.ux < ux)
+        if (clip.ux > lx && clip.ux < ux)
             root = solveQuadratic(ax, bx, x0 - clip.ux, root);
-        std::sort(roots + 1, root), *root = 1.f;
-        for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x2t, y0t = y2t) {
-            s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
-            x2t = w0 * x0 + w1 * x1 + w2 * x2, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
-            y2t = w0 * y0 + w1 * y1 + w2 * y2, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
-            mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
-            if (my >= clip.ly && my < clip.uy) {
-                if (mx >= clip.lx && mx < clip.ux)
-                    (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, prec);
+        if (root - roots == 1) {
+            if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
+                if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
+                    (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, prec);
                 else if (polygon)
-                    vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y2t, 0, info);
+                    vx = lx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0, vx, y2, 0, info);
+            }
+        } else {
+            std::sort(roots + 1, root), *root = 1.f;
+            for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x2t, y0t = y2t) {
+                s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
+                x2t = w0 * x0 + w1 * x1 + w2 * x2, x2t = x2t < clip.lx ? clip.lx : x2t > clip.ux ? clip.ux : x2t;
+                y2t = w0 * y0 + w1 * y1 + w2 * y2, y2t = y2t < clip.ly ? clip.ly : y2t > clip.uy ? clip.uy : y2t;
+                mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
+                if (my >= clip.ly && my < clip.uy) {
+                    if (mx >= clip.lx && mx < clip.ux)
+                        (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, prec);
+                    else if (polygon)
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y2t, 0, info);
+                }
             }
         }
     }
