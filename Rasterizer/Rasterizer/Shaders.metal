@@ -129,7 +129,7 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     if (x1 == FLT_MAX)
         return fastWinding(x0, y0, x2, y2);
     float w0 = saturate(y0), w2 = saturate(y2);
-    if (x0 <= 0.0 && x1 <= 0.0 && x2 <= 0.0)
+    if (max(x0, max(x1, x2)) <= 0.0)
         return w2 - w0;
     float w = 0.0, ay = y2 - y1, by = y1 - y0, cy, t, s, w1;
     w1 = saturate(ay * by >= 0.0 ? y2 : y0 - by * by / (ay - by)), ay -= by, by *= 2.0;
