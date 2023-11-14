@@ -118,8 +118,6 @@ float fastWinding(float x0, float y0, float x1, float y1) {
     return winding(x0, y0, x1, y1, saturate(y0), saturate(y1));
 }
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
-    if (x1 == FLT_MAX)
-        return fastWinding(x0, y0, x2, y2);
     float w0 = saturate(y0), w2 = saturate(y2);
     if (max(x0, max(x1, x2)) <= 0.0)
         return w2 - w0;
@@ -297,13 +295,13 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
         x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
     } else {
-        x2 = x1, x1 = FLT_MAX;
-        y2 = y1, y1 = FLT_MAX;
+        x2 = x1, x1 = 0.5 * (x0 + x2);
+        y2 = y1, y1 = 0.5 * (y0 + y2);
     }
-    slx = min(x0, x2), slx = x1 == FLT_MAX ? slx : min(x1, slx);
-    sly = min(y0, y2), sly = y1 == FLT_MAX ? sly : min(y1, sly);
-    sux = max(x0, x2), sux = x1 == FLT_MAX ? sux : max(x1, sux);
-    suy = max(y0, y2), suy = y1 == FLT_MAX ? suy : max(y1, suy);
+    slx = min(x0, x2), slx = min(x1, slx);
+    sly = min(y0, y2), sly = min(y1, sly);
+    sux = max(x0, x2), sux = max(x1, sux);
+    suy = max(y0, y2), suy = max(y1, suy);
     
     sux = select(float(edge.ux), sux, dw != 0.0);
     float dx = clamp(select(floor(slx - dw), ceil(sux + dw), vid & 1), float(cell.lx), float(cell.ux));
@@ -314,8 +312,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     vert.position = float4(x, y, 1.0, visible);
     vert.dw = dw;
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
-    vert.x1 = x1 == FLT_MAX ? FLT_MAX : x1 + offx;
-    vert.y1 = y1 == FLT_MAX ? FLT_MAX : y1 + offy;
+    vert.x1 = x1 + offx, vert.y1 = y1 + offy;
     vert.x2 = x2 + offx, vert.y2 = y2 + offy;
     
     return vert;
@@ -380,26 +377,25 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 if (t0 != t1)
                     slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
             } else {
-                dst[2] = FLT_MAX, x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+                x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
+                dst[2] = 0.5 * (x0 + x2), dst[3] = 0.5 * (y0 + y2);
                 
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             }
             sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
-        } else
-            dst[0] = 0.0, dst[1] = 0.0, dst[2] = FLT_MAX, dst[4] = 0.0, dst[5] = 0.0;
+        } else {
+            dst[0] = 0.0, dst[1] = 0.0, dst[2] = 0.0, dst[3] = 0.0, dst[4] = 0.0, dst[5] = 0.0;
+        }
     }
     float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
     float dy = select(max(floor(sly), float(cell.ly)), min(ceil(suy), float(cell.uy)), vid >> 1), ty = 0.5 - dy;
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
     vert.position = float4(x, y, 1.0, visible);
-    vert.x0 += tx, vert.y0 += ty, vert.x2 += tx, vert.y2 += ty;
-    if (vert.x1 != FLT_MAX)
-        vert.x1 += tx, vert.y1 += ty;
-    vert.x3 += tx, vert.y3 += ty, vert.x5 += tx, vert.y5 += ty;
-    if (vert.x4 != FLT_MAX)
-        vert.x4 += tx, vert.y4 += ty;
+    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty;
+    vert.x3 += tx, vert.y3 += ty, vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty;
+
     return vert;
 }
 
