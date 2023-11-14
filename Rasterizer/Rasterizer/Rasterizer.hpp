@@ -658,9 +658,9 @@ struct Rasterizer {
         if (unclipped)
             (*function)(x0, y0, x1, y1, 0, info);
         else {
-            float ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1;
+            float ly = fminf(y0, y1), uy = fmaxf(y0, y1);
             if (ly < clip.uy && uy > clip.ly) {
-                if (ly < clip.ly || uy > clip.uy || (x0 < x1 ? x0 : x1) < clip.lx || (x0 > x1 ? x0 : x1) > clip.ux)
+                if (ly < clip.ly || uy > clip.uy || fminf(x0, x1) < clip.lx || fmaxf(x0, x1) > clip.ux)
                     clipLine(x0, y0, x1, y1, clip, polygon, function, info);
                 else
                     (*function)(x0, y0, x1, y1, 0, info);
