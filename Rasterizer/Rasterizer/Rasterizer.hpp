@@ -612,11 +612,9 @@ struct Rasterizer {
                     if (unclipped)
                         (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, quadScale);
                     else {
-                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2;
-                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2;
+                        ly = fminf(y0, fminf(y1, y2)), uy = fmaxf(y0, fmaxf(y1, y2));
                         if (ly < clip.uy && uy > clip.ly) {
-                            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2;
-                            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2;
+                            lx = fminf(x0, fminf(x1, x2)), ux = fmaxf(x0, fmaxf(x1, x2));
                             if (polygon || !(ux < clip.lx || lx > clip.ux)) {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
                                     clipQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, function, quadFunction, info, quadScale);
@@ -634,11 +632,9 @@ struct Rasterizer {
                     if (unclipped)
                         (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, cubicScale);
                     else {
-                        ly = y0 < y1 ? y0 : y1, ly = ly < y2 ? ly : y2, ly = ly < y3 ? ly : y3;
-                        uy = y0 > y1 ? y0 : y1, uy = uy > y2 ? uy : y2, uy = uy > y3 ? uy : y3;
+                        ly = fminf(fminf(y0, y1), fminf(y2, y3)), uy = fmaxf(fmaxf(y0, y1), fmaxf(y2, y3));
                         if (ly < clip.uy && uy > clip.ly) {
-                            lx = x0 < x1 ? x0 : x1, lx = lx < x2 ? lx : x2, lx = lx < x3 ? lx : x3;
-                            ux = x0 > x1 ? x0 : x1, ux = ux > x2 ? ux : x2, ux = ux > x3 ? ux : x3;
+                            lx = fminf(fminf(x0, x1), fminf(x2, x3)), ux = fmaxf(fmaxf(x0, x1), fmaxf(x2, x3));
                             if (polygon || !(ux < clip.lx || lx > clip.ux)) {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
                                     clipCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, function, cubicFunction, info, cubicScale);
