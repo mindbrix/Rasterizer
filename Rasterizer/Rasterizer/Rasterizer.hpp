@@ -668,29 +668,31 @@ struct Rasterizer {
         }
     }
     static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, SegmentFunction function, void *info) {
-        float dx = x1 - x0, t0 = (clip.lx - x0) / dx, t1 = (clip.ux - x0) / dx, dy = y1 - y0, sy0, sy1, sx0, sx1, mx, vx, ts[4], *t;
-        if (dy == 0.f)
-            ts[0] = 0.f, ts[3] = 1.f;
-        else
-            ts[0] = ((y0 < clip.ly ? clip.ly : y0 > clip.uy ? clip.uy : y0) - y0) / dy,
-            ts[3] = ((y1 < clip.ly ? clip.ly : y1 > clip.uy ? clip.uy : y1) - y0) / dy;
-        if (dx == 0.f)
-            ts[1] = ts[0], ts[2] = ts[3];
-        else
-            ts[1] = t0 < t1 ? t0 : t1, ts[1] = ts[1] < ts[0] ? ts[0] : ts[1] > ts[3] ? ts[3] : ts[1],
-            ts[2] = t0 > t1 ? t0 : t1, ts[2] = ts[2] < ts[0] ? ts[0] : ts[2] > ts[3] ? ts[3] : ts[2];
-        for (t = ts; t < ts + 3; t++)
-            if (t[0] != t[1]) {
-                sy0 = (1.f - t[0]) * y0 + t[0] * y1, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                sy1 = (1.f - t[1]) * y0 + t[1] * y1, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
-                mx = x0 + (t[0] + t[1]) * 0.5f * dx;
-                if (mx >= clip.lx && mx < clip.ux) {
-                    sx0 = (1.f - t[0]) * x0 + t[0] * x1, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                    sx1 = (1.f - t[1]) * x0 + t[1] * x1, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
-                    (*function)(sx0, sy0, sx1, sy1, 0, info);
-                } else if (polygon)
-                    vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
+        float lx, ux, ly, uy, roots[6], *root = roots, *r, s, t, cx0, cy0, cx1, cy1, mx, my, vx;
+        lx = fminf(x0, x1), ux = fmaxf(x0, x1), ly = fminf(y0, y1), uy = fmaxf(y0, y1);
+        *root++ = 0.f;
+        if (clip.ly > ly && clip.ly < uy)
+            t = (clip.ly - y0) / (y1 - y0), *root++ = t;
+        if (clip.uy > ly && clip.uy < uy)
+            t = (clip.uy - y0) / (y1 - y0), *root++ = t;
+        if (clip.lx > lx && clip.lx < ux)
+            t = (clip.lx - x0) / (x1 - x0), *root++ = t;
+        if (clip.ux > lx && clip.ux < ux)
+            t = (clip.ux - x0) / (x1 - x0), *root++ = t;
+        std::sort(roots + 1, root), *root = 1.f;
+        for (cx0 = x0, cy0 = y0, r = roots; r < root; r++, cx0 = cx1, cy0 = cy1) {
+            t = r[1], s = 1.f - t;
+            cx1 = s * x0 + t * x1, mx = 0.5f * (cx0 + cx1);
+            cy1 = s * y0 + t * y1, my = 0.5f * (cy0 + cy1);
+            if (my >= clip.ly && my < clip.uy) {
+                cx1 = fmaxf(clip.lx, fminf(clip.ux, cx1));
+                cy1 = fmaxf(clip.ly, fminf(clip.uy, cy1));
+                if (mx >= clip.lx && mx < clip.ux)
+                    (*function)(cx0, cy0, cx1, cy1, 0, info);
+                else if (polygon)
+                    vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, cy0, vx, cy1, 0, info);
             }
+        }
     }
     static float *solveQuadratic(double A, double B, double C, float *roots) {
         if (fabs(A) < 1e-3) {
