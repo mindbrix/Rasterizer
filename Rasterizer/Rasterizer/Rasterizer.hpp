@@ -668,29 +668,29 @@ struct Rasterizer {
         }
     }
     static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, SegmentFunction function, void *info) {
-        float lx, ux, ly, uy, roots[6], *root = roots, *r, s, t, cx0, cy0, cx1, cy1, mx, my, vx;
+        float lx, ux, ly, uy, roots[6], *root = roots, *r, s, t, sx0, sy0, sx1, sy1, mx, my, vx;
         lx = fminf(x0, x1), ux = fmaxf(x0, x1), ly = fminf(y0, y1), uy = fmaxf(y0, y1);
         *root++ = 0.f;
         if (clip.ly > ly && clip.ly < uy)
-            t = (clip.ly - y0) / (y1 - y0), *root++ = t;
+            *root++ = (clip.ly - y0) / (y1 - y0);
         if (clip.uy > ly && clip.uy < uy)
-            t = (clip.uy - y0) / (y1 - y0), *root++ = t;
+            *root++ = (clip.uy - y0) / (y1 - y0);
         if (clip.lx > lx && clip.lx < ux)
-            t = (clip.lx - x0) / (x1 - x0), *root++ = t;
+            *root++ = (clip.lx - x0) / (x1 - x0);
         if (clip.ux > lx && clip.ux < ux)
-            t = (clip.ux - x0) / (x1 - x0), *root++ = t;
+            *root++ = (clip.ux - x0) / (x1 - x0);
         std::sort(roots + 1, root), *root = 1.f;
-        for (cx0 = x0, cy0 = y0, r = roots; r < root; r++, cx0 = cx1, cy0 = cy1) {
+        for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx1, sy0 = sy1) {
             t = r[1], s = 1.f - t;
-            cx1 = s * x0 + t * x1, mx = 0.5f * (cx0 + cx1);
-            cy1 = s * y0 + t * y1, my = 0.5f * (cy0 + cy1);
+            sx1 = s * x0 + t * x1, mx = 0.5f * (sx0 + sx1);
+            sy1 = s * y0 + t * y1, my = 0.5f * (sy0 + sy1);
             if (my >= clip.ly && my < clip.uy) {
-                cx1 = fmaxf(clip.lx, fminf(clip.ux, cx1));
-                cy1 = fmaxf(clip.ly, fminf(clip.uy, cy1));
+                sx1 = fmaxf(clip.lx, fminf(clip.ux, sx1));
+                sy1 = fmaxf(clip.ly, fminf(clip.uy, sy1));
                 if (mx >= clip.lx && mx < clip.ux)
-                    (*function)(cx0, cy0, cx1, cy1, 0, info);
+                    (*function)(sx0, sy0, sx1, sy1, 0, info);
                 else if (polygon)
-                    vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, cy0, vx, cy1, 0, info);
+                    vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
             }
         }
     }
