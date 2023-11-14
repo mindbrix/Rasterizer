@@ -707,7 +707,7 @@ struct Rasterizer {
         return roots;
     }
     static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, QuadFunction quadFunction, void *info, float prec) {
-        float ax, bx, ay, by, roots[10], *root = roots, *t, s, w0, w1, w2, mt, mx, my, vx, x0t, y0t, x2t, y2t;
+        float ax, bx, ay, by, roots[10], *root = roots, *t, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
         ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
         *root++ = 0.f;
         if (clip.ly > ly && clip.ly < uy)
@@ -727,16 +727,16 @@ struct Rasterizer {
             }
         } else {
             std::sort(roots + 1, root), *root = 1.f;
-            for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x2t, y0t = y2t) {
+            for (sx0 = x0, sy0 = y0, t = roots; t < root; t++, sx0 = sx2, sy0 = sy2) {
                 s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
-                x2t = fmaxf(clip.lx, fminf(clip.ux, w0 * x0 + w1 * x1 + w2 * x2));
-                y2t = fmaxf(clip.ly, fminf(clip.uy, w0 * y0 + w1 * y1 + w2 * y2));
+                sx2 = fmaxf(clip.lx, fminf(clip.ux, w0 * x0 + w1 * x1 + w2 * x2));
+                sy2 = fmaxf(clip.ly, fminf(clip.uy, w0 * y0 + w1 * y1 + w2 * y2));
                 mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux)
-                        (*quadFunction)(x0t, y0t, 2.f * mx - 0.5f * (x0t + x2t), 2.f * my - 0.5f * (y0t + y2t), x2t, y2t, function, info, prec);
+                        (*quadFunction)(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2, function, info, prec);
                     else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0t, vx, y2t, 0, info);
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy2, 0, info);
                 }
             }
         }
