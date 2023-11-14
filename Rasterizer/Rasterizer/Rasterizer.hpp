@@ -708,7 +708,7 @@ struct Rasterizer {
     }
     static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, QuadFunction quadFunction, void *info, float prec) {
         float ax, bx, ay, by, roots[10], *root = roots, *t, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
-        ax = x0 + x2 - x1 - x1, bx = 2.f * (x1 - x0), ay = y0 + y2 - y1 - y1, by = 2.f * (y1 - y0);
+        ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
         *root++ = 0.f;
         if (clip.ly > ly && clip.ly < uy)
             root = solveQuadratic(ay, by, y0 - clip.ly, root);
