@@ -882,17 +882,17 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1) {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                writeIndex(y0 * krfh, x0 < x1 ? x0 : x1, x0 > x1 ? x0 : x1, (y1 - y0) * kCoverScale);
+                writeIndex(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale);
             else {
                 float lx, ux, ly, uy, m, c, y, ny, minx, maxx, scale;  int ir;
-                lx = x0 < x1 ? x0 : x1, ux = x0 > x1 ? x0 : x1;
-                ly = y0 < y1 ? y0 : y1, uy = y0 > y1 ? y0 : y1, scale = y0 < y1 ? kCoverScale : -kCoverScale;
+                lx = fminf(x0, x1), ux = fmaxf(x0, x1);
+                ly = fminf(y0, y1), uy = fmaxf(y0, y1), scale = copysignf(kCoverScale, y1 - y0);
                 ir = ly * krfh, y = ir * kfh, m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
                 minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
                 maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
                 for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
                     ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
-                    writeIndex(ir, minx > lx ? minx : lx, maxx < ux ? maxx : ux, (ny - y) * scale);
+                    writeIndex(ir, fmaxf(minx, lx), fminf(maxx, ux), (ny - y) * scale);
                 }
             }
         }
