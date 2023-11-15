@@ -888,8 +888,8 @@ struct Rasterizer {
                 lx = fminf(x0, x1), ux = fmaxf(x0, x1);
                 ly = fminf(y0, y1), uy = fmaxf(y0, y1), scale = copysignf(kCoverScale, y1 - y0);
                 ir = ly * krfh, y = ir * kfh, m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                minx = (y + (m < 0.f ? kfh : 0.f)) * m + c;
-                maxx = (y + (m > 0.f ? kfh : 0.f)) * m + c;
+                minx = (y + (m < 0.f) * kfh) * m + c;
+                maxx = (y + (m > 0.f) * kfh) * m + c;
                 for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
                     ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
                     writeIndex(ir, fmaxf(minx, lx), fminf(maxx, ux), (ny - y) * scale);
