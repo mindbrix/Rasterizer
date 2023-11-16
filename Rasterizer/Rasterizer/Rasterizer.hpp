@@ -900,23 +900,23 @@ struct Rasterizer {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
             else {
-                float ay, by, cy, ax, bx, cx;
+                float ay, by, cy, ax, bx, cx, ly, uy, d2a, ity, d, t, ny, sign = copysignf(1.f, y2 - y0);;
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, cx = x0;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f, cy = y0;
-                float ly, uy, d2a, ity, d, t0, t1, ny, sign = copysignf(1.f, y2 - y0);
-                ly = fminf(y0, y2), uy = fmaxf(y0, y2), d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
+                ly = fminf(y0, y2), uy = fmaxf(y0, y2);
+                d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
                 if (ay == 0)
-                    t0 = -(cy - ly) / by;
+                    t = -(cy - ly) / by;
                 else
-                    d = by * by - 4.f * ay * (cy - ly), t0 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-                t0 = fmaxf(0.f, fminf(1.f, t0)), x0 = (ax * t0 + bx) * t0 + cx;
-                for (int ir = ly * krfh; ly < uy; ly = ny, ir++, x0 = x1, t0 = t1) {
+                    d = by * by - 4.f * ay * (cy - ly), t = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                t = fmaxf(0.f, fminf(1.f, t)), x0 = (ax * t + bx) * t + cx;
+                for (int ir = ly * krfh; ly < uy; ly = ny, ir++, x0 = x1) {
                     ny = fminf(uy, (ir + 1) * kfh);
                     if (ay == 0)
-                        t1 = -(cy - ny) / by;
+                        t = -(cy - ny) / by;
                     else
-                        d = by * by - 4.f * ay * (cy - ny), t1 = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
-                    t1 = fmaxf(0.f, fminf(1.f, t1)), x1 = (ax * t1 + bx) * t1 + cx;
+                        d = by * by - 4.f * ay * (cy - ny), t = ity + sqrtf(d < 0.f ? 0.f : d) * d2a;
+                    t = fmaxf(0.f, fminf(1.f, t)), x1 = (ax * t + bx) * t + cx;
                     writeIndex(ir, fminf(x0, x1), fmaxf(x0, x1), sign * (ny - ly));
                 }
             }
