@@ -898,20 +898,20 @@ struct Rasterizer {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
             else {
-                float ay, by, cy, ax, bx, cx, ly, uy, d2a, ity, t, ny, sign = copysignf(1.f, y2 - y0);;
-                ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, cx = x0;
-                ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f, cy = y0;
+                float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, t, ny, sign = copysignf(1.f, y2 - y0);;
+                ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
+                ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
                 ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-                x0 = y0 < y2 ? x0 : x1;
-                for (int ir = ly * krfh; ly < uy; ly = ny, ir++, x0 = x1) {
+                lx = y0 < y2 ? x0 : x1;
+                for (int ir = ly * krfh; ly < uy; ly = ny, ir++, lx = ux) {
                     ny = fminf(uy, (ir + 1) * kfh);
                     if (ay == 0)
-                        t = -(cy - ny) / by;
+                        t = -(y0 - ny) / by;
                     else
-                        t = ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (cy - ny))) * d2a;
-                    t = fmaxf(0.f, fminf(1.f, t)), x1 = (ax * t + bx) * t + cx;
-                    writeIndex(ir, fminf(x0, x1), fmaxf(x0, x1), sign * (ny - ly));
+                        t = ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
+                    t = fmaxf(0.f, fminf(1.f, t)), ux = (ax * t + bx) * t + x0;
+                    writeIndex(ir, fminf(lx, ux), fmaxf(lx, ux), sign * (ny - ly));
                 }
             }
         }
