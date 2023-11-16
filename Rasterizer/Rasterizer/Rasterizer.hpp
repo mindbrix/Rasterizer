@@ -903,11 +903,7 @@ struct Rasterizer {
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f, cy = y0;
                 ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-                if (ay == 0)
-                    t = -(cy - ly) / by;
-                else
-                    t = ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (cy - ly))) * d2a;
-                t = fmaxf(0.f, fminf(1.f, t)), x0 = (ax * t + bx) * t + cx;
+                x0 = y0 < y2 ? x0 : x1;
                 for (int ir = ly * krfh; ly < uy; ly = ny, ir++, x0 = x1) {
                     ny = fminf(uy, (ir + 1) * kfh);
                     if (ay == 0)
