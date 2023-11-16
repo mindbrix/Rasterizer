@@ -906,10 +906,7 @@ struct Rasterizer {
                 lx = y0 < y2 ? x0 : x1;
                 for (int ir = ly * krfh; ly < uy; ly = ny, ir++, lx = ux) {
                     ny = fminf(uy, (ir + 1) * kfh);
-                    if (ay == 0)
-                        t = -(y0 - ny) / by;
-                    else
-                        t = ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
+                    t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
                     t = fmaxf(0.f, fminf(1.f, t)), ux = (ax * t + bx) * t + x0;
                     writeIndex(ir, fminf(lx, ux), fmaxf(lx, ux), sign * (ny - ly));
                 }
