@@ -882,14 +882,12 @@ struct Rasterizer {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale);
             else {
-                float ly, uy, ily, iuy, iy, t, lx, ux, scale = copysignf(kCoverScale, y1 - y0);
+                float ly, uy, ily, iuy, iy, ny, t, lx, ux, scale = copysignf(kCoverScale, y1 - y0);
                 ly = fminf(y0, y1), ily = floorf(ly * krfh);
                 uy = fmaxf(y0, y1), iuy = ceilf(uy * krfh);
-                lx = y0 < y1 ? x0 : x1;
-                for (iy = ily; iy < iuy; iy++, lx = ux, ly = uy) {
-                    t = fmaxf(0.f, fminf(1.f, ((iy + 1.f) * kfh - y0) / (y1 - y0)));
-                    ux = (1.f - t) * x0 + t * x1, uy = (1.f - t) * y0 + t * y1;
-                    writeIndex(iy, fminf(lx, ux), fmaxf(lx, ux), (uy - ly) * scale);
+                for (lx = y0 < y1 ? x0 : x1, iy = ily; iy < iuy; iy++, lx = ux, ly = ny) {
+                    ny = fminf(uy, (iy + 1.f) * kfh), t = (ny - y0) / (y1 - y0), ux = (1.f - t) * x0 + t * x1;
+                    writeIndex(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale);
                 }
             }
         }
