@@ -882,15 +882,14 @@ struct Rasterizer {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale);
             else {
-                float lx, ux, ly, uy, m, c, y, ny, minx, maxx, scale;  int ir;
-                lx = fminf(x0, x1), ux = fmaxf(x0, x1);
-                ly = fminf(y0, y1), uy = fmaxf(y0, y1), scale = copysignf(kCoverScale, y1 - y0);
-                ir = ly * krfh, y = ir * kfh, m = (x1 - x0) / (y1 - y0), c = x0 - m * y0;
-                minx = (y + (m < 0.f) * kfh) * m + c;
-                maxx = (y + (m > 0.f) * kfh) * m + c;
-                for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
-                    ny = fminf(uy, (ir + 1) * kfh);
-                    writeIndex(ir, fmaxf(minx, lx), fminf(maxx, ux), (ny - y) * scale);
+                float ly, uy, ily, iuy, iy, t, lx, ux, scale = copysignf(kCoverScale, y1 - y0);
+                ly = fminf(y0, y1), ily = floorf(ly * krfh);
+                uy = fmaxf(y0, y1), iuy = ceilf(uy * krfh);
+                lx = y0 < y1 ? x0 : x1;
+                for (iy = ily; iy < iuy; iy++, lx = ux, ly = uy) {
+                    t = fmaxf(0.f, fminf(1.f, ((iy + 1.f) * kfh - y0) / (y1 - y0)));
+                    ux = (1.f - t) * x0 + t * x1, uy = (1.f - t) * y0 + t * y1;
+                    writeIndex(iy, fminf(lx, ux), fmaxf(lx, ux), (uy - ly) * scale);
                 }
             }
         }
@@ -903,7 +902,7 @@ struct Rasterizer {
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
                 ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-                lx = y0 < y2 ? x0 : x1;
+                lx = y0 < y2 ? x0 : x2;
                 for (int ir = ly * krfh; ly < uy; ly = ny, ir++, lx = ux) {
                     ny = fminf(uy, (ir + 1) * kfh);
                     t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
