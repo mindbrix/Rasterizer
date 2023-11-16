@@ -898,7 +898,7 @@ struct Rasterizer {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
             else {
-                float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, t, ny, sign = copysignf(1.f, y2 - y0);;
+                float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
                 ly = fminf(y0, y2), uy = fmaxf(y0, y2);
