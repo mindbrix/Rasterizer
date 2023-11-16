@@ -891,7 +891,7 @@ struct Rasterizer {
                 minx = (y + (m < 0.f) * kfh) * m + c;
                 maxx = (y + (m > 0.f) * kfh) * m + c;
                 for (m *= kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, ir++) {
-                    ny = (ir + 1) * kfh, ny = uy < ny ? uy : ny;
+                    ny = fminf(uy, (ir + 1) * kfh);
                     writeIndex(ir, fmaxf(minx, lx), fminf(maxx, ux), (ny - y) * scale);
                 }
             }
