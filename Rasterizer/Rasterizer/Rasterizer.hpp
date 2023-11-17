@@ -842,7 +842,7 @@ struct Rasterizer {
                 CurveIndexer *idxr = (CurveIndexer *)info;
                 
                 if (curve == 0)
-                    idxr->indexLine(x0, y0, x1, y1);
+                    idxr->writeLine(x0, y0, x1, y1);
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
@@ -851,10 +851,10 @@ struct Rasterizer {
                     y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                                         
                     if (!idxr->useCurves) {
-                        idxr->indexLine(x0, y0, x2, y2);
+                        idxr->writeLine(x0, y0, x2, y2);
                     } else if (ax * bx >= 0.f && ay * by >= 0.f) {
                         if (y0 != y2) {
-                            idxr->indexQuadratic(x0, y0, x1, y1, x2, y2);
+                            idxr->writeQuadratic(x0, y0, x1, y1, x2, y2);
                         }
                     } else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
@@ -868,7 +868,7 @@ struct Rasterizer {
                                 if (cy0 != cy2) {
                                     t = r[0] / r[1], s = 1.f - t;
                                     cx1 = s * cpx + t * cx2, cy1 = s * cpy + t * cy2;
-                                    idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2);
+                                    idxr->writeQuadratic(cx0, cy0, cx1, cy1, cx2, cy2);
                                 }
                             }
                         }
@@ -876,7 +876,7 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void indexLine(float x0, float y0, float x1, float y1) {
+        __attribute__((always_inline)) void writeLine(float x0, float y0, float x1, float y1) {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale);
             else {
@@ -890,7 +890,7 @@ struct Rasterizer {
             }
             new (dst++) Segment(x0, y0, x1, y1, 0);
         }
-        __attribute__((always_inline)) void indexQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+        __attribute__((always_inline)) void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
             else {
