@@ -554,7 +554,7 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
-                            CurveIndexer idxr;  idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.useCurves = !fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.useCurves = !fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                             m = { m.a * sx, m.b * sy, m.c * sx, m.d * sy, m.tx * sx + clip.lx * (1.f - sx) + kClipMargin, m.ty * sy + clip.ly * (1.f - sy) + kClipMargin };
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -681,12 +681,20 @@ struct Rasterizer {
             ts[2] = t0 > t1 ? t0 : t1, ts[2] = ts[2] < ts[0] ? ts[0] : ts[2] > ts[3] ? ts[3] : ts[2];
         for (t = ts; t < ts + 3; t++)
             if (t[0] != t[1]) {
-                sy0 = (1.f - t[0]) * y0 + t[0] * y1, sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
-                sy1 = (1.f - t[1]) * y0 + t[1] * y1, sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                sy0 = (1.f - t[0]) * y0 + t[0] * y1;
+                sy1 = (1.f - t[1]) * y0 + t[1] * y1;
+                if (!kClipCurves) {
+                    sy0 = sy0 < clip.ly ? clip.ly : sy0 > clip.uy ? clip.uy : sy0;
+                    sy1 = sy1 < clip.ly ? clip.ly : sy1 > clip.uy ? clip.uy : sy1;
+                }
                 mx = x0 + (t[0] + t[1]) * 0.5f * dx;
                 if (mx >= clip.lx && mx < clip.ux) {
-                    sx0 = (1.f - t[0]) * x0 + t[0] * x1, sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
-                    sx1 = (1.f - t[1]) * x0 + t[1] * x1, sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    sx0 = (1.f - t[0]) * x0 + t[0] * x1;
+                    sx1 = (1.f - t[1]) * x0 + t[1] * x1;
+                    if (!kClipCurves) {
+                        sx0 = sx0 < clip.lx ? clip.lx : sx0 > clip.ux ? clip.ux : sx0;
+                        sx1 = sx1 < clip.lx ? clip.lx : sx1 > clip.ux ? clip.ux : sx1;
+                    }
                     (*function)(sx0, sy0, sx1, sy1, 0, info);
                 } else if (polygon)
                     vx = mx < clip.lx ? clip.lx : clip.ux, (*function)(vx, sy0, vx, sy1, 0, info);
@@ -727,8 +735,13 @@ struct Rasterizer {
             std::sort(roots + 1, root), *root = 1.f;
             for (sx0 = x0, sy0 = y0, t = roots; t < root; t++, sx0 = sx2, sy0 = sy2) {
                 s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
-                sx2 = fmaxf(clip.lx, fminf(clip.ux, w0 * x0 + w1 * x1 + w2 * x2));
-                sy2 = fmaxf(clip.ly, fminf(clip.uy, w0 * y0 + w1 * y1 + w2 * y2));
+                if (!kClipCurves) {
+                    sx2 = fmaxf(clip.lx, fminf(clip.ux, w0 * x0 + w1 * x1 + w2 * x2));
+                    sy2 = fmaxf(clip.ly, fminf(clip.uy, w0 * y0 + w1 * y1 + w2 * y2));
+                } else {
+                    sx2 = w0 * x0 + w1 * x1 + w2 * x2;
+                    sy2 = w0 * y0 + w1 * y1 + w2 * y2;
+                }
                 mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux)
@@ -792,8 +805,13 @@ struct Rasterizer {
             std::sort(roots + 1, root), *root = 1.f;
             for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
                 s = 1.f - t[1], w0 = s * s * s, w1 = 3.f * s * s * t[1], w2 = 3.f * s * t[1] * t[1], w3 = t[1] * t[1] * t[1];
-                x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3, x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
-                y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3, y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
+                x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3;
+                y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3;
+                
+                if (!kClipCurves) {
+                    x3t = x3t < clip.lx ? clip.lx : x3t > clip.ux ? clip.ux : x3t;
+                    y3t = y3t < clip.ly ? clip.ly : y3t > clip.uy ? clip.uy : y3t;
+                }
                 mt = 0.5f * (t[0] + t[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux) {
@@ -834,7 +852,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        Segment *dst, *dst0;  bool useCurves = false;  float px0, py0;  int ily, iuy;
+        Segment *dst, *dst0;  bool useCurves = false;  float px0, py0;  int ily, iuy;  Bounds clip;
         Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -877,6 +895,10 @@ struct Rasterizer {
             }
         }
         __attribute__((always_inline)) void writeLine(float x0, float y0, float x1, float y1) {
+            if (kClipCurves) {
+                y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
+                y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
+            }
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale);
             else {
@@ -891,6 +913,11 @@ struct Rasterizer {
             new (dst++) Segment(x0, y0, x1, y1, 0);
         }
         __attribute__((always_inline)) void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            if (kClipCurves) {
+                y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
+                y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
+                y2 = fmaxf(clip.ly, fminf(clip.uy, y2));
+            }
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                 writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
             else {
@@ -910,9 +937,10 @@ struct Rasterizer {
             new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover) {
-           // assert(ir >= ily && ir < iuy);
-            ir = ily > ir ? ily : ir;
-            
+            assert(ir >= ily && ir <= iuy);
+//            lx = fmaxf(clip.lx, lx);
+//            ux = fminf(clip.ux, ux);
+//            assert(ux <= clip.ux);
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx, is = dst - dst0;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
             int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
         }
@@ -960,7 +988,7 @@ struct Rasterizer {
                 for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
-                            assert(ux <= clip.ux);
+//                            assert(ux <= clip.ux);
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
                             inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx);

@@ -7,7 +7,7 @@
 //
 
 #define kTau 6.283185307179586f
-#define kClipMargin 4e-2f
+#define kClipMargin 0.f
 #define kCubicPrecision 0.25f
 #define kCoverScale 2047.9375f
 #define kQuadraticFlatness 1e-2f
@@ -15,7 +15,7 @@
 #define kfh 16.f
 #define krfh 0.0625f
 #define kFastHeight 32
-#define kMoleculesHeight 64
+#define kMoleculesHeight 0
 #define kMoleculesRange 32767.f
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
@@ -27,3 +27,4 @@
 #define kUXCoverSize 4
 #define kTextureSlotsSize 64
 #define kUseMaxArea 1
+#define kClipCurves 1
