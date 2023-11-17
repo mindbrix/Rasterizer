@@ -717,12 +717,10 @@ struct Rasterizer {
         if (clip.ux > lx && clip.ux < ux)
             root = solveQuadratic(ax, bx, x0 - clip.ux, root);
         if (root - roots == 1) {
-            if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
-                if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
-                    (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, prec);
-                else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0, vx, y2, 0, info);
-            }
+            if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
+                (*quadFunction)(x0, y0, x1, y1, x2, y2, function, info, prec);
+            else if (polygon)
+                vx = lx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0, vx, y2, 0, info);
         } else {
             std::sort(roots + 1, root), *root = 1.f;
             for (sx0 = x0, sy0 = y0, t = roots; t < root; t++, sx0 = sx2, sy0 = sy2) {
@@ -782,12 +780,10 @@ struct Rasterizer {
         if (clip.ux > lx && clip.ux < ux)
             root = solveCubic(bx, cx, x0 - clip.ux, ax, root);
         if (root - roots == 1) {
-            if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
-                if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
-                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, prec);
-                else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0, vx, y3, 0, info);
-            }
+            if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
+                (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, function, info, prec);
+            else if (polygon)
+                vx = lx <= clip.lx ? clip.lx : clip.ux, (*function)(vx, y0, vx, y3, 0, info);
         } else {
             std::sort(roots + 1, root), *root = 1.f;
             for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
