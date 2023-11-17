@@ -27,4 +27,3 @@
 #define kUXCoverSize 4
 #define kTextureSlotsSize 64
 #define kUseMaxArea 1
-#define kClipCurves 1
