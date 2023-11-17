@@ -912,6 +912,8 @@ struct Rasterizer {
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover) {
             assert(ir >= ily && ir <= iuy);
+//            lx = fmaxf(clip.lx, lx);
+//            ux = fminf(clip.ux, ux);
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx, is = dst - dst0;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
             int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
         }
