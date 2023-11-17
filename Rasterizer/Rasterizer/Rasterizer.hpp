@@ -554,7 +554,7 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
-                            CurveIndexer idxr;  idxr.indices = & indices[0] - int(clip.ly * krfh), idxr.uxcovers = & uxcovers[0] - int(clip.ly * krfh), idxr.useCurves = !fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            CurveIndexer idxr;  idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.useCurves = !fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
                             m = { m.a * sx, m.b * sy, m.c * sx, m.d * sy, m.tx * sx + clip.lx * (1.f - sx) + kClipMargin, m.ty * sy + clip.ly * (1.f - sy) + kClipMargin };
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
@@ -834,7 +834,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        Segment *dst, *dst0;  bool useCurves = false;  float px0, py0;
+        Segment *dst, *dst0;  bool useCurves = false;  float px0, py0;  int ily, iuy;
         Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
@@ -842,7 +842,7 @@ struct Rasterizer {
                 CurveIndexer *idxr = (CurveIndexer *)info;
                 
                 if (curve == 0)
-                    idxr->indexLine(x0, y0, x1, y1), new (idxr->dst++) Segment(x0, y0, x1, y1, curve);
+                    idxr->indexLine(x0, y0, x1, y1);
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
@@ -851,11 +851,10 @@ struct Rasterizer {
                     y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                                         
                     if (!idxr->useCurves) {
-                        idxr->indexLine(x0, y0, x2, y2), new (idxr->dst++) Segment(x0, y0, x2, y2, 0);
+                        idxr->indexLine(x0, y0, x2, y2);
                     } else if (ax * bx >= 0.f && ay * by >= 0.f) {
                         if (y0 != y2) {
                             idxr->indexQuadratic(x0, y0, x1, y1, x2, y2);
-                            new (idxr->dst++) Segment(x0, y0, x1, y1, 1), new (idxr->dst++) Segment(x1, y1, x2, y2, 2);
                         }
                     } else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
@@ -870,7 +869,6 @@ struct Rasterizer {
                                     t = r[0] / r[1], s = 1.f - t;
                                     cx1 = s * cpx + t * cx2, cy1 = s * cpy + t * cy2;
                                     idxr->indexQuadratic(cx0, cy0, cx1, cy1, cx2, cy2);
-                                    new (idxr->dst++) Segment(cx0, cy0, cx1, cy1, 1), new (idxr->dst++) Segment(cx1, cy1, cx2, cy2, 2);
                                 }
                             }
                         }
@@ -890,6 +888,7 @@ struct Rasterizer {
                     writeIndex(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale);
                 }
             }
+            new (dst++) Segment(x0, y0, x1, y1, 0);
         }
         __attribute__((always_inline)) void indexQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
@@ -908,8 +907,12 @@ struct Rasterizer {
                     writeIndex(ir, fminf(lx, ux), fmaxf(lx, ux), sign * (ny - ly));
                 }
             }
+            new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover) {
+           // assert(ir >= ily && ir < iuy);
+            ir = ily > ir ? ily : ir;
+            
             Row<Index>& row = indices[ir];  size_t i = row.end - row.idx, is = dst - dst0;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
             int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
         }
