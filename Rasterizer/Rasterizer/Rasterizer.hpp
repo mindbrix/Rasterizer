@@ -555,8 +555,6 @@ struct Rasterizer {
                         } else {
                             bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
                             CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.useCurves = !fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
-                            float sx = 1.f - 2.f * kClipMargin / (clip.ux - clip.lx), sy = 1.f - 2.f * kClipMargin / (clip.uy - clip.ly);
-                            m = { m.a * sx, m.b * sy, m.c * sx, m.d * sy, m.tx * sx + clip.lx * (1.f - sx) + kClipMargin, m.ty * sy + clip.ly * (1.f - sy) + kClipMargin };
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
