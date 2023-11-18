@@ -703,7 +703,7 @@ struct Rasterizer {
         return roots;
     }
     static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, QuadFunction quadFunction, void *info, float prec) {
-        float ax, bx, ay, by, roots[10], *root = roots, *t, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
+        float ax, bx, ay, by, roots[10], *root = roots, *r, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
         ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
         *root++ = 0.f;
         if (clip.ly > ly && clip.ly < uy)
@@ -723,11 +723,11 @@ struct Rasterizer {
             }
         } else {
             std::sort(roots + 1, root), *root = 1.f;
-            for (sx0 = x0, sy0 = y0, t = roots; t < root; t++, sx0 = sx2, sy0 = sy2) {
-                s = 1.f - t[1], w0 = s * s, w1 = 2.f * s * t[1], w2 = t[1] * t[1];
+            for (sx0 = x0, sy0 = y0, r = roots; r < root; r++, sx0 = sx2, sy0 = sy2) {
+                s = 1.f - r[1], w0 = s * s, w1 = 2.f * s * r[1], w2 = r[1] * r[1];
                 sx2 = w0 * x0 + w1 * x1 + w2 * x2;
                 sy2 = w0 * y0 + w1 * y1 + w2 * y2;
-                mt = 0.5f * (t[0] + t[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
+                mt = 0.5f * (r[0] + r[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux)
                         (*quadFunction)(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2, function, info, prec);
@@ -844,7 +844,7 @@ struct Rasterizer {
                 else if (curve == 1)
                     idxr->px0 = x0, idxr->py0 = y0;
                 else {
-                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, cx0, cy0, cx1, cy1, cx2, cy2;
+                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, sx0, sy0, sx1, sy1, sx2, sy2;
                     x2 = x1, x1 = x0, x0 = idxr->px0; x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
                     y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                                         
@@ -857,16 +857,16 @@ struct Rasterizer {
                     } else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
-                        cx0 = cx2 = x0, cy0 = cy2 = y0;
-                        for (int i = 0; i < 3; i++, r++, cx0 = cx2, cy0 = cy2) {
+                        sx0 = sx2 = x0, sy0 = sy2 = y0;
+                        for (int i = 0; i < 3; i++, r++, sx0 = sx2, sy0 = sy2) {
                             if (r[0] != r[1]) {
                                 t = r[1], s = 1.f - t;
-                                cpx = (s * x0 + t * x1), cx2 = s * cpx + t * (s * x1 + t * x2);
-                                cpy = (s * y0 + t * y1), cy2 = s * cpy + t * (s * y1 + t * y2);
-                                if (cy0 != cy2) {
+                                cpx = (s * x0 + t * x1), sx2 = s * cpx + t * (s * x1 + t * x2);
+                                cpy = (s * y0 + t * y1), sy2 = s * cpy + t * (s * y1 + t * y2);
+                                if (sy0 != sy2) {
                                     t = r[0] / r[1], s = 1.f - t;
-                                    cx1 = s * cpx + t * cx2, cy1 = s * cpy + t * cy2;
-                                    idxr->writeQuadratic(cx0, cy0, cx1, cy1, cx2, cy2);
+                                    sx1 = s * cpx + t * sx2, sy1 = s * cpy + t * sy2;
+                                    idxr->writeQuadratic(sx0, sy0, sx1, sy1, sx2, sy2);
                                 }
                             }
                         }
