@@ -900,9 +900,8 @@ struct Rasterizer {
                 float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, iy, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
-                ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
-                lx = y0 < y2 ? x0 : x2;
+                lx = y0 < y2 ? x0 : x2, ly = fminf(y0, y2), uy = fmaxf(y0, y2);
                 for (iy = floorf(ly * krfh); ly < uy; ly = ny, iy++, lx = ux) {
                     ny = fminf(uy, (iy + 1.f) * kfh);
                     t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
