@@ -554,7 +554,7 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
-                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.useCurves = !fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
@@ -833,13 +833,12 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer {
-        Segment *dst, *dst0;  bool useCurves = false;  float px0, py0;  int ily, iuy;  Bounds clip;
+        Segment *dst, *dst0;  bool fast;  float px0, py0;  int ily, iuy;  Bounds clip;
         Row<Index> *indices;  Row<int16_t> *uxcovers;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (y0 != y1 || curve) {
                 CurveIndexer *idxr = (CurveIndexer *)info;
-                
                 if (curve == 0)
                     idxr->writeLine(x0, y0, x1, y1);
                 else if (curve == 1)
@@ -849,7 +848,7 @@ struct Rasterizer {
                     x2 = x1, x1 = x0, x0 = idxr->px0; x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
                     y2 = y1, y1 = y0, y0 = idxr->py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
                                         
-                    if (!idxr->useCurves) {
+                    if (idxr->fast) {
                         idxr->writeLine(x0, y0, x2, y2);
                     } else if (ax * bx >= 0.f && ay * by >= 0.f) {
                         if (y0 != y2) {
