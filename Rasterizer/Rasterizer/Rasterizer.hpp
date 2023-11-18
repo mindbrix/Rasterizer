@@ -22,8 +22,8 @@ struct Rasterizer {
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
-        inline Transform preconcat(Transform t, float ax, float ay) const {
-            return Transform(t.a, t.b, t.c, t.d, t.tx + ax, t.ty + ay).concat(Transform(a, b, c, d, tx - ax, ty - ay));
+        inline Transform preconcat(Transform t, float cx, float cy) const {
+            return Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy).concat(Transform(a, b, c, d, tx - cx, ty - cy));
         }
         inline Transform invert() const {
             float det = a * d - b * c, recip = 1.f / det;

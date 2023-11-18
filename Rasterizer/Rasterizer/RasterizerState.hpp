@@ -165,12 +165,12 @@ struct RasterizerState {
     void update(float s, float w, float h) {
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h)), view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
     }
-    void magnify(float s, float ax, float ay) {
-        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), ax, ay);
+    void magnify(float s, float cx, float cy) {
+        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
     }
-    void rotate(float a, float ax, float ay) {
+    void rotate(float a, float cx, float cy) {
         float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), ax, ay);
+        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
     }
     void translate(float x, float y) {
         ctm.tx += x, ctm.ty += y;
