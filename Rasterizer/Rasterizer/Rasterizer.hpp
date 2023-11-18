@@ -767,7 +767,7 @@ struct Rasterizer {
         return roots;
     }
     static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, SegmentFunction function, CubicFunction cubicFunction, void *info, float prec) {
-        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *t, s, w0, w1, w2, w3, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
+        float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, s, w0, w1, w2, w3, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
         *root++ = 0.f;
@@ -788,16 +788,17 @@ struct Rasterizer {
             }
         } else {
             std::sort(roots + 1, root), *root = 1.f;
-            for (x0t = x0, y0t = y0, t = roots; t < root; t++, x0t = x3t, y0t = y3t) {
-                s = 1.f - t[1], w0 = s * s * s, w1 = 3.f * s * s * t[1], w2 = 3.f * s * t[1] * t[1], w3 = t[1] * t[1] * t[1];
+            for (x0t = x0, y0t = y0, r = roots; r < root; r++, x0t = x3t, y0t = y3t) {
+                t = r[1], s = 1.f - t;
+                w0 = s * s, w1 = 3.f * w0 * t, w3 = t * t, w2 = 3.f * s * w3, w0 *= s, w3 *= t;
                 x3t = w0 * x0 + w1 * x1 + w2 * x2 + w3 * x3;
                 y3t = w0 * y0 + w1 * y1 + w2 * y2 + w3 * y3;
-                mt = 0.5f * (t[0] + t[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
+                mt = 0.5f * (r[0] + r[1]), mx = ((ax * mt + bx) * mt + cx) * mt + x0, my = ((ay * mt + by) * mt + cy) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux) {
                         const float u = 1.f / 3.f, v = 2.f / 3.f, u3 = 1.f / 27.f, v3 = 8.f / 27.f;
-                        mt = v * t[0] + u * t[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
-                        mt = u * t[0] + v * t[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
+                        mt = v * r[0] + u * r[1], x1t = ((ax * mt + bx) * mt + cx) * mt + x0, y1t = ((ay * mt + by) * mt + cy) * mt + y0;
+                        mt = u * r[0] + v * r[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
                         fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
                         fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
                         (*cubicFunction)(
