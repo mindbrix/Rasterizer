@@ -393,6 +393,10 @@ struct Rasterizer {
         uint32_t ic;  enum Flags { isClose = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose | a1 | ue0 | ue1) };
         uint16_t i0, ux;
     };
+    struct Sample {
+        Sample(float ux, float cover, size_t is): ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
+        int16_t ux, cover;  int32_t is;
+    };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
         struct Entry {
@@ -494,7 +498,7 @@ struct Rasterizer {
             device = dev, empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
             size_t fatlines = 1.f + ceilf((dev.uy - dev.ly) * krfh);
             if (indices.size() != fatlines)
-                indices.resize(fatlines), uxcovers.resize(fatlines);
+                indices.resize(fatlines), samples.resize(fatlines);
             bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
         }
         void drawList(SceneList& list, Transform view, Buffer *buffer) {
@@ -554,7 +558,7 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
-                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.uxcovers = & uxcovers[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
@@ -581,12 +585,17 @@ struct Rasterizer {
                     pass->imgCount = size;
             }
         }
-        void empty() { outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();  for (int i = 0; i < indices.size(); i++)  indices[i].empty(), uxcovers[i].empty(), entries = std::vector<Buffer::Entry>(); }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), uxcovers.resize(0), entries = std::vector<Buffer::Entry>(); }
+        void empty() {
+            outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty();
+            for (int i = 0; i < indices.size(); i++)
+                indices[i].empty(), samples[i].empty();
+            entries = std::vector<Buffer::Entry>();
+        }
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), indices.resize(0), samples.resize(0), entries = std::vector<Buffer::Entry>(); }
         size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
-        std::vector<Row<Index>> indices;  std::vector<Row<int16_t>> uxcovers;
+        std::vector<Row<Index>> indices;  std::vector<Row<Sample>> samples;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
@@ -834,7 +843,7 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         Segment *dst, *dst0;  bool fast;  float px0, py0;  int ily, iuy;  Bounds clip;
-        Row<Index> *indices;  Row<int16_t> *uxcovers;
+        Row<Index> *indices;  Row<Sample> *samples;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (y0 != y1 || curve) {
@@ -911,11 +920,11 @@ struct Rasterizer {
             }
             new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
         }
-        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, int16_t cover) {
+        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float cover) {
 //            lx = fmaxf(clip.lx, lx);
 //            ux = fminf(clip.ux, ux);
-            Row<Index>& row = indices[ir];  size_t i = row.end - row.idx, is = dst - dst0;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
-            int16_t *dst = uxcovers[ir].alloc(kUXCoverSize);  dst[0] = ceilf(ux), dst[1] = cover, dst[2] = is & 0XFFFF, dst[3] = is >> 16;
+            Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
+            new (samples[ir].alloc(1)) Sample(ux, cover, dst - dst0);
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
@@ -949,8 +958,8 @@ struct Rasterizer {
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Index> *indices = & ctx.indices[0];  Row<int16_t> *uxcovers = & ctx.uxcovers[0];
-        for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, uxcovers->idx = uxcovers->end, indices++, uxcovers++) {
+        Row<Index> *indices = & ctx.indices[0];  Row<Sample> *samples = & ctx.samples[0];
+        for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, samples->idx = samples->end, indices++, samples++) {
             if ((size = indices->end - indices->idx)) {
                 if (size > 32 && size < 65536)
                     radixSort((uint32_t *)indices->base + indices->idx, int(size), single ? clip.lx : 0, range, single, counts);
@@ -978,8 +987,9 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x;
                     }
-                    int16_t *uxcover = uxcovers->base + uxcovers->idx + index->i * kUXCoverSize, iux = (uint16_t)uxcover[0];
-                    ux = iux > ux ? iux : ux, winding += uxcover[1] * wscale;
+                    Sample *sample = samples->base + samples->idx + index->i;
+                    int16_t sux = (uint16_t)sample->ux;
+                    ux = sux > ux ? sux : ux, winding += sample->cover * wscale;
                 }
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
@@ -1136,14 +1146,13 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                        uint16_t *uxcovers = (uint16_t *)ctx->uxcovers[inst->data.iy].base + kUXCoverSize * inst->data.idx;
-                        uint16_t *uxc0, *uxc1, nulluxc[kUXCoverSize] = { 0, 0, kNullIndex, 0xF };
+                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx, *s0, *s1, snull = Sample(0, 0, ~0);
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
-                            uxc0 = uxcovers + is->i * kUXCoverSize;
-                            uxc1 = ++is < eis ? uxcovers + is->i * kUXCoverSize : nulluxc;
-                            edge->ic = uint32_t(ic) | ((uxc0[3] << 26) & Edge::ue0) | ((uxc1[3] << 22) & Edge::ue1);
-                            edge->i0 = uxc0[2], edge->ux = uxc1[2];
+                            s0 = samples + is->i;
+                            s1 = ++is < eis ? samples + is->i : & snull;
+                            edge->ic = uint32_t(ic) | ((s0->is << 10) & Edge::ue0) | ((s1->is << 6) & Edge::ue1);
+                            edge->i0 = s0->is & 0xFFFF, edge->ux = s1->is & 0xFFFF;
                         }
                         *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
                     }
