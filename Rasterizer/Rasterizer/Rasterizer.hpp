@@ -394,8 +394,9 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Sample {
-        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
-        int16_t lx, ux, cover;  int32_t is;
+        Sample(float iy, float lx, float ux, float cover, size_t is): iy(iy), lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
+        int16_t iy, lx, ux, cover;  int32_t is;
+        inline bool operator< (const Sample& other) const { return iy < other.iy || (iy == other.iy && lx < other.lx); }
     };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
@@ -558,12 +559,13 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
-                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.indices = & indices[0] - idxr.ily, idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det))), idxr.test = & test;
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
+                            test.empty(), idxes.empty();
                         }
                     } else
                         buffer->_slots[iz] = 0;
@@ -595,7 +597,7 @@ struct Rasterizer {
         size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
-        std::vector<Row<Index>> indices;  std::vector<Row<Sample>> samples;
+        std::vector<Row<Index>> indices;  std::vector<Row<Sample>> samples;  Row<Sample> test;  Row<Index> idxes;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, void *info, SegmentFunction function, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
@@ -843,7 +845,7 @@ struct Rasterizer {
     }
     struct CurveIndexer {
         Segment *dst, *dst0;  bool fast;  float px0, py0;  int ily, iuy;  Bounds clip;
-        Row<Index> *indices;  Row<Sample> *samples;
+        Row<Index> *indices;  Row<Sample> *samples;  Row<Sample> *test;
         
         static void WriteSegment(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             if (y0 != y1 || curve) {
@@ -883,29 +885,32 @@ struct Rasterizer {
                 }
             }
         }
-        __attribute__((always_inline)) void writeLine(float x0, float y0, float x1, float y1) {
+        void writeLine(float x0, float y0, float x1, float y1) {
             y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
             y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
-            if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, dst - dst0);
-            else {
+            if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask)) {
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, dst - dst0);
+                new (test->alloc(1)) Sample(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, dst - dst0);
+            } else {
                 float ly, uy, ily, iuy, iy, ny, t, lx, ux, scale = copysignf(kCoverScale, y1 - y0);
                 ly = fminf(y0, y1), ily = floorf(ly * krfh);
                 uy = fmaxf(y0, y1), iuy = ceilf(uy * krfh);
                 for (lx = y0 < y1 ? x0 : x1, iy = ily; iy < iuy; iy++, lx = ux, ly = ny) {
                     ny = fminf(uy, (iy + 1.f) * kfh), t = (ny - y0) / (y1 - y0), ux = (1.f - t) * x0 + t * x1;
-                    new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale, dst - dst0);
+                    new (samples[int(iy)].alloc(1)) Sample(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale, dst - dst0);
+                    new (test->alloc(1)) Sample(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale, dst - dst0);
                 }
             }
             new (dst++) Segment(x0, y0, x1, y1, 0);
         }
-        __attribute__((always_inline)) void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+        void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
             y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
             y2 = fmaxf(clip.ly, fminf(clip.uy, y2));
-            if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, dst - dst0);
-            else {
+            if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask)) {
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, dst - dst0);
+                new (test->alloc(1)) Sample(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, dst - dst0);
+            } else {
                 float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, iy, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
@@ -915,7 +920,8 @@ struct Rasterizer {
                     ny = fminf(uy, (iy + 1.f) * kfh);
                     t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
                     t = fmaxf(0.f, fminf(1.f, t)), ux = (ax * t + bx) * t + x0;
-                    new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
+                    new (samples[int(iy)].alloc(1)) Sample(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
+                    new (test->alloc(1)) Sample(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
                 }
             }
             new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
@@ -955,7 +961,25 @@ struct Rasterizer {
         Index *idx;  Sample *sample;
         Row<Index> *indices = & ctx.indices[0];
         Row<Sample> *samples = & ctx.samples[0];
+        Sample *test = ctx.test.base;
+        Row<Index>& idxes = ctx.idxes;
+        
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, samples->idx = samples->end, indices++, samples++) {
+            {
+                size = ctx.test.end;
+                Index *idx0 = idxes.alloc(size), *idx = idx0;
+                for (i = 0; i < size; i++) {
+                    if (test[i].iy == iy) {
+                        idx->x = test[i].lx;
+                        idx->i = i;
+                        idx++;
+                    }
+                }
+//                std::sort(idxes.base, idxes.base + idxes.end);
+                radixSort((uint32_t *)idx0, int(idx - idx0), single ? clip.lx : 0, range, single, counts);
+                idxes.empty();
+            }
+            
             if ((size = samples->end - samples->idx)) {
                 for (sample = samples->base + samples->idx, idx = indices->alloc(size), i = 0; i < size; i++, idx++, sample++)
                     idx->x = sample->lx, idx->i = i;
@@ -1144,7 +1168,7 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx, *s0, *s1, snull = Sample(0, 0, 0, ~0);
+                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx, *s0, *s1, snull = Sample(0, 0, 0, 0, ~0);
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
                             s0 = samples + is->i;
