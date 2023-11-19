@@ -394,8 +394,8 @@ struct Rasterizer {
         uint16_t i0, ux;
     };
     struct Sample {
-        Sample(float ux, float cover, size_t is): ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
-        int16_t ux, cover;  int32_t is;
+        Sample(float lx, float ux, float cover, size_t is): lx(lx), ux(ceilf(ux)), cover(int16_t(cover)), is(uint32_t(is)) {}
+        int16_t lx, ux, cover;  int32_t is;
     };
     struct Buffer {
         enum Type { kQuadEdges, kFastEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules, kOpaques, kInstances, kSegmentsBase, kPointsBase, kInstancesBase };
@@ -921,10 +921,7 @@ struct Rasterizer {
             new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
         }
         __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float cover) {
-//            lx = fmaxf(clip.lx, lx);
-//            ux = fminf(clip.ux, ux);
-            Row<Index>& row = indices[ir];  size_t i = row.end - row.idx;  Index *idx = row.alloc(1);  idx->x = lx, idx->i = i;
-            new (samples[ir].alloc(1)) Sample(ux, cover, dst - dst0);
+            new (samples[ir].alloc(1)) Sample(lx, ux, cover, dst - dst0);
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
@@ -958,9 +955,13 @@ struct Rasterizer {
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Row<Index> *indices = & ctx.indices[0];  Row<Sample> *samples = & ctx.samples[0];
+        Index *idx;  Sample *sample;
+        Row<Index> *indices = & ctx.indices[0];
+        Row<Sample> *samples = & ctx.samples[0];
         for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, samples->idx = samples->end, indices++, samples++) {
-            if ((size = indices->end - indices->idx)) {
+            if ((size = samples->end - samples->idx)) {
+                for (sample = samples->base + samples->idx, idx = indices->alloc(size), i = 0; i < size; i++, idx++, sample++)
+                    idx->x = sample->lx, idx->i = i;
                 if (size > 32 && size < 65536)
                     radixSort((uint32_t *)indices->base + indices->idx, int(size), single ? clip.lx : 0, range, single, counts);
                 else
@@ -987,7 +988,7 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x;
                     }
-                    Sample *sample = samples->base + samples->idx + index->i;
+                    sample = samples->base + samples->idx + index->i;
                     int16_t sux = (uint16_t)sample->ux;
                     ux = sux > ux ? sux : ux, winding += sample->cover * wscale;
                 }
@@ -1146,7 +1147,7 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx, *s0, *s1, snull = Sample(0, 0, ~0);
+                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx, *s0, *s1, snull = Sample(0, 0, 0, ~0);
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
                             s0 = samples + is->i;
