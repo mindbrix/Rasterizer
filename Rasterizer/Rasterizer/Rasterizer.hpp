@@ -962,20 +962,20 @@ struct Rasterizer {
                 if (size > 32 && size < 65536)
                     radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
                 else
-                    std::sort(indices->base, indices->base + indices->end);
+                    std::sort(indices->base, indices->base + size);
                 
                 size_t siBase = ctx.segmentsIndices.end;
                 uint32_t *si = ctx.segmentsIndices.alloc(size);
                 
                 ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < indices->end; i++, index++) {
+                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < size; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
 //                            assert(ux <= clip.ux);
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin - indices->idx);
+                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
