@@ -866,8 +866,8 @@ struct Rasterizer {
                     } else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
-                        sx0 = sx2 = x0, sy0 = sy2 = y0;
-                        for (int i = 0; i < 3; i++, r++, sx0 = sx2, sy0 = sy2) {
+                        sx0 = x0, sy0 = y0;
+                        for (int i = 0; i < 3; i++, r++) {
                             if (r[0] != r[1]) {
                                 t = r[1], s = 1.f - t;
                                 cpx = (s * x0 + t * x1), sx2 = s * cpx + t * (s * x1 + t * x2);
@@ -877,6 +877,7 @@ struct Rasterizer {
                                     sx1 = s * cpx + t * sx2, sy1 = s * cpy + t * sy2;
                                     idxr->writeQuadratic(sx0, sy0, sx1, sy1, sx2, sy2);
                                 }
+                                sx0 = sx2, sy0 = sy2;
                             }
                         }
                     }
