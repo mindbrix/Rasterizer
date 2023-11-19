@@ -955,27 +955,26 @@ struct Rasterizer {
         Index *idx;  Sample *sample;
         Row<Index> *indices = & ctx.indices[0];
         Row<Sample> *samples = & ctx.samples[0];
-        for (iy = ily; iy < iuy; iy++, indices->idx = indices->end, samples->idx = samples->end, indices++, samples++) {
+        for (iy = ily; iy < iuy; iy++, samples->idx = samples->end, samples++, indices->empty()) {
             if ((size = samples->end - samples->idx)) {
                 for (sample = samples->base + samples->idx, idx = indices->alloc(size), i = 0; i < size; i++, idx++, sample++)
                     idx->x = sample->lx, idx->i = i;
                 if (size > 32 && size < 65536)
-                    radixSort((uint32_t *)indices->base + indices->idx, int(size), single ? clip.lx : 0, range, single, counts);
+                    radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
                 else
-                    std::sort(indices->base + indices->idx, indices->base + indices->end);
+                    std::sort(indices->base, indices->base + indices->end);
                 
                 size_t siBase = ctx.segmentsIndices.end;
                 uint32_t *si = ctx.segmentsIndices.alloc(size);
-                idx = indices->base + indices->idx;
+                idx = indices->base;
                 sample = samples->base + samples->idx;
                 for (i = 0; i < size; i++) {
                     si[i] = sample[idx[i].i].is;
                 }
                 
-                
                 ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
-                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base + indices->idx, lx = ux = index->x, i = begin = indices->idx; i < indices->end; i++, index++) {
+                for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < indices->end; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
 //                            assert(ux <= clip.ux);
@@ -1003,7 +1002,7 @@ struct Rasterizer {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                     ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
                     inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin),
-                    inst->data.idx = int(siBase + begin - indices->idx);
+                    inst->data.idx = int(siBase + begin);
                 }
             }
         }
