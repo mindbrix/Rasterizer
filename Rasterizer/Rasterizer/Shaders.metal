@@ -101,7 +101,7 @@ float roundedDistance(float x0, float y0, float x1, float y1) {
     return x * x + y * y;
 }
 float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
-    if (x1 == FLT_MAX)
+    if (abs(x1 - 0.5 * (x0 + x2)) < 1e-3)
         return roundedDistance(x0, y0, x2, y2);
     return sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
 }
