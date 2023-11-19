@@ -966,11 +966,6 @@ struct Rasterizer {
                 
                 size_t siBase = ctx.segmentsIndices.end;
                 uint32_t *si = ctx.segmentsIndices.alloc(size);
-                idx = indices->base;
-                sample = samples->base + samples->idx;
-                for (i = 0; i < size; i++) {
-                    si[i] = sample[idx[i].i].is;
-                }
                 
                 ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
                 uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
@@ -995,8 +990,9 @@ struct Rasterizer {
                         begin = i, lx = ux = index->x;
                     }
                     sample = samples->base + samples->idx + index->i;
-                    int16_t sux = (uint16_t)sample->ux;
+                    int16_t sux = sample->ux;
                     ux = sux > ux ? sux : ux, winding += sample->cover * wscale;
+                    si[i] = sample->is;
                 }
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
