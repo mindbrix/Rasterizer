@@ -387,7 +387,7 @@ struct Rasterizer {
     };
     struct Blend : Instance {
         Blend(size_t iz) : Instance(iz) {}
-        union { struct { int count, iy, begin, idx, siBase; } data;  Bounds clip; };
+        union { struct { int count, idx; } data;  Bounds clip; };
     };
     struct Edge {
         uint32_t ic;  enum Flags { isClose = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose | a1 | ue0 | ue1) };
@@ -981,7 +981,7 @@ struct Rasterizer {
 //                            assert(ux <= clip.ux);
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx), inst->data.siBase = int(siBase);
+                            inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin - indices->idx);
                         }
                         winding = cover = truncf(winding + copysign(0.5f, winding));
                         if ((even && (int(winding) & 1)) || (!even && winding)) {
@@ -1002,7 +1002,8 @@ struct Rasterizer {
                 if (lx != ux) {
                     Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                     ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
-                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.iy = int(iy - ily), inst->data.begin = int(begin), inst->data.idx = int(indices->idx), inst->data.siBase = int(siBase);
+                    inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin),
+                    inst->data.idx = int(siBase + begin - indices->idx);
                 }
             }
         }
@@ -1154,8 +1155,7 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
-                        uint32_t is0, is1;
-                        uint32_t *si = ctx->segmentsIndices.base + inst->data.siBase + inst->data.begin - inst->data.idx;
+                        uint32_t is0, is1, *si = ctx->segmentsIndices.base + inst->data.idx;
                         for (j = 0; j < inst->data.count; j++, edge++) {
                             is0 = si[j];
                             is1 = ++j < inst->data.count ? si[j] : ~0;
