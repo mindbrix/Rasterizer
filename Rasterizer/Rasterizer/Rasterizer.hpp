@@ -1144,13 +1144,14 @@ struct Rasterizer {
                         }
                     } else if (inst->iz & Instance::kEdge) {
                         Index *is = ctx->indices[inst->data.iy].base + inst->data.begin, *eis = is + inst->data.count;
-                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx, *s0, *s1, snull = Sample(0, 0, 0, ~0);
+                        Sample *samples = ctx->samples[inst->data.iy].base + inst->data.idx;
+                        uint32_t is0, is1;
                         Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
                         for (; is < eis; is++, edge++) {
-                            s0 = samples + is->i;
-                            s1 = ++is < eis ? samples + is->i : & snull;
-                            edge->ic = uint32_t(ic) | ((s0->is << 10) & Edge::ue0) | ((s1->is << 6) & Edge::ue1);
-                            edge->i0 = s0->is & 0xFFFF, edge->ux = s1->is & 0xFFFF;
+                            is0 = (samples + is->i)->is;
+                            is1 = ++is < eis ? (samples + is->i)->is : ~0;
+                            edge->ic = uint32_t(ic) | ((is0 << 10) & Edge::ue0) | ((is1 << 6) & Edge::ue1);
+                            edge->i0 = is0 & 0xFFFF, edge->ux = is1 & 0xFFFF;
                         }
                         *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
                     }
