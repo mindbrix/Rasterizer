@@ -887,14 +887,14 @@ struct Rasterizer {
             y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
             y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                writeIndex(y0 * krfh, fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, dst - dst0);
             else {
                 float ly, uy, ily, iuy, iy, ny, t, lx, ux, scale = copysignf(kCoverScale, y1 - y0);
                 ly = fminf(y0, y1), ily = floorf(ly * krfh);
                 uy = fmaxf(y0, y1), iuy = ceilf(uy * krfh);
                 for (lx = y0 < y1 ? x0 : x1, iy = ily; iy < iuy; iy++, lx = ux, ly = ny) {
                     ny = fminf(uy, (iy + 1.f) * kfh), t = (ny - y0) / (y1 - y0), ux = (1.f - t) * x0 + t * x1;
-                    writeIndex(iy, fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale);
+                    new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * scale, dst - dst0);
                 }
             }
             new (dst++) Segment(x0, y0, x1, y1, 0);
@@ -904,7 +904,7 @@ struct Rasterizer {
             y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
             y2 = fmaxf(clip.ly, fminf(clip.uy, y2));
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                writeIndex(y0 * krfh, fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, dst - dst0);
             else {
                 float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, iy, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
@@ -915,13 +915,10 @@ struct Rasterizer {
                     ny = fminf(uy, (iy + 1.f) * kfh);
                     t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
                     t = fmaxf(0.f, fminf(1.f, t)), ux = (ax * t + bx) * t + x0;
-                    writeIndex(iy, fminf(lx, ux), fmaxf(lx, ux), sign * (ny - ly));
+                    new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
                 }
             }
             new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
-        }
-        __attribute__((always_inline)) void writeIndex(int ir, float lx, float ux, float cover) {
-            new (samples[ir].alloc(1)) Sample(lx, ux, cover, dst - dst0);
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
