@@ -858,11 +858,9 @@ struct Rasterizer {
                                         
                     if (idxr->fast) {
                         idxr->writeLine(x0, y0, x2, y2);
-                    } else if (ax * bx >= 0.f && ay * by >= 0.f) {
-                        if (y0 != y2) {
-                            idxr->writeQuadratic(x0, y0, x1, y1, x2, y2);
-                        }
-                    } else {
+                    } else if (ax * bx >= 0.f && ay * by >= 0.f)
+                        idxr->writeQuadratic(x0, y0, x1, y1, x2, y2);
+                    else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
                         float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
                         sx0 = x0, sy0 = y0;
