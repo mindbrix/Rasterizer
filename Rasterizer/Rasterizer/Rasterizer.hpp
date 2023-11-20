@@ -862,18 +862,16 @@ struct Rasterizer {
                         idxr->writeQuadratic(x0, y0, x1, y1, x2, y2);
                     else {
                         itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
-                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots, cpx, cpy;
+                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots;
                         sx0 = x0, sy0 = y0;
                         for (int i = 0; i < 3; i++, r++) {
                             if (r[0] != r[1]) {
                                 t = r[1], s = 1.f - t;
-                                cpx = (s * x0 + t * x1), sx2 = s * cpx + t * (s * x1 + t * x2);
-                                cpy = (s * y0 + t * y1), sy2 = s * cpy + t * (s * y1 + t * y2);
-                                if (sy0 != sy2) {
-                                    t = r[0] / r[1], s = 1.f - t;
-                                    sx1 = s * cpx + t * sx2, sy1 = s * cpy + t * sy2;
-                                    idxr->writeQuadratic(sx0, sy0, sx1, sy1, sx2, sy2);
-                                }
+                                sx1 = (s * x0 + t * x1), sx2 = s * sx1 + t * (s * x1 + t * x2);
+                                sy1 = (s * y0 + t * y1), sy2 = s * sy1 + t * (s * y1 + t * y2);
+                                t = r[0] / r[1], s = 1.f - t;
+                                sx1 = s * sx1 + t * sx2, sy1 = s * sy1 + t * sy2;
+                                idxr->writeQuadratic(sx0, sy0, sx1, sy1, sx2, sy2);
                                 sx0 = sx2, sy0 = sy2;
                             }
                         }
@@ -953,10 +951,14 @@ struct Rasterizer {
         Index *idx;  Sample *sample;
         Row<Index> *indices = & ctx.indices;
         Row<Sample> *samples = & ctx.samples[0];
+        
         for (iy = ily; iy < iuy; iy++, samples->idx = samples->end, samples++, indices->empty()) {
             if ((size = samples->end - samples->idx)) {
-                for (sample = samples->base + samples->idx, idx = indices->alloc(size), i = 0; i < size; i++, idx++, sample++)
-                    idx->x = sample->lx, idx->i = i;
+                for (sample = samples->base + samples->idx, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
+                    if (sample->cover)
+                        idx->x = sample->lx, idx->i = i, idx++;
+                }
+                size = idx - indices->base;
                 if (size > 32 && size < 65536)
                     radixSort((uint32_t *)indices->base, int(size), single ? clip.lx : 0, range, single, counts);
                 else
