@@ -107,7 +107,53 @@ float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2
 }
 
 
+float winding1(float x0, float y0, float x1, float y1, float w0, float w1) {
+    float dx, dy, t, cover = w1 - w0, a0, a1, wx, w0y, w1y;
+    dx = x1 - x0, dy = y1 - y0;
+    w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
+    w1y = dx * dy > 0.0 ? max(w0, w1) : min(w0, w1);
+    wx = 0.0;
+    a1 = (x0 - wx) * (y1 - w1y) - (y0 - w1y) * (x1 - wx);
+    wx = 1.0;
+    a0 = (x0 - wx) * (y1 - w0y) - (y0 - w0y) * (x1 - wx);
+
+    t = saturate(-a0 / (a1 - a0));
+    return t * cover;
+}
+
+float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float y2) {
+    float w0 = saturate(y0), w1 = saturate(y2);
+    if (abs(x1 - 0.5 * (x0 + x2)) < 1e-3)
+        return winding1(x0, y0, x2, y2, w0, w1);
+    float ay = y2 - y1, by = y1 - y0, t = by / (by - ay), s = 1.0 - t, ix = s * s * x0 + 2.0 * s * t * x1 + t * t * x2;
+//    if (ix < 0.0)
+//        return w1 - w0;
+    if (min(x0, min(x1, x2)) >= 1.0)
+        return 0;
+    if (max(x0, max(x1, x2)) <= 0.0)
+        return w1 - w0;
+    float dx, dy, cover = w1 - w0, a0, a, b, d, a1, wx, w0y, w1y;
+    dx = x2 - x0, dy = y2 - y0;
+    w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
+    w1y = dx * dy > 0.0 ? max(w0, w1) : min(w0, w1);
+    wx = 0.0;
+    a = (x0 - wx) * (y2 - w1y) - (y0 - w1y) * (x2 - wx), b = (x1 - wx) * (y0 - w1y) - (y1 - w1y) * (x0 - wx), d = (x2 - wx) * (y1 - w1y) - (y2 - w1y) * (x1 - wx);
+    a1 = 4.0 * b * d - a * a;
+//    a1 = (x0 - wx) * (y1 - w1y) - (y0 - w1y) * (x1 - wx);
+    wx = 1.0;
+    a = (x0 - wx) * (y2 - w0y) - (y0 - w0y) * (x2 - wx), b = (x1 - wx) * (y0 - w0y) - (y1 - w0y) * (x0 - wx), d = (x2 - wx) * (y1 - w0y) - (y2 - w0y) * (x1 - wx);
+    a0 = 4.0 * b * d - a * a;
+//    a0 = (x0 - wx) * (y1 - w0y) - (y0 - w0y) * (x1 - wx);
+
+    t = saturate(-a0 / (a1 - a0));
+//    return saturate(t - 0.5);
+    return t * cover;
+    
+}
+
+
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
+    return winding1(x0, y0, x1, y1, w0, w1);
     float dx, dy, a0, t, b, f, cover = w1 - w0;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
     dx = abs(dx), t = -a0 / fma(dx, cover, dy), dy = abs(dy);
@@ -406,8 +452,8 @@ fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
-            + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
+    return quadraticWinding1(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+            + quadraticWinding1(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
 }
 
 #pragma mark - Instances

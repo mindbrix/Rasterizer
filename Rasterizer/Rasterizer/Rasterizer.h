@@ -14,7 +14,7 @@
 #define kfh 16.f
 #define krfh 0.0625f
 #define kFastHeight 32
-#define kMoleculesHeight 64
+#define kMoleculesHeight 0
 #define kMoleculesRange 32767.f
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
@@ -24,4 +24,4 @@
 #define kPageSize 4096
 #define kMiterLimit 1.5
 #define kTextureSlotsSize 64
-#define kUseMaxArea 1
+#define kUseMaxArea 0
