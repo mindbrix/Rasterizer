@@ -14,7 +14,7 @@
 #define kfh 16.f
 #define krfh 0.0625f
 #define kFastHeight 32
-#define kMoleculesHeight 0
+#define kMoleculesHeight 64
 #define kMoleculesRange 32767.f
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
