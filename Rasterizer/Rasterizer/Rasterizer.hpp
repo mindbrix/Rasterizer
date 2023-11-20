@@ -952,9 +952,9 @@ struct Rasterizer {
         Row<Index> *indices = & ctx.indices;
         Row<Sample> *samples = & ctx.samples[0];
         
-        for (iy = ily; iy < iuy; iy++, samples->idx = samples->end, samples++, indices->empty()) {
-            if ((size = samples->end - samples->idx)) {
-                for (sample = samples->base + samples->idx, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
+        for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
+            if ((size = samples->end)) {
+                for (sample = samples->base, idx = indices->alloc(size), i = 0; i < size; i++, sample++) {
                     if (sample->cover)
                         idx->x = sample->lx, idx->i = i, idx++;
                 }
@@ -989,7 +989,7 @@ struct Rasterizer {
                         }
                         begin = i, lx = ux = index->x;
                     }
-                    sample = samples->base + samples->idx + index->i;
+                    sample = samples->base + index->i;
                     int16_t sux = sample->ux;
                     ux = sux > ux ? sux : ux, winding += sample->cover * wscale;
                     si[i] = sample->is;
