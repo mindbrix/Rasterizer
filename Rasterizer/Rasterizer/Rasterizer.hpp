@@ -948,9 +948,8 @@ struct Rasterizer {
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
         uint32_t range = single ? powf(2.f, ceilf(log2f(clip.ux - clip.lx + 1.f))) : 256;
-        Index *idx;  Sample *sample;
-        Row<Index> *indices = & ctx.indices;
-        Row<Sample> *samples = & ctx.samples[0];
+        Row<Index> *indices = & ctx.indices;  Index *idx;
+        Row<Sample> *samples = & ctx.samples[0];  Sample *sample;
         
         for (iy = ily; iy < iuy; iy++, samples->empty(), samples++, indices->empty()) {
             if ((size = samples->end)) {
