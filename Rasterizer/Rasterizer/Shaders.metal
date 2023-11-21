@@ -135,9 +135,9 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     dx = x2 - x0, dy = y2 - y0;
     dot = -(x0 * -dy + y0 * dx) * rsqrt(dx * dx + dy * dy);
     det = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
-    if (det * dy < 0.0 && det * dot > 0.0)
-        return w1 - w0;
-    
+    if (det * dot > 0.0)
+        return (det * dy < 0.0) * (w1 - w0);
+        
     float cover = w1 - w0, a0, a, b, d, a1, wx, w0y, w1y;
     dx = x2 - x0, dy = y2 - y0;
     w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
