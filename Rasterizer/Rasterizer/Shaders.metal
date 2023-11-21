@@ -128,28 +128,32 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     float ax, bx, ay, by, t, s, x, y, tx, ty, dx, dy, dot;
     ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
     ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
-    t = (bx * ax + by * ay) * -0.5 / (ax * ax + ay * ay), s = 1.0 - t;
-    x = fma(fma(ax, t, bx), t, x0);
-    y = fma(fma(ay, t, by), t, y0);
+    t = (bx * ax + by * ay) * -0.5 / (ax * ax + ay * ay), s = t;//saturate(t);
+    x = fma(fma(ax, s, bx), s, x0);
+    y = fma(fma(ay, s, by), s, y0);
     tx = fma(2.0 * ax, t, bx);
     ty = fma(2.0 * ay, t, by);
-    dot = -(x * tx + y * ty);
-    dx = x2 - x0, dy = y2 - y0;
-//    if (dot * dy > 0.0)
-//        return 0.5;
-    
-    if ((t < 0.0 || t > 1.0) && (dot * dy > 0.0))
-        return (dx * dy > 0.0) * (w1 - w0);// (dx * dy > 0.0) * (w1 - w0);
+    dot = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
+        
+//    if ((t < 0.0 && dot < 0.0) || (t > 1.0 && dot > 0.0))
+//        return (dx * dy > 0.0) * (w1 - w0); //0.25 * (w1 - w0);// // (dx * dy > 0.0) * (w1 - w0);
 //    float t = by / (by - ay), s = 1.0 - t, ix = s * s * x0 + 2.0 * s * t * x1 + t * t * x2;
     
     
-    
+//    return saturate(1.0 - abs(dot));
 //    if (ix < 0.0)
 //        return w1 - w0;
     if (min(x0, min(x1, x2)) >= 1.0)
         return 0;
     if (max(x0, max(x1, x2)) <= 0.0)
         return w1 - w0;
+    
+//    if (t < 0.0 && dot < -0.5)
+//        return 1.0 * (x < x0) * (w1 - w0);
+//    if (t > 1.0 && dot > 0.5)
+//        return 1.0 * (x > x2) * (w1 - w0);
+
+    
     float cover = w1 - w0, a0, a, b, d, a1, wx, w0y, w1y;
     dx = x2 - x0, dy = y2 - y0;
     w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
@@ -157,14 +161,11 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     wx = 0.0;
     a = (x0 - wx) * (y2 - w1y) - (y0 - w1y) * (x2 - wx), b = (x1 - wx) * (y0 - w1y) - (y1 - w1y) * (x0 - wx), d = (x2 - wx) * (y1 - w1y) - (y2 - w1y) * (x1 - wx);
     a1 = 4.0 * b * d - a * a;
-//    a1 = (x0 - wx) * (y1 - w1y) - (y0 - w1y) * (x1 - wx);
     wx = 1.0;
     a = (x0 - wx) * (y2 - w0y) - (y0 - w0y) * (x2 - wx), b = (x1 - wx) * (y0 - w0y) - (y1 - w0y) * (x0 - wx), d = (x2 - wx) * (y1 - w0y) - (y2 - w0y) * (x1 - wx);
     a0 = 4.0 * b * d - a * a;
-//    a0 = (x0 - wx) * (y1 - w0y) - (y0 - w0y) * (x1 - wx);
 
     t = saturate(-a0 / (a1 - a0));
-//    return saturate(t - 0.5);
     return t * cover;
     
 }
