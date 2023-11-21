@@ -125,24 +125,8 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     float w0 = saturate(y0), w1 = saturate(y2);
     if (abs(x1 - 0.5 * (x0 + x2)) < 1e-3)
         return winding1(x0, y0, x2, y2, w0, w1);
-    float ax, bx, ay, by, t, s, x, y, tx, ty, dx, dy, dot, det;
-    ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
-    ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.0;
-    t = (bx * ax + by * ay) * -0.5 / (ax * ax + ay * ay), s = t;//saturate(t);
-    x = fma(fma(ax, s, bx), s, x0);
-    y = fma(fma(ay, s, by), s, y0);
-    tx = fma(2.0 * ax, t, bx);
-    ty = fma(2.0 * ay, t, by);
-    dot = -(x * tx + y * ty) * rsqrt(tx * tx + ty * ty);
-        
-//    if ((t < 0.0 && dot < 0.0) || (t > 1.0 && dot > 0.0))
-//        return (dx * dy > 0.0) * (w1 - w0); //0.25 * (w1 - w0);// // (dx * dy > 0.0) * (w1 - w0);
-//    float t = by / (by - ay), s = 1.0 - t, ix = s * s * x0 + 2.0 * s * t * x1 + t * t * x2;
+    float t, dx, dy, dot, det;
     
-    
-//    return saturate(1.0 - abs(dot));
-//    if (ix < 0.0)
-//        return w1 - w0;
     if (min(x0, min(x1, x2)) >= 1.0)
         return 0;
     if (max(x0, max(x1, x2)) <= 0.0)
@@ -153,12 +137,6 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     det = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
     if (det * dy < 0.0 && det * dot > 0.0)
         return w1 - w0;
-    
-//    if (t < 0.0 && dot < -0.5)
-//        return 1.0 * (x < x0) * (w1 - w0);
-//    if (t > 1.0 && dot > 0.5)
-//        return 1.0 * (x > x2) * (w1 - w0);
-
     
     float cover = w1 - w0, a0, a, b, d, a1, wx, w0y, w1y;
     dx = x2 - x0, dy = y2 - y0;
