@@ -110,8 +110,8 @@ float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2
 float winding1(float x0, float y0, float x1, float y1, float w0, float w1) {
     float dx, dy, t, cover = w1 - w0, a0, a1, w0y, w1y;
     dx = x1 - x0, dy = y1 - y0;
-    w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
-    w1y = dx * dy > 0.0 ? max(w0, w1) : min(w0, w1);
+    w0y = dx < 0.0 ? w1 : w0;
+    w1y = dx < 0.0 ? w0 : w1;
     a1 = x0 * (y1 - w1y) - (y0 - w1y) * x1;
     a0 = a1 - dy - dx * (w1y - w0y);
 
@@ -137,8 +137,8 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
         return (det * dy < 0.0) * cover;
     
     dx = x2 - x0, dy = y2 - y0;
-    w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
-    w1y = dx * dy > 0.0 ? max(w0, w1) : min(w0, w1);
+    w0y = dx < 0.0 ? w1 : w0;
+    w1y = dx < 0.0 ? w0 : w1;
     a = x0 * (y2 - w1y) - (y0 - w1y) * x2, b = x1 * (y0 - w1y) - (y1 - w1y) * x0, d = x2 * (y1 - w1y) - (y2 - w1y) * x1;
     a1 = 4.0 * b * d - a * a;
     dw = w1y - w0y;
