@@ -989,8 +989,7 @@ struct Rasterizer {
                         begin = i, lx = ux = index->x;
                     }
                     sample = samples->base + index->i;
-                    int16_t sux = sample->ux;
-                    ux = sux > ux ? sux : ux, winding += sample->cover * wscale;
+                    ux = sample->ux > ux ? sample->ux : ux, winding += sample->cover * wscale;
                     si[i] = sample->is;
                 }
                 if (lx != ux) {
