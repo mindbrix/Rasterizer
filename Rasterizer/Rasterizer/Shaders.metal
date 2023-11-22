@@ -120,7 +120,7 @@ float winding1(float x0, float y0, float x1, float y1, float w0, float w1) {
 }
 
 float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float y2) {
-    float w0 = saturate(y0), w1 = saturate(y2);
+    float w0 = saturate(y0), w1 = saturate(y2), cover = w1 - w0, a0, a, b, d, a1, dw, w0y, w1y;
     if (abs(x1 - 0.5 * (x0 + x2)) < 1e-3)
         return winding1(x0, y0, x2, y2, w0, w1);
     float t, dx, dy, dot, det;
@@ -128,15 +128,14 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     if (min(x0, min(x1, x2)) >= 1.0)
         return 0;
     if (max(x0, max(x1, x2)) <= 0.0)
-        return w1 - w0;
+        return cover;
     
     dx = x2 - x0, dy = y2 - y0;
     dot = -(x0 * -dy + y0 * dx) * rsqrt(dx * dx + dy * dy);
     det = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
     if (sign(det) * dot > 1.0)
-        return (det * dy < 0.0) * (w1 - w0);
-        
-    float cover = w1 - w0, a0, a, b, d, a1, dw, w0y, w1y;
+        return (det * dy < 0.0) * cover;
+    
     dx = x2 - x0, dy = y2 - y0;
     w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
     w1y = dx * dy > 0.0 ? max(w0, w1) : min(w0, w1);
