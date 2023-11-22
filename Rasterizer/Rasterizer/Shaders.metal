@@ -117,10 +117,9 @@ float winding1(float x0, float y0, float x1, float y1, float w0, float w1) {
 
 float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0 = saturate(y0), w1 = saturate(y2), cover = w1 - w0, a0, a, b, d, a1, dw, w0y, w1y;
-    float t, dx, dy, dot, det, o = 0.0, f = 0.5, tf, ts;
+    float t, dx, dy, x, y, d0, d1, dot, det, o = 0.0, f = 0.5, tf, ts;
     det = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
     if (abs(det) < 1.0)
-//    if (abs(x1 - 0.5 * (x0 + x2)) < 1e-3)
         return winding1(x0, y0, x2, y2, w0, w1);
     
     if (min(x0, min(x1, x2)) >= 1.0)
@@ -128,8 +127,16 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     if (max(x0, max(x1, x2)) <= 0.0)
         return cover;
     
+    x = 0.5 * x1 + 0.25 * (x0 + x2);
+    y = 0.5 * y1 + 0.25 * (y0 + y2);
+    dx = x - x0, dy = y - y0, d0 = sign(det) * -(x0 * -dy + y0 * dx) * rsqrt(dx * dx + dy * dy);
+    dx = x2 - x, dy = y2 - y, d1 = sign(det) * -(x * -dy + y * dx) * rsqrt(dx * dx + dy * dy);
+    
+//    dx = x1 - x0, dy = y1 - y0, d0 = sign(det) * -(x0 * -dy + y0 * dx) * rsqrt(dx * dx + dy * dy);
+//    dx = x2 - x1, dy = y2 - y1, d1 = sign(det) * -(x1 * -dy + y1 * dx) * rsqrt(dx * dx + dy * dy);
+    dot = min(d0, d1);
     dx = x2 - x0, dy = y2 - y0;
-    dot = sign(det) * -(x0 * -dy + y0 * dx) * rsqrt(dx * dx + dy * dy);
+//    dot = sign(det) * -(x0 * -dy + y0 * dx) * rsqrt(dx * dx + dy * dy);
     a0 = dot + o - f, a1 = dot + o + f;
     tf = saturate(a0 / (a1 - a0));
     ts = det * dy < 0.0;
@@ -149,6 +156,9 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     a0 = 4.0 * b * d - a * a;
 
     t = saturate(-a0 / (a1 - a0));
+//    t = saturate( (-a0 / (a1 - a0) - 0.5) * 1.41 + 0.5 );
+//    tf = 1.0, ts = 0.5, t = 0.25;
+//    ts = 0.1;
     return ((1.0 - tf) * t + tf * ts) * cover;
 //    return t * cover;
     
