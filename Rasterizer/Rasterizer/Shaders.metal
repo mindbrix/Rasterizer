@@ -136,15 +136,16 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
     if (sign(det) * dot > 1.0)
         return (det * dy < 0.0) * (w1 - w0);
         
-    float cover = w1 - w0, a0, a, b, d, a1, wx, w0y, w1y;
+    float cover = w1 - w0, a0, a, b, d, a1, dw, w0y, w1y;
     dx = x2 - x0, dy = y2 - y0;
     w0y = dx * dy > 0.0 ? min(w0, w1) : max(w0, w1);
     w1y = dx * dy > 0.0 ? max(w0, w1) : min(w0, w1);
-    wx = 0.0;
-    a = (x0 - wx) * (y2 - w1y) - (y0 - w1y) * (x2 - wx), b = (x1 - wx) * (y0 - w1y) - (y1 - w1y) * (x0 - wx), d = (x2 - wx) * (y1 - w1y) - (y2 - w1y) * (x1 - wx);
+    a = x0 * (y2 - w1y) - (y0 - w1y) * x2, b = x1 * (y0 - w1y) - (y1 - w1y) * x0, d = x2 * (y1 - w1y) - (y2 - w1y) * x1;
     a1 = 4.0 * b * d - a * a;
-    wx = 1.0;
-    a = (x0 - wx) * (y2 - w0y) - (y0 - w0y) * (x2 - wx), b = (x1 - wx) * (y0 - w0y) - (y1 - w0y) * (x0 - wx), d = (x2 - wx) * (y1 - w0y) - (y2 - w0y) * (x1 - wx);
+    dw = w1y - w0y;
+    a -= dy + dx * dw;
+    b -= (y0 - y1) + (x0 - x1) * dw;
+    d -= (y1 - y2) + (x1 - x2) * dw;
     a0 = 4.0 * b * d - a * a;
 
     t = saturate(-a0 / (a1 - a0));
