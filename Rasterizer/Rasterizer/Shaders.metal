@@ -166,7 +166,6 @@ float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float 
 
 
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
-    return winding1(x0, y0, x1, y1, w0, w1);
     float dx, dy, a0, t, b, f, cover = w1 - w0;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
     dx = abs(dx), t = -a0 / fma(dx, cover, dy), dy = abs(dy);
@@ -465,8 +464,8 @@ fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return quadraticWinding1(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
-            + quadraticWinding1(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
+    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
+            + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
 }
 
 #pragma mark - Instances
