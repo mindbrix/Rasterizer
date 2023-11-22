@@ -108,12 +108,11 @@ float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2
 
 
 float winding1(float x0, float y0, float x1, float y1, float w0, float w1) {
-    float dx, dy, t, cover = w1 - w0, a0, a1;
+    float dx, dy, cover = w1 - w0, a0, a1;
     dx = x1 - x0, dy = y1 - y0;
     a1 = x0 * y1 - y0 * x1 + dx * (dx < 0.0 ? w0 : w1);
     a0 = a1 - dy - abs(dx) * cover;
-    t = saturate(-a0 / (a1 - a0));
-    return t * cover;
+    return saturate(-a0 / (a1 - a0)) * cover;
 }
 
 float quadraticWinding1(float x0, float y0, float x1, float y1, float x2, float y2) {
