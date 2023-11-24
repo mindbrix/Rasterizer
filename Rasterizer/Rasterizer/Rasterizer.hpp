@@ -230,17 +230,13 @@ struct Rasterizer {
         }
         static void WriteSegment16(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Geometry *g = (Geometry *)info;
-            size_t i = g->p16s.end;  Point16 *p = g->p16s.alloc(1);  float x2, y2;
+            size_t i = g->p16s.end;  Point16 *p = g->p16s.alloc(1);
             if ((curve & kEndSubpath) == 0) {
                 p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
                 if (curve == 0)
                     new (g->atoms.alloc(1)) Atom(i, false);
                 else if (curve == 1)
                     g->x0 = x0, g->y0 = y0, new (g->atoms.alloc(1)) Atom(i, true);
-                else {
-                    x2 = x1, x1 = x0, x0 = g->x0, y2 = y1, y1 = y0, y0 = g->y0;
-                    g->maxArea = fmaxf(g->maxArea, fabsf((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)));
-                }
             } else {
                 p->x = x1, p->y = y1;
                 
@@ -260,7 +256,7 @@ struct Rasterizer {
             }
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxArea = 0.f, maxCurve = 0.f, sizeFilter = FLT_EPSILON;  Row<uint8_t> types;  Row<float> points;
+        float x0 = 0.f, y0 = 0.f, maxCurve = 0.f, sizeFilter = FLT_EPSILON;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
     };
