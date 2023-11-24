@@ -214,6 +214,9 @@ struct Rasterizer {
         void close() {
             float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1, pts);
         }
+        inline bool isFlat() {
+            return counts[Geometry::kQuadratic] == 0 && counts[Geometry::kCubic] == 0;
+        }
         bool isValid() {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
@@ -546,10 +549,7 @@ struct Rasterizer {
                                 p16total += size;
 
                            float scale = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly) / kMoleculesRange;
-                           bool isFlat = kUseMaxArea ?
-                                (0.125f * g->maxArea * scale * scale * det < 1.f)
-                                : (g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0);
-                           bool fast = !buffer->useCurves || isFlat;
+                           bool fast = !buffer->useCurves || (kUseMaxArea ? 0.125f * g->maxArea * scale * scale * det < 1.f : g->isFlat());
 
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                            inst->quad.cover = 0, inst->data.idx = int(lz + ip);
@@ -558,7 +558,7 @@ struct Rasterizer {
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
-                            bool fast = !buffer->useCurves || ((g->counts[Geometry::kQuadratic] == 0 && g->counts[Geometry::kCubic] == 0));
+                            bool fast = !buffer->useCurves || g->isFlat();
                             CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
