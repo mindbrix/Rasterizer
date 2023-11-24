@@ -217,9 +217,6 @@ struct Rasterizer {
         void close() {
             float *pts = points.alloc(2);  pts[0] = x0, pts[1] = y0, update(kClose, 1, pts);
         }
-        inline bool isFlat() {
-            return counts[Geometry::kQuadratic] == 0 && counts[Geometry::kCubic] == 0;
-        }
         bool isValid() {
             validate();
             return types.end > 1 && *types.base == Geometry::kMove && (bounds.lx != bounds.ux || bounds.ly != bounds.uy);
@@ -555,7 +552,6 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
-//                            bool fast = !buffer->useCurves || g->isFlat();
                             CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
