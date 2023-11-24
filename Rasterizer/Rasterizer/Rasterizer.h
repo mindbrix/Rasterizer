@@ -8,6 +8,7 @@
 
 #define kTau 6.283185307179586f
 #define kCubicPrecision 0.25f
+#define kCubicMultiplier 10.3923048454f      // 18/sqrt(3);
 #define kCoverScale 2047.9375f
 #define kQuadraticFlatness 1e-2f
 #define kFatMask 0xFFFFFFF0

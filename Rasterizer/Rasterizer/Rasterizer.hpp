@@ -194,7 +194,7 @@ struct Rasterizer {
             }
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
-            float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f;
+            float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f, s;
             ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy + 1e-12f;
             if (dot < sizeFilter)
                 return;
@@ -207,8 +207,10 @@ struct Rasterizer {
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
                     float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
+                    s = ceilf(cbrtf(sqrtf(dot + 1e-12f) / (kCubicPrecision * kCubicMultiplier)));
+                    maxCurve = fmaxf(maxCurve, dot / s);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
-                    cubicSums += ceilf(sqrtf(sqrtf(dot))), maxCurve = fmaxf(maxCurve, dot);
+                    cubicSums += ceilf(sqrtf(sqrtf(dot)));
                 }
             }
         }
@@ -556,7 +558,8 @@ struct Rasterizer {
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
-                            bool fast = !buffer->useCurves || g->isFlat();
+                            bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
+//                            bool fast = !buffer->useCurves || g->isFlat();
                             CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, false, & idxr, CurveIndexer::WriteSegment);
                             Bounds clu = Bounds(inv.concat(unit));
@@ -822,7 +825,6 @@ struct Rasterizer {
         }
     }
     static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, SegmentFunction function, void *info, float prec) {
-        constexpr float multiplier = 10.3923048454; // 18/sqrt(3);
         float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
@@ -830,7 +832,7 @@ struct Rasterizer {
         if (prec > 0.f && adot + bdot < 1.f)
             (*function)(x0, y0, x3, y3, 0, info);
         else {
-            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(prec) * multiplier))), dt = 1.f / count, dt2 = dt * dt;
+            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(prec) * kCubicMultiplier))), dt = 1.f / count, dt2 = dt * dt;
             x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
             y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
             while (--count) {
