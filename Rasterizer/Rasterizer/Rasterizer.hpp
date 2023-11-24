@@ -342,7 +342,8 @@ struct Rasterizer {
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;
-        Ref<Vector<Path>> paths;  Ref<Vector<Transform>> ctms;  Ref<Vector<Bounds>> bnds;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
+        Ref<Vector<Path>> paths;  Ref<Vector<Bounds>> bnds;
+        Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     struct SceneList {
         Bounds bounds() {
