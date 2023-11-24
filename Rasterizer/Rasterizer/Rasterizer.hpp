@@ -129,10 +129,31 @@ struct Rasterizer {
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct Writer {
-        virtual void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {};
+        virtual void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) = 0;
+        virtual void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
+            writeSegment(x0, y0, x, y, 1), writeSegment(x, y, x2, y2, 2);
+        }
+        virtual void writeCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
+            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
+            cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
+            cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
+            adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
+            if (cubicScale > 0.f && adot + bdot < 1.f)
+                writeSegment(x0, y0, x3, y3, 0);
+            else {
+                count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier))), dt = 1.f / count, dt2 = dt * dt;
+                x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+                y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+                while (--count) {
+                    x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
+                    writeSegment(x0, y0, x1, y1, 2 - (int(count) & 1)), x0 = x1, y0 = y1;
+                }
+                writeSegment(x0, y0, x3, y3, 2);
+            }
+        }
+        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
-    typedef void (*QuadFunction)(float x0, float y0, float x1, float y1, float x2, float y2, Writer& writer, float s);
-    typedef void (*CubicFunction)(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Writer& writer, float s);
     struct Atom {
         Atom(size_t i, bool isCurve): i(uint32_t(i) | isCurve * Flags::isCurve) {}
         enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, isClose = 1 << 29, kMask = ~(isCurve | isEnd | isClose) };
@@ -321,7 +342,8 @@ struct Rasterizer {
                         size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
                         Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
                         g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
-                        divideGeometry(g, m, Bounds(), true, true, true, *g, bisectQuadratic, 0.f, divideCubic, -kCubicPrecision * (kMoleculesRange / kMoleculesHeight));
+                        g->cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+                        divideGeometry(g, m, Bounds(), true, true, true, *g);
                         uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                         assert(g->p16s.end <= upper);
                         assert(g->atoms.end <= upper);
@@ -593,7 +615,7 @@ struct Rasterizer {
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
-    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, Writer& writer, QuadFunction quadFunction = bisectQuadratic, float quadScale = 0.f, CubicFunction cubicFunction = divideCubic, float cubicScale = kCubicPrecision) {
+    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, Writer& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -613,16 +635,16 @@ struct Rasterizer {
                     x1 = p[0] * m.a + p[1] * m.c + m.tx, y1 = p[0] * m.b + p[1] * m.d + m.ty;
                     x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
                     if (unclipped)
-                        (*quadFunction)(x0, y0, x1, y1, x2, y2, writer, quadScale);
+                        writer.writeQuadratic(x0, y0, x1, y1, x2, y2);
                     else {
                         ly = fminf(y0, fminf(y1, y2)), uy = fmaxf(y0, fmaxf(y1, y2));
                         if (ly < clip.uy && uy > clip.ly) {
                             lx = fminf(x0, fminf(x1, x2)), ux = fmaxf(x0, fmaxf(x1, x2));
                             if (polygon || !(ux < clip.lx || lx > clip.ux)) {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    clipQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, writer, quadFunction, quadScale);
+                                    clipQuadratic(x0, y0, x1, y1, x2, y2, clip, lx, ly, ux, uy, polygon, writer);
                                 else
-                                    (*quadFunction)(x0, y0, x1, y1, x2, y2, writer, quadScale);
+                                    writer.writeQuadratic(x0, y0, x1, y1, x2, y2);
                             }
                         }
                     }
@@ -633,16 +655,16 @@ struct Rasterizer {
                     x2 = p[2] * m.a + p[3] * m.c + m.tx, y2 = p[2] * m.b + p[3] * m.d + m.ty;
                     x3 = p[4] * m.a + p[5] * m.c + m.tx, y3 = p[4] * m.b + p[5] * m.d + m.ty;
                     if (unclipped)
-                        (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, writer, cubicScale);
+                        writer.writeCubic(x0, y0, x1, y1, x2, y2, x3, y3);
                     else {
                         ly = fminf(fminf(y0, y1), fminf(y2, y3)), uy = fmaxf(fmaxf(y0, y1), fmaxf(y2, y3));
                         if (ly < clip.uy && uy > clip.ly) {
                             lx = fminf(fminf(x0, x1), fminf(x2, x3)), ux = fmaxf(fmaxf(x0, x1), fmaxf(x2, x3));
                             if (polygon || !(ux < clip.lx || lx > clip.ux)) {
                                 if (ly < clip.ly || uy > clip.uy || lx < clip.lx || ux > clip.ux)
-                                    clipCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, writer, cubicFunction, cubicScale);
+                                    clipCubic(x0, y0, x1, y1, x2, y2, x3, y3, clip, lx, ly, ux, uy, polygon, writer);
                                 else
-                                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, writer, cubicScale);
+                                    writer.writeCubic(x0, y0, x1, y1, x2, y2, x3, y3);
                             }
                         }
                     }
@@ -707,7 +729,7 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Writer& writer, QuadFunction quadFunction, float prec) {
+    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Writer& writer) {
         float ax, bx, ay, by, roots[10], *root = roots, *r, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
         ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
         *root++ = 0.f;
@@ -722,7 +744,7 @@ struct Rasterizer {
         if (root - roots == 1) {
             if (fmaxf(y0, y2) > clip.ly && fminf(y0, y2) < clip.uy) {
                 if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
-                    (*quadFunction)(x0, y0, x1, y1, x2, y2, writer, prec);
+                    writer.writeQuadratic(x0, y0, x1, y1, x2, y2);
                 else if (polygon)
                     vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y2, 0);
             }
@@ -735,16 +757,12 @@ struct Rasterizer {
                 mt = 0.5f * (r[0] + r[1]), mx = (ax * mt + bx) * mt + x0, my = (ay * mt + by) * mt + y0;
                 if (my >= clip.ly && my < clip.uy) {
                     if (mx >= clip.lx && mx < clip.ux)
-                        (*quadFunction)(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2, writer, prec);
+                        writer.writeQuadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
                     else if (polygon)
                         vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy2, 0);
                 }
             }
         }
-    }
-    static void bisectQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Writer& writer, float s) {
-        float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
-        writer.writeSegment(x0, y0, x, y, 1), writer.writeSegment(x, y, x2, y2, 2);
     }
     static float *solveCubic(double B, double C, double D, double A, float *roots) {
         if (fabs(A) < 1e-3)
@@ -771,7 +789,7 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Writer& writer, CubicFunction cubicFunction, float prec) {
+    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Writer& writer) {
         float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, s, w0, w1, w2, w3, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
@@ -787,7 +805,7 @@ struct Rasterizer {
         if (root - roots == 1) {
             if (fmaxf(y0, y3) > clip.ly && fminf(y0, y3) < clip.uy) {
                 if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
-                    (*cubicFunction)(x0, y0, x1, y1, x2, y2, x3, y3, writer, prec);
+                    writer.writeCubic(x0, y0, x1, y1, x2, y2, x3, y3);
                 else if (polygon)
                     vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y3, 0);
             }
@@ -806,34 +824,16 @@ struct Rasterizer {
                         mt = u * r[0] + v * r[1], x2t = ((ax * mt + bx) * mt + cx) * mt + x0, y2t = ((ay * mt + by) * mt + cy) * mt + y0;
                         fx = x1t - v3 * x0t - u3 * x3t, gx = x2t - u3 * x0t - v3 * x3t;
                         fy = y1t - v3 * y0t - u3 * y3t, gy = y2t - u3 * y0t - v3 * y3t;
-                        (*cubicFunction)(
+                        writer.writeCubic(
                             x0t, y0t,
                             3.f * fx - 1.5f * gx, 3.f * fy - 1.5f * gy,
                             3.f * gx - 1.5f * fx, 3.f * gy - 1.5f * fy,
-                            x3t, y3t, writer, prec
+                            x3t, y3t
                         );
                     } else if (polygon)
                         vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0t, vx, y3t, 0);
                 }
             }
-        }
-    }
-    static void divideCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Writer& writer, float prec) {
-        float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
-        cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
-        cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
-        adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
-        if (prec > 0.f && adot + bdot < 1.f)
-            writer.writeSegment(x0, y0, x3, y3, 0);
-        else {
-            count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(prec) * kCubicMultiplier))), dt = 1.f / count, dt2 = dt * dt;
-            x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
-            y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
-            while (--count) {
-                x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
-                writer.writeSegment(x0, y0, x1, y1, 2 - (int(count) & 1)), x0 = x1, y0 = y1;
-            }
-            writer.writeSegment(x0, y0, x3, y3, 2);
         }
     }
     struct CurveIndexer: Writer {

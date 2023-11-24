@@ -50,6 +50,9 @@ struct RasterizerWinding {
                 count(x0, y0, x1, y1, curve, this);
             }
         }
+        void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            divideQuadratic(x0, y0, x1, y1, x2, y2, *this, quadraticScale);
+        }
         static void count(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
             Counter *cntr = (Counter *)info;
             if (cntr->dy >= (y0 < y1 ? y0 : y1) && cntr->dy < (y0 > y1 ? y0 : y1)) {
@@ -94,14 +97,15 @@ struct RasterizerWinding {
     static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, Ra::Bounds device, float dx, float dy, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
         Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
+        cntr.quadraticScale = cntr.cubicScale = 1.f;
         Ra::Transform unit = bounds.inset(-uw, -uw).unit(m), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit);
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
         if (clip.lx < clip.ux && clip.ly < clip.uy && ux >= 0.f && ux <= 1.f && uy >= 0.f && uy <= 1.f) {
             if (w)
-                Ra::divideGeometry(g, m, clip, false, false, false, cntr, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
+                Ra::divideGeometry(g, m, clip, false, false, false, cntr);
             else
-                Ra::divideGeometry(g, m, clip, false, true, false, cntr, divideQuadratic, 1.f, Ra::divideCubic, 1.f);
+                Ra::divideGeometry(g, m, clip, false, true, false, cntr);
         }
         return cntr.winding;
     }
