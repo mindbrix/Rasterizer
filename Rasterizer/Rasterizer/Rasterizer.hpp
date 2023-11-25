@@ -1007,29 +1007,25 @@ struct Rasterizer {
     
     struct Outliner: Writer {
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if ((curve & kEndSubpath) == 0) {
-                if (curve == 0)
-                    writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
-                else if (curve == 1)
-                    px0 = x0, py0 = y0;
-                else {
-                    float cpx, ax, bx, cpy, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
-                    cpx = 2.f * x0 - 0.5f * (px0 + x1), ax = x1 - cpx, bx = cpx - px0;
-                    cpy = 2.f * y0 - 0.5f * (py0 + y1), ay = y1 - cpy, by = cpy - py0;
-                    adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
-                    if (cosine > 0.7071f)
-                        writeQuadratic(px0, py0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : cpx, cpy, x1, y1);
-                    else {
-                        a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
-                        tx0 = s * px0 + t * cpx, tx1 = s * cpx + t * x1, x = s * tx0 + t * tx1;
-                        ty0 = s * py0 + t * cpy, ty1 = s * cpy + t * y1, y = s * ty0 + t * ty1;
-                        writeQuadratic(px0, py0, tx0, ty0, x, y);
-                        writeQuadratic(x, y, tx1, ty1, x1, y1);
-                    }
-                }
-            } else if (dst - dst0 > 0) {
+            if ((curve & kEndSubpath) == 0)
+                writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
+            else if (dst - dst0 > 0) {
                 Instance *first = dst0, *last = dst - 1;  dst0 = dst;
                 first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
+            }
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
+            ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
+            adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
+            if (cosine > 0.7071f)
+                writeQuadratic(x0, y0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : x1, y1, x2, y2);
+            else {
+                a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
+                tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
+                ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
+                writeQuadratic(x0, y0, tx0, ty0, x, y);
+                writeQuadratic(x, y, tx1, ty1, x2, y2);
             }
         }
         inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
