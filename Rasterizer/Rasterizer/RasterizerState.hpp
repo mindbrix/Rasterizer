@@ -87,7 +87,7 @@ struct RasterizerState {
                     else if (e.keyCode == KeyCode::kL) {
                         locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
                         if (locked.begin != INT_MAX) {
-                            Ra::Geometry *p = list.scenes[locked.begin].cache->entryAt(locked.end)->g;
+                            Ra::Geometry *p = list.scenes[locked.begin].paths->base[locked.end].ptr;
                             p = p;
                         }
                     }

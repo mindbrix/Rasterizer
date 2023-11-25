@@ -344,21 +344,18 @@ struct Rasterizer {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
-                Entry *e;  Bounds *be;  Image *ie;
-                if ((e = cache->addEntry())) {
-//                    e->g = g;
-                    if (kMoleculesHeight && g->p16s.end == 0) {
-                        float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-                        float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
-                        size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
-                        Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
-                        g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
-                        g->cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-                        divideGeometry(g, m, Bounds(), true, true, true, *g);
-                        uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
-                        assert(g->p16s.end <= upper);
-                        assert(g->atoms.end <= upper);
-                    }
+                Bounds *be;  Image *ie;
+                if (kMoleculesHeight && g->p16s.end == 0) {
+                    float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+                    float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
+                    size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
+                    Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
+                    g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
+                    g->cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+                    divideGeometry(g, m, Bounds(), true, true, true, *g);
+                    uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
+                    assert(g->p16s.end <= upper);
+                    assert(g->atoms.end <= upper);
                 }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
@@ -376,7 +373,7 @@ struct Rasterizer {
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
-        Ref<Cache<Entry>> cache;  Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;
+        Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;
         Ref<Vector<Path>> paths;  Ref<Vector<Bounds>> bnds;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
