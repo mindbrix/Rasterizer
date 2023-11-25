@@ -317,6 +317,10 @@ struct Rasterizer {
         template<typename T>
         struct Cache {
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
+            T *addEntry() {
+                *(ips.alloc(1)) = uint32_t(entries.end);
+                return entries.zalloc(1);
+            }
             T *addEntry(size_t hash) {
                 T *e = nullptr;  auto ip = ips.alloc(1);  *ip = 0;
                 if (hash != 0) {
@@ -341,7 +345,7 @@ struct Rasterizer {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
                 Entry *e;  Bounds *be;  Image *ie;
-                if ((e = cache->addEntry(g->hash()))) {
+                if ((e = cache->addEntry())) {
                     e->g = g;
                     if (kMoleculesHeight && g->p16s.end == 0) {
                         float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
