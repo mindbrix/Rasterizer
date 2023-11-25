@@ -45,9 +45,28 @@ struct RasterizerWinding {
         
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
             if (dw) {
-                countOutline(x0, y0, x1, y1, curve, this);
+                if (x0 != x1 || y0 != y1) {
+                    float ax, ay, adot, len, bx, by, cx, cy, t, s, sx, sy, cap;
+                    bool square = flags & Ra::Scene::kSquareCap;
+                    bool round = flags & Ra::Scene::kRoundCap;
+                    cap = square ? 0.5f * dw : 0.f;
+                    ax = x1 - x0, ay = y1 - y0, adot = ax * ax + ay * ay, len = sqrtf(adot), bx = dx - x0, by = dy - y0;
+                    sx = (ax * bx + ay * by) / len, sy = (ax * by - ay * bx) / len;
+                    t = (ax * bx + ay * by) / adot, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+                    cx = s * x0 + t * x1 - dx, cy = s * y0 + t * y1 - dy;
+                    if (round && sqrtf(cx * cx + cy * cy) < 0.5f * dw)
+                        winding = 1;
+                    else if (sx > -cap && sx < len + cap && fabsf(sy) < 0.5f * dw)
+                        winding = 1;
+                }
             } else {
-                count(x0, y0, x1, y1, curve, this);
+                if (dy >= (y0 < y1 ? y0 : y1) && dy < (y0 > y1 ? y0 : y1)) {
+                    float det = (x1 - x0) * (dy - y0) - (y1 - y0) * (dx - x0);
+                    if (y0 < y1 && det < 0.f)
+                        winding++;
+                    else if (y0 > y1 && det > 0.f)
+                        winding--;
+                }
             }
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
@@ -61,33 +80,6 @@ struct RasterizerWinding {
                 writeSegment(x0, y0, x1, y1, 1), x0 = x1, y0 = y1;
             }
             writeSegment(x0, y0, x2, y2, dt == 1.f ? 0 : 2);
-        }
-        static void count(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            Counter *cntr = (Counter *)info;
-            if (cntr->dy >= (y0 < y1 ? y0 : y1) && cntr->dy < (y0 > y1 ? y0 : y1)) {
-                float det = (x1 - x0) * (cntr->dy - y0) - (y1 - y0) * (cntr->dx - x0);
-                if (y0 < y1 && det < 0.f)
-                    cntr->winding++;
-                else if (y0 > y1 && det > 0.f)
-                    cntr->winding--;
-            }
-        }
-        static void countOutline(float x0, float y0, float x1, float y1, uint32_t curve, void *info) {
-            if (x0 != x1 || y0 != y1) {
-                Counter *cntr = (Counter *)info;
-                float ax, ay, adot, len, bx, by, cx, cy, t, s, sx, sy, cap;
-                bool square = cntr->flags & Ra::Scene::kSquareCap;
-                bool round = cntr->flags & Ra::Scene::kRoundCap;
-                cap = square ? 0.5f * cntr->dw : 0.f;
-                ax = x1 - x0, ay = y1 - y0, adot = ax * ax + ay * ay, len = sqrtf(adot), bx = cntr->dx - x0, by = cntr->dy - y0;
-                sx = (ax * bx + ay * by) / len, sy = (ax * by - ay * bx) / len;
-                t = (ax * bx + ay * by) / adot, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
-                cx = s * x0 + t * x1 - cntr->dx, cy = s * y0 + t * y1 - cntr->dy;
-                if (round && sqrtf(cx * cx + cy * cy) < 0.5f * cntr->dw)
-                    cntr->winding = 1;
-                else if (sx > -cap && sx < len + cap && fabsf(sy) < 0.5f * cntr->dw)
-                    cntr->winding = 1;
-            }
         }
     };
     
