@@ -962,7 +962,6 @@ struct Rasterizer {
                 for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < size; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
-//                            assert(ux <= clip.ux);
                             Blend *inst = new (ctx.blends.alloc(1)) Blend(edgeIz);
                             ctx.allocator.alloc(lx, ly, ux, uy, ctx.blends.end - 1, & inst->quad.cell, type, (i - begin + 1) / 2);
                             inst->quad.cover = short(cover), inst->quad.base = int(ctx.segments.idx), inst->data.count = int(i - begin), inst->data.idx = int(siBase + begin);
