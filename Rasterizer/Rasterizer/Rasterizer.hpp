@@ -346,7 +346,7 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 Entry *e;  Bounds *be;  Image *ie;
                 if ((e = cache->addEntry())) {
-                    e->g = g;
+//                    e->g = g;
                     if (kMoleculesHeight && g->p16s.end == 0) {
                         float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
                         float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
