@@ -130,10 +130,7 @@ struct Rasterizer {
     };
     struct Writer {
         virtual void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) = 0;
-        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float x = 0.25f * (x0 + x2) + 0.5f * x1, y = 0.25f * (y0 + y2) + 0.5f * y1;
-            writeSegment(x0, y0, x, y, 1), writeSegment(x, y, x2, y2, 2);
-        }
+        virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
         virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
@@ -259,11 +256,14 @@ struct Rasterizer {
         }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
             Point16 *p = p16s.alloc(1);
-            p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
-            if (curve == 0)
-                new (atoms.alloc(1)) Atom(p16s.end - 1, false);
-            else if (curve == 1)
-                new (atoms.alloc(1)) Atom(p16s.end - 1, true);
+            p->x = x0, p->y = y0;
+            new (atoms.alloc(1)) Atom(p16s.end - 1, false);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            Point16 *p = p16s.alloc(2);
+            p->x = uint16_t(x0), p->y = uint16_t(y0) | (1 << 15);
+            p++, p->x = 0.5f * x1 + 0.25f * (x0 + x2), p->y = 0.5f * y1 + 0.25f * (y0 + y2);
+            new (atoms.alloc(1)) Atom(p16s.end - 2, true);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
             Point16 *p = p16s.alloc(1);
@@ -995,9 +995,8 @@ struct Rasterizer {
         }
     }
     struct SegmentCounter: Writer {
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            count++;
-        }
+        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) { count += 1; }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) { count += 2; }
         size_t count = 0;
     };
     
