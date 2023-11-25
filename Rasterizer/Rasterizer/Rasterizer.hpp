@@ -258,30 +258,30 @@ struct Rasterizer {
             return xxhash;
         }
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            size_t i = p16s.end;  Point16 *p = p16s.alloc(1);
-            if ((curve & kEndSubpath) == 0) {
-                p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
-                if (curve == 0)
-                    new (atoms.alloc(1)) Atom(i, false);
-                else if (curve == 1)
-                    new (atoms.alloc(1)) Atom(i, true);
-            } else {
-                p->x = x1, p->y = y1;
-                
-                bool isClose = bool(curve & 2) && !bool(curve & 1);
-                
-                if (atoms.idx < atoms.end)
-                    atoms.back().i |= Atom::isEnd | isClose * Atom::isClose;
-                atoms.idx = atoms.end;
-                
-                size_t segcnt = p16s.end - p16s.idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
-                uint8_t *cnt = p16cnts.alloc(icount), flags = 0x80 | (isClose * 0x8);
-                for (int i = 0; i < icount; i++) {
-                    rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
-                    cnt[i] = sz | ((sz && sz == rem) * flags);
-                }
-                p16s.zalloc(p16cnts.end * kFastSegments - p16s.end), p16s.idx = p16s.end;
+            Point16 *p = p16s.alloc(1);
+            p->x = uint16_t(x0) | ((curve & 2) << 14), p->y = uint16_t(y0) | ((curve & 1) << 15);
+            if (curve == 0)
+                new (atoms.alloc(1)) Atom(p16s.end - 1, false);
+            else if (curve == 1)
+                new (atoms.alloc(1)) Atom(p16s.end - 1, true);
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
+            Point16 *p = p16s.alloc(1);
+            p->x = x1, p->y = y1;
+            
+            bool isClose = bool(curve & 2) && !bool(curve & 1);
+            
+            if (atoms.idx < atoms.end)
+                atoms.back().i |= Atom::isEnd | isClose * Atom::isClose;
+            atoms.idx = atoms.end;
+            
+            size_t segcnt = p16s.end - p16s.idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
+            uint8_t *cnt = p16cnts.alloc(icount), flags = 0x80 | (isClose * 0x8);
+            for (int i = 0; i < icount; i++) {
+                rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
+                cnt[i] = sz | ((sz && sz == rem) * flags);
             }
+            p16s.zalloc(p16cnts.end * kFastSegments - p16s.end), p16s.idx = p16s.end;
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f, sizeFilter = FLT_EPSILON;  Row<uint8_t> types;  Row<float> points;
