@@ -43,7 +43,7 @@ struct RasterizerWinding {
     struct Counter: Ra::Writer {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
         
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void writeSegment(float x0, float y0, float x1, float y1) {
             if (dw) {
                 if (x0 != x1 || y0 != y1) {
                     float ax, ay, adot, len, bx, by, cx, cy, t, s, sx, sy, cap;
@@ -77,9 +77,9 @@ struct RasterizerWinding {
             ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
             while (--count) {
                 x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-                writeSegment(x0, y0, x1, y1, 1), x0 = x1, y0 = y1;
+                writeSegment(x0, y0, x1, y1), x0 = x1, y0 = y1;
             }
-            writeSegment(x0, y0, x2, y2, dt == 1.f ? 0 : 2);
+            writeSegment(x0, y0, x2, y2);
         }
     };
     

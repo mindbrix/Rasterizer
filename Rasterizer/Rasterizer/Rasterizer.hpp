@@ -129,7 +129,7 @@ struct Rasterizer {
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
     struct Writer {
-        virtual void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) = 0;
+        virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
         virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
         virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
@@ -137,7 +137,7 @@ struct Rasterizer {
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
             adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
             if (cubicScale > 0.f && adot + bdot < 1.f)
-                writeSegment(x0, y0, x3, y3, 0);
+                writeSegment(x0, y0, x3, y3);
             else {
                 count = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier))), dt = 0.5f / count, dt2 = dt * dt;
                 x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
@@ -153,9 +153,8 @@ struct Rasterizer {
                 Quadratic(x0, y0, 2.f * x - 0.5f * (x0 + x3), 2.f * y - 0.5f * (y0 + y3), x3, y3);
             }
         }
-        virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
-            writeSegment(x0, y0, x1, y1, kEndSubpath | curve);
-        }
+        virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {}
+        
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
     struct Atom {
@@ -254,7 +253,7 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void writeSegment(float x0, float y0, float x1, float y1) {
             Point16 *p = p16s.alloc(1);
             p->x = x0, p->y = y0;
             new (atoms.alloc(1)) Atom(p16s.end - 1, false);
@@ -685,14 +684,14 @@ struct Rasterizer {
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
         if (unclipped)
-            writer.writeSegment(x0, y0, x1, y1, 0);
+            writer.writeSegment(x0, y0, x1, y1);
         else {
             float ly = fminf(y0, y1), uy = fmaxf(y0, y1);
             if (ly < clip.uy && uy > clip.ly) {
                 if (ly < clip.ly || uy > clip.uy || fminf(x0, x1) < clip.lx || fmaxf(x0, x1) > clip.ux)
                     clipLine(x0, y0, x1, y1, clip, polygon, writer);
                 else
-                    writer.writeSegment(x0, y0, x1, y1, 0);
+                    writer.writeSegment(x0, y0, x1, y1);
             }
         }
     }
@@ -715,9 +714,9 @@ struct Rasterizer {
             sy1 = s * y0 + t * y1, my = 0.5f * (sy0 + sy1);
             if (my >= clip.ly && my < clip.uy) {
                 if (mx >= clip.lx && mx < clip.ux)
-                    writer.writeSegment(sx0, sy0, sx1, sy1, 0);
+                    writer.writeSegment(sx0, sy0, sx1, sy1);
                 else if (polygon)
-                    vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy1, 0);
+                    vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy1);
             }
         }
     }
@@ -750,7 +749,7 @@ struct Rasterizer {
                 if (fmaxf(x0, x2) > clip.lx && fminf(x0, x2) < clip.ux)
                     writer.Quadratic(x0, y0, x1, y1, x2, y2);
                 else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y2, 0);
+                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y2);
             }
         } else {
             std::sort(roots + 1, root), *root = 1.f;
@@ -763,7 +762,7 @@ struct Rasterizer {
                     if (mx >= clip.lx && mx < clip.ux)
                         writer.Quadratic(sx0, sy0, 2.f * mx - 0.5f * (sx0 + sx2), 2.f * my - 0.5f * (sy0 + sy2), sx2, sy2);
                     else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy2, 0);
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, sy0, vx, sy2);
                 }
             }
         }
@@ -811,7 +810,7 @@ struct Rasterizer {
                 if (fmaxf(x0, x3) > clip.lx && fminf(x0, x3) < clip.ux)
                     writer.Cubic(x0, y0, x1, y1, x2, y2, x3, y3);
                 else if (polygon)
-                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y3, 0);
+                    vx = lx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0, vx, y3);
             }
         } else {
             std::sort(roots + 1, root), *root = 1.f;
@@ -835,7 +834,7 @@ struct Rasterizer {
                             x3t, y3t
                         );
                     } else if (polygon)
-                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0t, vx, y3t, 0);
+                        vx = mx <= clip.lx ? clip.lx : clip.ux, writer.writeSegment(vx, y0t, vx, y3t);
                 }
             }
         }
@@ -843,7 +842,7 @@ struct Rasterizer {
     struct CurveIndexer: Writer {
         Segment *dst, *dst0;  bool fast;  int ily, iuy;  Bounds clip;  Row<Sample> *samples;
         
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1)
                 writeLine(x0, y0, x1, y1);
         }
@@ -995,13 +994,13 @@ struct Rasterizer {
         }
     }
     struct SegmentCounter: Writer {
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) { count += 1; }
+        void writeSegment(float x0, float y0, float x1, float y1) { count += 1; }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) { count += 2; }
         size_t count = 0;
     };
     
     struct Outliner: Writer {
-        void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void writeSegment(float x0, float y0, float x1, float y1) {
             writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
