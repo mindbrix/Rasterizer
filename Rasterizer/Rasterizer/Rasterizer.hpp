@@ -563,7 +563,7 @@ struct Rasterizer {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
                         if (buffer->_slots[iz])
                             buffer->_texctms[iz] = unit.invert(), allocator.allocImage(blends.end);
-                        Geometry *g = scn->cache->entries.base[is].g;
+                        Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
@@ -1057,15 +1057,14 @@ struct Rasterizer {
         return size;
     }
     static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
-        size_t i, j, size, iz, is, lz, ic, end, pbase = 0, instbegin, passsize;
+        size_t i, j, count, size, iz, is, lz, ic, end, pbase = 0, instbegin, passsize;
         if (ctx->segments.end || ctx->p16total) {
             ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, 0), size = ctx->segments.end * sizeof(Segment);
             memcpy(buffer.base + begin, ctx->segments.base, size), begin += size, ctx->entries.emplace_back(Buffer::kPointsBase, begin, 0);
-            Row<Scene::Entry> *entries;
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
-                for (entries = & list.scenes[i].cache->entries, is = 0; is < entries->end; is++)
+                for (count = list.scenes[i].count, is = 0; is < count; is++)
                     if (ctx->fasts.base[lz + is]) {
-                        Geometry *g = entries->base[is].g;
+                        Geometry *g = list.scenes[i].paths->base[is].ptr;
                         size = g->p16s.end * sizeof(Geometry::Point16);
                         memcpy(buffer.base + begin, g->p16s.base, size);
                         begin += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
@@ -1100,7 +1099,7 @@ struct Rasterizer {
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner outliner;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
-                Geometry *g = list.scenes[i].cache->entries.base[is].g;
+                Geometry *g = list.scenes[i].paths->base[is].ptr;
                 if (inst->iz & Instance::kOutlines) {
                     outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst;
                     divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, outliner);
