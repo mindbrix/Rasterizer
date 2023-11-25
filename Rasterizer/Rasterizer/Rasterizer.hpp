@@ -135,21 +135,29 @@ struct Rasterizer {
             writeSegment(x0, y0, x, y, 1), writeSegment(x, y, x2, y2, 2);
         }
         virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
-            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y;
+            float cx, bx, ax, cy, by, ay, adot, bdot, count, dt, dt2, f3x, f2x, f1x, f3y, f2y, f1y, x, y;
             cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
             cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
             adot = ax * ax + ay * ay, bdot = bx * bx + by * by;
             if (cubicScale > 0.f && adot + bdot < 1.f)
                 writeSegment(x0, y0, x3, y3, 0);
             else {
-                count = 2.f * ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier))), dt = 1.f / count, dt2 = dt * dt;
-                x1 = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
-                y1 = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
+                count = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier))), dt = 0.5f / count, dt2 = dt * dt;
+                x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
+                y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
                 while (--count) {
-                    x1 += f1x, f1x += f2x, f2x += f3x, y1 += f1y, f1y += f2y, f2y += f3y;
-                    writeSegment(x0, y0, x1, y1, 2 - (int(count) & 1)), x0 = x1, y0 = y1;
+                    x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
+                    x1 = x, y1 = y;
+                    x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
+                    x1 = 2.f * x1 - 0.5f * (x0 + x);
+                    y1 = 2.f * y1 - 0.5f * (y0 + y);
+                    Quadratic(x0, y0, x1, y1, x, y);
+                    x0 = x, y0 = y;
                 }
-                writeSegment(x0, y0, x3, y3, 2);
+                x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
+                x1 = 2.f * x - 0.5f * (x0 + x3);
+                y1 = 2.f * y - 0.5f * (y0 + y3);
+                Quadratic(x0, y0, x1, y1, x3, y3);
             }
         }
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
