@@ -156,6 +156,9 @@ struct Rasterizer {
                 Quadratic(x0, y0, 2.f * x - 0.5f * (x0 + x3), 2.f * y - 0.5f * (y0 + y3), x3, y3);
             }
         }
+        virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
+            writeSegment(x0, y0, x1, y1, kEndSubpath | curve);
+        }
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
     struct Atom {
@@ -627,7 +630,7 @@ struct Rasterizer {
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
                     if (mark && sx != FLT_MAX)
-                        writer.writeSegment(x0, y0, sx, sy, kEndSubpath | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
+                        writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -681,7 +684,7 @@ struct Rasterizer {
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
         if (mark)
-            writer.writeSegment(x0, y0, sx, sy, kEndSubpath | (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
+            writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
         if (unclipped)
@@ -1003,12 +1006,7 @@ struct Rasterizer {
     
     struct Outliner: Writer {
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if ((curve & kEndSubpath) == 0)
-                writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
-            else if (dst - dst0 > 0) {
-                Instance *first = dst0, *last = dst - 1;  dst0 = dst;
-                first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
-            }
+            writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
@@ -1022,6 +1020,12 @@ struct Rasterizer {
                 ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
                 writeQuadratic(x0, y0, tx0, ty0, x, y);
                 writeQuadratic(x, y, tx1, ty1, x2, y2);
+            }
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
+            if (dst - dst0 > 0) {
+                Instance *first = dst0, *last = dst - 1;  dst0 = dst;
+                first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
         inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
