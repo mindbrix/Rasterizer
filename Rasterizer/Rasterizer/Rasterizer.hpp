@@ -347,7 +347,7 @@ struct Rasterizer {
                     Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
                     g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
                     g->cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-                    divideGeometry(g, m, Bounds(), true, true, true, *g);
+                    divideGeometry(g, m, Bounds(), true, true, *g);
                     uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                     assert(g->p16s.end <= upper);
                     assert(g->atoms.end <= upper);
@@ -562,7 +562,7 @@ struct Rasterizer {
                            inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                SegmentCounter counter;
-                               divideGeometry(g, m, inst->clip, false, false, false, counter);
+                               divideGeometry(g, m, inst->clip, false, false, counter);
                                outlineInstances += counter.count;
                            } else
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
@@ -580,7 +580,7 @@ struct Rasterizer {
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
                             CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
-                            divideGeometry(g, m, clip, clip.contains(dev), true, false, idxr);
+                            divideGeometry(g, m, clip, clip.contains(dev), true, idxr);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
@@ -618,14 +618,14 @@ struct Rasterizer {
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
         Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
-    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, bool mark, Writer& writer) {
+    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
                 case Geometry::kMove:
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-                    if (mark && sx != FLT_MAX)
+                    if (sx != FLT_MAX)
                         writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
@@ -679,8 +679,7 @@ struct Rasterizer {
             }
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-        if (mark)
-            writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
+        writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
         if (unclipped)
@@ -1093,7 +1092,7 @@ struct Rasterizer {
                 Geometry *g = list.scenes[i].paths->base[is].ptr;
                 if (inst->iz & Instance::kOutlines) {
                     outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst;
-                    divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, true, outliner);
+                    divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, outliner);
                     dst = outliner.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
