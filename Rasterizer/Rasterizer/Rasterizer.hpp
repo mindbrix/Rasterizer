@@ -317,10 +317,6 @@ struct Rasterizer {
         template<typename T>
         struct Cache {
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
-            T *addEntry() {
-                *(ips.alloc(1)) = uint32_t(entries.end);
-                return entries.zalloc(1);
-            }
             T *addEntry(size_t hash) {
                 T *e = nullptr;  auto ip = ips.alloc(1);  *ip = 0;
                 if (hash != 0) {
