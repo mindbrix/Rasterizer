@@ -573,7 +573,7 @@ struct Rasterizer {
                                 p16total += size;
                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                           inst->quad.cover = 0, inst->data.idx = int(lz + is);
+                           inst->quad.cover = 0;
                            int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
@@ -1099,7 +1099,7 @@ struct Rasterizer {
                     if (inst->iz & Instance::kMolecule) {
                         Atom *atom = g->atoms.base;  uint32_t ia;
                         bool hasMolecules = g->molecules.end > 1;
-                        dst[-1].quad.base = int(ctx->fasts.base[inst->data.idx]);
+                        dst[-1].quad.base = int(ctx->fasts.base[iz]);
                         if (widths[iz]) {
                             bool fast = inst->iz & Instance::kFastEdges;
                             Edge *outline = fast ? fastOutline : quadOutline;  uint8_t *p16cnt = g->p16cnts.base;
