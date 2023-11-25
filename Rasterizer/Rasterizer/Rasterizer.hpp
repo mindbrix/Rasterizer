@@ -149,15 +149,11 @@ struct Rasterizer {
                     x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
                     x1 = x, y1 = y;
                     x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
-                    x1 = 2.f * x1 - 0.5f * (x0 + x);
-                    y1 = 2.f * y1 - 0.5f * (y0 + y);
-                    Quadratic(x0, y0, x1, y1, x, y);
+                    Quadratic(x0, y0, 2.f * x1 - 0.5f * (x0 + x), 2.f * y1 - 0.5f * (y0 + y), x, y);
                     x0 = x, y0 = y;
                 }
                 x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
-                x1 = 2.f * x - 0.5f * (x0 + x3);
-                y1 = 2.f * y - 0.5f * (y0 + y3);
-                Quadratic(x0, y0, x1, y1, x3, y3);
+                Quadratic(x0, y0, 2.f * x - 0.5f * (x0 + x3), 2.f * y - 0.5f * (y0 + y3), x3, y3);
             }
         }
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
