@@ -845,38 +845,33 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer: Writer {
-        Segment *dst, *dst0;  bool fast;  float px0, py0;  int ily, iuy;  Bounds clip;  Row<Sample> *samples;
+        Segment *dst, *dst0;  bool fast;  int ily, iuy;  Bounds clip;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1, uint32_t curve) {
-            if (y0 != y1 || curve) {
-                if (curve == 0)
-                    writeLine(x0, y0, x1, y1);
-                else if (curve == 1)
-                    px0 = x0, py0 = y0;
-                else {
-                    float x2, y2, ax, ay, bx, by, itx, ity, s, t, sx0, sy0, sx1, sy1, sx2, sy2;
-                    x2 = x1, x1 = x0, x0 = px0; x1 = 2.f * x1 - 0.5f * (x0 + x2), ax = x2 - x1, bx = x1 - x0;
-                    y2 = y1, y1 = y0, y0 = py0, y1 = 2.f * y1 - 0.5f * (y0 + y2), ay = y2 - y1, by = y1 - y0;
-                                        
-                    if (fast) {
-                        writeLine(x0, y0, x2, y2);
-                    } else if (ax * bx >= 0.f && ay * by >= 0.f)
-                        writeQuadratic(x0, y0, x1, y1, x2, y2);
-                    else {
-                        itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
-                        float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots;
-                        sx0 = x0, sy0 = y0;
-                        for (int i = 0; i < 3; i++, r++) {
-                            if (r[0] != r[1]) {
-                                t = r[1], s = 1.f - t;
-                                sx1 = (s * x0 + t * x1), sx2 = s * sx1 + t * (s * x1 + t * x2);
-                                sy1 = (s * y0 + t * y1), sy2 = s * sy1 + t * (s * y1 + t * y2);
-                                t = r[0] / r[1], s = 1.f - t;
-                                sx1 = s * sx1 + t * sx2, sy1 = s * sy1 + t * sy2;
-                                writeQuadratic(sx0, sy0, sx1, sy1, sx2, sy2);
-                                sx0 = sx2, sy0 = sy2;
-                            }
-                        }
+            if (y0 != y1)
+                writeLine(x0, y0, x1, y1);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            float ax, ay, bx, by, itx, ity, s, t, sx0, sy0, sx1, sy1, sx2, sy2;
+            ax = x2 - x1, bx = x1 - x0;
+            ay = y2 - y1, by = y1 - y0;
+            if (fast) {
+                writeLine(x0, y0, x2, y2);
+            } else if (ax * bx >= 0.f && ay * by >= 0.f)
+                writeQuadratic(x0, y0, x1, y1, x2, y2);
+            else {
+                itx = fmaxf(0.f, fminf(1.f, bx / (bx - ax))), ity = fmaxf(0.f, fminf(1.f, by / (by - ay)));
+                float roots[4] = { 0.f, fminf(itx, ity), fmaxf(itx, ity), 1.f }, *r = roots;
+                sx0 = x0, sy0 = y0;
+                for (int i = 0; i < 3; i++, r++) {
+                    if (r[0] != r[1]) {
+                        t = r[1], s = 1.f - t;
+                        sx1 = (s * x0 + t * x1), sx2 = s * sx1 + t * (s * x1 + t * x2);
+                        sy1 = (s * y0 + t * y1), sy2 = s * sy1 + t * (s * y1 + t * y2);
+                        t = r[0] / r[1], s = 1.f - t;
+                        sx1 = s * sx1 + t * sx2, sy1 = s * sy1 + t * sy2;
+                        writeQuadratic(sx0, sy0, sx1, sy1, sx2, sy2);
+                        sx0 = sx2, sy0 = sy2;
                     }
                 }
             }
