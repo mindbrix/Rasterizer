@@ -19,7 +19,6 @@
 #define kMoleculesRange 32767.f
 #define kFastSegments 4
 #define kNullIndex 0xFFFF
-#define kEndSubpath 0x80000000
 #define kPathIndexMask 0xFFFFFF
 #define kMinUpperDet 16.f
 #define kPageSize 4096
