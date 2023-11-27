@@ -14,16 +14,15 @@ struct RasterizerRenderer {
         if (list.pathsCount == 0)
             return;
         buffer->prepare(list), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
-        size_t i, izs[kQueueCount + 1];  writeIzs(list, izs);
-        
-        for (i = 0; i < kQueueCount; i++) {
-            contexts[i].prepare(state.device, list.pathsCount, izs[i], izs[i + 1]);
-        }
+         
+        size_t izs[kQueueCount + 1], *pizs = izs;
+        writeIzs(list, izs);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
+            contexts[i].prepare(state.device, list.pathsCount, pizs[i], pizs[i + 1]);
             contexts[i].drawList(list, state.view, buffer);
         });
-        size_t begins[kQueueCount], size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *buffer);
-        size_t *bs = begins;
+        size_t begins[kQueueCount], *bs = begins, size;
+        size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *buffer);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             Ra::writeContextToBuffer(list, contexts + i, *(bs + i), *buffer);
         });
