@@ -52,7 +52,6 @@
 		E9710C4A24CF975B00F31953 /* xxhash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = xxhash.c; sourceTree = "<group>"; };
 		E9710C4B24CF975B00F31953 /* xxhash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xxhash.h; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
-		E97782A822BF7D78003C2D3E /* RasterizerQueue.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerQueue.hpp; sourceTree = "<group>"; };
 		E990649021C2E11500D2DBF2 /* RasterizerLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerLayer.h; sourceTree = "<group>"; };
 		E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerLayer.mm; sourceTree = "<group>"; };
 		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.metal; };
@@ -156,7 +155,6 @@
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
 				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
 				E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */,
-				E97782A822BF7D78003C2D3E /* RasterizerQueue.hpp */,
 				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerState.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
