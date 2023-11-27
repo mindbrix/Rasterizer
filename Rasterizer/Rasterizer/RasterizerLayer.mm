@@ -329,51 +329,12 @@ struct TextureCache {
                         textures[i] = _textureCache.textures[i % _textureCache.textures.size()].texture;
                     [commandEncoder setFragmentTextures:textures withRange:NSMakeRange(2, kTextureSlotsSize)];
                 }
-                
-                if (1) {
-                    bool isOutline = false, instIsOutline;
-                    std::vector<size_t> chidxes;
-                    size_t i, i0, i1, count = (entry.end - entry.begin) / sizeof(Ra::Instance);
-                    Ra::Instance *instances = (Ra::Instance *)(buffer->base + entry.begin);
-                    for (i = 0; i < count; i++) {
-                        instIsOutline = instances[i].iz & Ra::Instance::kOutlines;
-                        if (isOutline != instIsOutline) {
-                            chidxes.emplace_back(i);
-                            isOutline = instIsOutline;
-                        }
-                    }
-                    chidxes.emplace_back(count);
-                    
-                    isOutline = false;
-                    count = chidxes.size();
-                    i0 = 0;
-                    for (i = 0; i < count; i++, i0 = i1) {
-                        i1 = chidxes[i];
-                        if (i0 != i1) {
-                            if (isOutline)
-                                [commandEncoder setRenderPipelineState:_instancesPipelineState];
-                            else
-                                [commandEncoder setRenderPipelineState:_instancesPipelineState];
-                            
-                            [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin + i0 * sizeof(Ra::Instance) atIndex:1];
-                            
-                            [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                               vertexStart:0
-                                               vertexCount:4
-                                             instanceCount:i1 - i0
-                                              baseInstance:0];
-                        }
-                        isOutline = !isOutline;
-                    }
-                } else {
-                    [commandEncoder setRenderPipelineState:_instancesPipelineState];
-                    
-                    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
-                                       vertexStart:0
-                                       vertexCount:4
-                                     instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
-                                      baseInstance:0];
-                }
+                [commandEncoder setRenderPipelineState:_instancesPipelineState];
+                [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
+                                   vertexStart:0
+                                   vertexCount:4
+                                 instanceCount:(entry.end - entry.begin) / sizeof(Ra::Instance)
+                                  baseInstance:0];
                 break;
         }
     }
