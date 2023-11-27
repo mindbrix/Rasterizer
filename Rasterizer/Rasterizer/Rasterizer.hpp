@@ -204,14 +204,14 @@ struct Rasterizer {
         }
         void lineTo(float x1, float y1) {
             float ax = x1 - x0, ay = y1 - y0, dot = ax * ax + ay * ay;
-            if (dot < sizeFilter)
+            if (dot == 0.f)
                 return;
             float *pts = points.alloc(2);  x0 = pts[0] = x1, y0 = pts[1] = y1, update(kLine, 1, pts);
         }
         void quadTo(float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, dot, t, err = 1e-2f;
-            ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0, dot = bx * bx + by * by + 1e-12f;
-            if (dot < sizeFilter)
+            ax = x1 - x0, bx = x2 - x0, ay = y1 - y0, by = y2 - y0, dot = bx * bx + by * by;
+            if (dot == 0.f)
                 return;
             t = fabsf(ax * -by + ay * bx) / dot;
             if (t < err) {
@@ -223,8 +223,8 @@ struct Rasterizer {
         }
         void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
             float cx, bx, ax, cy, by, ay, dot, t0, t1, err = 1e-2f, s;
-            ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy + 1e-12f;
-            if (dot < sizeFilter)
+            ax = x1 - x0, bx = x2 - x0, cx = x3 - x0, ay = y1 - y0, by = y2 - y0, cy = y3 - y0, dot = cx * cx + cy * cy;
+            if (dot == 0.f)
                 return;
             t0 = fabsf(ax * -cy + ay * cx) / dot, t1 = fabsf(bx * -cy + by * cx) / dot;
             if (t0 < err && t1 < err) {
@@ -283,7 +283,7 @@ struct Rasterizer {
             p16s.zalloc(p16cnts.end * kFastSegments - p16s.end), p16s.idx = p16s.end;
         }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
-        float x0 = 0.f, y0 = 0.f, maxCurve = 0.f, sizeFilter = FLT_EPSILON;  Row<uint8_t> types;  Row<float> points;
+        float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
     };

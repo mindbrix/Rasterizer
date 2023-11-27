@@ -19,8 +19,7 @@ struct RasterizerSVG {
             return colorFromSVGColor(paint.gradient->stops[0].color);
     }
     static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
-        constexpr float tolerance = 1e-2f;  float *pts;  int i;
-        p->sizeFilter = tolerance;
+        float *pts;  int i;
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
             for (pts = path->pts, p->moveTo(pts[0], height - pts[1]), i = 0; i < path->npts - 1; i += 3, pts += 6)
                 p->cubicTo(pts[2], height - pts[3], pts[4], height - pts[5], pts[6], height - pts[7]);

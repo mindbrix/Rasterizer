@@ -56,9 +56,7 @@ struct RasterizerFont {
         int i, nverts = stbtt_GetGlyphShape(& info, glyph, & v), x0, y0, x1, y1;
         if (nverts) {
             stbtt_GetCodepointBox(& info, glyph, & x0, & y0, & x1, & y1);
-            float dim = fmaxf(x1 - x0, y1 - y0) * 1e-3f;
             Ra::Geometry *g = path.ptr;
-            g->sizeFilter = dim * dim;
             g->points.prealloc(nverts * 3 * 2);
             g->types.prealloc(nverts * 3);
             g->molecules.prealloc(16);
