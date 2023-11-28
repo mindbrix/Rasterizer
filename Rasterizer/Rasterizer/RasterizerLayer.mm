@@ -240,10 +240,6 @@
                                      instanceCount:(entry.end - entry.begin) / sizeof(Ra::Edge)
                                       baseInstance:0];
                 }
-                if (entry.type == Ra::Buffer::kQuadMolecules) {
-                    [commandEncoder endEncoding];
-                    commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:drawableDescriptor];
-                }
                 break;
             case Ra::Buffer::kInstances:
                 [commandEncoder endEncoding];
