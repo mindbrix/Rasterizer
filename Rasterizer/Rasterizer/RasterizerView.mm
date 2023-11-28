@@ -13,8 +13,6 @@
 #import "RasterizerFont.hpp"
 #import "RasterizerTest.hpp"
 #import "RasterizerLayer.h"
-#import "fpdfview.h"
-#import "fpdf_edit.h"
 
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 

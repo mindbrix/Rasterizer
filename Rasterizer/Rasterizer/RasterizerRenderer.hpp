@@ -6,7 +6,6 @@
 //  Copyright © 2020 @mindbrix. All rights reserved.
 //
 
-#import "RasterizerState.hpp"
 
 struct RasterizerRenderer {
      void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Transform view, Ra::Buffer *buffer) {
