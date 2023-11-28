@@ -157,12 +157,12 @@ struct Rasterizer {
         
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
+    struct Point16 {  uint16_t x, y;  };
+    
     struct Atom {
-        Atom(size_t i, bool isCurve): i(uint32_t(i) | isCurve * Flags::isCurve) {}
         enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, isClose = 1 << 29, kMask = ~(isCurve | isEnd | isClose) };
         uint32_t i;
     };
-    struct Point16 {  uint16_t x, y;  };
     
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
@@ -263,14 +263,14 @@ struct Rasterizer {
         void writeSegment(float x0, float y0, float x1, float y1) {
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
-            new (a++) Atom(p - p0, false), p++;
+            a->i = uint32_t(p - p0), a++, p++;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             p[0].x = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | 0x8000;
             p[0].y = fmaxf(0.f, fminf(kMoleculesRange, y0));
             p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
-            new (a++) Atom(p - p0, true), p += 2;
+            a->i = uint32_t(p - p0) | Atom::isCurve, a++, p += 2;
         }
         void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
