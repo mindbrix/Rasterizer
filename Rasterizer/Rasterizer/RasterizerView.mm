@@ -223,10 +223,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    _state.update(self.layer.contentsScale, self.bounds.size.width, self.bounds.size.height);
-    _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
     buffer->useCurves = _state.useCurves, buffer->fastOutlines = _state.fastOutlines;
-    _renderer.renderList(_list, _state.device, _state.view, buffer);
+    
+    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    _state.update(scale, w, h);
+    _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
+    
+    Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
+    Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_state.ctm);
+    _renderer.renderList(_list, device, view, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
 
