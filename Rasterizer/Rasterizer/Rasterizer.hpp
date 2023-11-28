@@ -972,7 +972,7 @@ struct Rasterizer {
             Outline& o = dst->outline;
             dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
         }
-        uint32_t iz;  Instance *dst0, *dst; float px0, py0;
+        uint32_t iz;  Instance *dst0, *dst;
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
         size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
