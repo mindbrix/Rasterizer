@@ -23,4 +23,3 @@
 #define kMinUpperDet 16.f
 #define kPageSize 4096
 #define kMiterLimit 1.5
-#define kTextureSlotsSize 64
