@@ -31,11 +31,11 @@ struct RasterizerRenderer {
         assert(size >= end);
     }
     
-    void writeDivisions(Ra::SceneList& list, size_t *izs) {
+    void writeDivisions(Ra::SceneList& list, size_t *divisions) {
         size_t total = 0, count, base, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
-        izs[0] = 0, izs[kQueueCount] = list.pathsCount;
+        divisions[0] = 0, divisions[kQueueCount] = list.pathsCount;
         auto scene = & list.scenes[0];
         for (count = base = iz = 0, i = 1; i < kQueueCount; i++) {
             for (target = total * i / kQueueCount; count < target; iz++) {
@@ -43,7 +43,7 @@ struct RasterizerRenderer {
                     scene++, base = iz;
                 count += scene->paths->base[iz - base]->types.end;
             }
-            izs[i] = iz;
+            divisions[i] = iz;
         }
     }
     static const int kQueueCount = 8;
