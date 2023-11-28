@@ -539,7 +539,7 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
-                            CurveIndexer idxr; idxr.clip = clip, idxr.ily = int(clip.ly * krfh), idxr.iuy = ceilf(clip.uy * krfh), idxr.samples = & samples[0] - idxr.ily, idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
+                            CurveIndexer idxr; idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, idxr);
                             Bounds clu = Bounds(inv.concat(unit));
                             bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
@@ -783,7 +783,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer: Writer {
-        Segment *dst, *dst0;  bool fast;  int ily, iuy;  Bounds clip;  Row<Sample> *samples;
+        Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1)
