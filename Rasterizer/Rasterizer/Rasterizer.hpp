@@ -157,7 +157,10 @@ struct Rasterizer {
         
         float quadraticScale = 1.f, cubicScale = kCubicPrecision;
     };
-    struct Point16 {  uint16_t x, y;  };
+    struct Point16 {
+        enum Flags { isCurve = 0x8000, kMask = ~isCurve };
+        uint16_t x, y;
+    };
     
     struct Atom {
         enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, isClose = 1 << 29, kMask = ~(isCurve | isEnd | isClose) };
@@ -266,7 +269,7 @@ struct Rasterizer {
             a->i = uint32_t(p - p0), a++, p++;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            p[0].x = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | 0x8000;
+            p[0].x = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | Point16::isCurve;
             p[0].y = fmaxf(0.f, fminf(kMoleculesRange, y0));
             p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));

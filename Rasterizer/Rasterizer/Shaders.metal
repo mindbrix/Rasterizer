@@ -10,7 +10,6 @@
 using namespace metal;
 
 constexpr sampler s = sampler(coord::normalized, address::clamp_to_zero, mag_filter::nearest, min_filter::nearest, mip_filter::linear);
-constexpr sampler imgSampler = sampler(filter::linear, mip_filter::linear);
 
 struct Transform {
     Transform() : a(1), b(0), c(0), d(1), tx(0), ty(0) {}
@@ -26,6 +25,7 @@ struct Colorant {
 };
 
 struct Point16 {
+    enum Flags { isCurve = 0x8000, kMask = ~isCurve };
     uint16_t x, y;
 };
 struct Segment {
@@ -204,7 +204,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
     segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
-    x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+    x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask, pts++;
     x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     
     *dst++ = slx = sux = x0, *dst++ = sly = suy = y0;
@@ -212,7 +212,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     for (i = 0; i < kFastSegments; i++, dst += 2) {
         skip |= i >= segcount;
         
-        x16 = pts->x & 0x7FFF, y16 = pts->y & 0x7FFF, pts++;
+        x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask, pts++;
         x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
         dst[0] = select(x0, dst[-2], skip), slx = min(slx, dst[0]), sux = max(sux, dst[0]);
         dst[1] = select(y0, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
@@ -284,12 +284,12 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    x16 = p->x & 0x7FFF, y16 = p->y & 0x7FFF;
+    x16 = p->x & Point16::kMask, y16 = p->y & Point16::kMask;
     x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-    x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
+    x16 = (p + 1)->x & Point16::kMask, y16 = (p + 1)->y & Point16::kMask;
     x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
-    if (p->x & 0x8000) {
-        x16 = (p + 2)->x & 0x7FFF, y16 = (p + 2)->y & 0x7FFF;
+    if (p->x & Point16::isCurve) {
+        x16 = (p + 2)->x & Point16::kMask, y16 = (p + 2)->y & Point16::kMask;
         x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
     } else {
