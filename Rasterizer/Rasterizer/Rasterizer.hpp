@@ -485,9 +485,9 @@ struct Rasterizer {
     };
     
     struct Context {
-        void drawList(SceneList& list, Bounds dev, Transform view, size_t slz, size_t suz, Buffer *buffer) {
-            device = dev, empty(), allocator.empty(device);
-            size_t fatlines = 1.f + ceilf((dev.uy - dev.ly) * krfh);
+        void drawList(SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+            empty(), allocator.empty(device);
+            size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.size() != fatlines)
                 samples.resize(fatlines);
             fasts.zalloc(list.pathsCount);
@@ -558,7 +558,7 @@ struct Rasterizer {
         }
         void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), samples.resize(0), entries = std::vector<Buffer::Entry>(); }
         size_t outlinePaths = 0, outlineInstances = 0, p16total;
-        Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
+        Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
         Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
