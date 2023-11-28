@@ -15,7 +15,7 @@
 
 struct RasterizerPDF {
     struct PathWriter {
-        float x, y, px = 0.f, py = 0.f;
+        float x, y;
         std::vector<float> bezier;
         
         Ra::Path createPathFromClipPath(FPDF_CLIPPATH clipPath, int index) {
@@ -44,18 +44,15 @@ struct RasterizerPDF {
             switch (FPDFPathSegment_GetType(segment)) {
                 case FPDF_SEGMENT_MOVETO:
                     p->moveTo(x, y);
-                    px = x, py = y;
                     break;
                 case FPDF_SEGMENT_LINETO:
                     p->lineTo(x, y);
-                    px = x, py = y;
                     break;
                 case FPDF_SEGMENT_BEZIERTO:
                     bezier.emplace_back(x);
                     bezier.emplace_back(y);
                     if (bezier.size() == 6) {
                         p->cubicTo(bezier[0], bezier[1], bezier[2], bezier[3], bezier[4], bezier[5]);
-                        px = x, py = y;
                         bezier.clear();
                     }
                     break;
