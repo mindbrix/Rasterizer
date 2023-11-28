@@ -473,14 +473,13 @@ struct Rasterizer {
     };
     
     struct Context {
-        void prepare(Bounds dev, size_t pathsCount, size_t slz, size_t suz) {
-            device = dev, empty(), allocator.empty(device), this->slz = slz, this->suz = suz;
+        void drawList(SceneList& list, Bounds dev, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+            device = dev, empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((dev.uy - dev.ly) * krfh);
             if (samples.size() != fatlines)
                 samples.resize(fatlines);
-            bzero(fasts.alloc(pathsCount), pathsCount * sizeof(*fasts.base));
-        }
-        void drawList(SceneList& list, Transform view, Buffer *buffer) {
+            fasts.zalloc(list.pathsCount);
+            
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
@@ -546,7 +545,7 @@ struct Rasterizer {
             entries = std::vector<Buffer::Entry>();
         }
         void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), samples.resize(0), entries = std::vector<Buffer::Entry>(); }
-        size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
+        size_t outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
         Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;

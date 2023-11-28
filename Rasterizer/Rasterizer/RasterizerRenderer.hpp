@@ -18,8 +18,7 @@ struct RasterizerRenderer {
         size_t izs[kQueueCount + 1], *pizs = izs;
         writeIzs(list, izs);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].prepare(state.device, list.pathsCount, pizs[i], pizs[i + 1]);
-            contexts[i].drawList(list, state.view, buffer);
+            contexts[i].drawList(list, state.device, state.view, pizs[i], pizs[i + 1], buffer);
         });
         size_t begins[kQueueCount], *bs = begins, size;
         size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *buffer);
