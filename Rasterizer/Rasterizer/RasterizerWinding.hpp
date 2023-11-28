@@ -52,7 +52,7 @@ struct RasterizerWinding {
                     cap = square ? 0.5f * dw : 0.f;
                     ax = x1 - x0, ay = y1 - y0, adot = ax * ax + ay * ay, len = sqrtf(adot), bx = dx - x0, by = dy - y0;
                     sx = (ax * bx + ay * by) / len, sy = (ax * by - ay * bx) / len;
-                    t = (ax * bx + ay * by) / adot, t = t < 0.f ? 0.f : t > 1.f ? 1.f : t, s = 1.f - t;
+                    t = (ax * bx + ay * by) / adot, t = fmaxf(0.f, fminf(1.f, t)), s = 1.f - t;
                     cx = s * x0 + t * x1 - dx, cy = s * y0 + t * y1 - dy;
                     if (round && sqrtf(cx * cx + cy * cy) < 0.5f * dw)
                         winding = 1;
