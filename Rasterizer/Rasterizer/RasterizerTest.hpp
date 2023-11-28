@@ -140,11 +140,16 @@ struct RasterizerTest {
             if (!font.isEmpty()) {
                 float r = r0 + 0.25f * inset, da, a0;
                 Ra::Row<char> str;
+                char strbuf[32];
                 for (int j = 0; j < divisions[i]; j++) {
-                    if (labels[i])
-                        str = str.empty() + labels[i][j];
-                    else
-                        str = str.empty() + j;
+                    if (labels[i]) {
+                        str.empty();
+                        strcpy(str.alloc(strlen(labels[i][j]) + 1), labels[i][j]);
+                    } else {
+                        str.empty();
+                        bzero(strbuf, sizeof(strbuf)), snprintf(strbuf, 32, "%d", j);
+                        strcpy(str.alloc(strlen(strbuf) + 1), strbuf);
+                    }
                     Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::layoutGlyphs(font, inset * 0.666f, 0.f, black, b, false, false, false, str.base, glyphs);
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                     

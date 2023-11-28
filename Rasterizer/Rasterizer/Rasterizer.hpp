@@ -116,8 +116,7 @@ struct Rasterizer {
         inline T& back() { return base[end - 1]; }
         Row<T>& empty() { end = idx = 0; return *this; }
         void reset() { end = idx = 0, base = nullptr, memory = Ref<Memory<T>>(); }
-        Row<T>& operator+(const T *src) { if (src) { do *(alloc(1)) = *src; while (*src++);  --end; } return *this; }
-        Row<T>& operator+(const int n) { char buf[32]; bzero(buf, sizeof(buf)), snprintf(buf, 32, "%d", n); operator+((T *)buf); return *this; }
+        
         T *base = nullptr;  Ref<Memory<T>> memory;  size_t end = 0, idx = 0;
     };
     struct Range {
