@@ -288,7 +288,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     x16 = (p + 1)->x & 0x7FFF, y16 = (p + 1)->y & 0x7FFF;
     x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
-    if (p->y & 0x8000) {
+    if (p->x & 0x8000) {
         x16 = (p + 2)->x & 0x7FFF, y16 = (p + 2)->y & 0x7FFF;
         x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);

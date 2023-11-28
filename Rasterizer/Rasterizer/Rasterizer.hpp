@@ -266,8 +266,8 @@ struct Rasterizer {
             new (a++) Atom(p - p0, false), p++;
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            p[0].x = fmaxf(0.f, fminf(kMoleculesRange, x0));
-            p[0].y = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, y0))) | (1 << 15);
+            p[0].x = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, x0))) | 0x8000;
+            p[0].y = fmaxf(0.f, fminf(kMoleculesRange, y0));
             p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
             new (a++) Atom(p - p0, true), p += 2;
