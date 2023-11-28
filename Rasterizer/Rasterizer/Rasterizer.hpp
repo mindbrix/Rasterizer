@@ -255,18 +255,22 @@ struct Rasterizer {
         }
         void writeSegment(float x0, float y0, float x1, float y1) {
             Point16 *p = p16s.alloc(1);
-            p->x = x0, p->y = y0;
+            p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
+            p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
             new (atoms.alloc(1)) Atom(p16s.end - 1, false);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             Point16 *p = p16s.alloc(2);
-            p->x = uint16_t(x0), p->y = uint16_t(y0) | (1 << 15);
-            p++, p->x = 0.5f * x1 + 0.25f * (x0 + x2), p->y = 0.5f * y1 + 0.25f * (y0 + y2);
+            p[0].x = fmaxf(0.f, fminf(kMoleculesRange, x0));
+            p[0].y = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, y0))) | (1 << 15);
+            p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
+            p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
             new (atoms.alloc(1)) Atom(p16s.end - 2, true);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
             Point16 *p = p16s.alloc(1);
-            p->x = x1, p->y = y1;
+            p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
+            p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
             
             bool isClose = bool(curve & 2) && !bool(curve & 1);
             
@@ -322,9 +326,9 @@ struct Rasterizer {
                 Bounds *be;
                 if (kMoleculesHeight && g->p16s.end == 0) {
                     float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-                    float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
+                    float s = kMoleculesRange / dim, det = s * s;
                     size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
-                    Transform m = Transform(s, 0.f, 0.f, s, err + s * -g->bounds.lx, err + s * -g->bounds.ly);
+                    Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
                     g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
                     g->cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
                     divideGeometry(g, m, Bounds(), true, true, *g);
