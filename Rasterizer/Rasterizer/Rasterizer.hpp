@@ -980,16 +980,19 @@ struct Rasterizer {
     static void writeContextToBuffer(SceneList& list, Context *ctx, size_t begin, Buffer& buffer) {
         size_t i, j, count, size, iz, is, lz, ic, end, pbase = 0, instbegin, passsize;
         if (ctx->segments.end || ctx->p16total) {
-            ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, 0), size = ctx->segments.end * sizeof(Segment);
-            memcpy(buffer.base + begin, ctx->segments.base, size), begin += size, ctx->entries.emplace_back(Buffer::kPointsBase, begin, 0);
+            size = ctx->segments.end * sizeof(Segment), end = begin + size;
+            ctx->entries.emplace_back(Buffer::kSegmentsBase, begin, end);
+            memcpy(buffer.base + begin, ctx->segments.base, size), begin = end;
+            
             for (pbase = 0, i = lz = 0; i < list.scenes.size(); lz += list.scenes[i].count, i++)
                 for (count = list.scenes[i].count, is = 0; is < count; is++)
                     if (ctx->fasts.base[lz + is]) {
                         Geometry *g = list.scenes[i].paths->base[is].ptr;
                         size = g->p16s.end * sizeof(Geometry::Point16);
-                        memcpy(buffer.base + begin, g->p16s.base, size);
-                        begin += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
+                        memcpy(buffer.base + end, g->p16s.base, size);
+                        end += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
                     }
+            ctx->entries.emplace_back(Buffer::kPointsBase, begin, end), begin = end;
         }
         
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);  uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
