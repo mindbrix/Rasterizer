@@ -9,16 +9,16 @@
 #import "RasterizerState.hpp"
 
 struct RasterizerRenderer {
-     void renderList(Ra::SceneList& list, RasterizerState& state, Ra::Buffer *buffer) {
+     void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Transform view, Ra::Buffer *buffer) {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         if (list.pathsCount == 0)
             return;
-        buffer->prepare(list), buffer->useCurves = state.useCurves, buffer->fastOutlines = state.fastOutlines;
+         buffer->prepare(list);
          
         size_t izs[kQueueCount + 1], *pizs = izs;
         writeIzs(list, izs);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, state.device, state.view, pizs[i], pizs[i + 1], buffer);
+            contexts[i].drawList(list, device, view, pizs[i], pizs[i + 1], buffer);
         });
         size_t begins[kQueueCount], *bs = begins, size;
         size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *buffer);
