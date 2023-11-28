@@ -302,7 +302,6 @@ struct Rasterizer {
     
     struct Scene {
         Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base));  }
-        struct Entry { Geometry *g; };
         
         template<typename T>
         struct Cache {
@@ -325,6 +324,7 @@ struct Rasterizer {
             uint64_t refCount;  T *base;  std::vector<T> src, dst;
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj), base = & dst[0]; }
         };
+        
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr, void *image = nullptr) {
             if (path->isValid()) {
