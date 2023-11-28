@@ -179,38 +179,6 @@ struct RasterizerCG {
         CFRelease(fontRef);
         return URL;
     }
-    
-    static Ra::Image createBGRATexture(Ra::Image *img, CGColorSpaceRef dstSpace) {
-        Ra::Image tex;  tex.init(nullptr, img->width, img->height, img->width), tex.hash = img->hash;
-        NSData *data = [NSData dataWithBytes:img->memory->addr length:img->memory->size];
-        CGImageSourceRef cgImageSrc = CGImageSourceCreateWithData((CFDataRef)data, NULL);
-        if (CGImageSourceGetCount(cgImageSrc)) {
-            CGImageRef cgImage = CGImageSourceCreateImageAtIndex(cgImageSrc, 0, NULL);
-            vImage_CGImageFormat srcFormat;  bzero(& srcFormat, sizeof(srcFormat));
-                srcFormat.bitsPerComponent = uint32_t(CGImageGetBitsPerComponent(cgImage));
-                srcFormat.bitsPerPixel = uint32_t(CGImageGetBitsPerPixel(cgImage));
-                srcFormat.colorSpace = CGImageGetColorSpace(cgImage);
-                srcFormat.bitmapInfo = CGImageGetBitmapInfo(cgImage);
-                srcFormat.renderingIntent = CGImageGetRenderingIntent(cgImage);
-            vImage_CGImageFormat dstFormat;  bzero(& dstFormat, sizeof(dstFormat));
-                dstFormat.bitsPerComponent = 8;
-                dstFormat.bitsPerPixel = 32;
-                dstFormat.colorSpace = dstSpace;
-                dstFormat.bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
-                dstFormat.renderingIntent = kCGRenderingIntentDefault;
-            vImage_Error error = kvImageNoError;
-            vImageConverterRef converter = vImageConverter_CreateWithCGImageFormat(& srcFormat, & dstFormat, NULL, kvImageNoFlags, & error);
-            vImage_Buffer srcBuffer;  vImageBuffer_InitWithCGImage(& srcBuffer, & srcFormat, NULL, cgImage, 0);
-            vImage_Buffer dstBuffer;  vImageBuffer_Init(& dstBuffer, srcBuffer.height, srcBuffer.width, dstFormat.bitsPerPixel, 0);
-            vImageConvert_AnyToAny(converter, & srcBuffer, & dstBuffer, NULL, kvImageDoNotTile);
-            auto src = (uint8_t *)dstBuffer.data, dst = tex.memory->addr;
-            for (int row = 0; row < tex.height; row++, src += dstBuffer.rowBytes, dst += 4 * tex.width)
-                memcpy(dst, src, 4 * tex.width);
-            CFRelease(cgImage), free(dstBuffer.data), free(srcBuffer.data), vImageConverter_Release(converter);
-        }
-        CFRelease(cgImageSrc);
-        return tex;
-    }
 };
 
 typedef RasterizerCG RaCG;

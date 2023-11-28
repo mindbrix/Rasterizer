@@ -289,28 +289,8 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct Image {
-        struct Index {
-            size_t hash, i;
-            inline bool operator< (const Index& other) const { return hash < other.hash || (hash == other.hash && i < other.i); }
-        };
-        void init(void *bytes, size_t w, size_t h, size_t stride) {
-            if (bytes && w && h && stride) {
-                width = w, height = h, hash = 0, memory->resize(4 * w * h);
-                uint8_t *src = (uint8_t *)bytes, *dst = memory->addr;
-                for (int i = 0; i < h; i++, src += 4 * w, dst += 4 * w)
-                    memcpy(dst, src, 4 * w);
-                hash = XXH64(memory->addr, memory->size, 0);
-            }
-        }
-        bool isValid() {
-            return width && height && hash && memory->size == 4 * width * height;
-        }
-        size_t width = 0, height = 0, hash = 0;  Ref<Memory<uint8_t>> memory;
-    };
-    
     struct Scene {
-        Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base)), bzero(imageCache->entries.alloc(1), sizeof(*imageCache->entries.base));  }
+        Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base));  }
         struct Entry { Geometry *g; };
         
         template<typename T>
@@ -335,11 +315,11 @@ struct Rasterizer {
             void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj), base = & dst[0]; }
         };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
-        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr, Image *image = nullptr) {
+        void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr, void *image = nullptr) {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
-                Bounds *be;  Image *ie;
+                Bounds *be;
                 if (kMoleculesHeight && g->p16s.end == 0) {
                     float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
                     float err = 1e-1f, s = (kMoleculesRange - 2.f * err) / dim, det = s * s;
@@ -354,8 +334,6 @@ struct Rasterizer {
                 }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
-                if ((ie = imageCache->addEntry(image && image->isValid() ? image->hash : 0)))
-                    *ie = *image;
                 g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet), xxhash = XXH64(& g->xxhash, sizeof(g->xxhash), xxhash);
                 paths->add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(image ? Colorant(0, 0, 0, 64) : color), widths->add(width), flags->add(flag);
             }
@@ -368,7 +346,7 @@ struct Rasterizer {
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
-        Ref<Cache<Bounds>> clipCache;  Ref<Cache<Image>> imageCache;
+        Ref<Cache<Bounds>> clipCache;
         Ref<Vector<Path>> paths;  Ref<Vector<Bounds>> bnds;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
@@ -441,28 +419,12 @@ struct Rasterizer {
         
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, si, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint32_t), sizeof(Transform) };
+            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint32_t), sizeof(Transform) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
             colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6], texctms = bases[7];
-            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty(), images.empty(), indices.empty(), bzero(_slots, pathsCount * sizes[6]);
-            Image *img;  Image::Index *idx;  uint32_t ip;  size_t iz = 0;
-            for (base = 0, si = 0; si < list.scenes.size(); si++, base += images.end) {
-                auto& cache = *list.scenes[si].imageCache.ptr;
-                if ((count = cache.entries.end - 1) == 0)
-                    iz += list.scenes[si].count;
-                else {
-                    for (i = 0; i < cache.ips.end; i++, iz++)
-                        if ((ip = cache.ips.base[i]))
-                            _slots[iz] = uint32_t(base + ip);
-                    img = images.alloc(count), bzero(img, count * sizeof(*img)), idx = indices.alloc(count);
-                    for (i = 0; i < count; i++, idx++, img++)
-                        *img = cache.entries.base[i + 1], idx->hash = img->hash, idx->i = base + i;
-                }
-            }
-            std::sort(indices.base, indices.base + indices.end);
-            assert(iz == this->pathsCount);
+            headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
             if (copySize == 0 && allocation && size > 1000000 && size / allocation > 5)
@@ -480,7 +442,7 @@ struct Rasterizer {
             }
             _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint32_t *)(base + slots), _texctms = (Transform *)(base + texctms);
         }
-        uint8_t *base = nullptr;  Row<Entry> entries;  Row<Image> images;  Row<Image::Index> indices;
+        uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, slots, texctms, pathsCount, headerSize, size = 0, allocation = 0;
         Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint32_t *_slots;
@@ -531,7 +493,7 @@ struct Rasterizer {
         }
         void drawList(SceneList& list, Transform view, Buffer *buffer) {
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
-            float err, e0, e1, det, width, uw;  Image::Index *index;
+            float err, e0, e1, det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm, inv, m, unit;
@@ -590,32 +552,17 @@ struct Rasterizer {
                         buffer->_slots[iz] = 0;
                 }
             }
-            return;
-            
-            for (Allocator::Pass *pass = allocator.passes.base, *endpass = pass + allocator.passes.end; pass < endpass; pass++) {
-                size_t passsize = (pass + 1 < endpass ? (pass + 1)->idx : blends.end) - pass->idx;
-                if (passsize == 0)
-                    continue;
-                lz = (blends.base + pass->idx)->iz & kPathIndexMask, uz = (blends.base + pass->idx + passsize - 1)->iz & kPathIndexMask;
-                for (size = 0, iz = lz; iz <= uz; iz++)
-                    if ((ip = buffer->_slots[iz]))
-                        index = imgIndices.alloc(1), index->hash = buffer->images.base[ip].hash, index->i = size++;
-                std::sort(imgIndices.base + imgIndices.idx, imgIndices.base + imgIndices.end), imgIndices.idx = imgIndices.end;
-                assert(size <= pass->imgCount + 1);
-                if (size > pass->imgCount)
-                    pass->imgCount = size;
-            }
         }
         void empty() {
-            outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), imgIndices.empty(), segmentsIndices.empty(), indices.empty();
+            outlinePaths = outlineInstances = p16total = 0, blends.empty(), fasts.empty(), opaques.empty(), segments.empty(), segmentsIndices.empty(), indices.empty();
             for (int i = 0; i < samples.size(); i++)
                 samples[i].empty();
             entries = std::vector<Buffer::Entry>();
         }
-        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), imgIndices.reset(), segmentsIndices.reset(), indices.reset(), samples.resize(0), entries = std::vector<Buffer::Entry>(); }
+        void reset() { outlinePaths = outlineInstances = p16total = 0, blends.reset(), fasts.reset(), opaques.reset(), segments.reset(), segmentsIndices.reset(), indices.reset(), samples.resize(0), entries = std::vector<Buffer::Entry>(); }
         size_t slz, suz, outlinePaths = 0, outlineInstances = 0, p16total;
         Bounds device;  Allocator allocator;  std::vector<Buffer::Entry> entries;
-        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;  Row<Image::Index> imgIndices;
+        Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
         Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
     static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
@@ -1028,14 +975,14 @@ struct Rasterizer {
         uint32_t iz;  Instance *dst0, *dst; float px0, py0;
     };
     static size_t writeContextsToBuffer(SceneList& list, Context *contexts, size_t count, size_t *begins, Buffer& buffer) {
-        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances, images;
+        size_t size = buffer.headerSize, begin = buffer.headerSize, end = begin, sz, i, j, instances;
         for (i = 0; i < count; i++)
             size += contexts[i].opaques.end * sizeof(Instance);
         Context *ctx = contexts;   Allocator::Pass *pass;
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
-            for (instances = 0, images = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
-                instances += pass->count(), images += pass->imgCount;
-            begins[i] = size, size += instances * sizeof(Edge) + images * sizeof(Image::Index) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
+                instances += pass->count();
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -1062,12 +1009,10 @@ struct Rasterizer {
         
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);  float *widths = (float *)(buffer.base + buffer.widths);  uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
-        Image::Index *indices = nullptr;
         for (Allocator::Pass *pass = ctx->allocator.passes.base, *endpass = pass + ctx->allocator.passes.end; pass < endpass; pass++) {
             passsize = (pass + 1 < endpass ? (pass + 1)->idx : ctx->blends.end) - pass->idx;
-            instbegin = begin + pass->count() * sizeof(Edge) + pass->imgCount * sizeof(Image::Index);
+            instbegin = begin + pass->count() * sizeof(Edge);
             if (pass->count()) {
-                indices = (Image::Index *)(buffer.base + begin), end = begin + pass->imgCount * sizeof(Image::Index), begin = end;
                 ctx->entries.emplace_back(Buffer::kInstancesBase, instbegin, 0);
                 quadEdge = (Edge *)(buffer.base + begin), end = begin + pass->counts[Allocator::kQuadEdges] * sizeof(Edge);
                 ctx->entries.emplace_back(Buffer::kQuadEdges, begin, end), begin = end;
