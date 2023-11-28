@@ -419,11 +419,11 @@ struct Rasterizer {
         
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(uint32_t), sizeof(Transform) };
+            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(Transform) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], slots = bases[6], texctms = bases[7];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], texctms = bases[6];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -440,17 +440,17 @@ struct Rasterizer {
                 }
                 base = resized;
             }
-            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _slots = (uint32_t *)(base + slots), _texctms = (Transform *)(base + texctms);
+            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _texctms = (Transform *)(base + texctms);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, idxs, slots, texctms, pathsCount, headerSize, size = 0, allocation = 0;
-        Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;  uint32_t *_slots;
+        size_t colors, ctms, clips, widths, bounds, idxs, texctms, pathsCount, headerSize, size = 0, allocation = 0;
+        Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;
     };
     struct Allocator {
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, imgCount = 0, counts[6] = { 0, 0, 0, 0, 0, 0 };
+            size_t idx, counts[6] = { 0, 0, 0, 0, 0, 0 };
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]; }
         };
         void empty(Bounds device) {
@@ -473,11 +473,6 @@ struct Rasterizer {
             }
             cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
             passes.back().counts[type] += count;
-        }
-        inline void allocImage(size_t idx) {
-            if (imgCount == 0)
-                refill(idx);
-            imgCount--, passes.back().imgCount++;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
         Bounds full, sheet, molecules, strips[kFastHeight / 4];  size_t imgCount;
@@ -515,8 +510,6 @@ struct Rasterizer {
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
-                        if (buffer->_slots[iz])
-                            buffer->_texctms[iz] = unit.invert(), allocator.allocImage(blends.end);
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
@@ -548,8 +541,7 @@ struct Rasterizer {
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
-                    } else
-                        buffer->_slots[iz] = 0;
+                    }
                 }
             }
         }
