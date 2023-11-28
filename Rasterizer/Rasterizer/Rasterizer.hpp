@@ -946,20 +946,20 @@ struct Rasterizer {
     
     struct Outliner: Writer {
         void writeSegment(float x0, float y0, float x1, float y1) {
-            writeQuadratic(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
+            writeInstance(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
             adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
             if (cosine > 0.7071f)
-                writeQuadratic(x0, y0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : x1, y1, x2, y2);
+                writeInstance(x0, y0, ratio < 1e-2f || ratio > 1e2f ? FLT_MAX : x1, y1, x2, y2);
             else {
                 a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
                 tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
                 ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
-                writeQuadratic(x0, y0, tx0, ty0, x, y);
-                writeQuadratic(x, y, tx1, ty1, x2, y2);
+                writeInstance(x0, y0, tx0, ty0, x, y);
+                writeInstance(x, y, tx1, ty1, x2, y2);
             }
         }
         void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
@@ -968,7 +968,7 @@ struct Rasterizer {
                 first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
-        inline void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+        inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
             Outline& o = dst->outline;
             dst->iz = iz, o.s.x0 = x0, o.s.y0 = y0, o.s.x1 = x2, o.s.y1 = y2, o.cx = x1, o.cy = y1, o.prev = -1, o.next = 1, dst++;
         }
