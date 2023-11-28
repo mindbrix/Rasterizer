@@ -162,12 +162,11 @@ struct Rasterizer {
         enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, isClose = 1 << 29, kMask = ~(isCurve | isEnd | isClose) };
         uint32_t i;
     };
+    struct Point16 {  uint16_t x, y;  };
     
-    
-    struct Geometry: Writer {
+    struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
-        struct Point16 {  uint16_t x, y;  };
-        
+
         void update(Type type, size_t size, float *p) {
             counts[type]++;  memset(types.alloc(size), type, size);
             for (int i = 0; i < size; i++)
@@ -253,45 +252,49 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        void writeSegment(float x0, float y0, float x1, float y1) {
-            Point16 *p = p16s.alloc(1);
-            p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
-            p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
-            new (atoms.alloc(1)) Atom(p16s.end - 1, false);
-        }
-        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            Point16 *p = p16s.alloc(2);
-            p[0].x = fmaxf(0.f, fminf(kMoleculesRange, x0));
-            p[0].y = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, y0))) | (1 << 15);
-            p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
-            p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
-            new (atoms.alloc(1)) Atom(p16s.end - 2, true);
-        }
-        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
-            Point16 *p = p16s.alloc(1);
-            p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
-            p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
-            
-            bool isClose = bool(curve & 2) && !bool(curve & 1);
-            
-            if (atoms.idx < atoms.end)
-                atoms.back().i |= Atom::isEnd | isClose * Atom::isClose;
-            atoms.idx = atoms.end;
-            
-            size_t segcnt = p16s.end - p16s.idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
-            uint8_t *cnt = p16cnts.alloc(icount), flags = 0x80 | (isClose * 0x8);
-            for (int i = 0; i < icount; i++) {
-                rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
-                cnt[i] = sz | ((sz && sz == rem) * flags);
-            }
-            p16s.zalloc(p16cnts.end * kFastSegments - p16s.end), p16s.idx = p16s.end;
-        }
         size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
     };
     typedef Ref<Geometry> Path;
+    
+    struct P16Writer: Writer {
+        void writeSegment(float x0, float y0, float x1, float y1) {
+            Point16 *p = p16s->alloc(1);
+            p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
+            p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
+            new (atoms->alloc(1)) Atom(p16s->end - 1, false);
+        }
+        void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
+            Point16 *p = p16s->alloc(2);
+            p[0].x = fmaxf(0.f, fminf(kMoleculesRange, x0));
+            p[0].y = uint16_t(fmaxf(0.f, fminf(kMoleculesRange, y0))) | (1 << 15);
+            p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
+            p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
+            new (atoms->alloc(1)) Atom(p16s->end - 2, true);
+        }
+        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
+            Point16 *p = p16s->alloc(1);
+            p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
+            p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
+            
+            bool isClose = bool(curve & 2) && !bool(curve & 1);
+            
+            if (atoms->idx < atoms->end)
+                atoms->back().i |= Atom::isEnd | isClose * Atom::isClose;
+            atoms->idx = atoms->end;
+            
+            size_t segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
+            uint8_t *cnt = p16cnts->alloc(icount), flags = 0x80 | (isClose * 0x8);
+            for (int i = 0; i < icount; i++) {
+                rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
+                cnt[i] = sz | ((sz && sz == rem) * flags);
+            }
+            p16s->zalloc(p16cnts->end * kFastSegments - p16s->end), p16s->idx = p16s->end;
+        }
+        Row<Point16> *p16s;  Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
+    };
     
     struct Scene {
         Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base));  }
@@ -330,8 +333,10 @@ struct Rasterizer {
                     size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
                     Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
                     g->p16s.prealloc(upper), g->atoms.prealloc(upper), g->p16cnts.prealloc(upper / kFastSegments);
-                    g->cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-                    divideGeometry(g, m, Bounds(), true, true, *g);
+                    P16Writer writer;
+                    writer.p16s = & g->p16s, writer.p16cnts = & g->p16cnts, writer.atoms = & g->atoms;
+                    writer.cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+                    divideGeometry(g, m, Bounds(), true, true, writer);
                     uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
                     assert(g->p16s.end <= upper);
                     assert(g->atoms.end <= upper);
@@ -971,7 +976,7 @@ struct Rasterizer {
         for (ctx = contexts, i = 0; i < count; i++, ctx++) {
             for (instances = 0, pass = ctx->allocator.passes.base, j = 0; j < ctx->allocator.passes.end; j++, pass++)
                 instances += pass->count();
-            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Geometry::Point16);
+            begins[i] = size, size += instances * sizeof(Edge) + (ctx->outlineInstances - ctx->outlinePaths + ctx->blends.end) * sizeof(Instance) + ctx->segments.end * sizeof(Segment) + ctx->p16total * sizeof(Point16);
         }
         buffer.resize(size, buffer.headerSize);
         for (i = 0; i < count; i++)
@@ -992,7 +997,7 @@ struct Rasterizer {
                 for (count = list.scenes[i].count, is = 0; is < count; is++)
                     if (ctx->fasts.base[lz + is]) {
                         Geometry *g = list.scenes[i].paths->base[is].ptr;
-                        size = g->p16s.end * sizeof(Geometry::Point16);
+                        size = g->p16s.end * sizeof(Point16);
                         memcpy(buffer.base + end, g->p16s.base, size);
                         end += size, ctx->fasts.base[lz + is] = uint32_t(pbase), pbase += g->p16s.end;
                     }
