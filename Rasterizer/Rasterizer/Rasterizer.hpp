@@ -411,19 +411,13 @@ struct Rasterizer {
         };
         ~Buffer() { if (base) free(base); }
         
-        template<typename T>
-        inline T *pointer(size_t i) { return (T *)(base + i); }
-        
-        template<typename T>
-        inline size_t index(T *ptr) { return (uint8_t *)ptr - base; }
-        
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t), sizeof(Transform) };
+            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5], texctms = bases[6];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -440,12 +434,12 @@ struct Rasterizer {
                 }
                 base = resized;
             }
-            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds), _texctms = (Transform *)(base + texctms);
+            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
-        size_t colors, ctms, clips, widths, bounds, idxs, texctms, pathsCount, headerSize, size = 0, allocation = 0;
-        Transform *_ctms, *_clips, *_texctms;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;
+        size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
+        Transform *_ctms, *_clips;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;
     };
     struct Allocator {
         struct Pass {
