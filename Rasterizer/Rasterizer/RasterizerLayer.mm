@@ -9,66 +9,11 @@
 #import "RasterizerLayer.h"
 #import <Metal/Metal.h>
 
-struct TextureCache {
-    struct Entry {
-        Entry(size_t hash, id <MTLTexture> texture) : hash(hash), texture(texture) {}
-        ~Entry() {  texture = nil;  }
-        size_t hash = 0;
-        id <MTLTexture> texture = nil;
-        inline bool operator< (const Entry& other) const { return hash < other.hash; }
-    };
-
-    std::vector<Entry> update(Ra::Buffer *buffer, CGColorSpaceRef colorSpace, id<MTLDevice> device, RaCG::Converter& converter) {
-        std::vector<Entry> mipmaps;
-        if (buffer->images.end) {
-            size_t textureSize = textures.size(), hash, i = 0, j = 0;
-            Ra::Image *images = buffer->images.base, *img;
-            Ra::Image::Index *indices = buffer->indices.base;
-            do {
-                hash = indices[i].hash;
-                while (j < textureSize && textures[j].hash < hash)
-                    textures[j].hash = ~0, j++;
-                if (j == textureSize || textures[j].hash != hash) {
-                    img = images + indices[i].i;
-                    Ra::Image tex;  tex.init(img->memory->addr, img->width, img->height, img->width);
-                    converter.matchColors((Ra::Colorant *)tex.memory->addr, img->width * img->height, colorSpace);
-                    MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
-                                                                                                    width: tex.width
-                                                                                                   height: tex.height
-                                                                                                mipmapped: YES];
-                    desc.storageMode = MTLStorageModeShared;
-                    textures.emplace_back(tex.hash, [device newTextureWithDescriptor:desc]);
-                    auto& entry = textures.back();
-                    [entry.texture replaceRegion: MTLRegionMake2D(0, 0, tex.width, tex.height)
-                                   mipmapLevel: 0
-                                     withBytes: tex.memory->addr
-                                   bytesPerRow: tex.memory->size / tex.height];
-                    if (entry.texture.mipmapLevelCount > 1)
-                        mipmaps.emplace_back(entry);
-                } else
-                    j++;
-                while (i < buffer->indices.end && hash == indices[i].hash)
-                    i++;
-            } while (i < buffer->indices.end);
-            
-            while (j < textureSize)
-                textures[j].hash = ~0, j++;
-            
-            std::sort(textures.begin(), textures.end());
-            while (textures.size() && textures.back().hash == ~0)
-                textures.pop_back();
-        }
-        return mipmaps;
-    }
-    std::vector<Entry> textures;
-};
-
 
 @interface RasterizerLayer ()
 {
     Ra::Buffer _buffer0, _buffer1;
     RaCG::Converter _converter;
-    TextureCache _textureCache;
 }
 
 @property (nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -190,7 +135,6 @@ struct TextureCache {
                                           deallocator:nil];
 
     _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
-    auto mipmaps = _textureCache.update(buffer, colorSpace, self.device, _converter);
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
@@ -209,12 +153,6 @@ struct TextureCache {
     
     id <MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     
-    if (mipmaps.size()) {
-        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
-        for (auto& mipmap: mipmaps)
-            [blitEncoder generateMipmapsForTexture: mipmap.texture];
-        [blitEncoder endEncoding];
-    }
     MTLRenderPassDescriptor *drawableDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     drawableDescriptor.colorAttachments[0].texture = drawable.texture;
     drawableDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
@@ -315,20 +253,12 @@ struct TextureCache {
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->slots atIndex:8];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->texctms atIndex:9];
                 [commandEncoder setVertexBytes:& width length:sizeof(width) atIndex:10];
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
                 [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
-                if (_textureCache.textures.size()) {
-                    id <MTLTexture> textures[kTextureSlotsSize];
-                    for (int i = 0; i < kTextureSlotsSize; i++)
-                        textures[i] = _textureCache.textures[i % _textureCache.textures.size()].texture;
-                    [commandEncoder setFragmentTextures:textures withRange:NSMakeRange(2, kTextureSlotsSize)];
-                }
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
                                    vertexStart:0
