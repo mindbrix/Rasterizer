@@ -263,6 +263,20 @@ struct Rasterizer {
     typedef Ref<Geometry> Path;
     
     struct P16Writer: Writer {
+        void writeGeometry(Geometry *g) {
+            float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            float s = kMoleculesRange / dim, det = s * s;
+            size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
+            Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
+            g->p16cnts.prealloc(upper / kFastSegments);
+            p0 = pidx = p = g->p16s.alloc(upper);
+            a0 = aidx = a = g->atoms.alloc(upper);
+            p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
+            cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
+            divideGeometry(g, m, Bounds(), true, true, *this);
+            assert(g->p16s.end <= upper);
+            assert(g->atoms.end <= upper);
+        }
         void writeSegment(float x0, float y0, float x1, float y1) {
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x0));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y0));
@@ -332,20 +346,8 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 Bounds *be;
                 if (kMoleculesHeight && g->p16s.end == 0) {
-                    float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-                    float s = kMoleculesRange / dim, det = s * s;
-                    size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
-                    Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
-                    g->p16cnts.prealloc(upper / kFastSegments);
                     P16Writer writer;
-                    writer.p0 = writer.pidx = writer.p = g->p16s.alloc(upper);
-                    writer.a0 = writer.aidx = writer.a = g->atoms.alloc(upper);
-                    writer.p16s = & g->p16s, writer.p16cnts = & g->p16cnts, writer.atoms = & g->atoms;
-                    writer.cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
-                    divideGeometry(g, m, Bounds(), true, true, writer);
-                    uint8_t *cnt = & g->p16cnts.back();  cnt[*cnt == 0 ? -1 : 0] &= 0x7F;
-                    assert(g->p16s.end <= upper);
-                    assert(g->atoms.end <= upper);
+                    writer.writeGeometry(g);
                 }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
