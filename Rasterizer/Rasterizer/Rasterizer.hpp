@@ -532,10 +532,8 @@ struct Rasterizer {
                            } else
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
-                           buffer->_bounds[iz] = *bnds;
-                           size = g->p16s.end;
-                           if (fasts.base[lz + is]++ == 0)
-                                p16total += size;
+                           buffer->_bounds[iz] = *bnds, fasts.base[iz]++;
+                           size = g->p16s.end, p16total += size;
                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                            inst->quad.cover = 0;
