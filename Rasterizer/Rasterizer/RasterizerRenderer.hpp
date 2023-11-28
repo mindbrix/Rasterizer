@@ -14,15 +14,15 @@ struct RasterizerRenderer {
             return;
          buffer->prepare(list);
          
-        size_t izs[kQueueCount + 1], *pizs = izs;
-        writeIzs(list, izs);
+        size_t divisions[kQueueCount + 1], *pdivs = divisions;
+        writeDivisions(list, divisions);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            contexts[i].drawList(list, device, view, pizs[i], pizs[i + 1], buffer);
+            contexts[i].drawList(list, device, view, pdivs[i], pdivs[i + 1], buffer);
         });
-        size_t begins[kQueueCount], *bs = begins, size;
+        size_t begins[kQueueCount], *pbegins = begins, size;
         size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *buffer);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
-            Ra::writeContextToBuffer(list, contexts + i, *(bs + i), *buffer);
+            Ra::writeContextToBuffer(list, contexts + i, pbegins[i], *buffer);
         });
         for (int i = 0; i < kQueueCount; i++)
             for (auto entry : contexts[i].entries)
@@ -31,7 +31,7 @@ struct RasterizerRenderer {
         assert(size >= end);
     }
     
-    void writeIzs(Ra::SceneList& list, size_t *izs) {
+    void writeDivisions(Ra::SceneList& list, size_t *izs) {
         size_t total = 0, count, base, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
