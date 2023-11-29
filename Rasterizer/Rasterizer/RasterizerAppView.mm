@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 16/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import "RasterizerView.h"
+#import "RasterizerAppView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerRenderer.hpp"
 #import "RasterizerPDF.hpp"
@@ -14,7 +14,7 @@
 #import "RasterizerTest.hpp"
 #import "RasterizerLayer.h"
 
-@interface RasterizerView () <CALayerDelegate, LayerDelegate>
+@interface RasterizerAppView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) NSFont *fnt;
@@ -32,7 +32,7 @@
 
 static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
 CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
-    RasterizerView *view = (__bridge RasterizerView *)displayLinkContext;
+    RasterizerAppView *view = (__bridge RasterizerAppView *)displayLinkContext;
     @autoreleasepool {
         if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -43,7 +43,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     return kCVReturnSuccess;
 }
 
-@implementation RasterizerView
+@implementation RasterizerAppView
 
 #pragma mark - NSView
 

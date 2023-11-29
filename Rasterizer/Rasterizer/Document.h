@@ -7,11 +7,11 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "RasterizerView.h"
+#import "RasterizerAppView.h"
 
 @interface Document : NSDocument
 
-@property(nonatomic, strong) IBOutlet RasterizerView *view;
+@property(nonatomic, strong) IBOutlet RasterizerAppView *view;
 
 @end
 
