@@ -151,7 +151,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 49) {
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 1)
-        RaCG::screenGrabToPDF(_list, _state, self.bounds);
+        RaCG::screenGrabToPDF(_list, _state.ctm, self.bounds);
     else if (keyCode == 123) {
         if (self.pageIndex > 0) {
             self.pageIndex--;

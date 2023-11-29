@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 23/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import "RasterizerState.hpp"
+#import "Rasterizer.hpp"
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
 
@@ -159,15 +159,14 @@ struct RasterizerCG {
             }
         }
     }
-    static void screenGrabToPDF(Ra::SceneList& list, RasterizerState& state, CGRect bounds) {
+    static void screenGrabToPDF(Ra::SceneList& list, Ra::Transform ctm, CGRect bounds) {
         NSArray *downloads = [NSFileManager.defaultManager URLsForDirectory: NSDownloadsDirectory inDomains:NSUserDomainMask];
         NSURL *fileURL = [downloads.firstObject URLByAppendingPathComponent:@"screenGrab.pdf"];
         CGRect mediaBox = bounds;
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
-        CGContextConcatCTM(ctx, CGFromTransform(state.ctm));
-        state.update(1.0, bounds.size.width, bounds.size.height);
-        drawList(list, state.view, state.device, state.outlineWidth, ctx);
+        CGContextConcatCTM(ctx, CGFromTransform(ctm));
+        drawList(list, ctm, BoundsFromCGRect(bounds), 0.f, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);
