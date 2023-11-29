@@ -13,10 +13,6 @@ struct RasterizerState {
                                      Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
         float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
     
-    
-    typedef void (*EventFunction)(Ra::SceneList& list, RasterizerState& state, void *info);
-    typedef void (*WriteFunction)(Ra::SceneList& list, void *info);
-    
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
@@ -49,9 +45,7 @@ struct RasterizerState {
             events.emplace_back(e);
         return written;
     }
-    void readEvents(Ra::SceneList& list,
-                    EventFunction eventFunction, void *eventInfo,
-                    WriteFunction writeFunction, void *writeInfo) {
+    void readEvents(Ra::SceneList& list) {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
@@ -108,8 +102,7 @@ struct RasterizerState {
                         rotate(e.x, mx, my);
                     break;
                 case Event::kDragged:
-                    if (eventFunction == NULL || (flags & Event::kShift))
-                        translate(e.x, e.y);
+                    translate(e.x, e.y);
                     mx += e.x, my += e.y;
                     break;
                 case Event::kTranslate:
@@ -124,11 +117,7 @@ struct RasterizerState {
             }
         }
         view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
-        if (eventFunction)
-            (*eventFunction)(list, *this, eventInfo);
         events.resize(0);
-        if (writeFunction)
-            (*writeFunction)(list.empty(), writeInfo);
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * mx, scale * my);
         if (animating)

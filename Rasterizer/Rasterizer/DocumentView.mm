@@ -76,11 +76,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)timerFired:(double)time {
     if (_state.needsRedraw()) {
-        _state.readEvents(_list,
-            NULL,
-            nullptr,
-            RasterizerTest::WriteFunction,
-            (void *)_test.ptr);
+        _state.readEvents(_list);
         
         float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
         _state.update(scale, w, h);
@@ -115,7 +111,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
-    _test->addTestScenes(list, _state, RaCG::BoundsFromCGRect(self.bounds), *font.ptr);
+    _list = list;
+//    _test->addTestScenes(list, _state, RaCG::BoundsFromCGRect(self.bounds), *font.ptr);
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
 }
 
