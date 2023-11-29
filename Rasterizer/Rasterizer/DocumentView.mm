@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 16/10/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import "RasterizerAppView.h"
+#import "DocumentView.h"
 #import "RasterizerCG.hpp"
 #import "RasterizerPDF.hpp"
 #import "RasterizerSVG.hpp"
@@ -13,7 +13,7 @@
 #import "RasterizerTest.hpp"
 
 
-@interface RasterizerAppView ()
+@interface DocumentView ()
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) NSFont *fnt;
@@ -29,7 +29,7 @@
 
 static CVReturn OnDisplayLinkFrame(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime,
 CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
-    RasterizerAppView *view = (__bridge RasterizerAppView *)displayLinkContext;
+    DocumentView *view = (__bridge DocumentView *)displayLinkContext;
     @autoreleasepool {
         if (dispatch_semaphore_wait(view.inflight_semaphore, DISPATCH_TIME_NOW) == 0)
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -40,7 +40,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     return kCVReturnSuccess;
 }
 
-@implementation RasterizerAppView
+@implementation DocumentView
 
 #pragma mark - NSView
 

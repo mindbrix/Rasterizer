@@ -9,7 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import "RasterizerView.h"
 
-@interface RasterizerAppView : RasterizerView
+@interface DocumentView : RasterizerView
 
 @property(nonatomic, strong) NSData *pdfData;
 @property(nonatomic, strong) NSData *svgData;
