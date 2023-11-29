@@ -263,9 +263,8 @@ struct Rasterizer {
     
     struct P16Writer: Writer {
         void writeGeometry(Geometry *g) {
-            float dim = fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
-            float s = kMoleculesRange / dim, det = s * s;
-            size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, det));
+            float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            size_t upper = 4 * g->molecules.end + g->upperBound(fmaxf(kMinUpperDet, s * s));
             Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
             g->p16cnts.prealloc(upper / kFastSegments);
             p0 = pidx = p = g->p16s.alloc(upper);
