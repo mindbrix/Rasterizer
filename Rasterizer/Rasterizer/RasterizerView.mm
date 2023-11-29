@@ -61,7 +61,7 @@
     float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
     Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
     Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
-    _renderer.renderList(_list, device, view, buffer);
+    _renderer.renderList(_sceneList, device, view, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
 
@@ -75,15 +75,20 @@
     float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
     Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
     Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
-    RaCG::drawList(_list, view, device, 0.f, ctx);
+    RaCG::drawList(_sceneList, view, device, 0.f, ctx);
 }
 
 
 #pragma mark - Properies
 
-- (void)setList:(Ra::SceneList)list {
-    _list = list;
+- (void)setSceneList:(Ra::SceneList)sceneList {
+    _sceneList = sceneList;
     [self.layer setNeedsDisplay];
+}
+
+- (void)setUseCG:(bool)useCG {
+    _useCG = useCG;
+    [self initLayer:_useCG];
 }
 
 @end

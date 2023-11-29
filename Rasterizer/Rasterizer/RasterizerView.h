@@ -11,7 +11,7 @@
 
 @interface RasterizerView : NSView
 
-@property(nonatomic) Ra::SceneList list;
+@property(nonatomic) Ra::SceneList sceneList;
 @property(nonatomic) Ra::Transform ctm;
 @property(nonatomic) bool useCurves;
 @property(nonatomic) bool useFastOutlines;

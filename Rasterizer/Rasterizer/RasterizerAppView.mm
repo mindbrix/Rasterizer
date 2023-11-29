@@ -7,23 +7,20 @@
 //
 #import "RasterizerAppView.h"
 #import "RasterizerCG.hpp"
-#import "RasterizerRenderer.hpp"
 #import "RasterizerPDF.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerFont.hpp"
 #import "RasterizerTest.hpp"
-#import "RasterizerLayer.h"
 
-@interface RasterizerAppView () <CALayerDelegate, LayerDelegate>
+
+@interface RasterizerAppView ()
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) NSFont *fnt;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
-@property(nonatomic) RasterizerRenderer renderer;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
-@property(nonatomic) BOOL useCG;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) size_t pageIndex;
 - (void)timerFired:(double)time;
@@ -52,7 +49,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (! self)
         return nil;
     self.pageIndex = 0;
-    [self initLayer:_useCG];
     self.fnt = [NSFont fontWithName:@"AppleSymbols" size:14];
     [self writeList:self.fnt];
     [self startTimer];
@@ -85,7 +81,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             nullptr,
             RasterizerTest::WriteFunction,
             (void *)_test.ptr);
-        [self.layer setNeedsDisplay];
+        
+        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+        _state.update(scale, w, h);
+        _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
+        
+        self.sceneList = _list;
+        self.ctm = _state.ctm;
+        self.useCurves = _state.useCurves;
+        self.useFastOutlines = _state.fastOutlines;
     }
 }
 
@@ -115,27 +119,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
 }
 
-#pragma mark - Drawing
-
-- (void)initLayer:(BOOL)useCPU {
-    [self setWantsLayer:YES];
-    CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    if (useCPU) {
-        [self setLayer:[CALayer layer]];
-        self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
-        self.layer.delegate = self;
-        self.layer.magnificationFilter = kCAFilterNearest;
-    } else {
-        [self setLayer:[RasterizerLayer layer]];
-        ((RasterizerLayer *)self.layer).layerDelegate = self;
-    }
-    self.layer.contentsScale = scale;
-    self.layer.bounds = self.bounds;
-    self.layer.opaque = YES;
-    self.layer.needsDisplayOnBoundsChange = YES;
-    self.layer.actions = @{ @"onOrderIn": [NSNull null], @"onOrderOut": [NSNull null], @"sublayers": [NSNull null], @"contents": [NSNull null], @"backgroundColor": [NSNull null], @"bounds": [NSNull null] };
-    [self.layer setNeedsDisplay];
-}
 
 #pragma mark - NSResponder
 
@@ -158,10 +141,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds()));
     } else if (_state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode, event.characters.UTF8String))) {}
     else if (keyCode == 51) {
-        _useCG = !_useCG;
-        [self initLayer:_useCG];
-        _renderer.reset();
-        self.rasterizerLabel.stringValue = _useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
+        self.useCG = !self.useCG;
+        self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
         [self.rasterizerLabel setHidden:NO];
     } else if (keyCode == 15) {
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
@@ -217,38 +198,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 - (void)mouseUp:(NSEvent *)event {
     _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseUp, float(event.locationInWindow.x), float(event.locationInWindow.y)));
-}
-
-#pragma mark - LayerDelegate
-
-- (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
-    buffer->clearColor = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    buffer->useCurves = _state.useCurves, buffer->fastOutlines = _state.fastOutlines;
-    
-    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    _state.update(scale, w, h);
-    _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
-    
-    Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-    Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_state.ctm);
-    _renderer.renderList(_list, device, view, buffer);
-    return self.window.colorSpace.CGColorSpace;
-}
-
-#pragma mark - CALayerDelegate
-
-- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    Ra::Colorant color = _svgData && _state.outlineWidth == 0.f ? Ra::Colorant(0xCC, 0xCC, 0xCC, 0xCC) : Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
-    CGContextConcatCTM(ctx, RaCG::CGFromTransform(_state.ctm));
-    
-    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    _state.update(scale, w, h);
-    _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
-    
-    Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-    Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_state.ctm);
-    RaCG::drawList(_list, view, device, _state.outlineWidth, ctx);
 }
 
 #pragma mark - Properies

@@ -11,7 +11,7 @@
 		E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */ = {isa = PBXBuildFile; fileRef = E91ADF9322425C2F00729DA0 /* stb_truetype.c */; };
 		E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */ = {isa = PBXBuildFile; fileRef = E91ADF962243FED000729DA0 /* nanosvg.cc */; };
 		E920A59E21762BCD00F52C25 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A59D21762BCD00F52C25 /* AppDelegate.m */; };
-		E920A5A121762BCD00F52C25 /* Document.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5A021762BCD00F52C25 /* Document.m */; };
+		E920A5A121762BCD00F52C25 /* Document.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5A021762BCD00F52C25 /* Document.mm */; };
 		E920A5A421762BCD00F52C25 /* Document.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A221762BCD00F52C25 /* Document.xib */; };
 		E920A5A621762BCE00F52C25 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A521762BCE00F52C25 /* Assets.xcassets */; };
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
@@ -37,7 +37,7 @@
 		E920A59C21762BCD00F52C25 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		E920A59D21762BCD00F52C25 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		E920A59F21762BCD00F52C25 /* Document.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Document.h; sourceTree = "<group>"; };
-		E920A5A021762BCD00F52C25 /* Document.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Document.m; sourceTree = "<group>"; };
+		E920A5A021762BCD00F52C25 /* Document.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Document.mm; sourceTree = "<group>"; };
 		E920A5A321762BCD00F52C25 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/Document.xib; sourceTree = "<group>"; };
 		E920A5A521762BCE00F52C25 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E920A5A821762BCE00F52C25 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
@@ -173,7 +173,7 @@
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
 				E920A59D21762BCD00F52C25 /* AppDelegate.m */,
 				E920A59F21762BCD00F52C25 /* Document.h */,
-				E920A5A021762BCD00F52C25 /* Document.m */,
+				E920A5A021762BCD00F52C25 /* Document.mm */,
 				E920A5A221762BCD00F52C25 /* Document.xib */,
 				E920A5A521762BCE00F52C25 /* Assets.xcassets */,
 				E920A5A721762BCE00F52C25 /* MainMenu.xib */,
@@ -314,7 +314,7 @@
 			files = (
 				E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */,
 				E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */,
-				E920A5A121762BCD00F52C25 /* Document.m in Sources */,
+				E920A5A121762BCD00F52C25 /* Document.mm in Sources */,
 				E91ADF972243FED000729DA0 /* nanosvg.cc in Sources */,
 				E920A5B5217631E600F52C25 /* RasterizerAppView.mm in Sources */,
 				E91ADF9422425C3000729DA0 /* stb_truetype.c in Sources */,
