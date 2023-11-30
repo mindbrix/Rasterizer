@@ -236,10 +236,9 @@ struct Rasterizer {
                     quadTo((3.f * (x1 + x2) - x0 - x3) * 0.25f, (3.f * (y1 + y2) - y0 - y3) * 0.25f, x3, y3);
                 else {
                     float *pts = points.alloc(6);  pts[0] = x1, pts[1] = y1, pts[2] = x2, pts[3] = y2, pts[4] = x3, pts[5] = y3, update(kCubic, 3, pts);
-                    s = ceilf(cbrtf(sqrtf(dot + 1e-12f) / (kCubicPrecision * kCubicMultiplier)));
-                    maxCurve = fmaxf(maxCurve, dot / s);
                     bx -= 3.f * (x1 - x0), by -= 3.f * (y1 - y0), dot += bx * bx + by * by, x0 = x3, y0 = y3;
-                    cubicSums += ceilf(sqrtf(sqrtf(dot)));
+                    s = ceilf(sqrtf(sqrtf(dot)));
+                    cubicSums += s, maxCurve = fmaxf(maxCurve, dot / s);
                 }
             }
         }
@@ -539,7 +538,7 @@ struct Rasterizer {
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
-                            bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
+                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                             CurveIndexer idxr; idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, idxr);
                             Bounds clu = Bounds(inv.concat(unit));
