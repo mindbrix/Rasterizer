@@ -237,13 +237,6 @@ struct RasterizerTest {
             dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
         }
     }
-    static void WriteFunction(Ra::SceneList& list, void *info) {
-        RasterizerTest& test = *((RasterizerTest *)info);
-        if (test.concentrichron.pathsCount)
-            test.writeConcentrichronList(test.concentrichron, test.bounds, list);
-        else if(test.copy.pathsCount)
-            list.addList(test.copy);
-    }
 
     size_t refCount = 0;
     
