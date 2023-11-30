@@ -14,7 +14,7 @@
 @property(nonatomic) Ra::SceneList sceneList;
 @property(nonatomic) Ra::Transform ctm;
 @property(nonatomic) bool useCurves;
-@property(nonatomic) bool useFastOutlines;
+@property(nonatomic) bool fastOutlines;
 @property(nonatomic) bool useCG;
 
 @end

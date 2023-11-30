@@ -26,7 +26,7 @@
        return nil;
     _useCG = false;
     _useCurves = true;
-    _useFastOutlines = true;
+    _fastOutlines = true;
     _ctm = Ra::Transform();
    [self initLayer:_useCG];
    return self;
@@ -56,7 +56,7 @@
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    buffer->useCurves = _useCurves, buffer->fastOutlines = _useFastOutlines;
+    buffer->useCurves = _useCurves, buffer->fastOutlines = _fastOutlines;
     
     float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
     Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));

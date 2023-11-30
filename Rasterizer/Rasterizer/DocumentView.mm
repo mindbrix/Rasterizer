@@ -85,7 +85,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         self.sceneList = _list;
         self.ctm = _state.ctm;
         self.useCurves = _state.useCurves;
-        self.useFastOutlines = _state.fastOutlines;
+        self.fastOutlines = _state.fastOutlines;
     }
 }
 
