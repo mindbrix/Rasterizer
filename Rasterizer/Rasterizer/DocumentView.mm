@@ -112,7 +112,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         list.addScene(glyphs);
     }
     _list = list;
-//    _test->addTestScenes(list, _state, RaCG::BoundsFromCGRect(self.bounds), *font.ptr);
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
 }
 
