@@ -495,12 +495,12 @@ struct Rasterizer {
             fasts.zalloc(list.pathsCount);
             
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
-            float err, e0, e1, det, width, uw;
+            float det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
-                Transform ctm = view.concat(list.ctms[i]), clipctm, inv, m, unit;
+                Transform ctm = view.concat(list.ctms[i]), clipctm, m, unit;
                 Bounds dev, clip, *bnds, clipBounds;
-                lastip = ~0, e0 = 0.f, e1 = 1.f;
+                lastip = ~0;
                 memcpy(buffer->_colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
@@ -511,7 +511,6 @@ struct Rasterizer {
                     if (ip != lastip) {
                         lastip = ip;
                         clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
-                        inv = clipctm.invert(), err = fminf(1e-2f, 1e-2f / clipctm.scale()), e0 = -err, e1 = 1.f + err;
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
                     unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
@@ -539,12 +538,11 @@ struct Rasterizer {
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
+                            bool unclipped = clip.contains(dev);
+                            bool opaque = buffer->_colors[iz].a == 255;
                             CurveIndexer idxr; idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
-                            divideGeometry(g, m, clip, clip.contains(dev), true, idxr);
-                            Bounds clu = Bounds(inv.concat(unit));
-                            bool clipped = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
-                            bool opaque = buffer->_colors[iz].a == 255 && !clipped;
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            divideGeometry(g, m, clip, unclipped, true, idxr);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && unclipped, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
