@@ -28,14 +28,14 @@
     _useCurves = true;
     _fastOutlines = true;
     _ctm = Ra::Transform();
-   [self initLayer:_useCG];
+   [self initLayer];
    return self;
 }
 
-- (void)initLayer:(BOOL)useCPU {
+- (void)initLayer {
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    if (useCPU) {
+    if (_useCG) {
         [self setLayer:[CALayer layer]];
         self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
         self.layer.delegate = self;
@@ -88,7 +88,7 @@
 
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
-    [self initLayer:_useCG];
+    [self initLayer];
 }
 
 @end
