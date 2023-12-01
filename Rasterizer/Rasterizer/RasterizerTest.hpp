@@ -60,12 +60,11 @@ struct RasterizerTest {
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black));
         }
         if (0) {
-            createConcentrichronScene(Ra::Bounds(0, 0, b.ux - b.lx, b.uy - b.ly), font, concentrichron.empty());
-            bounds = b;
-            state.animating = true;
+            Ra::Bounds bnds(0, 0, 800, 800);
+            createConcentrichronScene(bnds, font, concentrichron.empty());
+            bounds = bnds;
+            list.empty() = concentrichron;
         }
-        if (list.scenes.size())
-            copy.empty().addList(list);
     }
     
     static void writeConcentrichronList(Ra::SceneList& src, Ra::Bounds b, Ra::SceneList& list) {

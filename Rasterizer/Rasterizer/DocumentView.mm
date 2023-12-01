@@ -111,6 +111,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
     }
+    _test->addTestScenes(list, _state, _state.bounds, *font.ptr);
     _list = list;
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
 }
