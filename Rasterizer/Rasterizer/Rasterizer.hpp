@@ -542,7 +542,8 @@ struct Rasterizer {
                             CurveIndexer idxr; idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, clip.contains(dev), true, idxr);
                             Bounds clu = Bounds(inv.concat(unit));
-                            bool opaque = buffer->_colors[iz].a == 255 && !(clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1);
+                            bool clipped = clu.lx < e0 || clu.ux > e1 || clu.ly < e0 || clu.uy > e1;
+                            bool opaque = buffer->_colors[iz].a == 255 && !clipped;
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
