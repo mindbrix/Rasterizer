@@ -240,6 +240,4 @@ struct RasterizerTest {
     size_t refCount = 0;
     
     Ra::SceneList concentrichron;  Ra::Bounds bounds;
-    
-    Ra::SceneList copy;
 };
