@@ -1,5 +1,5 @@
 //
-//  RasterizerView.mm
+//  DocumentView.mm
 //  Rasterizer
 //
 //  Created by Nigel Barber on 16/10/2018.
