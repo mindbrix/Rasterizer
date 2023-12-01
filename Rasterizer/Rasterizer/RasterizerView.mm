@@ -14,6 +14,8 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerRenderer renderer;
+@property(nonatomic, readonly) Ra::Bounds device;
+@property(nonatomic, readonly) Ra::Transform view;
 
 @end
 
@@ -56,12 +58,10 @@
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    buffer->useCurves = _useCurves, buffer->fastOutlines = _fastOutlines;
+    buffer->useCurves = _useCurves;
+    buffer->fastOutlines = _fastOutlines;
     
-    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-    Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
-    _renderer.renderList(_sceneList, device, view, buffer);
+    _renderer.renderList(_sceneList, self.device, self.view, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
 
@@ -72,23 +72,45 @@
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_ctm));
     
-    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-    Ra::Bounds device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
-    Ra::Transform view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
-    RaCG::drawList(_sceneList, view, device, 0.f, ctx);
+    RaCG::drawList(_sceneList, self.view, self.device, 0.f, ctx);
 }
 
 
 #pragma mark - Properies
+
+- (Ra::Bounds) device {
+    float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
+    return Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
+}
+
+- (void)setCtm:(Ra::Transform)ctm {
+    _ctm = ctm;
+    [self.layer setNeedsDisplay];
+}
 
 - (void)setSceneList:(Ra::SceneList)sceneList {
     _sceneList = sceneList;
     [self.layer setNeedsDisplay];
 }
 
+- (void)setFastOutlines:(bool)fastOutlines {
+    _fastOutlines = fastOutlines;
+    [self.layer setNeedsDisplay];
+}
+
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
     [self initLayer];
+}
+
+- (void)setUseCurves:(bool)useCurves {
+    _useCurves = useCurves;
+    [self.layer setNeedsDisplay];
+}
+
+- (Ra::Transform) view {
+    float scale = self.layer.contentsScale;
+    return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);;
 }
 
 @end
