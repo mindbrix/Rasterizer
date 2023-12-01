@@ -63,7 +63,8 @@ struct RasterizerTest {
             Ra::Bounds bnds(0, 0, 800, 800);
             createConcentrichronScene(bnds, font, concentrichron.empty());
             bounds = bnds;
-            list.empty() = concentrichron;
+            list.empty();
+            writeConcentrichronList(concentrichron, bnds, list);
         }
     }
     
