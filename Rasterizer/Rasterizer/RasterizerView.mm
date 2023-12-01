@@ -83,6 +83,11 @@
     return Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
 }
 
+- (Ra::Transform) view {
+    float scale = self.layer.contentsScale;
+    return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);;
+}
+
 - (void)setCtm:(Ra::Transform)ctm {
     _ctm = ctm;
     [self.layer setNeedsDisplay];
@@ -106,11 +111,6 @@
 - (void)setUseCurves:(bool)useCurves {
     _useCurves = useCurves;
     [self.layer setNeedsDisplay];
-}
-
-- (Ra::Transform) view {
-    float scale = self.layer.contentsScale;
-    return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);;
 }
 
 @end
