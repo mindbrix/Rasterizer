@@ -41,10 +41,10 @@ struct Rasterizer {
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
         Bounds(Transform t) :
-            lx(t.tx + (t.a < 0.f ? t.a : 0.f) + (t.c < 0.f ? t.c : 0.f)),
-            ly(t.ty + (t.b < 0.f ? t.b : 0.f) + (t.d < 0.f ? t.d : 0.f)),
-            ux(t.tx + (t.a > 0.f ? t.a : 0.f) + (t.c > 0.f ? t.c : 0.f)),
-            uy(t.ty + (t.b > 0.f ? t.b : 0.f) + (t.d > 0.f ? t.d : 0.f)) {}
+            lx(t.tx + (t.a < 0.f) * t.a + (t.c < 0.f) * t.c),
+            ly(t.ty + (t.b < 0.f) * t.b + (t.d < 0.f) * t.d),
+            ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
+            uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
         inline bool contains(Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
@@ -498,7 +498,7 @@ struct Rasterizer {
             float det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
-                Transform ctm = view.concat(list.ctms[i]), clipctm, m, unit;
+                Transform ctm = view.concat(list.ctms[i]), clipctm, m;
                 Bounds dev, clip, *bnds, clipBounds;
                 lastip = ~0;
                 memcpy(buffer->_colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
@@ -513,7 +513,7 @@ struct Rasterizer {
                         clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
-                    unit = bnds->unit(m), dev = Bounds(unit).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
+                    dev = Bounds(bnds->unit(m)).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
                         Geometry *g = scn->paths->base[is].ptr;
