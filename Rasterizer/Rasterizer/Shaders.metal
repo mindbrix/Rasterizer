@@ -437,7 +437,7 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         float x0, y0, x1, y1, cpx, cpy, px, py, nx, ny, pcpx, pcpy, ncpx, ncpy;
-        float2 no, np, nn;
+        float2 no, np, nn, tpo, ton, pno, nno;
         bool pcap, ncap;
 
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
@@ -451,28 +451,24 @@ vertex InstancesVertex instances_vertex_main(
         bool greedy = true;
         bool isCurve = *useCurves && cpx != FLT_MAX;
         bool useTangents = greedy ? *useCurves : isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
-        np = normalize({ x0 - (pcurve ? pcpx : px), y0 - (pcurve ? pcpy : py) });
-        nn = normalize({ (ncurve ? ncpx : nx) - x1, (ncurve ? ncpy : ny) - y1 });
-        
         float ax, bx, ay, by, cx, cy, ro, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
-        float2 tpo, ton;
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
         ro = rsqrt(cx * cx + cy * cy), no = float2(cx, cy) * ro;
         
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         alpha *= float(ro < 1e2);
-                
-        pcap |= dot(np, no) < -0.94;
-        ncap |= dot(no, nn) < -0.94;
-        np = pcap ? no : np, nn = ncap ? no : nn;
         
-        float2 pno, nno;
+        np = normalize({ x0 - (pcurve ? pcpx : px), y0 - (pcurve ? pcpy : py) });
+        nn = normalize({ (ncurve ? ncpx : nx) - x1, (ncurve ? ncpy : ny) - y1 });
         pno = (greedy ? isCurve : pcurve) ? normalize(float2(bx, by)) : no;
         nno = (greedy ? isCurve : ncurve) ? normalize(-float2(ax, ay)) : no;
         
-        tpo = normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
+        pcap |= dot(np, pno) < -0.94;
+        ncap |= dot(nno, nn) < -0.94;
+        
+        tpo = pcap ? no : normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
+        ton = ncap ? no : normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
         
         float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
