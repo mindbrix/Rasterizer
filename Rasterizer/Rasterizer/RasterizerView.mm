@@ -46,6 +46,7 @@
         [self setLayer:[RasterizerLayer layer]];
         ((RasterizerLayer *)self.layer).layerDelegate = self;
     }
+    _renderer.reset();
     self.layer.contentsScale = scale;
     self.layer.bounds = self.bounds;
     self.layer.opaque = YES;
