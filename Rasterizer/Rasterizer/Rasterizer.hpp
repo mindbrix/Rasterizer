@@ -138,7 +138,9 @@ struct Rasterizer {
             if (cubicScale > 0.f && adot + bdot < 1.f)
                 writeSegment(x0, y0, x3, y3);
             else {
-                count = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier))), dt = 0.5f / count, dt2 = dt * dt;
+                count = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier)));
+                count = (1.f - oddCubics) * count + oddCubics * (1.f + 2.f * ceilf(0.5f * (count - 1.f)));
+                dt = 0.5f / count, dt2 = dt * dt;
                 x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
                 y = y0, by *= dt2, ay *= dt2 * dt, f3y = 6.f * ay, f2y = f3y + 2.f * by, f1y = ay + by + cy * dt;
                 while (--count) {
@@ -154,7 +156,7 @@ struct Rasterizer {
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {}
         
-        float quadraticScale = 1.f, cubicScale = kCubicPrecision;
+        float quadraticScale = 1.f, cubicScale = kCubicPrecision, oddCubics = 0.f;
     };
     struct Point16 {
         enum Flags { isCurve = 0x8000, kMask = ~isCurve };
@@ -1041,7 +1043,7 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
                 Geometry *g = list.scenes[i].paths->base[is].ptr;
                 if (inst->iz & Instance::kOutlines) {
-                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst;
+                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst, outliner.oddCubics = 1.f;
                     divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, outliner);
                     dst = outliner.dst;
                 } else {
