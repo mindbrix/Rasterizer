@@ -410,6 +410,7 @@ struct Rasterizer {
     struct Blend : Instance {
         Blend(size_t iz) : Instance(iz) {}
         union { struct { int count, idx; } data;  Bounds clip; };
+        Geometry *g;
     };
     struct Edge {
         uint32_t ic;  enum Flags { isClose = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose | a1 | ue0 | ue1) };
@@ -429,11 +430,11 @@ struct Rasterizer {
         
         void prepare(SceneList& list) {
             pathsCount = list.pathsCount;
-            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds), sizeof(uint32_t) };
+            size_t i, sizes[] = { sizeof(Colorant), sizeof(Transform), sizeof(Transform), sizeof(float), sizeof(Bounds) };
             size_t count = sizeof(sizes) / sizeof(*sizes), base = 0, bases[count];
             for (i = 0; i < count; i++)
                 bases[i] = base, base += pathsCount * sizes[i];
-            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4], idxs = bases[5];
+            colors = bases[0], ctms = bases[1], clips = bases[2], widths = bases[3], bounds = bases[4];
             headerSize = (base + 15) & ~15, resize(headerSize), entries.empty();
         }
         void resize(size_t n, size_t copySize = 0) {
@@ -450,12 +451,12 @@ struct Rasterizer {
                 }
                 base = resized;
             }
-            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _idxs = (uint32_t *)(base + idxs), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds);
+            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
-        Transform *_ctms, *_clips;  Colorant *_colors;  uint32_t *_idxs;  float *_widths;  Bounds *_bounds;
+        Transform *_ctms, *_clips;  Colorant *_colors;  float *_widths;  Bounds *_bounds;
     };
     struct Allocator {
         struct Pass {
@@ -517,12 +518,12 @@ struct Rasterizer {
                     }
                     dev = Bounds(bnds->unit(m)).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
-                        buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm, buffer->_idxs[iz] = uint32_t((i << 20) | is);
+                        buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm;
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
-                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
-                           inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
+                            inst->g = g, inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
                            if (det > 1e2f) {
                                SegmentCounter counter;
                                divideGeometry(g, m, inst->clip, false, false, counter);
@@ -534,7 +535,7 @@ struct Rasterizer {
                            size = g->p16s.end, p16total += size;
                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                           inst->quad.cover = 0;
+                           inst->g = g, inst->quad.cover = 0;
                            int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
@@ -1009,7 +1010,6 @@ struct Rasterizer {
         }
         Transform *ctms = (Transform *)(buffer.base + buffer.ctms);
         float *widths = (float *)(buffer.base + buffer.widths);
-        uint32_t *idxs = (uint32_t *)(buffer.base + buffer.idxs);
         Edge *quadEdge = nullptr, *fastEdge = nullptr, *fastOutline = nullptr, *fastOutline0 = nullptr, *quadOutline = nullptr, *quadOutline0 = nullptr, *fastMolecule = nullptr, *fastMolecule0 = nullptr, *quadMolecule = nullptr, *quadMolecule0 = nullptr;
         for (count = ctx->allocator.passes.end, ip = 0; ip < count; ip++) {
             Allocator::Pass *pass = ctx->allocator.passes.base + ip;
@@ -1040,8 +1040,8 @@ struct Rasterizer {
             
             Instance *dst0 = (Instance *)(buffer.base + begin), *dst = dst0;  Outliner outliner;
             for (Blend *inst = ctx->blends.base + pass->idx, *endinst = inst + passsize; inst < endinst; inst++) {
-                iz = inst->iz & kPathIndexMask, is = idxs[iz] & 0xFFFFF, i = idxs[iz] >> 20;
-                Geometry *g = list.scenes[i].paths->base[is].ptr;
+                iz = inst->iz & kPathIndexMask;
+                Geometry *g = inst->g;
                 if (inst->iz & Instance::kOutlines) {
                     outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst, outliner.oddCubics = 1.f;
                     divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, outliner);
