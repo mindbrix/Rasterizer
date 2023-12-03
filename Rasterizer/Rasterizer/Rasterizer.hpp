@@ -40,7 +40,7 @@ struct Rasterizer {
         static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        Bounds(Transform t) :
+        inline Bounds(Transform t) :
             lx(t.tx + (t.a < 0.f) * t.a + (t.c < 0.f) * t.c),
             ly(t.ty + (t.b < 0.f) * t.b + (t.d < 0.f) * t.d),
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
@@ -520,8 +520,9 @@ struct Rasterizer {
                         clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
-                    bnds = & scn->bnds->base[is];
-                    dev = Bounds(bnds->unit(m)).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
+                    bnds = & scn->bnds->base[is], dev = Bounds(bnds->unit(m));
+                    dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
+                    clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm;
                         Geometry *g = scn->paths->base[is].ptr;
