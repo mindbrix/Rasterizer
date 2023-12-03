@@ -458,6 +458,10 @@ vertex InstancesVertex instances_vertex_main(
         
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
+        nx0 = (isCurve ? cpx : x1) - x0;
+        ny0 = (isCurve ? cpy : y1) - y0;
+        px1 = x1 - (isCurve ? cpx : x0);
+        py1 = y1 - (isCurve ? cpy : y0);
         nx1 = (ncurve ? ninst.outline.cx : n.x1) - x1;
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y1;
         
@@ -465,8 +469,6 @@ vertex InstancesVertex instances_vertex_main(
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         
         pdot = px0 * px0 + py0 * py0, rp = rsqrt(pdot), px0 *= rp, py0 *= rp;
-        nx0 = (isCurve ? cpx : x1) - x0;
-        ny0 = (isCurve ? cpy : y1) - y0;
         ndot = nx0 * nx0 + ny0 * ny0, rn = rsqrt(ndot), nx0 *= rn, ny0 *= rn;
         pcap = pcap || pdot < 1e-3 || (px0 * nx0 + py0 * ny0) < -0.94;
         tx0 = pcap ? cx : px0 + nx0;
@@ -478,8 +480,6 @@ vertex InstancesVertex instances_vertex_main(
         vx0 = s0 * -ty0;
         vy0 = s0 * tx0;
         
-        px1 = x1 - (isCurve ? cpx : x0);
-        py1 = y1 - (isCurve ? cpy : y0);
         pdot = px1 * px1 + py1 * py1, rp = rsqrt(pdot), px1 *= rp, py1 *= rp;
         ndot = nx1 * nx1 + ny1 * ny1, rn = rsqrt(ndot), nx1 *= rn, ny1 *= rn;
         ncap = ncap || ndot < 1e-3 || (px1 * nx1 + py1 * ny1) < -0.94;
