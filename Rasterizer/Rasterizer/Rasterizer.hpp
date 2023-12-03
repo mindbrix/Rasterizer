@@ -469,8 +469,8 @@ struct Rasterizer {
             sheet = full, bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count) {
-            float w = ux - lx, h = uy - ly, hght = ceilf(h / kStripHeight) * kStripHeight;
-            Bounds *b = strips + size_t(hght / kStripHeight - 1.f);
+            float w = ux - lx, h = uy - ly, i = fminf(kStripCount, ceilf(h / kStripHeight)), hght = i * kStripHeight;
+            Bounds *b = strips + size_t(i - 1.f);
             if (b->ux - b->lx < w) {
                 if (sheet.uy - sheet.ly < hght)
                     refill(idx);
@@ -480,7 +480,7 @@ struct Rasterizer {
             passes.back().counts[type] += count;
         }
         Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastOutlines, kQuadOutlines, kFastMolecules, kQuadMolecules };
-        Bounds full, sheet, strips[size_t(kMoleculesHeight / kStripHeight)];
+        Bounds full, sheet, strips[kStripCount];
     };
     
     struct Context {
@@ -542,7 +542,7 @@ struct Rasterizer {
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
-                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
+                            bool fast = !buffer->useCurves;// || g->maxCurve * det < 16.f;
                             bool unclipped = clip.contains(dev);
                             bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr;

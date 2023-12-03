@@ -15,6 +15,7 @@
 #define kfh 16.f
 #define krfh 0.0625f
 #define kStripHeight 8.f
+#define kStripCount 8
 #define kMoleculesHeight 64
 #define kMoleculesRange 32767.f
 #define kFastSegments 4
