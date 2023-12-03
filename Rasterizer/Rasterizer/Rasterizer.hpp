@@ -512,14 +512,15 @@ struct Rasterizer {
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
-                    m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.a * m.d - m.b * m.c), uw = scn->widths->base[is], bnds = & scn->bnds->base[is];
-                    width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
+                    m = ctm.concat(scn->ctms->base[is]), det = fabsf(m.a * m.d - m.b * m.c);
+                    uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
                         lastip = ip;
                         clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
+                    bnds = & scn->bnds->base[is];
                     dev = Bounds(bnds->unit(m)).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm;
