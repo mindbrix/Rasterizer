@@ -1061,7 +1061,7 @@ struct Rasterizer {
                                     outline->ic = uint32_t(ic | (uint32_t(*p16cnt++ & 0xF) << 22));
                             } else {
                                 for (j = 0, size = g->atoms.end; j < size; j++, atom++, outline++) {
-                                    outline->ic = uint32_t(ic) | bool(atom->i & Atom::isClose) * Edge::isClose | ((atom->i & 0x000F0000) << 10), outline->i0 = atom->i & 0xFFFF;
+                                    outline->ic = uint32_t(ic) | bool(atom->i & Atom::isClose) * Edge::isClose | ((atom->i & 0xF0000) << 10), outline->i0 = atom->i & 0xFFFF;
                                 }
                             }
                             *(fast ? & fastOutline : & quadOutline) = outline;
@@ -1082,7 +1082,7 @@ struct Rasterizer {
                                 for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd), atom++, molecule++) {
                                     if (update)
                                         ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                    molecule->ic = uint32_t(ic) | ((atom->i & 0x000F0000) << 10), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
+                                    molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 10), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
                                 }
                             }
                             *(fast ? & fastMolecule : & quadMolecule) = molecule;
