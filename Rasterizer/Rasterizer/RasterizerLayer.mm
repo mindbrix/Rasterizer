@@ -134,7 +134,7 @@
                                               options:MTLResourceStorageModeShared
                                           deallocator:nil];
 
-    _converter.matchColors(buffer->_colors, buffer->pathsCount, colorSpace);
+    _converter.matchColors((Ra::Colorant *)(buffer->base + buffer->colors), buffer->pathsCount, colorSpace);
     
     id <CAMetalDrawable> drawable = [self nextDrawable];
     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float

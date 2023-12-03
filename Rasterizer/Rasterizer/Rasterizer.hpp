@@ -451,12 +451,10 @@ struct Rasterizer {
                 }
                 base = resized;
             }
-            _ctms = (Transform *)(base + ctms), _colors = (Colorant *)(base + colors), _clips = (Transform *)(base + clips), _widths = (float *)(base + widths), _bounds = (Bounds *)(base + bounds);
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
         bool useCurves = false, fastOutlines = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
-        Transform *_ctms, *_clips;  Colorant *_colors;  float *_widths;  Bounds *_bounds;
     };
     struct Allocator {
         struct Pass {
@@ -497,6 +495,12 @@ struct Rasterizer {
                 samples.resize(fatlines);
             fasts.zalloc(list.pathsCount);
             
+            Colorant *colors = (Colorant *)(buffer->base + buffer->colors);
+            Transform *ctms = (Transform *)(buffer->base + buffer->ctms);
+            Transform *clips = (Transform *)(buffer->base + buffer->clips);
+            float *widths = (float *)(buffer->base + buffer->widths);
+            Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
+            
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
@@ -504,7 +508,7 @@ struct Rasterizer {
                 Transform ctm = view.concat(list.ctms[i]), clipctm, m;
                 Bounds dev, clip, *bnds, clipBounds;
                 lastip = ~0;
-                memcpy(buffer->_colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
+                memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
                     if ((flags = scn->flags->base[is]) & Scene::Flags::kInvisible)
                         continue;
@@ -518,7 +522,7 @@ struct Rasterizer {
                     }
                     dev = Bounds(bnds->unit(m)).inset(-width, -width), clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
-                        buffer->_ctms[iz] = m, buffer->_widths[iz] = width, buffer->_clips[iz] = clipctm;
+                        ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm;
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
@@ -531,7 +535,7 @@ struct Rasterizer {
                            } else
                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
-                           buffer->_bounds[iz] = *bnds, fasts.base[iz]++;
+                           bounds[iz] = *bnds, fasts.base[iz]++;
                            size = g->p16s.end, p16total += size;
                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
@@ -542,7 +546,7 @@ struct Rasterizer {
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                             bool unclipped = clip.contains(dev);
-                            bool opaque = buffer->_colors[iz].a == 255;
+                            bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr; idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast, idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
                             writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && unclipped, fast, *this);
