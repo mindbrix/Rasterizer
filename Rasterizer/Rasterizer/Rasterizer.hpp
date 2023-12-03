@@ -542,7 +542,7 @@ struct Rasterizer {
                            cnt = fast ? size / kFastSegments : g->atoms.end;
                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
-                            bool fast = !buffer->useCurves;// || g->maxCurve * det < 16.f;
+                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                             bool unclipped = clip.contains(dev);
                             bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr;
