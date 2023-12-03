@@ -433,7 +433,7 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask;
-    float w = widths[iz], cw = max(1.0, w), dw = 0.5 + 0.5 * cw;
+    float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         float x0, y0, x1, y1, cpx, cpy;
