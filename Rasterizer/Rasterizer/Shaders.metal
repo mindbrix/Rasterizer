@@ -437,7 +437,7 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         float x0, y0, x1, y1, cpx, cpy, px, py, nx, ny, pcpx, pcpy, ncpx, ncpy;
-        float2 no, np, nn, tpo, ton, pno, nno;
+        float2 no;
         bool pcap, ncap;
 
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
@@ -445,38 +445,64 @@ vertex InstancesVertex instances_vertex_main(
         pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0, ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
         cpx = inst.outline.cx, cpy = inst.outline.cy;
+        
         px = p.x0, py = p.y0, pcpx = pinst.outline.cx, pcpy = pinst.outline.cy;
         nx = n.x1, ny = n.y1, ncpx = ninst.outline.cx, ncpy = ninst.outline.cy;
 
         bool greedy = true;
         bool isCurve = *useCurves && cpx != FLT_MAX;
         bool useTangents = greedy ? *useCurves : isCurve, pcurve = useTangents && pcpx != FLT_MAX, ncurve = useTangents && ncpx != FLT_MAX;
-        float ax, bx, ay, by, cx, cy, ro, ow, lcap, rcospo, spo, rcoson, son, vx0, vy0, vx1, vy1;
+        float ax, bx, ay, by, cx, cy, ro, ow, lcap, vx0, vy0, vx1, vy1;
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
-        ro = rsqrt(cx * cx + cy * cy), no = float2(cx, cy) * ro;
         
-        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
+        float px0, py0, nx0, ny0, px1, py1, nx1, ny1, pdot, ndot, cdot, rdot, tx0, ty0, tx1, ty1, cos0, cos1, s0, s1, rn, rp;
+        cdot = cx * cx + cy * cy, ro = rsqrt(cdot);
+        no = float2(cx, cy) * ro;
+        
+        alpha *= (cdot > 1e-3);
+        
+        ow = select(0.0, 0.5 * abs(-cy * bx + cx * by) * ro, isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
-        alpha *= float(ro < 1e2);
         
-        np = normalize({ x0 - (pcurve ? pcpx : px), y0 - (pcurve ? pcpy : py) });
-        nn = normalize({ (ncurve ? ncpx : nx) - x1, (ncurve ? ncpy : ny) - y1 });
-        pno = (greedy ? isCurve : pcurve) ? normalize(float2(bx, by)) : no;
-        nno = (greedy ? isCurve : ncurve) ? normalize(-float2(ax, ay)) : no;
+        px0 = x0 - (pcurve ? pcpx : px);
+        py0 = y0 - (pcurve ? pcpy : py);
+        pdot = px0 * px0 + py0 * py0, rp = rsqrt(pdot), px0 *= rp, py0 *= rp;
+        nx0 = (isCurve ? cpx : x1) - x0;
+        ny0 = (isCurve ? cpy : y1) - y0;
+        ndot = nx0 * nx0 + ny0 * ny0, rn = rsqrt(ndot), nx0 *= rn, ny0 *= rn;
+        pcap = pcap || pdot < 1e-3 || (px0 * nx0 + py0 * ny0) < -0.94;
+        tx0 = pcap ? cx : px0 + nx0;
+        ty0 = pcap ? cy : py0 + ny0;
+        rdot = rsqrt(tx0 * tx0 + ty0 * ty0);
+        tx0 *= rdot, ty0 *= rdot;
+        cos0 = abs(cx * tx0 + cy * ty0) * ro;
+        s0 = (dw + ow) / max(1e-10, cos0);
+        vx0 = s0 * -ty0;
+        vy0 = s0 * tx0;
         
-        pcap |= dot(np, pno) < -0.94;
-        ncap |= dot(nno, nn) < -0.94;
+        px1 = x1 - (isCurve ? cpx : x0);
+        py1 = y1 - (isCurve ? cpy : y0);
+        pdot = px1 * px1 + py1 * py1, rp = rsqrt(pdot), px1 *= rp, py1 *= rp;
+        nx1 = (ncurve ? ncpx : nx) - x1;
+        ny1 = (ncurve ? ncpy : ny) - y1;
+        ndot = nx1 * nx1 + ny1 * ny1, rn = rsqrt(ndot), nx1 *= rn, ny1 *= rn;
+        ncap = ncap || ndot < 1e-3 || (px1 * nx1 + py1 * ny1) < -0.94;
+        tx1 = ncap ? cx : px1 + nx1;
+        ty1 = ncap ? cy : py1 + ny1;
+        rdot = rsqrt(tx1 * tx1 + ty1 * ty1);
+        tx1 *= rdot, ty1 *= rdot;
+        cos1 = abs(cx * tx1 + cy * ty1) * ro;
+        s1 = (dw + ow) / max(1e-10, cos1);
+        vx1 = s1 * -ty1;
+        vy1 = s1 * tx1;
         
-        tpo = pcap ? no : normalize(np + pno), rcospo = 1.0 / abs(dot(no, tpo)), spo = rcospo * (dw + ow), vx0 = -tpo.y * spo, vy0 = tpo.x * spo;
-        ton = ncap ? no : normalize(nno + nn), rcoson = 1.0 / abs(dot(no, ton)), son = rcoson * (dw + ow), vx1 = -ton.y * son, vy1 = ton.x * son;
-        
-        float lp, px0, py0, ln, px1, py1, t, dt, dx0, dy0, dx1, dy1;
-        lp = select(0.0, lcap, pcap) + err, px0 = x0 - no.x * lp, py0 = y0 - no.y * lp;
-        ln = select(0.0, lcap, ncap) + err, px1 = x1 + no.x * ln, py1 = y1 + no.y * ln;
-        t = ((px1 - px0) * vy1 - (py1 - py0) * vx1) / (vx0 * vy1 - vy0 * vx1);
+        float lp, cx0, cy0, ln, cx1, cy1, t, dt, dx0, dy0, dx1, dy1;
+        lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
+        ln = select(0.0, lcap, ncap) + err, cx1 = x1 + no.x * ln, cy1 = y1 + no.y * ln;
+        t = ((cx1 - cx0) * vy1 - (cy1 - cy0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
-        dx = vid & 2 ? fma(vx1, dt, px1) : fma(vx0, dt, px0), dx0 = dx - x0, dx1 = dx - x1;
-        dy = vid & 2 ? fma(vy1, dt, py1) : fma(vy0, dt, py0), dy0 = dy - y0, dy1 = dy - y1;
+        dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0), dx0 = dx - x0, dx1 = dx - x1;
+        dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0), dy0 = dy - y0, dy1 = dy - y1;
         
         vert.dw = dw;
         if (isCurve) {
@@ -493,8 +519,8 @@ vertex InstancesVertex instances_vertex_main(
         } else
             vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm0 = vert.dm1 = -no.y * dx0 + no.x * dy0;
         
-        vert.miter0 = pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
+        vert.miter0 = 1.0;// pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
+        vert.miter1 = 1.0;// ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | pcurve * InstancesVertex::kPCurve | ncurve * InstancesVertex::kNCurve;
     } else {
