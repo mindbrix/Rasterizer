@@ -49,8 +49,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (! self)
         return nil;
     self.pageIndex = 0;
-    self.fnt = [NSFont fontWithName:@"AppleSymbols" size:14];
-    [self writeList:self.fnt];
     [self startTimer];
     return self;
 }
