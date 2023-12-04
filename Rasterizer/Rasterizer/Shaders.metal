@@ -437,8 +437,8 @@ vertex InstancesVertex instances_vertex_main(
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
         float x0, y0, x1, y1, cpx, cpy;
-        float ax, bx, ay, by, cx, cy, ro, ow, lcap, vx0, vy0, vx1, vy1;
-        float px0, py0, nx1, ny1, pdot, ndot, cdot, cos0, cos1, s0, s1;
+        float ax, bx, ay, by, cx, cy, ow, lcap, vx0, vy0, vx1, vy1;
+        float px0, py0, nx1, ny1, cos0, cos1, s0, s1;
         float2 no, p0, n0, p1, n1, tan0, tan1;
         bool pcap, ncap;
 
@@ -448,36 +448,34 @@ vertex InstancesVertex instances_vertex_main(
         ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
         cpx = inst.outline.cx, cpy = inst.outline.cy;
-        ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0, cx = x1 - x0, cy = y1 - y0;
-        cdot = cx * cx + cy * cy, ro = rsqrt(cdot);
-        no = float2(cx, cy) * ro;
-        alpha *= (cdot > 1e-3);
+        ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0;
+        cx = x1 - x0, cy = y1 - y0;
+        no = normalize({ cx, cy });
+        alpha *= (cx * cx + cy * cy > 1e-3);
         
         bool isCurve = *useCurves && cpx != FLT_MAX;
         bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
-        pdot = px0 * px0 + py0 * py0;
         p0 = normalize({ px0, py0 });
         n0 = normalize({ (isCurve ? cpx : x1) - x0, (isCurve ? cpy : y1) - y0 });
         p1 = normalize({ x1 - (isCurve ? cpx : x0), y1 - (isCurve ? cpy : y0) });
         nx1 = (ncurve ? ninst.outline.cx : n.x1) - x1;
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y1;
-        ndot = nx1 * nx1 + ny1 * ny1;
         n1 = normalize({ nx1, ny1 });
         
-        ow = select(0.0, 0.5 * abs(-cy * bx + cx * by) * ro, isCurve);
+        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         
-        pcap = pcap || pdot < 1e-3 || dot(p0, n0) < -0.94;
+        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < -0.94;
         tan0 = pcap ? no : normalize(p0 + n0);
         cos0 = abs(dot(no, tan0));
         s0 = (dw + ow) / max(1e-10, cos0);
         vx0 = s0 * -tan0.y;
         vy0 = s0 * tan0.x;
         
-        ncap = ncap || ndot < 1e-3 || dot(p1, n1) < -0.94;
+        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < -0.94;
         tan1 = ncap ? no : normalize(p1 + n1);
         cos1 = abs(dot(no, tan1));
         s1 = (dw + ow) / max(1e-10, cos1);
