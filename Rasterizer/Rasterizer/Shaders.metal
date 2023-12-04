@@ -508,7 +508,11 @@ vertex InstancesVertex instances_vertex_main(
         vert.miter0 = 1.0;// pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = 1.0;// ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
-        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | pcurve * InstancesVertex::kPCurve | ncurve * InstancesVertex::kNCurve;
+        bool roundCap = inst.iz & Instance::kRoundCap;
+        bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
+        bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
+        
+        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
@@ -536,11 +540,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     if (vert.flags & InstancesVertex::kIsShape) {
         float a, b, c, d, x2, y2, sqdist, sd0, sd1, cap, cap0, cap1;
         bool isCurve = vert.flags & InstancesVertex::kIsCurve;
-        bool squareCap = vert.flags & Instance::kSquareCap, roundCap = vert.flags & Instance::kRoundCap;
+        bool squareCap = vert.flags & Instance::kSquareCap;
         bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
-        bool pcurve = vert.flags & InstancesVertex::kPCurve, ncurve = vert.flags & InstancesVertex::kNCurve;
-        
-        cap = squareCap ? vert.dw : 0.5;
+        bool f0 = vert.flags & InstancesVertex::kPCurve, f1 = vert.flags & InstancesVertex::kNCurve;
         
         if (isCurve) {
 //            float x0, y0, x1, y1;
@@ -555,13 +557,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float dx = vert.d0 - clamp(vert.d0, 0.0, vert.d0 + vert.d1);
             sqdist = dx * dx + vert.dm0 * vert.dm0;
         }
-            
         alpha = saturate(vert.dw - sqrt(sqdist));
+        
+        cap = squareCap ? vert.dw : 0.5;
         cap0 = (pcap ? saturate(cap + vert.d0) : 1.0) * saturate(vert.dw - abs(vert.dm0));
         cap1 = (ncap ? saturate(cap + vert.d1) : 1.0) * saturate(vert.dw - abs(vert.dm1));
         
-        bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
-        bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         sd0 = f0 ? saturate(vert.d0) : 1.0;
         sd1 = f1 ? saturate(vert.d1) : 1.0;
 
