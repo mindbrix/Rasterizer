@@ -57,9 +57,6 @@ struct RasterizerFont {
         if (nverts) {
             stbtt_GetCodepointBox(& info, glyph, & x0, & y0, & x1, & y1);
             Ra::Geometry *g = path.ptr;
-            g->points.prealloc(nverts * 3 * 2);
-            g->types.prealloc(nverts * 3);
-            g->molecules.prealloc(16);
             for (i = 0; i < nverts; i++)
                 switch (v[i].type) {
                     case STBTT_vmove:
