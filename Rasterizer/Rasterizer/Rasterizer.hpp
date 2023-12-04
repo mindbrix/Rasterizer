@@ -488,6 +488,7 @@ struct Rasterizer {
             Transform *clips = (Transform *)(buffer->base + buffer->clips);
             float *widths = (float *)(buffer->base + buffer->widths);
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
+            bool clipIsRect = false;
             
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float det, width, uw;
@@ -507,6 +508,7 @@ struct Rasterizer {
                         lastip = ip;
                         clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         clipBounds = Bounds(clipctm).integral().intersect(device);
+                        clipIsRect = (clipctm.a == 0.f && clipctm.d == 0.f) || (clipctm.b == 0.f && clipctm.c == 0.f);
                     }
                     bnds = & scn->bnds->base[is], dev = Bounds(bnds->unit(m));
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
@@ -541,7 +543,7 @@ struct Rasterizer {
                             idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && unclipped, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && (unclipped || (!unclipped && clipIsRect)), fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
