@@ -529,9 +529,9 @@ struct Rasterizer {
                            if (det > 1e2f) {
                                SegmentCounter counter;
                                divideGeometry(g, m, inst->clip, false, false, counter);
-                               outlineInstances += 10 * counter.count;
+                               outlineInstances += counter.count;
                            } else
-                               outlineInstances += 10 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                               outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                        } else if (useMolecules) {
                            bounds[iz] = *bnds, fasts.base[iz]++;
                            size = g->p16s.end, p16total += size;
@@ -951,59 +951,6 @@ struct Rasterizer {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
-        /*
-        void Quadratic0(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, ay, adot, count, dt, f2x, f1x, f2y, f1y;
-            ax = x0 + x2 - x1 - x1, ay = y0 + y2 - y1 - y1, adot = ax * ax + ay * ay;
-            if (adot < 1.f)
-                writeSegment(x0, y0, x2, y2);
-            else {
-                count = 1.f + ceilf(sqrtf(sqrtf(adot + 1e-12f) / quadraticScale));
-                dt = 1.f / count;
-                ax *= dt * dt, f2x = 2.f * ax, f1x = ax + 2.f * (x1 - x0) * dt, x1 = x0;
-                ay *= dt * dt, f2y = 2.f * ay, f1y = ay + 2.f * (y1 - y0) * dt, y1 = y0;
-                while (--count) {
-                    x1 += f1x, f1x += f2x, y1 += f1y, f1y += f2y;
-                    writeSegment(x0, y0, x1, y1), x0 = x1, y0 = y1;
-                }
-                writeSegment(x0, y0, x2, y2);
-            }
-        }
-         */
-        void Quadratic0(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float tanx, tany, tdot, s, t0 = 0.0, t1, at, ct, tx0, tx1, x, ty0, ty1, y;
-            
-            for (tx0 = x0, ty0 = y0, tx1 = x1, ty1 = y1, t0 = t1 = 0.f; t0 < 1.f; t0 = t1, tx0 = x, ty0 = y) {
-                tanx = tx1 - tx0, tany = ty1 - ty0, tdot = tanx * tanx + tany * tany;
-                at = fabsf(-tany * (x2 - tx0) + tanx * (y2 - ty0)) / tdot;
-                ct = quadraticScale / sqrtf(tdot);
-                t1 = at == 0.f ? 1.f : sqrtf(at * ct) / fmaxf(1e-6f, at);
-                t1 = fmaxf(0.f, fminf(1.f, t1));
-                t1 = 1.f / ceilf(1.f / t1);
-                t1 = t0 * (1.f - t1) + 1.f * t1;
-                
-                s = 1.0f - t1;
-                tx1 = s * x1 + t1 * x2, x = s * (s * x0 + t1 * x1) + t1 * tx1;
-                ty1 = s * y1 + t1 * y2, y = s * (s * y0 + t1 * y1) + t1 * ty1;
-                writeSegment(tx0, ty0, x, y);
-            }
-        }
-        /*
-        void HalveQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
-            float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
-            ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
-            adot = ax * ax + ay * ay, bdot = bx * bx + by * by, cosine = (ax * bx + ay * by) / sqrt(adot * bdot + 1e-12f), ratio = adot / bdot;
-            if (cosine > 0.939692620785908f)
-                writeSegment(x0, y0, x2, y2);
-            else {
-                a = sqrtf(adot), b = sqrtf(bdot), t = b / (a + b), s = 1.0f - t;
-                tx0 = s * x0 + t * x1, tx1 = s * x1 + t * x2, x = s * tx0 + t * tx1;
-                ty0 = s * y0 + t * y1, ty1 = s * y1 + t * y2, y = s * ty0 + t * ty1;
-                HalveQuadratic(x0, y0, tx0, ty0, x, y);
-                HalveQuadratic(x, y, tx1, ty1, x2, y2);
-            }
-        }
-        */
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             float ax, bx, ay, by, adot, bdot, cosine, ratio, a, b, t, s, tx0, tx1, x, ty0, ty1, y;
             ax = x2 - x1, bx = x1 - x0, ay = y2 - y1, by = y1 - y0;
@@ -1100,7 +1047,7 @@ struct Rasterizer {
                 iz = inst->iz & kPathIndexMask;
                 Geometry *g = inst->g;
                 if (inst->iz & Instance::kOutlines) {
-                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst, outliner.oddCubics = 1.f, outliner.quadraticScale = 0.5f;//, outliner.cubicScale = kCubicPrecision * 1e-2f;
+                    outliner.iz = inst->iz, outliner.dst = outliner.dst0 = dst, outliner.oddCubics = 1.f;
                     divideGeometry(g, ctms[iz], inst->clip, inst->clip.isHuge(), false, outliner);
                     dst = outliner.dst;
                 } else {
