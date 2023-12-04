@@ -438,8 +438,8 @@ vertex InstancesVertex instances_vertex_main(
     if (inst.iz & Instance::kOutlines) {
         float x0, y0, x1, y1, cpx, cpy;
         float ax, bx, ay, by, cx, cy, ro, ow, lcap, vx0, vy0, vx1, vy1;
-        float px0, py0, nx0, ny0, px1, py1, nx1, ny1, pdot, ndot, cdot, rdot, tx0, ty0, tx1, ty1, cos0, cos1, s0, s1, rn, rp;
-        float2 no;
+        float px0, py0, nx1, ny1, pdot, ndot, cdot, cos0, cos1, s0, s1;
+        float2 no, p0, n0, p1, n1, tan0, tan1;
         bool pcap, ncap;
 
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
@@ -458,39 +458,31 @@ vertex InstancesVertex instances_vertex_main(
         
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
-        nx0 = (isCurve ? cpx : x1) - x0;
-        ny0 = (isCurve ? cpy : y1) - y0;
-        px1 = x1 - (isCurve ? cpx : x0);
-        py1 = y1 - (isCurve ? cpy : y0);
+        pdot = px0 * px0 + py0 * py0;
+        p0 = normalize({ px0, py0 });
+        n0 = normalize({ (isCurve ? cpx : x1) - x0, (isCurve ? cpy : y1) - y0 });
+        p1 = normalize({ x1 - (isCurve ? cpx : x0), y1 - (isCurve ? cpy : y0) });
         nx1 = (ncurve ? ninst.outline.cx : n.x1) - x1;
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y1;
+        ndot = nx1 * nx1 + ny1 * ny1;
+        n1 = normalize({ nx1, ny1 });
         
         ow = select(0.0, 0.5 * abs(-cy * bx + cx * by) * ro, isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         
-        pdot = px0 * px0 + py0 * py0, rp = rsqrt(pdot), px0 *= rp, py0 *= rp;
-        ndot = nx0 * nx0 + ny0 * ny0, rn = rsqrt(ndot), nx0 *= rn, ny0 *= rn;
-        pcap = pcap || pdot < 1e-3 || (px0 * nx0 + py0 * ny0) < -0.94;
-        tx0 = pcap ? cx : px0 + nx0;
-        ty0 = pcap ? cy : py0 + ny0;
-        rdot = rsqrt(tx0 * tx0 + ty0 * ty0);
-        tx0 *= rdot, ty0 *= rdot;
-        cos0 = abs(cx * tx0 + cy * ty0) * ro;
+        pcap = pcap || pdot < 1e-3 || dot(p0, n0) < -0.94;
+        tan0 = pcap ? no : normalize(p0 + n0);
+        cos0 = abs(dot(no, tan0));
         s0 = (dw + ow) / max(1e-10, cos0);
-        vx0 = s0 * -ty0;
-        vy0 = s0 * tx0;
+        vx0 = s0 * -tan0.y;
+        vy0 = s0 * tan0.x;
         
-        pdot = px1 * px1 + py1 * py1, rp = rsqrt(pdot), px1 *= rp, py1 *= rp;
-        ndot = nx1 * nx1 + ny1 * ny1, rn = rsqrt(ndot), nx1 *= rn, ny1 *= rn;
-        ncap = ncap || ndot < 1e-3 || (px1 * nx1 + py1 * ny1) < -0.94;
-        tx1 = ncap ? cx : px1 + nx1;
-        ty1 = ncap ? cy : py1 + ny1;
-        rdot = rsqrt(tx1 * tx1 + ty1 * ty1);
-        tx1 *= rdot, ty1 *= rdot;
-        cos1 = abs(cx * tx1 + cy * ty1) * ro;
+        ncap = ncap || ndot < 1e-3 || dot(p1, n1) < -0.94;
+        tan1 = ncap ? no : normalize(p1 + n1);
+        cos1 = abs(dot(no, tan1));
         s1 = (dw + ow) / max(1e-10, cos1);
-        vx1 = s1 * -ty1;
-        vy1 = s1 * tx1;
+        vx1 = s1 * -tan1.y;
+        vy1 = s1 * tan1.x;
         
         float lp, cx0, cy0, ln, cx1, cy1, t, dt, dx0, dy0, dx1, dy1;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
