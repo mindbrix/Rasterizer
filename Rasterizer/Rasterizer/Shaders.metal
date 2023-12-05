@@ -68,10 +68,35 @@ float4 distances(Transform ctm, float dx, float dy) {
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // This is to prevent 3 colinear points, but there should be better solution to it.
-    p1 = mix(p1 + float2(1e-4), p1, abs(sign(p1 * 2.0 - p0 - p2)));
+//    p1 = mix(p1 + float2(1e-1), p1, abs(sign(p1 * 2.0 - p0 - p2)));
     
     // Calculate roots.
     float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
+    float2 vc = p2 - p0;
+    float cdot = dot(vc, vc);
+    float s, t = abs(va.x * -vc.y + va.y * vc.x) / cdot;
+    if (t < 5e-2) {
+        float tx0, tx1, tx2, tx, ty, t0, t1, t2, a, b, c;
+        tx1 = dot(vc, va) / cdot;
+        tx0 = dot(vc, { -va.y, va.x }) / cdot;
+        tx2 = dot(vc, { -(p2.y - p1.y), p2.x - p1.x }) / cdot;
+        tx = dot(vc, -p0) / cdot;
+        ty = dot({ -vc.y, vc.x }, -p0) / cdot;
+        
+        t0 = ty * tx0;
+        t1 = tx1;
+        t2 = 1.0 + ty * tx2;
+        
+        b = t1 - t0, a = t2 - t1, a -= b, b *= 2.0, c = t0 - tx;
+        t = a == 0 ? -c / b : 0.5 * (-b + sqrt(b * b - 4.0 * a * c)) / a;
+        t = saturate(t);
+        
+        
+//        t = saturate(dot(-p0, vc) / cdot), s = 1.0 - t;
+//        float2 pt = s * p0 + t * p2;
+        float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
+        return dot(pt, pt);
+    }
     float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
     
     float a = k.x, b = k.y, c = k.z;
@@ -79,18 +104,19 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float q = a * (2.0*a*a - 9.0*b) / 27.0 + c;
     float d = q*q + 4.0*p3 / 27.0;
     float offset = -a / 3.0;
-    if (d >= 0.0) {
+    if (d > 0.0) {
         float z = sqrt(d);
         float2 x = (float2(z, -z) - q) / 2.0;
         float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
         float t = saturate(offset + uv.x + uv.y);
+//        t = 0.5;
         float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
         return dot(pt, pt);
     }
     float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
     float m = cos(v), n = sin(v)*1.732050808;
     float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) + offset);
-    
+//    ts = { 0.5, 0.5 };
     float2 pt0 = fma(fma(vb, ts.x, 2.0 * va), ts.x, vd);
     float2 pt1 = fma(fma(vb, ts.y, 2.0 * va), ts.y, vd);
     return min(dot(pt0, pt0), dot(pt1, pt1));
@@ -491,8 +517,12 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0), dy0 = dy - y0, dy1 = dy - y1;
         
         vert.dw = dw;
+        
+        float area = cx * by - cy * bx, rlb = rsqrt(bx * bx + by * by), rla = rsqrt(ax * ax + ay * ay);
+//        isCurve = isCurve && abs(area) > 100.0;
+        
         if (isCurve) {
-            float area = cx * by - cy * bx, rlb = rsqrt(bx * bx + by * by), rla = rsqrt(ax * ax + ay * ay);
+            
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
             vert.d0 = (bx * dx0 + by * dy0) * rlb;
