@@ -103,7 +103,7 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
     float2 vc = p2 - p0;
     float cdot = dot(vc, vc);
-    float t = abs(va.x * -vc.y + va.y * vc.x) / cdot;
+    float t = abs(dot({ -vc.y, vc.x }, va)) / cdot;
     if (t < 5e-2) {
         float tx0, tx1, tx2, tx, ty, t0, t1, t2, a, b, c;
         tx1 = dot(vc, va);
