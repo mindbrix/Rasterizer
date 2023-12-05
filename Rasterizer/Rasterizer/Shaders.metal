@@ -64,9 +64,38 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
+float bezierDistance(float2 p0, float2 p1, float2 p2) {
+    float2 va, vb, pt, tan, na, nb;
+    float la, lb, t, d0, d1, d2, tc;
+    va = p2 - p1, vb = p1 - p0;
+    na = normalize(va), nb = normalize(vb);
+    la = length(va), lb = length(vb);
+    t = lb / (la + lb);
+    va -= vb, vb *= 2.0;
+    pt = fma(fma(va, t, vb), t, p0);
+    tan = normalize(fma(2.0 * va, t, vb));
+    d0 = dot(-p0, nb);
+    d1 = dot(-pt, tan);
+    d2 = dot(-p2, na);
+    
+    tc = 0.0;
+    if (d1 < 0.0) {
+        tc = (d0 / (d0 - d1));
+        tc = tc * t;
+    } else {
+        tc = (d1 / (d1 - d2));
+        tc = (1.0 - tc) * t + tc;
+    }
+//    return tc;
+    pt = fma(fma(va, tc, vb), tc, p0);
+    return dot(pt, pt);
+}
+
+
 // https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
+//    return bezierDistance(p0, p1, p2);
     // This is to prevent 3 colinear points, but there should be better solution to it.
 //    p1 = mix(p1 + float2(1e-1), p1, abs(sign(p1 * 2.0 - p0 - p2)));
     
@@ -88,12 +117,9 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
         t2 = 1.0 + ty * tx2;
         
         b = t1 - t0, a = t2 - t1, a -= b, b *= 2.0, c = t0 - tx;
-        t = a == 0 ? -c / b : 0.5 * (-b + sqrt(b * b - 4.0 * a * c)) / a;
+        t = abs(a) < 1e-2 ? -c / b : 0.5 * (-b + sqrt(b * b - 4.0 * a * c)) / a;
         t = saturate(t);
         
-        
-//        t = saturate(dot(-p0, vc) / cdot), s = 1.0 - t;
-//        float2 pt = s * p0 + t * p2;
         float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
         return dot(pt, pt);
     }
