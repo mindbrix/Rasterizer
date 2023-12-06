@@ -67,9 +67,6 @@ float4 distances(Transform ctm, float dx, float dy) {
 // https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
-    // This is to prevent 3 colinear points, but there should be better solution to it.
-//    p1 = mix(p1 + float2(1e-1), p1, abs(sign(p1 * 2.0 - p0 - p2)));
-    
     // Calculate roots.
     float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
     float2 vc = p2 - p0;
