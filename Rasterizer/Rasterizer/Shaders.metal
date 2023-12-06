@@ -515,22 +515,16 @@ vertex InstancesVertex instances_vertex_main(
         
         vert.dw = dw;
         
-        float area = cx * by - cy * bx, rlb = rsqrt(bx * bx + by * by), rla = rsqrt(ax * ax + ay * ay);
-//        isCurve = isCurve && abs(area) > 100.0;
-        
         if (isCurve) {
-            
+            float area = cx * by - cy * bx;
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
-            vert.d0 = (bx * dx0 + by * dy0) * rlb;
-            vert.dm0 = (-by * dx0 + bx * dy0) * rlb;
-            
-            vert.d1 = (ax * dx1 + ay * dy1) * rla;
-            vert.dm1 = (-ay * dx1 + ax * dy1) * rla;
-            
 //            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
-        } else
-            vert.d0 = no.x * dx0 + no.y * dy0, vert.d1 = -(no.x * dx1 + no.y * dy1), vert.dm0 = vert.dm1 = -no.y * dx0 + no.x * dy0;
+        }
+        vert.d0 = n0.x * dx0 + n0.y * dy0;
+        vert.dm0 = -n0.y * dx0 + n0.x * dy0;
+        vert.d1 = -(p1.x * dx1 + p1.y * dy1);
+        vert.dm1 = -(-p1.y * dx1 + p1.x * dy1);
         
         vert.miter0 = 1.0;// pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = 1.0;// ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
