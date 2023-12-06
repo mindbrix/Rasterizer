@@ -64,39 +64,21 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
-float coincidentT(float t) {
-    float a = 1.0 - 2.0 * t;
-    return a == 0.0 ? 0.5 : (-t + sqrt(t - t * t)) / a;
-}
 
 // https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // Calculate roots.
-    float2 va = p1 - p0, vb = p0 - p1 * 2.0 + p2, vd = p0;
-    float2 vc = p2 - p0;
+    float2 va = p1 - p0, vb, vd = p0;
+    float2 vc = p2 - p0, rp1 = p1;
     float cdot = dot(vc, vc);
-    float t = abs(dot({ -vc.y, vc.x }, va)) / cdot;
-    if (t < kCubicSolverLimit) {
-        float tx0, tx1, tx2, tx, ty, t0, t1, t2, a, b, c;
-        tx1 = dot(vc, va);
-        tx0 = dot(vc, { -va.y, va.x });
-        tx2 = dot(vc, { -(p2.y - p1.y), p2.x - p1.x });
-        tx = dot(vc, -p0);
-        ty = dot({ -vc.y, vc.x }, -p0) / cdot;
-        
-        t0 = ty * tx0;
-        t1 = tx1;
-        t2 = cdot + ty * tx2;
-        
-        b = t1 - t0, a = t2 - t1, a -= b, b *= 2.0, c = t0 - tx;
-        t = abs(a) < 1e-2 ? -c / b : 0.5 * (-b + sqrt(b * b - 4.0 * a * c)) / a;
-        t = saturate(t);
-        
-        float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
-        return dot(pt, pt);
+    float t = dot({ -vc.y, vc.x }, va) / cdot;
+    if (abs(t) < kCubicSolverLimit) {
+        rp1 = p1 + (kCubicSolverLimit - abs(t)) * sign(t) * float2(-vc.y, vc.x);
     }
+    va = rp1 - p0, vb = p0 - rp1 * 2.0 + p2;
     float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
+    va = p1 - p0, vb = p0 - p1 * 2.0 + p2;
     
     float a = k.x, b = k.y, c = k.z;
     float p = b - a*a / 3.0, p3 = p*p*p;
