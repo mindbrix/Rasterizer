@@ -70,15 +70,13 @@ float4 distances(Transform ctm, float dx, float dy) {
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // Calculate roots.
     float2 va = p1 - p0, vb, vd = p0;
-    float2 vc = p2 - p0, rp1 = p1;
+    float2 vc = p2 - p0, rp1;
     float cdot = dot(vc, vc);
     float t = dot({ -vc.y, vc.x }, va) / cdot;
-    if (abs(t) < kCubicSolverLimit) {
-        rp1 = p1 + (kCubicSolverLimit - abs(t)) * sign(t) * float2(-vc.y, vc.x);
-    }
-    va = rp1 - p0, vb = p0 - rp1 * 2.0 + p2;
+    rp1 = p1 + (kCubicSolverLimit - min(kCubicSolverLimit, abs(t))) * sign(t) * float2(-vc.y, vc.x);
+    va = rp1 - p0, vb = p2 - rp1, vb -= va;
     float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
-    va = p1 - p0, vb = p0 - p1 * 2.0 + p2;
+    va = p1 - p0, vb = p2 - p1, vb -= va;
     
     float a = k.x, b = k.y, c = k.z;
     float p = b - a*a / 3.0, p3 = p*p*p;
