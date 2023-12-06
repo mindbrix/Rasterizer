@@ -83,7 +83,7 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float q = a * (2.0*a*a - 9.0*b) / 27.0 + c;
     float d = q*q + 4.0*p3 / 27.0;
     float offset = -a / 3.0;
-    if (d > 0.0) {
+    if (d >= 0.0) {
         float z = sqrt(d);
         float2 x = (float2(z, -z) - q) / 2.0;
         float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
