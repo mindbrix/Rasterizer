@@ -64,6 +64,11 @@ float4 distances(Transform ctm, float dx, float dy) {
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
 }
 
+float coincidentT(float t) {
+    float a = 1.0 - 2.0 * t;
+    return a == 0.0 ? 0.5 : (-t + sqrt(t - t * t)) / a;
+}
+
 // https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
@@ -72,7 +77,7 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float2 vc = p2 - p0;
     float cdot = dot(vc, vc);
     float t = abs(dot({ -vc.y, vc.x }, va)) / cdot;
-    if (t < 5e-2) {
+    if (t < kCubicSolverLimit) {
         float tx0, tx1, tx2, tx, ty, t0, t1, t2, a, b, c;
         tx1 = dot(vc, va);
         tx0 = dot(vc, { -va.y, va.x });
