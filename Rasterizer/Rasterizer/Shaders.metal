@@ -567,8 +567,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
 //        alpha = 0.25;
     } else
-    {
-        alpha = vert.u == FLT_MAX ? 1.0 : abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
+    if (vert.u != FLT_MAX) {
+        alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     Colorant color = colors[vert.iz];
