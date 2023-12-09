@@ -461,8 +461,9 @@ struct Rasterizer {
             sheet = full, bzero(strips, sizeof(strips)), new (passes.alloc(1)) Pass(idx);
         }
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count) {
-            float w = ux - lx, h = uy - ly, i = fminf(kStripCount, ceilf(h / kStripHeight)), hght = i * kStripHeight;
-            Bounds *b = strips + size_t(i - 1.f);
+            float w = ux - lx, h = uy - ly;
+            size_t i = fmaxf(0.f, ceilf(log2f(h / kStripHeight))), hght = (1 << i) * kStripHeight;
+            Bounds *b = strips + i;
             if (b->ux - b->lx < w) {
                 if (sheet.uy - sheet.ly < hght)
                     refill(idx);
