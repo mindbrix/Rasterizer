@@ -69,31 +69,30 @@ float4 distances(Transform ctm, float dx, float dy) {
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
     // Calculate roots.
-    float2 va = p1 - p0, vb, vd = p0;
-    float2 vc = { p0.y - p2.y, p2.x - p0.x }, rp1;
-    float cdot = dot(vc, vc);
-    float t = dot(vc, va) / cdot;
-    rp1 = p1 + (kCubicSolverLimit - min(kCubicSolverLimit, abs(t))) * sign(t) * vc;
-    va = rp1 - p0, vb = p2 - rp1, vb -= va;
-    float kk = 1.0 / dot(vb, vb);
-    float a = kk * dot(va, vb), b = kk * (2.0 * dot(va, va) + dot(vd, vb)), c = kk * dot(vd, va);
+    float2 vb = p1 - p0, va, vc = { p0.y - p2.y, p2.x - p0.x }, rp1;
+    float t = dot(vc, vb) / dot(vc, vc);
+    float dt = kCubicSolverLimit - min(kCubicSolverLimit, abs(t));
+    rp1 = p1 + dt * sign(t) * vc;
+    vb = rp1 - p0, va = p2 - rp1, va -= vb;
+    float kk = 1.0 / dot(va, va);
+    float a = kk * dot(vb, va), b = kk * (2.0 * dot(vb, vb) + dot(p0, va)), c = kk * dot(p0, vb);
     float p = b - 3.0 * a * a, p3 = p * p * p;
     float q = a * (2.0 * a * a - b) + c;
     float d = q * q + 4.0 * p3 / 27.0;
-    va = p1 - p0, vb = p2 - p1, vb -= va;
+    vb = p1 - p0, va = p2 - p1, va -= vb, vb *= 2.0;
     if (d >= 0.0) {
         float z = sqrt(d);
         float2 x = 0.5 * (float2(z, -z) - q);
         float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
         float t = saturate(uv.x + uv.y - a);
-        float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
+        float2 pt = fma(fma(va, t, vb), t, p0);
         return dot(pt, pt);
     }
     float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
     float m = cos(v), n = sin(v)*1.732050808;
     float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) - a);
-    float2 pt0 = fma(fma(vb, ts.x, 2.0 * va), ts.x, vd);
-    float2 pt1 = fma(fma(vb, ts.y, 2.0 * va), ts.y, vd);
+    float2 pt0 = fma(fma(va, ts.x, vb), ts.x, p0);
+    float2 pt1 = fma(fma(va, ts.y, vb), ts.y, p0);
     return min(dot(pt0, pt0), dot(pt1, pt1));
 }
 
