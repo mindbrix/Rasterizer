@@ -714,15 +714,15 @@ struct Rasterizer {
         if (fabs(A) < 1e-3)
             return solveQuadratic(B, C, D, roots);
         else {
-            double  p, q, q2, u1, v1, discriminant, sd, t;
+            double p, p3, q, q2, u1, v1, discriminant, sd, t;
             B /= A, C /= A, D /= A;
             B /= 3.0;
-            p = C - 3.0 * B * B;
+            p = C - 3.0 * B * B, p3 = p * p * p;
             q = B * (2.0 * B * B - C) + D;
             q2 = q * 0.5;
-            discriminant = q2 * q2 + p * p * p / 27.0;
+            discriminant = q2 * q2 + p3 / 27.0;
             if (discriminant < 0) {
-                double mp3 = -p / 3, mp33 = mp3 * mp3 * mp3, r = sqrt(mp33), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
+                double r = sqrt(-p3 / 27.0), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
                 __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
                 t = crtr * cosine - B; if (t > 0.f && t < 1.f)  *roots++ = t;
                 t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
