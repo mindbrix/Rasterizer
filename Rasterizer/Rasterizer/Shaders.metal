@@ -76,25 +76,22 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     rp1 = p1 + (kCubicSolverLimit - min(kCubicSolverLimit, abs(t))) * sign(t) * vc;
     va = rp1 - p0, vb = p2 - rp1, vb -= va;
     float kk = 1.0 / dot(vb, vb);
-    float3 k = kk * float3(dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va));
-    va = p1 - p0, vb = p2 - p1, vb -= va;
-    
-    float a = k.x, b = k.y, c = k.z;
+    float a = kk * dot(va, vb), b = kk * (2.0 * dot(va, va) + dot(vd, vb)), c = kk * dot(vd, va);
     float p = b - 3.0 * a * a, p3 = p * p * p;
     float q = a * (2.0 * a * a - b) + c;
     float d = q * q + 4.0 * p3 / 27.0;
-    float offset = -a;
+    va = p1 - p0, vb = p2 - p1, vb -= va;
     if (d >= 0.0) {
         float z = sqrt(d);
-        float2 x = (float2(z, -z) - q) / 2.0;
+        float2 x = 0.5 * (float2(z, -z) - q);
         float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
-        float t = saturate(offset + uv.x + uv.y);
+        float t = saturate(uv.x + uv.y - a);
         float2 pt = fma(fma(vb, t, 2.0 * va), t, vd);
         return dot(pt, pt);
     }
     float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
     float m = cos(v), n = sin(v)*1.732050808;
-    float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) + offset);
+    float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) - a);
     float2 pt0 = fma(fma(vb, ts.x, 2.0 * va), ts.x, vd);
     float2 pt1 = fma(fma(vb, ts.y, 2.0 * va), ts.y, vd);
     return min(dot(pt0, pt0), dot(pt1, pt1));
@@ -443,7 +440,7 @@ vertex InstancesVertex instances_vertex_main(
         float x0, y0, x1, y1, cpx, cpy;
         float ax, bx, ay, by, cx, cy, ow, lcap, vx0, vy0, vx1, vy1;
         float px0, py0, nx1, ny1, cos0, cos1, s0, s1;
-        float2 no, p0, n0, p1, n1, tan0, tan1;
+        float2 no, p0, n0, p1, n1, c, a, tan0, tan1;
         bool pcap, ncap;
 
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
@@ -459,7 +456,7 @@ vertex InstancesVertex instances_vertex_main(
         
         bool isCurve = *useCurves && cpx != FLT_MAX;
         bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
-        
+        isCurve = pcurve = ncurve = false;
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         p0 = normalize({ px0, py0 });
@@ -469,20 +466,34 @@ vertex InstancesVertex instances_vertex_main(
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y1;
         n1 = normalize({ nx1, ny1 });
         
+        isCurve = *useCurves && cpx != FLT_MAX;
+        pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
         
-        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < -0.866025403784439;
+        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < -0.94;// -0.866025403784439;
+        
+//        a = float2(-p0.y, p0.x);
+//        c = a + float2(-n0.y, n0.x);
+//        c = (dw + ow) * (pcap ? float2(-no.y, no.x) : c / dot(a, c));
+//        vx0 = c.x, vy0 = c.y;
+        
         tan0 = pcap ? no : normalize(p0 + n0);
         cos0 = abs(dot(no, tan0));
-        s0 = (dw + ow) / max(1e-10, cos0);
+        s0 = (dw + ow) / max(1e-1, cos0);
         vx0 = s0 * -tan0.y;
         vy0 = s0 * tan0.x;
         
-        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < -0.866025403784439;
+        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < -0.94;// -0.866025403784439;
+        
+//        a = float2(-p1.y, p1.x);
+//        c = a + float2( -n1.y, n1.x );
+//        c = (dw + ow) * (ncap ? float2(-no.y, no.x) : c / dot(a, c));
+//        vx1 = c.x, vy1 = c.y;
+        
         tan1 = ncap ? no : normalize(p1 + n1);
         cos1 = abs(dot(no, tan1));
-        s1 = (dw + ow) / max(1e-10, cos1);
+        s1 = (dw + ow) / max(1e-1, cos1);
         vx1 = s1 * -tan1.y;
         vy1 = s1 * tan1.x;
         
