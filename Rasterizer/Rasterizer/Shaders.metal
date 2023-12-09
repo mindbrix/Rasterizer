@@ -75,14 +75,15 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float t = dot(vc, va) / cdot;
     rp1 = p1 + (kCubicSolverLimit - min(kCubicSolverLimit, abs(t))) * sign(t) * vc;
     va = rp1 - p0, vb = p2 - rp1, vb -= va;
-    float3 k = float3(3.0 * dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va)) / dot(vb, vb);
+    float kk = 1.0 / dot(vb, vb);
+    float3 k = kk * float3(dot(va, vb), 2.0 * dot(va, va) + dot(vd, vb), dot(vd, va));
     va = p1 - p0, vb = p2 - p1, vb -= va;
     
     float a = k.x, b = k.y, c = k.z;
-    float p = b - a*a / 3.0, p3 = p*p*p;
-    float q = a * (2.0*a*a - 9.0*b) / 27.0 + c;
-    float d = q*q + 4.0*p3 / 27.0;
-    float offset = -a / 3.0;
+    float p = b - 3.0 * a * a, p3 = p * p * p;
+    float q = a * (2.0 * a * a - b) + c;
+    float d = q * q + 4.0 * p3 / 27.0;
+    float offset = -a;
     if (d >= 0.0) {
         float z = sqrt(d);
         float2 x = (float2(z, -z) - q) / 2.0;
@@ -570,6 +571,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
 
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
+//        alpha = 0.25;
     } else
     {
         alpha = vert.u == FLT_MAX ? 1.0 : abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
