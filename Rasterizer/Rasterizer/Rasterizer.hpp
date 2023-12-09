@@ -714,25 +714,23 @@ struct Rasterizer {
         if (fabs(A) < 1e-3)
             return solveQuadratic(B, C, D, roots);
         else {
-            double p, p3, q, q2, u1, v1, discriminant, sd, t;
-            B /= A, C /= A, D /= A;
-            B /= 3.0;
+            double p, p3, q, q2, u1, v1, d, sd, t;
+            B /= A, B /= 3.0, C /= A, D /= A;
             p = C - 3.0 * B * B, p3 = p * p * p;
-            q = B * (2.0 * B * B - C) + D;
-            q2 = q * 0.5;
-            discriminant = q2 * q2 + p3 / 27.0;
-            if (discriminant < 0) {
+            q = B * (2.0 * B * B - C) + D, q2 = q * 0.5;
+            d = q2 * q2 + p3 / 27.0;
+            if (d < 0) {
                 double r = sqrt(-p3 / 27.0), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
                 __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
                 t = crtr * cosine - B; if (t > 0.f && t < 1.f)  *roots++ = t;
                 t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
                 t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
-            } else if (discriminant == 0) {
+            } else if (d == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
                 t = 2 * u1 - B; if (t > 0.f && t < 1.f)  *roots++ = t;
                 t = -u1 - B; if (t > 0.f && t < 1.f)  *roots++ = t;
             } else {
-                sd = sqrt(discriminant), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
+                sd = sqrt(d), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
                 t = u1 - v1 - B; if (t > 0.f && t < 1.f)  *roots++ = t;
             }
         }
