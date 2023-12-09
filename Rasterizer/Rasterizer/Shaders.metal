@@ -437,16 +437,17 @@ vertex InstancesVertex instances_vertex_main(
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
+        const bool roundCap = inst.iz & Instance::kRoundCap;
+        const bool squareCap = inst.iz & Instance::kSquareCap;
+        const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
+        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
+        
         float x0, y0, x1, y1, cpx, cpy;
         float ax, bx, ay, by, cx, cy, ow, lcap, vx0, vy0, vx1, vy1;
         float px0, py0, nx1, ny1, cos0, cos1, s0, s1;
-        float2 no, p0, n0, p1, n1, c, a, tan0, tan1;
-        bool pcap, ncap;
-
-        const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
-        const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
-        pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
-        ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
+        float2 no, p0, n0, p1, n1, tan0, tan1;
+        bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
+        bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
         cpx = inst.outline.cx, cpy = inst.outline.cy;
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0;
@@ -454,9 +455,11 @@ vertex InstancesVertex instances_vertex_main(
         no = normalize({ cx, cy });
         alpha *= (cx * cx + cy * cy > 1e-3);
         
-        bool isCurve = *useCurves && cpx != FLT_MAX;
-        bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
-        isCurve = pcurve = ncurve = false;
+        const bool isCurve = *useCurves && cpx != FLT_MAX;
+        const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
+        const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
+        const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
+        
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         p0 = normalize({ px0, py0 });
@@ -466,31 +469,17 @@ vertex InstancesVertex instances_vertex_main(
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y1;
         n1 = normalize({ nx1, ny1 });
         
-        isCurve = *useCurves && cpx != FLT_MAX;
-        pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
-        lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, inst.iz & (Instance::kSquareCap | Instance::kRoundCap));
+        lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
         
-        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < -0.94;// -0.866025403784439;
-        
-//        a = float2(-p0.y, p0.x);
-//        c = a + float2(-n0.y, n0.x);
-//        c = (dw + ow) * (pcap ? float2(-no.y, no.x) : c / dot(a, c));
-//        vx0 = c.x, vy0 = c.y;
-        
+        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < -0.866025403784439;
         tan0 = pcap ? no : normalize(p0 + n0);
         cos0 = abs(dot(no, tan0));
         s0 = (dw + ow) / max(1e-1, cos0);
         vx0 = s0 * -tan0.y;
         vy0 = s0 * tan0.x;
         
-        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < -0.94;// -0.866025403784439;
-        
-//        a = float2(-p1.y, p1.x);
-//        c = a + float2( -n1.y, n1.x );
-//        c = (dw + ow) * (ncap ? float2(-no.y, no.x) : c / dot(a, c));
-//        vx1 = c.x, vy1 = c.y;
-        
+        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < -0.866025403784439;
         tan1 = ncap ? no : normalize(p1 + n1);
         cos1 = abs(dot(no, tan1));
         s1 = (dw + ow) / max(1e-1, cos1);
@@ -505,14 +494,13 @@ vertex InstancesVertex instances_vertex_main(
         dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0), dx0 = dx - x0, dx1 = dx - x1;
         dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0), dy0 = dy - y0, dy1 = dy - y1;
         
-        vert.dw = dw;
-        
         if (isCurve) {
             float area = cx * by - cy * bx;
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
 //            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
         }
+        vert.dw = dw;
         vert.d0 = n0.x * dx0 + n0.y * dy0;
         vert.dm0 = -n0.y * dx0 + n0.x * dy0;
         vert.d1 = -(p1.x * dx1 + p1.y * dy1);
@@ -521,10 +509,6 @@ vertex InstancesVertex instances_vertex_main(
         vert.miter0 = 1.0;// pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = 1.0;// ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
-        bool roundCap = inst.iz & Instance::kRoundCap;
-        bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
-        bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
-        
         vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
