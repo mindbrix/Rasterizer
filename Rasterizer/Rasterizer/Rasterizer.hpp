@@ -723,15 +723,15 @@ struct Rasterizer {
                 double r = sqrt(-p3 / 27.0), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
                 __sincos(acos(fmax(-1, fmin(1, tcos))) / 3, & sine, & cosine);
                 t = crtr * cosine - B; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - B; if (t > 0.0 && t < 1.0)  *roots++ = t;
+                t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - B; if (t > 0.0 && t < 1.0)  *roots++ = t;
             } else if (d == 0) {
                 u1 = copysign(cbrt(fabs(q2)), q2);
-                t = 2 * u1 - B; if (t > 0.f && t < 1.f)  *roots++ = t;
-                t = -u1 - B; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = 2 * u1 - B; if (t > 0.0 && t < 1.0)  *roots++ = t;
+                t = -u1 - B; if (t > 0.0 && t < 1.0)  *roots++ = t;
             } else {
                 sd = sqrt(d), u1 = copysign(cbrt(fabs(sd - q2)), sd - q2), v1 = copysign(cbrt(fabs(sd + q2)), sd + q2);
-                t = u1 - v1 - B; if (t > 0.f && t < 1.f)  *roots++ = t;
+                t = u1 - v1 - B; if (t > 0.0 && t < 1.0)  *roots++ = t;
             }
         }
         return roots;
