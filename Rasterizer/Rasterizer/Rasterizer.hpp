@@ -721,7 +721,7 @@ struct Rasterizer {
             d = q2 * q2 + p3 / 27.0;
             if (d < 0) {
                 double r = sqrt(-p3 / 27.0), tcos = -q / (2 * r), crtr = 2 * copysign(cbrt(fabs(r)), r), sine, cosine;
-                __sincos(acos(tcos < -1 ? -1 : tcos > 1 ? 1 : tcos) / 3, & sine, & cosine);
+                __sincos(acos(fmax(-1, fmin(1, tcos))) / 3, & sine, & cosine);
                 t = crtr * cosine - B; if (t > 0.f && t < 1.f)  *roots++ = t;
                 t = crtr * (-0.5 * cosine - 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
                 t = crtr * (-0.5 * cosine + 0.866025403784439 * sine) - B; if (t > 0.f && t < 1.f)  *roots++ = t;
