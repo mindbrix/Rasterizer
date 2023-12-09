@@ -83,13 +83,13 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     if (d >= 0.0) {
         float z = sqrt(d);
         float2 x = 0.5 * (float2(z, -z) - q);
-        float2 uv = sign(x)*pow(abs(x), float2(1.0/3.0));
+        float2 uv = sign(x) * pow(abs(x), float2(1.0 / 3.0));
         float t = saturate(uv.x + uv.y - a);
         float2 pt = fma(fma(va, t, vb), t, p0);
         return dot(pt, pt);
     }
     float v = acos(-sqrt(-27.0 / p3) * q / 2.0) / 3.0;
-    float m = cos(v), n = sin(v)*1.732050808;
+    float m = cos(v), n = sin(v) * 1.732050808;
     float2 ts = saturate(float2(m + m, -n - m) * sqrt(-p / 3.0) - a);
     float2 pt0 = fma(fma(va, ts.x, vb), ts.x, p0);
     float2 pt1 = fma(fma(va, ts.y, vb), ts.y, p0);
