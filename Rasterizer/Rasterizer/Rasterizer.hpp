@@ -45,6 +45,21 @@ struct Rasterizer {
             ly(t.ty + (t.b < 0.f) * t.b + (t.d < 0.f) * t.d),
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
+        inline bool isContainedBy(Transform t) const {
+            float abdot, cddot, x0, x1, y0, y1, d0, d1;
+            bool b0, b1, b2, b3;
+            abdot = t.a * t.a + t.b * t.b, cddot = t.c * t.c + t.d * t.d;
+            x0 = lx - t.tx, x1 = ux - t.tx, y0 = ly - t.ty, y1 = uy - t.ty;
+            d0 = x0 * t.a + y0 * t.b, d1 = x0 * t.c + y0 * t.d;
+            b0 = d0 >= 0.f && d0 <= abdot && d1 >= 0.f && d1 <= cddot;
+            d0 = x0 * t.a + y1 * t.b, d1 = x0 * t.c + y1 * t.d;
+            b1 = d0 >= 0.f && d0 <= abdot && d1 >= 0.f && d1 <= cddot;
+            d0 = x1 * t.a + y1 * t.b, d1 = x1 * t.c + y1 * t.d;
+            b2 = d0 >= 0.f && d0 <= abdot && d1 >= 0.f && d1 <= cddot;
+            d0 = x1 * t.a + y0 * t.b, d1 = x1 * t.c + y0 * t.d;
+            b3 = d0 >= 0.f && d0 <= abdot && d1 >= 0.f && d1 <= cddot;
+            return b0 && b1 && b2 && b3;
+        }
         inline bool contains(Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
@@ -539,12 +554,13 @@ struct Rasterizer {
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
                             bool unclipped = clip.contains(dev);
+                            bool softunclipped = dev.isContainedBy(clipctm);
                             bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && (unclipped || (!unclipped && clipIsRect)), fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && unclipped && softunclipped, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
