@@ -521,8 +521,7 @@ struct Rasterizer {
                     uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
-                        lastip = ip;
-                        clipActive = ip != 0;
+                        lastip = ip, clipActive = ip != 0;
                         clipctm = clipActive ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
@@ -554,7 +553,7 @@ struct Rasterizer {
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
                             bool unclipped = clip.contains(dev);
-                            bool softunclipped = dev.isContainedBy(clipctm);
+                            bool softunclipped = !clipActive || dev.isContainedBy(clipctm);
                             bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast;
