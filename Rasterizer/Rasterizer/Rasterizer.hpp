@@ -46,17 +46,20 @@ struct Rasterizer {
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
         inline bool isContainedBy(const Transform t) const {
-            float abdot, cddot, a, b, c, d, mx, my, x0, x1, y0, y1, e = 1e-3f, ut = 0.5f + e;
-            bool b0, b1, b2, b3;
+            float abdot, cddot, a, b, c, d, mx, my, x0, x1, y0, y1, maxt, e = 1e-3f;
             abdot = t.a * t.a + t.b * t.b, a = t.a / abdot, b = t.b / abdot;
             cddot = t.c * t.c + t.d * t.d, c = t.c / cddot, d = t.d / cddot;
             mx = t.tx + 0.5f * (t.a + t.c), x0 = lx - mx, x1 = ux - mx;
             my = t.ty + 0.5f * (t.b + t.d), y0 = ly - my, y1 = uy - my;
-            b0 = fabsf(x0 * a + y0 * b) < ut && fabsf(x0 * c + y0 * d) < ut;
-            b1 = fabsf(x0 * a + y1 * b) < ut && fabsf(x0 * c + y1 * d) < ut;
-            b2 = fabsf(x1 * a + y1 * b) < ut && fabsf(x1 * c + y1 * d) < ut;
-            b3 = fabsf(x1 * a + y0 * b) < ut && fabsf(x1 * c + y0 * d) < ut;
-            return b0 && b1 && b2 && b3;
+            maxt = fmaxf(
+                        fmaxf(
+                              fmaxf(fabsf(x0 * a + y0 * b), fabsf(x0 * c + y0 * d)),
+                              fmaxf(fabsf(x0 * a + y1 * b), fabsf(x0 * c + y1 * d))),
+                        fmaxf(
+                              fmaxf(fabsf(x1 * a + y1 * b), fabsf(x1 * c + y1 * d)),
+                              fmaxf(fabsf(x1 * a + y0 * b), fabsf(x1 * c + y0 * d)))
+                        );
+            return maxt < (0.5f + e);
         }
         inline bool contains(Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
