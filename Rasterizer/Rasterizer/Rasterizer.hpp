@@ -843,8 +843,8 @@ struct Rasterizer {
                 iy = floorf(ly * krfh), m = (x1 - x0) / (y1 - y0), c = x0 - m * y0, m *= kfh;
                 minx = (iy + float(m < 0.f)) * m + c;
                 maxx = (iy + float(m > 0.f)) * m + c;
-                for (y = ly; y < uy; y = ny, minx += m, maxx += m, iy++) {
-                    ny = fminf(uy, (iy + 1.f) * kfh);
+                for (ny = iy * kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, iy++) {
+                    ny = fminf(uy, ny + kfh);
                     new (samples[int(iy)].alloc(1)) Sample(fmaxf(minx, lx), fminf(maxx, ux), (ny - y) * scale, dst - dst0);
                 }
             }
@@ -862,8 +862,8 @@ struct Rasterizer {
                 ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
                 d2a = 0.5f / ay, ity = -by * d2a, d2a *= sign, sign *= kCoverScale;
                 lx = y0 < y2 ? x0 : x2, ly = fminf(y0, y2), uy = fmaxf(y0, y2);
-                for (iy = floorf(ly * krfh); ly < uy; ly = ny, iy++, lx = ux) {
-                    ny = fminf(uy, (iy + 1.f) * kfh);
+                for (iy = floorf(ly * krfh), ny = iy * kfh; ly < uy; ly = ny, iy++, lx = ux) {
+                    ny = fminf(uy, ny + kfh);
                     t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
                     t = fmaxf(0.f, fminf(1.f, t)), ux = (ax * t + bx) * t + x0;
                     new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
