@@ -837,15 +837,15 @@ struct Rasterizer {
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
                 new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, dst - dst0);
             else {
-                float lx, ux, ly, uy, iy, m, c, y, ny, minx, maxx, scale;
+                float lx, ux, ly, uy, iy, m, c, ny, minx, maxx, scale;
                 lx = fminf(x0, x1), ux = fmaxf(x0, x1);
                 ly = fminf(y0, y1), uy = fmaxf(y0, y1), scale = copysignf(kCoverScale, y1 - y0);
                 iy = floorf(ly * krfh), m = (x1 - x0) / (y1 - y0), c = x0 - m * y0, m *= kfh;
                 minx = (iy + float(m < 0.f)) * m + c;
                 maxx = (iy + float(m > 0.f)) * m + c;
-                for (ny = iy * kfh, y = ly; y < uy; y = ny, minx += m, maxx += m, iy++) {
+                for (ny = iy * kfh; ly < uy; ly = ny, minx += m, maxx += m, iy++) {
                     ny = fminf(uy, ny + kfh);
-                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(minx, lx), fminf(maxx, ux), (ny - y) * scale, dst - dst0);
+                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * scale, dst - dst0);
                 }
             }
             new (dst++) Segment(x0, y0, x1, y1, 0);
