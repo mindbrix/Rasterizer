@@ -46,15 +46,15 @@ struct Rasterizer {
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
         inline bool isContainedBy(const Transform t) const {
-            float recip, a, b, c, d, mx, my, x0, x1, y0, y1, maxt, e = 1e-3f;
+            float recip, a, b, c, d, tx, ty, maxt, e = 1e-3f;
             recip = 1.f / (t.a * t.d - t.b * t.c);
             a = t.d * recip, b = -t.b * recip, c = -t.c * recip, d = t.a * recip;
-            mx = t.tx + 0.5f * (t.a + t.c), x0 = lx - mx, x1 = ux - mx;
-            my = t.ty + 0.5f * (t.b + t.d), y0 = ly - my, y1 = uy - my;
-            maxt = fmaxf(fmaxf(fmaxf(fabsf(x0 * a + y0 * b), fabsf(x0 * c + y0 * d)),
-                               fmaxf(fabsf(x0 * a + y1 * b), fabsf(x0 * c + y1 * d))),
-                         fmaxf(fmaxf(fabsf(x1 * a + y1 * b), fabsf(x1 * c + y1 * d)),
-                               fmaxf(fabsf(x1 * a + y0 * b), fabsf(x1 * c + y0 * d))));
+            tx = (t.c * t.ty - t.d * t.tx) * recip - 0.5f;
+            ty = -(t.a * t.ty - t.b * t.tx) * recip - 0.5f;
+            maxt = fmaxf(fmaxf(fmaxf(fabsf(lx * a + ly * c + tx), fabsf(lx * b + ly * d + ty)),
+                               fmaxf(fabsf(lx * a + uy * c + tx), fabsf(lx * b + uy * d + ty))),
+                         fmaxf(fmaxf(fabsf(ux * a + uy * c + tx), fabsf(ux * b + uy * d + ty)),
+                               fmaxf(fabsf(ux * a + ly * c + tx), fabsf(ux * b + ly * d + ty))));
             return maxt < (0.5f + e);
         }
         inline bool contains(Bounds b) const {
@@ -507,7 +507,7 @@ struct Rasterizer {
             float det, width, uw;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
-                Transform ctm = view.concat(list.ctms[i]), clipctm, m;
+                Transform ctm = view.concat(list.ctms[i]), clipctm, m, unit, inv;
                 Bounds dev, clip, *bnds, clipBounds;
                 lastip = ~0;
                 memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
@@ -520,9 +520,10 @@ struct Rasterizer {
                     if (ip != lastip) {
                         lastip = ip, clipActive = ip != 0;
                         clipctm = clipActive ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        inv = clipctm.invert(), inv.tx -= 0.5f, inv.ty -= 0.5f;
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
-                    bnds = & scn->bnds->base[is], dev = Bounds(bnds->unit(m));
+                    bnds = & scn->bnds->base[is], unit = bnds->unit(m), dev = Bounds(unit);
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
@@ -550,13 +551,17 @@ struct Rasterizer {
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
                             bool unclipped = clip.contains(dev);
-                            bool softunclipped = !clipActive || dev.isContainedBy(clipctm);
+                            bool softunclipped = true;
+                            if (clipActive) {
+                                Bounds b = Bounds(inv.concat(unit));
+                                softunclipped = fmaxf(fmaxf(fabsf(b.lx), fabsf(b.ux)), fmaxf(fabsf(b.ly), fabsf(b.uy))) < (0.5f + 1e-3f);
+                            }
                             bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && unclipped && softunclipped, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && softunclipped, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
