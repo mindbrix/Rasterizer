@@ -46,9 +46,9 @@ struct Rasterizer {
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
         inline bool isContainedBy(const Transform t) const {
-            float abdot, cddot, a, b, c, d, mx, my, x0, x1, y0, y1, maxt, e = 1e-3f;
-            abdot = t.a * t.a + t.b * t.b, a = t.a / abdot, b = t.b / abdot;
-            cddot = t.c * t.c + t.d * t.d, c = t.c / cddot, d = t.d / cddot;
+            float recip, a, b, c, d, mx, my, x0, x1, y0, y1, maxt, e = 1e-3f;
+            recip = 1.f / (t.a * t.d - t.b * t.c);
+            a = t.d * recip, b = -t.b * recip, c = -t.c * recip, d = t.a * recip;
             mx = t.tx + 0.5f * (t.a + t.c), x0 = lx - mx, x1 = ux - mx;
             my = t.ty + 0.5f * (t.b + t.d), y0 = ly - my, y1 = uy - my;
             maxt = fmaxf(fmaxf(fmaxf(fabsf(x0 * a + y0 * b), fabsf(x0 * c + y0 * d)),
