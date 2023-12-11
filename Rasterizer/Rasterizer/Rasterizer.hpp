@@ -45,19 +45,19 @@ struct Rasterizer {
             ly(t.ty + (t.b < 0.f) * t.b + (t.d < 0.f) * t.d),
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
-        inline bool isContainedBy(Transform t) const {
-            float abdot, cddot, x0, x1, y0, y1, d0, d1, e = 1e-3f, lt = -e, ut = 1.f + 2.f * e;
+        inline bool isContainedBy(const Transform t) const {
+            float abdot, cddot, a, b, c, d, x0, x1, y0, y1, d0, d1, e = 1e-3f, lt = -e, ut = 1.f + 2.f * e;
             bool b0, b1, b2, b3;
-            abdot = t.a * t.a + t.b * t.b, t.a /= abdot, t.b /= abdot;
-            cddot = t.c * t.c + t.d * t.d, t.c /= cddot, t.d /= cddot;
+            abdot = t.a * t.a + t.b * t.b, a = t.a / abdot, b = t.b / abdot;
+            cddot = t.c * t.c + t.d * t.d, c = t.c / cddot, d = t.d / cddot;
             x0 = lx - t.tx, x1 = ux - t.tx, y0 = ly - t.ty, y1 = uy - t.ty;
-            d0 = x0 * t.a + y0 * t.b, d1 = x0 * t.c + y0 * t.d;
+            d0 = x0 * a + y0 * b, d1 = x0 * c + y0 * d;
             b0 = d0 >= lt && d0 <= ut && d1 >= lt && d1 <= ut;
-            d0 = x0 * t.a + y1 * t.b, d1 = x0 * t.c + y1 * t.d;
+            d0 = x0 * a + y1 * b, d1 = x0 * c + y1 * d;
             b1 = d0 >= lt && d0 <= ut && d1 >= lt && d1 <= ut;
-            d0 = x1 * t.a + y1 * t.b, d1 = x1 * t.c + y1 * t.d;
+            d0 = x1 * a + y1 * b, d1 = x1 * c + y1 * d;
             b2 = d0 >= lt && d0 <= ut && d1 >= lt && d1 <= ut;
-            d0 = x1 * t.a + y0 * t.b, d1 = x1 * t.c + y0 * t.d;
+            d0 = x1 * a + y0 * b, d1 = x1 * c + y0 * d;
             b3 = d0 >= lt && d0 <= ut && d1 >= lt && d1 <= ut;
             return b0 && b1 && b2 && b3;
         }
