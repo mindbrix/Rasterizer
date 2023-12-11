@@ -504,7 +504,7 @@ struct Rasterizer {
             Transform *clips = (Transform *)(buffer->base + buffer->clips);
             float *widths = (float *)(buffer->base + buffer->widths);
             Bounds *bounds = (Bounds *)(buffer->base + buffer->bounds);
-            bool clipIsRect = false;
+            bool clipActive = false;
             
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
             float det, width, uw;
@@ -522,9 +522,9 @@ struct Rasterizer {
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
                         lastip = ip;
-                        clipctm = ip ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        clipActive = ip != 0;
+                        clipctm = clipActive ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         clipBounds = Bounds(clipctm).integral().intersect(device);
-                        clipIsRect = (clipctm.a == 0.f && clipctm.d == 0.f) || (clipctm.b == 0.f && clipctm.c == 0.f);
                     }
                     bnds = & scn->bnds->base[is], dev = Bounds(bnds->unit(m));
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
