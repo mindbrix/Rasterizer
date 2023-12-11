@@ -45,18 +45,6 @@ struct Rasterizer {
             ly(t.ty + (t.b < 0.f) * t.b + (t.d < 0.f) * t.d),
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
-        inline bool isContainedBy(const Transform t) const {
-            float recip, a, b, c, d, tx, ty, maxt, e = 1e-3f;
-            recip = 1.f / (t.a * t.d - t.b * t.c);
-            a = t.d * recip, b = -t.b * recip, c = -t.c * recip, d = t.a * recip;
-            tx = (t.c * t.ty - t.d * t.tx) * recip - 0.5f;
-            ty = -(t.a * t.ty - t.b * t.tx) * recip - 0.5f;
-            maxt = fmaxf(fmaxf(fmaxf(fabsf(lx * a + ly * c + tx), fabsf(lx * b + ly * d + ty)),
-                               fmaxf(fabsf(lx * a + uy * c + tx), fabsf(lx * b + uy * d + ty))),
-                         fmaxf(fmaxf(fabsf(ux * a + uy * c + tx), fabsf(ux * b + uy * d + ty)),
-                               fmaxf(fabsf(ux * a + ly * c + tx), fabsf(ux * b + ly * d + ty))));
-            return maxt < (0.5f + e);
-        }
         inline bool contains(Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
