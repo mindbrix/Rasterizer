@@ -51,14 +51,10 @@ struct Rasterizer {
             cddot = t.c * t.c + t.d * t.d, c = t.c / cddot, d = t.d / cddot;
             mx = t.tx + 0.5f * (t.a + t.c), x0 = lx - mx, x1 = ux - mx;
             my = t.ty + 0.5f * (t.b + t.d), y0 = ly - my, y1 = uy - my;
-            maxt = fmaxf(
-                        fmaxf(
-                              fmaxf(fabsf(x0 * a + y0 * b), fabsf(x0 * c + y0 * d)),
-                              fmaxf(fabsf(x0 * a + y1 * b), fabsf(x0 * c + y1 * d))),
-                        fmaxf(
-                              fmaxf(fabsf(x1 * a + y1 * b), fabsf(x1 * c + y1 * d)),
-                              fmaxf(fabsf(x1 * a + y0 * b), fabsf(x1 * c + y0 * d)))
-                        );
+            maxt = fmaxf(fmaxf(fmaxf(fabsf(x0 * a + y0 * b), fabsf(x0 * c + y0 * d)),
+                               fmaxf(fabsf(x0 * a + y1 * b), fabsf(x0 * c + y1 * d))),
+                         fmaxf(fmaxf(fabsf(x1 * a + y1 * b), fabsf(x1 * c + y1 * d)),
+                               fmaxf(fabsf(x1 * a + y0 * b), fabsf(x1 * c + y0 * d))));
             return maxt < (0.5f + e);
         }
         inline bool contains(Bounds b) const {
