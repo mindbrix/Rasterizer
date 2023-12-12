@@ -50,7 +50,7 @@ struct RasterizerTest {
                 scene.addPath(p, fit, black, uw, 0);
             }
         }
-        if (1)
+        if (0)
             list.empty(), writePhyllotaxisToScene(100000, 0.f, 200, scene);
         list.addScene(scene);
         

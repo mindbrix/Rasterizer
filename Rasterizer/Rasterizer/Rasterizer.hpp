@@ -536,11 +536,13 @@ struct Rasterizer {
                                 outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
                         } else if (useMolecules) {
                             bounds[iz] = *bnds, fasts.base[iz]++;
-                            size = g->p16s.end, p16total += size;
                             bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
                             inst->g = g, inst->quad.cover = 0;
-                            int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
+                            int type = width ?
+                                        (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines)
+                                        : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
+                            size = g->p16s.end, p16total += size;
                             cnt = fast ? size / kFastSegments : g->atoms.end;
                             allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
