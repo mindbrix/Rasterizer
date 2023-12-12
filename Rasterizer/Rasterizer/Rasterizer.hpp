@@ -551,12 +551,12 @@ struct Rasterizer {
                                 Bounds b = Bounds(invclip.concat(unit));
                                 softunclipped = fmaxf(fmaxf(fabsf(b.lx), fabsf(b.ux)), fmaxf(fabsf(b.ly), fabsf(b.uy))) < softclipMargin;
                             }
-                            bool opaque = colors[iz].a == 255;
+                            bool opaque = colors[iz].a == 255 && softunclipped;
                             CurveIndexer idxr;
                             idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque && softunclipped, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
