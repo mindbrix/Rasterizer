@@ -498,7 +498,7 @@ struct Rasterizer {
             bool clipActive = false;
             
             size_t lz, uz, i, clz, cuz, iz, is, ip, lastip, size, cnt;  Scene *scn = & list.scenes[0];  uint8_t flags;
-            float det, width, uw;
+            float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipctm, m, unit, invclip;
@@ -514,6 +514,7 @@ struct Rasterizer {
                     if (ip != lastip) {
                         lastip = ip, clipActive = ip != 0;
                         clipctm = clipActive ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipctm.scale());
                         invclip = clipctm.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
                         clipBounds = Bounds(clipctm).integral().intersect(device);
                     }
@@ -548,7 +549,7 @@ struct Rasterizer {
                             bool softunclipped = true;
                             if (clipActive) {
                                 Bounds b = Bounds(invclip.concat(unit));
-                                softunclipped = fmaxf(fmaxf(fabsf(b.lx), fabsf(b.ux)), fmaxf(fabsf(b.ly), fabsf(b.uy))) < (0.5f + 1e-3f);
+                                softunclipped = fmaxf(fmaxf(fabsf(b.lx), fabsf(b.ux)), fmaxf(fabsf(b.ly), fabsf(b.uy))) < softclipMargin;
                             }
                             bool opaque = colors[iz].a == 255;
                             CurveIndexer idxr;
