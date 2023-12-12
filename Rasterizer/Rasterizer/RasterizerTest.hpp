@@ -51,7 +51,7 @@ struct RasterizerTest {
             }
         }
         if (0)
-            list.empty(), writePhyllotaxisToScene(100000, scene);
+            list.empty(), writePhyllotaxisToScene(100000, 0.f, scene);
         list.addScene(scene);
         
         if (0) {
@@ -181,7 +181,7 @@ struct RasterizerTest {
         }
         return scene;
     }
-    static void writePhyllotaxisToScene(size_t count, Ra::Scene& scene) {
+    static void writePhyllotaxisToScene(size_t count, float w, Ra::Scene& scene) {
         Ra::Colorant color(0, 0, 0, 255);
         Ra::Path line;
         line->addBounds(Ra::Bounds(0, 0, 1, 1)), line->close();
@@ -189,7 +189,7 @@ struct RasterizerTest {
         float vx = 1.f, vy = 0.f, x, y, s, t;
         for (int i = 0; i < count; i++) {
             s = sqrtf(i), t = float(i) / float(count);
-            scene.addPath(line, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, 0.25f, 0);
+            scene.addPath(line, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, w, 0);
             x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
             vx = x, vy = y;
         }
