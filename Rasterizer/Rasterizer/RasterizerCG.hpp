@@ -56,7 +56,7 @@ struct RasterizerCG {
         if (clip.scale() == 0)
             return false;
         float uw = width < 0.f ? -width / ctm.scale() : width;
-        Ra::Transform unit = user.inset(-uw, -uw).unit(ctm), inv = clip.invert();
+        Ra::Transform unit = user.inset(-uw, -uw).quad(ctm), inv = clip.invert();
         Ra::Bounds clipBounds = Ra::Bounds(clip), unitBounds = Ra::Bounds(unit);
         Ra::Bounds dev = unitBounds.intersect(device).intersect(clipBounds);
         Ra::Bounds clu = Ra::Bounds(inv.concat(unit));
@@ -89,7 +89,7 @@ struct RasterizerCG {
                     Ra::Bounds *pclip = ip ? scn.clipCache->entryAt(i) : nullptr;
                     if (pclip)
                         CGContextClipToRect(ctx, CGRectFromBounds(*pclip));
-                    clip = ip && pclip ? pclip->unit(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                    clip = ip && pclip ? pclip->quad(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                 }
                 
                 if (isVisible(g->bounds, m, clip, device, scn.widths->base[i])) {

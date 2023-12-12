@@ -15,7 +15,7 @@ struct RasterizerWinding {
                 Ra::Scene& scene = list.scenes[li];
                 if ((scene.tag & tag) == 0)
                     continue;
-                Ra::Transform ctm = view.concat(list.ctms[li]), nullinv = Ra::Bounds::huge().unit(Ra::Transform()).invert(), inv = nullinv;
+                Ra::Transform ctm = view.concat(list.ctms[li]), nullinv = Ra::Bounds::huge().quad(Ra::Transform()).invert(), inv = nullinv;
                 
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     if (scene.flags->base[si] & Ra::Scene::kInvisible)
@@ -25,7 +25,7 @@ struct RasterizerWinding {
                         lastip = ip;
                         Ra::Bounds *pclip = ip ? scene.clipCache->entryAt(si) : nullptr;
                         if (pclip)
-                            inv = pclip->unit(ctm).invert();
+                            inv = pclip->quad(ctm).invert();
                         else
                             inv = nullinv;
                     }
@@ -87,7 +87,7 @@ struct RasterizerWinding {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
         Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         cntr.quadraticScale = cntr.cubicScale = 1.f;
-        Ra::Transform unit = bounds.inset(-uw, -uw).unit(m), inv = unit.invert();
+        Ra::Transform unit = bounds.inset(-uw, -uw).quad(m), inv = unit.invert();
         Ra::Bounds clip = Ra::Bounds(unit);
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
         if (clip.lx < clip.ux && clip.ly < clip.uy && ux >= 0.f && ux <= 1.f && uy >= 0.f && uy <= 1.f) {

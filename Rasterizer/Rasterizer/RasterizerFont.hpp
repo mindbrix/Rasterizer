@@ -187,7 +187,7 @@ struct RasterizerFont {
                 if (x0 >= 0 && x1 <= width) {
                     Ra::Transform ctm(scale, 0.f, 0.f, scale, x * scale + bounds.lx, y * scale + bounds.uy);
                     scene.addPath(path, ctm, color, 0.f, 0);
-                    glyphBounds.extend(Ra::Bounds(path->bounds.unit(ctm)));
+                    glyphBounds.extend(Ra::Bounds(path->bounds.quad(ctm)));
                 }
             }
     }
@@ -204,7 +204,7 @@ struct RasterizerFont {
     static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
         for (int i = 0; i < glyphs.count; i++) {
-            path = glyphs.paths->base[i], m = glyphs.ctms->base[i], b = Ra::Bounds(path->bounds.unit(m));
+            path = glyphs.paths->base[i], m = glyphs.ctms->base[i], b = Ra::Bounds(path->bounds.quad(m));
             lx = i == 0 ? b.lx : lx;
             bx = 0.5f * (b.lx + b.ux), by = m.ty, rot = theta - (bx - lx) / r;
             px = cx + r * cosf(rot), py = cy + r * sinf(rot);

@@ -67,7 +67,7 @@ struct Rasterizer {
             };
         }
         inline bool isHuge() const { return lx == -5e11f; }
-        inline Transform unit(const Transform t) const {
+        inline Transform quad(const Transform t) const {
             return {
                 t.a * (ux - lx), t.b * (ux - lx),
                 t.c * (uy - ly), t.d * (uy - ly),
@@ -356,7 +356,7 @@ struct Rasterizer {
             Bounds b;
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0)
-                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).unit(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::huge()));
+                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).quad(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::huge()));
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
@@ -368,7 +368,7 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
-                b.extend(Bounds(scenes[i].bounds().unit(ctms[i])));
+                b.extend(Bounds(scenes[i].bounds().quad(ctms[i])));
             return b;
         }
         SceneList& empty() {
@@ -501,7 +501,7 @@ struct Rasterizer {
             float det, width, uw, softclipMargin = 0.5f;
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
-                Transform ctm = view.concat(list.ctms[i]), clipctm, m, unit, invclip;
+                Transform ctm = view.concat(list.ctms[i]), clipquad, m, quad, invclip;
                 Bounds dev, clip, *bnds, clipBounds;
                 lastip = ~0;
                 memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
@@ -513,16 +513,16 @@ struct Rasterizer {
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
                         lastip = ip, clipActive = ip != 0;
-                        clipctm = clipActive ? scn->clipCache->entryAt(is)->unit(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
-                        softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipctm.scale());
-                        invclip = clipctm.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
-                        clipBounds = Bounds(clipctm).integral().intersect(device);
+                        clipquad = clipActive ? scn->clipCache->entryAt(is)->quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
+                        invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
+                        clipBounds = Bounds(clipquad).integral().intersect(device);
                     }
-                    bnds = & scn->bnds->base[is], unit = bnds->unit(m), dev = Bounds(unit);
+                    bnds = & scn->bnds->base[is], quad = bnds->quad(m), dev = Bounds(quad);
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
-                        ctms[iz] = m, widths[iz] = width, clips[iz] = clipctm;
+                        ctms[iz] = m, widths[iz] = width, clips[iz] = clipquad;
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
@@ -550,7 +550,7 @@ struct Rasterizer {
                             bool unclipped = clip.contains(dev);
                             bool softunclipped = true;
                             if (clipActive) {
-                                Bounds b = Bounds(invclip.concat(unit));
+                                Bounds b = Bounds(invclip.concat(quad));
                                 softunclipped = fmaxf(fmaxf(fabsf(b.lx), fabsf(b.ux)), fmaxf(fabsf(b.ly), fabsf(b.uy))) < softclipMargin;
                             }
                             bool opaque = colors[iz].a == 255 && softunclipped;

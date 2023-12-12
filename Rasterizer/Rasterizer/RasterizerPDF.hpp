@@ -107,7 +107,7 @@ struct RasterizerPDF {
                 FPDF_GLYPHPATH path = FPDFFont_GetGlyphPath(font, glyph, fontSize);
                 Ra::Path p = PathWriter().createPathFromGlyphPath(path);
                 Ra::Transform textCTM = Ra::Transform(m.a, m.b, m.c, m.d, m.e, m.f);
-                Ra::Bounds b = p->bounds.unit(textCTM);
+                Ra::Bounds b = p->bounds.quad(textCTM);
                 textCTM.tx += pleft == left ? right - b.ux : left - b.lx;
                 textCTM.ty += bottom - b.ly;
                 scene.addPath(p, textCTM, Ra::Colorant(B, G, R, A), 0.f, 0, clipBounds);
