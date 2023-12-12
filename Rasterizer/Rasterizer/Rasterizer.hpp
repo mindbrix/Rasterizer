@@ -528,21 +528,21 @@ struct Rasterizer {
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
                             Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             inst->g = g, inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
-                           if (det > 1e2f) {
-                               SegmentCounter counter;
-                               divideGeometry(g, m, inst->clip, false, false, counter);
-                               outlineInstances += counter.count;
-                           } else
-                               outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
-                       } else if (useMolecules) {
-                           bounds[iz] = *bnds, fasts.base[iz]++;
-                           size = g->p16s.end, p16total += size;
-                           bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
-                           Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
-                           inst->g = g, inst->quad.cover = 0;
-                           int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
-                           cnt = fast ? size / kFastSegments : g->atoms.end;
-                           allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
+                            if (det > 1e2f) {
+                                SegmentCounter counter;
+                                divideGeometry(g, m, inst->clip, false, false, counter);
+                                outlineInstances += counter.count;
+                            } else
+                                outlineInstances += (det < kMinUpperDet ? g->minUpper : g->upperBound(det));
+                        } else if (useMolecules) {
+                            bounds[iz] = *bnds, fasts.base[iz]++;
+                            size = g->p16s.end, p16total += size;
+                            bool fast = !buffer->useCurves || g->maxCurve * det < 16.f;
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | bool(flags & Scene::kFillEvenOdd) * Instance::kEvenOdd | fast * Instance::kFastEdges);
+                            inst->g = g, inst->quad.cover = 0;
+                            int type = width ? (fast ? Allocator::kFastOutlines : Allocator::kQuadOutlines) : (fast ? Allocator::kFastMolecules : Allocator::kQuadMolecules);
+                            cnt = fast ? size / kFastSegments : g->atoms.end;
+                            allocator.alloc(clip.lx, clip.ly, clip.ux, clip.uy, blends.end - 1, & inst->quad.cell, type, cnt);
                         } else {
                             bool fast = !buffer->useCurves || g->maxCurve * det < 4.f;
                             bool unclipped = clip.contains(dev);
