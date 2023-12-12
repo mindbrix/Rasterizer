@@ -425,6 +425,7 @@ vertex InstancesVertex instances_vertex_main(
             const device Transform *ctms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
+            const device Bounds *bounds [[buffer(7)]],
             constant float *width [[buffer(10)]], constant float *height [[buffer(11)]],
             constant uint *pathCount [[buffer(13)]],
             constant bool *useCurves [[buffer(14)]],
@@ -513,8 +514,19 @@ vertex InstancesVertex instances_vertex_main(
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
-        dx = select(cell.lx, cell.ux, vid & 1);
-        dy = select(cell.ly, cell.uy, vid >> 1);
+        if (inst.iz & Instance::kMolecule) {
+            const device Bounds& b = bounds[iz];
+            const device Transform& t = ctms[iz];
+            float x, y, offset;
+            offset = 0.5 / sqrt(t.a * t.d - t.b * t.c);
+            x = select(b.lx - offset, b.ux + offset, vid & 1);
+            y = select(b.ly - offset, b.uy + offset, vid >> 1);
+            dx = x * t.a + y * t.c + t.tx;
+            dy = x * t.b + y * t.d + t.ty;
+        } else {
+            dx = select(cell.lx, cell.ux, vid & 1);
+            dy = select(cell.ly, cell.uy, vid >> 1);
+        }
         vert.u = select((dx - (cell.lx - cell.ox)) / *width, FLT_MAX, cell.ox == kNullIndex);
         vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;

@@ -528,7 +528,7 @@ struct Rasterizer {
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
-                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
+                            Blend *inst = new (blends.alloc(1)) Blend(iz | Instance::kMolecule | Instance::kOutlines | bool(flags & Scene::kRoundCap) * Instance::kRoundCap | bool(flags & Scene::kSquareCap) * Instance::kSquareCap);
                             inst->g = g, inst->clip = clip.contains(dev) ? Bounds::huge() : clip.inset(-width, -width);
                             if (det > 1e2f) {
                                 SegmentCounter counter;
