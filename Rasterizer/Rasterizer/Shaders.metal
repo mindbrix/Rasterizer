@@ -433,7 +433,7 @@ vertex InstancesVertex instances_vertex_main(
     InstancesVertex vert;
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
-    uint iz = inst.iz & kPathIndexMask;
+    uint iz = inst.iz & kPathIndexMask, flags = inst.iz & ~kPathIndexMask;
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
     if (inst.iz & Instance::kOutlines) {
@@ -509,7 +509,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.miter0 = 1.0;// pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
         vert.miter1 = 1.0;// ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
 
-        vert.flags = (inst.iz & ~kPathIndexMask) | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
+        flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = select(cell.lx, cell.ux, vid & 1);
@@ -517,7 +517,6 @@ vertex InstancesVertex instances_vertex_main(
         vert.u = select((dx - (cell.lx - cell.ox)) / *width, FLT_MAX, cell.ox == kNullIndex);
         vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
-        vert.flags = inst.iz & ~kPathIndexMask;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
@@ -525,6 +524,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.clip = distances(clips[iz], dx, dy);
     vert.alpha = alpha;
     vert.iz = iz;
+    vert.flags = flags;
     return vert;
 }
 
