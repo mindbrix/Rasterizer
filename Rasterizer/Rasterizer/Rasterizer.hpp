@@ -40,19 +40,19 @@ struct Rasterizer {
         static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        inline Bounds(Transform t) :
+        inline Bounds(const Transform t) :
             lx(t.tx + (t.a < 0.f) * t.a + (t.c < 0.f) * t.c),
             ly(t.ty + (t.b < 0.f) * t.b + (t.d < 0.f) * t.d),
             ux(t.tx + (t.a > 0.f) * t.a + (t.c > 0.f) * t.c),
             uy(t.ty + (t.b > 0.f) * t.b + (t.d > 0.f) * t.d) {}
-        inline bool contains(Bounds b) const {
+        inline bool contains(const Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
         inline void extend(float x, float y) {
-            lx = x < lx ? x : lx, ly = y < ly ? y : ly, ux = x > ux ? x : ux, uy = y > uy ? y : uy;
+            lx = fminf(lx, x), ly = fminf(ly, y), ux = fmaxf(ux, x), uy = fmaxf(uy, y);
         }
-        inline void extend(Bounds b) {
-            lx = b.lx < lx ? b.lx : lx, ly = b.ly < ly ? b.ly : ly, ux = b.ux > ux ? b.ux : ux, uy = b.uy > uy ? b.uy : uy;
+        inline void extend(const Bounds b) {
+            lx = fminf(lx, b.lx), ly = fminf(ly, b.ly), ux = fmaxf(ux, b.ux), uy = fmaxf(uy, b.uy);
         }
         inline Bounds inset(float dx, float dy) const {
             return dx * 2.f < ux - lx && dy * 2.f < uy - ly ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
@@ -64,11 +64,11 @@ struct Rasterizer {
                 fmaxf(b.lx, fminf(b.ux, ux)), fmaxf(b.ly, fminf(b.uy, uy))
             };
         }
-        inline bool isHuge() { return lx == -5e11f; }
-        inline Transform unit(Transform t) const {
+        inline bool isHuge() const { return lx == -5e11f; }
+        inline Transform unit(const Transform t) const {
             return { t.a * (ux - lx), t.b * (ux - lx), t.c * (uy - ly), t.d * (uy - ly), lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty };
         }
-        size_t hash()  { return XXH64(this, sizeof(*this), 0); }
+        size_t hash() const  { return XXH64(this, sizeof(*this), 0); }
         float lx, ly, ux, uy;
     };
     struct Colorant {
