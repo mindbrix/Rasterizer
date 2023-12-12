@@ -82,8 +82,10 @@ struct Rasterizer {
         uint8_t b, g, r, a;
     };
     struct Gradient {
+        enum Type { kLinear, kRadial };
         Colorant stops[2];
-        float x0, y0, yx, y1;
+        Transform t;
+        Type type;
     };
     template<typename T>
     struct Ref {
