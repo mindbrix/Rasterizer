@@ -378,7 +378,7 @@ struct Rasterizer {
                 addScene(list.scenes[i], list.ctms[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, Transform ctm = Transform(), Transform clip = Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f)) {
+        SceneList& addScene(Scene scene, Transform ctm = Transform()) {
             if (scene.weight)
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm);
             return *this;
