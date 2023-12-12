@@ -15,14 +15,14 @@ struct Rasterizer {
     struct Transform {
         Transform() : a(1.f), b(0.f), c(0.f), d(1.f), tx(0.f), ty(0.f) {}
         Transform(float a, float b, float c, float d, float tx, float ty) : a(a), b(b), c(c), d(d), tx(tx), ty(ty) {}
-        inline Transform concat(Transform t) const {
+        inline Transform concat(const Transform t) const {
             return {
                 t.a * a + t.b * c, t.a * b + t.b * d,
                 t.c * a + t.d * c, t.c * b + t.d * d,
                 t.tx * a + t.ty * c + tx, t.tx * b + t.ty * d + ty
             };
         }
-        inline Transform preconcat(Transform t, float cx, float cy) const {
+        inline Transform preconcat(const Transform t, float cx, float cy) const {
             return Transform(t.a, t.b, t.c, t.d, t.tx + cx, t.ty + cy).concat(Transform(a, b, c, d, tx - cx, ty - cy));
         }
         inline Transform invert() const {
