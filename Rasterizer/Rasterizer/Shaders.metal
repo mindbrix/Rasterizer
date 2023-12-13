@@ -518,7 +518,7 @@ vertex InstancesVertex instances_vertex_main(
             const device Bounds& b = bounds[iz];
             const device Transform& t = ctms[iz];
             float x, y, offset;
-            offset = (w == 0.0 ? 0.5 : dw) / sqrt(t.a * t.d - t.b * t.c);
+            offset = (w == 0.0 ? 0.5 : dw) / sqrt(abs(t.a * t.d - t.b * t.c));
             x = select(b.lx - offset, b.ux + offset, vid & 1);
             y = select(b.ly - offset, b.uy + offset, vid >> 1);
             dx = x * t.a + y * t.c + t.tx;
