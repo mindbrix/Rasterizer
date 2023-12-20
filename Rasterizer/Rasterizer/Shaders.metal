@@ -54,7 +54,7 @@ struct Edge {
 };
 
 
-float4 distances(Transform ctm, float dx, float dy) {
+float4 clipDistances(Transform ctm, float dx, float dy) {
     float det, rlab, rlcd, d0, d1;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
     rlab = copysign(rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), det);
@@ -534,7 +534,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, 1.0);
-    vert.clip = distances(clip, dx, dy);
+    vert.clip = clipDistances(clip, dx, dy);
     vert.alpha = alpha;
     vert.iz = iz;
     vert.flags = flags;
