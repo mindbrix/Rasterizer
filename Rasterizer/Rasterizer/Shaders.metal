@@ -415,7 +415,7 @@ struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
     float4 position [[position]], clip;
-    float u, v, cover, dw, d0, d1, dm0, dm1, miter0, miter1, alpha;
+    float u, v, cover, dw, d0, d1, dm0, dm1, alpha;
 //    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags;
 };
@@ -508,9 +508,6 @@ vertex InstancesVertex instances_vertex_main(
         vert.d1 = -(p1.x * dx1 + p1.y * dy1);
         vert.dm1 = -(-p1.y * dx1 + p1.x * dy1);
         
-        vert.miter0 = 1.0;// pcap || rcospo < kMiterLimit ? 1.0 : min(44.0, rcospo) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, tpo.x * no.y - tpo.y * no.x) * (dx0 * -tpo.y + dy0 * tpo.x);
-        vert.miter1 = 1.0;// ncap || rcoson < kMiterLimit ? 1.0 : min(44.0, rcoson) * ((dw - 0.5) - 0.5) + 0.5 + copysign(1.0, no.x * ton.y - no.y * ton.x) * (dx1 * -ton.y + dy1 * ton.x);
-
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -567,7 +564,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
             float dx = vert.d0 - clamp(vert.d0, 0.0, vert.d0 + vert.d1);
             sqdist = dx * dx + vert.dm0 * vert.dm0;
         }
-        alpha = saturate(vert.dw - sqrt(sqdist));
+        float outline = saturate(vert.dw - sqrt(sqdist));
         
         cap = squareCap ? vert.dw : 0.5;
         cap0 = (pcap ? saturate(cap + vert.d0) : 1.0) * saturate(vert.dw - abs(vert.dm0));
@@ -576,10 +573,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         sd0 = f0 ? saturate(vert.d0) : 1.0;
         sd1 = f1 ? saturate(vert.d1) : 1.0;
 
-        alpha = min(alpha, min(saturate(vert.miter0), saturate(vert.miter1)));
-
-        alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * alpha;
-//        alpha = 0.25;
+        alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
     } else
     if (vert.u != FLT_MAX) {
         alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
