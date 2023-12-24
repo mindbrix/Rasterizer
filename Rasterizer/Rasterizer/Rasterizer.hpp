@@ -40,11 +40,11 @@ struct Rasterizer {
         static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        inline Bounds(const Transform t) :
-            lx(t.tx + fminf(0.f, t.a) + fminf(0.f, t.c)),
-            ly(t.ty + fminf(0.f, t.b) + fminf(0.f, t.d)),
-            ux(t.tx + fmaxf(0.f, t.a) + fmaxf(0.f, t.c)),
-            uy(t.ty + fmaxf(0.f, t.b) + fmaxf(0.f, t.d)) {}
+        inline Bounds(const Transform quad) :
+            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
+            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
+            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
+            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {}
         inline bool contains(const Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
