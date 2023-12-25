@@ -56,8 +56,8 @@ struct Edge {
 float4 clipDistances(Transform ctm, float dx, float dy) {
     float det, rlab, rlcd, d0, d1;
     det = ctm.a * ctm.d - ctm.b * ctm.c;
-    rlab = copysign(rsqrt(ctm.a * ctm.a + ctm.b * ctm.b), det);
-    rlcd = copysign(rsqrt(ctm.c * ctm.c + ctm.d * ctm.d), det);
+    rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b) * sign(det);
+    rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d) * sign(det);
     d0 = ((ctm.tx - dx) * ctm.b - (ctm.ty - dy) * ctm.a) * rlab;
     d1 = ((ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c) * rlcd;
     return { 0.5 + d0, 0.5 + d1, 0.5 - d0 + det * rlab, 0.5 - d1 + det * rlcd };
