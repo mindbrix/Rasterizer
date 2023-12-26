@@ -52,18 +52,6 @@ struct Edge {
     uint16_t i0, ux;
 };
 
-
-float4 clipDistances(Transform ctm, float dx, float dy) {
-    float det, rlab, rlcd, dot0, dot1;
-    det = ctm.a * ctm.d - ctm.b * ctm.c;
-    rlab = rsqrt(ctm.a * ctm.a + ctm.b * ctm.b) * sign(det);
-    rlcd = rsqrt(ctm.c * ctm.c + ctm.d * ctm.d) * sign(det);
-    dot0 = (ctm.tx - dx) * ctm.b - (ctm.ty - dy) * ctm.a;
-    dot1 = (ctm.tx + ctm.a - dx) * ctm.d - (ctm.ty + ctm.b - dy) * ctm.c;
-    return 0.5 + float4(dot0 * rlab, dot1 * rlcd, (det - dot0) * rlab, (det - dot1) * rlcd);
-}
-
-
 // https://www.shadertoy.com/view/4dsfRS
 
 float sdBezier(float2 p0, float2 p1, float2 p2) {
@@ -413,7 +401,8 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 struct InstancesVertex
 {
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
-    float4 position [[position]], clip;
+    float4 position [[position]];
+    float2 _clip;
     float u, v, cover, dw, d0, d1, dm0, dm1, alpha;
 //    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags;
@@ -530,7 +519,7 @@ vertex InstancesVertex instances_vertex_main(
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
     float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
     vert.position = float4(x, y, z, 1.0);
-    vert.clip = clipDistances(clip, dx, dy);
+    vert._clip = 0.5 + float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
     vert.iz = iz;
     vert.flags = flags;
@@ -579,7 +568,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     Colorant color = colors[vert.iz];
-    float clip = saturate(vert.clip.x) * saturate(vert.clip.z) * saturate(vert.clip.y) * saturate(vert.clip.w);
+    float a = dfdx(vert._clip.x), b = dfdy(vert._clip.x), c = dfdx(vert._clip.y), d = dfdy(vert._clip.y);
+    float s0 = rsqrt(a * a + b * b), s1 = rsqrt(c * c + d * d);
+    float clip = saturate(0.5 + vert._clip.x * s0) * saturate(0.5 + (1.0 - vert._clip.x) * s0) * saturate(0.5 + vert._clip.y * s1) * saturate(0.5 + (1.0 - vert._clip.y) * s1);
     float ma = 0.003921568627 * alpha * vert.alpha * clip;
     return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }

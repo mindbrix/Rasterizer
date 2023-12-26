@@ -524,7 +524,7 @@ struct Rasterizer {
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
-                        ctms[iz] = m, widths[iz] = width, clips[iz] = clipquad;
+                        ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
                         Geometry *g = scn->paths->base[is].ptr;
                         bool useMolecules = clip.uy - clip.ly <= kMoleculesHeight && clip.ux - clip.lx <= kMoleculesHeight;
                         if (width && !(buffer->fastOutlines && useMolecules && width <= 2.f)) {
