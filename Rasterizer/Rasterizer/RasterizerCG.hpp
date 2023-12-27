@@ -129,9 +129,6 @@ struct RasterizerCG {
     static CGRect CGRectFromBounds(Ra::Bounds bounds) {
         return CGRectMake(bounds.lx, bounds.ly, bounds.ux - bounds.lx, bounds.uy - bounds.ly);
     }
-    static void writePathToCGContext(Ra::Path path, CGContextRef ctx) {
-        writePathToCGContext(path.ptr, ctx);
-    }
     static void writePathToCGContext(Ra::Geometry *g, CGContextRef ctx) {
         for (size_t index = 0; index < g->types.end; ) {
             float *p = g->points.base + index * 2;
