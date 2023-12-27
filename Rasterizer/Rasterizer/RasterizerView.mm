@@ -28,7 +28,6 @@
        return nil;
     _useCG = false;
     _useCurves = true;
-    _fastOutlines = true;
     _ctm = Ra::Transform();
    [self initLayer];
    return self;
@@ -60,7 +59,6 @@
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     buffer->useCurves = _useCurves;
-    buffer->fastOutlines = _fastOutlines;
     
     _renderer.renderList(_sceneList, self.device, self.view, buffer);
     return self.window.colorSpace.CGColorSpace;
@@ -96,11 +94,6 @@
 
 - (void)setSceneList:(Ra::SceneList)sceneList {
     _sceneList = sceneList;
-    [self.layer setNeedsDisplay];
-}
-
-- (void)setFastOutlines:(bool)fastOutlines {
-    _fastOutlines = fastOutlines;
     [self.layer setNeedsDisplay];
 }
 

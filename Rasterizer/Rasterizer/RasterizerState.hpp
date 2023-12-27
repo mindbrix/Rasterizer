@@ -71,7 +71,7 @@ struct RasterizerState {
                     else if (e.keyCode == KeyCode::kC)
                         useCurves = !useCurves;
                     else if (e.keyCode == KeyCode::kF)
-                        fastOutlines = !fastOutlines;
+                        ;//fastOutlines = !fastOutlines;
                     else if (e.keyCode == KeyCode::kI)
                         opaque = !opaque;
                     else if (e.keyCode == KeyCode::kO)
@@ -143,7 +143,7 @@ struct RasterizerState {
     }
     bool needsRedraw() {  return animating || events.size() > 0;  }
     
-    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false, fastOutlines = true;
+    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my;
     int keyCode = 0;
