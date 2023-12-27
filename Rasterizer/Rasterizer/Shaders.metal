@@ -560,8 +560,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
     } else
     if (vert.u != FLT_MAX) {
-        alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
-        alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
+        float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
+        alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
     Colorant color = colors[vert.iz];
     float a = dfdx(vert.clip.x), b = dfdy(vert.clip.x), c = dfdx(vert.clip.y), d = dfdy(vert.clip.y);
