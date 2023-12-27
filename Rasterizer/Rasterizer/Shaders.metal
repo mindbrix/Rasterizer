@@ -60,6 +60,7 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float t = dot(vc, vb) / dot(vc, vc);
     float dt = kCubicSolverLimit - min(kCubicSolverLimit, abs(t));
     rp1 = p1 + dt * sign(t) * vc;
+//    rp1 = abs(t) > kCubicSolverLimit ? p1 : 0.5 * (p0 + p2) + kCubicSolverLimit * sign(t) * vc;
     vb = rp1 - p0, va = p2 - rp1, va -= vb;
     float kk = 1.0 / dot(va, va);
     float a = kk * dot(vb, va), b = kk * (2.0 * dot(vb, vb) + dot(p0, va)), c = kk * dot(p0, vb);
@@ -508,19 +509,8 @@ vertex InstancesVertex instances_vertex_main(
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
-        if (inst.iz & Instance::kMolecule) {
-            const device Bounds& b = bounds[iz];
-            const device Transform& t = ctms[iz];
-            float x, y, offset;
-            offset = (w == 0.0 ? 0.5 : dw) / sqrt(abs(t.a * t.d - t.b * t.c));
-            x = select(b.lx - offset, b.ux + offset, vid & 1);
-            y = select(b.ly - offset, b.uy + offset, vid >> 1);
-            dx = x * t.a + y * t.c + t.tx;
-            dy = x * t.b + y * t.d + t.ty;
-        } else {
-            dx = select(cell.lx, cell.ux, vid & 1);
-            dy = select(cell.ly, cell.uy, vid >> 1);
-        }
+        dx = select(cell.lx, cell.ux, vid & 1);
+        dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = select((dx - (cell.lx - cell.ox)) / *width, FLT_MAX, cell.ox == kNullIndex);
         vert.v = (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
