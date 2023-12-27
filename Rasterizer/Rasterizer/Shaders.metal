@@ -470,14 +470,15 @@ vertex InstancesVertex instances_vertex_main(
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
         
-        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < -0.866025403784439;
+        float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
+        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
         tan0 = pcap ? no : normalize(p0 + n0);
         cos0 = abs(dot(no, tan0));
         s0 = (dw + ow) / max(1e-1, cos0);
         vx0 = s0 * -tan0.y;
         vy0 = s0 * tan0.x;
         
-        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < -0.866025403784439;
+        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < caplimit;
         tan1 = ncap ? no : normalize(p1 + n1);
         cos1 = abs(dot(no, tan1));
         s1 = (dw + ow) / max(1e-1, cos1);
