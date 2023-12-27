@@ -215,7 +215,6 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
-//    return 0.2;
     return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
         + fastWinding(vert.x1, vert.y1, vert.x2, vert.y2)
         + fastWinding(vert.x2, vert.y2, vert.x3, vert.y3)
@@ -290,7 +289,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
 {
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
-//    return 0.2;
 }
 
 #pragma mark - Fast & Quad Edges
