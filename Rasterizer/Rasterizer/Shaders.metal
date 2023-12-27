@@ -60,7 +60,6 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     float t = dot(vc, vb) / dot(vc, vc);
     float dt = kCubicSolverLimit - min(kCubicSolverLimit, abs(t));
     rp1 = p1 + dt * sign(t) * vc;
-//    rp1 = abs(t) > kCubicSolverLimit ? p1 : 0.5 * (p0 + p2) + kCubicSolverLimit * sign(t) * vc;
     vb = rp1 - p0, va = p2 - rp1, va -= vb;
     float kk = 1.0 / dot(va, va);
     float a = kk * dot(vb, va), b = kk * (2.0 * dot(vb, vb) + dot(p0, va)), c = kk * dot(p0, vb);
@@ -451,10 +450,13 @@ vertex InstancesVertex instances_vertex_main(
         cpx = inst.outline.cx, cpy = inst.outline.cy;
         ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0;
         cx = x1 - x0, cy = y1 - y0;
-        no = normalize({ cx, cy });
-        alpha *= (cx * cx + cy * cy > 1e-3);
+        float cdot = cx * cx + cy * cy;
+        no = float2(cx, cy) * rsqrt(cdot);
+        alpha *= (cdot > 1e-3);
+        float area = cx * by - cy * bx;
+        float tc = area / cdot;
         
-        const bool isCurve = *useCurves && cpx != FLT_MAX;
+        const bool isCurve = *useCurves && cpx != FLT_MAX && abs(tc) > 1e-3;
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
@@ -495,7 +497,6 @@ vertex InstancesVertex instances_vertex_main(
         dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0), dy0 = dy - y0, dy1 = dy - y1;
         
         if (isCurve) {
-            float area = cx * by - cy * bx;
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
 //            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
