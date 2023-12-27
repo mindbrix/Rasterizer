@@ -84,15 +84,6 @@ float sdBezier(float2 p0, float2 p1, float2 p2) {
     return min(dot(pt0, pt0), dot(pt1, pt1));
 }
 
-float roundedDistance(float x0, float y0, float x1, float y1) {
-    float ax = x1 - x0, ay = y1 - y0, t = saturate(-(ax * x0 + ay * y0) / (ax * ax + ay * ay)), x = fma(ax, t, x0), y = fma(ay, t, y0);
-    return x * x + y * y;
-}
-float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2) {
-    if (abs(x1 - 0.5 * (x0 + x2)) < 1e-3)
-        return roundedDistance(x0, y0, x2, y2);
-    return sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
-}
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float cover, s, wm, dx, ax, dy, ay, dist;
     cover = w1 - w0, s = 1.0 / cover, wm = 0.5 * (w0 + w1);
@@ -168,7 +159,7 @@ fragment float4 opaques_fragment_main(OpaquesVertex vert [[stage_in]])
 struct FastMoleculesVertex
 {
     float4 position [[position]];
-    float dw, x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
+    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4;
 };
 
 vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -192,14 +183,12 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *pts = & points[inst.quad.base + (iid - inst.quad.biid) * kFastSegments];
     thread float *dst = & vert.x0;
-    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
     float tx, ty, scale, ma, mb, mc, md, x16, y16, slx, sux, sly, suy, x0, y0;
     bool skip = false;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    segcount -= int(w != 0.0 && (ue1 & 0x8) != 0);
     x16 = pts->x & Point16::kMask, y16 = pts->y & Point16::kMask, pts++;
     x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
     
@@ -214,25 +203,15 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
         dst[1] = select(y0, dst[-1], skip), sly = min(sly, dst[1]), suy = max(suy, dst[1]);
     }
     
-    float ux = select(float(edge.ux), ceil(sux + dw), dw != 0.0), offset = select(0.5, 0.0, dw != 0.0);
-    float dx = clamp(select(floor(slx - dw), ux, vid & 1), float(cell.lx), float(cell.ux));
-    float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
+    float ux = edge.ux, offset = 0.5;
+    float dx = clamp(select(floor(slx), ux, vid & 1), float(cell.lx), float(cell.ux));
+    float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
     vert.position = float4(x, y, 1.0, slx == sux && sly == suy ? 0.0 : 1.0);
     for (dst = & vert.x0, i = 0; i < kFastSegments + 1; i++, dst += 2)
         dst[0] += offx, dst[1] += offy;
-    vert.dw = dw;
     return vert;
-}
-
-fragment float4 fast_outlines_fragment_main(FastMoleculesVertex vert [[stage_in]])
-{
-    float d = min(
-                  min(roundedDistance(vert.x0, vert.y0, vert.x1, vert.y1), roundedDistance(vert.x1, vert.y1, vert.x2, vert.y2)),
-                  min(roundedDistance(vert.x2, vert.y2, vert.x3, vert.y3), roundedDistance(vert.x3, vert.y3, vert.x4, vert.y4))
-                  );
-    return saturate(vert.dw - sqrt(d));
 }
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
@@ -250,7 +229,7 @@ fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in
 struct QuadMoleculesVertex
 {
     float4 position [[position]];
-    float dw, x0, y0, x1, y1, x2, y2;
+    float x0, y0, x1, y1, x2, y2;
 };
 
 vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -272,8 +251,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 10) + edge.i0];
     float visible = edge.ic & Edge::isClose ? 0.0 : 1.0;
-    float w = widths[inst.iz & kPathIndexMask], cw = max(1.0, w), dw = (w != 0.0) * 0.5 * (cw + 1.0);
-    float offset = select(0.5, 0.0, dw != 0.0);
+    float offset = 0.5;
     float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
 
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -297,25 +275,18 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     sux = max(x0, x2), sux = max(x1, sux);
     suy = max(y0, y2), suy = max(y1, suy);
     
-    sux = select(float(edge.ux), sux, dw != 0.0);
-    float dx = clamp(select(floor(slx - dw), ceil(sux + dw), vid & 1), float(cell.lx), float(cell.ux));
-    float dy = clamp(select(floor(sly - dw), ceil(suy + dw), vid >> 1), float(cell.ly), float(cell.uy));
+    sux = edge.ux;
+    float dx = clamp(select(floor(slx), ceil(sux), vid & 1), float(cell.lx), float(cell.ux));
+    float dy = clamp(select(floor(sly), ceil(suy), vid >> 1), float(cell.ly), float(cell.uy));
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
     
     vert.position = float4(x, y, 1.0, visible);
-    vert.dw = dw;
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
     vert.x1 = x1 + offx, vert.y1 = y1 + offy;
     vert.x2 = x2 + offx, vert.y2 = y2 + offy;
     
     return vert;
-}
-
-fragment float4 quad_outlines_fragment_main(QuadMoleculesVertex vt [[stage_in]])
-{
-    float d = roundedDistance(vt.x0, vt.y0, vt.x1, vt.y1, vt.x2, vt.y2);
-    return saturate(vt.dw - sqrt(d));
 }
 
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])

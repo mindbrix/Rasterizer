@@ -71,7 +71,7 @@ struct RasterizerState {
                     else if (e.keyCode == KeyCode::kC)
                         useCurves = !useCurves;
                     else if (e.keyCode == KeyCode::kF)
-                        ;//fastOutlines = !fastOutlines;
+                        ;
                     else if (e.keyCode == KeyCode::kI)
                         opaque = !opaque;
                     else if (e.keyCode == KeyCode::kO)
