@@ -378,7 +378,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
     float4 position [[position]];
     float2 clip;
-    float u, v, cover, dw, d0, d1, dm0, dm1, alpha;
+    float u, v, cover, dw, alpha, d0, d1, dm0, dm1;
     uint32_t iz, flags;
 };
 
