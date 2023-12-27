@@ -94,13 +94,12 @@ float roundedDistance(float x0, float y0, float x1, float y1, float x2, float y2
     return sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
 }
 float dwinding(float x0, float y0, float x1, float y1, float w0, float w1) {
-    float dx, dy, ax, ay, d0, cover = w1 - w0;
-    float s = 1.0 / max(1e-12, abs(cover));
-    float wm = 0.5 * (w0 + w1);
+    float cover, s, wm, dx, ax, dy, ay, dist;
+    cover = w1 - w0, s = 1.0 / cover, wm = 0.5 * (w0 + w1);
     dx = x1 - x0, ax = x0 - 0.5;
     dy = (y1 - y0) * s, ay = (y0 - wm) * s;
-    d0 = (ax * dy - ay * dx) * rsqrt(dx * dx + dy * dy);
-    return saturate(0.5 - d0 * sign(cover)) * cover;
+    dist = (ax * dy - ay * dx) * rsqrt(dx * dx + dy * dy);
+    return saturate(0.5 - dist) * cover;
 }
 float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float dx, dy, a0, t, b, f, cover = w1 - w0;
