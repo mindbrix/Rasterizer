@@ -511,7 +511,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = select(cell.lx, cell.ux, vid & 1);
         dy = select(cell.ly, cell.uy, vid >> 1);
         vert.u = select((dx - (cell.lx - cell.ox)) / *width, FLT_MAX, cell.ox == kNullIndex);
-        vert.v = (dy - (cell.ly - cell.oy)) / *height;
+        vert.v = 1.0 - (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
@@ -560,7 +560,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
     } else
     if (vert.u != FLT_MAX) {
-        alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, 1.0 - vert.v)).x);
+        alpha = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(alpha, 2.0) - 1.0) : min(1.0, alpha);
     }
     Colorant color = colors[vert.iz];
