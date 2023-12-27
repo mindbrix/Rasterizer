@@ -412,7 +412,6 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float u, v, cover, dw, d0, d1, dm0, dm1, alpha;
-//    float x0, y0, x1, y1, x2, y2;
     uint32_t iz, flags;
 };
 
@@ -499,7 +498,6 @@ vertex InstancesVertex instances_vertex_main(
         if (isCurve) {
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
-//            vert.x0 = x0 - dx, vert.y0 = y0 - dy, vert.x1 = cpx - dx, vert.y1 = cpy - dy, vert.x2 = x1 - dx, vert.y2 = y1 - dy;
         }
         vert.dw = dw;
         vert.d0 = n0.x * dx0 + n0.y * dy0;
@@ -540,8 +538,6 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool f0 = vert.flags & InstancesVertex::kPCurve, f1 = vert.flags & InstancesVertex::kNCurve;
         
         if (isCurve) {
-//            float x0, y0, x1, y1;
-//            x0 = vert.x0, y0 = vert.y0, x1 = vert.x1, y1 = vert.y1, x2 = vert.x2, y2 = vert.y2;
             a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
             float invdet = 1.0 / (a * d - b * c);
             a *= invdet, b *= invdet, c *= invdet, d *= invdet;
