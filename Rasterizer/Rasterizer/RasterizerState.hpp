@@ -9,10 +9,6 @@
 #import "RasterizerWinding.hpp"
 
 struct RasterizerState {
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Bounds *bounds,
-                                     Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
-        float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info);
-    
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
@@ -124,7 +120,7 @@ struct RasterizerState {
             clock += timeScale / 60.0;
     }
     
-    void runTransferFunction(Ra::SceneList& list, TransferFunction transferFunction) {
+    void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
         if (transferFunction == nullptr)
             return;
         for (int si = 0; si < list.scenes.size(); si++) {
@@ -135,9 +131,7 @@ struct RasterizerState {
             for (int i = 0; i < threads; i++)
                 divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
             dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*transferFunction)(divisions[i], divisions[i + 1], si, scn->bnds->base,
-                                    & scn->ctms->src[0], scn->ctms->base, & scn->colors->src[0], scn->colors->base,
-                                    & scn->widths->src[0], scn->widths->base, & scn->flags->src[0], scn->flags->base, this);
+                (*transferFunction)(divisions[i], divisions[i + 1], si, scn, this);
             });
         }
     }

@@ -196,9 +196,12 @@ struct RasterizerTest {
         }
     }
     
-    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Bounds *bounds,
-            Ra::Transform *srcCtms, Ra::Transform *dstCtms, Ra::Colorant *srcColors, Ra::Colorant *dstColors,
-            float *srcWidths, float *dstWidths, uint8_t *srcFlags, uint8_t *dstFlags, void *info) {
+    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
+        Ra::Bounds *bounds = scn->bnds->base;
+        Ra::Transform *srcCtms = & scn->ctms->src[0], *dstCtms = scn->ctms->base;
+        Ra::Colorant *srcColors = & scn->colors->src[0], *dstColors = scn->colors->base;
+        float *srcWidths = & scn->widths->src[0], *dstWidths = scn->widths->base;
+        uint8_t *srcFlags = & scn->flags->src[0], *dstFlags = scn->flags->base;
         RasterizerState& state = *((RasterizerState *)info);
         size_t count = ui - li;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);

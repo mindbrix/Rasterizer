@@ -367,6 +367,8 @@ struct Rasterizer {
         Ref<Vector<Path>> paths;  Ref<Vector<Bounds>> bnds;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
+    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Scene *scn, void *info);
+    
     struct SceneList {
         Bounds bounds() {
             Bounds b;
