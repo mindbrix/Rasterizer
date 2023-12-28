@@ -13,7 +13,7 @@
 #import "RasterizerTest.hpp"
 
 
-@interface DocumentView ()
+@interface DocumentView () <NSFontChanging>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) NSFont *fnt;
