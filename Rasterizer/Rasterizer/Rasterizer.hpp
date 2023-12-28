@@ -55,7 +55,8 @@ struct Rasterizer {
             lx = fminf(lx, b.lx), ly = fminf(ly, b.ly), ux = fmaxf(ux, b.ux), uy = fmaxf(uy, b.uy);
         }
         inline Bounds inset(float dx, float dy) const {
-            return dx * 2.f < ux - lx && dy * 2.f < uy - ly ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
+            bool valid = dx * 2.f < ux - lx && dy * 2.f < uy - ly;
+            return valid ? Bounds(lx + dx, ly + dy, ux - dx, uy - dy) : *this;
         }
         inline Bounds integral() const {
             return { floorf(lx), floorf(ly), ceilf(ux), ceilf(uy) };
