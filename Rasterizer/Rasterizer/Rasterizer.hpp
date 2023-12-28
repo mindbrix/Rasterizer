@@ -453,7 +453,7 @@ struct Rasterizer {
             }
         }
         uint8_t *base = nullptr;  Row<Entry> entries;
-        bool useCurves = false;  Colorant clearColor = Colorant(255, 255, 255, 255);
+        bool useCurves = false;  Bounds device, clip;  Colorant clearColor = Colorant(255, 255, 255, 255);
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
@@ -486,7 +486,7 @@ struct Rasterizer {
     };
     
     struct Context {
-        void drawList(SceneList& list, Bounds device, Transform view, size_t slz, size_t suz, Buffer *buffer) {
+        void drawList(SceneList& list, Bounds device, Bounds deviceClip, Transform view, size_t slz, size_t suz, Buffer *buffer) {
             empty(), allocator.empty(device);
             size_t fatlines = 1.f + ceilf((device.uy - device.ly) * krfh);
             if (samples.size() != fatlines)
@@ -519,7 +519,7 @@ struct Rasterizer {
                         clipquad = clipActive ? scn->clipCache->entryAt(is)->quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
-                        clipBounds = Bounds(clipquad).integral().intersect(device);
+                        clipBounds = Bounds(clipquad).integral().intersect(deviceClip);
                     }
                     bnds = & scn->bnds->base[is], quad = bnds->quad(m), dev = Bounds(quad);
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;

@@ -59,8 +59,8 @@
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     buffer->useCurves = _useCurves;
-    
-    _renderer.renderList(_sceneList, self.device, self.view, buffer);
+    float inset = 0.f;
+    _renderer.renderList(_sceneList, self.device, self.device.inset(inset, inset), self.view, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
 
