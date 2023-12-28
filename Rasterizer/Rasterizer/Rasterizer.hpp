@@ -457,10 +457,11 @@ struct Rasterizer {
         size_t colors, ctms, clips, widths, bounds, idxs, pathsCount, headerSize, size = 0, allocation = 0;
     };
     struct Allocator {
+        enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
         struct Pass {
             Pass(size_t idx) : idx(idx) {}
-            size_t idx, counts[4] = { 0, 0, 0, 0 };
             size_t count() { return counts[0] + counts[1] + counts[2] + counts[3]; }
+            size_t idx, counts[4] = { 0, 0, 0, 0 };
         };
         void empty(Bounds device) {
             full = device, sheet = Bounds(0.f, 0.f, 0.f, 0.f), bzero(strips, sizeof(strips)), passes.empty(), new (passes.alloc(1)) Pass(0);
@@ -471,16 +472,16 @@ struct Rasterizer {
         inline void alloc(float lx, float ly, float ux, float uy, size_t idx, Cell *cell, int type, size_t count) {
             float w = ux - lx, h = uy - ly;
             size_t i = fmaxf(0.f, ceilf(log2f(h / kStripHeight))), hght = (1 << i) * kStripHeight;
-            Bounds *b = strips + i;
-            if (b->ux - b->lx < w) {
+            Bounds *strip = strips + i;
+            if (strip->ux - strip->lx < w) {
                 if (sheet.uy - sheet.ly < hght)
                     refill(idx);
-                b->lx = sheet.lx, b->ly = sheet.ly, b->ux = sheet.ux, b->uy = sheet.ly + hght, sheet.ly = b->uy;
+                strip->lx = sheet.lx, strip->ly = sheet.ly, strip->ux = sheet.ux, strip->uy = sheet.ly + hght, sheet.ly = strip->uy;
             }
-            cell->ox = b->lx, cell->oy = b->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, b->lx += w;
+            cell->ox = strip->lx, cell->oy = strip->ly, cell->lx = lx, cell->ly = ly, cell->ux = ux, cell->uy = uy, strip->lx += w;
             passes.back().counts[type] += count;
         }
-        Row<Pass> passes;  enum CountType { kFastEdges, kQuadEdges, kFastMolecules, kQuadMolecules };
+        Row<Pass> passes;
         Bounds full, sheet, strips[kStripCount];
     };
     
