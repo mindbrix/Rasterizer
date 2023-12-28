@@ -56,11 +56,10 @@ struct RasterizerCG {
         if (clip.scale() == 0)
             return false;
         float uw = width < 0.f ? -width / ctm.scale() : width;
-        Ra::Transform quad = user.inset(-uw, -uw).quad(ctm), inv = clip.invert();
-        Ra::Bounds clipBounds = Ra::Bounds(clip), quadBounds = Ra::Bounds(quad);
-        Ra::Bounds dev = quadBounds.intersect(deviceClip).intersect(clipBounds);
-        Ra::Bounds clu = Ra::Bounds(inv.concat(quad));
-        return dev.lx < dev.ux && dev.ly < dev.uy && clu.lx < 1.f && clu.ux > 0.f && clu.ly < 1.f && clu.uy > 0.f;
+        Ra::Transform quad = user.inset(-uw, -uw).quad(ctm);
+        Ra::Bounds dev = Ra::Bounds(quad).intersect(Ra::Bounds(clip)).intersect(deviceClip);
+        Ra::Bounds soft = Ra::Bounds(clip.invert().concat(quad));
+        return dev.lx < dev.ux && dev.ly < dev.uy && soft.lx < 1.f && soft.ux > 0.f && soft.ly < 1.f && soft.uy > 0.f;
     }
     
     static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, Ra::Bounds deviceClip, float outlineWidth, CGContextRef ctx) {
