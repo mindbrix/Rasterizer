@@ -52,18 +52,18 @@ struct RasterizerCG {
         CGColorSpaceRef dstSpace = nil;
     };
     
-    static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds device, float width) {
+    static bool isVisible(Ra::Bounds user, Ra::Transform ctm, Ra::Transform clip, Ra::Bounds deviceClip, float width) {
         if (clip.scale() == 0)
             return false;
         float uw = width < 0.f ? -width / ctm.scale() : width;
-        Ra::Transform unit = user.inset(-uw, -uw).quad(ctm), inv = clip.invert();
-        Ra::Bounds clipBounds = Ra::Bounds(clip), unitBounds = Ra::Bounds(unit);
-        Ra::Bounds dev = unitBounds.intersect(device).intersect(clipBounds);
-        Ra::Bounds clu = Ra::Bounds(inv.concat(unit));
+        Ra::Transform quad = user.inset(-uw, -uw).quad(ctm), inv = clip.invert();
+        Ra::Bounds clipBounds = Ra::Bounds(clip), quadBounds = Ra::Bounds(quad);
+        Ra::Bounds dev = quadBounds.intersect(deviceClip).intersect(clipBounds);
+        Ra::Bounds clu = Ra::Bounds(inv.concat(quad));
         return dev.lx < dev.ux && dev.ly < dev.uy && clu.lx < 1.f && clu.ux > 0.f && clu.ly < 1.f && clu.uy > 0.f;
     }
     
-    static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, float outlineWidth, CGContextRef ctx) {
+    static void drawList(Ra::SceneList& list, Ra::Transform view, Ra::Bounds device, Ra::Bounds deviceClip, float outlineWidth, CGContextRef ctx) {
         uint32_t ip, lastip = ~0;
         for (int j = 0; j < list.scenes.size(); j++) {
             Ra::Scene& scn = list.scenes[j];
@@ -92,7 +92,7 @@ struct RasterizerCG {
                     clip = ip && pclip ? pclip->quad(view.concat(ctm)) : Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                 }
                 
-                if (isVisible(g->bounds, m, clip, device, scn.widths->base[i])) {
+                if (isVisible(g->bounds, m, clip, deviceClip, scn.widths->base[i])) {
                     CGContextSaveGState(ctx);
                     CGContextConcatCTM(ctx, CGFromTransform(t));
                     writePathToCGContext(g, ctx);
@@ -163,7 +163,7 @@ struct RasterizerCG {
         CGContextRef ctx = CGPDFContextCreateWithURL((__bridge CFURLRef)fileURL, & mediaBox, NULL);
         CGPDFContextBeginPage(ctx, NULL);
         CGContextConcatCTM(ctx, CGFromTransform(ctm));
-        drawList(list, ctm, BoundsFromCGRect(bounds), 0.f, ctx);
+        drawList(list, ctm, BoundsFromCGRect(bounds), BoundsFromCGRect(bounds), 0.f, ctx);
         CGPDFContextEndPage(ctx);
         CGPDFContextClose(ctx);
         CGContextRelease(ctx);

@@ -16,6 +16,7 @@
 @property(nonatomic) RasterizerRenderer renderer;
 @property(nonatomic, readonly) Ra::Bounds device;
 @property(nonatomic, readonly) Ra::Transform view;
+@property(nonatomic) float clipInset;
 
 @end
 
@@ -29,6 +30,7 @@
     _useCG = false;
     _useCurves = true;
     _ctm = Ra::Transform();
+    _clipInset = 0.f;
    [self initLayer];
    return self;
 }
@@ -59,8 +61,8 @@
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     buffer->useCurves = _useCurves;
-    float inset = 0.f;
-    _renderer.renderList(_sceneList, self.device, self.device.inset(inset, inset), self.view, buffer);
+    Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
+    _renderer.renderList(_sceneList, self.device, deviceClip, self.view, buffer);
     return self.window.colorSpace.CGColorSpace;
 }
 
@@ -69,9 +71,11 @@
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
     Ra::Colorant color = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
     memset_pattern4(CGBitmapContextGetData(ctx), & color.b, CGBitmapContextGetBytesPerRow(ctx) * CGBitmapContextGetHeight(ctx));
+    Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
+    CGFloat scale = 1.0 / self.layer.contentsScale;
+    CGContextClipToRect(ctx, CGRectApplyAffineTransform(RaCG::CGRectFromBounds(deviceClip), CGAffineTransformMakeScale(scale, scale)) );
     CGContextConcatCTM(ctx, RaCG::CGFromTransform(_ctm));
-    
-    RaCG::drawList(_sceneList, self.view, self.device, 0.f, ctx);
+    RaCG::drawList(_sceneList, self.view, self.device, deviceClip, 0.f, ctx);
 }
 
 
