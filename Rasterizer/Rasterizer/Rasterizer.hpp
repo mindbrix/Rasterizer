@@ -552,8 +552,8 @@ struct Rasterizer {
                             bool unclipped = clip.contains(dev);
                             bool softunclipped = true;
                             if (clipActive) {
-                                Bounds b = Bounds(invclip.concat(quad));
-                                softunclipped = fmaxf(fmaxf(fabsf(b.lx), fabsf(b.ux)), fmaxf(fabsf(b.ly), fabsf(b.uy))) < softclipMargin;
+                                Bounds soft = Bounds(invclip.concat(quad));
+                                softunclipped = fmaxf(fmaxf(fabsf(soft.lx), fabsf(soft.ux)), fmaxf(fabsf(soft.ly), fabsf(soft.uy))) < softclipMargin;
                             }
                             bool opaque = colors[iz].a == 255 && softunclipped;
                             CurveIndexer idxr;
