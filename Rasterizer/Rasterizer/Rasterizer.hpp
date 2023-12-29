@@ -344,11 +344,9 @@ struct Rasterizer {
             if (path->isValid()) {
                 Geometry *g = path.ptr;
                 count++, weight += g->types.end;
+                if (kMoleculesHeight && g->p16s.end == 0)
+                    P16Writer().writeGeometry(g);
                 Bounds *be;
-                if (kMoleculesHeight && g->p16s.end == 0) {
-                    P16Writer writer;
-                    writer.writeGeometry(g);
-                }
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
                 g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet), xxhash = XXH64(& g->xxhash, sizeof(g->xxhash), xxhash);
