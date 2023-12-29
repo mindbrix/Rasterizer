@@ -391,7 +391,7 @@ struct Rasterizer {
         size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;
     };
     struct Segment {
-        Segment(float x0, float y0, float x1, float y1, uint32_t curve) : ix0((*((uint32_t *)& x0) & ~3) | curve), y0(y0), x1(x1), y1(y1) {}
+        Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
         union { float x0; uint32_t ix0; };  float y0, x1, y1;
     };
     struct Cell {
@@ -849,7 +849,7 @@ struct Rasterizer {
                     new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * scale, dst - dst0);
                 }
             }
-            new (dst++) Segment(x0, y0, x1, y1, 0);
+            new (dst++) Segment(x0, y0, x1, y1, false);
         }
         __attribute__((always_inline)) void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
@@ -870,7 +870,7 @@ struct Rasterizer {
                     new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
                 }
             }
-            new (dst++) Segment(x0, y0, x1, y1, 1), new (dst++) Segment(x1, y1, x2, y2, 2);
+            new (dst++) Segment(x0, y0, x1, y1, true), new (dst++) Segment(x1, y1, x2, y2, false);
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
