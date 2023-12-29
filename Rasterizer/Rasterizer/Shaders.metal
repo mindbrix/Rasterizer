@@ -28,7 +28,7 @@ struct Point16 {
     uint16_t x, y;
 };
 struct Segment {
-    float x0, y0, x1, y1;
+    union { float x0; uint32_t ix0; };  float y0, x1, y1;
 };
 
 struct Cell {
@@ -322,7 +322,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
         if (idxes[i] != 0xFFFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
             x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
-            bool curve = *useCurves && as_type<uint>(x0) & 1;
+            bool curve = *useCurves && s.ix0 & 1;
             if (curve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
                 x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
