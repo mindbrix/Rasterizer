@@ -412,7 +412,7 @@ struct Rasterizer {
         Geometry *g;
     };
     struct Edge {
-        uint32_t ic;  enum Flags { ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(ue0 | ue1) };
+        uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
     struct Sample {
@@ -1072,13 +1072,13 @@ struct Rasterizer {
                             for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & 0x80), p16cnt++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 22)), molecule->ux = ux, molecule++;
+                                molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 24)), molecule->ux = ux, molecule++;
                             }
                         } else {
                             for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd), atom++, molecule++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
-                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 10), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
+                                molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
                             }
                         }
                         *(fast ? & fastMolecule : & quadMolecule) = molecule;
@@ -1088,7 +1088,7 @@ struct Rasterizer {
                         for (j = 0; j < inst->data.count; j++, edge++) {
                             is0 = si[j];
                             is1 = ++j < inst->data.count ? si[j] : ~0;
-                            edge->ic = uint32_t(ic) | ((is0 << 10) & Edge::ue0) | ((is1 << 6) & Edge::ue1);
+                            edge->ic = uint32_t(ic) | ((is0 << 12) & Edge::ue0) | ((is1 << 8) & Edge::ue1);
                             edge->i0 = is0 & 0xFFFF, edge->ux = is1 & 0xFFFF;
                         }
                         *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;

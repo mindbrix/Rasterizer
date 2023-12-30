@@ -48,7 +48,7 @@ struct Instance {
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
-    uint32_t ic;  enum Flags { ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(ue0 | ue1) };
+    uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
     uint16_t i0, ux;
 };
 
@@ -176,7 +176,7 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
     
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
-    int ue1 = (edge.ic & Edge::ue1) >> 22, segcount = ue1 & 0x7, i;
+    int ue1 = (edge.ic & Edge::ue1) >> 24, segcount = ue1 & 0x7, i;
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
@@ -246,7 +246,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Transform& m = ctms[inst.iz & kPathIndexMask];
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
-    const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 10) + edge.i0];
+    const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 12) + edge.i0];
     const float offset = 0.5;
     float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
 
@@ -311,7 +311,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
     thread float *dst = & vert.x0;
-    uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 10) + edge.i0, ((edge.ic & Edge::ue1) >> 6) + edge.ux };
+    uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 12) + edge.i0, ((edge.ic & Edge::ue1) >> 8) + edge.ux };
     const thread uint32_t *idxes = & ids[0];
     float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
     float visible = 1.0;
