@@ -44,7 +44,7 @@ struct Outline {
     float cx, cy;
 };
 struct Instance {
-    enum Type { kPCurve = 1 << 24, kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kNCurve = 1 << 27, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
+    enum Type { kEvenOdd = 1 << 24, kRoundCap = 1 << 25, kEdge = 1 << 26, kSquareCap = 1 << 28, kOutlines = 1 << 29, kFastEdges = 1 << 30, kMolecule = 1 << 31 };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
