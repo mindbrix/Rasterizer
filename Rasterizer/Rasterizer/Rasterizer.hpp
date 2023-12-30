@@ -162,7 +162,7 @@ struct Rasterizer {
                 Quadratic(x0, y0, 2.f * x - 0.5f * (x0 + x3), 2.f * y - 0.5f * (y0 + y3), x3, y3);
             }
         }
-        virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {}
+        virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {}
         
         float quadraticScale = 1.f, cubicScale = kCubicPrecision, oddCubics = 0.f;
     };
@@ -292,22 +292,20 @@ struct Rasterizer {
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
             (atoms->alloc(1))->i = uint32_t(p16s->end - 2) | Atom::isCurve;
         }
-        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {
             Point16 *p = p16s->alloc(1);
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
-            
-            bool isClose = bool(curve & 2) && !bool(curve & 1);
             
             if (atoms->idx < atoms->end)
                 atoms->back().i |= Atom::isEnd;
             atoms->idx = atoms->end;
             
             size_t segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
-            uint8_t *cnt = p16cnts->alloc(icount), flags = 0x80 | (isClose * 0x8);
+            uint8_t *cnt = p16cnts->alloc(icount);
             for (int i = 0; i < icount; i++) {
                 rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
-                cnt[i] = sz | ((sz && sz == rem) * flags);
+                cnt[i] = sz | ((sz && sz == rem) * 0x80);
             }
             p16s->zalloc(p16cnts->end * kFastSegments - p16s->end), p16s->idx = p16s->end;
         }
@@ -980,10 +978,10 @@ struct Rasterizer {
                 writeInstance(x, y, tx1, ty1, x2, y2);
             }
         }
-        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t curve) {
+        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {
             if (dst - dst0 > 0) {
                 Instance *first = dst0, *last = dst - 1;  dst0 = dst;
-                first->outline.prev = int(bool(curve & 3)) * int(last - first), last->outline.next = -first->outline.prev;
+                first->outline.prev = int(bool(flags & 3)) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
