@@ -167,7 +167,7 @@ struct Rasterizer {
         float quadraticScale = 1.f, cubicScale = kCubicPrecision, oddCubics = 0.f;
     };
     struct Point16 {
-        enum Flags { isCurve = 0x8000, kMask = ~isCurve };
+        enum Flags { isCurve = 1 << 15, kMask = ~isCurve };
         uint16_t x, y;
     };
     
