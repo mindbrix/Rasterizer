@@ -162,7 +162,7 @@ struct Rasterizer {
                 Quadratic(x0, y0, 2.f * x - 0.5f * (x0 + x3), 2.f * y - 0.5f * (y0 + y3), x3, y3);
             }
         }
-        virtual void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {}
+        virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
         
         float quadraticScale = 1.f, cubicScale = kCubicPrecision, oddCubics = 0.f;
     };
@@ -292,7 +292,7 @@ struct Rasterizer {
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
             (atoms->alloc(1))->i = uint32_t(p16s->end - 2);
         }
-        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             Point16 *p = p16s->alloc(1);
             p->x = fmaxf(0.f, fminf(kMoleculesRange, x1));
             p->y = fmaxf(0.f, fminf(kMoleculesRange, y1));
@@ -585,7 +585,7 @@ struct Rasterizer {
                     if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
                         line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
                     if (sx != FLT_MAX)
-                        writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
+                        writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
                     sx = x0 = p[0] * m.a + p[1] * m.c + m.tx, sy = y0 = p[0] * m.b + p[1] * m.d + m.ty, p += 2, type++, closeSubpath = false;
                     break;
                 case Geometry::kLine:
@@ -638,7 +638,7 @@ struct Rasterizer {
             }
         if ((closed = (polygon || closeSubpath) && (sx != x0 || sy != y0)))
             line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
-        writer.EndSubpath(x0, y0, sx, sy, (uint32_t(closeSubpath) << 0) | (uint32_t(closed) << 1));
+        writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
     }
     static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
         if (unclipped)
@@ -978,10 +978,10 @@ struct Rasterizer {
                 writeInstance(x, y, tx1, ty1, x2, y2);
             }
         }
-        void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {
+        void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {
             if (dst - dst0 > 0) {
                 Instance *first = dst0, *last = dst - 1;  dst0 = dst;
-                first->outline.prev = int(bool(flags & 3)) * int(last - first), last->outline.next = -first->outline.prev;
+                first->outline.prev = int(closed) * int(last - first), last->outline.next = -first->outline.prev;
             }
         }
         inline void writeInstance(float x0, float y0, float x1, float y1, float x2, float y2) {
