@@ -172,7 +172,7 @@ struct Rasterizer {
     };
     
     struct Atom {
-        enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, kMask = ~(isCurve | isEnd) };
+        enum Flags { isEnd = 1 << 31, kMask = ~isEnd };
         uint32_t i;
     };
     
@@ -290,7 +290,7 @@ struct Rasterizer {
             p[0].y = fmaxf(0.f, fminf(kMoleculesRange, y0));
             p[1].x = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * x1 + 0.25f * (x0 + x2)));
             p[1].y = fmaxf(0.f, fminf(kMoleculesRange, 0.5f * y1 + 0.25f * (y0 + y2)));
-            (atoms->alloc(1))->i = uint32_t(p16s->end - 2) | Atom::isCurve;
+            (atoms->alloc(1))->i = uint32_t(p16s->end - 2);
         }
         void EndSubpath(float x0, float y0, float x1, float y1, uint32_t flags) {
             Point16 *p = p16s->alloc(1);
