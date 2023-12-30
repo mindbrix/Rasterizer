@@ -412,7 +412,7 @@ struct Rasterizer {
         Geometry *g;
     };
     struct Edge {
-        uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
+        uint32_t ic;  enum Flags { ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
     struct Sample {
@@ -1088,7 +1088,7 @@ struct Rasterizer {
                         for (j = 0; j < inst->data.count; j++, edge++) {
                             is0 = si[j];
                             is1 = ++j < inst->data.count ? si[j] : ~0;
-                            edge->ic = uint32_t(ic) | ((is0 << 12) & Edge::ue0) | ((is1 << 8) & Edge::ue1);
+                            edge->ic = uint32_t(ic) | ((is0 << 10) & Edge::ue0) | ((is1 << 6) & Edge::ue1);
                             edge->i0 = is0 & 0xFFFF, edge->ux = is1 & 0xFFFF;
                         }
                         *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
