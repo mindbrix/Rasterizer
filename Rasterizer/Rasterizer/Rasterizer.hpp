@@ -412,7 +412,7 @@ struct Rasterizer {
         Geometry *g;
     };
     struct Edge {
-        uint32_t ic;  enum Flags { isClose0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose0 | a1 | ue0 | ue1) };
+        uint32_t ic;  enum Flags { ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(ue0 | ue1) };
         uint16_t i0, ux;
     };
     struct Sample {

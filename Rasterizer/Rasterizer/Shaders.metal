@@ -48,7 +48,7 @@ struct Instance {
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
-    uint32_t ic;  enum Flags { a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a1 | ue0 | ue1) };
+    uint32_t ic;  enum Flags { ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(ue0 | ue1) };
     uint16_t i0, ux;
 };
 
