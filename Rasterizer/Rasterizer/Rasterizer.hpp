@@ -172,7 +172,7 @@ struct Rasterizer {
     };
     
     struct Atom {
-        enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, isClose = 1 << 29, kMask = ~(isCurve | isEnd | isClose) };
+        enum Flags { isCurve = 1 << 31, isEnd = 1 << 30, kMask = ~(isCurve | isEnd) };
         uint32_t i;
     };
     
@@ -300,7 +300,7 @@ struct Rasterizer {
             bool isClose = bool(curve & 2) && !bool(curve & 1);
             
             if (atoms->idx < atoms->end)
-                atoms->back().i |= Atom::isEnd | isClose * Atom::isClose;
+                atoms->back().i |= Atom::isEnd;
             atoms->idx = atoms->end;
             
             size_t segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
@@ -414,7 +414,7 @@ struct Rasterizer {
         Geometry *g;
     };
     struct Edge {
-        uint32_t ic;  enum Flags { isClose = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose | a1 | ue0 | ue1) };
+        uint32_t ic;  enum Flags { isClose0 = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose0 | a1 | ue0 | ue1) };
         uint16_t i0, ux;
     };
     struct Sample {

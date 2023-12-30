@@ -48,7 +48,7 @@ struct Instance {
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
-    uint32_t ic;  enum Flags { isClose = 1 << 31, a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(isClose | a1 | ue0 | ue1) };
+    uint32_t ic;  enum Flags { a1 = 1 << 30, ue0 = 0xF << 26, ue1 = 0xF << 22, kMask = ~(a1 | ue0 | ue1) };
     uint16_t i0, ux;
 };
 
@@ -247,8 +247,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 10) + edge.i0];
-    float visible = edge.ic & Edge::isClose ? 0.0 : 1.0;
-    float offset = 0.5;
+    const float offset = 0.5;
     float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
 
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
@@ -278,7 +277,7 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0, offx = offset - dx;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
     
-    vert.position = float4(x, y, 1.0, visible);
+    vert.position = float4(x, y, 1.0, 1.0);
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
     vert.x1 = x1 + offx, vert.y1 = y1 + offy;
     vert.x2 = x2 + offx, vert.y2 = y2 + offy;
