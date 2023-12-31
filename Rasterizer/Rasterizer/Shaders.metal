@@ -377,7 +377,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
     float4 position [[position]];
     float2 clip;
-    float u, v, cover, dw, alpha, d0, d1, dm0, dm1;
+    float u, v, cover, dw, alpha;
     uint32_t iz, flags;
 };
 
@@ -464,13 +464,14 @@ vertex InstancesVertex instances_vertex_main(
         if (isCurve) {
             vert.u = (ax * dy1 - ay * dx1) / area;
             vert.v = (cx * dy0 - cy * dx0) / area;
+        } else {
+            cpx = 0.5 * (x0 + x1 - cy), ax = cpx - x1, bx = cpx - x0;
+            cpy = 0.5 * (y0 + y1 + cx), ay = cpy - y1, by = cpy - y0;
+            area = cx * by - cy * bx;
+            vert.u = (ax * dy1 - ay * dx1) / area;
+            vert.v = (cx * dy0 - cy * dx0) / area;
         }
         vert.dw = dw;
-        vert.d0 = n0.x * dx0 + n0.y * dy0;
-        vert.dm0 = -n0.y * dx0 + n0.x * dy0;
-        vert.d1 = -(p1.x * dx1 + p1.y * dy1);
-        vert.dm1 = -(-p1.y * dx1 + p1.x * dy1);
-        
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -502,26 +503,39 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool squareCap = vert.flags & Instance::kSquareCap;
         bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
         bool f0 = vert.flags & InstancesVertex::kPCurve, f1 = vert.flags & InstancesVertex::kNCurve;
+        float dw, d0, dm0, d1, dm1;
+        dw = vert.dw;
+        
+        a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
+        float invdet = 1.0 / (a * d - b * c);
+        a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+        x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
+        float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+        
+        if (!isCurve) {
+            x1 = 0.5 * (x0 + x2), y1 = 0.5 * (y0 + y2);
+        }
+        float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
+        float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
+        d0 = (x0 * bx + y0 * by) * rb;
+        dm0 = (x0 * -by + y0 * bx) * rb;
+        d1 = (x2 * ax + y2 * ay) * ra;
+        dm1 = (x2 * -ay + y2 * ax) * ra;
         
         if (isCurve) {
-            a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-            float invdet = 1.0 / (a * d - b * c);
-            a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-            x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-            float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
             sqdist = sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
         } else {
-            float dx = vert.d0 - clamp(vert.d0, 0.0, vert.d0 + vert.d1);
-            sqdist = dx * dx + vert.dm0 * vert.dm0;
+            float dx = d0 - clamp(d0, 0.0, d0 + d1);
+            sqdist = dx * dx + dm0 * dm0;
         }
-        float outline = saturate(vert.dw - sqrt(sqdist));
+        float outline = saturate(dw - sqrt(sqdist));
         
-        cap = squareCap ? vert.dw : 0.5;
-        cap0 = (pcap ? saturate(cap + vert.d0) : 1.0) * saturate(vert.dw - abs(vert.dm0));
-        cap1 = (ncap ? saturate(cap + vert.d1) : 1.0) * saturate(vert.dw - abs(vert.dm1));
+        cap = squareCap ? dw : 0.5;
+        cap0 = (pcap ? saturate(cap + d0) : 1.0) * saturate(dw - abs(dm0));
+        cap1 = (ncap ? saturate(cap + d1) : 1.0) * saturate(dw - abs(dm1));
         
-        sd0 = f0 ? saturate(vert.d0) : 1.0;
-        sd1 = f1 ? saturate(vert.d1) : 1.0;
+        sd0 = f0 ? saturate(d0) : 1.0;
+        sd1 = f1 ? saturate(d1) : 1.0;
 
         alpha = cap0 * (1.0 - sd0) + cap1 * (1.0 - sd1) + (sd0 + sd1 - 1.0) * outline;
     } else
