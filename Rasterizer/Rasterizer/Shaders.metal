@@ -461,16 +461,13 @@ vertex InstancesVertex instances_vertex_main(
         dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0), dx0 = dx - x0, dx1 = dx - x1;
         dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0), dy0 = dy - y0, dy1 = dy - y1;
         
-        if (isCurve) {
-            vert.u = (ax * dy1 - ay * dx1) / area;
-            vert.v = (cx * dy0 - cy * dx0) / area;
-        } else {
+        if (!isCurve) {
             cpx = 0.5 * (x0 + x1 - cy), ax = cpx - x1, bx = cpx - x0;
             cpy = 0.5 * (y0 + y1 + cx), ay = cpy - y1, by = cpy - y0;
             area = cx * by - cy * bx;
-            vert.u = (ax * dy1 - ay * dx1) / area;
-            vert.v = (cx * dy0 - cy * dx0) / area;
         }
+        vert.u = (ax * dy1 - ay * dx1) / area;
+        vert.v = (cx * dy0 - cy * dx0) / area;
         vert.dw = dw;
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
