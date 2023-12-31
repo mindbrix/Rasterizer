@@ -1058,23 +1058,23 @@ struct Rasterizer {
                     dst = outliner.dst;
                 } else {
                     ic = dst - dst0, dst->iz = inst->iz, dst->quad = inst->quad, dst++;
+                    bool fast = inst->iz & Instance::kFastEdges;
                     if (inst->iz & Instance::kMolecule) {
-                        Atom *atom = g->atoms.base;
-                        bool hasMolecules = g->molecules.end > 1;
-                        dst[-1].quad.base = int(ctx->fasts.base[iz]);
                         uint16_t ux = inst->quad.cell.ux;  Transform& ctm = ctms[iz];
                         float *molx = (float *)g->molecules.base + (ctm.a > 0.f ? 2 : 0), *moly = (float *)g->molecules.base + (ctm.c > 0.f ? 3 : 1);
-                        bool update = hasMolecules, fast = inst->iz & Instance::kFastEdges;  uint8_t *p16cnt = g->p16cnts.base;
                         Edge *molecule = fast ? fastMolecule : quadMolecule;
+                        dst[-1].quad.base = int(ctx->fasts.base[iz]);
                         dst[-1].quad.biid = int(molecule - (fast ? fastMolecule0 : quadMolecule0));
-
+                        bool hasMolecules = g->molecules.end > 1, update = hasMolecules;
                         if (fast) {
+                            uint8_t *p16cnt = g->p16cnts.base;
                             for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & 0x80), p16cnt++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 24)), molecule->ux = ux, molecule++;
                             }
                         } else {
+                            Atom *atom = g->atoms.base;
                             for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd), atom++, molecule++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
@@ -1083,7 +1083,7 @@ struct Rasterizer {
                         }
                         *(fast ? & fastMolecule : & quadMolecule) = molecule;
                     } else if (inst->iz & Instance::kEdge) {
-                        Edge *edge = inst->iz & Instance::kFastEdges ? fastEdge : quadEdge;
+                        Edge *edge = fast ? fastEdge : quadEdge;
                         uint32_t is0, is1, *si = ctx->segmentsIndices.base + inst->data.idx;
                         for (j = 0; j < inst->data.count; j++, edge++) {
                             is0 = si[j];
@@ -1091,7 +1091,7 @@ struct Rasterizer {
                             edge->ic = uint32_t(ic) | ((is0 << 12) & Edge::ue0) | ((is1 << 8) & Edge::ue1);
                             edge->i0 = is0 & 0xFFFF, edge->ux = is1 & 0xFFFF;
                         }
-                        *(inst->iz & Instance::kFastEdges ? & fastEdge : & quadEdge) = edge;
+                        *(fast ? & fastEdge : & quadEdge) = edge;
                     }
                 }
             }
