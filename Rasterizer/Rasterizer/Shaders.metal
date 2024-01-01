@@ -536,9 +536,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
     Colorant color = colors[vert.iz];
-    float a = dfdx(vert.clip.x), b = dfdy(vert.clip.x), c = dfdx(vert.clip.y), d = dfdy(vert.clip.y);
+    float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float s0 = rsqrt(a * a + b * b), s1 = rsqrt(c * c + d * d);
-    float clip = saturate(0.5 + vert.clip.x * s0) * saturate(0.5 + (1.0 - vert.clip.x) * s0) * saturate(0.5 + vert.clip.y * s1) * saturate(0.5 + (1.0 - vert.clip.y) * s1);
+    float clip = saturate(0.5 + clx * s0) * saturate(0.5 + (1.0 - clx) * s0) * saturate(0.5 + cly * s1) * saturate(0.5 + (1.0 - cly) * s1);
     float ma = 0.003921568627 * alpha * vert.alpha * clip;
     return { color.r * ma, color.g * ma, color.b * ma, color.a * ma };
 }
