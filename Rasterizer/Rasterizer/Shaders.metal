@@ -280,23 +280,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0, offy = offset - dy;
     
     vert.position = float4(x, y, 1.0, 1.0);
-//    float ax, ay, bx, by, cx, cy, cdot, area, tc;
-//    bool isCurve;
-//    bx = x1 - x0, by = y1 - y0;
-//    ax = x1 - x2, ay = y1 - y2;
-//    cx = x2 - x0, cy = y2 - y0;
-//    cdot = cx * cx + cy * cy;
-//    area = cx * by - cy * bx;
-//    tc = area / cdot;
-//    isCurve = abs(tc) > 1e-3;
-//    if (!isCurve) {
-//        x1 = 0.5 * (x0 + x2 - cy), ax = x1 - x2, bx = x1 - x0;
-//        y1 = 0.5 * (y0 + y2 + cx), ay = y1 - y2, by = y1 - y0;
-//        area = cx * by - cy * bx;
-//    }
-//    vert.u = (ax * (dy - y1) - ay * (dx - x1)) / area;
-//    vert.v = (cx * (dy - y0) - cy * (dx - x0)) / area;
-//    vert.isCurve = isCurve;
     vert.x0 = x0 + offx, vert.y0 = y0 + offy;
     vert.x1 = x1 + offx, vert.y1 = y1 + offy;
     vert.x2 = x2 + offx, vert.y2 = y2 + offy;
@@ -306,14 +289,6 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
 
 fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in]])
 {
-//    float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2;
-//    bool isCurve = vert.isCurve;
-//    a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-//    invdet = 1.0 / (a * d - b * c), a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-//    x2 = 0.5 + b * vert.v - d * vert.u, y2 = 0.5 + vert.u * c - vert.v * a;
-//    x0 = x2 + d, y0 = y2 - c, x1 = isCurve ? x2 - b : 0.5 * (x0 + x2), y1 = isCurve ? y2 + a : 0.5 * (y0 + y2);
-//    return quadraticWinding(x0, y0, x1, y1, x2, y2);
-    
     return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2);
 }
 
