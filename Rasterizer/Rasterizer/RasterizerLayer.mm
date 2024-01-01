@@ -233,7 +233,6 @@
                     NSUInteger(buffer->clip.ux - buffer->clip.lx),
                     NSUInteger(buffer->clip.uy - buffer->clip.ly) }];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:entry.begin atIndex:1];
-                [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->ctms atIndex:4];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->clips atIndex:5];
                 [commandEncoder setVertexBuffer:mtlBuffer offset:buffer->widths atIndex:6];
@@ -242,6 +241,7 @@
                 [commandEncoder setVertexBytes:& height length:sizeof(height) atIndex:11];
                 [commandEncoder setVertexBytes:& pathsCount length:sizeof(pathsCount) atIndex:13];
                 [commandEncoder setVertexBytes:& buffer->useCurves length:sizeof(bool) atIndex:14];
+                [commandEncoder setFragmentBuffer:mtlBuffer offset:buffer->colors atIndex:0];
                 [commandEncoder setFragmentTexture:_accumulationTexture atIndex:0];
                 [commandEncoder setRenderPipelineState:_instancesPipelineState];
                 [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip

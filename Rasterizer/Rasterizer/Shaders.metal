@@ -378,13 +378,11 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float u, v, cover, dw, alpha;
-    uint8_t b, g, r, a;
-    uint32_t flags;
+    uint32_t iz, flags;
 };
 
 vertex InstancesVertex instances_vertex_main(
             const device Instance *instances [[buffer(1)]],
-            const device Colorant *colors [[buffer(0)]],
             const device Transform *ctms [[buffer(4)]],
             const device Transform *clips [[buffer(5)]],
             const device float *widths [[buffer(6)]],
@@ -398,7 +396,6 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & ~kPathIndexMask;
-    Colorant color = colors[iz];
     Transform clip = clips[iz];
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
@@ -486,7 +483,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.position = float4(x, y, z, 1.0);
     vert.clip = 0.5 + float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
-    vert.b = color.b, vert.g = color.g, vert.r = color.r, vert.a = color.a;
+    vert.iz = iz;
     vert.flags = flags;
     return vert;
 }
@@ -538,7 +535,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
         alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
-    Colorant color = { vert.b, vert.g, vert.r, vert.a };
+    Colorant color = colors[vert.iz];
     float a = dfdx(vert.clip.x), b = dfdy(vert.clip.x), c = dfdx(vert.clip.y), d = dfdy(vert.clip.y);
     float s0 = rsqrt(a * a + b * b), s1 = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + vert.clip.x * s0) * saturate(0.5 + (1.0 - vert.clip.x) * s0) * saturate(0.5 + vert.clip.y * s1) * saturate(0.5 + (1.0 - vert.clip.y) * s1);
