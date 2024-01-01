@@ -498,23 +498,18 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 {
     float alpha = 1.0;
     if (vert.flags & InstancesVertex::kIsShape) {
-        float a, b, c, d, x2, y2, sqdist, sd0, sd1, cap, cap0, cap1;
+        float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2, dw, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
         bool isCurve = vert.flags & InstancesVertex::kIsCurve;
         bool squareCap = vert.flags & Instance::kSquareCap;
         bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
         bool f0 = vert.flags & InstancesVertex::kPCurve, f1 = vert.flags & InstancesVertex::kNCurve;
-        float dw, d0, dm0, d1, dm1;
         dw = vert.dw;
         
         a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-        float invdet = 1.0 / (a * d - b * c);
-        a *= invdet, b *= invdet, c *= invdet, d *= invdet;
+        invdet = 1.0 / (a * d - b * c), a *= invdet, b *= invdet, c *= invdet, d *= invdet;
         x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-        float x0 = x2 + d, y0 = y2 - c, x1 = x2 - b, y1 = y2 + a;
+        x0 = x2 + d, y0 = y2 - c, x1 = isCurve ? x2 - b : 0.5 * (x0 + x2), y1 = isCurve ? y2 + a : 0.5 * (y0 + y2);
         
-        if (!isCurve) {
-            x1 = 0.5 * (x0 + x2), y1 = 0.5 * (y0 + y2);
-        }
         float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
         float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
         d0 = (x0 * bx + y0 * by) * rb;
