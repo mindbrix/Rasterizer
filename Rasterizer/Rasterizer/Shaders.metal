@@ -110,12 +110,12 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     w1 = saturate(ay * by >= 0.0 ? y2 : y0 - by * by / (ay - by)), ay -= by, by *= 2.0;
     if (w0 != w1) {
         cy = y0 - 0.5 * (w0 + w1);
-        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w1 - w0)) / ay * 0.5;
+        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w1 - w0) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     if (w1 != w2) {
         cy = y0 - 0.5 * (w1 + w2);
-        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + copysign(sqrt(max(0.0, by * by - 4.0 * ay * cy)), w2 - w1)) / ay * 0.5;
+        t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w2 - w1) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
         s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
     }
     return w;
