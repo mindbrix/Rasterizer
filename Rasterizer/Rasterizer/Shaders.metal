@@ -227,7 +227,6 @@ fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in
 struct QuadMoleculesVertex
 {
     float4 position [[position]];
-    //float u, v;
     float x0, y0, x1, y1, x2, y2;
     bool isCurve;
 };
@@ -249,20 +248,20 @@ vertex QuadMoleculesVertex quad_molecules_vertex_main(const device Edge *edges [
     const device Bounds& b = bounds[inst.iz & kPathIndexMask];
     const device Cell& cell = inst.quad.cell;
     const device Point16 *p = & points[inst.quad.base + ((edge.ic & Edge::ue0) >> 12) + edge.i0];
+    const bool isCurve = p->x & Point16::isCurve;
+    const float ix0 = p->x & Point16::kMask, iy0 = p->y & Point16::kMask;
+    const float ix1 = (p + 1)->x & Point16::kMask, iy1 = (p + 1)->y & Point16::kMask;
+    const float ix2 = (p + 2)->x & Point16::kMask, iy2 = (p + 2)->y & Point16::kMask;
     const float offset = 0.5;
-    float tx, ty, scale, ma, mb, mc, md, x16, y16, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
-
+    float tx, ty, scale, ma, mb, mc, md, x0, y0, x1, y1, x2, y2, slx, sux, sly, suy;
     tx = b.lx * m.a + b.ly * m.c + m.tx, ty = b.lx * m.b + b.ly * m.d + m.ty;
     scale = max(b.ux - b.lx, b.uy - b.ly) / kMoleculesRange;
     ma = m.a * scale, mb = m.b * scale, mc = m.c * scale, md = m.d * scale;
     
-    x16 = p->x & Point16::kMask, y16 = p->y & Point16::kMask;
-    x0 = x16 * ma + y16 * mc + tx, y0 = x16 * mb + y16 * md + ty;
-    x16 = (p + 1)->x & Point16::kMask, y16 = (p + 1)->y & Point16::kMask;
-    x1 = x16 * ma + y16 * mc + tx, y1 = x16 * mb + y16 * md + ty;
-    if (p->x & Point16::isCurve) {
-        x16 = (p + 2)->x & Point16::kMask, y16 = (p + 2)->y & Point16::kMask;
-        x2 = x16 * ma + y16 * mc + tx, y2 = x16 * mb + y16 * md + ty;
+    x0 = ix0 * ma + iy0 * mc + tx, y0 = ix0 * mb + iy0 * md + ty;
+    x1 = ix1 * ma + iy1 * mc + tx, y1 = ix1 * mb + iy1 * md + ty;
+    if (isCurve) {
+        x2 = ix2 * ma + iy2 * mc + tx, y2 = ix2 * mb + iy2 * md + ty;
         x1 = 2.f * x1 - 0.5f * (x0 + x2), y1 = 2.f * y1 - 0.5f * (y0 + y2);
     } else {
         x2 = x1, x1 = 0.5 * (x0 + x2);
