@@ -456,21 +456,21 @@ vertex InstancesVertex instances_vertex_main(
         vx1 = s1 * -tan1.y;
         vy1 = s1 * tan1.x;
         
-        float lp, cx0, cy0, ln, cx1, cy1, t, dt, dx0, dy0, dx1, dy1;
+        float lp, cx0, cy0, ln, cx1, cy1, t, dt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x1 + no.x * ln, cy1 = y1 + no.y * ln;
         t = ((cx1 - cx0) * vy1 - (cy1 - cy0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
-        dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0), dx0 = dx - x0, dx1 = dx - x1;
-        dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0), dy0 = dy - y0, dy1 = dy - y1;
+        dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0);
+        dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0);
         
         if (!isCurve) {
             cpx = 0.5 * (x0 + x1 - cy), ax = cpx - x1, bx = cpx - x0;
             cpy = 0.5 * (y0 + y1 + cx), ay = cpy - y1, by = cpy - y0;
             area = cx * by - cy * bx;
         }
-        vert.u = (ax * dy1 - ay * dx1) / area;
-        vert.v = (cx * dy0 - cy * dx0) / area;
+        vert.u = (ax * (dy - y1) - ay * (dx - x1)) / area;
+        vert.v = (cx * (dy - y0) - cy * (dx - x0)) / area;
         vert.dw = dw;
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
