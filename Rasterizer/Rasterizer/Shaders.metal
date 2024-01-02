@@ -406,23 +406,22 @@ vertex InstancesVertex instances_vertex_main(
         const device Instance & pinst = instances[iid + inst.outline.prev], & ninst = instances[iid + inst.outline.next];
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         
-        float x0, y0, x1, y1, cpx, cpy;
-        float ax, bx, ay, by, cx, cy, ow, lcap, vx0, vy0, vx1, vy1;
+        float x0, y0, x1, y1, x2, y2;
+        float ax, bx, cx, ay, by, cy, ow, lcap, vx0, vy0, vx1, vy1;
         float px0, py0, nx1, ny1, cos0, cos1, s0, s1;
         float2 no, p0, n0, p1, n1, tan0, tan1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
         bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
-        x0 = o.x0, y0 = o.y0, x1 = o.x1, y1 = o.y1;
-        cpx = inst.outline.cx, cpy = inst.outline.cy;
-        ax = cpx - x1, ay = cpy - y1, bx = cpx - x0, by = cpy - y0;
-        cx = x1 - x0, cy = y1 - y0;
+        x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
+        ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
+        ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy;
         no = float2(cx, cy) * rsqrt(cdot);
         alpha *= (cdot > 1e-3);
         float area = cx * by - cy * bx;
         float tc = area / cdot;
         
-        const bool isCurve = *useCurves && cpx != FLT_MAX && abs(tc) > 1e-3;
+        const bool isCurve = *useCurves && x1 != FLT_MAX && abs(tc) > 1e-3;
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
@@ -430,10 +429,10 @@ vertex InstancesVertex instances_vertex_main(
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         p0 = normalize({ px0, py0 });
-        n0 = normalize({ (isCurve ? cpx : x1) - x0, (isCurve ? cpy : y1) - y0 });
-        p1 = normalize({ x1 - (isCurve ? cpx : x0), y1 - (isCurve ? cpy : y0) });
-        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x1;
-        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y1;
+        n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+        p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
+        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
         n1 = normalize({ nx1, ny1 });
         
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
@@ -456,18 +455,18 @@ vertex InstancesVertex instances_vertex_main(
         
         float lp, cx0, cy0, ln, cx1, cy1, t, dt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
-        ln = select(0.0, lcap, ncap) + err, cx1 = x1 + no.x * ln, cy1 = y1 + no.y * ln;
+        ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
         t = ((cx1 - cx0) * vy1 - (cy1 - cy0) * vx1) / (vx0 * vy1 - vy0 * vx1);
         dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
         dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0);
         dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0);
         
         if (!isCurve) {
-            cpx = 0.5 * (x0 + x1 - cy), ax = cpx - x1, bx = cpx - x0;
-            cpy = 0.5 * (y0 + y1 + cx), ay = cpy - y1, by = cpy - y0;
+            x1 = 0.5 * (x0 + x2 - cy), ax = x1 - x2, bx = x1 - x0;
+            y1 = 0.5 * (y0 + y2 + cx), ay = y1 - y2, by = y1 - y0;
             area = cx * by - cy * bx;
         }
-        vert.u = (ax * (dy - y1) - ay * (dx - x1)) / area;
+        vert.u = (ax * (dy - y2) - ay * (dx - x2)) / area;
         vert.v = (cx * (dy - y0) - cy * (dx - x0)) / area;
         vert.dw = dw;
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
