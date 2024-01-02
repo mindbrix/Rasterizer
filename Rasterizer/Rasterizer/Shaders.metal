@@ -408,7 +408,7 @@ vertex InstancesVertex instances_vertex_main(
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap, vx0, vy0, vx1, vy1;
-        float px0, py0, nx1, ny1, cos0, cos1, s0, s1;
+        float px0, py0, nx1, ny1, s0, s1;
         float2 no, p0, n0, p1, n1, tan0, tan1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
         bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
@@ -441,15 +441,13 @@ vertex InstancesVertex instances_vertex_main(
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
         tan0 = pcap ? no : normalize(p0 + n0);
-        cos0 = abs(dot(no, tan0));
-        s0 = (dw + ow) / max(1e-1, cos0);
+        s0 = (dw + ow) / abs(dot(no, tan0));
         vx0 = s0 * -tan0.y;
         vy0 = s0 * tan0.x;
         
         ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < caplimit;
         tan1 = ncap ? no : normalize(p1 + n1);
-        cos1 = abs(dot(no, tan1));
-        s1 = (dw + ow) / max(1e-1, cos1);
+        s1 = (dw + ow) / abs(dot(no, tan1));
         vx1 = s1 * -tan1.y;
         vy1 = s1 * tan1.x;
         
