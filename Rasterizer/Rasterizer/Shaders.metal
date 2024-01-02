@@ -121,6 +121,21 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     return w;
 }
 
+float2 leftMiter(bool cap, float px, float py, float x, float y, float nx, float ny, float offset, float caplimit) {
+    float ax, bx, ay, by, adot, bdot, ra, rb, dot, cosine, area, u, v, w;
+    ax = x - px, bx = nx - x;
+    ay = y - py, by = ny - y;
+    adot = ax * ax + ay * ay, ra = rsqrt(adot);
+    bdot = bx * bx + by * by, rb = rsqrt(bdot);
+    dot = ax * bx + ay * by, cosine = dot * ra * rb;
+    area = abs(ax * by - ay * bx);
+    cap = cap || area < 1e-4 || adot < 1e-3 || bdot < 1e-3 || cosine < caplimit;
+    u = offset / (area * ra);
+    v = offset / (area * rb);
+    w = 1.0 - u - v;
+    return cap ? offset * ra * float2(-ay, ax) : float2(px * u + x * v + nx * w - x, py * u + y * v + ny * w - y);
+}
+
 #pragma mark - Opaques
 
 struct OpaquesVertex
