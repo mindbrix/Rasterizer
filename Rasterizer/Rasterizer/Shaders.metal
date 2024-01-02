@@ -441,6 +441,9 @@ vertex InstancesVertex instances_vertex_main(
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         
+        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
+        lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
+        
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         p0 = normalize({ px0, py0 });
@@ -449,9 +452,6 @@ vertex InstancesVertex instances_vertex_main(
         nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
         n1 = normalize({ nx1, ny1 });
-        
-        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
-        lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
         
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
