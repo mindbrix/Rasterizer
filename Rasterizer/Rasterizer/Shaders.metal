@@ -129,7 +129,6 @@ float2 leftMiter(thread bool& cap, float px, float py, float x, float y, float n
     bdot = bx * bx + by * by, rb = rsqrt(bdot);
     cosine = (ax * bx + ay * by) * ra * rb;
     cap = cap || adot < 1e-3 || bdot < 1e-3 || cosine < caplimit;
-    cap = true;
     float2 a = ra * float2(-ay, ax);
     float2 b = rb * float2(-by, bx);
     float2 c = a + b;
@@ -429,6 +428,10 @@ vertex InstancesVertex instances_vertex_main(
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
         bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
+        if (0) {
+            px0 = p.x0, py0 = p.y0;
+            nx1 = n.x1, ny1 = n.y1;
+        }
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy;
@@ -445,33 +448,34 @@ vertex InstancesVertex instances_vertex_main(
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
-        /*
-        float2 v0 = leftMiter(pcap, pcurve ? pinst.outline.cx : p.x0, pcurve ? pinst.outline.cy : p.y0, x0, y0, isCurve ? x1 : x2, isCurve ? y1 : y2, dw + ow, caplimit, no);
-        float2 v1 = leftMiter(ncap, isCurve ? x1 : x0, isCurve ? y1 : y0, x2, y2, ncurve ? ninst.outline.cx : n.x1, ncurve ? ninst.outline.cy : n.y1, dw + ow, caplimit, no);
-        vx0 = v0.x, vy0 = v0.y;
-        vx1 = v1.x, vy1 = v1.y;
-         */
-        px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
-        py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
-        p0 = normalize({ px0, py0 });
-        n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
-        p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
-        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
-        n1 = normalize({ nx1, ny1 });
         
-        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
-        tan0 = pcap ? no : normalize(p0 + n0);
-        s0 = (dw + ow) / abs(dot(no, tan0));
-        vx0 = s0 * -tan0.y;
-        vy0 = s0 * tan0.x;
-        
-        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < caplimit;
-        tan1 = ncap ? no : normalize(p1 + n1);
-        s1 = (dw + ow) / abs(dot(no, tan1));
-        vx1 = s1 * -tan1.y;
-        vy1 = s1 * tan1.x;
-        
+        if (0) {
+            float2 v0 = leftMiter(pcap, px0, py0, x0, y0, x2, y2, dw + ow, caplimit, no);
+            float2 v1 = leftMiter(ncap, x0, y0, x2, y2, nx1, ny1, dw + ow, caplimit, no);
+            vx0 = v0.x, vy0 = v0.y;
+            vx1 = v1.x, vy1 = v1.y;
+        } else {
+            px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
+            py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
+            p0 = normalize({ px0, py0 });
+            n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+            p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+            nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
+            ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
+            n1 = normalize({ nx1, ny1 });
+            
+            pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
+            tan0 = pcap ? no : normalize(p0 + n0);
+            s0 = (dw + ow) / abs(dot(no, tan0));
+            vx0 = s0 * -tan0.y;
+            vy0 = s0 * tan0.x;
+            
+            ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < caplimit;
+            tan1 = ncap ? no : normalize(p1 + n1);
+            s1 = (dw + ow) / abs(dot(no, tan1));
+            vx1 = s1 * -tan1.y;
+            vy1 = s1 * tan1.x;
+        }
         float lp, cx0, cy0, ln, cx1, cy1, t, dt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
