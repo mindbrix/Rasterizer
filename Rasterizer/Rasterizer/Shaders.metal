@@ -472,9 +472,9 @@ vertex InstancesVertex instances_vertex_main(
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
-        dx = select(cell.lx, cell.ux, isRight);
-        dy = select(cell.ly, cell.uy, isTop);
-        vert.u = select((dx - (cell.lx - cell.ox)) / *width, FLT_MAX, cell.ox == kNullIndex);
+        dx = isRight ? cell.ux : cell.lx;
+        dy = isTop ? cell.uy : cell.ly;
+        vert.u = cell.ox == kNullIndex ? FLT_MAX : (dx - (cell.lx - cell.ox)) / *width;
         vert.v = 1.0 - (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
     }
