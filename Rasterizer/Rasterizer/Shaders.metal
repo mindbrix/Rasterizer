@@ -416,8 +416,8 @@ vertex InstancesVertex instances_vertex_main(
         x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
-        float cdot = cx * cx + cy * cy;
-        no = float2(cx, cy) * rsqrt(cdot);
+        float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
+        no = float2(cx, cy) * rc;
         alpha *= (cdot > 1e-3);
         float area = cx * by - cy * bx;
         float tc = area / cdot;
@@ -428,7 +428,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         const bool outward = isRight == area < 0.0;
         
-        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve && outward);
+        ow = select(0.0, 0.5 * abs(tc / rc), isCurve && outward);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
