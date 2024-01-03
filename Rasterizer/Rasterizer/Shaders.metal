@@ -395,6 +395,7 @@ vertex InstancesVertex instances_vertex_main(
 {
     InstancesVertex vert;
     constexpr float err = 1e-3;
+    const bool isRight = vid & 1, isTop = vid & 2;
     const device Instance& inst = instances[iid];
     uint iz = inst.iz & kPathIndexMask, flags = inst.iz & ~kPathIndexMask;
     Transform clip = clips[iz];
@@ -425,7 +426,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
-        const bool outward = bool(vid & 1) == area < 0.0;
+        const bool outward = isRight == area < 0.0;
         
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve && outward);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
@@ -467,9 +468,9 @@ vertex InstancesVertex instances_vertex_main(
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
         t = ((cx1 - cx0) * vy1 - (cy1 - cy0) * vx1) / (vx0 * vy1 - vy0 * vx1);
-        dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), vid & 1);  // Even is left
-        dx = vid & 2 ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0);
-        dy = vid & 2 ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0);
+        dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), isRight);  // Even is left
+        dx = isTop ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0);
+        dy = isTop ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0);
         
         if (!isCurve) {
             x1 = 0.5 * (x0 + x2 - cy), ax = x1 - x2, bx = x1 - x0;
@@ -482,8 +483,8 @@ vertex InstancesVertex instances_vertex_main(
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
-        dx = select(cell.lx, cell.ux, vid & 1);
-        dy = select(cell.ly, cell.uy, vid >> 1);
+        dx = select(cell.lx, cell.ux, isRight);
+        dy = select(cell.ly, cell.uy, isTop);
         vert.u = select((dx - (cell.lx - cell.ox)) / *width, FLT_MAX, cell.ox == kNullIndex);
         vert.v = 1.0 - (dy - (cell.ly - cell.oy)) / *height;
         vert.cover = inst.quad.cover;
