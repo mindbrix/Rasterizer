@@ -432,26 +432,15 @@ vertex InstancesVertex instances_vertex_main(
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
-        if (0) {
-            px0 = x0 - p.x0;
-            py0 = y0 - p.y0;
-            p0 = normalize({ px0, py0 });
-            n0 = no;
-            p1 = no;
-            nx1 = n.x1 - x2;
-            ny1 = n.y1 - y2;
-            n1 = normalize({ nx1, ny1 });
-        } else {
-            px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
-            py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
-            p0 = normalize({ px0, py0 });
-            n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
-            p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-            nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
-            ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
-            n1 = normalize({ nx1, ny1 });
-        }
-
+        px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
+        py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
+        p0 = normalize({ px0, py0 });
+        n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+        p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
+        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
+        n1 = normalize({ nx1, ny1 });
+        
         pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
         tan0 = pcap ? no : normalize(p0 + n0);
         s0 = (dw + ow) / abs(dot(no, tan0));
