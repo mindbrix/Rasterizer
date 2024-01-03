@@ -428,8 +428,8 @@ vertex InstancesVertex instances_vertex_main(
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         const bool outward = isRight == area < 0.0;
         
-        ow = select(0.0, 0.5 * abs(tc / rc), isCurve && outward);
-        lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
+        ow = isCurve && outward ? 0.5 * abs(tc / rc) : 0.0;
+        lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
         if (0) {
@@ -468,7 +468,7 @@ vertex InstancesVertex instances_vertex_main(
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
         t = ((cx1 - cx0) * vy1 - (cy1 - cy0) * vx1) / (vx0 * vy1 - vy0 * vx1);
-        dt = select(t < 0.0 ? 1.0 : min(1.0, t), t > 0.0 ? -1.0 : max(-1.0, t), isRight);  // Even is left
+        dt = isRight ? (t > 0.0 ? -1.0 : max(-1.0, t)) : (t < 0.0 ? 1.0 : min(1.0, t));
         dx = isTop ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0);
         dy = isTop ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0);
         
