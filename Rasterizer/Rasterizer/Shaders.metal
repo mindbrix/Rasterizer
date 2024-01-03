@@ -121,19 +121,20 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     return w;
 }
 
-float2 leftMiter(bool cap, float px, float py, float x, float y, float nx, float ny, float offset, float caplimit) {
-    float ax, bx, ay, by, adot, bdot, ra, rb, dot, cosine, area, u, v, w;
+float2 leftMiter(thread bool& cap, float px, float py, float x, float y, float nx, float ny, float offset, float caplimit, float2 no) {
+    float ax, bx, ay, by, adot, bdot, ra, rb, cosine;
     ax = x - px, bx = nx - x;
     ay = y - py, by = ny - y;
     adot = ax * ax + ay * ay, ra = rsqrt(adot);
     bdot = bx * bx + by * by, rb = rsqrt(bdot);
-    dot = ax * bx + ay * by, cosine = dot * ra * rb;
-    area = abs(ax * by - ay * bx);
-    cap = cap || area < 1e-4 || adot < 1e-3 || bdot < 1e-3 || cosine < caplimit;
-    u = offset / (area * ra);
-    v = offset / (area * rb);
-    w = 1.0 - u - v;
-    return cap ? offset * ra * float2(-ay, ax) : float2(px * u + x * v + nx * w - x, py * u + y * v + ny * w - y);
+    cosine = (ax * bx + ay * by) * ra * rb;
+    cap = cap || adot < 1e-3 || bdot < 1e-3 || cosine < caplimit;
+    cap = true;
+    float2 a = ra * float2(-ay, ax);
+    float2 b = rb * float2(-by, bx);
+    float2 c = a + b;
+    float2 q = c / dot(a, c);
+    return offset * (cap ? float2(-no.y, no.x) : q);
 }
 
 #pragma mark - Opaques
@@ -443,7 +444,13 @@ vertex InstancesVertex instances_vertex_main(
         
         ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
-        
+        float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
+        /*
+        float2 v0 = leftMiter(pcap, pcurve ? pinst.outline.cx : p.x0, pcurve ? pinst.outline.cy : p.y0, x0, y0, isCurve ? x1 : x2, isCurve ? y1 : y2, dw + ow, caplimit, no);
+        float2 v1 = leftMiter(ncap, isCurve ? x1 : x0, isCurve ? y1 : y0, x2, y2, ncurve ? ninst.outline.cx : n.x1, ncurve ? ninst.outline.cy : n.y1, dw + ow, caplimit, no);
+        vx0 = v0.x, vy0 = v0.y;
+        vx1 = v1.x, vy1 = v1.y;
+         */
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         p0 = normalize({ px0, py0 });
@@ -453,7 +460,6 @@ vertex InstancesVertex instances_vertex_main(
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
         n1 = normalize({ nx1, ny1 });
         
-        float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
         tan0 = pcap ? no : normalize(p0 + n0);
         s0 = (dw + ow) / abs(dot(no, tan0));
