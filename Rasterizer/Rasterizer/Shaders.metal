@@ -445,7 +445,7 @@ vertex InstancesVertex instances_vertex_main(
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
         
-        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve);
+        ow = select(0.0, 0.5 * abs(-no.y * bx + no.x * by), isCurve && bool(vid & 1) == area < 0.0);
         lcap = select(0.0, 0.41 * dw, isCurve) + select(0.5, dw, squareCap || roundCap);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
