@@ -430,7 +430,7 @@ vertex InstancesVertex instances_vertex_main(
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
         float px0, py0, pdot, nx1, ny1, ndot;
-        float2 no, prev, next, a, b, c, miter0, miter1;
+        float2 no, prev, next, tangent, miter0, miter1;
         no = float2(cx, cy) * rc;
         
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
@@ -440,8 +440,8 @@ vertex InstancesVertex instances_vertex_main(
         next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         
         pcap = pcap || pdot < 1e-3 || dot(prev, next) < caplimit;
-        a = float2(-prev.y, prev.x), b = float2(-next.y, next.x), c = a + b;
-        miter0 = (dw + ow) * (pcap ? float2(-no.y, no.x) : c / dot(a, c));
+        tangent = pcap ? no : normalize(prev + next);
+        miter0 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
         
         prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
@@ -450,8 +450,8 @@ vertex InstancesVertex instances_vertex_main(
         next = rsqrt(ndot) * float2(nx1, ny1);
         
         ncap = ncap || ndot < 1e-3 || dot(prev, next) < caplimit;
-        a = float2(-prev.y, prev.x), b = float2(-next.y, next.x), c = a + b;
-        miter1 = (dw + ow) * (ncap ? float2(-no.y, no.x) : c / dot(a, c));
+        tangent = ncap ? no : normalize(prev + next);
+        miter1 = (dw + ow) / abs(dot(no, tangent)) * float2(-tangent.y, tangent.x);
                 
         float lp, cx0, cy0, ln, cx1, cy1, t, dt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
