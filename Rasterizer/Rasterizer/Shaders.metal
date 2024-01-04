@@ -409,7 +409,7 @@ vertex InstancesVertex instances_vertex_main(
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap;
-        float px0, py0, nx1, ny1;
+        float px0, py0, pdot, nx1, ny1, ndot;
         float2 no, p0, n0, p1, n1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
         bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
@@ -432,21 +432,25 @@ vertex InstancesVertex instances_vertex_main(
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
+        float2 a, b, c, miter0, miter1;
+        
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
-        p0 = normalize({ px0, py0 });
+        pdot = px0 * px0 + py0 * py0;
+        p0 = rsqrt(pdot) * float2(px0, py0);
         n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
-        p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
-        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
-        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
-        n1 = normalize({ nx1, ny1 });
         
-        float2 a, b, c, miter0, miter1;
-        pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
+        pcap = pcap || pdot < 1e-3 || dot(p0, n0) < caplimit;
         a = float2(-p0.y, p0.x), b = float2(-n0.y, n0.x), c = a + b;
         miter0 = (dw + ow) * (pcap ? float2(-no.y, no.x) : c / dot(a, c));
         
-        ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < caplimit;
+        p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+        nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
+        ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
+        ndot = nx1 * nx1 + ny1 * ny1;
+        n1 = rsqrt(ndot) * float2(nx1, ny1);
+        
+        ncap = ncap || ndot < 1e-3 || dot(p1, n1) < caplimit;
         a = float2(-p1.y, p1.x), b = float2(-n1.y, n1.x), c = a + b;
         miter1 = (dw + ow) * (ncap ? float2(-no.y, no.x) : c / dot(a, c));
                 
