@@ -409,15 +409,12 @@ vertex InstancesVertex instances_vertex_main(
         
         float x0, y0, x1, y1, x2, y2;
         float ax, bx, cx, ay, by, cy, ow, lcap;
-        float px0, py0, pdot, nx1, ny1, ndot;
-        float2 no, p0, n0, p1, n1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
         bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
         ax = x1 - x2, bx = x1 - x0, cx = x2 - x0;
         ay = y1 - y2, by = y1 - y0, cy = y2 - y0;
         float cdot = cx * cx + cy * cy, rc = rsqrt(cdot);
-        no = float2(cx, cy) * rc;
         alpha *= (cdot > 1e-3);
         float area = cx * by - cy * bx;
         float tc = area / cdot;
@@ -432,26 +429,28 @@ vertex InstancesVertex instances_vertex_main(
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
-        float2 a, b, c, miter0, miter1;
+        float px0, py0, pdot, nx1, ny1, ndot;
+        float2 no, prev, next, a, b, c, miter0, miter1;
+        no = float2(cx, cy) * rc;
         
         px0 = x0 - (pcurve ? pinst.outline.cx : p.x0);
         py0 = y0 - (pcurve ? pinst.outline.cy : p.y0);
         pdot = px0 * px0 + py0 * py0;
-        p0 = rsqrt(pdot) * float2(px0, py0);
-        n0 = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
+        prev = rsqrt(pdot) * float2(px0, py0);
+        next = normalize({ (isCurve ? x1 : x2) - x0, (isCurve ? y1 : y2) - y0 });
         
-        pcap = pcap || pdot < 1e-3 || dot(p0, n0) < caplimit;
-        a = float2(-p0.y, p0.x), b = float2(-n0.y, n0.x), c = a + b;
+        pcap = pcap || pdot < 1e-3 || dot(prev, next) < caplimit;
+        a = float2(-prev.y, prev.x), b = float2(-next.y, next.x), c = a + b;
         miter0 = (dw + ow) * (pcap ? float2(-no.y, no.x) : c / dot(a, c));
         
-        p1 = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
+        prev = normalize({ x2 - (isCurve ? x1 : x0), y2 - (isCurve ? y1 : y0) });
         nx1 = (ncurve ? ninst.outline.cx : n.x1) - x2;
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
         ndot = nx1 * nx1 + ny1 * ny1;
-        n1 = rsqrt(ndot) * float2(nx1, ny1);
+        next = rsqrt(ndot) * float2(nx1, ny1);
         
-        ncap = ncap || ndot < 1e-3 || dot(p1, n1) < caplimit;
-        a = float2(-p1.y, p1.x), b = float2(-n1.y, n1.x), c = a + b;
+        ncap = ncap || ndot < 1e-3 || dot(prev, next) < caplimit;
+        a = float2(-prev.y, prev.x), b = float2(-next.y, next.x), c = a + b;
         miter1 = (dw + ow) * (ncap ? float2(-no.y, no.x) : c / dot(a, c));
                 
         float lp, cx0, cy0, ln, cx1, cy1, t, dt;
