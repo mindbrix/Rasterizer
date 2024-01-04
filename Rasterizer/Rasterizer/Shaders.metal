@@ -408,9 +408,9 @@ vertex InstancesVertex instances_vertex_main(
         const device Segment& p = pinst.outline.s, & o = inst.outline.s, & n = ninst.outline.s;
         
         float x0, y0, x1, y1, x2, y2;
-        float ax, bx, cx, ay, by, cy, ow, lcap, vx0, vy0, vx1, vy1;
-        float px0, py0, nx1, ny1, s0, s1;
-        float2 no, p0, n0, p1, n1, tan0, tan1;
+        float ax, bx, cx, ay, by, cy, ow, lcap;
+        float px0, py0, nx1, ny1;
+        float2 no, p0, n0, p1, n1;
         bool pcap = inst.outline.prev == 0 || p.x1 != o.x0 || p.y1 != o.y0;
         bool ncap = inst.outline.next == 0 || n.x0 != o.x1 || n.y0 != o.y1;
         x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
@@ -441,25 +441,22 @@ vertex InstancesVertex instances_vertex_main(
         ny1 = (ncurve ? ninst.outline.cy : n.y1) - y2;
         n1 = normalize({ nx1, ny1 });
         
+        float2 a, b, c, miter0, miter1;
         pcap = pcap || (px0 * px0 + py0 * py0) < 1e-3 || dot(p0, n0) < caplimit;
-        tan0 = pcap ? no : normalize(p0 + n0);
-        s0 = (dw + ow) / abs(dot(no, tan0));
-        vx0 = s0 * -tan0.y;
-        vy0 = s0 * tan0.x;
+        a = float2(-p0.y, p0.x), b = float2(-n0.y, n0.x), c = a + b;
+        miter0 = (dw + ow) * (pcap ? float2(-no.y, no.x) : c / dot(a, c));
         
         ncap = ncap || (nx1 * nx1 + ny1 * ny1) < 1e-3 || dot(p1, n1) < caplimit;
-        tan1 = ncap ? no : normalize(p1 + n1);
-        s1 = (dw + ow) / abs(dot(no, tan1));
-        vx1 = s1 * -tan1.y;
-        vy1 = s1 * tan1.x;
-        
+        a = float2(-p1.y, p1.x), b = float2(-n1.y, n1.x), c = a + b;
+        miter1 = (dw + ow) * (ncap ? float2(-no.y, no.x) : c / dot(a, c));
+                
         float lp, cx0, cy0, ln, cx1, cy1, t, dt;
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
-        t = ((cx1 - cx0) * vy1 - (cy1 - cy0) * vx1) / (vx0 * vy1 - vy0 * vx1);
+        t = ((cx1 - cx0) * miter1.y - (cy1 - cy0) * miter1.x) / (miter0.x * miter1.y - miter0.y * miter1.x);
         dt = isRight ? (t > 0.0 ? -1.0 : max(-1.0, t)) : (t < 0.0 ? 1.0 : min(1.0, t));
-        dx = isTop ? fma(vx1, dt, cx1) : fma(vx0, dt, cx0);
-        dy = isTop ? fma(vy1, dt, cy1) : fma(vy0, dt, cy0);
+        dx = isTop ? fma(miter1.x, dt, cx1) : fma(miter0.x, dt, cx0);
+        dy = isTop ? fma(miter1.y, dt, cy1) : fma(miter0.y, dt, cy0);
         
         if (!isCurve) {
             x1 = 0.5 * (x0 + x2 - cy), ax = x1 - x2, bx = x1 - x0;
