@@ -378,7 +378,7 @@ struct InstancesVertex
     enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
     float4 position [[position]];
     float2 clip;
-    float u, v, cover, dw, alpha;
+    float u, v, cover, alpha;
     uint32_t iz, flags;
 };
 
@@ -469,7 +469,7 @@ vertex InstancesVertex instances_vertex_main(
         }
         vert.u = (ax * (dy - y2) - ay * (dx - x2)) / area;
         vert.v = (cx * (dy - y0) - cy * (dx - x0)) / area;
-        vert.dw = dw;
+        vert.cover = dw;
         flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
@@ -501,7 +501,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         bool squareCap = vert.flags & Instance::kSquareCap;
         bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
         bool f0 = vert.flags & InstancesVertex::kPCurve, f1 = vert.flags & InstancesVertex::kNCurve;
-        dw = vert.dw;
+        dw = vert.cover;
         
         a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
         invdet = 1.0 / (a * d - b * c), a *= invdet, b *= invdet, c *= invdet, d *= invdet;
