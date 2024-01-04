@@ -457,7 +457,8 @@ vertex InstancesVertex instances_vertex_main(
         lp = select(0.0, lcap, pcap) + err, cx0 = x0 - no.x * lp, cy0 = y0 - no.y * lp;
         ln = select(0.0, lcap, ncap) + err, cx1 = x2 + no.x * ln, cy1 = y2 + no.y * ln;
         t = ((cx1 - cx0) * miter1.y - (cy1 - cy0) * miter1.x) / (miter0.x * miter1.y - miter0.y * miter1.x);
-        dt = isRight ? (t > 0.0 ? -1.0 : max(-1.0, t)) : (t < 0.0 ? 1.0 : min(1.0, t));
+        float sign, rt;
+        sign = isRight ? -1.0 : 1.0, rt = sign * t, dt = sign * (rt < 0.0 ? 1.0 : min(1.0, rt));
         dx = isTop ? fma(miter1.x, dt, cx1) : fma(miter0.x, dt, cx0);
         dy = isTop ? fma(miter1.y, dt, cy1) : fma(miter0.y, dt, cy0);
         
