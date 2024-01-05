@@ -381,7 +381,6 @@ fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
 
 struct InstancesVertex
 {
-    enum Flags { kPCap = 1 << 0, kNCap = 1 << 1, kIsCurve = 1 << 2, kIsShape = 1 << 3, kPCurve = 1 << 4, kNCurve = 1 << 5 };
     float4 position [[position]];
     float2 clip;
     float u, v, cover, alpha;
