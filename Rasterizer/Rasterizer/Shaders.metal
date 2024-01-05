@@ -429,9 +429,8 @@ vertex InstancesVertex instances_vertex_main(
         const bool pcurve = *useCurves && pinst.outline.cx != FLT_MAX, ncurve = *useCurves && ninst.outline.cx != FLT_MAX;
         const bool f0 = pcap ? !roundCap : !isCurve || !pcurve;
         const bool f1 = ncap ? !roundCap : !isCurve || !ncurve;
-        const bool outside = isRight == area < 0.0;
         
-        ow = isCurve && outside ? 0.5 * abs(tc / rc) : 0.0;
+        ow = isCurve ? 0.5 * abs(tc / rc) : 0.0;
         lcap = (isCurve ? 0.41 * dw : 0.0) + (squareCap || roundCap ? dw : 0.5);
         float caplimit = dw == 1.0 ? 0.0 : -0.866025403784439;
         
