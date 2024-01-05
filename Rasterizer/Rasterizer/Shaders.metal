@@ -44,7 +44,13 @@ struct Outline {
     float cx, cy;
 };
 struct Instance {
-    enum Flags { kMolecule = 1 << 25, kFastEdges = 1 << 26, kEdge = 1 << 27, kRoundCap = 1 << 28, kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31 };
+    enum Flags {
+        kIsCurve = 1 << 24,
+        kMolecule = 1 << 25,    kPCap = 1 << 25,
+        kFastEdges = 1 << 26,   kNCap = 1 << 26,
+        kEdge = 1 << 27,        kPCurve = 1 << 27,
+        kRoundCap = 1 << 28,    kNCurve = 1 << 28,
+        kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31, kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
 struct Edge {
@@ -379,7 +385,7 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float u, v, cover, alpha;
-    uint32_t iz, flags;
+    uint32_t iz;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -397,7 +403,8 @@ vertex InstancesVertex instances_vertex_main(
     constexpr float err = 1e-3;
     const bool isRight = vid & 1, isTop = vid & 2;
     const device Instance& inst = instances[iid];
-    uint iz = inst.iz & kPathIndexMask, flags = inst.iz & ~kPathIndexMask;
+    uint iz = inst.iz & kPathIndexMask, flags = inst.iz & Instance::kFragmentMask;
+    
     Transform clip = clips[iz];
     float w = widths[iz], cw = max(1.0, w), dw = 0.5 * (1.0 + cw);
     float alpha = select(1.0, w / cw, w != 0), dx, dy;
@@ -470,7 +477,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.u = (ax * (dy - y2) - ay * (dx - x2)) / area;
         vert.v = (cx * (dy - y0) - cy * (dx - x0)) / area;
         vert.cover = dw;
-        flags = flags | InstancesVertex::kIsShape | pcap * InstancesVertex::kPCap | ncap * InstancesVertex::kNCap | isCurve * InstancesVertex::kIsCurve | f0 * InstancesVertex::kPCurve | f1 * InstancesVertex::kNCurve;
+        flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kPCurve | f1 * Instance::kNCurve;
     } else {
         const device Cell& cell = inst.quad.cell;
         dx = isRight ? cell.ux : cell.lx;
@@ -484,8 +491,7 @@ vertex InstancesVertex instances_vertex_main(
     vert.position = float4(x, y, z, 1.0);
     vert.clip = 0.5 + float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
-    vert.iz = iz;
-    vert.flags = flags;
+    vert.iz = iz | flags;
     return vert;
 }
 
@@ -495,12 +501,12 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 )
 {
     float alpha = 1.0;
-    if (vert.flags & InstancesVertex::kIsShape) {
+    if (vert.iz & Instance::kOutlines) {
         float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2, dw, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
-        bool isCurve = vert.flags & InstancesVertex::kIsCurve;
-        bool squareCap = vert.flags & Instance::kSquareCap;
-        bool pcap = vert.flags & InstancesVertex::kPCap, ncap = vert.flags & InstancesVertex::kNCap;
-        bool f0 = vert.flags & InstancesVertex::kPCurve, f1 = vert.flags & InstancesVertex::kNCurve;
+        bool isCurve = vert.iz & Instance::kIsCurve;
+        bool squareCap = vert.iz & Instance::kSquareCap;
+        bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
+        bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
         dw = vert.cover;
         
         a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
@@ -534,9 +540,9 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
     } else
     if (vert.u != FLT_MAX) {
         float cover = abs(vert.cover + accumulation.sample(s, float2(vert.u, vert.v)).x);
-        alpha = vert.flags & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
+        alpha = vert.iz & Instance::kEvenOdd ? 1.0 - abs(fmod(cover, 2.0) - 1.0) : min(1.0, cover);
     }
-    Colorant color = colors[vert.iz];
+    Colorant color = colors[vert.iz & kPathIndexMask];
     float clx = vert.clip.x, cly = vert.clip.y, a = dfdx(clx), b = dfdy(clx), c = dfdx(cly), d = dfdy(cly);
     float s0 = rsqrt(a * a + b * b), s1 = rsqrt(c * c + d * d);
     float clip = saturate(0.5 + clx * s0) * saturate(0.5 + (1.0 - clx) * s0) * saturate(0.5 + cly * s1) * saturate(0.5 + (1.0 - cly) * s1);
