@@ -60,7 +60,7 @@ struct Edge {
 
 // https://www.shadertoy.com/view/4dsfRS
 
-float sdBezier(float2 p0, float2 p1, float2 p2) {
+float sqBezier(float2 p0, float2 p1, float2 p2) {
     // Calculate roots.
     float2 vb = p1 - p0, va, vc = { p0.y - p2.y, p2.x - p0.x }, rp1;
     float t = dot(vc, vb) / dot(vc, vc);
@@ -521,7 +521,7 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         dm1 = (x2 * -ay + y2 * ax) * ra;
         
         if (isCurve) {
-            sqdist = sdBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
+            sqdist = sqBezier(float2(x0, y0), float2(x1, y1), float2(x2, y2));
         } else {
             float dx = d0 - clamp(d0, 0.0, d0 + d1);
             sqdist = dx * dx + dm0 * dm0;
