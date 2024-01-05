@@ -51,7 +51,7 @@
     
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
     depthStencilDescriptor.depthWriteEnabled = YES;
-    depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreaterEqual;
+    depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionGreater;
     self.opaquesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     depthStencilDescriptor.depthWriteEnabled = NO;
     self.instancesDepthState = [self.device newDepthStencilStateWithDescriptor:depthStencilDescriptor];

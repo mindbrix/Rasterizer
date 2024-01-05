@@ -148,7 +148,7 @@ vertex OpaquesVertex opaques_vertex_main(const device Colorant *colors [[buffer(
     vert.position = {
         select(cell.lx, cell.ux, vid & 1) / *width * 2.0 - 1.0,
         select(cell.ly, cell.uy, vid >> 1) / *height * 2.0 - 1.0,
-        ((inst.iz & kPathIndexMask) * 2 + 2) / float(*pathCount * 2 + 2),
+        float((inst.iz & kPathIndexMask) + 1) / float(*pathCount),
         1.0
     };
     vert.color = { color.r / 255.0, color.g / 255.0, color.b / 255.0, 1.0 };
@@ -486,7 +486,7 @@ vertex InstancesVertex instances_vertex_main(
         vert.cover = inst.quad.cover;
     }
     float x = dx / *width * 2.0 - 1.0, y = dy / *height * 2.0 - 1.0;
-    float z = (iz * 2 + 1) / float(*pathCount * 2 + 2);
+    float z = float(iz + 1) / float(*pathCount);
     vert.position = float4(x, y, z, 1.0);
     vert.clip = 0.5 + float2(dx * clip.a + dy * clip.c + clip.tx, dx * clip.b + dy * clip.d + clip.ty);
     vert.alpha = alpha;
