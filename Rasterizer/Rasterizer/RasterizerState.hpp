@@ -159,12 +159,9 @@ struct RasterizerState {
         ctm.tx += x, ctm.ty += y;
     }
     void fit(Ra::Bounds b) {
-        float sx = (bounds.ux - bounds.lx) / (b.ux - b.lx), sy = (bounds.uy - bounds.ly) / (b.uy - b.ly), s = sx < sy ? sx : sy;
+        float s = fminf((bounds.ux - bounds.lx) / (b.ux - b.lx), (bounds.uy - bounds.ly) / (b.uy - b.ly));
         Ra::Transform fit = { s, 0.f, 0.f, s, -s * b.lx, -s * b.ly };
-        if (ctm.a == fit.a && ctm.b == fit.b && ctm.c == fit.c && ctm.d == fit.d && ctm.tx == fit.tx && ctm.ty == fit.ty)
-            ctm = Ra::Transform();
-        else
-            ctm = fit;
+        ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
     }
     
     float scale, outlineWidth = 0.f;
