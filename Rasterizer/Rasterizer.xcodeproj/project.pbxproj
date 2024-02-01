@@ -58,7 +58,6 @@
 		E990649321C2FE3600D2DBF2 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.metal; };
 		E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerSVG.hpp; sourceTree = "<group>"; };
 		E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerRenderer.hpp; sourceTree = "<group>"; };
-		E9CB39FC27D5FF6200A02A2D /* pdfium-universal.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "pdfium-universal.dylib"; path = "../../../../Desktop/pdfium-universal.dylib"; sourceTree = "<group>"; };
 		E9CB3A0227D601FB00A02A2D /* fpdf_catalog.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_catalog.h; sourceTree = "<group>"; };
 		E9CB3A0327D601FB00A02A2D /* fpdf_structtree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_structtree.h; sourceTree = "<group>"; };
 		E9CB3A0427D601FB00A02A2D /* fpdf_text.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_text.h; sourceTree = "<group>"; };
@@ -83,9 +82,6 @@
 		E9CB3A1827D601FB00A02A2D /* fpdf_progressive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_progressive.h; sourceTree = "<group>"; };
 		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
 		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
-		E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "pdfium-universal.dylib"; path = "pdfum/pdfium-universal.dylib"; sourceTree = "<group>"; };
-		E9D169CF27D619F600989869 /* pdfium-mac-universal.tgz */ = {isa = PBXFileReference; lastKnownFileType = file; name = "pdfium-mac-universal.tgz"; path = "../../pdfium-binaries/staging_univ/pdfium-mac-universal.tgz"; sourceTree = "<group>"; };
-		E9D169D127D61A1900989869 /* libpdfium.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libpdfium.dylib; sourceTree = "<group>"; };
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 		E9E8285A2B17555800FABD81 /* RasterizerView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerView.mm; sourceTree = "<group>"; };
 		E9E8285C2B17559600FABD81 /* RasterizerView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerView.h; sourceTree = "<group>"; };
@@ -116,10 +112,6 @@
 			children = (
 				E9E9600127D63B2A00E06451 /* libpdfium.a */,
 				E9E9600427D645CD00E06451 /* libpdfium.a */,
-				E9D169D027D61A1900989869 /* lib */,
-				E9D169CF27D619F600989869 /* pdfium-mac-universal.tgz */,
-				E9CB39FC27D5FF6200A02A2D /* pdfium-universal.dylib */,
-				E9CB3A1B27D6045200A02A2D /* pdfium-universal.dylib */,
 				E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */,
 				E901B3862194B00F00B1AB72 /* Accelerate.framework */,
 			);
@@ -230,15 +222,6 @@
 				E9CB3A1627D601FB00A02A2D /* fpdf_deleters.h */,
 			);
 			path = cpp;
-			sourceTree = "<group>";
-		};
-		E9D169D027D61A1900989869 /* lib */ = {
-			isa = PBXGroup;
-			children = (
-				E9D169D127D61A1900989869 /* libpdfium.dylib */,
-			);
-			name = lib;
-			path = "../../pdfium-binaries/staging_univ/lib";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
