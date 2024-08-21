@@ -129,7 +129,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFlags, event.modifierFlags));
 }
 - (void)keyDown:(NSEvent *)event {
-    NSLog(@"%d", event.keyCode);
+    // NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (keyCode == 36) {
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds()));
