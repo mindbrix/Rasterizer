@@ -84,7 +84,6 @@
 		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
 		E9E8285A2B17555800FABD81 /* RasterizerView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerView.mm; sourceTree = "<group>"; };
 		E9E8285C2B17559600FABD81 /* RasterizerView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerView.h; sourceTree = "<group>"; };
-		E9E9600127D63B2A00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = "../../pdfium-lib/build/macos/release/lib/libpdfium.a"; sourceTree = "<group>"; };
 		E9E9600427D645CD00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = pdfium/libpdfium.a; sourceTree = "<group>"; };
 		E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerPDF.hpp; sourceTree = "<group>"; };
 		E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
@@ -108,7 +107,6 @@
 		E901B3852194B00F00B1AB72 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				E9E9600127D63B2A00E06451 /* libpdfium.a */,
 				E9E9600427D645CD00E06451 /* libpdfium.a */,
 				E9FA61EA22776F72006BA8A6 /* libsqlite3.0.tbd */,
 				E901B3862194B00F00B1AB72 /* Accelerate.framework */,
