@@ -17,6 +17,7 @@
 		E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = E920A5A721762BCE00F52C25 /* MainMenu.xib */; };
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* DocumentView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* DocumentView.mm */; };
+		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
 		E9710C4C24CF975B00F31953 /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = E9710C4A24CF975B00F31953 /* xxhash.c */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
@@ -49,6 +50,7 @@
 		E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerCG.hpp; sourceTree = "<group>"; };
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
 		E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerFont.hpp; sourceTree = "<group>"; };
+		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
 		E9710C4A24CF975B00F31953 /* xxhash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = xxhash.c; sourceTree = "<group>"; };
 		E9710C4B24CF975B00F31953 /* xxhash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xxhash.h; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
+				E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */,
 				E9710C4A24CF975B00F31953 /* xxhash.c */,
 				E9710C4B24CF975B00F31953 /* xxhash.h */,
 				E91ADF962243FED000729DA0 /* nanosvg.cc */,
@@ -279,6 +282,7 @@
 				E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */,
 				E920A5A421762BCD00F52C25 /* Document.xib in Resources */,
 				E920A5A921762BCE00F52C25 /* MainMenu.xib in Resources */,
+				E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -27,6 +27,12 @@
     [super windowControllerDidLoadNib:aController];
     self.view.pdfData = self.pdfData;
     self.view.svgData = self.svgData;
+    
+    if (self.pdfData == nil && self.svgData == nil) {
+        NSURL *url = [[NSBundle mainBundle] URLForResource:@"Rasterizer Default" withExtension:@"pdf"];
+        NSData *data = [NSData dataWithContentsOfURL:url];
+        self.view.pdfData = self.pdfData = data;
+    }
 }
 
 - (NSString *)windowNibName {
