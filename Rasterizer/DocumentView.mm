@@ -22,6 +22,7 @@
 @property(nonatomic) Ra::SceneList list;
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) NSString *pastedString;
+@property(nonatomic) BOOL showGlyphGrid;
 @property(nonatomic) size_t pageIndex;
 - (void)timerFired:(double)time;
 
@@ -96,18 +97,18 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSURL *url = RaCG::fontURL(fnt.fontName);
     Ra::Ref<RasterizerFont> font;  font->load(url.path.UTF8String, fnt.fontName.UTF8String);
     Ra::SceneList list;
-    if (_svgData != nil)
+    Ra::Scene glyphs;
+    if (self.pastedString) {
+        RasterizerFont::layoutGlyphs(*font.ptr, float(fnt.pointSize), 0.f, Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+        list.addScene(glyphs);
+    } else if (self.showGlyphGrid) {
+        RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
+        list.addScene(glyphs);
+    } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else if (_pdfData != nil)
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
-    else {
-        Ra::Scene glyphs;
-        if (self.pastedString)
-            RasterizerFont::layoutGlyphs(*font.ptr, float(fnt.pointSize), 0.f, Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
-        else
-            RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
-        list.addScene(glyphs);
-    }
+    
     _test->addTestScenes(list, _state, _state.bounds, *font.ptr);
     _list = list;
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
@@ -134,7 +135,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (keyCode == 36) {
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds()));
     } else if (_state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode, event.characters.UTF8String))) {}
-    else if (keyCode == 51) {
+    else if (keyCode == 5) {
+        self.showGlyphGrid = !self.showGlyphGrid;
+        self.pastedString = nil;
+        [self changeFont:nil];
+    } else if (keyCode == 51) {
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
         [self.rasterizerLabel setHidden:NO];
@@ -164,6 +169,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
+    self.showGlyphGrid = NO;
     [self writeList: self.fnt];
 }
 
