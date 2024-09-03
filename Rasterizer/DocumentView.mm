@@ -138,7 +138,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else if (keyCode == 5) {
         self.showGlyphGrid = !self.showGlyphGrid;
         self.pastedString = nil;
-        [self changeFont:nil];
+        [self writeList: self.fnt];
     } else if (keyCode == 51) {
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
