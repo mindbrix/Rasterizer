@@ -59,7 +59,7 @@ struct RasterizerTest {
             float size = 20.f, width = size * phi;
             list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black));
         }
-        if (0) {
+        if (1) {
             Ra::Bounds bnds(0, 0, 800, 800);
             createConcentrichronScene(bnds, font, concentrichron.empty());
             bounds = bnds;

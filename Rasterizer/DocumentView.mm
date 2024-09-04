@@ -23,6 +23,7 @@
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) BOOL showGlyphGrid;
+@property(nonatomic) BOOL showTestScenes;
 @property(nonatomic) size_t pageIndex;
 - (void)timerFired:(double)time;
 
@@ -104,12 +105,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (self.showGlyphGrid) {
         RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
         list.addScene(glyphs);
+    } else if (self.showTestScenes) {
+        _test->addTestScenes(list, _state, _state.bounds, *font.ptr);
     } else if (_svgData != nil)
         RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
     else if (_pdfData != nil)
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
-    
-    _test->addTestScenes(list, _state, _state.bounds, *font.ptr);
+
     _list = list;
     _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
 }
@@ -130,13 +132,19 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFlags, event.modifierFlags));
 }
 - (void)keyDown:(NSEvent *)event {
-    // NSLog(@"%d", event.keyCode);
+     NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (keyCode == 36) {
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds()));
     } else if (_state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode, event.characters.UTF8String))) {}
     else if (keyCode == 5) {
+        self.showTestScenes = NO;
         self.showGlyphGrid = !self.showGlyphGrid;
+        self.pastedString = nil;
+        [self writeList: self.fnt];
+    } else if (keyCode == 17) {
+        self.showGlyphGrid = NO;
+        self.showTestScenes = !self.showTestScenes;
         self.pastedString = nil;
         [self writeList: self.fnt];
     } else if (keyCode == 51) {
