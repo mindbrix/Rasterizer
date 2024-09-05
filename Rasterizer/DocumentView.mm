@@ -178,6 +178,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)paste:(id)sender {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     self.showGlyphGrid = NO;
+    self.showTestScenes = NO;
     [self writeList: self.fnt];
 }
 
