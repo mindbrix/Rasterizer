@@ -38,11 +38,13 @@ struct Cell {
 struct Quad {
     Cell cell;  short cover;  int base, biid;
 };
+
 struct Outline {
     Segment s;
     short prev, next;
     float cx, cy;
 };
+
 struct Instance {
     enum Flags {
         kIsCurve = 1 << 24,
@@ -53,6 +55,7 @@ struct Instance {
         kOutlines = 1 << 29, kSquareCap = 1 << 30, kEvenOdd = 1 << 31, kFragmentMask = (kOutlines | kSquareCap | kEvenOdd) };
     uint32_t iz;  union { Quad quad;  Outline outline; };
 };
+
 struct Edge {
     uint32_t ic;  enum Flags { ue0 = 0xF << 28, ue1 = 0xF << 24, kMask = ~(ue0 | ue1) };
     uint16_t i0, ux;
@@ -98,6 +101,7 @@ float dwinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     dist = (ax * dy - ay * dx) * rsqrt(dx * dx + dy * dy);
     return saturate(0.5 - dist) * cover;
 }
+
 float awinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float dx, dy, a0, t, b, f, cover = w1 - w0;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
@@ -105,9 +109,15 @@ float awinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     b = max(dx, dy), f = b / (b - min(dx, dy) * 0.4142135624);
     return saturate((t - 0.5) * f + 0.5) * cover;
 }
-float fastWinding(float x0, float y0, float x1, float y1) {
+
+// Winding for a line start(x0, y0), end(x1, y1) for a pixel in the [0..1] coordinate space
+//
+float lineWinding(float x0, float y0, float x1, float y1) {
     return awinding(x0, y0, x1, y1, saturate(y0), saturate(y1));
 }
+
+// Winding for a quadratic curve start(x0, y0), control(x1, y1), end(x2, y2) for a pixel in the [0..1] coordinate space
+//
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0 = saturate(y0), w2 = saturate(y2);
     if (max(x0, max(x1, x2)) <= 0.0)
@@ -221,10 +231,10 @@ vertex FastMoleculesVertex fast_molecules_vertex_main(const device Edge *edges [
 
 fragment float4 fast_molecules_fragment_main(FastMoleculesVertex vert [[stage_in]])
 {
-    return fastWinding(vert.x0, vert.y0, vert.x1, vert.y1)
-        + fastWinding(vert.x1, vert.y1, vert.x2, vert.y2)
-        + fastWinding(vert.x2, vert.y2, vert.x3, vert.y3)
-        + fastWinding(vert.x3, vert.y3, vert.x4, vert.y4);
+    return lineWinding(vert.x0, vert.y0, vert.x1, vert.y1)
+        + lineWinding(vert.x1, vert.y1, vert.x2, vert.y2)
+        + lineWinding(vert.x2, vert.y2, vert.x3, vert.y3)
+        + lineWinding(vert.x3, vert.y3, vert.x4, vert.y4);
 }
 
 
@@ -368,7 +378,7 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
 
 fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
 {
-    return fastWinding(vert.x0, vert.y0, vert.x2, vert.y2) + fastWinding(vert.x3, vert.y3, vert.x5, vert.y5);
+    return lineWinding(vert.x0, vert.y0, vert.x2, vert.y2) + lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
 }
 
 fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
