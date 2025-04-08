@@ -90,7 +90,7 @@ float sqBezier(float2 p0, float2 p1, float2 p2) {
     return min(dot(pt0, pt0), dot(pt1, pt1));
 }
 
-float winding(float x0, float y0, float x1, float y1, float w0, float w1) {
+float dwinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float cover, s, wm, dx, ax, dy, ay, dist;
     cover = w1 - w0, s = 1.0 / cover, wm = 0.5 * (w0 + w1);
     dx = x1 - x0, ax = x0 - 0.5;
@@ -106,7 +106,7 @@ float awinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     return saturate((t - 0.5) * f + 0.5) * cover;
 }
 float fastWinding(float x0, float y0, float x1, float y1) {
-    return winding(x0, y0, x1, y1, saturate(y0), saturate(y1));
+    return awinding(x0, y0, x1, y1, saturate(y0), saturate(y1));
 }
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0 = saturate(y0), w2 = saturate(y2);
@@ -117,12 +117,12 @@ float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y
     if (w0 != w1) {
         cy = y0 - 0.5 * (w0 + w1);
         t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w1 - w0) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
-        s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
+        s = 1.0 - t, w += awinding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     if (w1 != w2) {
         cy = y0 - 0.5 * (w1 + w2);
         t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w2 - w1) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
-        s = 1.0 - t, w += winding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
+        s = 1.0 - t, w += awinding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w1, w2);
     }
     return w;
 }
