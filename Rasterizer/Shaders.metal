@@ -102,6 +102,12 @@ float dwinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     return saturate(0.5 - dist) * cover;
 }
 
+// Calculate winding using an inverse lerp algorithm on signed areas from the line (x0, y0), (x1,y1) to the pixel rect
+// bounded vertically by w0 & w1 in the [0..1] pixel coordinate space.
+// The nearest corner is at t = 1 (full coverage) and the furthest corner is at t = 0.
+// Coverage t is then filtered to compensate for the varying distance between the corners depending on line slope.
+// This filter can also be used to create zero-cost box blurs.
+//
 float awinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     float dx, dy, a0, t, b, f, cover = w1 - w0;
     dx = x1 - x0, dy = y1 - y0, a0 = dx * ((dx > 0.0 ? w0 : w1) - y0) - dy * (1.0 - x0);
@@ -110,23 +116,26 @@ float awinding(float x0, float y0, float x1, float y1, float w0, float w1) {
     return saturate((t - 0.5) * f + 0.5) * cover;
 }
 
-// Winding for a line start(x0, y0), end(x1, y1) for a pixel in the [0..1] coordinate space
+// Winding for a line start(x0, y0), end(x1, y1)
 //
 float lineWinding(float x0, float y0, float x1, float y1) {
     return awinding(x0, y0, x1, y1, saturate(y0), saturate(y1));
 }
 
-// Winding for a quadratic curve start(x0, y0), control(x1, y1), end(x2, y2) for a pixel in the [0..1] coordinate space
+// Winding for a quadratic curve start(x0, y0), control(x1, y1), end(x2, y2)
 //
 float quadraticWinding(float x0, float y0, float x1, float y1, float x2, float y2) {
     float w0 = saturate(y0), w2 = saturate(y2);
     if (max(x0, max(x1, x2)) <= 0.0)
         return w2 - w0;
     float w = 0.0, ay = y2 - y1, by = y1 - y0, cy, t, s, w1;
+    // Only one solution for a monotonic curve
     w1 = saturate(ay * by >= 0.0 ? y2 : y0 - by * by / (ay - by)), ay -= by, by *= 2.0;
     if (w0 != w1) {
+        // Solve the quadratic for the window centre
         cy = y0 - 0.5 * (w0 + w1);
         t = abs(ay) < kQuadraticFlatness ? -cy / by : (-by + sign(w1 - w0) * sqrt(max(0.0, by * by - 4.0 * ay * cy))) / ay * 0.5;
+        // Winding for the tangent vector at t
         s = 1.0 - t, w += awinding(s * x0 + t * x1, s * y0 + t * y1, s * x1 + t * x2, s * y1 + t * y2, w0, w1);
     }
     if (w1 != w2) {
