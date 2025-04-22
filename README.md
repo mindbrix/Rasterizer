@@ -29,6 +29,7 @@ Demo App
 
 The demo app supports viewing SVG and PDF files, plus font grids.
 
+![image](https://github.com/mindbrix/Rasterizer/blob/master/Screenshot.png)
 
 Using
 ------
