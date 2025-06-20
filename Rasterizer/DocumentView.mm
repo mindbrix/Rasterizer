@@ -202,7 +202,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)mouseMoved:(NSEvent *)event {
     CGSize size = self.window.frame.size;
     CGFloat x = event.locationInWindow.x, y = event.locationInWindow.y;
-    if (_state.mouseMove && x >= 0 && x <= size.width && y >= 0 && y <= size.height)
+    if (x >= 0 && x <= size.width && y >= 0 && y <= size.height)
         _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseMove, float(x), float(y)));
 }
 - (void)mouseUp:(NSEvent *)event {

@@ -30,13 +30,17 @@ struct RasterizerState {
     
     bool writeEvent(Event e) {
         const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
-        bool written = e.type != Event::kKeyDown;
-        if (e.type == Event::kKeyDown)
+        bool written = false;
+        if (e.type == Event::kKeyDown) {
             for (int keyCode : keyCodes)
                 if (e.keyCode == keyCode) {
                     written = true;
                     break;
                 }
+        } else if (e.type == Event::kMouseMove) {
+            written = mouseMove;
+        } else
+            written = true;
         if (written)
             events.emplace_back(e);
         return written;
