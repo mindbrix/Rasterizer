@@ -150,9 +150,10 @@ struct RasterizerState {
     size_t flags = 0;
     std::vector<Event> events;
     
-    void update(float s, float w, float h) {
+    void viewport(float s, float w, float h) {
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
     }
+    
     void magnify(float s, float cx, float cy) {
         ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
     }

@@ -77,9 +77,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)timerFired:(double)time {
     if (_state.needsRedraw()) {
         _state.readEvents(_list);
-        
-        float scale = self.layer.contentsScale, w = self.bounds.size.width, h = self.bounds.size.height;
-        _state.update(scale, w, h);
+        _state.viewport(
+            self.layer.contentsScale,
+            self.bounds.size.width,
+            self.bounds.size.height
+        );
         _state.runTransferFunction(_list, RasterizerTest::TransferFunction);
         
         self.sceneList = _list;
