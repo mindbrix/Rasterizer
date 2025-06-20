@@ -119,6 +119,7 @@ struct RasterizerState {
         events.resize(0);
         if (mouseMove) {
             auto view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+            auto device = Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
             indices = RasterizerWinding::indicesForPoint(list, view, device, scale * mx, scale * my);
         }
         if (animating)
@@ -151,7 +152,7 @@ struct RasterizerState {
     std::vector<Event> events;
     
     void viewport(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h), device = Ra::Bounds(0.f, 0.f, ceilf(scale * w), ceilf(scale * h));
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
     }
     
     void magnify(float s, float cx, float cy) {
@@ -172,7 +173,7 @@ struct RasterizerState {
     
     float scale, outlineWidth = 0.f;
     Ra::Transform ctm;
-    Ra::Bounds bounds, device;
+    Ra::Bounds bounds;
 };
 
 typedef RasterizerState RaSt;
