@@ -40,7 +40,7 @@ struct RasterizerWinding {
             }
         return Ra::Range(INT_MAX, INT_MAX);
     }
-    struct Counter: Ra::Writer {
+    struct Counter: Ra::GeometryWriter {
         float dx, dy, dw;  int winding = 0;  uint8_t flags = 0;
         
         void writeSegment(float x0, float y0, float x1, float y1) {

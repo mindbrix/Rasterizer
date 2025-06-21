@@ -135,7 +135,7 @@ struct Rasterizer {
         uint16_t x, i;
         inline bool operator< (const Index& other) const { return x < other.x; }
     };
-    struct Writer {
+    struct GeometryWriter {
         virtual void writeSegment(float x0, float y0, float x1, float y1) = 0;
         virtual void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) = 0;
         virtual void Cubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) {
@@ -270,7 +270,7 @@ struct Rasterizer {
     };
     typedef Ref<Geometry> Path;
     
-    struct P16Writer: Writer {
+    struct P16Writer: GeometryWriter {
         void writeGeometry(Geometry *g) {
             float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
             Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
@@ -577,7 +577,7 @@ struct Rasterizer {
         Row<uint32_t> fasts;  Row<Blend> blends;  Row<Instance> opaques;  Row<Segment> segments;
         Row<Index> indices;  std::vector<Row<Sample>> samples;  Row<uint32_t> segmentsIndices;
     };
-    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
+    static void divideGeometry(Geometry *g, Transform m, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         bool closed, closeSubpath = false;  float *p = g->points.base, sx = FLT_MAX, sy = FLT_MAX, x0 = FLT_MAX, y0 = FLT_MAX, x1, y1, x2, y2, x3, y3, ly, uy, lx, ux;
         for (uint8_t *type = g->types.base, *end = type + g->types.end; type < end; )
             switch (*type) {
@@ -640,7 +640,7 @@ struct Rasterizer {
             line(x0, y0, sx, sy, clip, unclipped, polygon, writer);
         writer.EndSubpath(x0, y0, sx, sy, closeSubpath || closed);
     }
-    static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, Writer& writer) {
+    static inline void line(float x0, float y0, float x1, float y1, Bounds clip, bool unclipped, bool polygon, GeometryWriter& writer) {
         if (unclipped)
             writer.writeSegment(x0, y0, x1, y1);
         else {
@@ -653,7 +653,7 @@ struct Rasterizer {
             }
         }
     }
-    static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, Writer& writer) {
+    static void clipLine(float x0, float y0, float x1, float y1, Bounds clip, bool polygon, GeometryWriter& writer) {
         float lx, ux, ly, uy, roots[6], *root = roots, *r, s, t, sx0, sy0, sx1, sy1, mx, my, vx;
         lx = fminf(x0, x1), ux = fmaxf(x0, x1), ly = fminf(y0, y1), uy = fmaxf(y0, y1);
         *root++ = 0.f;
@@ -690,7 +690,7 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Writer& writer) {
+    static void clipQuadratic(float x0, float y0, float x1, float y1, float x2, float y2, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
         float ax, bx, ay, by, roots[10], *root = roots, *r, s, w0, w1, w2, mt, mx, my, vx, sx0, sy0, sx2, sy2;
         ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f, ay = y2 - y1, by = y1 - y0, ay -= by, by *= 2.f;
         *root++ = 0.f;
@@ -751,7 +751,7 @@ struct Rasterizer {
         }
         return roots;
     }
-    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, Writer& writer) {
+    static void clipCubic(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Bounds clip, float lx, float ly, float ux, float uy, bool polygon, GeometryWriter& writer) {
         float cx, bx, ax, cy, by, ay, roots[14], *root = roots, *r, t, s, w0, w1, w2, w3, mt, mx, my, vx, x0t, y0t, x1t, y1t, x2t, y2t, x3t, y3t, fx, gx, fy, gy;
         cx = 3.f * (x1 - x0), bx = 3.f * (x2 - x1), ax = x3 - x0 - bx, bx -= cx;
         cy = 3.f * (y1 - y0), by = 3.f * (y2 - y1), ay = y3 - y0 - by, by -= cy;
@@ -798,7 +798,7 @@ struct Rasterizer {
             }
         }
     }
-    struct CurveIndexer: Writer {
+    struct CurveIndexer: GeometryWriter {
         Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
@@ -954,13 +954,13 @@ struct Rasterizer {
             }
         }
     }
-    struct SegmentCounter: Writer {
+    struct SegmentCounter: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) { count += 1; }
         void Quadratic(float x0, float y0, float x1, float y1, float x2, float y2) { count += 2; }
         size_t count = 0;
     };
     
-    struct Outliner: Writer {
+    struct Outliner: GeometryWriter {
         void writeSegment(float x0, float y0, float x1, float y1) {
             writeInstance(x0, y0, FLT_MAX, FLT_MAX, x1, y1);
         }
