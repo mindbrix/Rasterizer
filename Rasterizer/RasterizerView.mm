@@ -88,7 +88,7 @@
 
 - (Ra::Transform) view {
     float scale = self.layer.contentsScale;
-    return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);;
+    return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
 }
 
 - (void)setCtm:(Ra::Transform)ctm {

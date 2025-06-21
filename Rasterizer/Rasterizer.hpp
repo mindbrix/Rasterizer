@@ -348,19 +348,19 @@ struct Rasterizer {
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
                 g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet), xxhash = XXH64(& g->xxhash, sizeof(g->xxhash), xxhash);
-                paths->add(path), bnds->add(g->bounds), ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
+                paths->add(path), *bnds.alloc(1) = g->bounds, ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
         }
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < count; i++)
                 if ((flags->base[i] & kInvisible) == 0)
-                    b.extend(Bounds(bnds->base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).quad(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::huge()));
+                    b.extend(Bounds(bnds.base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).quad(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::huge()));
             return b;
         }
         size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache<Bounds>> clipCache;
-        Ref<Vector<Path>> paths;  Ref<Vector<Bounds>> bnds;
+        Ref<Vector<Path>> paths;  Row<Bounds> bnds;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
     };
     typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Scene *scn, void *info);
@@ -520,7 +520,7 @@ struct Rasterizer {
                         invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
                         clipBounds = Bounds(clipquad).integral().intersect(deviceClip);
                     }
-                    bnds = & scn->bnds->base[is], quad = bnds->quad(m), dev = Bounds(quad);
+                    bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad);
                     dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
