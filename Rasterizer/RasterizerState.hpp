@@ -18,10 +18,14 @@ struct ViewState {
     Ra::Bounds getDevice() {
         return Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
     }
-    void magnify(float s, float cx, float cy) {
+    void magnify(float s, float cx = FLT_MAX, float cy = FLT_MAX) {
+        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
+        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
         ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
     }
-    void rotate(float a, float cx, float cy) {
+    void rotate(float a, float cx = FLT_MAX, float cy = FLT_MAX) {
+        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
+        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
         float sine, cosine;  __sincosf(a, & sine, & cosine);
         ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
     }
@@ -122,13 +126,13 @@ struct RasterizerState: ViewState {
                     break;
                 case Event::kMagnify:
                     if ((flags & Event::kShift) == 0)
-                        magnify(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                        magnify(e.x);
                     else
                         magnify(e.x, mx, my);
                     break;
                 case Event::kRotate:
                     if ((flags & Event::kShift) == 0)
-                        rotate(e.x, 0.5f * (bounds.lx + bounds.ux), 0.5f * (bounds.ly + bounds.uy));
+                        rotate(e.x);
                     else
                         rotate(e.x, mx, my);
                     break;
