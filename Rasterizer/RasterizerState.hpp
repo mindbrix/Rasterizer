@@ -126,21 +126,6 @@ struct RasterizerState {
             clock += timeScale / 60.0;
     }
     
-    void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction) {
-        if (transferFunction == nullptr)
-            return;
-        for (int si = 0; si < list.scenes.size(); si++) {
-            int threads = 8;
-            Ra::Scene *scn = & list.scenes[si];
-            std::vector<size_t> divisions;
-            divisions.emplace_back(0);
-            for (int i = 0; i < threads; i++)
-                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
-            dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*transferFunction)(divisions[i], divisions[i + 1], si, scn, this);
-            });
-        }
-    }
     bool needsRedraw() {  return animating || events.size() > 0;  }
     
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
