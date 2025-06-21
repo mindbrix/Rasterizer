@@ -8,7 +8,38 @@
 #import "Rasterizer.hpp"
 #import "RasterizerWinding.hpp"
 
-struct RasterizerState {
+struct ViewState {
+    void setViewport(float s, float w, float h) {
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
+    }
+    Ra::Transform getView() {
+        return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+    }
+    Ra::Bounds getDevice() {
+        return Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
+    }
+    void magnify(float s, float cx, float cy) {
+        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
+    }
+    void rotate(float a, float cx, float cy) {
+        float sine, cosine;  __sincosf(a, & sine, & cosine);
+        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
+    }
+    void translate(float x, float y) {
+        ctm.tx += x, ctm.ty += y;
+    }
+    void fit(Ra::Bounds b) {
+        float s = fminf((bounds.ux - bounds.lx) / (b.ux - b.lx), (bounds.uy - bounds.ly) / (b.uy - b.ly));
+        Ra::Transform fit = { s, 0.f, 0.f, s, -s * b.lx, -s * b.ly };
+        ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
+    }
+    
+    float scale;
+    Ra::Transform ctm;
+    Ra::Bounds bounds;
+};
+
+struct RasterizerState: ViewState {
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     struct Event {
         enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
@@ -117,11 +148,8 @@ struct RasterizerState {
             }
         }
         events.resize(0);
-        if (mouseMove) {
-            auto view = Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
-            auto device = Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
-            indices = RasterizerWinding::indicesForPoint(list, view, device, scale * mx, scale * my);
-        }
+        if (mouseMove)
+            indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
     }
@@ -130,35 +158,11 @@ struct RasterizerState {
     
     bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
-    float mx, my;
+    float mx, my, outlineWidth = 0.f;
     int keyCode = 0;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
     size_t flags = 0;
     std::vector<Event> events;
-    
-    void viewport(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
-    }
-    
-    void magnify(float s, float cx, float cy) {
-        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-    }
-    void rotate(float a, float cx, float cy) {
-        float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-    }
-    void translate(float x, float y) {
-        ctm.tx += x, ctm.ty += y;
-    }
-    void fit(Ra::Bounds b) {
-        float s = fminf((bounds.ux - bounds.lx) / (b.ux - b.lx), (bounds.uy - bounds.ly) / (b.uy - b.ly));
-        Ra::Transform fit = { s, 0.f, 0.f, s, -s * b.lx, -s * b.ly };
-        ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
-    }
-    
-    float scale, outlineWidth = 0.f;
-    Ra::Transform ctm;
-    Ra::Bounds bounds;
 };
 
 typedef RasterizerState RaSt;
