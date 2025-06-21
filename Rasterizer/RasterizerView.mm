@@ -14,6 +14,9 @@
 @interface RasterizerView () <CALayerDelegate, LayerDelegate>
 
 @property(nonatomic) RasterizerRenderer renderer;
+@property(nonatomic) Ra::SceneList sceneList;
+@property(nonatomic) Ra::Transform ctm;
+@property(nonatomic) bool useCurves;
 @property(nonatomic, readonly) Ra::Bounds device;
 @property(nonatomic, readonly) Ra::Transform view;
 @property(nonatomic) float clipInset;
@@ -56,6 +59,13 @@
     [self.layer setNeedsDisplay];
 }
 
+- (void)drawList: (Ra::SceneList)sceneList ctm:(Ra::Transform) ctm useCurves:(bool) useCurves {
+    self.sceneList = sceneList;
+    self.ctm = ctm;
+    self.useCurves = useCurves;
+    [self.layer setNeedsDisplay];
+}
+
 #pragma mark - LayerDelegate
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
@@ -91,24 +101,10 @@
     return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(_ctm);
 }
 
-- (void)setCtm:(Ra::Transform)ctm {
-    _ctm = ctm;
-    [self.layer setNeedsDisplay];
-}
-
-- (void)setSceneList:(Ra::SceneList)sceneList {
-    _sceneList = sceneList;
-    [self.layer setNeedsDisplay];
-}
-
 - (void)setUseCG:(bool)useCG {
     _useCG = useCG;
     [self initLayer];
 }
 
-- (void)setUseCurves:(bool)useCurves {
-    _useCurves = useCurves;
-    [self.layer setNeedsDisplay];
-}
 
 @end

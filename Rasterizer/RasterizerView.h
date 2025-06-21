@@ -11,9 +11,8 @@
 
 @interface RasterizerView : NSView
 
-@property(nonatomic) Ra::SceneList sceneList;
-@property(nonatomic) Ra::Transform ctm;
-@property(nonatomic) bool useCurves;
 @property(nonatomic) bool useCG;
+
+- (void)drawList: (Ra::SceneList)sceneList ctm:(Ra::Transform) ctm useCurves:(bool) useCurves;
 
 @end

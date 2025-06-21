@@ -84,9 +84,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         );
         RasterizerRenderer::runTransferFunction(_list, RasterizerTest::TransferFunction, & _state);
         
-        self.sceneList = _list;
-        self.ctm = _state.ctm;
-        self.useCurves = _state.useCurves;
+        [self drawList:_list ctm:_state.ctm useCurves: _state.useCurves];
     }
 }
 
