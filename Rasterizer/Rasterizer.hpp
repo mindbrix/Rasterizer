@@ -347,7 +347,7 @@ struct Rasterizer {
                 Bounds *be;
                 if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
                     *be = *clipBounds;
-                g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet), xxhash = XXH64(& g->xxhash, sizeof(g->xxhash), xxhash);
+                g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet);
                 paths->add(path), *bnds.alloc(1) = g->bounds, ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
         }
@@ -358,7 +358,7 @@ struct Rasterizer {
                     b.extend(Bounds(bnds.base[i].inset(-0.5f * widths->base[i], -0.5f * widths->base[i]).quad(ctms->base[i])).intersect(clipCache->ips.base[i] ? *clipCache->entryAt(i) : Bounds::huge()));
             return b;
         }
-        size_t count = 0, xxhash = 0, weight = 0;  uint64_t tag = 1;
+        size_t count = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache<Bounds>> clipCache;
         Ref<Vector<Path>> paths;  Row<Bounds> bnds;
         Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
