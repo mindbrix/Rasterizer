@@ -17,12 +17,12 @@ struct RasterizerRenderer {
          buffer->clip = deviceClip;
          
         size_t divisions[kQueueCount + 1], *pdivs = divisions;
-        writeDivisions(list, divisions);
+        writeDivisions(list, pdivs);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             contexts[i].drawList(list, device, deviceClip, view, pdivs[i], pdivs[i + 1], buffer);
         });
         size_t begins[kQueueCount], *pbegins = begins, size;
-        size = Ra::writeContextsToBuffer(list, contexts, kQueueCount, begins, *buffer);
+        size = Ra::resizeBuffer(list, contexts, kQueueCount, pbegins, *buffer);
         dispatch_apply(kQueueCount, DISPATCH_APPLY_AUTO, ^(size_t i) {
             Ra::writeContextToBuffer(list, contexts + i, pbegins[i], *buffer);
         });
