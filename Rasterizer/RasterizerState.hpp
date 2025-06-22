@@ -8,45 +8,13 @@
 #import "Rasterizer.hpp"
 #import "RasterizerWinding.hpp"
 
-struct ViewState {
-    void setViewport(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
-    }
-    Ra::Transform getView() {
-        return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
-    }
-    Ra::Bounds getDevice() {
-        return Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
-    }
-    void magnify(float s, float cx = FLT_MAX, float cy = FLT_MAX) {
-        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
-        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
-        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-    }
-    void rotate(float a, float cx = FLT_MAX, float cy = FLT_MAX) {
-        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
-        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
-        float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-    }
-    void translate(float x, float y) {
-        ctm.tx += x, ctm.ty += y;
-    }
-    void fit(Ra::Bounds listBounds) {
-        float s = fminf(bounds.width() / listBounds.width(), bounds.height() / listBounds.height());
-        Ra::Transform fit = { s, 0.f, 0.f, s, -s * listBounds.lx, -s * listBounds.ly };
-        ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
-    }
-    
-    float scale;
-    Ra::Transform ctm;
-    Ra::Bounds bounds;
-};
 
-struct RasterizerState: ViewState {
+struct RasterizerState {
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
+#pragma mark - Event handlers
+
     void onFlags(size_t keyFlags) {
         flags = keyFlags;
     }
@@ -118,9 +86,6 @@ struct RasterizerState: ViewState {
         translate(dx, dy);
         setRedraw();
     }
-    void setRedraw() {
-        redraw = true;
-    }
     
     void onRedraw(Ra::SceneList& list) {
         redraw = false;
@@ -130,7 +95,49 @@ struct RasterizerState: ViewState {
             clock += timeScale / 60.0;
     }
     
-    bool needsRedraw() {  return animating || redraw;  }
+#pragma mark - View state
+
+    void magnify(float s, float cx = FLT_MAX, float cy = FLT_MAX) {
+        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
+        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
+        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
+    }
+    void rotate(float a, float cx = FLT_MAX, float cy = FLT_MAX) {
+        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
+        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
+        float sine, cosine;  __sincosf(a, & sine, & cosine);
+        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
+    }
+    void translate(float x, float y) {
+        ctm.tx += x, ctm.ty += y;
+    }
+    void fit(Ra::Bounds listBounds) {
+        float s = fminf(bounds.width() / listBounds.width(), bounds.height() / listBounds.height());
+        Ra::Transform fit = { s, 0.f, 0.f, s, -s * listBounds.lx, -s * listBounds.ly };
+        ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
+    }
+   
+#pragma mark - Properties
+    
+    void setViewport(float s, float w, float h) {
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
+    }
+    Ra::Transform getView() const {
+        return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
+    }
+    Ra::Bounds getDevice() const {
+        return Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
+    }
+    void setRedraw() {
+        redraw = true;
+    }
+    bool getShouldRedraw() const {
+        return animating || redraw;
+    }
+    
+    float scale;
+    Ra::Transform ctm;
+    Ra::Bounds bounds;
     
     bool redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;

@@ -75,7 +75,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)timerFired:(double)time {
-    if (_state.needsRedraw()) {
+    if (_state.getShouldRedraw()) {
         _state.setViewport(
             self.layer.contentsScale,
             self.bounds.size.width,
