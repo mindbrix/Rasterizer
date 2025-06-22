@@ -113,7 +113,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
 
     _list = list;
-    _state.writeEvent(RasterizerState::Event(0.0, RasterizerState::Event::kNull, size_t(0)));
+    _state.redraw();
 }
 
 
@@ -129,15 +129,15 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)flagsChanged:(NSEvent *)event {
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFlags, event.modifierFlags));
+    _state.onFlags(event.modifierFlags);
 }
 - (void)keyDown:(NSEvent *)event {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (keyCode == 36) {
-        _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kFit, _list.bounds()));
-    } else if (_state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyDown, event.keyCode, event.characters.UTF8String))) {}
-    else if (keyCode == 5) {
+        _state.onFit(_list.bounds());
+    } else if (_state.onKeyDown(event.keyCode, event.characters.UTF8String, _list)) {
+    } else if (keyCode == 5) {
         self.showTestScenes = NO;
         self.showGlyphGrid = !self.showGlyphGrid;
         self.pastedString = nil;
@@ -172,7 +172,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     
 }
 - (void)keyUp:(NSEvent *)event {
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kKeyUp, event.keyCode, event.characters.UTF8String));
+    _state.onKeyUp(event.keyCode, event.characters.UTF8String);
 }
 
 - (void)paste:(id)sender {
@@ -183,30 +183,29 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-     _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMagnify, float(1 + event.magnification), 0.f));
+    _state.onMagnify(float(1 + event.magnification));
 }
 - (void)rotateWithEvent:(NSEvent *)event {
-    if (!(event.modifierFlags & NSEventModifierFlagControl))
-        _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kRotate, float(event.rotation / 10), 0.f));
+    _state.onRotate(float(event.rotation / 10));
 }
 - (void)scrollWheel:(NSEvent *)event {
     CGFloat inversion = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]) ? 1.0f : -1.0f;
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kTranslate, float(event.deltaX * inversion), float(-event.deltaY * inversion)));
+    _state.onTranslate(float(event.deltaX * inversion), float(-event.deltaY * inversion));
 }
 - (void)mouseDown:(NSEvent *)event {
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseDown, float(event.locationInWindow.x), float(event.locationInWindow.y)));
+    _state.onMouseDown(float(event.locationInWindow.x), float(event.locationInWindow.y));
 }
 - (void)mouseDragged:(NSEvent *)event {
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kDragged, float(event.deltaX), float(-event.deltaY)));
+    _state.onDrag(float(event.deltaX), float(-event.deltaY));
 }
 - (void)mouseMoved:(NSEvent *)event {
     CGSize size = self.window.frame.size;
     CGFloat x = event.locationInWindow.x, y = event.locationInWindow.y;
     if (x >= 0 && x <= size.width && y >= 0 && y <= size.height)
-        _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseMove, float(x), float(y)));
+        _state.onMouseMove(float(x), float(y));
 }
 - (void)mouseUp:(NSEvent *)event {
-    _state.writeEvent(RasterizerState::Event(event.timestamp, RasterizerState::Event::kMouseUp, float(event.locationInWindow.x), float(event.locationInWindow.y)));
+    _state.onMouseUp(float(event.locationInWindow.x), float(event.locationInWindow.y));
 }
 
 #pragma mark - Properies

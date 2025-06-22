@@ -45,125 +45,103 @@ struct ViewState {
 
 struct RasterizerState: ViewState {
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
-    struct Event {
-        enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
-        enum Type { kNull = 0, kMouseMove, kMouseUp, kDragged, kMouseDown, kFlags, kKeyDown, kKeyUp, kMagnify, kRotate, kTranslate, kFit };
-        
-        Event() {}
-        Event(double time, Type type, float x, float y) : time(time), type(type), x(x), y(y) {}
-        Event(double time, Type type, Ra::Bounds b) : time(time), type(type), bounds(b) {}
-        Event(double time, Type type, unsigned short keyCode, const char *chars) : time(time), type(type), keyCode(keyCode) {}
-        Event(double time, Type type, size_t flags) : time(time), type(type), flags(flags) {}
-        
-        double time;
-        Type type;
-        float x, y;
-        Ra::Bounds bounds;
-        int keyCode; 
-        size_t flags;
-    };
+    enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
-    bool writeEvent(Event e) {
-        const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
-        bool written = false;
-        if (e.type == Event::kKeyDown) {
-            for (int keyCode : keyCodes)
-                if (e.keyCode == keyCode) {
-                    written = true;
-                    break;
-                }
-        } else if (e.type == Event::kMouseMove) {
-            mx = e.x, my = e.y;
-            if (flags & Event::kShift)
-                timeScale = powf(e.y / (bounds.uy - bounds.ly), 2.0);
-            written = mouseMove;
-        } else
-            written = true;
-        if (written)
-            events.emplace_back(e);
-        return written;
+    void onFlags(size_t flags) {
+        this->flags = flags;
     }
-    void readEvents(Ra::SceneList& list) {
-        for (Event& e : events) {
-            switch(e.type) {
-                case Event::kMouseMove:
-                    break;
-                case Event::kMouseUp:
-                    mouseDown = false;
-                    break;
-                case Event::kMouseDown:
-                    mouseDown = true;
-                    break;
-                case Event::kFlags:
-                    flags = e.flags;
-                    break;
-                case Event::kKeyDown:
-                    if (e.keyCode == KeyCode::k1)
-                        animating = !animating;
-                    else if (e.keyCode == KeyCode::k0)
-                        clock = 0.0;
-                    else if (e.keyCode == KeyCode::kC)
-                        useCurves = !useCurves;
-                    else if (e.keyCode == KeyCode::kF)
-                        ;
-                    else if (e.keyCode == KeyCode::kI)
-                        opaque = !opaque;
-                    else if (e.keyCode == KeyCode::kO)
-                        outlineWidth = outlineWidth ? 0.f : -1.f;
-                    else if (e.keyCode == KeyCode::kP)
-                        mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
-                    else if (e.keyCode == KeyCode::kL) {
-                        locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
-                        if (locked.begin != INT_MAX) {
-                            Ra::Geometry *p = list.scenes[locked.begin].paths->base[locked.end].ptr;
-                            p = p;
-                        }
-                    }
-                    break;
-                case Event::kKeyUp:
-                    break;
-                case Event::kMagnify:
-                    if ((flags & Event::kShift) == 0)
-                        magnify(e.x);
-                    else
-                        magnify(e.x, mx, my);
-                    break;
-                case Event::kRotate:
-                    if ((flags & Event::kShift) == 0)
-                        rotate(e.x);
-                    else
-                        rotate(e.x, mx, my);
-                    break;
-                case Event::kDragged:
-                    translate(e.x, e.y);
-                    mx += e.x, my += e.y;
-                    break;
-                case Event::kTranslate:
-                    translate(e.x, e.y);
-                    break;
-                case Event::kFit: {
-                    fit(e.bounds);
-                    break;
-                }
-                case Event::kNull:
-                    break;
+    bool onKeyDown(unsigned short keyCode, const char *chars, Ra::SceneList& list) {
+        if (keyCode == KeyCode::k1)
+            animating = !animating;
+        else if (keyCode == KeyCode::k0)
+            clock = 0.0;
+        else if (keyCode == KeyCode::kC)
+            useCurves = !useCurves;
+        else if (keyCode == KeyCode::kF)
+            ;
+        else if (keyCode == KeyCode::kI)
+            opaque = !opaque;
+        else if (keyCode == KeyCode::kO)
+            outlineWidth = outlineWidth ? 0.f : -1.f;
+        else if (keyCode == KeyCode::kP)
+            mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
+        else if (keyCode == KeyCode::kL) {
+            locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
+            if (locked.begin != INT_MAX) {
+                Ra::Geometry *p = list.scenes[locked.begin].paths->base[locked.end].ptr;
+                p = p;
             }
         }
-        events.resize(0);
+        const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
+        for (int code : keyCodes)
+            if (code == keyCode) {
+                redraw();
+                return true;
+            }
+        return false;
+    }
+    void onKeyUp(unsigned short keyCode, const char *chars) {
+        
+    }
+    void onFit(Ra::Bounds b) {
+        fit(b);
+        redraw();
+    }
+    void onMouseMove(float x, float y) {
+        mx = x, my = y;
+        if (flags & Flags::kShift)
+            timeScale = powf(y / (bounds.uy - bounds.ly), 2.0);
+        if (mouseMove)
+            redraw();
+    }
+    void onMouseDown(float x, float y) {
+        mouseDown = true;
+    }
+    void onMouseUp(float x, float y) {
+        mouseDown = false;
+    }
+    void onMagnify(float scale) {
+        if ((flags & Flags::kShift) == 0)
+            magnify(scale);
+        else
+            magnify(scale, mx, my);
+        redraw();
+    }
+    void onRotate(float angle) {
+        if ((flags & Flags::kShift) == 0)
+            rotate(angle);
+        else
+            rotate(angle, mx, my);
+        redraw();
+    }
+    void onDrag(float dx, float dy) {
+        translate(dx, dy);
+        mx += dx, my += dy;
+        redraw();
+    }
+    void onTranslate(float dx, float dy) {
+        translate(dx, dy);
+        redraw();
+    }
+    void redraw() {
+        _redraw = true;
+    }
+    
+    void readEvents(Ra::SceneList& list) {
+        _redraw = false;
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
     }
     
-    bool needsRedraw() {  return animating || events.size() > 0;  }
+    bool needsRedraw() {  return animating || _redraw;  }
     
-    bool mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
+    bool _redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
     size_t flags = 0;
-    std::vector<Event> events;
 };
 
 typedef RasterizerState RaSt;
