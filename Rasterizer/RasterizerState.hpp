@@ -47,10 +47,10 @@ struct RasterizerState: ViewState {
     enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
-    void onFlags(size_t flags) {
-        this->flags = flags;
+    void onFlags(size_t keyFlags) {
+        flags = keyFlags;
     }
-    bool onKeyDown(unsigned short keyCode, const char *chars, Ra::SceneList& list) {
+    bool onKeyDown(unsigned short keyCode, const char *chars) {
         if (keyCode == KeyCode::k1)
             animating = !animating;
         else if (keyCode == KeyCode::k0)
@@ -67,10 +67,6 @@ struct RasterizerState: ViewState {
             mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
         else if (keyCode == KeyCode::kL) {
             locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
-            if (locked.begin != INT_MAX) {
-                Ra::Geometry *p = list.scenes[locked.begin].paths->base[locked.end].ptr;
-                p = p;
-            }
         }
         const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
         for (int code : keyCodes)
@@ -81,7 +77,6 @@ struct RasterizerState: ViewState {
         return false;
     }
     void onKeyUp(unsigned short keyCode, const char *chars) {
-        
     }
     void onFit(Ra::Bounds b) {
         fit(b);

@@ -136,7 +136,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     int keyCode = event.keyCode;
     if (keyCode == 36) {
         _state.onFit(_list.bounds());
-    } else if (_state.onKeyDown(event.keyCode, event.characters.UTF8String, _list)) {
+    } else if (_state.onKeyDown(event.keyCode, event.characters.UTF8String)) {
     } else if (keyCode == 5) {
         self.showTestScenes = NO;
         self.showGlyphGrid = !self.showGlyphGrid;
