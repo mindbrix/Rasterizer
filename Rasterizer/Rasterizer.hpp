@@ -40,11 +40,12 @@ struct Rasterizer {
         static inline Bounds huge() { return Bounds(-5e11f, -5e11f, 5e11f, 5e11f); }
         Bounds() : lx(FLT_MAX), ly(FLT_MAX), ux(-FLT_MAX), uy(-FLT_MAX) {}
         Bounds(float lx, float ly, float ux, float uy) : lx(lx), ly(ly), ux(ux), uy(uy) {}
-        inline Bounds(const Transform quad) :
-            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
-            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
-            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
-            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {}
+        inline float width() const {
+            return ux - lx;
+        }
+        inline float height() const {
+            return uy - ly;
+        }
         inline bool contains(const Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }
@@ -68,10 +69,16 @@ struct Rasterizer {
             };
         }
         inline bool isHuge() const { return lx == -5e11f; }
+        inline Bounds(const Transform quad) :
+            lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
+            ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
+            ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
+            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {}
         inline Transform quad(const Transform t) const {
+            float w = width(), h = height();
             return {
-                t.a * (ux - lx), t.b * (ux - lx),
-                t.c * (uy - ly), t.d * (uy - ly),
+                t.a * w, t.b * w,
+                t.c * h, t.d * h,
                 lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty
             };
         }
