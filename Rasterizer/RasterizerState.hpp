@@ -73,6 +73,9 @@ struct RasterizerState: ViewState {
                     break;
                 }
         } else if (e.type == Event::kMouseMove) {
+            mx = e.x, my = e.y;
+            if (flags & Event::kShift)
+                timeScale = e.y / (bounds.uy - bounds.ly), timeScale *= timeScale;
             written = mouseMove;
         } else
             written = true;
@@ -84,9 +87,6 @@ struct RasterizerState: ViewState {
         for (Event& e : events) {
             switch(e.type) {
                 case Event::kMouseMove:
-                    mx = e.x, my = e.y;
-                    if (flags & Event::kShift)
-                        timeScale = e.y / (bounds.uy - bounds.ly), timeScale *= timeScale;
                     break;
                 case Event::kMouseUp:
                     mouseDown = false;
