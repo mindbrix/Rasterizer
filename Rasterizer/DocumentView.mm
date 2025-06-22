@@ -76,12 +76,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)timerFired:(double)time {
     if (_state.needsRedraw()) {
-        _state.readEvents(_list);
         _state.setViewport(
             self.layer.contentsScale,
             self.bounds.size.width,
             self.bounds.size.height
         );
+        _state.onRedraw(_list);
         RasterizerRenderer::runTransferFunction(_list, RasterizerTest::TransferFunction, & _state);
         
         [self drawList:_list ctm:_state.ctm useCurves: _state.useCurves];
@@ -113,7 +113,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
 
     _list = list;
-    _state.redraw();
+    _state.setRedraw();
 }
 
 

@@ -75,7 +75,7 @@ struct RasterizerState: ViewState {
         const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
         for (int code : keyCodes)
             if (code == keyCode) {
-                redraw();
+                setRedraw();
                 return true;
             }
         return false;
@@ -85,14 +85,14 @@ struct RasterizerState: ViewState {
     }
     void onFit(Ra::Bounds b) {
         fit(b);
-        redraw();
+        setRedraw();
     }
     void onMouseMove(float x, float y) {
         mx = x, my = y;
         if (flags & Flags::kShift)
             timeScale = powf(y / (bounds.uy - bounds.ly), 2.0);
         if (mouseMove)
-            redraw();
+            setRedraw();
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
@@ -105,39 +105,39 @@ struct RasterizerState: ViewState {
             magnify(scale);
         else
             magnify(scale, mx, my);
-        redraw();
+        setRedraw();
     }
     void onRotate(float angle) {
         if ((flags & Flags::kShift) == 0)
             rotate(angle);
         else
             rotate(angle, mx, my);
-        redraw();
+        setRedraw();
     }
     void onDrag(float dx, float dy) {
         translate(dx, dy);
         mx += dx, my += dy;
-        redraw();
+        setRedraw();
     }
     void onTranslate(float dx, float dy) {
         translate(dx, dy);
-        redraw();
+        setRedraw();
     }
-    void redraw() {
-        _redraw = true;
+    void setRedraw() {
+        redraw = true;
     }
     
-    void readEvents(Ra::SceneList& list) {
-        _redraw = false;
+    void onRedraw(Ra::SceneList& list) {
+        redraw = false;
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
     }
     
-    bool needsRedraw() {  return animating || _redraw;  }
+    bool needsRedraw() {  return animating || redraw;  }
     
-    bool _redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
+    bool redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
