@@ -75,7 +75,7 @@ struct RasterizerState: ViewState {
         } else if (e.type == Event::kMouseMove) {
             mx = e.x, my = e.y;
             if (flags & Event::kShift)
-                timeScale = e.y / (bounds.uy - bounds.ly), timeScale *= timeScale;
+                timeScale = powf(e.y / (bounds.uy - bounds.ly), 2.0);
             written = mouseMove;
         } else
             written = true;
