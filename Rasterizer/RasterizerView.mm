@@ -30,18 +30,17 @@
    self = [super initWithCoder:decoder];
    if (! self)
        return nil;
-    _useCG = false;
-    _useCurves = true;
-    _ctm = Ra::Transform();
-    _clipInset = 0.f;
-   [self initLayer];
+    self.useCG = false;
+    self.useCurves = true;
+    self.ctm = Ra::Transform();
+    self.clipInset = 0.f;
    return self;
 }
 
 - (void)initLayer {
     [self setWantsLayer:YES];
     CGFloat scale = self.layer.contentsScale ?: [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
-    if (_useCG) {
+    if (self.useCG) {
         [self setLayer:[CALayer layer]];
         self.layer.contentsFormat = kCAContentsFormatRGBA8Uint;
         self.layer.delegate = self;
@@ -70,7 +69,7 @@
 
 - (CGColorSpaceRef)writeBuffer:(Ra::Buffer *)buffer forLayer:(CALayer *)layer {
     buffer->clearColor = Ra::Colorant(0xFF, 0xFF, 0xFF, 0xFF);
-    buffer->useCurves = _useCurves;
+    buffer->useCurves = self.useCurves;
     Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
     _renderer.renderList(_sceneList, self.device, deviceClip, self.view, buffer);
     return self.window.colorSpace.CGColorSpace;
@@ -84,7 +83,7 @@
     Ra::Bounds deviceClip = self.device.inset(self.clipInset, self.clipInset);
     CGFloat scale = 1.0 / self.layer.contentsScale;
     CGContextClipToRect(ctx, CGRectApplyAffineTransform(RaCG::CGRectFromBounds(deviceClip), CGAffineTransformMakeScale(scale, scale)) );
-    CGContextConcatCTM(ctx, RaCG::CGFromTransform(_ctm));
+    CGContextConcatCTM(ctx, RaCG::CGFromTransform(self.ctm));
     RaCG::drawList(_sceneList, self.view, self.device, deviceClip, 0.f, ctx);
 }
 
