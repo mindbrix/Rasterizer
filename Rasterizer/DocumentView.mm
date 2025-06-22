@@ -25,6 +25,7 @@
 @property(nonatomic) BOOL showGlyphGrid;
 @property(nonatomic) BOOL showTestScenes;
 @property(nonatomic) size_t pageIndex;
+
 - (void)timerFired:(double)time;
 
 @end
@@ -92,9 +93,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)changeFont:(id)sender {
     self.fnt = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
-    [self writeList: self.fnt];
+    [self writeList];
 }
-- (void)writeList:(NSFont *)fnt {
+- (void)writeList {
+    NSFont *fnt = self.fnt ?: [NSFont fontWithName:@"AppleSymbols" size:14];
     NSURL *url = RaCG::fontURL(fnt.fontName);
     Ra::Ref<RasterizerFont> font;  font->load(url.path.UTF8String, fnt.fontName.UTF8String);
     Ra::SceneList list;
@@ -141,12 +143,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         self.showTestScenes = NO;
         self.showGlyphGrid = !self.showGlyphGrid;
         self.pastedString = nil;
-        [self writeList: self.fnt];
+        [self writeList];
     } else if (keyCode == 17) {
         self.showGlyphGrid = NO;
         self.showTestScenes = !self.showTestScenes;
         self.pastedString = nil;
-        [self writeList: self.fnt];
+        [self writeList];
     } else if (keyCode == 51) {
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
@@ -179,7 +181,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     self.showGlyphGrid = NO;
     self.showTestScenes = NO;
-    [self writeList: self.fnt];
+    [self writeList];
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
