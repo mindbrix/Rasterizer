@@ -32,9 +32,9 @@ struct ViewState {
     void translate(float x, float y) {
         ctm.tx += x, ctm.ty += y;
     }
-    void fit(Ra::Bounds b) {
-        float s = fminf((bounds.ux - bounds.lx) / (b.ux - b.lx), (bounds.uy - bounds.ly) / (b.uy - b.ly));
-        Ra::Transform fit = { s, 0.f, 0.f, s, -s * b.lx, -s * b.ly };
+    void fit(Ra::Bounds listBounds) {
+        float s = fminf(bounds.width() / listBounds.width(), bounds.height() / listBounds.height());
+        Ra::Transform fit = { s, 0.f, 0.f, s, -s * listBounds.lx, -s * listBounds.ly };
         ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
     }
     
