@@ -98,7 +98,6 @@ struct RasterizerState: ViewState {
                     flags = e.flags;
                     break;
                 case Event::kKeyDown:
-                    keyDown = true, keyCode = e.keyCode;
                     if (e.keyCode == KeyCode::k1)
                         animating = !animating;
                     else if (e.keyCode == KeyCode::k0)
@@ -122,7 +121,6 @@ struct RasterizerState: ViewState {
                     }
                     break;
                 case Event::kKeyUp:
-                    keyDown = false, keyCode = e.keyCode;
                     break;
                 case Event::kMagnify:
                     if ((flags & Event::kShift) == 0)
@@ -160,10 +158,9 @@ struct RasterizerState: ViewState {
     
     bool needsRedraw() {  return animating || events.size() > 0;  }
     
-    bool keyDown = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
+    bool mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
-    int keyCode = 0;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
     size_t flags = 0;
     std::vector<Event> events;
