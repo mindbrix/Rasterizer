@@ -37,13 +37,13 @@ struct RasterizerSVG {
                 p->close();
         }
     }
-    static void writeScene(const void *bytes, size_t size, Ra::SceneList& list) {
+    static Ra::Scene createScene(const void *bytes, size_t size) {
         char *data = (char *)malloc(size + 1);
         memcpy(data, bytes, size);
         data[size] = 0;
+        Ra::Scene scene;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
-        if (image) {
-            Ra::Scene scene;
+        if (image) {            
             if (0) {
                 Ra::Path path;
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
@@ -60,9 +60,9 @@ struct RasterizerSVG {
                         scene.addPath(path, Ra::Transform(), colorFromPaint(shape->stroke), shape->strokeWidth, 0);
                 }
             }
-            list.addScene(scene);
             nsvgDelete(image);
         }
         free(data);
+        return scene;
     }
 };

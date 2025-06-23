@@ -20,6 +20,7 @@
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) Ra::SceneList list;
+@property(nonatomic) Ra::Scene svgScene;
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) BOOL showGlyphGrid;
@@ -100,17 +101,17 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSURL *url = RaCG::fontURL(fnt.fontName);
     Ra::Ref<RasterizerFont> font;  font->load(url.path.UTF8String, fnt.fontName.UTF8String);
     Ra::SceneList list;
-    Ra::Scene glyphs;
+    Ra::Colorant textColor(0, 0, 0, 255);
     if (self.pastedString) {
-        RasterizerFont::layoutGlyphs(*font.ptr, float(fnt.pointSize), 0.f, Ra::Colorant(0, 0, 0, 255), RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+        Ra::Scene glyphs;
+        RasterizerFont::layoutGlyphs(*font.ptr, float(fnt.pointSize), 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         list.addScene(glyphs);
     } else if (self.showGlyphGrid) {
-        RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), Ra::Colorant(0, 0, 0, 255), glyphs);
-        list.addScene(glyphs);
+        list.addScene(RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), textColor));
     } else if (self.showTestScenes) {
         _test->addTestScenes(list, _state, _state.bounds, *font.ptr);
     } else if (_svgData != nil)
-        RasterizerSVG::writeScene(_svgData.bytes, _svgData.length, list);
+        list.addScene(RasterizerSVG::createScene(_svgData.bytes, _svgData.length));
     else if (_pdfData != nil)
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
 

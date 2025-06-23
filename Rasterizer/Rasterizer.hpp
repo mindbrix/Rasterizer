@@ -114,7 +114,7 @@ struct Rasterizer {
             }
             return *this;
         }
-        T* operator->() { return ptr; }
+        T* operator->() const { return ptr; }
         T *ptr = nullptr;
     };
     template<typename T>

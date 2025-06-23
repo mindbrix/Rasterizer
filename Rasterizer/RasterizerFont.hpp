@@ -191,15 +191,17 @@ struct RasterizerFont {
                 }
             }
     }
-    static void writeGlyphGrid(RasterizerFont& font, float emSize, Ra::Colorant color, Ra::Scene& scene) {
-        if (font.isEmpty())
-            return;
-        float scale = emSize / float(font.unitsPerEm);
-        for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
-            if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
-                Ra::Path path = font.glyphPath(glyph, false);
-                scene.addPath(path, Ra::Transform(scale, 0.f, 0.f, scale, emSize * float(glyph % d), emSize * float(glyph / d)), color, 0.f, 0);
-            }
+    static Ra::Scene writeGlyphGrid(RasterizerFont& font, float emSize, Ra::Colorant color) {
+        Ra::Scene scene;
+        if (!font.isEmpty()) {
+            float scale = emSize / float(font.unitsPerEm);
+            for (int d = ceilf(sqrtf(font.info.numGlyphs)), glyph = 0; glyph < font.info.numGlyphs; glyph++)
+                if (stbtt_IsGlyphEmpty(& font.info, glyph) == 0) {
+                    Ra::Path path = font.glyphPath(glyph, false);
+                    scene.addPath(path, Ra::Transform(scale, 0.f, 0.f, scale, emSize * float(glyph % d), emSize * float(glyph / d)), color, 0.f, 0);
+                }
+        }
+        return scene;
     }
     static void layoutGlyphsOnArc(Ra::Scene& glyphs, float cx, float cy, float r, float theta, Ra::Scene& scene) {
         Ra::Path path;  Ra::Transform m, ctm;  Ra::Bounds b;  float lx = 0.f, bx, by, rot, px, py, sine, cosine;
