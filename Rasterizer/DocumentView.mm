@@ -19,7 +19,6 @@
 @property(nonatomic) NSFont *fnt;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
-@property(nonatomic) Ra::SceneList list;
 @property(nonatomic) Ra::Scene svgScene;
 @property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) NSString *pastedString;
@@ -83,10 +82,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             self.bounds.size.width,
             self.bounds.size.height
         );
-        _state.onRedraw(_list);
-        RasterizerRenderer::runTransferFunction(_list, RasterizerTest::TransferFunction, & _state);
+        _state.onRedraw();
+        RasterizerRenderer::runTransferFunction(_state.list, RasterizerTest::TransferFunction, & _state);
         
-        [self drawList:_list ctm:_state.ctm useCurves: _state.useCurves];
+        [self drawList:_state.list ctm:_state.ctm useCurves: _state.useCurves];
     }
 }
 
@@ -115,7 +114,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else if (_pdfData != nil)
         RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
 
-    _list = list;
+    _state.list = list;
     _state.setRedraw();
 }
 
@@ -138,7 +137,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (keyCode == 36) {
-        _state.onFit(_list.bounds());
+        _state.onFit();
     } else if (_state.onKeyDown(event.keyCode, event.characters.UTF8String)) {
     } else if (keyCode == 5) {
         self.showTestScenes = NO;
@@ -161,7 +160,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 49) {
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 1)
-        RaCG::screenGrabToPDF(_list, _state.ctm, self.bounds);
+        RaCG::screenGrabToPDF(_state.list, _state.ctm, self.bounds);
     else if (keyCode == 123) {
         if (self.pageIndex > 0) {
             self.pageIndex--;

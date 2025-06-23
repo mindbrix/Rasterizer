@@ -46,8 +46,8 @@ struct RasterizerState {
     }
     void onKeyUp(unsigned short keyCode, const char *chars) {
     }
-    void onFit(Ra::Bounds b) {
-        fit(b);
+    void onFit() {
+        fit(list.bounds());
         setRedraw();
     }
     void onMouseMove(float x, float y) {
@@ -87,7 +87,7 @@ struct RasterizerState {
         setRedraw();
     }
     
-    void onRedraw(Ra::SceneList& list) {
+    void onRedraw() {
         redraw = false;
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
@@ -134,6 +134,8 @@ struct RasterizerState {
     bool getShouldRedraw() const {
         return animating || redraw;
     }
+    
+    Ra::SceneList list;
     
     float scale;
     Ra::Transform ctm;
