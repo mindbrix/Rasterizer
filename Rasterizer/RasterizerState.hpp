@@ -146,6 +146,54 @@ struct RasterizerState {
     float mx, my, outlineWidth = 0.f;
     Ra::Range indices = Ra::Range(INT_MAX, INT_MAX), locked = Ra::Range(INT_MAX, INT_MAX);
     size_t flags = 0;
+    
+#pragma mark - Static
+    
+    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
+        Ra::Bounds *bounds = scn->bnds.base;
+        Ra::Transform *srcCtms = & scn->ctms->src[0], *dstCtms = scn->ctms->base;
+        Ra::Colorant *srcColors = & scn->colors->src[0], *dstColors = scn->colors->base;
+        float *srcWidths = & scn->widths->src[0], *dstWidths = scn->widths->base;
+        uint8_t *srcFlags = & scn->flags->src[0], *dstFlags = scn->flags->base;
+        RasterizerState& state = *((RasterizerState *)info);
+        size_t count = ui - li;
+        Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
+        const float kScaleMin = 1.0f, kScaleMax = 1.2f;
+        float ftime = state.clock - floor(state.clock);
+        float t = sinf(kTau * ftime), s = 1.f - t;
+        float scale = s * kScaleMin + t * kScaleMax, outlineWidth = state.outlineWidth;
+        if (0 && outlineWidth) {
+            black = Ra::Colorant(0, 0, 0, 64), red = Ra::Colorant(0, 0, 255, 64), outlineWidth = -20.f;
+        }
+        if (ftime == 0.f)
+            memcpy(dstCtms + li, srcCtms + li, count * sizeof(srcCtms[0]));
+        else {
+            float cx, cy, cos0 = cosf(M_PI * t), sin0 = sinf(M_PI * t), cos1 = cosf(M_PI * -t), sin1 = sinf(M_PI * -t);
+            Ra::Transform rsts[2] = {
+                { scale * cos0, scale * sin0, scale * -sin0, scale * cos0, 0, 0 },
+                { scale * cos1, scale * sin1, scale * -sin1, scale * cos1, 0, 0 }};
+            Ra::Transform *m = srcCtms + li;  Ra::Bounds *b = bounds + li;
+            for (size_t j = li; j < ui; j++, m++, b++) {
+                cx = 0.5f * (b->lx + b->ux), cy = 0.5f * (b->ly + b->uy);
+                dstCtms[j] = m->preconcat(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
+            }
+        }
+        if (outlineWidth)
+            memset_pattern4(dstWidths + li, & outlineWidth, count * sizeof(srcWidths[0]));
+        else if (ftime == 0.f)
+            memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
+        else
+            for (size_t j = li; j < ui; j++)
+                dstWidths[j] = scale * srcWidths[j];
+        for (size_t j = li; j < ui; j++) {
+            dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
+            if (state.opaque)
+                dstColors[j].a = 255;
+        }
+        for (size_t j = li; j < ui; j++) {
+            dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
+        }
+    }
 };
 
 typedef RasterizerState RaSt;

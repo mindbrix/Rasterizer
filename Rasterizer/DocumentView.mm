@@ -12,6 +12,7 @@
 #import "RasterizerFont.hpp"
 #import "RasterizerTest.hpp"
 #import "RasterizerRenderer.hpp"
+#import "RasterizerState.hpp"
 
 @interface DocumentView () <NSFontChanging>
 
@@ -81,7 +82,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             self.bounds.size.height
         );
         _state.onRedraw();
-        RasterizerRenderer::runTransferFunction(_state.list, RasterizerTest::TransferFunction, & _state);
+        RasterizerRenderer::runTransferFunction(_state.list, RasterizerState::TransferFunction, & _state);
         
         [self drawList:_state.list ctm:_state.ctm useCurves: _state.useCurves];
     }
