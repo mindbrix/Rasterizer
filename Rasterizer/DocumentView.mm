@@ -19,8 +19,6 @@
 @property(nonatomic) NSFont *fnt;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
-@property(nonatomic) Ra::Scene svgScene;
-@property(nonatomic) Ra::Ref<RasterizerTest> test;
 @property(nonatomic) NSString *pastedString;
 @property(nonatomic) BOOL showGlyphGrid;
 @property(nonatomic) BOOL showTestScenes;
@@ -108,7 +106,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (self.showGlyphGrid) {
         list.addScene(RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), textColor));
     } else if (self.showTestScenes) {
-        _test->addTestScenes(list, _state, _state.bounds, *font.ptr);
+        list = RasterizerTest::makeConcentrichron(*font.ptr);
     } else if (_svgData != nil)
         list.addScene(RasterizerSVG::createScene(_svgData.bytes, _svgData.length));
     else if (_pdfData != nil)

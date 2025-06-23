@@ -10,65 +10,14 @@
 #import <time.h>
 
 struct RasterizerTest {
-    void addTestScenes(Ra::SceneList& list, RaSt& state, Ra::Bounds b, RasterizerFont& font) {
-        Ra::Scene scene;
-        Ra::Colorant black(0, 0, 0, 64), red(0, 0, 255, 255), alpha64(0, 0, 0, 64);
-        if (0) {
-            list.empty();
-            float uw = 10, dim = 100, grdim = dim + 2 * uw, w, h, s;  size_t sz, grdsz, i;
-            Ra::Path rectPath, closedRectPath, open2Path, open3Path, open4Path, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0, twoLines, bigRect;
-            
-            rectPath->addBounds(Ra::Bounds(0, 0, dim, dim));
-            closedRectPath->addBounds(Ra::Bounds(0, 0, dim, dim));  closedRectPath->close();
-            open2Path->moveTo(0, 0), open2Path->lineTo(dim, 0), open2Path->lineTo(dim, dim);
-            open3Path->moveTo(0, 0), open3Path->lineTo(dim, 0), open3Path->lineTo(dim, dim), open3Path->lineTo(0, dim);
-            open4Path->moveTo(0, 0), open4Path->lineTo(dim, 0), open4Path->lineTo(dim, dim), open4Path->lineTo(0, dim), open4Path->lineTo(0, 0.5 * dim);
-            closedPath->moveTo(0, 0), closedPath->lineTo(dim, 0), closedPath->lineTo(dim, dim), closedPath->close();
-            cub0->moveTo(0, 0), cub0->cubicTo(0, dim, dim, dim, dim, 0);
-            cub1->moveTo(0, 0), cub1->cubicTo(0, 0, dim, dim, dim, 0);
-            cub3->moveTo(0, 0), cub3->cubicTo(dim, dim, 0, dim, dim, 0);
-            cub2->moveTo(0, 0), cub2->cubicTo(0, dim, dim, 0, dim, 0);
-            zed->moveTo(0, 0), zed->lineTo(5 * dim, 0), zed->lineTo(0, dim), zed->lineTo(5 * dim, dim), zed->lineTo(0, 2 * dim);
-            openTriangle->moveTo(0, 0), openTriangle->lineTo(0, dim), openTriangle->lineTo(dim, dim), openTriangle->lineTo(0, 0);
-            openCircle->addEllipse(Ra::Bounds(0, 0, dim, dim));
-            closedCircle->addEllipse(Ra::Bounds(0, 0, dim, dim)), closedCircle->close();
-            limiter0->moveTo(0, dim), limiter0->lineTo(0, 0), limiter0->lineTo(0.1 * dim, -0.05 * dim), limiter0->lineTo(dim, 0);
-            twoLines->moveTo(0, 0), twoLines->lineTo(0, 0.5 * dim), twoLines->lineTo(0, dim);
-            bigRect->addBounds(Ra::Bounds(0, 0, dim * 1000, dim * 1000)), bigRect->close();
-            
-            std::vector<Ra::Path> paths = { rectPath, closedRectPath, open2Path, open3Path, open4Path, closedPath, cub0, cub1, cub2, cub3, zed, openTriangle, openCircle, closedCircle, limiter0, twoLines, bigRect };
-            
-            for (i = 0; i < 10; i++) {
-                Ra::Path quad;  quad->moveTo(dim, dim), quad->quadTo(-dim + i * 30, dim, 0, 0);
-                paths.emplace_back(quad);
-            }
-            sz = paths.size(), grdsz = ceil(sqrt(sz));
-            for (i = 0; i < sz; i++) {
-                Ra::Path& p = paths[i];
-                w = p->bounds.ux - p->bounds.lx, h = p->bounds.uy - p->bounds.ly, s = dim / (w > h ? w : h);
-                Ra::Transform fit(s, 0, 0, s, (i % grdsz) * grdim - p->bounds.lx, (i / grdsz) * grdim - p->bounds.ly);
-                scene.addPath(p, fit, black, uw, 0);
-            }
-        }
-        if (0)
-            list.empty(), writePhyllotaxisToScene(100000, 0.f, 200, scene);
-        list.addScene(scene);
-        
-        if (0) {
-            float phi = 0.5f * (sqrtf(5.f) - 1.f);
-            float size = 20.f, width = size * phi;
-            list.addScene(createGridScene(10000, size, size * phi, width != 0.f, black));
-        }
-        if (1) {
-            Ra::Bounds bnds(0, 0, 800, 800);
-            createConcentrichronScene(bnds, font, concentrichron.empty());
-            bounds = bnds;
-            list.empty();
-            writeConcentrichronList(concentrichron, bnds, list);
-        }
+    static Ra::SceneList makeConcentrichron(RasterizerFont& font) {
+        Ra::Bounds bnds(0, 0, 800, 800);
+        Ra::SceneList face = makeConcentrichronFace(bnds, font);
+        return setConcentrichronTime(face, bnds);
     }
     
-    static void writeConcentrichronList(Ra::SceneList& src, Ra::Bounds b, Ra::SceneList& list) {
+    static Ra::SceneList setConcentrichronTime(Ra::SceneList& face, Ra::Bounds b) {
+        Ra::SceneList list;
         const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
         time_t t = time(NULL);
         struct tm *lt = localtime(& t);
@@ -82,12 +31,13 @@ struct RasterizerTest {
         float fyear = (lt->tm_year - 120 + (lt->tm_yday / (isLeapYear ? 365.f : 364.f))) / 10.f;
         float ftimes[8] = { 0, fyear, fmonth, fdate, fday, fhour, fmin, fsec }, cosine, sine;
         
-        for (int i = 0; i < src.scenes.size(); i++)
+        for (int i = 0; i < face.scenes.size(); i++)
             if (i > 0 && i < 8) {
                 __sincosf(ftimes[i] * 2.f * M_PI, & sine, & cosine);
-                list.addScene(src.scenes[i], Ra::Transform().preconcat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
+                list.addScene(face.scenes[i], Ra::Transform().preconcat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
             } else
-                list.addScene(src.scenes[i]);
+                list.addScene(face.scenes[i]);
+        return list;
     }
     static float normalizeRadians(float a) { return fmodf(a >= 0.f ? a : (kTau - (fmodf(-a, kTau))), kTau); }
     
@@ -100,7 +50,8 @@ struct RasterizerTest {
         p->moveTo(sx, sx), p->cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
     }
     
-    static void createConcentrichronScene(Ra::Bounds b, RasterizerFont& font, Ra::SceneList& list) {
+    static Ra::SceneList makeConcentrichronFace(Ra::Bounds b, RasterizerFont& font) {
+        Ra::SceneList list;
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };
         const char *months[12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
@@ -108,7 +59,7 @@ struct RasterizerTest {
         const char **labels[8] = { NULL, years, months, dates, days, NULL, NULL, NULL };
         const int divisions[8] = { 0, 10, 12, 31, 7, 24, 60, 60 };
         const Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255), grey0(245, 245, 245, 255), grey1(250, 250, 250, 255);
-        const float strokeWidth = 0.5f, arcWidth = 2.f;
+        const float strokeWidth = 0.5f;
         float w = b.ux - b.lx, h = b.uy - b.ly, dim = w < h ? w : h, inset = dim / 30.f;
         float cx = 0.5f * (b.lx + b.ux), cy = 0.5f * (b.ly + b.uy);
         Ra::Bounds outer = b.inset(0.5f * (w - dim + strokeWidth), 0.5f * (h - dim + strokeWidth));
@@ -153,10 +104,6 @@ struct RasterizerTest {
                     Ra::Scene glyphs;  Ra::Bounds gb = RasterizerFont::layoutGlyphs(font, inset * 0.666f, 0.f, black, b, false, false, false, str.base, glyphs);
                     da = (gb.ux - gb.lx) / r, a0 = theta0 + j * -step - 0.5f * (step - da);
                     
-                    if (0) {
-                        Ra::Path arcPath;  addArcToPath(arcPath, cx, cy, r0 + 0.5f * (strokeWidth + arcWidth), a0 - da, a0);
-                        ring.addPath(arcPath, Ra::Transform(), red, arcWidth, 0);
-                    }
                     RasterizerFont::layoutGlyphsOnArc(glyphs, cx, cy, r, a0, ring);
                 }
             }
@@ -166,34 +113,7 @@ struct RasterizerTest {
         Ra::Path linePath;  linePath->moveTo(cx, outer.uy - inset * 7.f), linePath->lineTo(cx, outer.uy);
         line.addPath(linePath, Ra::Transform(), red, 1.f, 0);
         list.addScene(line);
-    }
-    static Ra::Scene createGridScene(size_t count, float size, float width, bool outline, Ra::Colorant color) {
-        Ra::Scene scene;
-        size_t dim = ceilf(sqrtf(count)), i;
-        for (i = 0; i < count; i++) {
-            float lx = size * (i % dim), ly = size * (i / dim);
-            Ra::Path path;
-            if (outline)
-                path->moveTo(lx, ly + 0.5f * width), path->lineTo(lx + width, ly + 0.5f * width);
-            else
-                path->addBounds(Ra::Bounds(lx, ly, lx + width, ly + width));
-            scene.addPath(path, Ra::Transform(), color, width, 0);
-        }
-        return scene;
-    }
-    static void writePhyllotaxisToScene(size_t count, float w, float dim, Ra::Scene& scene) {
-        Ra::Bounds clip = { -dim, -dim, dim, dim };
-        Ra::Colorant color(0, 0, 0, 255);
-        Ra::Path line;
-        line->addBounds(Ra::Bounds(0, 0, 1, 1)), line->close();
-        const float sine = 0.675490294261524f, cosine = -0.73736887807832f;
-        float vx = 1.f, vy = 0.f, x, y, s, t;
-        for (int i = 0; i < count; i++) {
-            s = sqrtf(i), t = float(i) / float(count);
-            scene.addPath(line, Ra::Transform(1.f + t, 0.f, 0.f, 1.f + t, s * vx - 0.5f, s * vy - 0.5f), color, w, 0, & clip);
-            x = vx * cosine + vy * -sine, y = vx * sine + vy * cosine;
-            vx = x, vy = y;
-        }
+        return list;
     }
     
     static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
@@ -241,8 +161,4 @@ struct RasterizerTest {
             dstFlags[j] = state.locked.begin == INT_MAX ? srcFlags[j] : si == state.locked.begin && j == state.locked.end ? srcFlags[j] & ~Ra::Scene::kInvisible : srcFlags[j] | Ra::Scene::kInvisible;
         }
     }
-
-    size_t refCount = 0;
-    
-    Ra::SceneList concentrichron;  Ra::Bounds bounds;
 };
