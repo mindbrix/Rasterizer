@@ -46,6 +46,12 @@ struct Rasterizer {
         inline float height() const {
             return uy - ly;
         }
+        inline float cx() const {
+            return 0.5f * (lx + ux);
+        }
+        inline float cy() const {
+            return 0.5f * (ly + uy);
+        }
         inline bool contains(const Bounds b) const {
             return lx <= b.lx && ux >= b.ux && ly <= b.ly && uy >= b.uy;
         }

@@ -98,13 +98,13 @@ struct RasterizerState {
 #pragma mark - View state
 
     void magnify(float s, float cx = FLT_MAX, float cy = FLT_MAX) {
-        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
-        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
+        cx = cx == FLT_MAX ? bounds.cx() : cx;
+        cy = cy == FLT_MAX ? bounds.cy() : cy;
         ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
     }
     void rotate(float a, float cx = FLT_MAX, float cy = FLT_MAX) {
-        cx = cx == FLT_MAX ? 0.5f * (bounds.lx + bounds.ux) : cx;
-        cy = cy == FLT_MAX ? 0.5f * (bounds.ly + bounds.uy) : cy;
+        cx = cx == FLT_MAX ? bounds.cx() : cx;
+        cy = cy == FLT_MAX ? bounds.cy() : cy;
         float sine, cosine;  __sincosf(a, & sine, & cosine);
         ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
     }
