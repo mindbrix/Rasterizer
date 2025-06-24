@@ -50,16 +50,16 @@ struct RasterizerRenderer {
     }
     
     void writeBalancedWeightDivisions(Ra::SceneList& list, size_t *divisions) {
-        size_t total = 0, count, base, i, iz, target;
+        size_t total = 0, count, si, i, iz, target;
         for (int j = 0; j < list.scenes.size(); j++)
             total += list.scenes[j].weight;
         divisions[0] = 0, divisions[kContextCount] = list.pathsCount;
         auto scene = & list.scenes[0];
-        for (count = base = iz = 0, i = 1; i < kContextCount; i++) {
-            for (target = total * i / kContextCount; count < target; iz++) {
-                if (iz - base == scene->count)
-                    scene++, base = iz;
-                count += scene->paths->base[iz - base]->types.end;
+        for (count = si = iz = 0, i = 1; i < kContextCount; i++) {
+            for (target = total * i / kContextCount; count < target; iz++, si++) {
+                if (si == scene->count)
+                    scene++, si = 0;
+                count += scene->paths->base[si]->types.end;
             }
             divisions[i] = iz;
         }
