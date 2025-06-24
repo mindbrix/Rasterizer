@@ -87,12 +87,14 @@ struct RasterizerState {
         setRedraw();
     }
     
-    void onRedraw() {
+    void onRedraw(float s, float w, float h) {
+        setViewport(s, w, h);
         redraw = false;
         if (mouseMove)
             indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
+        RasterizerRenderer::runTransferFunction(list, TransferFunction, this);
     }
     
 #pragma mark - View state
@@ -118,7 +120,6 @@ struct RasterizerState {
     }
    
 #pragma mark - Properties
-    
     void setViewport(float s, float w, float h) {
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
     }

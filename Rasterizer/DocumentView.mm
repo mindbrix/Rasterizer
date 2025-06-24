@@ -76,14 +76,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)timerFired:(double)time {
     if (_state.getShouldRedraw()) {
-        _state.setViewport(
+        _state.onRedraw(
             self.layer.contentsScale,
             self.bounds.size.width,
             self.bounds.size.height
         );
-        _state.onRedraw();
-        RasterizerRenderer::runTransferFunction(_state.list, RasterizerState::TransferFunction, & _state);
-        
         [self drawList:_state.list ctm:_state.ctm useCurves: _state.useCurves];
     }
 }
