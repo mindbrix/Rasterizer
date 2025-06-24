@@ -18,7 +18,7 @@ struct RasterizerState {
     void onFlags(size_t keyFlags) {
         flags = keyFlags;
     }
-    bool onKeyDown(unsigned short keyCode, const char *chars) {
+    bool onKeyDown(unsigned short keyCode) {
         bool keyUsed = false;
         
         if (keyCode == KeyCode::k1)
@@ -42,7 +42,7 @@ struct RasterizerState {
             setRedraw();
         return keyUsed;
     }
-    void onKeyUp(unsigned short keyCode, const char *chars) {
+    void onKeyUp(unsigned short keyCode) {
     }
     void onMouseMove(float x, float y) {
         mx = x, my = y;
