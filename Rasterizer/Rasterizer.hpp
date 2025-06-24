@@ -347,10 +347,14 @@ struct Rasterizer {
         };
         template<typename T>
         struct Vector {
-            uint64_t refCount;  T *base;  std::vector<T> src, dst;
-            void add(T obj) {  src.emplace_back(obj), dst.emplace_back(obj), base = & dst[0]; }
+            uint64_t refCount;  T *base;  std::vector<T> dst;
+            void add(T obj) {  dst.emplace_back(obj), base = & dst[0]; }
         };
-        
+        template<typename T>
+        struct RowPair {
+            uint64_t refCount;  T *base;  Row<T> src, dst;
+            void add(T obj) {  *src.alloc(1) = obj, *dst.alloc(1) = obj, base = dst.base;  }
+        };
         enum Flags { kInvisible = 1 << 0, kFillEvenOdd = 1 << 1, kRoundCap = 1 << 2, kSquareCap = 1 << 3 };
         void addPath(Path path, Transform ctm, Colorant color, float width, uint8_t flag, Bounds *clipBounds = nullptr) {
             if (path->isValid()) {
@@ -375,7 +379,7 @@ struct Rasterizer {
         size_t count = 0, weight = 0;  uint64_t tag = 1;
         Ref<Cache<Bounds>> clipCache;
         Ref<Vector<Path>> paths;  Row<Bounds> bnds;
-        Ref<Vector<Transform>> ctms;  Ref<Vector<Colorant>> colors;  Ref<Vector<float>> widths;  Ref<Vector<uint8_t>> flags;
+        Ref<RowPair<Transform>> ctms;  Ref<RowPair<Colorant>> colors;  Ref<RowPair<float>> widths;  Ref<RowPair<uint8_t>> flags;
     };
     typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Scene *scn, void *info);
     
