@@ -19,31 +19,28 @@ struct RasterizerState {
         flags = keyFlags;
     }
     bool onKeyDown(unsigned short keyCode, const char *chars) {
+        bool keyUsed = false;
+        
         if (keyCode == KeyCode::k1)
-            animating = !animating;
+            animating = !animating, keyUsed = true;
         else if (keyCode == KeyCode::k0)
-            clock = 0.0;
+            clock = 0.0, keyUsed = true;
         else if (keyCode == KeyCode::kC)
-            useCurves = !useCurves;
-        else if (keyCode == KeyCode::kF) {
-            fit(list.bounds());
-            setRedraw();
-        } else if (keyCode == KeyCode::kI)
-            opaque = !opaque;
+            useCurves = !useCurves, keyUsed = true;
+        else if (keyCode == KeyCode::kF)
+            fit(list.bounds()), keyUsed = true;
+        else if (keyCode == KeyCode::kI)
+            opaque = !opaque, keyUsed = true;
         else if (keyCode == KeyCode::kO)
-            outlineWidth = outlineWidth ? 0.f : -1.f;
+            outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true;
         else if (keyCode == KeyCode::kP)
-            mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX);
-        else if (keyCode == KeyCode::kL) {
-            locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices;
-        }
-        const KeyCode keyCodes[] = { kC, kF, kI, kO, kP, k0, k1, kL, kReturn };
-        for (int code : keyCodes)
-            if (code == keyCode) {
-                setRedraw();
-                return true;
-            }
-        return false;
+            mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX), keyUsed = true;
+        else if (keyCode == KeyCode::kL)
+            locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices, keyUsed = true;
+        
+        if (keyUsed)
+            setRedraw();
+        return keyUsed;
     }
     void onKeyUp(unsigned short keyCode, const char *chars) {
     }
