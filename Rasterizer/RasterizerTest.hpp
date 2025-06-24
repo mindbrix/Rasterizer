@@ -33,7 +33,7 @@ struct RasterizerTest {
         for (int i = 0; i < face.scenes.size(); i++)
             if (i > 0 && i < 8) {
                 __sincosf(ftimes[i] * 2.f * M_PI, & sine, & cosine);
-                list.addScene(face.scenes[i], Ra::Transform().preconcat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), 0.5f * (b.lx + b.ux), 0.5f * (b.ly + b.uy)));
+                list.addScene(face.scenes[i], Ra::Transform().preconcat(Ra::Transform(cosine, sine, -sine, cosine, 0, 0), b.cx(), b.cy()));
             } else
                 list.addScene(face.scenes[i]);
         return list;
