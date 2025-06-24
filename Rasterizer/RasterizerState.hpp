@@ -10,7 +10,7 @@
 
 
 struct RasterizerState {
-    enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, k1 = 18, k0 = 29, kReturn = 36 };
+    enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
 #pragma mark - Event handlers
@@ -42,7 +42,8 @@ struct RasterizerState {
             mouseMove = !mouseMove, indices = mouseMove ? indices : Ra::Range(INT_MAX, INT_MAX), keyUsed = true;
         else if (keyCode == KeyCode::kL)
             locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices, keyUsed = true;
-        
+        else if (keyCode == KeyCode::kS)
+            RaCG::screenGrabToPDF(list, ctm, bounds);
         if (keyUsed)
             setRedraw();
         return keyUsed;
