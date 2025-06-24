@@ -158,8 +158,9 @@ struct RasterizerPDF {
         Ra::Transform pageCTM(cosine, sine, -sine, cosine, tx, ty);
         return originCTM.concat(pageCTM);
     }
-    
-    static void writeScene(const void *bytes, size_t size, size_t pageIndex, Ra::SceneList& list) {
+
+    static Ra::SceneList writeSceneList(const void *bytes, size_t size, size_t pageIndex) {
+        Ra::SceneList list;
         FPDF_LIBRARY_CONFIG config;
             config.version = 3;
             config.m_pUserFontPaths = nullptr;
@@ -302,5 +303,6 @@ struct RasterizerPDF {
             FPDF_CloseDocument(doc);
         }
         FPDF_DestroyLibrary();
+        return list;
     }
 };

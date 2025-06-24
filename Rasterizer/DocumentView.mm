@@ -108,7 +108,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (_svgData != nil)
         list.addScene(RasterizerSVG::createScene(_svgData.bytes, _svgData.length));
     else if (_pdfData != nil)
-        RasterizerPDF::writeScene(_pdfData.bytes, _pdfData.length, self.pageIndex, list);
+        list.addList(RasterizerPDF::writeSceneList(_pdfData.bytes, _pdfData.length, self.pageIndex));
 
     _state.list = list;
     _state.setRedraw();
