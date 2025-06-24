@@ -132,9 +132,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)keyDown:(NSEvent *)event {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (keyCode == 36) {
-        _state.onFit();
-    } else if (_state.onKeyDown(event.keyCode, event.characters.UTF8String)) {
+    if (_state.onKeyDown(event.keyCode, event.characters.UTF8String)) {
     } else if (keyCode == 5) {
         self.showTestScenes = NO;
         self.showGlyphGrid = !self.showGlyphGrid;

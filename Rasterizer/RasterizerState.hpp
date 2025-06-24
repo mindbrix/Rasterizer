@@ -25,9 +25,10 @@ struct RasterizerState {
             clock = 0.0;
         else if (keyCode == KeyCode::kC)
             useCurves = !useCurves;
-        else if (keyCode == KeyCode::kF)
-            ;
-        else if (keyCode == KeyCode::kI)
+        else if (keyCode == KeyCode::kF) {
+            fit(list.bounds());
+            setRedraw();
+        } else if (keyCode == KeyCode::kI)
             opaque = !opaque;
         else if (keyCode == KeyCode::kO)
             outlineWidth = outlineWidth ? 0.f : -1.f;
@@ -45,10 +46,6 @@ struct RasterizerState {
         return false;
     }
     void onKeyUp(unsigned short keyCode, const char *chars) {
-    }
-    void onFit() {
-        fit(list.bounds());
-        setRedraw();
     }
     void onMouseMove(float x, float y) {
         mx = x, my = y;
