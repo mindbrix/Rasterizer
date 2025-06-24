@@ -158,7 +158,8 @@ struct RasterizerFont {
                 xs[i] = x1;
             x = rtl ? x - x0 : x + x0;
         } while (end < len);
-        writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, opposite, scene, glyphBounds);
+        if (glyphs.size())
+            writeLine(font, scale, color, bounds, & glyphs[0], l0, end, xs, y, rtl, opposite, scene, glyphBounds);
         return glyphBounds;
     }
     static void writeLine(RasterizerFont& font, float scale, Ra::Colorant color, Ra::Bounds bounds, int *glyphs, int l0, int l1, int *xs, int y, bool rtl, bool opposite, Ra::Scene& scene, Ra::Bounds& glyphBounds) {
