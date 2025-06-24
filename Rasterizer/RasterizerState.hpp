@@ -27,9 +27,13 @@ struct RasterizerState {
             clock = 0.0, keyUsed = true;
         else if (keyCode == KeyCode::kC)
             useCurves = !useCurves, keyUsed = true;
-        else if (keyCode == KeyCode::kF)
-            fit(list.bounds()), keyUsed = true;
-        else if (keyCode == KeyCode::kI)
+        else if (keyCode == KeyCode::kF) {
+            Ra::Bounds listBounds = list.bounds();
+            float s = fminf(bounds.width() / listBounds.width(), bounds.height() / listBounds.height());
+            Ra::Transform fit = { s, 0.f, 0.f, s, -s * listBounds.lx, -s * listBounds.ly };
+            ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
+            keyUsed = true;
+        } else if (keyCode == KeyCode::kI)
             opaque = !opaque, keyUsed = true;
         else if (keyCode == KeyCode::kO)
             outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true;
@@ -57,27 +61,26 @@ struct RasterizerState {
     void onMouseUp(float x, float y) {
         mouseDown = false;
     }
-    void onMagnify(float scale) {
-        if ((flags & Flags::kShift) == 0)
-            magnify(scale);
-        else
-            magnify(scale, mx, my);
+    void onMagnify(float s) {
+        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
+        float cy = (flags & Flags::kShift) ? my : bounds.cy();
+        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
         setRedraw();
     }
-    void onRotate(float angle) {
-        if ((flags & Flags::kShift) == 0)
-            rotate(angle);
-        else
-            rotate(angle, mx, my);
+    void onRotate(float a) {
+        float cx = (flags & Flags::kShift) ? mx : bounds.cx();
+        float cy = (flags & Flags::kShift) ? my : bounds.cy();
+        float sine, cosine;  __sincosf(a, & sine, & cosine);
+        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
         setRedraw();
     }
     void onDrag(float dx, float dy) {
-        translate(dx, dy);
+        ctm.tx += dx, ctm.ty += dy;
         mx += dx, my += dy;
         setRedraw();
     }
     void onTranslate(float dx, float dy) {
-        translate(dx, dy);
+        ctm.tx += dx, ctm.ty += dy;
         setRedraw();
     }
     
@@ -89,28 +92,6 @@ struct RasterizerState {
         if (animating)
             clock += timeScale / 60.0;
         RasterizerRenderer::runTransferFunction(list, TransferFunction, this);
-    }
-    
-#pragma mark - View state
-
-    void magnify(float s, float cx = FLT_MAX, float cy = FLT_MAX) {
-        cx = cx == FLT_MAX ? bounds.cx() : cx;
-        cy = cy == FLT_MAX ? bounds.cy() : cy;
-        ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-    }
-    void rotate(float a, float cx = FLT_MAX, float cy = FLT_MAX) {
-        cx = cx == FLT_MAX ? bounds.cx() : cx;
-        cy = cy == FLT_MAX ? bounds.cy() : cy;
-        float sine, cosine;  __sincosf(a, & sine, & cosine);
-        ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-    }
-    void translate(float x, float y) {
-        ctm.tx += x, ctm.ty += y;
-    }
-    void fit(Ra::Bounds listBounds) {
-        float s = fminf(bounds.width() / listBounds.width(), bounds.height() / listBounds.height());
-        Ra::Transform fit = { s, 0.f, 0.f, s, -s * listBounds.lx, -s * listBounds.ly };
-        ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
     }
    
 #pragma mark - Properties
