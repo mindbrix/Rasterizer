@@ -17,6 +17,7 @@ struct RasterizerState {
 
     void onFlags(size_t keyFlags) {
         flags = keyFlags;
+        setRedraw();
     }
     bool onKeyDown(unsigned short keyCode) {
         bool keyUsed = false;
