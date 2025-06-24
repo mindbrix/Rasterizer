@@ -92,7 +92,7 @@ struct RasterizerState {
             indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
-        RasterizerRenderer::runTransferFunction(list, TransferFunction, this);
+        runTransferFunction(list, TransferFunction, this);
     }
    
 #pragma mark - Properties
@@ -125,6 +125,22 @@ struct RasterizerState {
     size_t flags = 0;
     
 #pragma mark - Static
+    
+    static void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction, void *state) {
+        if (transferFunction == nullptr)
+            return;
+        for (int si = 0; si < list.scenes.size(); si++) {
+            int threads = 8;
+            Ra::Scene *scn = & list.scenes[si];
+            std::vector<size_t> divisions;
+            divisions.emplace_back(0);
+            for (int i = 0; i < threads; i++)
+                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
+            dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
+                (*transferFunction)(divisions[i], divisions[i + 1], si, scn, state);
+            });
+        }
+    }
     
     static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
         Ra::Bounds *bounds = scn->bnds.base;

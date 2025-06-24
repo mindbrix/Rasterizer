@@ -8,22 +8,6 @@
 
 
 struct RasterizerRenderer {
-    static void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction, void *state) {
-        if (transferFunction == nullptr)
-            return;
-        for (int si = 0; si < list.scenes.size(); si++) {
-            int threads = 8;
-            Ra::Scene *scn = & list.scenes[si];
-            std::vector<size_t> divisions;
-            divisions.emplace_back(0);
-            for (int i = 0; i < threads; i++)
-                divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
-            dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*transferFunction)(divisions[i], divisions[i + 1], si, scn, state);
-            });
-        }
-    }
-    
     void renderList(Ra::SceneList& list, Ra::Bounds device, Ra::Bounds deviceClip, Ra::Transform view, Ra::Buffer *buffer) {
         assert(sizeof(uint32_t) == sizeof(Ra::Colorant));
         if (list.pathsCount == 0)
@@ -64,8 +48,9 @@ struct RasterizerRenderer {
             divisions[i] = iz;
         }
     }
-    static const int kContextCount = 8;
     void reset() { for (auto& ctx : contexts) ctx.reset(); }
+    
+    static const int kContextCount = 8;
     Ra::Context contexts[kContextCount];
  };
 
