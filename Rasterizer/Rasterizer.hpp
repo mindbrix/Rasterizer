@@ -394,7 +394,7 @@ struct Rasterizer {
             pathsCount = 0, scenes.resize(0), ctms.resize(0);
             return *this;
         }
-        SceneList& addList(SceneList& list) {
+        SceneList& addList(SceneList list) {
             for (int i = 0; i < list.scenes.size(); i++)
                 addScene(list.scenes[i], list.ctms[i]);
             return *this;
