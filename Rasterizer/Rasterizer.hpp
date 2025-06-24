@@ -126,10 +126,11 @@ struct Rasterizer {
     template<typename T>
     struct Row {
         inline T *alloc(size_t n) {
+            size_t begin = end;
             end += n;
             if (memory->size < end)
                 memory->resize(end * 1.5), base = memory->addr;
-            return base + end - n;
+            return base + begin;
         }
         inline T *zalloc(size_t n) {
             return (T*)memset(alloc(n), 0, n * sizeof(T));
