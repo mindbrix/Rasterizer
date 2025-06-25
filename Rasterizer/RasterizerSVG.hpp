@@ -21,7 +21,8 @@ struct RasterizerSVG {
             return colorFromSVGColor(paint.gradient->stops[0].color);
     }
     static inline float lengthsq(float x0, float y0, float x1, float y1) {
-        return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
+        float dx = x1 - x0, dy = y1 - y0;
+        return dx * dx + dy * dy;
     }
     static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
         constexpr float tolerance = 1e-2f;  float *pts, dot;  int i;
