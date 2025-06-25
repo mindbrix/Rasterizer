@@ -91,10 +91,8 @@ struct RasterizerWinding {
         Ra::Bounds clip = Ra::Bounds(unit);
         float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
         if (clip.lx < clip.ux && clip.ly < clip.uy && ux >= 0.f && ux <= 1.f && uy >= 0.f && uy <= 1.f) {
-            if (w)
-                Ra::divideGeometry(g, m, clip, false, false, cntr);
-            else
-                Ra::divideGeometry(g, m, clip, false, true, cntr);
+            bool polygon = w != 0.f;
+            Ra::divideGeometry(g, m, clip, false, polygon, cntr);
         }
         return cntr.winding;
     }
