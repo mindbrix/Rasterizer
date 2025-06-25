@@ -40,13 +40,14 @@ struct RasterizerSVG {
                 p->close();
         }
     }
-    static Ra::Scene createScene(const void *bytes, size_t size) {
-        char *data = (char *)malloc(size + 1);
-        memcpy(data, bytes, size);
-        data[size] = 0;
+    static Ra::Scene createScene(const void *data, size_t size) {
+        char *terminated = (char *)malloc(size + 1);
+        memcpy(terminated, data, size);
+        terminated[size] = 0;
+        
         Ra::Scene scene;
-        struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
-        if (image) {            
+        struct NSVGimage *image = terminated ? nsvgParse(terminated, "px", 96) : NULL;
+        if (image) {
             if (kWriteOneBigPath) {
                 Ra::Path path;
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
@@ -65,7 +66,7 @@ struct RasterizerSVG {
             }
             nsvgDelete(image);
         }
-        free(data);
+        free(terminated);
         return scene;
     }
 };
