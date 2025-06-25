@@ -9,6 +9,8 @@
 #import "nanosvg.h"
 
 struct RasterizerSVG {
+    static const bool kWriteOneBigPath = false;
+    
     static inline Ra::Colorant colorFromSVGColor(int color) {
         return Ra::Colorant((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >> 24);
     }
@@ -44,7 +46,7 @@ struct RasterizerSVG {
         Ra::Scene scene;
         struct NSVGimage* image = data ? nsvgParse(data, "px", 96) : NULL;
         if (image) {            
-            if (0) {
+            if (kWriteOneBigPath) {
                 Ra::Path path;
                 for (NSVGshape *shape = image->shapes; shape != NULL; shape = shape->next)
                     if (shape->fill.type != NSVG_PAINT_NONE)
