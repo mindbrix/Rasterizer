@@ -91,11 +91,11 @@ struct RasterizerState {
     void onRedraw(float s, float w, float h) {
         setViewport(s, w, h);
         redraw = false;
-        if (mouseMove)
-            indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
         runTransferFunction(list, transferFunction, this);
+        if (mouseMove)
+            indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
     }
    
 #pragma mark - Properties
