@@ -10,6 +10,8 @@
 
 
 struct RasterizerState {
+    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info);
+    
     enum KeyCode { kC = 8, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
@@ -93,7 +95,7 @@ struct RasterizerState {
             indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
         if (animating)
             clock += timeScale / 60.0;
-        runTransferFunction(list, TransferFunction, this);
+        runTransferFunction(list, transferFunction, this);
     }
    
 #pragma mark - Properties
@@ -127,8 +129,8 @@ struct RasterizerState {
     
 #pragma mark - Static
     
-    static void runTransferFunction(Ra::SceneList& list, Ra::TransferFunction transferFunction, void *state) {
-        if (transferFunction == nullptr)
+    static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *state) {
+        if (function == nullptr)
             return;
         for (int si = 0; si < list.scenes.size(); si++) {
             int threads = 8;
@@ -138,12 +140,12 @@ struct RasterizerState {
             for (int i = 0; i < threads; i++)
                 divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
             dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*transferFunction)(divisions[i], divisions[i + 1], si, scn, state);
+                (*function)(divisions[i], divisions[i + 1], si, scn, state);
             });
         }
     }
     
-    static void TransferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
+    static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
         Ra::Bounds *bounds = scn->bnds.base;
         Ra::Transform *srcCtms = scn->ctms->src.base, *dstCtms = scn->ctms->base;
         Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
