@@ -538,8 +538,7 @@ struct Rasterizer {
                         invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
                         clipBounds = Bounds(clipquad).integral().intersect(deviceClip);
                     }
-                    bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad);
-                    dev.lx -= width, dev.ly -= width, dev.ux += width, dev.uy += width;
+                    bnds = & scn->bnds.base[is], quad = bnds->quad(m), dev = Bounds(quad).inset(-width, -width);
                     clip = dev.integral().intersect(clipBounds);
                     if (clip.lx < clip.ux && clip.ly < clip.uy) {
                         ctms[iz] = m, widths[iz] = width, clips[iz] = invclip;
