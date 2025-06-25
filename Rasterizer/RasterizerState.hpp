@@ -176,8 +176,9 @@ struct RasterizerState {
             }
         }
         if (outlineWidth) {
-            float hairline = fabsf(outlineWidth) / state.getView().concat(ctm).scale();
-            memset_pattern4(dstWidths + li, & hairline, count * sizeof(srcWidths[0]));
+            float scale = fabsf(outlineWidth) / state.getView().concat(ctm).scale();
+            for (size_t j = li; j < ui; j++)
+                dstWidths[j] = scale / dstCtms[j].scale();
         } else if (ftime == 0.f)
             memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         else

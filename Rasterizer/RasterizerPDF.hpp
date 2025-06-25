@@ -14,7 +14,7 @@
 
 
 struct RasterizerPDF {
-    static const bool kWriteTextBoxes = true;
+    static const bool kWriteTextBoxes = false;
     
     struct PathWriter {
         float x, y;
