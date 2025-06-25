@@ -10,7 +10,7 @@
 
 
 struct RasterizerState {
-    enum KeyCode { kC = 8, kF = 3, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
+    enum KeyCode { kC = 8, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
 #pragma mark - Event handlers
@@ -28,7 +28,7 @@ struct RasterizerState {
             clock = 0.0, keyUsed = true;
         else if (keyCode == KeyCode::kC)
             useCurves = !useCurves, keyUsed = true;
-        else if (keyCode == KeyCode::kF) {
+        else if (keyCode == KeyCode::kReturn) {
             Ra::Bounds listBounds = list.bounds();
             float s = fminf(bounds.width() / listBounds.width(), bounds.height() / listBounds.height());
             Ra::Transform fit = { s, 0.f, 0.f, s, -s * listBounds.lx, -s * listBounds.ly };
