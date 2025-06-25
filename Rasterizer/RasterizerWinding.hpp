@@ -31,7 +31,7 @@ struct RasterizerWinding {
                     }
                     float ux = inv.a * dx + inv.c * dy + inv.tx, uy = inv.b * dx + inv.d * dy + inv.ty;
                     if (ux >= 0.f && ux < 1.f && uy >= 0.f && uy < 1.f) {
-                        int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], ctm.concat(scene.ctms->base[si]), device, dx, dy, scene.widths->base[si], scene.flags->base[si]);
+                        int winding = pointWinding(scene.paths->base[si].ptr, scene.bnds.base[si], ctm.concat(scene.ctms->base[si]), dx, dy, scene.widths->base[si], scene.flags->base[si]);
                         bool even = scene.flags->base[si] & Ra::Scene::kFillEvenOdd;
                         if ((even && (winding & 1)) || (!even && winding))
                             return Ra::Range(li, si);
@@ -83,7 +83,7 @@ struct RasterizerWinding {
         }
     };
     
-    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, Ra::Bounds device, float dx, float dy, float w, uint8_t flags) {
+    static int pointWinding(Ra::Geometry *g, Ra::Bounds bounds, Ra::Transform m, float dx, float dy, float w, uint8_t flags) {
         float ws = m.scale(), uw = w < 0.f ? -w / ws : w;
         Counter cntr;  cntr.dx = dx, cntr.dy = dy, cntr.dw = w * (w < 0.f ? -1.f : ws), cntr.flags = flags;
         cntr.quadraticScale = cntr.cubicScale = 1.f;
