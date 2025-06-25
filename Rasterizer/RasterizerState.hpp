@@ -10,8 +10,6 @@
 
 
 struct RasterizerState {
-    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info);
-    
     enum KeyCode { kC = 8, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
@@ -128,6 +126,8 @@ struct RasterizerState {
     size_t flags = 0;
     
 #pragma mark - Static
+    typedef void (*TransferFunction)(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info);
+    
     
     static void runTransferFunction(Ra::SceneList& list, TransferFunction function, void *state) {
         if (function == nullptr)
@@ -135,17 +135,18 @@ struct RasterizerState {
         for (int si = 0; si < list.scenes.size(); si++) {
             int threads = 8;
             Ra::Scene *scn = & list.scenes[si];
+            Ra::Transform ctm = list.ctms[si];
             std::vector<size_t> divisions;
             divisions.emplace_back(0);
             for (int i = 0; i < threads; i++)
                 divisions.emplace_back(ceilf(float(i + 1) / float(threads) * float(scn->count)));
             dispatch_apply(threads, DISPATCH_APPLY_AUTO, ^(size_t i) {
-                (*function)(divisions[i], divisions[i + 1], si, scn, state);
+                (*function)(divisions[i], divisions[i + 1], si, scn, ctm, state);
             });
         }
     }
     
-    static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, void *info) {
+    static void transferFunction(size_t li, size_t ui, size_t si, Ra::Scene *scn, Ra::Transform ctm, void *info) {
         Ra::Bounds *bounds = scn->bnds.base;
         Ra::Transform *srcCtms = scn->ctms->src.base, *dstCtms = scn->ctms->base;
         Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
@@ -174,13 +175,15 @@ struct RasterizerState {
                 dstCtms[j] = m->preconcat(rsts[j & 1], cx * m->a + cy * m->c + m->tx, cx * m->b + cy * m->d + m->ty);
             }
         }
-        if (outlineWidth)
-            memset_pattern4(dstWidths + li, & outlineWidth, count * sizeof(srcWidths[0]));
-        else if (ftime == 0.f)
+        if (outlineWidth) {
+            float hairline = fabsf(outlineWidth) / state.getView().concat(ctm).scale();
+            memset_pattern4(dstWidths + li, & hairline, count * sizeof(srcWidths[0]));
+        } else if (ftime == 0.f)
             memcpy(dstWidths + li, srcWidths + li, count * sizeof(srcWidths[0]));
         else
             for (size_t j = li; j < ui; j++)
                 dstWidths[j] = scale * srcWidths[j];
+        
         for (size_t j = li; j < ui; j++) {
             dstColors[j] = (state.indices.begin == si && state.indices.end == j) ? red : state.outlineWidth != 0.f ? (srcWidths[j] ? red : black) : srcColors[j];
             if (state.opaque)
