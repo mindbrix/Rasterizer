@@ -156,11 +156,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 123) {
         if (self.pageIndex > 0) {
             self.pageIndex--;
-            [self changeFont:nil];
+            [self writeList];
         }
     } else if (keyCode == 124) {
         self.pageIndex++;
-        [self changeFont:nil];
+        [self writeList];
     } else
         [super keyDown:event];
     
