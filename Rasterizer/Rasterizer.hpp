@@ -121,7 +121,7 @@ struct Rasterizer {
     struct Memory {
         ~Memory() { if (addr) free(addr); }
         void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
-        size_t refCount = 0, size = 0;  T *addr = nullptr;
+        size_t refCount, size = 0;  T *addr = nullptr;
     };
     template<typename T>
     struct Row {
@@ -277,7 +277,7 @@ struct Rasterizer {
             xxhash = xxhash ?: XXH64(points.base, points.end * sizeof(float), XXH64(types.base, types.end * sizeof(uint8_t), 0));
             return xxhash;
         }
-        size_t refCount = 0, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
+        size_t refCount, xxhash = 0, minUpper = 0, cubicSums = 0, counts[kCountSize] = { 0, 0, 0, 0, 0 };
         float x0 = 0.f, y0 = 0.f, maxCurve = 0.f;  Row<uint8_t> types;  Row<float> points;
         Bounds bounds;  Row<Bounds> molecules;
         Row<Point16> p16s;  Row<uint8_t> p16cnts;  Row<Atom> atoms;
@@ -343,7 +343,7 @@ struct Rasterizer {
                 }
                 return e;
             }
-            size_t refCount = 0;  Row<uint32_t> ips;  Row<T> entries;  std::unordered_map<size_t, uint32_t> map;
+            size_t refCount;  Row<uint32_t> ips;  Row<T> entries;  std::unordered_map<size_t, uint32_t> map;
         };
         template<typename T>
         struct Vector {
