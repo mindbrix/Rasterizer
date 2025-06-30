@@ -37,10 +37,9 @@ struct RasterizerState {
     void onPaste(const char *string, Ra::Bounds bounds) {
         this->bounds = bounds;
         
-        setPastedString(string);
         showGlyphGrid = false;
         showTestScenes = false;
-        writeList();
+        setPastedString(string);
     }
     void onFlags(size_t keyFlags) {
         flags = keyFlags;
@@ -75,13 +74,11 @@ struct RasterizerState {
             showGlyphGrid = false;
             showTestScenes = !showTestScenes;
             setPastedString(nullptr);
-            writeList();
             keyUsed = true;
         } else if (keyCode == KeyCode::kG) {
             showTestScenes = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
-            writeList();
             keyUsed = true;
         } else if (keyCode == KeyCode::kLeft) {
             if (pageIndex > 0) {
@@ -157,6 +154,7 @@ struct RasterizerState {
     void setFont(const char *url, const char *name, float size) {
         pointSize = size;
         font.load(url, name);
+        writeList();
     }
     void setList(Ra::SceneList list) {
         this->list = list, redraw = true;
@@ -166,14 +164,17 @@ struct RasterizerState {
             strcpy((char *)pastedString.resize(strlen(string) + 1), string);
         else
             pastedString = Ra::Memory<char>();
+        writeList();
     }
     void setPdfData(const void *data, size_t size) {
         if (data)
             memcpy(pdfData.resize(size), data, size);
+        writeList();
     }
     void setSvgData(const void *data, size_t size) {
         if (data)
             memcpy(svgData.resize(size), data, size);
+        writeList();
     }
     
     RasterizerFont font;

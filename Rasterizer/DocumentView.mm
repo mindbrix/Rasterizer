@@ -85,7 +85,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
-    _state.writeList();
 }
 
 
@@ -166,16 +165,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)setPdfData:(NSData *)pdfData {
-    if (pdfData) {
+    if (pdfData)
         _state.setPdfData(pdfData.bytes, pdfData.length);
-        _state.writeList();
-    }
 }
 
 - (void)setSvgData:(NSData *)svgData {
-    if (svgData) {
+    if (svgData)
         _state.setSvgData(svgData.bytes, svgData.length);
-        _state.writeList();
-    }
 }
 @end
