@@ -132,6 +132,7 @@ struct RasterizerState {
     Ra::SceneList list;
     
     Ra::Memory<char> pastedString;
+    bool showGlyphGrid = false, showTestScenes = false;
     Ra::Memory<uint8_t> pdfData, svgData;
     
     float scale;

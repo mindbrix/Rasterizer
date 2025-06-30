@@ -20,8 +20,6 @@
 @property(nonatomic) NSFont *font;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
-@property(nonatomic) BOOL showGlyphGrid;
-@property(nonatomic) BOOL showTestScenes;
 @property(nonatomic) size_t pageIndex;
 
 - (void)timerFired:(double)time;
@@ -99,9 +97,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         Ra::Scene glyphs;
         RasterizerFont::layoutGlyphs(font, _state.pointSize, 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, _state.pastedString.addr, glyphs);
         list.addScene(glyphs);
-    } else if (self.showGlyphGrid) {
+    } else if (_state.showGlyphGrid) {
         list.addScene(RasterizerFont::writeGlyphGrid(font, _state.pointSize, textColor));
-    } else if (self.showTestScenes) {
+    } else if (_state.showTestScenes) {
         list = RasterizerTest::makeConcentrichron(font);
     } else if (_state.svgData.size)
         list.addScene(RasterizerSVG::createScene(_state.svgData.addr, _state.svgData.size));
@@ -131,13 +129,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     int keyCode = event.keyCode;
     if (_state.onKeyDown(event.keyCode)) {
     } else if (keyCode == 5) {
-        self.showTestScenes = NO;
-        self.showGlyphGrid = !self.showGlyphGrid;
+        _state.showTestScenes = NO;
+        _state.showGlyphGrid = !_state.showGlyphGrid;
         _state.setPastedString(nullptr);
         [self writeList];
     } else if (keyCode == 17) {
-        self.showGlyphGrid = NO;
-        self.showTestScenes = !self.showTestScenes;
+        _state.showGlyphGrid = NO;
+        _state.showTestScenes = !_state.showTestScenes;
         _state.setPastedString(nullptr);
         [self writeList];
     } else if (keyCode == 51) {
@@ -170,8 +168,8 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSString *pasted = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     _state.setPastedString(pasted.UTF8String);
     
-    self.showGlyphGrid = NO;
-    self.showTestScenes = NO;
+    _state.showGlyphGrid = NO;
+    _state.showTestScenes = NO;
     [self writeList];
 }
 
