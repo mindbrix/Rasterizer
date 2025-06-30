@@ -34,6 +34,14 @@ struct RasterizerState {
     
 #pragma mark - Event handlers
 
+    void onPaste(const char *string, Ra::Bounds bounds) {
+        this->bounds = bounds;
+        
+        setPastedString(string);
+        showGlyphGrid = false;
+        showTestScenes = false;
+        writeList();
+    }
     void onFlags(size_t keyFlags) {
         flags = keyFlags;
         redraw = true;

@@ -127,11 +127,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
     NSString *pasted = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    _state.bounds = RaCG::BoundsFromCGRect(self.bounds);
-    _state.setPastedString(pasted.UTF8String);
-    _state.showGlyphGrid = NO;
-    _state.showTestScenes = NO;
-    _state.writeList();
+    _state.onPaste(pasted.UTF8String, RaCG::BoundsFromCGRect(self.bounds));
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
