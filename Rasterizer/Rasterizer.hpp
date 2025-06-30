@@ -119,8 +119,14 @@ struct Rasterizer {
     };
     template<typename T>
     struct Memory {
-        ~Memory() { if (addr) free(addr); }
-        void resize(size_t n) { size = n, addr = (T *)realloc(addr, size * sizeof(T)); }
+        ~Memory() {
+            if (addr)
+                free(addr);
+        }
+        T *resize(size_t n) {
+            size = n, addr = (T *)realloc(addr, n * sizeof(T));
+            return addr;
+        }
         size_t refCount, size = 0;  T *addr = nullptr;
     };
     template<typename T>
@@ -129,7 +135,7 @@ struct Rasterizer {
             size_t begin = end;
             end += n;
             if (memory->size < end)
-                memory->resize(end * 1.5), base = memory->addr;
+                base = memory->resize(end * 1.5);
             return base + begin;
         }
         inline T *zalloc(size_t n) {
