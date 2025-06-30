@@ -110,8 +110,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     else if (_pdfData != nil)
         list.addList(RasterizerPDF::writeSceneList(_pdfData.bytes, _pdfData.length, self.pageIndex));
 
-    _state.list = list;
-    _state.setRedraw();
+    _state.setList(list);
 }
 
 

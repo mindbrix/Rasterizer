@@ -17,7 +17,7 @@ struct RasterizerState {
 
     void onFlags(size_t keyFlags) {
         flags = keyFlags;
-        setRedraw();
+        redraw = true;
     }
     bool onKeyDown(unsigned short keyCode) {
         bool keyUsed = false;
@@ -45,7 +45,7 @@ struct RasterizerState {
         else if (keyCode == KeyCode::kS)
             RaCG::screenGrabToPDF(list, ctm, bounds), keyUsed = true;
         if (keyUsed)
-            setRedraw();
+            redraw = true;
         return keyUsed;
     }
     void onKeyUp(unsigned short keyCode) {
@@ -55,7 +55,7 @@ struct RasterizerState {
         if (flags & Flags::kShift)
             timeScale = powf(y / (bounds.uy - bounds.ly), 2.0);
         if (mouseMove)
-            setRedraw();
+            redraw = true;
     }
     void onMouseDown(float x, float y) {
         mouseDown = true;
@@ -67,50 +67,45 @@ struct RasterizerState {
         float cx = (flags & Flags::kShift) ? mx : bounds.cx();
         float cy = (flags & Flags::kShift) ? my : bounds.cy();
         ctm = ctm.preconcat(Ra::Transform(s, 0.f, 0.f, s, 0.f, 0.f), cx, cy);
-        setRedraw();
+        redraw = true;
     }
     void onRotate(float a) {
         float cx = (flags & Flags::kShift) ? mx : bounds.cx();
         float cy = (flags & Flags::kShift) ? my : bounds.cy();
         float sine, cosine;  __sincosf(a, & sine, & cosine);
         ctm = ctm.preconcat(Ra::Transform(cosine, sine, - sine, cosine, 0, 0), cx, cy);
-        setRedraw();
+        redraw = true;
     }
     void onDrag(float dx, float dy) {
         ctm.tx += dx, ctm.ty += dy;
         mx += dx, my += dy;
-        setRedraw();
+        redraw = true;
     }
     void onTranslate(float dx, float dy) {
         ctm.tx += dx, ctm.ty += dy;
-        setRedraw();
+        redraw = true;
     }
     
     void onRedraw(float s, float w, float h) {
-        setViewport(s, w, h);
+        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
         redraw = false;
         if (animating)
             clock += timeScale / 60.0;
         runTransferFunction(list, transferFunction, this);
         if (mouseMove)
-            indices = RasterizerWinding::indicesForPoint(list, getView(), getDevice(), scale * mx, scale * my);
+            indices = RasterizerWinding::indicesForPoint(list, getView(), Ra::Bounds(0.f, 0.f, ceilf(s * w), ceilf(s * h)), s * mx, s * my);
     }
    
 #pragma mark - Properties
-    void setViewport(float s, float w, float h) {
-        scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
-    }
+    
     Ra::Transform getView() const {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
     }
-    Ra::Bounds getDevice() const {
-        return Ra::Bounds(0.f, 0.f, ceilf(scale * bounds.ux), ceilf(scale * bounds.uy));
-    }
-    void setRedraw() {
-        redraw = true;
-    }
     bool getShouldRedraw() const {
         return animating || redraw;
+    }
+    void setList(Ra::SceneList list) {
+        this->list = list, redraw = true;
     }
     
     Ra::SceneList list;
@@ -118,7 +113,7 @@ struct RasterizerState {
     float scale;
     Ra::Transform ctm;
     Ra::Bounds bounds;
-    
+
     bool redraw = false, mouseDown = false, mouseMove = false, useCurves = true, animating = false, opaque = false;
     double clock = 0.0, timeScale = 0.333;
     float mx, my, outlineWidth = 0.f;
