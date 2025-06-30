@@ -20,7 +20,6 @@
 @property(nonatomic) NSFont *fnt;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
-@property(nonatomic) NSString *pastedString;
 @property(nonatomic) BOOL showGlyphGrid;
 @property(nonatomic) BOOL showTestScenes;
 @property(nonatomic) size_t pageIndex;
@@ -134,12 +133,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 5) {
         self.showTestScenes = NO;
         self.showGlyphGrid = !self.showGlyphGrid;
-        self.pastedString = nil;
+        _state.setPastedString(nullptr);
         [self writeList];
     } else if (keyCode == 17) {
         self.showGlyphGrid = NO;
         self.showTestScenes = !self.showTestScenes;
-        self.pastedString = nil;
+        _state.setPastedString(nullptr);
         [self writeList];
     } else if (keyCode == 51) {
         self.useCG = !self.useCG;
@@ -171,7 +170,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     NSString *pasted = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     _state.setPastedString(pasted.UTF8String);
     
-	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     self.showGlyphGrid = NO;
     self.showTestScenes = NO;
     [self writeList];

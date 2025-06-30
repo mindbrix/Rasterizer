@@ -114,6 +114,8 @@ struct RasterizerState {
     void setPastedString(const char *string) {
         if (string)
             strcpy((char *)pastedString.resize(strlen(string) + 1), string);
+        else
+            pastedString = Ra::Memory<char>();
     }
     void setPdfData(const void *data, size_t size) {
         if (data)
