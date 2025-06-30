@@ -17,7 +17,7 @@
 @interface DocumentView () <NSFontChanging>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) NSFont *fnt;
+@property(nonatomic) NSFont *font;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
 @property(nonatomic) BOOL showGlyphGrid;
@@ -49,7 +49,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
-    self.fnt = nil;
+    self.font = nil;
     self.pageIndex = 0;
     [self startTimer];
     return self;
@@ -88,7 +88,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 #pragma mark - NSFontManager
 
 - (void)changeFont:(id)sender {
-    self.fnt = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
+    self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
     [self writeList];
 }
 - (void)writeList {
@@ -203,13 +203,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - Properies
 
-- (void)setFnt:(NSFont *)fnt {
-    _fnt = fnt;
-    
-    NSFont *font = _fnt ?: [NSFont fontWithName:@"AppleSymbols" size:14];
-    NSURL *url = RaCG::fontURL(font.fontName);
-    _state.setFont(url.path.UTF8String, font.fontName.UTF8String, font.pointSize);
+- (void)setFont:(NSFont *)font {
+    _font = font ?: [NSFont fontWithName:@"AppleSymbols" size:14];
+
+    NSURL *url = RaCG::fontURL(_font.fontName);
+    _state.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
 }
+
 - (void)setPdfData:(NSData *)pdfData {
     if (pdfData) {
         _state.setPdfData(pdfData.bytes, pdfData.length);
