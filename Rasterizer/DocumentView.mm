@@ -96,9 +96,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     RasterizerFont& font = _state.font;
     Ra::SceneList list;
     Ra::Colorant textColor(0, 0, 0, 255);
-    if (self.pastedString) {
+    if (_state.pastedString.size) {
         Ra::Scene glyphs;
-        RasterizerFont::layoutGlyphs(font, _state.pointSize, 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+        RasterizerFont::layoutGlyphs(font, _state.pointSize, 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, _state.pastedString.addr, glyphs);
         list.addScene(glyphs);
     } else if (self.showGlyphGrid) {
         list.addScene(RasterizerFont::writeGlyphGrid(font, _state.pointSize, textColor));
@@ -168,6 +168,9 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)paste:(id)sender {
+    NSString *pasted = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
+    _state.setPastedString(pasted.UTF8String);
+    
 	self.pastedString = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
     self.showGlyphGrid = NO;
     self.showTestScenes = NO;
