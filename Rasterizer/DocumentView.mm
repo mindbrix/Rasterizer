@@ -85,26 +85,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)changeFont:(id)sender {
     self.font = [[NSFontManager sharedFontManager] convertFont:[NSFont fontWithName:@"AppleSymbols" size:14]];
-    [self writeList];
-}
-- (void)writeList {
-    RasterizerFont& font = _state.font;
-    Ra::SceneList list;
-    Ra::Colorant textColor(0, 0, 0, 255);
-    if (_state.pastedString.size) {
-        Ra::Scene glyphs;
-        RasterizerFont::layoutGlyphs(font, _state.pointSize, 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, _state.pastedString.addr, glyphs);
-        list.addScene(glyphs);
-    } else if (_state.showGlyphGrid) {
-        list.addScene(RasterizerFont::writeGlyphGrid(font, _state.pointSize, textColor));
-    } else if (_state.showTestScenes) {
-        list = RasterizerTest::makeConcentrichron(font);
-    } else if (_state.svgData.size)
-        list.addScene(RasterizerSVG::createScene(_state.svgData.addr, _state.svgData.size));
-    else if (_state.pdfData.size)
-        list.addList(RasterizerPDF::writeSceneList(_state.pdfData.addr, _state.pdfData.size, _state.pageIndex));
-
-    _state.setList(list);
+    _state.writeList();
 }
 
 
@@ -130,12 +111,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         _state.showTestScenes = NO;
         _state.showGlyphGrid = !_state.showGlyphGrid;
         _state.setPastedString(nullptr);
-        [self writeList];
+        _state.writeList();
     } else if (keyCode == 17) {
         _state.showGlyphGrid = NO;
         _state.showTestScenes = !_state.showTestScenes;
         _state.setPastedString(nullptr);
-        [self writeList];
+        _state.writeList();
     } else if (keyCode == 51) {
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
@@ -149,11 +130,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 123) {
         if (_state.pageIndex > 0) {
             _state.pageIndex--;
-            [self writeList];
+            _state.writeList();
         }
     } else if (keyCode == 124) {
         _state.pageIndex++;
-        [self writeList];
+        _state.writeList();
     } else
         [super keyDown:event];
     
@@ -164,11 +145,11 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 - (void)paste:(id)sender {
     NSString *pasted = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
+    _state.bounds = RaCG::BoundsFromCGRect(self.bounds);
     _state.setPastedString(pasted.UTF8String);
-    
     _state.showGlyphGrid = NO;
     _state.showTestScenes = NO;
-    [self writeList];
+    _state.writeList();
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
@@ -209,14 +190,14 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)setPdfData:(NSData *)pdfData {
     if (pdfData) {
         _state.setPdfData(pdfData.bytes, pdfData.length);
-        [self writeList];
+        _state.writeList();
     }
 }
 
 - (void)setSvgData:(NSData *)svgData {
     if (svgData) {
         _state.setSvgData(svgData.bytes, svgData.length);
-        [self writeList];
+        _state.writeList();
     }
 }
 @end

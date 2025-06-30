@@ -13,6 +13,25 @@ struct RasterizerState {
     enum KeyCode { kC = 8, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
+    void writeList() {
+        Ra::SceneList list;
+        Ra::Colorant textColor(0, 0, 0, 255);
+        if (pastedString.size) {
+            Ra::Scene glyphs;
+            RasterizerFont::layoutGlyphs(font, pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
+            list.addScene(glyphs);
+        } else if (showGlyphGrid) {
+            list.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
+        } else if (showTestScenes) {
+            list = RasterizerTest::makeConcentrichron(font);
+        } else if (svgData.size)
+            list.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
+        else if (pdfData.size)
+            list.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
+
+        setList(list);
+    }
+    
 #pragma mark - Event handlers
 
     void onFlags(size_t keyFlags) {
