@@ -104,9 +104,16 @@ struct RasterizerState {
     bool getShouldRedraw() const {
         return animating || redraw;
     }
+    void setFont(const char *url, const char *name, float size) {
+        pointSize = size;
+        font.load(url, name);
+    }
     void setList(Ra::SceneList list) {
         this->list = list, redraw = true;
     }
+    
+    RasterizerFont font;
+    float pointSize = 14;
     
     Ra::SceneList list;
     

@@ -50,6 +50,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     self = [super initWithCoder:decoder];
     if (! self)
         return nil;
+    self.fnt = nil;
     self.pageIndex = 0;
     [self startTimer];
     return self;
@@ -92,19 +93,17 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     [self writeList];
 }
 - (void)writeList {
-    NSFont *fnt = self.fnt ?: [NSFont fontWithName:@"AppleSymbols" size:14];
-    NSURL *url = RaCG::fontURL(fnt.fontName);
-    Ra::Ref<RasterizerFont> font;  font->load(url.path.UTF8String, fnt.fontName.UTF8String);
+    RasterizerFont& font = _state.font;
     Ra::SceneList list;
     Ra::Colorant textColor(0, 0, 0, 255);
     if (self.pastedString) {
         Ra::Scene glyphs;
-        RasterizerFont::layoutGlyphs(*font.ptr, float(fnt.pointSize), 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
+        RasterizerFont::layoutGlyphs(font, _state.pointSize, 0.f, textColor, RaCG::BoundsFromCGRect(self.bounds), false, false, false, self.pastedString.UTF8String, glyphs);
         list.addScene(glyphs);
     } else if (self.showGlyphGrid) {
-        list.addScene(RasterizerFont::writeGlyphGrid(*font.ptr, float(fnt.pointSize), textColor));
+        list.addScene(RasterizerFont::writeGlyphGrid(font, _state.pointSize, textColor));
     } else if (self.showTestScenes) {
-        list = RasterizerTest::makeConcentrichron(*font.ptr);
+        list = RasterizerTest::makeConcentrichron(font);
     } else if (_svgData != nil)
         list.addScene(RasterizerSVG::createScene(_svgData.bytes, _svgData.length));
     else if (_pdfData != nil)
@@ -203,6 +202,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 
 #pragma mark - Properies
 
+- (void)setFnt:(NSFont *)fnt {
+    _fnt = fnt;
+    
+    NSFont *font = _fnt ?: [NSFont fontWithName:@"AppleSymbols" size:14];
+    NSURL *url = RaCG::fontURL(font.fontName);
+    _state.setFont(url.path.UTF8String, font.fontName.UTF8String, font.pointSize);
+}
 - (void)setPdfData:(NSData *)pdfData {
     if ((_pdfData = pdfData)) {
         [self writeList];
