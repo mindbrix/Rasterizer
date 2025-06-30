@@ -10,7 +10,7 @@
 
 
 struct RasterizerState {
-    enum KeyCode { kC = 8, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, k1 = 18, k0 = 29, kReturn = 36 };
+    enum KeyCode { kC = 8, kG = 5, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void writeList() {
@@ -63,6 +63,29 @@ struct RasterizerState {
             locked = locked.begin != INT_MAX ? Ra::Range(INT_MAX, INT_MAX) : indices, keyUsed = true;
         else if (keyCode == KeyCode::kS)
             RaCG::screenGrabToPDF(list, ctm, bounds), keyUsed = true;
+        else if (keyCode == KeyCode::kT) {
+            showGlyphGrid = false;
+            showTestScenes = !showTestScenes;
+            setPastedString(nullptr);
+            writeList();
+            keyUsed = true;
+        } else if (keyCode == KeyCode::kG) {
+            showTestScenes = false;
+            showGlyphGrid = !showGlyphGrid;
+            setPastedString(nullptr);
+            writeList();
+            keyUsed = true;
+        } else if (keyCode == KeyCode::kLeft) {
+            if (pageIndex > 0) {
+                pageIndex--;
+                writeList();
+            }
+            keyUsed = true;
+        } else if (keyCode == KeyCode::kRight) {
+            pageIndex++;
+            writeList();
+            keyUsed = true;
+        }
         if (keyUsed)
             redraw = true;
         return keyUsed;

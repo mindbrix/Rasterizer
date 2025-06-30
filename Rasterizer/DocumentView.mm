@@ -107,16 +107,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
     if (_state.onKeyDown(event.keyCode)) {
-    } else if (keyCode == 5) {
-        _state.showTestScenes = NO;
-        _state.showGlyphGrid = !_state.showGlyphGrid;
-        _state.setPastedString(nullptr);
-        _state.writeList();
-    } else if (keyCode == 17) {
-        _state.showGlyphGrid = NO;
-        _state.showTestScenes = !_state.showTestScenes;
-        _state.setPastedString(nullptr);
-        _state.writeList();
     } else if (keyCode == 51) {
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
@@ -127,14 +117,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self.layer setNeedsDisplay];
     } else if (keyCode == 49) {
         [self.rasterizerLabel setHidden:YES];
-    } else if (keyCode == 123) {
-        if (_state.pageIndex > 0) {
-            _state.pageIndex--;
-            _state.writeList();
-        }
-    } else if (keyCode == 124) {
-        _state.pageIndex++;
-        _state.writeList();
     } else
         [super keyDown:event];
     
