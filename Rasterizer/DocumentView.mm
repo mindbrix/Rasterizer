@@ -104,10 +104,10 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         list.addScene(RasterizerFont::writeGlyphGrid(font, _state.pointSize, textColor));
     } else if (self.showTestScenes) {
         list = RasterizerTest::makeConcentrichron(font);
-    } else if (_svgData != nil)
-        list.addScene(RasterizerSVG::createScene(_svgData.bytes, _svgData.length));
-    else if (_pdfData != nil)
-        list.addList(RasterizerPDF::writeSceneList(_pdfData.bytes, _pdfData.length, self.pageIndex));
+    } else if (_state.svgData.size)
+        list.addScene(RasterizerSVG::createScene(_state.svgData.addr, _state.svgData.size));
+    else if (_state.pdfData.size)
+        list.addList(RasterizerPDF::writeSceneList(_state.pdfData.addr, _state.pdfData.size, self.pageIndex));
 
     _state.setList(list);
 }
@@ -210,13 +210,16 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _state.setFont(url.path.UTF8String, font.fontName.UTF8String, font.pointSize);
 }
 - (void)setPdfData:(NSData *)pdfData {
-    if ((_pdfData = pdfData)) {
+    if (pdfData) {
+        _state.setPdfData(pdfData.bytes, pdfData.length);
         [self writeList];
     }
 }
 
 - (void)setSvgData:(NSData *)svgData {
-    if ((_svgData = svgData))
+    if (svgData) {
+        _state.setSvgData(svgData.bytes, svgData.length);
         [self writeList];
+    }
 }
 @end

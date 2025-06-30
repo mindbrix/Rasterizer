@@ -111,11 +111,21 @@ struct RasterizerState {
     void setList(Ra::SceneList list) {
         this->list = list, redraw = true;
     }
+    void setPdfData(const void *data, size_t size) {
+        if (data)
+            memcpy(pdfData.resize(size), data, size);
+    }
+    void setSvgData(const void *data, size_t size) {
+        if (data)
+            memcpy(svgData.resize(size), data, size);
+    }
     
     RasterizerFont font;
     float pointSize = 14;
     
     Ra::SceneList list;
+    
+    Ra::Memory<uint8_t> pdfData, svgData;
     
     float scale;
     Ra::Transform ctm;
