@@ -20,7 +20,6 @@
 @property(nonatomic) NSFont *font;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
-@property(nonatomic) size_t pageIndex;
 
 - (void)timerFired:(double)time;
 
@@ -48,7 +47,6 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     if (! self)
         return nil;
     self.font = nil;
-    self.pageIndex = 0;
     [self startTimer];
     return self;
 }
@@ -104,7 +102,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (_state.svgData.size)
         list.addScene(RasterizerSVG::createScene(_state.svgData.addr, _state.svgData.size));
     else if (_state.pdfData.size)
-        list.addList(RasterizerPDF::writeSceneList(_state.pdfData.addr, _state.pdfData.size, self.pageIndex));
+        list.addList(RasterizerPDF::writeSceneList(_state.pdfData.addr, _state.pdfData.size, _state.pageIndex));
 
     _state.setList(list);
 }
@@ -149,12 +147,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     } else if (keyCode == 49) {
         [self.rasterizerLabel setHidden:YES];
     } else if (keyCode == 123) {
-        if (self.pageIndex > 0) {
-            self.pageIndex--;
+        if (_state.pageIndex > 0) {
+            _state.pageIndex--;
             [self writeList];
         }
     } else if (keyCode == 124) {
-        self.pageIndex++;
+        _state.pageIndex++;
         [self writeList];
     } else
         [super keyDown:event];
