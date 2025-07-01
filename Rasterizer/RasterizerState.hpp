@@ -9,7 +9,7 @@
 #import "RasterizerPDF.hpp"
 #import "RasterizerSVG.hpp"
 #import "RasterizerFont.hpp"
-#import "RasterizerTest.hpp"
+#import "Concentrichron.hpp"
 #import "RasterizerWinding.hpp"
 
 
@@ -205,7 +205,7 @@ struct RasterizerState {
     size_t pageIndex = 0;
     Ra::Memory<uint8_t> pdfData, svgData;
     
-    RasterizerTest concentrichron;
+    Concentrichron concentrichron;
     
     float scale;
     Ra::Transform ctm;

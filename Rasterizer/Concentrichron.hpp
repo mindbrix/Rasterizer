@@ -1,5 +1,5 @@
 //
-//  RasterizerTest.hpp
+//  Concentrichron.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 14/03/2019.
@@ -8,7 +8,7 @@
 #import "Rasterizer.hpp"
 #import <time.h>
 
-struct RasterizerTest {
+struct Concentrichron {
     Ra::SceneList face;
     
     void resetFace() {
@@ -18,11 +18,11 @@ struct RasterizerTest {
     Ra::SceneList writeList(RasterizerFont& font) {
         Ra::Bounds bounds(0, 0, 800, 800);
         if (face.scenes.size() == 0)
-            face = makeConcentrichronFace(bounds, font);
-        return setConcentrichronTime(face, bounds);
+            face = makeFace(bounds, font);
+        return setTime(face, bounds);
     }
     
-    static Ra::SceneList setConcentrichronTime(Ra::SceneList& face, Ra::Bounds b) {
+    static Ra::SceneList setTime(Ra::SceneList& face, Ra::Bounds b) {
         Ra::SceneList list;
         const float monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
         time_t t = time(NULL);
@@ -56,7 +56,7 @@ struct RasterizerTest {
         p->moveTo(sx, sx), p->cubicTo(sx - f * ay, sy + f * ax, ex + f * by, ey - f * bx, ex, ey);
     }
     
-    static Ra::SceneList makeConcentrichronFace(Ra::Bounds b, RasterizerFont& font) {
+    static Ra::SceneList makeFace(Ra::Bounds b, RasterizerFont& font) {
         Ra::SceneList list;
         const char *days[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
         const char *dates[31] = { "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st" };

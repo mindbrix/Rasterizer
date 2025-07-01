@@ -83,7 +83,7 @@
 		E9CB3A1827D601FB00A02A2D /* fpdf_progressive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_progressive.h; sourceTree = "<group>"; };
 		E9CB3A1927D601FB00A02A2D /* fpdf_dataavail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_dataavail.h; sourceTree = "<group>"; };
 		E9CB3A1A27D601FB00A02A2D /* fpdf_thumbnail.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpdf_thumbnail.h; sourceTree = "<group>"; };
-		E9E36F08223A722100F6533A /* RasterizerTest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerTest.hpp; sourceTree = "<group>"; };
+		E9E36F08223A722100F6533A /* Concentrichron.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Concentrichron.hpp; sourceTree = "<group>"; };
 		E9E8285A2B17555800FABD81 /* RasterizerView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RasterizerView.mm; sourceTree = "<group>"; };
 		E9E8285C2B17559600FABD81 /* RasterizerView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RasterizerView.h; sourceTree = "<group>"; };
 		E9E9600427D645CD00E06451 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = pdfium/libpdfium.a; sourceTree = "<group>"; };
@@ -150,7 +150,7 @@
 				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E91ADF95224266A400729DA0 /* RasterizerState.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
-				E9E36F08223A722100F6533A /* RasterizerTest.hpp */,
+				E9E36F08223A722100F6533A /* Concentrichron.hpp */,
 				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
 				E9E8285C2B17559600FABD81 /* RasterizerView.h */,
 				E9E8285A2B17555800FABD81 /* RasterizerView.mm */,
