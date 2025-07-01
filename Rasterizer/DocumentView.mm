@@ -12,9 +12,9 @@
 @interface DocumentView () <NSFontChanging>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
-@property(nonatomic) NSFont *font;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
 @property(nonatomic) RasterizerState state;
+@property(nonatomic) NSFont *font;
 
 - (void)timerFired:(double)time;
 
@@ -51,7 +51,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     [super removeFromSuperview];
 }
 
-#pragma mark - NSTimer
+#pragma mark - CVDisplayLink
 
 - (void)startTimer {
     _inflight_semaphore = dispatch_semaphore_create(1);
