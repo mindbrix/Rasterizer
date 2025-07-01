@@ -25,8 +25,8 @@ struct RasterizerState {
             list.addScene(glyphs);
         } else if (showGlyphGrid) {
             list.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, color));
-        } else if (showTestScenes) {
-            list = RasterizerTest::makeConcentrichron(font);
+        } else if (showTime) {
+            list = concentrichron.writeList(font);
         } else if (svgData.size)
             list.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
         else if (pdfData.size)
@@ -51,7 +51,7 @@ struct RasterizerState {
         this->bounds = bounds;
         
         showGlyphGrid = false;
-        showTestScenes = false;
+        showTime = false;
         setPastedString(string);
     }
     void onFlags(size_t keyFlags) {
@@ -85,11 +85,11 @@ struct RasterizerState {
             RaCG::screenGrabToPDF(list, ctm, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
             showGlyphGrid = false;
-            showTestScenes = !showTestScenes;
+            showTime = !showTime;
             setPastedString(nullptr);
             keyUsed = true;
         } else if (keyCode == KeyCode::kG) {
-            showTestScenes = false;
+            showTime = false;
             showGlyphGrid = !showGlyphGrid;
             setPastedString(nullptr);
             keyUsed = true;
@@ -148,6 +148,8 @@ struct RasterizerState {
     
     void onRedraw(float s, float w, float h) {
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
+        if (showTime)
+            writeList();
         redraw = false;
         if (animating)
             clock += timeScale / 60.0;
@@ -162,11 +164,12 @@ struct RasterizerState {
         return Ra::Transform(scale, 0.f, 0.f, scale, 0.f, 0.f).concat(ctm);
     }
     bool getShouldRedraw() const {
-        return animating || redraw;
+        return animating || redraw || showTime;
     }
     void setFont(const char *url, const char *name, float size) {
         pointSize = size;
         font.load(url, name);
+        concentrichron.resetFace();
         writeList();
     }
     void setList(Ra::SceneList list) {
@@ -198,9 +201,11 @@ struct RasterizerState {
     Ra::SceneList list;
     
     Ra::Memory<char> pastedString;
-    bool showGlyphGrid = false, showTestScenes = false;
+    bool showGlyphGrid = false, showTime = false;
     size_t pageIndex = 0;
     Ra::Memory<uint8_t> pdfData, svgData;
+    
+    RasterizerTest concentrichron;
     
     float scale;
     Ra::Transform ctm;

@@ -9,10 +9,17 @@
 #import <time.h>
 
 struct RasterizerTest {
-    static Ra::SceneList makeConcentrichron(RasterizerFont& font) {
-        Ra::Bounds bnds(0, 0, 800, 800);
-        Ra::SceneList face = makeConcentrichronFace(bnds, font);
-        return setConcentrichronTime(face, bnds);
+    Ra::SceneList face;
+    
+    void resetFace() {
+        face.empty();
+    }
+    
+    Ra::SceneList writeList(RasterizerFont& font) {
+        Ra::Bounds bounds(0, 0, 800, 800);
+        if (face.scenes.size() == 0)
+            face = makeConcentrichronFace(bounds, font);
+        return setConcentrichronTime(face, bounds);
     }
     
     static Ra::SceneList setConcentrichronTime(Ra::SceneList& face, Ra::Bounds b) {
