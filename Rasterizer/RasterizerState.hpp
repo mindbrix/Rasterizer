@@ -6,6 +6,10 @@
 //  Copyright © 2019 @mindbrix. All rights reserved.
 //
 #import "Rasterizer.hpp"
+#import "RasterizerPDF.hpp"
+#import "RasterizerSVG.hpp"
+#import "RasterizerFont.hpp"
+#import "RasterizerTest.hpp"
 #import "RasterizerWinding.hpp"
 
 

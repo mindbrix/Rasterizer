@@ -7,11 +7,6 @@
 //
 #import "DocumentView.h"
 #import "RasterizerCG.hpp"
-#import "RasterizerPDF.hpp"
-#import "RasterizerSVG.hpp"
-#import "RasterizerFont.hpp"
-#import "RasterizerTest.hpp"
-#import "RasterizerRenderer.hpp"
 #import "RasterizerState.hpp"
 
 @interface DocumentView () <NSFontChanging>
