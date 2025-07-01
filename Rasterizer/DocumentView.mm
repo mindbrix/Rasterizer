@@ -9,7 +9,7 @@
 #import "RasterizerCG.hpp"
 #import "RasterizerState.hpp"
 
-@interface DocumentView () <NSFontChanging>
+@interface DocumentView () <NSFontChanging, NSColorChanging>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
@@ -75,6 +75,13 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
         [self drawList:_state.list ctm:_state.ctm useCurves: _state.useCurves];
     }
 }
+
+#pragma mark - NSColorChanging
+
+- (void)changeColor:(NSColorPanel *)sender {
+    _state.onColorChange(sender.color.CGColor);
+}
+
 
 #pragma mark - NSFontManager
 
