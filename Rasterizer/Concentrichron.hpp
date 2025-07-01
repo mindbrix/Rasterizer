@@ -16,7 +16,7 @@ struct Concentrichron {
     }
     
     Ra::SceneList writeList(RasterizerFont& font) {
-        Ra::Bounds bounds(0, 0, 800, 800);
+        Ra::Bounds bounds(0, 0, 800, 600);
         if (face.scenes.size() == 0)
             face = makeFace(bounds, font);
         return setTime(face, bounds);
