@@ -1,5 +1,5 @@
 //
-//  RasterizerState.hpp
+//  RasterizerDemo.hpp
 //  Rasterizer
 //
 //  Created by Nigel Barber on 20/03/2019.
@@ -13,7 +13,7 @@
 #import "RasterizerWinding.hpp"
 
 
-struct RasterizerState {
+struct RasterizerDemo {
     enum KeyCode { kC = 8, kG = 5, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
@@ -244,7 +244,7 @@ struct RasterizerState {
         Ra::Colorant *srcColors = scn->colors->src.base, *dstColors = scn->colors->base;
         float *srcWidths = scn->widths->src.base, *dstWidths = scn->widths->base;
         uint8_t *srcFlags = scn->flags->src.base, *dstFlags = scn->flags->base;
-        RasterizerState& state = *((RasterizerState *)info);
+        RasterizerDemo& state = *((RasterizerDemo *)info);
         size_t count = ui - li;
         Ra::Colorant black(0, 0, 0, 255), red(0, 0, 255, 255);
         const float kScaleMin = 1.0f, kScaleMax = 1.2f;
@@ -288,4 +288,4 @@ struct RasterizerState {
     }
 };
 
-typedef RasterizerState RaSt;
+typedef RasterizerDemo RaSt;

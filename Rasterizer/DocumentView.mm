@@ -7,13 +7,13 @@
 //
 #import "DocumentView.h"
 #import "RasterizerCG.hpp"
-#import "RasterizerState.hpp"
+#import "RasterizerDemo.hpp"
 
 @interface DocumentView () <NSFontChanging, NSColorChanging>
 
 @property(nonatomic) CVDisplayLinkRef displayLink;
 @property(nonatomic) dispatch_semaphore_t inflight_semaphore;
-@property(nonatomic) RasterizerState state;
+@property(nonatomic) RasterizerDemo demo;
 @property(nonatomic) NSFont *font;
 
 - (void)timerFired:(double)time;
@@ -66,20 +66,20 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)timerFired:(double)time {
-    if (_state.getShouldRedraw()) {
-        _state.onRedraw(
+    if (_demo.getShouldRedraw()) {
+        _demo.onRedraw(
             self.layer.contentsScale,
             self.bounds.size.width,
             self.bounds.size.height
         );
-        [self drawList:_state.list ctm:_state.ctm useCurves: _state.useCurves];
+        [self drawList:_demo.list ctm:_demo.ctm useCurves: _demo.useCurves];
     }
 }
 
 #pragma mark - NSColorChanging
 
 - (void)changeColor:(NSColorPanel *)sender {
-    _state.onColorChange(sender.color.CGColor);
+    _demo.onColorChange(sender.color.CGColor);
 }
 
 
@@ -102,12 +102,12 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 }
 
 - (void)flagsChanged:(NSEvent *)event {
-    _state.onFlags(event.modifierFlags);
+    _demo.onFlags(event.modifierFlags);
 }
 - (void)keyDown:(NSEvent *)event {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (_state.onKeyDown(event.keyCode)) {
+    if (_demo.onKeyDown(event.keyCode)) {
     } else if (keyCode == 51) {
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
@@ -123,38 +123,38 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     
 }
 - (void)keyUp:(NSEvent *)event {
-    _state.onKeyUp(event.keyCode);
+    _demo.onKeyUp(event.keyCode);
 }
 
 - (void)paste:(id)sender {
     NSString *pasted = [[[NSPasteboard generalPasteboard].pasteboardItems objectAtIndex:0] stringForType:NSPasteboardTypeString];
-    _state.onPaste(pasted.UTF8String, RaCG::BoundsFromCGRect(self.bounds));
+    _demo.onPaste(pasted.UTF8String, RaCG::BoundsFromCGRect(self.bounds));
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-    _state.onMagnify(float(1 + event.magnification));
+    _demo.onMagnify(float(1 + event.magnification));
 }
 - (void)rotateWithEvent:(NSEvent *)event {
-    _state.onRotate(float(event.rotation / 10));
+    _demo.onRotate(float(event.rotation / 10));
 }
 - (void)scrollWheel:(NSEvent *)event {
     CGFloat inversion = ([event respondsToSelector:@selector(isDirectionInvertedFromDevice)] && [event isDirectionInvertedFromDevice]) ? 1.0f : -1.0f;
-    _state.onTranslate(float(event.deltaX * inversion), float(-event.deltaY * inversion));
+    _demo.onTranslate(float(event.deltaX * inversion), float(-event.deltaY * inversion));
 }
 - (void)mouseDown:(NSEvent *)event {
-    _state.onMouseDown(float(event.locationInWindow.x), float(event.locationInWindow.y));
+    _demo.onMouseDown(float(event.locationInWindow.x), float(event.locationInWindow.y));
 }
 - (void)mouseDragged:(NSEvent *)event {
-    _state.onDrag(float(event.deltaX), float(-event.deltaY));
+    _demo.onDrag(float(event.deltaX), float(-event.deltaY));
 }
 - (void)mouseMoved:(NSEvent *)event {
     CGSize size = self.window.frame.size;
     CGFloat x = event.locationInWindow.x, y = event.locationInWindow.y;
     if (x >= 0 && x <= size.width && y >= 0 && y <= size.height)
-        _state.onMouseMove(float(x), float(y));
+        _demo.onMouseMove(float(x), float(y));
 }
 - (void)mouseUp:(NSEvent *)event {
-    _state.onMouseUp(float(event.locationInWindow.x), float(event.locationInWindow.y));
+    _demo.onMouseUp(float(event.locationInWindow.x), float(event.locationInWindow.y));
 }
 
 #pragma mark - Properies
@@ -163,16 +163,16 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
     _font = font ?: [NSFont fontWithName:@"AppleSymbols" size:14];
 
     NSURL *url = RaCG::fontURL(_font.fontName);
-    _state.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
+    _demo.setFont(url.path.UTF8String, _font.fontName.UTF8String, _font.pointSize);
 }
 
 - (void)setPdfData:(NSData *)pdfData {
     if (pdfData)
-        _state.setPdfData(pdfData.bytes, pdfData.length);
+        _demo.setPdfData(pdfData.bytes, pdfData.length);
 }
 
 - (void)setSvgData:(NSData *)svgData {
     if (svgData)
-        _state.setSvgData(svgData.bytes, svgData.length);
+        _demo.setSvgData(svgData.bytes, svgData.length);
 }
 @end
