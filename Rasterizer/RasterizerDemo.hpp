@@ -21,10 +21,10 @@ struct RasterizerDemo {
         Ra::SceneList list;
         if (pastedString.size) {
             Ra::Scene glyphs;
-            RasterizerFont::layoutGlyphs(font, pointSize, 0.f, color, bounds, false, false, false, pastedString.addr, glyphs);
+            RasterizerFont::layoutGlyphs(font, pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
             list.addScene(glyphs);
         } else if (showGlyphGrid) {
-            list.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, color));
+            list.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
         } else if (showTime) {
             list = concentrichron.writeList(font);
         } else if (svgData.size)
@@ -37,16 +37,6 @@ struct RasterizerDemo {
     
 #pragma mark - Event handlers
 
-    void onColorChange(CGColorRef color) {
-        size_t n = CGColorGetNumberOfComponents(color);
-        const CGFloat *components = CGColorGetComponents(color);
-        if (n == 2)
-            this->color = Ra::Colorant(components[0] * 255, components[0] * 255, components[0] * 255, components[1] * 255);
-        else if (n == 4)
-            this->color = Ra::Colorant(components[2] * 255, components[1] * 255, components[0] * 255, components[3] * 255);
-        writeList();
-    }
-    
     void onPaste(const char *string, Ra::Bounds bounds) {
         this->bounds = bounds;
         
@@ -193,7 +183,7 @@ struct RasterizerDemo {
         writeList();
     }
     
-    Ra::Colorant color = Ra::Colorant(0, 0, 0, 255);
+    Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
     
     RasterizerFont font;
     float pointSize = 14;
