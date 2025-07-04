@@ -135,14 +135,9 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
+				E970B9082E17DA5D00E9A7B1 /* lib */,
 				E970B9072E17D99100E9A7B1 /* Demo */,
 				E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */,
-				E9710C4A24CF975B00F31953 /* xxhash.c */,
-				E9710C4B24CF975B00F31953 /* xxhash.h */,
-				E91ADF962243FED000729DA0 /* nanosvg.cc */,
-				E9FB275E24FD18900093F619 /* nanosvg.h */,
-				E91ADF9322425C2F00729DA0 /* stb_truetype.c */,
-				E9FB275F24FD18A10093F619 /* stb_truetype.h */,
 				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
@@ -158,9 +153,6 @@
 				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 				E920A59C21762BCD00F52C25 /* AppDelegate.h */,
 				E920A59D21762BCD00F52C25 /* AppDelegate.m */,
-				E920A59F21762BCD00F52C25 /* Document.h */,
-				E920A5A021762BCD00F52C25 /* Document.mm */,
-				E920A5A221762BCD00F52C25 /* Document.xib */,
 				E920A5A521762BCE00F52C25 /* Assets.xcassets */,
 				E920A5A721762BCE00F52C25 /* MainMenu.xib */,
 				E920A5AA21762BCE00F52C25 /* Info.plist */,
@@ -178,8 +170,24 @@
 				E9E36F08223A722100F6533A /* Concentrichron.hpp */,
 				E920A5B3217631E600F52C25 /* DocumentView.h */,
 				E920A5B4217631E600F52C25 /* DocumentView.mm */,
+				E920A59F21762BCD00F52C25 /* Document.h */,
+				E920A5A021762BCD00F52C25 /* Document.mm */,
+				E920A5A221762BCD00F52C25 /* Document.xib */,
 			);
 			path = Demo;
+			sourceTree = "<group>";
+		};
+		E970B9082E17DA5D00E9A7B1 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				E9710C4A24CF975B00F31953 /* xxhash.c */,
+				E9710C4B24CF975B00F31953 /* xxhash.h */,
+				E91ADF962243FED000729DA0 /* nanosvg.cc */,
+				E9FB275E24FD18900093F619 /* nanosvg.h */,
+				E91ADF9322425C2F00729DA0 /* stb_truetype.c */,
+				E9FB275F24FD18A10093F619 /* stb_truetype.h */,
+			);
+			path = lib;
 			sourceTree = "<group>";
 		};
 		E9CB3A0027D601FB00A02A2D /* pdfium */ = {
