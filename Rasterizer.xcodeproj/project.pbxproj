@@ -18,12 +18,12 @@
 		E920A5AC21762BCE00F52C25 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E920A5AB21762BCE00F52C25 /* main.m */; };
 		E920A5B5217631E600F52C25 /* DocumentView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E920A5B4217631E600F52C25 /* DocumentView.mm */; };
 		E9682E222C7F634D001046F5 /* Rasterizer Default.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */; };
+		E970B90B2E181F5B00E9A7B1 /* libpdfium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E970B90A2E181F5B00E9A7B1 /* libpdfium.a */; };
 		E9710C4C24CF975B00F31953 /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = E9710C4A24CF975B00F31953 /* xxhash.c */; };
 		E971DB2D218495AA005AE5E5 /* Rasterizer.icns in Resources */ = {isa = PBXBuildFile; fileRef = E971DB2C218495AA005AE5E5 /* Rasterizer.icns */; };
 		E990649221C2E11500D2DBF2 /* RasterizerLayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */; };
 		E990649421C2FE3600D2DBF2 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E990649321C2FE3600D2DBF2 /* Shaders.metal */; };
 		E9E8285B2B17555800FABD81 /* RasterizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = E9E8285A2B17555800FABD81 /* RasterizerView.mm */; };
-		E9E9600527D645DA00E06451 /* libpdfium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E9E9600427D645CD00E06451 /* libpdfium.a */; };
 		E9E9600727D65BF800E06451 /* RasterizerPDF.hpp in Sources */ = {isa = PBXBuildFile; fileRef = E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */; };
 /* End PBXBuildFile section */
 
@@ -51,6 +51,7 @@
 		E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Rasterizer.hpp; sourceTree = "<group>"; };
 		E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RasterizerFont.hpp; sourceTree = "<group>"; };
 		E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Rasterizer Default.pdf"; sourceTree = "<group>"; };
+		E970B90A2E181F5B00E9A7B1 /* libpdfium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpdfium.a; path = Rasterizer/lib/pdfium/libpdfium.a; sourceTree = "<group>"; };
 		E9710C4A24CF975B00F31953 /* xxhash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = xxhash.c; sourceTree = "<group>"; };
 		E9710C4B24CF975B00F31953 /* xxhash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xxhash.h; sourceTree = "<group>"; };
 		E971DB2C218495AA005AE5E5 /* Rasterizer.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Rasterizer.icns; sourceTree = "<group>"; };
@@ -97,7 +98,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9E9600527D645DA00E06451 /* libpdfium.a in Frameworks */,
+				E970B90B2E181F5B00E9A7B1 /* libpdfium.a in Frameworks */,
 				E901B3872194B00F00B1AB72 /* Accelerate.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -109,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				E9E9600427D645CD00E06451 /* libpdfium.a */,
+				E970B90A2E181F5B00E9A7B1 /* libpdfium.a */,
 				E901B3862194B00F00B1AB72 /* Accelerate.framework */,
 			);
 			name = Frameworks;
@@ -117,7 +119,6 @@
 		E920A59021762BCD00F52C25 = {
 			isa = PBXGroup;
 			children = (
-				E9CB3A0027D601FB00A02A2D /* pdfium */,
 				E920A59B21762BCD00F52C25 /* Rasterizer */,
 				E920A59A21762BCD00F52C25 /* Products */,
 				E901B3852194B00F00B1AB72 /* Frameworks */,
@@ -168,6 +169,7 @@
 		E970B9082E17DA5D00E9A7B1 /* lib */ = {
 			isa = PBXGroup;
 			children = (
+				E9CB3A0027D601FB00A02A2D /* pdfium */,
 				E9710C4A24CF975B00F31953 /* xxhash.c */,
 				E9710C4B24CF975B00F31953 /* xxhash.h */,
 				E91ADF962243FED000729DA0 /* nanosvg.cc */,
@@ -479,6 +481,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/pdfium",
+					"$(PROJECT_DIR)/Rasterizer/lib/pdfium",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -506,6 +509,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/pdfium",
+					"$(PROJECT_DIR)/Rasterizer/lib/pdfium",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_LANGUAGE_REVISION = Metal20;
