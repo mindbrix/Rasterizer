@@ -135,6 +135,7 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
+				E970B9072E17D99100E9A7B1 /* Demo */,
 				E9682E212C7F634D001046F5 /* Rasterizer Default.pdf */,
 				E9710C4A24CF975B00F31953 /* xxhash.c */,
 				E9710C4B24CF975B00F31953 /* xxhash.h */,
@@ -145,17 +146,13 @@
 				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
 				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
 				E946C9D1217F0F8B004582CC /* RasterizerCG.hpp */,
-				E91ADF95224266A400729DA0 /* RasterizerDemo.hpp */,
 				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
 				E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */,
 				E9AAAF1224689BCC00EFB51B /* RasterizerRenderer.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
 				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
-				E9E36F08223A722100F6533A /* Concentrichron.hpp */,
 				E9E8285C2B17559600FABD81 /* RasterizerView.h */,
 				E9E8285A2B17555800FABD81 /* RasterizerView.mm */,
-				E920A5B3217631E600F52C25 /* DocumentView.h */,
-				E920A5B4217631E600F52C25 /* DocumentView.mm */,
 				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
 				E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */,
 				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
@@ -172,6 +169,17 @@
 				E971DB2C218495AA005AE5E5 /* Rasterizer.icns */,
 			);
 			path = Rasterizer;
+			sourceTree = "<group>";
+		};
+		E970B9072E17D99100E9A7B1 /* Demo */ = {
+			isa = PBXGroup;
+			children = (
+				E91ADF95224266A400729DA0 /* RasterizerDemo.hpp */,
+				E9E36F08223A722100F6533A /* Concentrichron.hpp */,
+				E920A5B3217631E600F52C25 /* DocumentView.h */,
+				E920A5B4217631E600F52C25 /* DocumentView.mm */,
+			);
+			path = Demo;
 			sourceTree = "<group>";
 		};
 		E9CB3A0027D601FB00A02A2D /* pdfium */ = {
