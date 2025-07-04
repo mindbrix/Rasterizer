@@ -72,7 +72,7 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
             self.bounds.size.width,
             self.bounds.size.height
         );
-        [self drawList:_demo.list ctm:_demo.ctm useCurves: _demo.useCurves];
+        [self drawList:_demo.list ctm:_demo.ctm useCurves:_demo.useCurves];
     }
 }
 
@@ -101,16 +101,17 @@ CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *displayLinkContext) {
 - (void)keyDown:(NSEvent *)event {
 //    NSLog(@"%d", event.keyCode);
     int keyCode = event.keyCode;
-    if (_demo.onKeyDown(event.keyCode)) {
-    } else if (keyCode == 51) {
+    if (_demo.onKeyDown(event.keyCode))
+        ;
+    else if (keyCode == 51) {  // Backspace
         self.useCG = !self.useCG;
         self.rasterizerLabel.stringValue = self.useCG ? @"Core Graphics" : @"Rasterizer (GPU)";
         [self.rasterizerLabel setHidden:NO];
-    } else if (keyCode == 15) {
+    } else if (keyCode == 15) {  // R
         CGFloat native = [self convertSizeToBacking:NSMakeSize(1.f, 1.f)].width;
         self.layer.contentsScale = self.layer.contentsScale == native ? 1.0 : native;
         [self.layer setNeedsDisplay];
-    } else if (keyCode == 49) {
+    } else if (keyCode == 49) {  // Space
         [self.rasterizerLabel setHidden:YES];
     } else
         [super keyDown:event];
