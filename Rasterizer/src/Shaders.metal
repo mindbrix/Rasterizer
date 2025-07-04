@@ -5,7 +5,7 @@
 //  Created by Nigel Barber on 13/12/2018.
 //  Copyright © 2018 @mindbrix. All rights reserved.
 //
-#import "../src/Rasterizer.h"
+#import "Rasterizer.h"
 #import <metal_stdlib>
 using namespace metal;
 

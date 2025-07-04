@@ -190,7 +190,6 @@
 				E9E8285A2B17555800FABD81 /* RasterizerView.mm */,
 				E990649021C2E11500D2DBF2 /* RasterizerLayer.h */,
 				E990649121C2E11500D2DBF2 /* RasterizerLayer.mm */,
-				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 			);
 			path = Apple;
 			sourceTree = "<group>";
@@ -204,6 +203,7 @@
 				E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */,
 				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
 				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
+				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 			);
 			path = src;
 			sourceTree = "<group>";
