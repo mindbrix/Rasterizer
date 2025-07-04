@@ -136,6 +136,7 @@
 		E920A59B21762BCD00F52C25 /* Rasterizer */ = {
 			isa = PBXGroup;
 			children = (
+				E970B90C2E18208C00E9A7B1 /* src */,
 				E970B9082E17DA5D00E9A7B1 /* lib */,
 				E970B9092E17DD6A00E9A7B1 /* Apple */,
 				E970B9072E17D99100E9A7B1 /* Demo */,
@@ -176,12 +177,6 @@
 				E9FB275E24FD18900093F619 /* nanosvg.h */,
 				E91ADF9322425C2F00729DA0 /* stb_truetype.c */,
 				E9FB275F24FD18A10093F619 /* stb_truetype.h */,
-				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
-				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
-				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
-				E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */,
-				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
-				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
 			);
 			path = lib;
 			sourceTree = "<group>";
@@ -198,6 +193,19 @@
 				E990649321C2FE3600D2DBF2 /* Shaders.metal */,
 			);
 			path = Apple;
+			sourceTree = "<group>";
+		};
+		E970B90C2E18208C00E9A7B1 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				E938EB1121C4FCB800794C0B /* Rasterizer.h */,
+				E956EDB22177D6BD0094B5AE /* Rasterizer.hpp */,
+				E963FF6D21DF59B9007C1327 /* RasterizerFont.hpp */,
+				E9E9600627D65BF800E06451 /* RasterizerPDF.hpp */,
+				E9A7FA85218FABDF0031FD4E /* RasterizerSVG.hpp */,
+				E91ADF982244017900729DA0 /* RasterizerWinding.hpp */,
+			);
+			path = src;
 			sourceTree = "<group>";
 		};
 		E9CB3A0027D601FB00A02A2D /* pdfium */ = {
