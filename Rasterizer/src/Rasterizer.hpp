@@ -333,21 +333,24 @@ struct Rasterizer {
     };
     
     struct Scene {
-        Scene() {  bzero(clipCache->entries.alloc(1), sizeof(*clipCache->entries.base));  }
+        Scene() {  clipCache->entries.zalloc(1);  }
         
         template<typename T>
         struct Cache {
             T *entryAt(size_t i) {  return entries.base + ips.base[i];  }
-            T *addEntry(size_t hash) {
-                T *e = nullptr;  auto ip = ips.alloc(1);  *ip = 0;
-                if (hash != 0) {
-                    auto it = map.find(hash);
-                    if (it != map.end())
-                        *ip = it->second;
-                    else
-                        *ip = uint32_t(entries.end), map.emplace(hash, *ip), e = entries.alloc(1), bzero(e, sizeof(T));
+            void addEntry(T *type) {
+                auto ip = ips.zalloc(1);  
+                if (type == nullptr)
+                    return;
+                size_t hash = type->hash();
+                auto it = map.find(hash);
+                if (it != map.end())
+                    *ip = it->second;
+                else {
+                    *ip = (typeof *ip)entries.end;
+                    *entries.alloc(1) = *type;
+                    map.emplace(hash, *ip);
                 }
-                return e;
             }
             size_t refCount;  Row<uint32_t> ips;  Row<T> entries;  std::unordered_map<size_t, uint32_t> map;
         };
@@ -368,9 +371,7 @@ struct Rasterizer {
                 count++, weight += g->types.end;
                 if (kMoleculesHeight && g->p16s.end == 0)
                     P16Writer().writeGeometry(g);
-                Bounds *be;
-                if ((be = clipCache->addEntry(clipBounds ? clipBounds->hash() : 0)))
-                    *be = *clipBounds;
+                clipCache->addEntry(clipBounds);
                 g->minUpper = g->minUpper ?: g->upperBound(kMinUpperDet);
                 paths->add(path), *bnds.alloc(1) = g->bounds, ctms->add(ctm), colors->add(color), widths->add(width), flags->add(flag);
             }
