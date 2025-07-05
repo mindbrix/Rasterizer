@@ -321,7 +321,8 @@ fragment float4 quad_molecules_fragment_main(QuadMoleculesVertex vert [[stage_in
 struct EdgesVertex
 {
     float4 position [[position]];
-    float x0, y0, x1, y1, x2, y2, x3, y3, x4, y4, x5, y5;
+    float dx, dy;
+    uint32_t idx0, idx1;
 };
 
 vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
@@ -336,22 +337,23 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     const device Edge& edge = edges[iid];
     const device Instance& inst = instances[edge.ic & Edge::kMask];
     const device Cell& cell = inst.quad.cell;
-    thread float *dst = & vert.x0;
+    thread uint32_t *dstIdx = & vert.idx0;
     uint32_t ids[2] = { ((edge.ic & Edge::ue0) >> 12) + edge.i0, ((edge.ic & Edge::ue1) >> 8) + edge.ux };
     const thread uint32_t *idxes = & ids[0];
     float slx = cell.ux, sly = FLT_MAX, suy = -FLT_MAX;
     float visible = 1.0;
     float x0, y0, x1, y1, x2, y2;
     
-    for (int i = 0; i < 2; i++, dst += 6) {
+    for (int i = 0; i < 2; i++) {
         if (idxes[i] != 0xFFFFF) {
             const device Segment& s = segments[inst.quad.base + idxes[i]];
-            x0 = dst[0] = s.x0, y0 = dst[1] = s.y0;
+            x0 = s.x0, y0 = s.y0;
+            dstIdx[i] = inst.quad.base + idxes[i];
             bool curve = *useCurves && s.ix0 & 1;
             if (curve) {
                 const device Segment& n = segments[inst.quad.base + idxes[i] + 1];
-                x2 = dst[4] = n.x1, y2 = dst[5] = n.y1;
-                x1 = dst[2] = s.x1, y1 = dst[3] = s.y1;
+                x2 = n.x1, y2 = n.y1;
+                x1 = s.x1, y1 = s.y1;
                 
                 float ay, by, cy, ax, bx, d, r, t0, t1;
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.0;
@@ -363,15 +365,14 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
                 if (t0 != t1)
                     slx = min(slx, min(fma(fma(ax, t0, bx), t0, x0), fma(fma(ax, t1, bx), t1, x0)));
             } else {
-                x2 = dst[4] = s.x1, y2 = dst[5] = s.y1;
-                dst[2] = 0.5 * (x0 + x2), dst[3] = 0.5 * (y0 + y2);
+                x2 = s.x1, y2 = s.y1;
                 
                 float m = (x2 - x0) / (y2 - y0), c = x0 - m * y0;
                 slx = min(slx, max(min(x0, x2), min(m * clamp(y0, float(cell.ly), float(cell.uy)) + c, m * clamp(y2, float(cell.ly), float(cell.uy)) + c)));
             }
             sly = min(sly, min(y0, y2)), suy = max(suy, max(y0, y2));
         } else {
-            dst[0] = 0.0, dst[1] = 0.0, dst[2] = 0.0, dst[3] = 0.0, dst[4] = 0.0, dst[5] = 0.0;
+            dstIdx[i] = 0xFFFFF;
         }
     }
     float dx = select(max(floor(slx), float(cell.lx)), float(cell.ux), vid & 1), tx = 0.5 - dx;
@@ -379,21 +380,51 @@ vertex EdgesVertex edges_vertex_main(const device Edge *edges [[buffer(1)]],
     float x = (cell.ox - cell.lx + dx) / *width * 2.0 - 1.0;
     float y = (cell.oy - cell.ly + dy) / *height * 2.0 - 1.0;
     vert.position = float4(x, y, 1.0, visible);
-    vert.x0 += tx, vert.y0 += ty, vert.x1 += tx, vert.y1 += ty, vert.x2 += tx, vert.y2 += ty;
-    vert.x3 += tx, vert.y3 += ty, vert.x4 += tx, vert.y4 += ty, vert.x5 += tx, vert.y5 += ty;
-
+    vert.dx = tx, vert.dy = ty;
     return vert;
 }
 
-fragment float4 fast_edges_fragment_main(EdgesVertex vert [[stage_in]])
+fragment float4 fast_edges_fragment_main(
+                                         EdgesVertex vert [[stage_in]],
+                                         const device Segment *segments [[buffer(2)]],
+                                         constant bool *useCurves [[buffer(14)]]
+)
 {
-    return lineWinding(vert.x0, vert.y0, vert.x2, vert.y2) + lineWinding(vert.x3, vert.y3, vert.x5, vert.y5);
+    float winding = 0;
+    thread uint32_t *idx = & vert.idx0;
+    for (int i = 0; i < 2; i++) {
+        if (idx[i] != 0xFFFFF) {
+            const device Segment& s = segments[idx[i]], & n = segments[idx[i] + 1];
+            bool curve = *useCurves && s.ix0 & 1;
+            float x0, y0, x1, y1;
+            x0 = s.x0, y0 = s.y0;
+            x1 = curve ? n.x1 : s.x1, y1 = curve ? n.y1 : s.y1;
+            
+            winding += lineWinding(vert.dx + x0, vert.dy + y0, vert.dx + x1, vert.dy + y1);
+        }
+    }
+    return winding;
 }
 
-fragment float4 quad_edges_fragment_main(EdgesVertex vert [[stage_in]])
+fragment float4 quad_edges_fragment_main(
+                                         EdgesVertex vert [[stage_in]],
+                                         const device Segment *segments [[buffer(2)]],
+                                         constant bool *useCurves [[buffer(14)]]
+)
 {
-    return quadraticWinding(vert.x0, vert.y0, vert.x1, vert.y1, vert.x2, vert.y2)
-            + quadraticWinding(vert.x3, vert.y3, vert.x4, vert.y4, vert.x5, vert.y5);
+    float winding = 0;
+    thread uint32_t *idx = & vert.idx0;
+    for (int i = 0; i < 2; i++) {
+        if (idx[i] != 0xFFFFF) {
+            const device Segment& s = segments[idx[i]], & n = segments[idx[i] + 1];
+            bool curve = *useCurves && s.ix0 & 1;
+            if (curve)
+                winding += quadraticWinding(vert.dx + s.x0, vert.dy + s.y0, vert.dx + s.x1, vert.dy + s.y1, vert.dx + n.x1, vert.dy + n.y1);
+            else
+                winding += lineWinding(vert.dx + s.x0, vert.dy + s.y0, vert.dx + s.x1, vert.dy + s.y1);
+        }
+    }
+    return winding;
 }
 
 #pragma mark - Instances
@@ -526,8 +557,8 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
         const device Segment& o = inst.outline.s;
         
         x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
-        x1 = x1 == FLT_MAX ? 0.5 * (x0 + x2) : x1;
-        y1 = y1 == FLT_MAX ? 0.5 * (y0 + y2) : y1;
+        x1 = !isCurve || x1 == FLT_MAX ? 0.5 * (x0 + x2) : x1;
+        y1 = !isCurve || y1 == FLT_MAX ? 0.5 * (y0 + y2) : y1;
         x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
         
         float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
