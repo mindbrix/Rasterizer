@@ -403,7 +403,7 @@ struct InstancesVertex
     float4 position [[position]];
     float2 clip;
     float u, v, cover, alpha;
-    uint32_t iz;
+    uint32_t iz, iid;
 };
 
 vertex InstancesVertex instances_vertex_main(
@@ -418,6 +418,7 @@ vertex InstancesVertex instances_vertex_main(
             uint vid [[vertex_id]], uint iid [[instance_id]])
 {
     InstancesVertex vert;
+    vert.iid = iid;
     constexpr float err = 1e-3;
     const bool isRight = vid & 1, isTop = vid & 2;
     const device Instance& inst = instances[iid];
@@ -486,13 +487,7 @@ vertex InstancesVertex instances_vertex_main(
         dx = isTop ? fma(miter1.x, dt, cx1) : fma(miter0.x, dt, cx0);
         dy = isTop ? fma(miter1.y, dt, cy1) : fma(miter0.y, dt, cy0);
         
-        if (!isCurve) {
-            x1 = 0.5 * (x0 + x2 - cy), ax = x1 - x2, bx = x1 - x0;
-            y1 = 0.5 * (y0 + y2 + cx), ay = y1 - y2, by = y1 - y0;
-            area = cx * by - cy * bx;
-        }
-        vert.u = (ax * (dy - y2) - ay * (dx - x2)) / area;
-        vert.v = (cx * (dy - y0) - cy * (dx - x0)) / area;
+        vert.u = dx, vert.v = dy;
         vert.cover = dw;
         flags = flags | pcap * Instance::kPCap | ncap * Instance::kNCap | isCurve * Instance::kIsCurve | f0 * Instance::kPCurve | f1 * Instance::kNCurve;
     } else {
@@ -514,22 +509,26 @@ vertex InstancesVertex instances_vertex_main(
 
 fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
                                         const device Colorant *colors [[buffer(0)]],
+                                        const device Instance *instances [[buffer(1)]],
                                         texture2d<float> accumulation [[texture(0)]]
 )
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
-        float a, b, c, d, invdet, x0, y0, x1, y1, x2, y2, dw, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
+        float x0, y0, x1, y1, x2, y2, dw, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
         bool isCurve = vert.iz & Instance::kIsCurve;
         bool squareCap = vert.iz & Instance::kSquareCap;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
         dw = vert.cover;
         
-        a = dfdx(vert.u), b = dfdy(vert.u), c = dfdx(vert.v), d = dfdy(vert.v);
-        invdet = 1.0 / (a * d - b * c), a *= invdet, b *= invdet, c *= invdet, d *= invdet;
-        x2 = b * vert.v - d * vert.u, y2 = vert.u * c - vert.v * a;
-        x0 = x2 + d, y0 = y2 - c, x1 = isCurve ? x2 - b : 0.5 * (x0 + x2), y1 = isCurve ? y2 + a : 0.5 * (y0 + y2);
+        const device Instance& inst = instances[vert.iid];
+        const device Segment& o = inst.outline.s;
+        
+        x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
+        x1 = x1 == FLT_MAX ? 0.5 * (x0 + x2) : x1;
+        y1 = y1 == FLT_MAX ? 0.5 * (y0 + y2) : y1;
+        x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
         
         float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
         float ax = x2 - x1, ay = y2 - y1, adot = ax * ax + ay * ay, ra = rsqrt(adot);
