@@ -547,19 +547,18 @@ fragment float4 instances_fragment_main(InstancesVertex vert [[stage_in]],
 {
     float alpha = 1.0;
     if (vert.iz & Instance::kOutlines) {
+        const device Instance& inst = instances[vert.iid];
+        const device Segment& o = inst.outline.s;
+        
         float x0, y0, x1, y1, x2, y2, dw, d0, dm0, d1, dm1, sqdist, sd0, sd1, cap, cap0, cap1;
         bool isCurve = vert.iz & Instance::kIsCurve;
         bool squareCap = vert.iz & Instance::kSquareCap;
         bool pcap = vert.iz & Instance::kPCap, ncap = vert.iz & Instance::kNCap;
         bool f0 = vert.iz & Instance::kPCurve, f1 = vert.iz & Instance::kNCurve;
         dw = vert.cover;
-        
-        const device Instance& inst = instances[vert.iid];
-        const device Segment& o = inst.outline.s;
-        
-        x0 = o.x0, y0 = o.y0, x1 = inst.outline.cx, y1 = inst.outline.cy, x2 = o.x1, y2 = o.y1;
-        x1 = !isCurve || x1 == FLT_MAX ? 0.5 * (x0 + x2) : x1;
-        y1 = !isCurve || y1 == FLT_MAX ? 0.5 * (y0 + y2) : y1;
+        x0 = o.x0, y0 = o.y0, x2 = o.x1, y2 = o.y1;
+        x1 = !isCurve || inst.outline.cx == FLT_MAX ? 0.5 * (x0 + x2) : inst.outline.cx;
+        y1 = !isCurve || inst.outline.cy == FLT_MAX ? 0.5 * (y0 + y2) : inst.outline.cy;
         x0 -= vert.u, y0 -= vert.v, x1 -= vert.u, y1 -= vert.v, x2 -= vert.u, y2 -= vert.v;
         
         float bx = x0 - x1, by = y0 - y1, bdot = bx * bx + by * by, rb = rsqrt(bdot);
