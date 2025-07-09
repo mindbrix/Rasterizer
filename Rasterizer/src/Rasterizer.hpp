@@ -178,8 +178,7 @@ struct Rasterizer {
                     Quadratic(x0, y0, 2.f * x1 - 0.5f * (x0 + x), 2.f * y1 - 0.5f * (y0 + y), x, y);
                     x0 = x, y0 = y;
                 }
-                x += f1x, f1x += f2x, f2x += f3x, y += f1y, f1y += f2y, f2y += f3y;
-                Quadratic(x0, y0, 2.f * x - 0.5f * (x0 + x3), 2.f * y - 0.5f * (y0 + y3), x3, y3);
+                Quadratic(x0, y0, 2.f * (x + f1x) - 0.5f * (x0 + x3), 2.f * (y + f1y) - 0.5f * (y0 + y3), x3, y3);
             }
         }
         virtual void EndSubpath(float x0, float y0, float x1, float y1, bool closed) {}
