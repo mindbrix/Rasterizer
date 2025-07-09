@@ -166,7 +166,8 @@ struct Rasterizer {
             if (cubicScale > 0.f && adot + bdot < 1.f)
                 writeSegment(x0, y0, x3, y3);
             else {
-                count = ceilf(cbrtf(sqrtf(adot + 1e-12f) / (fabsf(cubicScale) * kCubicMultiplier)));
+                float N = sqrtf(adot) / (fabsf(cubicScale) * kCubicMultiplier);
+                count = N <= 1.f ? 1.f : ceilf(cbrtf(N));
                 count = (1.f - oddCubics) * count + oddCubics * (1.f + 2.f * ceilf(0.5f * (count - 1.f)));
                 dt = 0.5f / count, dt2 = dt * dt;
                 x = x0, bx *= dt2, ax *= dt2 * dt, f3x = 6.f * ax, f2x = f3x + 2.f * bx, f1x = ax + bx + cx * dt;
