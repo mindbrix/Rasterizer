@@ -1097,14 +1097,14 @@ struct Rasterizer {
                         bool hasMolecules = g->molecules.end > 1, update = hasMolecules;
                         if (fast) {
                             uint8_t *p16cnt = g->p16cnts.base;
-                            for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & 0x80), p16cnt++, molecule++) {
+                            for (j = 0, size = g->p16s.end / kFastSegments; j < size; j++, update = hasMolecules && (*p16cnt & 0x80) && j < size - 1, p16cnt++, molecule++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic | (uint32_t(*p16cnt & 0xF) << 24)), molecule->ux = ux;
                             }
                         } else {
                             Atom *atom = g->atoms.base;
-                            for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd), atom++, molecule++) {
+                            for (j = 0, size = g->atoms.end; j < size; j++, update = hasMolecules && (atom->i & Atom::isEnd) && j < size - 1, atom++, molecule++) {
                                 if (update)
                                     ux = ceilf(*molx * ctm.a + *moly * ctm.c + ctm.tx), molx += 4, moly += 4;
                                 molecule->ic = uint32_t(ic) | ((atom->i & 0xF0000) << 12), molecule->i0 = atom->i & 0xFFFF, molecule->ux = ux;
