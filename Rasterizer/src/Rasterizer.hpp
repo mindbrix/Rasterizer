@@ -578,10 +578,10 @@ struct Rasterizer {
                             }
                             bool opaque = colors[iz].a == 255 && softunclipped;
                             CurveIndexer idxr;
-                            idxr.clip = clip, idxr.samples = & samples[0] - (idxr.inClipSpace ? 0 : int(clip.ly * krfh)), idxr.fast = fast;
+                            idxr.clip = clip, idxr.samples = & samples[0], idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, idxr.inClipSpace, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -822,7 +822,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer: GeometryWriter {
-        Segment *dst, *dst0;  bool fast, inClipSpace = true;  Bounds clip;  Row<Sample> *samples;
+        Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1)
@@ -859,9 +859,7 @@ struct Rasterizer {
             size_t si = dst - dst0;
             new (dst++) Segment(x0, y0, x1, y1, false);
             
-            if (inClipSpace)
-                y0 -= clip.ly, y1 -= clip.ly;
-            
+            y0 -= clip.ly, y1 -= clip.ly;
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
                 new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, si);
             else {
@@ -884,9 +882,7 @@ struct Rasterizer {
             size_t si = dst - dst0;
             new (dst++) Segment(x0, y0, x1, y1, true), new (dst++) Segment(x1, y1, x2, y2, false);
             
-            if (inClipSpace)
-               y0 -= clip.ly, y1 -= clip.ly, y2 -= clip.ly;
-
+            y0 -= clip.ly, y1 -= clip.ly, y2 -= clip.ly;
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
                 new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, si);
             else {
@@ -929,8 +925,8 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, bool inClipSpace, Context& ctx) {
-        size_t ily = inClipSpace ? 0 : floorf(clip.ly * krfh), iuy = ceilf((inClipSpace ? clip.height() : clip.uy) * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
+        size_t ily = 0, iuy = ceilf(clip.height() * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
@@ -953,8 +949,8 @@ struct Rasterizer {
                 size_t siBase = ctx.segmentsIndices.end;
                 uint32_t *si = ctx.segmentsIndices.alloc(size);
                 
-                ly = iy * kfh + (inClipSpace ? clip.ly : 0), ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * kfh + (inClipSpace ? clip.ly : 0), uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                ly = iy * kfh + clip.ly, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * kfh + clip.ly, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < size; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
