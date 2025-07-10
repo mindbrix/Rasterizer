@@ -578,10 +578,10 @@ struct Rasterizer {
                             }
                             bool opaque = colors[iz].a == 255 && softunclipped;
                             CurveIndexer idxr;
-                            idxr.clip = clip, idxr.samples = & samples[0] - int(clip.ly * krfh), idxr.fast = fast;
+                            idxr.clip = clip, idxr.samples = & samples[0] - (idxr.inClipSpace ? 0 : int(clip.ly * krfh)), idxr.fast = fast;
                             idxr.dst = idxr.dst0 = segments.alloc(2 * (det < kMinUpperDet ? g->minUpper : g->upperBound(det)));
                             divideGeometry(g, m, clip, unclipped, true, idxr);
-                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, *this);
+                            writeSegmentInstances(clip, flags & Scene::kFillEvenOdd, iz, opaque, fast, idxr.inClipSpace, *this);
                             segments.idx = segments.end = idxr.dst - segments.base;
                         }
                     }
@@ -822,7 +822,7 @@ struct Rasterizer {
         }
     }
     struct CurveIndexer: GeometryWriter {
-        Segment *dst, *dst0;  bool fast;  Bounds clip;  Row<Sample> *samples;
+        Segment *dst, *dst0;  bool fast, inClipSpace = true;  Bounds clip;  Row<Sample> *samples;
         
         void writeSegment(float x0, float y0, float x1, float y1) {
             if (y0 != y1)
@@ -856,8 +856,14 @@ struct Rasterizer {
         __attribute__((always_inline)) void writeLine(float x0, float y0, float x1, float y1) {
             y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
             y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
+            size_t si = dst - dst0;
+            new (dst++) Segment(x0, y0, x1, y1, false);
+            
+            if (inClipSpace)
+                y0 -= clip.ly, y1 -= clip.ly;
+            
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y1) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, dst - dst0);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x1), fmaxf(x0, x1), (y1 - y0) * kCoverScale, si);
             else {
                 float lx, ux, ly, uy, iy, m, c, ny, minx, maxx, scale;
                 lx = fminf(x0, x1), ux = fmaxf(x0, x1);
@@ -867,17 +873,22 @@ struct Rasterizer {
                 maxx = (iy + float(m > 0.f)) * m + c;
                 for (ny = iy * kfh; ly < uy; ly = ny, minx += m, maxx += m, iy++) {
                     ny = fminf(uy, ny + kfh);
-                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * scale, dst - dst0);
+                    new (samples[int(iy)].alloc(1)) Sample(fmaxf(lx, minx), fminf(ux, maxx), (ny - ly) * scale, si);
                 }
             }
-            new (dst++) Segment(x0, y0, x1, y1, false);
         }
         __attribute__((always_inline)) void writeQuadratic(float x0, float y0, float x1, float y1, float x2, float y2) {
             y0 = fmaxf(clip.ly, fminf(clip.uy, y0));
             y1 = fmaxf(clip.ly, fminf(clip.uy, y1));
             y2 = fmaxf(clip.ly, fminf(clip.uy, y2));
+            size_t si = dst - dst0;
+            new (dst++) Segment(x0, y0, x1, y1, true), new (dst++) Segment(x1, y1, x2, y2, false);
+            
+            if (inClipSpace)
+               y0 -= clip.ly, y1 -= clip.ly, y2 -= clip.ly;
+
             if ((uint32_t(y0) & kFatMask) == (uint32_t(y2) & kFatMask))
-                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, dst - dst0);
+                new (samples[int(y0 * krfh)].alloc(1)) Sample(fminf(x0, x2), fmaxf(x0, x2), (y2 - y0) * kCoverScale, si);
             else {
                 float ay, by, ax, bx, ly, uy, lx, ux, d2a, ity, iy, t, ny, sign = copysignf(1.f, y2 - y0);
                 ax = x2 - x1, bx = x1 - x0, ax -= bx, bx *= 2.f;
@@ -888,10 +899,9 @@ struct Rasterizer {
                     ny = fminf(uy, ny + kfh);
                     t = ay == 0 ? -(y0 - ny) / by : ity + sqrtf(fmaxf(0.f, by * by - 4.f * ay * (y0 - ny))) * d2a;
                     t = fmaxf(0.f, fminf(1.f, t)), ux = (ax * t + bx) * t + x0;
-                    new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, dst - dst0);
+                    new (samples[int(iy)].alloc(1)) Sample(fminf(lx, ux), fmaxf(lx, ux), (ny - ly) * sign, si);
                 }
             }
-            new (dst++) Segment(x0, y0, x1, y1, true), new (dst++) Segment(x1, y1, x2, y2, false);
         }
     };
     static void radixSort(uint32_t *in, int n, uint32_t lower, uint32_t range, bool single, uint16_t *counts) {
@@ -919,8 +929,8 @@ struct Rasterizer {
                 in[--counts[(tmp[i] >> 8) & 0x3F]] = tmp[i];
         }
     }
-    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, Context& ctx) {
-        size_t ily = floorf(clip.ly * krfh), iuy = ceilf(clip.uy * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
+    static void writeSegmentInstances(Bounds clip, bool even, size_t iz, bool opaque, bool fast, bool inClipSpace, Context& ctx) {
+        size_t ily = inClipSpace ? 0 : floorf(clip.ly * krfh), iuy = ceilf((inClipSpace ? clip.height() : clip.uy) * krfh), iy, i, begin, size, edgeIz = iz | Instance::kEdge | even * Instance::kEvenOdd | fast * Instance::kFastEdges;
         uint16_t counts[256], ly, uy, lx, ux;  float h, cover, winding, wscale;
         Allocator::CountType type = fast ? Allocator::kFastEdges : Allocator::kQuadEdges;
         bool single = clip.ux - clip.lx < 256.f;  Index *index;
@@ -943,8 +953,8 @@ struct Rasterizer {
                 size_t siBase = ctx.segmentsIndices.end;
                 uint32_t *si = ctx.segmentsIndices.alloc(size);
                 
-                ly = iy * kfh, ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
-                uy = (iy + 1) * kfh, uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
+                ly = iy * kfh + (inClipSpace ? clip.ly : 0), ly = ly < clip.ly ? clip.ly : ly > clip.uy ? clip.uy : ly;
+                uy = (iy + 1) * kfh + (inClipSpace ? clip.ly : 0), uy = uy < clip.ly ? clip.ly : uy > clip.uy ? clip.uy : uy;
                 for (h = uy - ly, wscale = 0.00003051850948f * kfh / h, cover = winding = 0.f, index = indices->base, lx = ux = index->x, i = begin = 0; i < size; i++, index++) {
                     if (index->x >= ux && fabsf((winding - floorf(winding)) - 0.5f) > 0.499f) {
                         if (lx != ux) {
