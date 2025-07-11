@@ -69,6 +69,7 @@ struct RasterizerCG {
             Ra::Transform ctm = list.ctms[j], clip, m;
             CGContextSaveGState(ctx);
             CGContextConcatCTM(ctx, CGFromTransform(ctm));
+            CGContextClipToRect(ctx, CGRectFromBounds(list.clips[j]));
             CGContextSaveGState(ctx);
             
             clip = view.concat(Ra::Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f));

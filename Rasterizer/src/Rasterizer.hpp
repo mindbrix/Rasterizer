@@ -347,7 +347,7 @@ struct Rasterizer {
     };
     
     struct Scene {
-        Scene() {  clipCache->entries.zalloc(1);  }
+        Scene() {  *clipCache->entries.alloc(1) = Bounds::huge();  }
         
         template<typename T>
         struct Cache {
@@ -411,20 +411,20 @@ struct Rasterizer {
             return b;
         }
         SceneList& empty() {
-            pathsCount = 0, scenes.resize(0), ctms.resize(0);
+            pathsCount = 0, scenes.resize(0), ctms.resize(0), clips.resize(0);
             return *this;
         }
         SceneList& addList(SceneList list) {
             for (int i = 0; i < list.scenes.size(); i++)
-                addScene(list.scenes[i], list.ctms[i]);
+                addScene(list.scenes[i], list.ctms[i], list.clips[i]);
             return *this;
         }
-        SceneList& addScene(Scene scene, Transform ctm = Transform()) {
+        SceneList& addScene(Scene scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
             if (scene.weight)
-                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm);
+                pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
         }
-        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;
+        size_t pathsCount = 0;  std::vector<Scene> scenes;  std::vector<Transform> ctms;  std::vector<Bounds> clips;
     };
     struct Segment {
         inline Segment(float x0, float y0, float x1, float y1, bool curve) : ix0((*((uint32_t *)& x0) & ~1) | curve), y0(y0), x1(x1), y1(y1) {}
@@ -542,7 +542,7 @@ struct Rasterizer {
             for (lz = uz = i = 0; i < list.scenes.size(); i++, scn++, lz = uz) {
                 uz = lz + scn->count, clz = lz < slz ? slz : lz > suz ? suz : lz, cuz = uz < slz ? slz : uz > suz ? suz : uz;
                 Transform ctm = view.concat(list.ctms[i]), clipquad, m, quad, invclip;
-                Bounds dev, clip, *bnds, clipBounds;
+                Bounds dev, clip, *bnds, clipBounds, sceneclip = list.clips[i];
                 lastip = ~0;
                 memcpy(colors + clz, & scn->colors->base[clz - lz].b, (cuz - clz) * sizeof(Colorant));
                 for (is = clz - lz, iz = clz; iz < cuz; iz++, is++) {
@@ -552,8 +552,8 @@ struct Rasterizer {
                     uw = scn->widths->base[is], width = uw * (uw > 0.f ? sqrtf(det) : -1.f);
                     ip = scn->clipCache->ips.base[is];
                     if (ip != lastip) {
-                        lastip = ip, clipActive = ip != 0;
-                        clipquad = clipActive ? scn->clipCache->entryAt(is)->quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
+                        lastip = ip, clipActive = ip != 0 || !sceneclip.isHuge();
+                        clipquad = clipActive ? sceneclip.intersect(*scn->clipCache->entryAt(is)).quad(ctm) : Transform(1e12f, 0.f, 0.f, 1e12f, -5e11f, -5e11f);
                         softclipMargin = 0.5f + 1e-1f / fmaxf(1.f, clipquad.scale());
                         invclip = clipquad.invert(), invclip.tx -= 0.5f, invclip.ty -= 0.5f;
                         clipBounds = Bounds(clipquad).integral().intersect(deviceClip);

@@ -16,16 +16,16 @@ struct RasterizerWinding {
                 if ((scene.tag & tag) == 0)
                     continue;
                 Ra::Transform ctm = view.concat(list.ctms[li]), nullinv = Ra::Bounds::huge().quad(Ra::Transform()).invert(), inv = nullinv;
-                
+                Ra::Bounds sceneclip = list.clips[li];
                 for (int si = int(scene.count) - 1; si >= 0; si--) {
                     if (scene.flags->base[si] & Ra::Scene::kInvisible)
                         continue;
                     ip = scene.clipCache->ips.base[si];
                     if (ip != lastip) {
                         lastip = ip;
-                        Ra::Bounds *pclip = ip ? scene.clipCache->entryAt(si) : nullptr;
+                        Ra::Bounds *pclip = ip || !sceneclip.isHuge() ? scene.clipCache->entryAt(si) : nullptr;
                         if (pclip)
-                            inv = pclip->quad(ctm).invert();
+                            inv = sceneclip.intersect(*pclip).quad(ctm).invert();
                         else
                             inv = nullinv;
                     }
