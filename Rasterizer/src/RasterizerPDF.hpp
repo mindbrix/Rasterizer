@@ -22,6 +22,7 @@ struct RasterizerPDF {
         
         Ra::Path createPathFromClipPath(FPDF_CLIPPATH clipPath, int index) {
             Ra::Path p;  int segmentCount = FPDFClipPath_CountPathSegments(clipPath, index);
+            p->prealloc(segmentCount);
             for (int i = 0; i < segmentCount; i++)
                 writeSegment(FPDFClipPath_GetPathSegment(clipPath, index, i), p);
             return p;
@@ -29,6 +30,7 @@ struct RasterizerPDF {
         
         Ra::Path createPathFromGlyphPath(FPDF_GLYPHPATH path) {
             Ra::Path p;  int segmentCount = FPDFGlyphPath_CountGlyphSegments(path);
+            p->prealloc(segmentCount);
             for (int i = 0; i < segmentCount; i++)
                 writeSegment(FPDFGlyphPath_GetGlyphPathSegment(path, i), p);
             return p;
@@ -36,6 +38,7 @@ struct RasterizerPDF {
         
         Ra::Path createPathFromObject(FPDF_PAGEOBJECT pageObject) {
             Ra::Path p;  int segmentCount = FPDFPath_CountSegments(pageObject);
+            p->prealloc(segmentCount);
             for (int i = 0; i < segmentCount; i++)
                 writeSegment(FPDFPath_GetPathSegment(pageObject, i), p);
             return p;
