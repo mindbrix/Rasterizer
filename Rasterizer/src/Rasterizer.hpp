@@ -407,7 +407,7 @@ struct Rasterizer {
         Bounds bounds() {
             Bounds b;
             for (int i = 0; i < scenes.size(); i++)
-                b.extend(Bounds(scenes[i].bounds().quad(ctms[i])));
+                b.extend(Bounds(clips[i].intersect(scenes[i].bounds()).quad(ctms[i])));
             return b;
         }
         SceneList& empty() {
@@ -420,6 +420,7 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(Scene scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
+//            clip = Bounds(100, 100, 700, 500);
             if (scene.weight)
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
