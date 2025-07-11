@@ -26,6 +26,11 @@ struct RasterizerSVG {
     }
     static void writePathFromShape(NSVGshape *shape, float height, Ra::Path& p) {
         constexpr float tolerance = 1e-2f;  float *pts, dot;  int i;
+        size_t count = 0;
+        for (NSVGpath *path = shape->paths; path != NULL; path = path->next)
+            count += path->npts;
+        p->prealloc(count / 2);
+        
         for (NSVGpath *path = shape->paths; path != NULL; path = path->next) {
             for (dot = 0.f, i = path->npts - 1; i > 0 && dot < tolerance; i--) {
                 if ((dot = lengthsq(path->pts[0], path->pts[1], path->pts[i * 2], path->pts[i * 2 + 1])) < tolerance)
