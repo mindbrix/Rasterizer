@@ -18,21 +18,29 @@ struct RasterizerDemo {
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void writeList() {
-        Ra::SceneList list;
+        list.empty();
         if (pastedString.size) {
-            Ra::Scene glyphs;
-            RasterizerFont::layoutGlyphs(font, pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
-            list.addScene(glyphs);
+            if (pasted.scenes.size() == 0) {
+                Ra::Scene glyphs;
+                RasterizerFont::layoutGlyphs(font, pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
+                pasted.addScene(glyphs);
+            }
+            list.addList(pasted);
         } else if (showGlyphGrid) {
-            list.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
+            if (text.scenes.size() == 0)
+                text.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
+            list.addList(text);
         } else if (showTime) {
-            list = concentrichron.writeList(font);
-        } else if (svgData.size)
-            list.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
-        else if (pdfData.size)
-            list.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
-
-        setList(list);
+            list.addList(concentrichron.writeList(font));
+        } else if (svgData.size) {
+            if (document.scenes.size() == 0)
+                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
+            list.addList(document);
+        } else if (pdfData.size) {
+            if (document.scenes.size() == 0)
+                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
+            list.addList(document);
+        }
     }
     
 #pragma mark - Event handlers
@@ -86,12 +94,12 @@ struct RasterizerDemo {
         } else if (keyCode == KeyCode::kLeft) {
             if (pageIndex > 0) {
                 pageIndex--;
-                writeList();
+                document.empty();
             }
             keyUsed = true;
         } else if (keyCode == KeyCode::kRight) {
             pageIndex++;
-            writeList();
+            document.empty();
             keyUsed = true;
         }
         if (keyUsed)
@@ -138,8 +146,7 @@ struct RasterizerDemo {
     
     void onRedraw(float s, float w, float h) {
         scale = s, bounds = Ra::Bounds(0.f, 0.f, w, h);
-        if (showTime)
-            writeList();
+        writeList();
         redraw = false;
         if (animating)
             clock += timeScale / 60.0;
@@ -160,27 +167,27 @@ struct RasterizerDemo {
         pointSize = size;
         font.load(url, name);
         concentrichron.resetFace();
-        writeList();
-    }
-    void setList(Ra::SceneList list) {
-        this->list = list, redraw = true;
+        pasted.empty();
+        text.empty();
+        redraw = true;
     }
     void setPastedString(const char *string) {
         if (string)
             strcpy((char *)pastedString.resize(strlen(string) + 1), string);
         else
             pastedString = Ra::Memory<char>();
-        writeList();
+        pasted.empty();
+        redraw = true;
     }
     void setPdfData(const void *data, size_t size) {
         if (data)
             memcpy(pdfData.resize(size), data, size);
-        writeList();
+        redraw = true;
     }
     void setSvgData(const void *data, size_t size) {
         if (data)
             memcpy(svgData.resize(size), data, size);
-        writeList();
+        redraw = true;
     }
     
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
@@ -188,7 +195,7 @@ struct RasterizerDemo {
     RasterizerFont font;
     float pointSize = 14;
     
-    Ra::SceneList list;
+    Ra::SceneList list, document, pasted, text;
     
     Ra::Memory<char> pastedString;
     bool showGlyphGrid = false, showTime = false;
