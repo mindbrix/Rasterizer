@@ -138,6 +138,10 @@ struct Rasterizer {
                 base = memory->resize(end * 1.5);
             return base + begin;
         }
+        inline T *prealloc(size_t n) {
+            alloc(n), empty();
+            return base;
+        }
         inline T *zalloc(size_t n) {
             return (T*)memset(alloc(n), 0, n * sizeof(T));
         }
@@ -199,6 +203,9 @@ struct Rasterizer {
     struct Geometry {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
 
+        void prealloc(size_t count) {
+            points.prealloc(count), types.prealloc(count);
+        }
         void update(Type type, size_t size, float *p) {
             counts[type]++;  memset(types.alloc(size), type, size);
             for (int i = 0; i < size; i++)
@@ -295,8 +302,10 @@ struct Rasterizer {
         
         void writeGeometry(Geometry *g) {
             float s = kMoleculesRange / fmaxf(g->bounds.ux - g->bounds.lx, g->bounds.uy - g->bounds.ly);
+            size_t count = g->points.end / 2;
             Transform m = Transform(s, 0.f, 0.f, s, s * -g->bounds.lx, s * -g->bounds.ly);
             p16s = & g->p16s, p16cnts = & g->p16cnts, atoms = & g->atoms;
+            p16s->prealloc(count), p16cnts->prealloc(count / kFastSegments), atoms->prealloc(count);
             cubicScale = -kCubicPrecision * (kMoleculesRange / kMoleculesHeight);
             divideGeometry(g, m, Bounds(), true, true, *this);
         }
