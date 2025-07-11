@@ -321,12 +321,14 @@ struct Rasterizer {
                 atoms->back().i |= Atom::isEnd;
             atoms->idx = atoms->end;
             
-            size_t segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments, rem, sz;
-            uint8_t *cnt = p16cnts->alloc(icount);
-            for (int i = 0; i < icount; i++) {
-                rem = segcnt - i * kFastSegments, sz = rem > kFastSegments ? kFastSegments : rem;
-                cnt[i] = sz | ((sz && sz == rem) * 0x80);
-            }
+            size_t segcnt, icount, last, rem;
+            uint8_t *counts;
+            segcnt = p16s->end - p16s->idx - 1, icount = (segcnt + kFastSegments) / kFastSegments;
+            last = icount - 1, rem = segcnt - last * kFastSegments;
+            counts = p16cnts->alloc(icount);
+            memset(counts, kFastSegments, last);
+            counts[last] = rem;
+            counts[last - int(rem == 0)] |= 0x80;
             p16s->zalloc(p16cnts->end * kFastSegments - p16s->end), p16s->idx = p16s->end;
         }
         Row<Point16> *p16s;   Row<uint8_t> *p16cnts;  Row<Atom> *atoms;
