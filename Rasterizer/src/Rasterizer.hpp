@@ -139,8 +139,9 @@ struct Rasterizer {
             return base + begin;
         }
         inline T *prealloc(size_t n) {
-            alloc(n), empty();
-            return base;
+            size_t begin = end;
+            alloc(n), end = begin;
+            return base + begin;
         }
         inline T *zalloc(size_t n) {
             return (T*)memset(alloc(n), 0, n * sizeof(T));
@@ -204,7 +205,7 @@ struct Rasterizer {
         enum Type { kMove, kLine, kQuadratic, kCubic, kClose, kCountSize };
 
         void prealloc(size_t count) {
-            points.prealloc(count), types.prealloc(count);
+            points.prealloc(2 * count), types.prealloc(count);
         }
         void update(Type type, size_t size, float *p) {
             counts[type]++;  memset(types.alloc(size), type, size);
