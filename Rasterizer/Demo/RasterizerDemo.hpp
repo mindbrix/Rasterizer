@@ -17,6 +17,15 @@ struct RasterizerDemo {
     enum KeyCode { kC = 8, kG = 5, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
+    Ra::Bounds boundsForIndex(size_t i, Ra::Bounds b) {
+        size_t size = 2;
+        float dt = 1.f / float(size);
+        float tx0 = dt * float(i % size), tx1 = tx0 + dt, ty0 = dt * float(i / size), ty1 = ty0 + dt;
+        return {
+            (1.f - tx0) * b.lx + tx0 * b.ux, (1.f - ty0) * b.ly + ty0 * b.uy,
+            (1.f - tx1) * b.lx + tx1 * b.ux, (1.f - ty1) * b.ly + ty1 * b.uy }
+        ;
+    }
     void writeList(Ra::Bounds bounds) {
         Ra::Bounds clip = Ra::Bounds::huge();// bounds;
         Ra::Transform ctm; // = Ra::Bounds(0, 300, 400, 600).fit(bounds);
@@ -30,6 +39,8 @@ struct RasterizerDemo {
             }
             list.addList(pasted);
         } else if (showGlyphGrid) {
+//            ctm = boundsForIndex(3, bounds).fit(bounds);
+//            clip = bounds;
             if (text.scenes.size() == 0)
                 text.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor), ctm, clip);
             list.addList(text);
