@@ -74,12 +74,15 @@ struct Rasterizer {
                 fmaxf(b.lx, fminf(b.ux, ux)), fmaxf(b.ly, fminf(b.uy, uy))
             };
         }
-        inline bool isHuge() const { return lx == -5e11f; }
+        inline bool isHuge() const {
+            return lx == -5e11f;
+        }
         inline Bounds(const Transform quad) :
             lx(quad.tx + fminf(0.f, quad.a) + fminf(0.f, quad.c)),
             ly(quad.ty + fminf(0.f, quad.b) + fminf(0.f, quad.d)),
             ux(quad.tx + fmaxf(0.f, quad.a) + fmaxf(0.f, quad.c)),
-            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {}
+            uy(quad.ty + fmaxf(0.f, quad.b) + fmaxf(0.f, quad.d)) {
+        }
         inline Transform quad(const Transform t) const {
             float w = width(), h = height();
             return {
@@ -87,6 +90,10 @@ struct Rasterizer {
                 t.c * h, t.d * h,
                 lx * t.a + ly * t.c + t.tx, lx * t.b + ly * t.d + t.ty
             };
+        }
+        inline Transform fit(Bounds b) const {
+            float s = fminf(width() / b.width(), height() / b.height());
+            return { s, 0.f, 0.f, s, lx - s * b.lx, ly - s * b.ly };
         }
         size_t hash() const  { return XXH64(this, sizeof(*this), 0); }
         float lx, ly, ux, uy;
@@ -420,7 +427,6 @@ struct Rasterizer {
             return *this;
         }
         SceneList& addScene(Scene scene, Transform ctm = Transform(), Bounds clip = Bounds::huge()) {
-//            clip = Bounds(100, 100, 700, 500);
             if (scene.weight)
                 pathsCount += scene.count, scenes.emplace_back(scene), ctms.emplace_back(ctm), clips.emplace_back(clip);
             return *this;
