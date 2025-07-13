@@ -17,48 +17,48 @@ struct RasterizerDemo {
     enum KeyCode { kC = 8, kG = 5, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
-    Ra::Bounds boundsForIndex(size_t i, Ra::Bounds b) {
+    void addListAtIndex(size_t i, Ra::Bounds b, Ra::SceneList src) {
+//        list.addList(src);
+//        return;
         size_t size = 2;
         float dt = 1.f / float(size);
         float tx0 = dt * float(i % size), tx1 = tx0 + dt, ty0 = dt * float(i / size), ty1 = ty0 + dt;
-        return {
+        Ra::Bounds target = Ra::Bounds(
             (1.f - tx0) * b.lx + tx0 * b.ux, (1.f - ty0) * b.ly + ty0 * b.uy,
-            (1.f - tx1) * b.lx + tx1 * b.ux, (1.f - ty1) * b.ly + ty1 * b.uy }
-        ;
+            (1.f - tx1) * b.lx + tx1 * b.ux, (1.f - ty1) * b.ly + ty1 * b.uy
+        );
+        Ra::Transform ctm = target.fit(b);
+        for (size_t i = 0; i < src.scenes.size(); i++)
+            list.addScene(src.scenes[i], ctm.concat(src.ctms[i]), b);
     }
     void writeList(Ra::Bounds bounds) {
-        Ra::Bounds clip = Ra::Bounds::huge();// bounds;
-        Ra::Transform ctm; // = Ra::Bounds(0, 300, 400, 600).fit(bounds);
-        
         list.empty();
         if (pastedString.size) {
             if (pasted.scenes.size() == 0) {
                 Ra::Scene glyphs;
                 RasterizerFont::layoutGlyphs(font, pointSize, 0.f, textColor, bounds, false, false, false, pastedString.addr, glyphs);
-                pasted.addScene(glyphs, ctm, clip);
+                pasted.addScene(glyphs);
             }
-            list.addList(pasted);
-        } else if (showGlyphGrid) {
-//            ctm = boundsForIndex(3, bounds).fit(bounds);
-//            clip = bounds;
+            addListAtIndex(2, bounds, pasted);
+        }
+        if (showGlyphGrid) {
             if (text.scenes.size() == 0)
-                text.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor), ctm, clip);
-            list.addList(text);
-        } else if (showTime) {
+                text.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
+            addListAtIndex(3, bounds, text);
+        }
+        if (showTime) {
             Ra::SceneList time = concentrichron.writeList(font);
-            for (size_t i = 0; i < time.scenes.size(); i++)
-                list.addScene(time.scenes[i], time.ctms[i].preconcat(ctm, 0.f, 0.f), clip);
-        } else if (svgData.size) {
+            addListAtIndex(1, bounds, time);
+        }
+        if (svgData.size) {
             if (document.scenes.size() == 0)
-                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size), ctm, clip);
-            list.addList(document);
-        } else if (pdfData.size) {
-            if (document.scenes.size() == 0) {
-                Ra::SceneList pdf = RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex);
-                for (size_t i = 0; i < pdf.scenes.size(); i++)
-                    document.addScene(pdf.scenes[i], pdf.ctms[i].preconcat(ctm, 0.f, 0.f), clip);
-            }
-            list.addList(document);
+                document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
+            addListAtIndex(0, bounds, document);
+        }
+        if (pdfData.size) {
+            if (document.scenes.size() == 0)
+                document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
+            addListAtIndex(0, bounds, document);
         }
     }
     
@@ -67,8 +67,8 @@ struct RasterizerDemo {
     void onPaste(const char *string, Ra::Bounds bounds) {
         this->bounds = bounds;
         
-        showGlyphGrid = false;
-        showTime = false;
+//        showGlyphGrid = false;
+//        showTime = false;
         setPastedString(string);
     }
     void onFlags(size_t keyFlags) {
@@ -99,14 +99,14 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kS)
             RaCG::screenGrabToPDF(list, ctm, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
-            showGlyphGrid = false;
+//            showGlyphGrid = false;
             showTime = !showTime;
-            setPastedString(nullptr);
+//            setPastedString(nullptr);
             keyUsed = true;
         } else if (keyCode == KeyCode::kG) {
-            showTime = false;
+//            showTime = false;
             showGlyphGrid = !showGlyphGrid;
-            setPastedString(nullptr);
+//            setPastedString(nullptr);
             keyUsed = true;
         } else if (keyCode == KeyCode::kLeft) {
             if (pageIndex > 0) {
