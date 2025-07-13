@@ -18,8 +18,8 @@ struct RasterizerDemo {
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void addListAtIndex(size_t i, Ra::Bounds b, Ra::SceneList src) {
-//        list.addList(src);
-//        return;
+        list.addList(src);
+        return;
         size_t size = 2;
         float dt = 1.f / float(size);
         float tx0 = dt * float(i % size), tx1 = tx0 + dt, ty0 = dt * float(i / size), ty1 = ty0 + dt;
@@ -40,22 +40,18 @@ struct RasterizerDemo {
                 pasted.addScene(glyphs);
             }
             addListAtIndex(2, bounds, pasted);
-        }
-        if (showGlyphGrid) {
+        } else if (showGlyphGrid) {
             if (text.scenes.size() == 0)
                 text.addScene(RasterizerFont::writeGlyphGrid(font, pointSize, textColor));
             addListAtIndex(3, bounds, text);
-        }
-        if (showTime) {
+        } else if (showTime) {
             Ra::SceneList time = concentrichron.writeList(font);
             addListAtIndex(1, bounds, time);
-        }
-        if (svgData.size) {
+        } else if (svgData.size) {
             if (document.scenes.size() == 0)
                 document.addScene(RasterizerSVG::createScene(svgData.addr, svgData.size));
             addListAtIndex(0, bounds, document);
-        }
-        if (pdfData.size) {
+        } else if (pdfData.size) {
             if (document.scenes.size() == 0)
                 document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
             addListAtIndex(0, bounds, document);
@@ -67,8 +63,8 @@ struct RasterizerDemo {
     void onPaste(const char *string, Ra::Bounds bounds) {
         this->bounds = bounds;
         
-//        showGlyphGrid = false;
-//        showTime = false;
+        showGlyphGrid = false;
+        showTime = false;
         setPastedString(string);
     }
     void onFlags(size_t keyFlags) {
@@ -99,14 +95,14 @@ struct RasterizerDemo {
         else if (keyCode == KeyCode::kS)
             RaCG::screenGrabToPDF(list, ctm, bounds), keyUsed = true;
         else if (keyCode == KeyCode::kT) {
-//            showGlyphGrid = false;
+            showGlyphGrid = false;
             showTime = !showTime;
-//            setPastedString(nullptr);
+            setPastedString(nullptr);
             keyUsed = true;
         } else if (keyCode == KeyCode::kG) {
-//            showTime = false;
+            showTime = false;
             showGlyphGrid = !showGlyphGrid;
-//            setPastedString(nullptr);
+            setPastedString(nullptr);
             keyUsed = true;
         } else if (keyCode == KeyCode::kLeft) {
             if (pageIndex > 0) {
