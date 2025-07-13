@@ -14,7 +14,7 @@
 
 
 struct RasterizerDemo {
-    enum KeyCode { kC = 8, kG = 5, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
+    enum KeyCode { kC = 8, kG = 5, kH = 4, kI = 34, kL = 37, kO = 31, kP = 35, kS = 1, kT = 17, k1 = 18, k0 = 29, kReturn = 36, kLeft = 123, kRight = 124 };
     enum Flags { kCapsLock = 1 << 16, kShift = 1 << 17, kControl = 1 << 18, kOption = 1 << 19, kCommand = 1 << 20, kNumericPad = 1 << 21, kHelp = 1 << 22, kFunction = 1 << 23 };
     
     void writeList(Ra::Bounds bounds) {
@@ -41,6 +41,17 @@ struct RasterizerDemo {
             if (document.scenes.size() == 0)
                 document.addList(RasterizerPDF::writeSceneList(pdfData.addr, pdfData.size, pageIndex));
             list.addList(document);
+        }
+        if (showHud) {
+            float w = 200, h = 150, inset = 20;
+            Ra::Bounds b(0, 0, w, h);
+            if (hud.scenes.size() == 0) {
+                Ra::Path p;  p->addBounds(b);
+                Ra::Scene scene;  scene.addPath(p, Ra::Transform(), textColor, 0, 0);
+                hud.addScene(scene);
+            }
+            Ra::Bounds target(bounds.lx + inset, bounds.uy - h - inset, bounds.lx + w + inset, bounds.uy - inset);
+            list.addScene(hud.scenes[0], ctm.invert().concat(target.fit(b)));
         }
     }
     
@@ -70,7 +81,9 @@ struct RasterizerDemo {
             Ra::Transform fit = bounds.fit(list.bounds());
             ctm = memcmp(& ctm, & fit, sizeof(ctm)) == 0 ? Ra::Transform() : fit;
             keyUsed = true;
-        } else if (keyCode == KeyCode::kI)
+        } else if (keyCode == KeyCode::kH)
+            showHud = !showHud, keyUsed = true;
+        else if (keyCode == KeyCode::kI)
             opaque = !opaque, keyUsed = true;
         else if (keyCode == KeyCode::kO)
             outlineWidth = outlineWidth ? 0.f : -1.f, keyUsed = true;
@@ -190,18 +203,14 @@ struct RasterizerDemo {
     }
     
     Ra::Colorant textColor = Ra::Colorant(0, 0, 0, 255);
-    
     RasterizerFont font;
     float pointSize = 14;
-    
-    Ra::SceneList list, document, pasted, text;
-    
+    Concentrichron concentrichron;
+    Ra::SceneList list, document, pasted, text, hud;
     Ra::Memory<char> pastedString;
-    bool showGlyphGrid = false, showTime = false;
+    bool showGlyphGrid = false, showTime = false, showHud = true;
     size_t pageIndex = 0;
     Ra::Memory<uint8_t> pdfData, svgData;
-    
-    Concentrichron concentrichron;
     
     float scale;
     Ra::Transform ctm;
